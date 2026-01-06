@@ -73,6 +73,8 @@ async function initApp() {
   if (authStore.isAuthenticated && !authStore.getAccessToken()) {
     try {
       await authStore.refreshAccessToken()
+      // Set up WebSocket after token is available
+      authStore.setUserWebsocket()
     } catch (error) {
       // If refresh fails, clear user and redirect to login
       console.error('Failed to restore session on app init:', error)

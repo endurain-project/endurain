@@ -24,7 +24,7 @@ import server_settings.utils as server_settings_utils
 import core.database as core_database
 import core.apprise as core_apprise
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 # Define the API router
 router = APIRouter()
@@ -54,7 +54,7 @@ async def signup(
     - user (users_schema.UserSignup): The payload containing the user's sign-up information.
     - email_service (core_apprise.AppriseService): Injected email service used to send
         verification and admin approval emails.
-    - websocket_manager (websocket_schema.WebSocketManager): Injected manager used to send
+    - websocket_manager (websocket_manager.WebSocketManager): Injected manager used to send
         real-time notifications (e.g., admin approval requests).
     - password_hasher (auth_password_hasher.PasswordHasher): Injected password hasher used to hash user passwords.
     - db (Session): Database session/connection used to create the user and related records.
@@ -156,8 +156,8 @@ async def verify_email(
         Depends(core_apprise.get_email_service),
     ],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
     db: Annotated[
         Session,

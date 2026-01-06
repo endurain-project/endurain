@@ -13,7 +13,7 @@ import users.user.models as users_models
 import users.user.utils as users_utils
 
 import websocket.utils as websocket_utils
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 
 def serialize_notification(notification: notifications_schema.Notification):
@@ -25,7 +25,9 @@ def serialize_notification(notification: notifications_schema.Notification):
 
 
 async def create_new_activity_notification(
-    user_id: int, activity_id: int, websocket_manager: websocket_schema.WebSocketManager
+    user_id: int,
+    activity_id: int,
+    websocket_manager: websocket_manager.WebSocketManager,
 ):
     # Create a new database session using context manager
     with SessionLocal() as db:
@@ -64,7 +66,9 @@ async def create_new_activity_notification(
 
 
 async def create_new_duplicate_start_time_activity_notification(
-    user_id: int, activity_id: int, websocket_manager: websocket_schema.WebSocketManager
+    user_id: int,
+    activity_id: int,
+    websocket_manager: websocket_manager.WebSocketManager,
 ):
     # Create a new database session using context manager
     with SessionLocal() as db:
@@ -105,9 +109,9 @@ async def create_new_duplicate_start_time_activity_notification(
 
 
 async def create_new_follower_request_notification(
-    user_id: int,
+    user_id: int,websocket_manager
     target_user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     try:
@@ -160,9 +164,9 @@ async def create_new_follower_request_notification(
 
 
 async def create_accepted_follower_request_notification(
-    user_id: int,
+    user_id: int,websocket_manager
     target_user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     try:
@@ -214,7 +218,7 @@ async def create_accepted_follower_request_notification(
 
 async def create_admin_new_sign_up_approval_request_notification(
     user: users_models.User,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     try:

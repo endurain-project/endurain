@@ -73,7 +73,7 @@ import health.health_weight.schema as health_weight_schema
 import health.health_targets.crud as health_targets_crud
 import health.health_targets.schema as health_targets_schema
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
@@ -165,7 +165,7 @@ class ImportService:
         self,
         user_id: int,
         db: Session,
-        websocket_manager: websocket_schema.WebSocketManager,
+        websocket_manager: websocket_manager.WebSocketManager,
         performance_config: ImportPerformanceConfig | None = None,
     ):
         self.user_id = user_id

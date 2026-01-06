@@ -37,7 +37,7 @@ import activities.activity_streams.schema as activity_streams_schema
 
 import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 import gpx.utils as gpx_utils
 import tcx.utils as tcx_utils
@@ -389,7 +389,7 @@ def handle_gzipped_file(
 async def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
     from_garmin: bool = False,
     garminconnect_gear: dict | None = None,
@@ -540,7 +540,7 @@ async def parse_and_store_activity_from_file(
 async def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
     file: UploadFile,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     # Validate filename exists
@@ -742,7 +742,9 @@ def parse_file(
 
 
 async def store_activity(
-    parsed_info: dict, websocket_manager: websocket_schema.WebSocketManager, db: Session
+    parsed_info: dict,websocket_manager
+    websocket_manager: websocket_manager.WebSocketManager,
+    db: Session,
 ):
     # create the activity in the database
     created_activity = await activities_crud.create_activity(
@@ -1193,7 +1195,7 @@ def set_activity_name_based_on_activity_type(activity_type_id: int) -> str:
 def process_all_files_sync(
     user_id: int,
     file_paths: list[str],
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
 ):
     """
     Process all files sequentially in single thread.

@@ -140,7 +140,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = JSON.parse(storedUser)
         this.isAuthenticated = true
         this.setLocale(this.user.preferred_language, locale)
-        this.setUserWebsocket()
+        // WebSocket setup deferred until access token is available
         this.session_id = localStorage.getItem('session_id')
       }
     },
@@ -159,11 +159,11 @@ export const useAuthStore = defineStore('auth', {
     setUserWebsocket() {
       const urlSplit = API_URL.split('://')
       const protocol = urlSplit[0] === 'http' ? 'ws' : 'wss'
-      const websocketURL = `${protocol}://${urlSplit[1]}ws/${this.user.id}`
+      const websocketURL = `${protocol}://${urlSplit[1]}ws?access_token=${this.accessToken}`
       try {
         this.user_websocket = new WebSocket(websocketURL)
         this.user_websocket.onopen = () => {
-          console.log(`WebSocket connection established using ${websocketURL}.`)
+          console.log(`WebSocket connection established for user ID ${this.user.id}`)
         }
         this.user_websocket.onerror = (error) => {
           console.error('WebSocket error:', error)
@@ -194,6 +194,14 @@ export const useAuthStore = defineStore('auth', {
           this.accessToken = response.access_token
           if (response.csrf_token) {
             this.csrfToken = response.csrf_token
+          }
+          // Reconnect WebSocket with new token if currently open
+          if (
+            this.user_websocket &&
+            this.user_websocket.readyState === WebSocket.OPEN
+          ) {
+            this.user_websocket.close()
+            this.setUserWebsocket()
           }
           return response.access_token
         }

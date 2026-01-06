@@ -16,7 +16,7 @@ import activities.activity.crud as activities_crud
 
 import users.user.crud as users_crud
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 from core.database import SessionLocal
 
@@ -26,7 +26,7 @@ async def fetch_and_process_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
     try:
@@ -125,7 +125,7 @@ async def fetch_and_process_activities_by_dates(
 
 
 async def retrieve_garminconnect_users_activities_for_days(days: int):
-    websocket_manager = websocket_schema.get_websocket_manager()
+    websocket_manager = websocket_manager.get_websocket_manager()
 
     # Create a new database session using context manager
     with SessionLocal() as db:
@@ -195,7 +195,7 @@ async def get_user_garminconnect_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
     try:

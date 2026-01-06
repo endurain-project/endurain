@@ -1,30 +1,38 @@
 from fastapi import HTTPException, status
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 
 async def notify_frontend(
-    user_id: int, websocket_manager: websocket_schema.WebSocketManager, json_data: dict
-):
+    user_id: int,
+    websocket_manager: websocket_manager.WebSocketManager,
+    json_data: dict,
+) -> bool:
     """
-    Sends a JSON message to the frontend via an active WebSocket connection for a specific user.
+    Send a JSON message to a user's WebSocket connection.
+
+    Attempts to send data to the user's WebSocket. For MFA
+    verification, raises an exception if no connection exists.
 
     Args:
-        user_id (int): The ID of the user to notify.
-        websocket_manager (websocket_schema.WebSocketManager): The manager handling WebSocket connections.
-        json_data (dict): The JSON-serializable data to send to the frontend.
+        user_id: The target user's identifier.
+        websocket_manager: The WebSocket connection manager.
+        json_data: JSON-serializable data to send.
+
+    Returns:
+        True if message was sent, False if no connection.
 
     Raises:
-        HTTPException: If there is no active WebSocket connection for the specified user.
+        HTTPException: If MFA_REQUIRED but no connection exists.
     """
-    # Check if the user has an active WebSocket connection
-
     websocket = websocket_manager.get_connection(user_id)
     if websocket:
         await websocket.send_json(json_data)
-    else:
-        if json_data.get("message") == "MFA_REQUIRED":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No active WebSocket connection for user {user_id}",
-            )
+        return True
+
+    if json_data.get("message") == "MFA_REQUIRED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No WebSocket connection for user {user_id}",
+        )
+    return False

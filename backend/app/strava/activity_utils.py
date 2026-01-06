@@ -30,7 +30,7 @@ import gears.gear.crud as gears_crud
 
 import strava.utils as strava_utils
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 from core.database import SessionLocal
 
@@ -41,7 +41,7 @@ async def fetch_and_process_activities(
     end_date: datetime,
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
     is_startup: bool = False,
 ) -> int:
@@ -369,7 +369,7 @@ async def save_activity_streams_laps(
     activity: activities_schema.Activity,
     stream_data: list,
     laps: dict,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> activities_schema.Activity:
     # Create the activity and get the ID
@@ -411,7 +411,7 @@ async def process_activity(
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     # Get the activity by Strava ID from the user
@@ -769,7 +769,7 @@ async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager = None,
+    websocket_manager: websocket_manager.WebSocketManager = None,
     db: Session = None,
     is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:
@@ -781,7 +781,7 @@ async def get_user_strava_activities_by_dates(
 
     if websocket_manager is None:
         # Get the websocket manager instance
-        websocket_manager = websocket_schema.get_websocket_manager()
+        websocket_manager = websocket_manager.get_websocket_manager()
 
     try:
         # Get the user integrations by user ID

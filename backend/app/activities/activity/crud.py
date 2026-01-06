@@ -14,7 +14,7 @@ import notifications.utils as notifications_utils
 
 import server_settings.utils as server_settings_utils
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -1190,7 +1190,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
 
 async def create_activity(
     activity: activities_schema.Activity,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
     create_notification: bool = True,
 ) -> activities_schema.Activity:

@@ -20,7 +20,7 @@ import auth.security as auth_security
 import users.user.dependencies as users_dependencies
 import garmin.activity_utils as garmin_activity_utils
 import strava.activity_utils as strava_activity_utils
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 from fastapi import (
     APIRouter,
     Depends,
@@ -513,8 +513,8 @@ async def read_activities_user_activities_refresh(
         Depends(core_database.get_db),
     ],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
 ):
     # Set the activities to empty list
@@ -618,8 +618,8 @@ async def create_activity_with_uploaded_file(
         Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
     db: Annotated[
         Session,
@@ -653,8 +653,8 @@ async def create_activity_with_bulk_import(
         Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
 ):
     try:

@@ -9,7 +9,7 @@ import core.logger as core_logger
 
 import notifications.utils as notifications_utils
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 
 def get_all_followers_by_user_id(user_id: int, db: Session):
@@ -163,7 +163,7 @@ def get_follower_for_user_id_and_target_user_id(
 async def create_follower(
     user_id: int,
     target_user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     try:
@@ -175,7 +175,7 @@ async def create_follower(
         # Add the new follow relationship to the database
         db.add(new_follow)
         db.commit()
-        
+
         await notifications_utils.create_new_follower_request_notification(
             user_id, target_user_id, websocket_manager, db
         )
@@ -199,7 +199,7 @@ async def create_follower(
 async def accept_follower(
     user_id: int,
     target_user_id: int,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     try:
@@ -226,7 +226,7 @@ async def accept_follower(
 
         # Commit the transaction
         db.commit()
-        
+
         await notifications_utils.create_accepted_follower_request_notification(
             user_id, target_user_id, websocket_manager, db
         )

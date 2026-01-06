@@ -1,5 +1,5 @@
 from typing import Annotated, Union
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status, WebSocket, WebSocketException
 from fastapi.security import (
     OAuth2PasswordBearer,
     SecurityScopes,
@@ -617,4 +617,71 @@ def check_scopes_for_browser_redirect(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during scope validation.",
+        ) from err
+
+
+## WEBSOCKET TOKEN VALIDATION
+async def validate_websocket_access_token(
+    websocket: WebSocket,
+    access_token: str = Query(..., alias="access_token"),
+    token_manager: auth_token_manager.TokenManager = Depends(
+        auth_token_manager.get_token_manager
+    ),
+) -> int:
+    """
+    Validate access token for WebSocket connections.
+
+    WebSocket connections cannot use Authorization headers during
+    the handshake, so tokens are passed via query parameters.
+
+    Args:
+        websocket: The WebSocket connection instance.
+        access_token: Access token from query parameter.
+        token_manager: Token manager for validation.
+
+    Returns:
+        The authenticated user ID from the token.
+
+    Raises:
+        WebSocketException: If token is missing, invalid, or expired.
+    """
+    try:
+        # Validate token expiration
+        token_manager.validate_token_expiration(access_token)
+
+        # Get user ID from token
+        token_user_id = token_manager.get_token_claim(access_token, "sub")
+
+        if token_user_id is None or isinstance(token_user_id, list):
+            core_logger.print_to_log(
+                "WebSocket token validation failed: invalid sub claim",
+                "warning",
+            )
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Invalid token: missing user ID",
+            )
+
+        return int(token_user_id)
+    except WebSocketException as ws_err:
+        raise ws_err
+    except HTTPException as http_err:
+        core_logger.print_to_log(
+            f"WebSocket token validation failed: {http_err.detail}",
+            "warning",
+            exc=http_err,
+        )
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Invalid or expired token",
+        ) from http_err
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Unexpected error during WebSocket token validation: {err}",
+            "error",
+            exc=err,
+        )
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Token validation failed",
         ) from err

@@ -13,7 +13,7 @@ import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 import garmin.gear_utils as garmin_gear_utils
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 import core.logger as core_logger
 
@@ -37,8 +37,8 @@ async def garminconnect_link(
         garmin_schema.MFACodeStore, Depends(garmin_schema.get_mfa_store)
     ],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
 ):
     # Link Garmin Connect account
@@ -84,8 +84,8 @@ async def garminconnect_retrieve_activities_days(
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
     background_tasks: BackgroundTasks,
 ):

@@ -16,7 +16,7 @@ import core.cryptography as core_cryptography
 import users.user_integrations.schema as user_integrations_schema
 import users.user_integrations.crud as user_integrations_crud
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 import websocket.utils as websocket_utils
 
 import garmin.schema as garmin_schema
@@ -27,7 +27,7 @@ import core.logger as core_logger
 async def get_mfa(
     user_id: int,
     mfa_codes: garmin_schema.MFACodeStore,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
 ) -> str:
     # Notify frontend that MFA is required
     await notify_frontend_mfa_required(user_id, websocket_manager)
@@ -42,7 +42,7 @@ async def get_mfa(
 
 
 async def notify_frontend_mfa_required(
-    user_id: int, websocket_manager: websocket_schema.WebSocketManager
+    user_id: int, websocket_manager: websocket_manager.WebSocketManager
 ):
     try:
         json_data = {"message": "MFA_REQUIRED", "user_id": user_id}
@@ -57,7 +57,7 @@ async def link_garminconnect(
     password: str,
     db: Session,
     mfa_codes: garmin_schema.MFACodeStore,
-    websocket_manager: websocket_schema.WebSocketManager,
+    websocket_manager: websocket_manager.WebSocketManager,
 ):
     # Define MFA callback as a coroutine
     async def async_mfa_callback():

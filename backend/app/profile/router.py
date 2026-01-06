@@ -49,7 +49,7 @@ import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import core.config as core_config
 
-import websocket.schema as websocket_schema
+import websocket.manager as websocket_manager
 
 # Define the API router
 router = APIRouter()
@@ -458,8 +458,8 @@ async def import_profile_data(
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
     ],
 ):
     """
