@@ -1,4 +1,4 @@
-from enum import IntEnum
+from enum import IntEnum, Enum
 import re
 from pydantic import (
     BaseModel,
@@ -6,7 +6,6 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
-    ValidationError,
 )
 from core.sanitization import sanitize_attribution
 
@@ -39,6 +38,19 @@ class Currency(IntEnum):
     POUND = 3
 
 
+class PasswordType(Enum):
+    """
+    An enumeration representing password policy types.
+
+    Attributes:
+        STRICT (str): Strict password policy.
+        LENGTH_ONLY (str): Length-only password policy.
+    """
+
+    STRICT = "strict"
+    LENGTH_ONLY = "length_only"
+
+
 class ServerSettings(BaseModel):
     """
     Represents the configuration settings for a server.
@@ -58,6 +70,9 @@ class ServerSettings(BaseModel):
         tileserver_url (str): URL template for the map tileserver.
         tileserver_attribution (str): Attribution string for the map tileserver.
         map_background_color (str): Background color for the map.
+        password_type (PasswordType): Type of password policy enforced.
+        password_length_regular_users (int): Minimum password length for regular users.
+        password_length_admin_users (int): Minimum password length for admin users.
     """
 
     id: StrictInt
@@ -78,6 +93,9 @@ class ServerSettings(BaseModel):
         pattern=r"^#[0-9A-Fa-f]{6}$",
         description=("Hex color code for map background (e.g., #dddddd)"),
     )
+    password_type: PasswordType = PasswordType.STRICT
+    password_length_regular_users: int = 8
+    password_length_admin_users: int = 12
 
     model_config = ConfigDict(
         from_attributes=True,

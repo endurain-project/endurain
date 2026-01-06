@@ -307,7 +307,12 @@ import { push } from 'notivue'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { signUp as signUpService } from '@/services/signUpService'
 import { cmToFeetInches, feetAndInchesToCm } from '@/utils/unitsUtils'
-import { isValidEmail, sanitizeInput, isValidPassword } from '@/utils/validationUtils'
+import {
+  isValidEmail,
+  sanitizeInput,
+  isValidPassword,
+  buildPasswordRequirements
+} from '@/utils/validationUtils'
 import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
 import type { ErrorWithResponse } from '@/types'
 import defaultLoginImage from '@/assets/login.png'
@@ -453,12 +458,18 @@ const isEmailValid = computed(() => {
 
 /**
  * Validates password strength using centralized validation.
+ * Applies password requirements based on server settings and policy type.
  *
- * @returns `true` if password meets requirements (min 8 chars, 1 uppercase, 1 digit, 1 special character) or is empty.
+ * @returns `true` if password meets server-configured requirements or is empty.
  */
 const isPasswordValid = computed(() => {
   if (!signUpPassword.value) return true
-  return isValidPassword(signUpPassword.value)
+
+  const passwordType = serverSettingsStore.serverSettings.password_type
+  const minLength = serverSettingsStore.serverSettings.password_length_regular_users
+  const requirements = buildPasswordRequirements(passwordType, minLength)
+
+  return isValidPassword(signUpPassword.value, requirements)
 })
 
 /**

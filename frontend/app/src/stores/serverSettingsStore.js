@@ -20,7 +20,10 @@ export const useServerSettingsStore = defineStore('serverSettings', {
       tileserver_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       tileserver_attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      map_background_color: '#dddddd'
+      map_background_color: '#dddddd',
+      password_type: 'strict',
+      password_length_regular_users: 8,
+      password_length_admin_users: 12
     }
   }),
   actions: {

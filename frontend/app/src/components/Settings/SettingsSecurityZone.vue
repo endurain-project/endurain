@@ -298,26 +298,34 @@ import ModalComponentMFASetup from '@/components/Modals/ModalComponentMFASetup.v
 import ModalComponentMFABackupCodes from '@/components/Modals/ModalComponentMFABackupCodes.vue'
 import UserIdentityProviderListComponent from '@/components/Settings/SettingsUsersZone/UserIdentityProviderListComponent.vue'
 // Importing validation utilities
-import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
+import { isValidPassword, passwordsMatch, buildPasswordRequirements } from '@/utils/validationUtils'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import UserSessionsListComponent from '@/components/Settings/SettingsUserSessionsZone/UserSessionsListComponent.vue'
 // Importing stores
 import { useAuthStore } from '@/stores/authStore'
+import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 
 const { t } = useI18n()
 const route = useRoute()
 const authStore = useAuthStore()
+const serverSettingsStore = useServerSettingsStore()
 const newPassword = ref('')
 const newPasswordRepeat = ref('')
+const passwordType = serverSettingsStore.serverSettings.password_type
+const passMinLength =
+  authStore.user.access_type === 2
+    ? serverSettingsStore.serverSettings.password_length_admin_users
+    : serverSettingsStore.serverSettings.password_length_regular_users
+const passRequirements = buildPasswordRequirements(passwordType, passMinLength)
 const isNewPasswordValid = computed(() => {
   if (!newPassword.value) return true
-  return isValidPassword(newPassword.value)
+  return isValidPassword(newPassword.value, passRequirements)
 })
 const isNewPasswordRepeatValid = computed(() => {
   if (!newPasswordRepeat.value) return true
-  return isValidPassword(newPasswordRepeat.value)
+  return isValidPassword(newPasswordRepeat.value, passRequirements)
 })
 const isPasswordMatch = computed(() => passwordsMatch(newPassword.value, newPasswordRepeat.value))
 const userSessions = ref([])

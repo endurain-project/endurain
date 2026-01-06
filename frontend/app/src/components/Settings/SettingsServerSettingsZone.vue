@@ -3,9 +3,9 @@
     <form class="bg-body-tertiary rounded p-3 shadow-sm">
       <!-- Defaults -->
       <h4>{{ $t('settingsServerSettingsZoneComponent.defaultsTitle') }}</h4>
-      <!-- Units -->
       <LoadingComponent v-if="isLoading" />
       <div v-else>
+        <!-- Units -->
         <label>{{ $t('settingsServerSettingsZoneComponent.unitsLabel') }}</label>
         <select class="form-select" name="serverSettingsUnits" v-model="units" required>
           <option value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
@@ -34,6 +34,53 @@
         </select>
       </div>
       <hr />
+
+      <!-- Password policy -->
+      <h4>{{ $t('settingsServerSettingsZoneComponent.passwordTitle') }}</h4>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <!-- Password type -->
+        <label>{{ $t('settingsServerSettingsZoneComponent.passwordTypeLabel') }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsPasswordType"
+          v-model="passwordType"
+          required
+        >
+          <option value="strict">
+            {{ $t('settingsServerSettingsZoneComponent.passwordTypeStrict') }}
+          </option>
+          <option value="length_only">
+            {{ $t('settingsServerSettingsZoneComponent.passwordTypeLengthOnly') }}
+          </option>
+        </select>
+        <!-- Password length regular users -->
+        <label class="form-label mt-2">{{
+          $t('settingsServerSettingsZoneComponent.passwordLengthRegularUsersLabel')
+        }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsPasswordLengthRegularUsersSelect"
+          v-model="passwordLengthRegularUsers"
+          required
+        >
+          <option v-for="n in 13" :key="n + 7" :value="n + 7">{{ n + 7 }}</option>
+        </select>
+        <!-- Password length admins -->
+        <label class="form-label mt-2">{{
+          $t('settingsServerSettingsZoneComponent.passwordLengthAdminsUsersLabel')
+        }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsPasswordLengthAdminsSelect"
+          v-model="passwordLengthAdminsUsers"
+          required
+        >
+          <option v-for="n in 18" :key="n + 7" :value="n + 7">{{ n + 7 }}</option>
+        </select>
+      </div>
+      <hr />
+
       <!-- Sign-up -->
       <h4>{{ $t('settingsServerSettingsZoneComponent.signupTitle') }}</h4>
       <LoadingComponent v-if="isLoading" />
@@ -90,6 +137,7 @@
         </select>
       </div>
       <hr />
+
       <!-- SSO (Single Sign-On) -->
       <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.ssoTitle') }}</h4>
       <LoadingComponent v-if="isLoading" />
@@ -164,6 +212,7 @@
         </div>
       </div>
       <hr />
+
       <!-- Public shareable links -->
       <h4 class="mt-4">
         {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksLabel') }}
@@ -221,6 +270,7 @@
         </div>
       </div>
       <hr />
+
       <!-- Maps -->
       <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.mapsTitle') }}</h4>
       <LoadingComponent v-if="isLoading" />
@@ -352,6 +402,13 @@ const ssoAutoRedirect = ref(serverSettingsStore.serverSettings.sso_auto_redirect
 const tileserverUrl = ref(serverSettingsStore.serverSettings.tileserver_url)
 const tileserverAttribution = ref(serverSettingsStore.serverSettings.tileserver_attribution)
 const mapBackgroundColor = ref(serverSettingsStore.serverSettings.map_background_color)
+const passwordType = ref(serverSettingsStore.serverSettings.password_type)
+const passwordLengthRegularUsers = ref(
+  serverSettingsStore.serverSettings.password_length_regular_users
+)
+const passwordLengthAdminsUsers = ref(
+  serverSettingsStore.serverSettings.password_length_admin_users
+)
 
 async function updateServerSettings() {
   const data = {
@@ -370,7 +427,10 @@ async function updateServerSettings() {
     sso_auto_redirect: ssoAutoRedirect.value,
     tileserver_url: tileserverUrl.value,
     tileserver_attribution: tileserverAttribution.value,
-    map_background_color: mapBackgroundColor.value
+    map_background_color: mapBackgroundColor.value,
+    password_type: passwordType.value,
+    password_length_regular_users: passwordLengthRegularUsers.value,
+    password_length_admin_users: passwordLengthAdminsUsers.value
   }
   try {
     // Update the server settings in the DB
@@ -451,6 +511,10 @@ onMounted(async () => {
     tileserverUrl.value = serverSettingsStore.serverSettings.tileserver_url
     tileserverAttribution.value = serverSettingsStore.serverSettings.tileserver_attribution
     mapBackgroundColor.value = serverSettingsStore.serverSettings.map_background_color
+    passwordType.value = serverSettingsStore.serverSettings.password_type
+    passwordLengthRegularUsers.value =
+      serverSettingsStore.serverSettings.password_length_regular_users
+    passwordLengthAdminsUsers.value = serverSettingsStore.serverSettings.password_length_admin_users
 
     await nextTick()
     isLoading.value = false
@@ -472,7 +536,13 @@ watch(
     emailConfirmation,
     ssoEnabled,
     localLoginEnabled,
-    ssoAutoRedirect
+    ssoAutoRedirect,
+    tileserverUrl,
+    tileserverAttribution,
+    mapBackgroundColor,
+    passwordType,
+    passwordLengthRegularUsers,
+    passwordLengthAdminsUsers
   ],
   async () => {
     if (isLoading.value === false) {

@@ -157,7 +157,7 @@ import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { passwordReset } from '@/services/passwordResetService'
-import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
+import { isValidPassword, passwordsMatch, buildPasswordRequirements } from '@/utils/validationUtils'
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
 import type { ErrorWithResponse } from '@/types'
 import defaultLoginImage from '@/assets/login.png'
@@ -201,18 +201,20 @@ const loginPhotoUrl: ComputedRef<string> = computed(() => {
 })
 
 /**
- * Validate new password against complexity requirements
- * - Minimum 8 characters
- * - At least 1 uppercase letter
- * - At least 1 digit
- * - At least 1 special character
+ * Validate new password against server-configured requirements.
+ * Applies password policy from server settings.
  *
  * Returns true if field is empty (not yet touched) to avoid showing
- * errors before user interaction
+ * errors before user interaction.
  */
 const isNewPasswordValid: ComputedRef<boolean> = computed(() => {
   if (!newPassword.value) return true
-  return isValidPassword(newPassword.value)
+
+  const passwordType = serverSettingsStore.serverSettings.password_type
+  const minLength = serverSettingsStore.serverSettings.password_length_admin_users
+  const requirements = buildPasswordRequirements(passwordType, minLength)
+
+  return isValidPassword(newPassword.value, requirements)
 })
 
 /**

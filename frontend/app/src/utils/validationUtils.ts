@@ -175,3 +175,37 @@ export const passwordsMatch = (password: string, confirmPassword: string): boole
     password === confirmPassword
   )
 }
+
+/**
+ * Builds password requirements based on password policy type and minimum length.
+ * Translates server password policy settings into validation requirements.
+ *
+ * @param passwordType - The password policy type ('strict', 'length_only').
+ * @param minLength - The minimum password length.
+ * @returns Password requirements object configured for the specified policy.
+ */
+export const buildPasswordRequirements = (
+  passwordType: string,
+  minLength: number
+): PasswordRequirements => {
+  switch (passwordType) {
+    case 'strict':
+      return {
+        minLength,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireDigit: true,
+        requireSpecialChar: true
+      }
+    case 'length_only':
+      return {
+        minLength,
+        requireUppercase: false,
+        requireLowercase: false,
+        requireDigit: false,
+        requireSpecialChar: false
+      }
+    default:
+      return DEFAULT_PASSWORD_REQUIREMENTS
+  }
+}

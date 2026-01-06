@@ -185,59 +185,80 @@ class PasswordHasher:
         return "".join(chars)
 
     @staticmethod
-    def validate_password(password: str, min_length: int = 8) -> None:
+    def validate_password(
+        password: str,
+        min_length: int = 8,
+        policy_type: str = "strict",
+    ) -> None:
         """
         Validates whether the given password meets the required security policy.
 
         Args:
             password (str): The password string to validate.
             min_length (int, optional): The minimum required length for the password. Defaults to 8.
+            policy_type (str, optional): The password policy type to enforce.
+                - "strict": Requires uppercase, lowercase, digit, and special character.
+                - "length_only": Only enforces minimum length requirement.
+                Defaults to "strict".
 
         Raises:
-            PasswordPolicyError: If the password does not meet any of the following criteria:
-                - Has at least `min_length` characters.
-                - Contains at least one uppercase letter (A–Z).
-                - Contains at least one lowercase letter (a–z).
-                - Contains at least one digit (0–9).
-                - Contains at least one special character as defined in `PasswordHasher.PUNCTUATION`.
+            PasswordPolicyError: If the password does not meet the policy requirements.
         """
         if len(password) < min_length:
             raise PasswordPolicyError(
                 f"Password is too short (got {len(password)}, need ≥ {min_length})."
             )
 
-        if not any(c.isupper() for c in password):
-            raise PasswordPolicyError(
-                "Password must contain at least one uppercase letter (A–Z)."
-            )
+        # For length_only policy, only min length is enforced
+        if policy_type == "length_only":
+            return
 
-        if not any(c.islower() for c in password):
-            raise PasswordPolicyError(
-                "Password must contain at least one lowercase letter (a–z)."
-            )
+        # For strict policy, enforce complexity requirements
+        if policy_type == "strict":
+            if not any(c.isupper() for c in password):
+                raise PasswordPolicyError(
+                    "Password must contain at least one uppercase letter (A–Z)."
+                )
 
-        if not any(c.isdigit() for c in password):
-            raise PasswordPolicyError("Password must contain at least one digit (0–9).")
+            if not any(c.islower() for c in password):
+                raise PasswordPolicyError(
+                    "Password must contain at least one lowercase letter (a–z)."
+                )
 
-        if not any(c in PasswordHasher.PUNCTUATION for c in password):
+            if not any(c.isdigit() for c in password):
+                raise PasswordPolicyError(
+                    "Password must contain at least one digit (0–9)."
+                )
+
+            if not any(c in PasswordHasher.PUNCTUATION for c in password):
+                raise PasswordPolicyError(
+                    f"Password must contain at least one special character ({PasswordHasher.PUNCTUATION})."
+                )
+        else:
             raise PasswordPolicyError(
-                f"Password must contain at least one special character ({PasswordHasher.PUNCTUATION})."
+                f"Unknown password policy type: {policy_type!r}. "
+                "Supported types: 'strict', 'length_only'."
             )
 
     @staticmethod
-    def is_valid_password(password: str, min_length: int = 8) -> bool:
+    def is_valid_password(
+        password: str,
+        min_length: int = 8,
+        policy_type: str = "strict",
+    ) -> bool:
         """
         Checks if the provided password meets the specified minimum length and password policy requirements.
 
         Args:
             password (str): The password string to validate.
             min_length (int, optional): The minimum required length for the password. Defaults to 8.
+            policy_type (str, optional): The password policy type to enforce. Defaults to "strict".
 
         Returns:
             bool: True if the password is valid according to the policy, False otherwise.
         """
         try:
-            PasswordHasher.validate_password(password, min_length)
+            PasswordHasher.validate_password(password, min_length, policy_type)
             return True
         except PasswordPolicyError:
             return False

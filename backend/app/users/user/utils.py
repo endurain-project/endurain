@@ -15,6 +15,8 @@ import users.user_integrations.crud as user_integrations_crud
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 import health.health_targets.crud as health_targets_crud
+import server_settings.models as server_settings_models
+import server_settings.schema as server_settings_schema
 
 import core.logger as core_logger
 import core.config as core_config
@@ -37,11 +39,38 @@ def create_user_default_data(user_id: int, db: Session) -> None:
 def check_password_and_hash(
     password: str,
     password_hasher: auth_password_hasher.PasswordHasher,
-    min_length: int = 8,
+    server_settings: (
+        server_settings_models.ServerSettings
+        | server_settings_schema.ServerSettingsRead
+    ),
+    user_access_type: int,
 ) -> str:
+    """
+    Validates password against the configured policy and hashes it.
+
+    Args:
+        password (str): The password to validate and hash.
+        password_hasher (PasswordHasher): The password hasher instance.
+        server_settings (ServerSettings | ServerSettingsRead): The server settings containing password policies.
+        user_access_type (int): The access type of the user (e.g., 1 for regular, 2 for admin).
+
+    Returns:
+        str: The hashed password.
+
+    Raises:
+        HTTPException: If password validation fails.
+    """
+    # Determine minimum length based on user access type
+    min_length = (
+        server_settings.password_length_admin_users
+        if user_access_type == 2
+        else server_settings.password_length_regular_users
+    )
     # Check if password meets requirements
     try:
-        password_hasher.validate_password(password, min_length)
+        password_hasher.validate_password(
+            password, min_length, str(server_settings.password_type)
+        )
     except auth_password_hasher.PasswordPolicyError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

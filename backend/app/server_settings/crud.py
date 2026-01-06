@@ -7,21 +7,14 @@ import server_settings.models as server_settings_models
 import core.logger as core_logger
 
 
-def get_server_settings(db: Session):
+def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
     try:
         # Get the user from the database
-        server_settings = (
+        return (
             db.query(server_settings_models.ServerSettings)
             .filter(server_settings_models.ServerSettings.id == 1)
             .first()
         )
-
-        # If the server_settings was not found, return None
-        if server_settings is None:
-            return None
-
-        # Return the server_settings
-        return server_settings
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -36,14 +29,10 @@ def get_server_settings(db: Session):
 
 def edit_server_settings(
     server_settings: server_settings_schema.ServerSettingsEdit, db: Session
-):
+) -> server_settings_models.ServerSettings:
     try:
         # Get the server_settings from the database
-        db_server_settings = (
-            db.query(server_settings_models.ServerSettings)
-            .filter(server_settings_models.ServerSettings.id == 1)
-            .first()
-        )
+        db_server_settings = get_server_settings(db)
 
         if db_server_settings is None:
             raise HTTPException(

@@ -297,9 +297,12 @@ def create_user(
         user.username = user.username.lower()
         user.email = user.email.lower()
 
-        # Hash the password
+        # Get server settings to determine password policy
+        server_settings = server_settings_utils.get_server_settings(db)
+
+        # Hash the password with configurable policy and length
         hashed_password = users_utils.check_password_and_hash(
-            user.password, password_hasher, 8
+            user.password, password_hasher, server_settings, user.access_type
         )
 
         # Create a new user
@@ -582,8 +585,12 @@ def edit_user_password(
         if is_hashed:
             db_user.password = password
         else:
+            # Get server settings to determine password policy
+            server_settings = server_settings_utils.get_server_settings(db)
+
+            # Hash the password with configurable policy and length
             db_user.password = users_utils.check_password_and_hash(
-                password, password_hasher, 8
+                password, password_hasher, server_settings, db_user.access_type
             )
 
         # Commit the transaction
@@ -867,7 +874,10 @@ def create_signup_user(
             email_verified=email_verified,
             pending_admin_approval=pending_admin_approval,
             password=users_utils.check_password_and_hash(
-                user.password, password_hasher, 8
+                user.password,
+                password_hasher,
+                server_settings,
+                users_schema.UserAccessType.REGULAR,
             ),
         )
 

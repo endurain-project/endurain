@@ -490,7 +490,7 @@ import { push } from 'notivue'
 import { profile } from '@/services/profileService'
 import { users } from '@/services/usersService'
 import { cmToFeetInches, feetAndInchesToCm } from '@/utils/unitsUtils'
-import { isValidPassword } from '@/utils/validationUtils'
+import { isValidPassword, buildPasswordRequirements } from '@/utils/validationUtils'
 
 const props = defineProps({
   action: {
@@ -542,7 +542,15 @@ const isEmailValid = computed(() => {
 const newUserPassword = ref('')
 const isPasswordValid = computed(() => {
   if (!newUserPassword.value) return true
-  return isValidPassword(newUserPassword.value)
+
+  const passwordType = serverSettingsStore.serverSettings.password_type
+  const minLength =
+    newEditUserAccessType.value === 2
+      ? serverSettingsStore.serverSettings.password_length_admin_users
+      : serverSettingsStore.serverSettings.password_length_regular_users
+  const requirements = buildPasswordRequirements(passwordType, minLength)
+
+  return isValidPassword(newUserPassword.value, requirements)
 })
 const showPassword = ref(false)
 const togglePasswordVisibility = () => {

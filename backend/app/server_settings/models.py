@@ -96,5 +96,23 @@ class ServerSettings(Base):
         default="#dddddd",
         comment="Background color for the map",
     )
+    password_type = Column(
+        String,
+        nullable=False,
+        default="strict",
+        comment="Password type policy (strict, length_only)",
+    )
+    password_length_regular_users = Column(
+        Integer,
+        nullable=False,
+        default=8,
+        comment="Minimum password length for regular users",
+    )
+    password_length_admin_users = Column(
+        Integer,
+        nullable=False,
+        default=12,
+        comment="Minimum password length for admin users",
+    )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

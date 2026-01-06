@@ -95,33 +95,6 @@ class UserAccessType(IntEnum):
     ADMIN = 2
 
 
-PASSWORD_REGEX = r"^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$"
-
-
-def validate_password(value: str) -> str:
-    """
-    Validates that the provided password meets the required complexity.
-
-    Args:
-        value (str): The password string to validate.
-
-    Raises:
-        ValueError: If the password does not meet the following criteria:
-            - At least 8 characters long
-            - Includes an uppercase letter
-            - Includes a number
-            - Includes a special character
-
-    Returns:
-        str: The validated password string.
-    """
-    if not re.match(PASSWORD_REGEX, value):
-        raise ValueError(
-            "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character."
-        )
-    return value
-
-
 class UserBase(BaseModel):
     name: str
     username: str
@@ -200,22 +173,10 @@ class UserMe(UserRead):
 class UserSignup(UserBase):
     password: str
 
-    @field_validator("password")
-    def validate_password_field(cls, value):
-        return validate_password(value)
-
 
 class UserCreate(User):
     password: str
 
-    @field_validator("password")
-    def validate_password_field(cls, value):
-        return validate_password(value)
-
 
 class UserEditPassword(BaseModel):
     password: str
-
-    @field_validator("password")
-    def validate_password_field(cls, value):
-        return validate_password(value)

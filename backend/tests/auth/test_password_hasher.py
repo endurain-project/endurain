@@ -481,3 +481,142 @@ class TestPasswordHasherSecurity:
         assert "must be ≥ 8" in str(exc_info.value) or "must be >= 8" in str(
             exc_info.value
         )
+
+    # Tests for policy_type parameter
+
+    def test_validate_password_strict_policy_default(self, password_hasher):
+        """
+        Test that the default policy_type is 'strict' and enforces all complexity requirements.
+        """
+        # This should pass with strict policy (default)
+        try:
+            password_hasher.validate_password("ValidPass1!")
+        except PasswordPolicyError:
+            pytest.fail("Valid password should pass strict policy validation")
+
+        # Missing uppercase should fail
+        with pytest.raises(PasswordPolicyError, match="uppercase letter"):
+            password_hasher.validate_password("lowercase123!")
+
+    def test_validate_password_length_only_policy(self, password_hasher):
+        """
+        Test that 'length_only' policy only enforces minimum length, not complexity.
+        """
+        # Password with only lowercase letters should pass if it meets length
+        try:
+            password_hasher.validate_password(
+                "simplelowercasepassword", min_length=8, policy_type="length_only"
+            )
+        except PasswordPolicyError:
+            pytest.fail(
+                "Simple password should pass length_only policy if it meets min_length"
+            )
+
+        # Password without special chars, uppercase, or digits should pass
+        try:
+            password_hasher.validate_password(
+                "justlowercaseletters", min_length=8, policy_type="length_only"
+            )
+        except PasswordPolicyError:
+            pytest.fail("Password without complexity should pass length_only policy")
+
+    def test_validate_password_length_only_still_enforces_length(self, password_hasher):
+        """
+        Test that 'length_only' policy still enforces minimum length requirement.
+        """
+        with pytest.raises(PasswordPolicyError) as exc_info:
+            password_hasher.validate_password(
+                "short", min_length=8, policy_type="length_only"
+            )
+
+        assert "too short" in str(exc_info.value).lower()
+
+    def test_validate_password_unknown_policy_raises_error(self, password_hasher):
+        """
+        Test that an unknown policy_type raises a PasswordPolicyError.
+        """
+        with pytest.raises(PasswordPolicyError) as exc_info:
+            password_hasher.validate_password(
+                "ValidPass1!", min_length=8, policy_type="unknown_policy"
+            )
+
+        error_message = str(exc_info.value)
+        assert "unknown password policy type" in error_message.lower()
+        assert "unknown_policy" in error_message
+
+    def test_validate_password_strict_requires_all_character_classes(
+        self, password_hasher
+    ):
+        """
+        Test that 'strict' policy requires all character classes (uppercase, lowercase, digit, special).
+        """
+        test_cases = [
+            ("onlylowercase", "uppercase letter"),
+            ("ONLYUPPERCASE", "lowercase letter"),
+            ("NoDigitsHere!", "digit"),
+            ("NoSpecialChar123", "special character"),
+        ]
+
+        for password, expected_error in test_cases:
+            with pytest.raises(PasswordPolicyError, match=expected_error):
+                password_hasher.validate_password(
+                    password, min_length=8, policy_type="strict"
+                )
+
+    def test_is_valid_password_with_length_only_policy(self, password_hasher):
+        """
+        Test that is_valid_password works correctly with 'length_only' policy.
+        """
+        # Simple password should be valid with length_only policy
+        assert password_hasher.is_valid_password(
+            "simplelowercase", min_length=8, policy_type="length_only"
+        ), "Simple password should be valid with length_only policy"
+
+        # Short password should still be invalid
+        assert not password_hasher.is_valid_password(
+            "short", min_length=8, policy_type="length_only"
+        ), "Short password should be invalid even with length_only policy"
+
+    def test_validate_password_with_custom_min_length_and_policy(self, password_hasher):
+        """
+        Test that custom min_length works correctly with different policies.
+        """
+        # 15-character passphrase with length_only should pass with min_length=12
+        try:
+            password_hasher.validate_password(
+                "mysimplepassphrase", min_length=12, policy_type="length_only"
+            )
+        except PasswordPolicyError:
+            pytest.fail(
+                "Passphrase should pass with length_only policy and min_length=12"
+            )
+
+        # Same passphrase should fail with min_length=20
+        with pytest.raises(PasswordPolicyError) as exc_info:
+            password_hasher.validate_password(
+                "mysimplepassphrase", min_length=20, policy_type="length_only"
+            )
+
+        assert "too short" in str(exc_info.value).lower()
+        assert "≥ 20" in str(exc_info.value) or ">= 20" in str(exc_info.value)
+
+    def test_validate_password_passphrase_use_case(self, password_hasher):
+        """
+        Test the passphrase use case: long password without complexity requirements.
+        This is the main use case that prompted the policy_type feature.
+        """
+        passphrase = "correct horse battery staple"  # 28 characters
+
+        # Should fail with strict policy (no uppercase, digit, special char)
+        with pytest.raises(PasswordPolicyError):
+            password_hasher.validate_password(
+                passphrase, min_length=8, policy_type="strict"
+            )
+
+        # Should pass with length_only policy
+        try:
+            password_hasher.validate_password(
+                passphrase, min_length=16, policy_type="length_only"
+            )
+        except PasswordPolicyError:
+            pytest.fail("Passphrase should pass with length_only policy")
