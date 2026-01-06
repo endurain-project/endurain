@@ -63,10 +63,7 @@ def fetch_and_process_bc_by_dates(
     for bc in garmin_bc["dateWeightList"]:
         # Validate metabolic_age is a reasonable value (1-150 years)
         metabolic_age = bc.get("metabolicAge")
-        if (
-            metabolic_age is not None
-            and (metabolic_age < 1 or metabolic_age > 150)
-        ):
+        if metabolic_age is not None and (metabolic_age < 1 or metabolic_age > 150):
             metabolic_age = None
 
         health_weight = health_weight_schema.HealthWeight(

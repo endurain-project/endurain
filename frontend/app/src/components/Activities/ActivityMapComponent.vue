@@ -5,13 +5,13 @@
   </div>
   <div v-else>
     <div v-if="hasGalleryItems">
-      <div id="activityGallery" class="carousel slide position-relative">
+      <div :id="`activityGallery${activity.id}`" class="carousel slide position-relative">
         <div class="carousel-indicators position-absolute" style="z-index: 1030">
           <!-- Map indicator -->
           <button
             v-if="activityStreamLatLng"
             type="button"
-            data-bs-target="#activityGallery"
+            :data-bs-target="`#activityGallery${activity.id}`"
             data-bs-slide-to="0"
             class="active"
             aria-current="true"
@@ -22,7 +22,7 @@
             v-for="(mediaItem, idx) in activityActivityMedia"
             :key="`indicator-${mediaItem.id || idx}`"
             type="button"
-            data-bs-target="#activityGallery"
+            :data-bs-target="`#activityGallery${activity.id}`"
             :data-bs-slide-to="activityStreamLatLng ? idx + 1 : idx"
             :class="{ active: !activityStreamLatLng && idx === 0 }"
             :aria-current="!activityStreamLatLng && idx === 0 ? 'true' : 'false'"
@@ -86,7 +86,7 @@
         <button
           class="carousel-control-prev position-absolute"
           type="button"
-          data-bs-target="#activityGallery"
+          :data-bs-target="`#activityGallery${activity.id}`"
           data-bs-slide="prev"
           style="z-index: 1030"
         >
@@ -96,7 +96,7 @@
         <button
           class="carousel-control-next position-absolute"
           type="button"
-          data-bs-target="#activityGallery"
+          :data-bs-target="`#activityGallery${activity.id}`"
           data-bs-slide="next"
           style="z-index: 1030"
         >
