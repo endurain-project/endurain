@@ -495,6 +495,49 @@ export function activityTypeNotSkating(activity) {
 }
 
 /**
+ * Checks if the activity type corresponds to a snow skiing activity.
+ *
+ * @param {Object} activity - The activity object to check
+ * @param {number} activity.activity_type - The numeric type identifier of the activity
+ * @returns {boolean} True if the activity type is snow skiing (types 15, 16, or 44), false otherwise
+ */
+export function activityTypeIsSnowSkiing(activity) {
+  return (
+    activity.activity_type === 15 || activity.activity_type === 16 || activity.activity_type === 44
+  )
+}
+
+/**
+ * Checks if an activity is of type snowboarding.
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} True if the activity type is snowboarding (17), false otherwise.
+ */
+export function activityTypeIsSnowboarding(activity) {
+  return activity.activity_type === 17
+}
+
+/**
+ * Checks if an activity is stand-up paddleboarding.
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} True if the activity is stand-up paddleboarding (type 32), false otherwise.
+ */
+export function activityTypeIsStandUpPaddling(activity) {
+  return activity.activity_type === 32
+}
+
+/**
+ * Checks if an activity is a surf activity.
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} True if the activity type is 33 (surf), false otherwise.
+ */
+export function activityTypeIsSurf(activity) {
+  return activity.activity_type === 33
+}
+
+/**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
  * @param {Object} t - The translation function.
