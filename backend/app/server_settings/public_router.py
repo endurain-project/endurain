@@ -22,7 +22,7 @@ async def read_public_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> server_settings_schema.ServerSettingsReadPublic:
     """
     Get public server settings (unauthenticated).
 
@@ -49,7 +49,7 @@ async def read_public_server_settings(
 async def list_tile_maps_templates(
     request: Request,
     response: Response,
-):
+) -> list[server_settings_schema.TileMapsTemplate]:
     """
     Retrieve available tile map templates for server settings (unauthenticated).
 

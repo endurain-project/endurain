@@ -1,6 +1,6 @@
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Security, status
 from sqlalchemy.orm import Session
 
 import health.health_targets.schema as health_targets_schema
@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=health_targets_schema.HealthTargets | None,
+    response_model=health_targets_schema.HealthTargetsRead | None,
 )
 async def read_health_targets_all(
     _check_scopes: Annotated[
@@ -30,7 +30,7 @@ async def read_health_targets_all(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_targets_schema.HealthTargets | None:
+) -> health_targets_schema.HealthTargetsRead | None:
     """
     Retrieve all health targets for the authenticated user.
 
@@ -46,8 +46,9 @@ async def read_health_targets_all(
         db (Session): SQLAlchemy database session dependency for executing database queries.
 
     Returns:
-        health_targets_schema.HealthTargets | None: The health targets object containing
-            all targets for the user, or None if no targets are found.
+        health_targets_schema.HealthTargetsRead | None: The
+            health targets object containing all targets for
+            the user, or None if no targets are found.
 
     Raises:
         HTTPException: May raise 401 Unauthorized if the token is invalid or expired.
@@ -59,10 +60,11 @@ async def read_health_targets_all(
 
 @router.put(
     "/",
-    response_model=health_targets_schema.HealthTargets,
+    response_model=health_targets_schema.HealthTargetsRead,
+    status_code=status.HTTP_200_OK,
 )
 async def update_health_targets(
-    health_targets: health_targets_schema.HealthTargets,
+    health_targets: health_targets_schema.HealthTargetsUpdate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -74,7 +76,7 @@ async def update_health_targets(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_targets_schema.HealthTargets:
+) -> health_targets_schema.HealthTargetsRead:
     """
     Update health targets for the authenticated user.
 
@@ -82,16 +84,22 @@ async def update_health_targets(
     weight goals, activity targets, or other health metrics.
 
     Args:
-        health_targets (health_targets_schema.HealthTargets): The health targets data
-            to be updated, containing the new values for various health metrics.
-        _check_scopes (Callable): Security dependency that verifies the user has
-            'health:write' scope permission.
-        token_user_id (int): The authenticated user's ID extracted from the access token.
-        db (Session): Database session dependency for database operations.
+        health_targets (
+            health_targets_schema.HealthTargetsUpdate): The
+            health targets data to be updated, containing the
+            new values for various health metrics.
+        _check_scopes (Callable): Security dependency that
+            verifies the user has 'health:write' scope
+            permission.
+        token_user_id (int): The authenticated user's ID
+            extracted from the access token.
+        db (Session): Database session dependency for database
+            operations.
 
     Returns:
-        health_targets_schema.HealthTargets: The updated health targets object
-            reflecting the changes made in the database.
+        health_targets_schema.HealthTargetsRead: The updated
+            health targets object reflecting the changes made
+            in the database.
 
     Raises:
         HTTPException: May raise authentication or authorization errors if the user

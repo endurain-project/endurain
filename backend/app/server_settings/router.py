@@ -143,7 +143,7 @@ async def upload_login_photo(
         await file_validator.validate_image_file(file)
         # Ensure the 'server_images' directory exists
         upload_dir = core_config.SERVER_IMAGES_DIR
-        os.makedirs(upload_dir, exist_ok=True)
+        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path with the name "login.png"
         file_path = os.path.join(upload_dir, "login.png")
@@ -172,15 +172,15 @@ async def upload_login_photo(
 
 @router.delete(
     "/upload/login",
-    status_code=status.HTTP_200_OK,
-    response_model=dict,
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
 )
 async def delete_login_photo(
     _check_scopes: Annotated[
         Callable,
         Security(auth_security.check_scopes, scopes=["server_settings:write"]),
     ],
-) -> dict:
+) -> None:
     """
     Delete custom login page photo.
 
@@ -200,11 +200,8 @@ async def delete_login_photo(
         )
 
         # Check if the file exists and delete it asynchronously
-        if os.path.exists(file_path):
-
+        if await aiofiles.os.path.exists(file_path):
             await aiofiles.os.remove(file_path)
-
-        return {"detail": "Login photo deleted successfully"}
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(

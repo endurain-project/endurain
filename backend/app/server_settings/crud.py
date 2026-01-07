@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
 import server_settings.schema as server_settings_schema
 import server_settings.models as server_settings_models
@@ -27,16 +28,18 @@ def get_server_settings(db: Session) -> server_settings_models.ServerSettings | 
             server_settings_models.ServerSettings.id == 1
         )
         return db.execute(stmt).scalar_one_or_none()
-    except Exception as err:
+    except SQLAlchemyError as db_err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_server_settings: {err}", "error", exc=err
+            f"Database error in get_server_settings: {db_err}",
+            "error",
+            exc=db_err,
         )
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Server Error",
-        ) from err
+            detail="Database error occurred",
+        ) from db_err
 
 
 def edit_server_settings(
@@ -79,17 +82,19 @@ def edit_server_settings(
         return db_server_settings
     except HTTPException as http_err:
         raise http_err
-    except Exception as err:
+    except SQLAlchemyError as db_err:
         # Rollback the transaction
         db.rollback()
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in edit_server_settings: {err}", "error", exc=err
+            f"Database error in edit_server_settings: {db_err}",
+            "error",
+            exc=db_err,
         )
 
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Server Error",
-        ) from err
+            detail="Database error occurred",
+        ) from db_err

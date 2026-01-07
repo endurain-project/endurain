@@ -1,64 +1,48 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    ForeignKey,
-    DECIMAL,
-)
-from sqlalchemy.orm import relationship
+from decimal import Decimal
+from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
 class HealthTargets(Base):
     """
-    SQLAlchemy model representing health targets for users.
-
-    This table stores health-related goals and targets for individual users,
-    including weight, daily steps, and sleep duration objectives.
+    User health targets configuration.
 
     Attributes:
-        id (int): Primary key, auto-incremented unique identifier for the health target.
-        user_id (int): Foreign key referencing users.id. Each user can have only one
-            set of health targets (unique constraint). Cascades on delete.
-        weight (Decimal): Target weight in kilograms with precision of 10 digits
-            and 2 decimal places. Optional field.
-        steps (int): Target number of daily steps. Optional field.
-        sleep (int): Target sleep duration in seconds. Optional field.
-        user (relationship): SQLAlchemy relationship to the User model, establishing
-            a bidirectional link via the 'health_targets' back_populates attribute.
-
-    Relationships:
-        - One-to-one relationship with User model (enforced by unique constraint on user_id)
-
-    Indexes:
-        - user_id: Indexed for efficient lookups
+        id: Primary key.
+        user_id: Foreign key to users table (unique).
+        weight: Target weight in kg.
+        steps: Target daily steps count.
+        sleep: Target sleep duration in seconds.
+        user: Relationship to User model.
     """
 
     __tablename__ = "health_targets"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
         index=True,
         comment="User ID that the health_target belongs",
     )
-    weight = Column(
-        DECIMAL(precision=10, scale=2),
+    weight: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Weight in kg",
     )
-    steps = Column(
-        Integer,
+    steps: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Number of steps taken",
     )
-    sleep = Column(
-        Integer,
+    sleep: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Number of hours slept in seconds",
     )
 
-    # Define a relationship to the User model
+    # TODO: Change to Mapped["User"] when all modules use mapped
     user = relationship("User", back_populates="health_targets")
