@@ -275,8 +275,55 @@
       <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.mapsTitle') }}</h4>
       <LoadingComponent v-if="isLoading" />
       <div v-else>
+        <!-- Tile server template selector -->
+        <label class="form-label" for="serverSettingsTileTemplate">{{
+          $t('settingsServerSettingsZoneComponent.tileTemplateLabel')
+        }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsTileTemplate"
+          v-model="selectedTileTemplate"
+          required
+        >
+          <option
+            v-for="template in tileMapsTemplates"
+            :key="template.template_id"
+            :value="template.template_id"
+          >
+            {{ template.name }}
+          </option>
+          <option value="custom">
+            {{ $t('settingsServerSettingsZoneComponent.tileTemplateCustom') }}
+          </option>
+        </select>
+        <!-- API key warnings -->
+        <div
+          v-if="
+            selectedTileTemplate !== 'custom' && getSelectedTemplateData()?.requires_api_key_backend
+          "
+          class="alert alert-warning mt-2"
+          role="alert"
+        >
+          <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.tileTemplateApiKeyWarning')
+          }}</span>
+        </div>
+        <div
+          v-if="
+            selectedTileTemplate !== 'custom' &&
+            getSelectedTemplateData()?.requires_api_key_frontend
+          "
+          class="alert alert-info mt-2"
+          role="alert"
+        >
+          <font-awesome-icon :icon="['fas', 'info-circle']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.tileTemplateFrontendApiKeyWarning')
+          }}</span>
+        </div>
         <!-- Tile server URL -->
-        <label class="form-label" for="serverSettingsTileserverUrl">{{
+        <label class="form-label mt-2" for="serverSettingsTileserverUrl">{{
           $t('settingsServerSettingsZoneComponent.tileserverUrlLabel')
         }}</label>
         <input
@@ -284,6 +331,7 @@
           class="form-control"
           name="serverSettingsTileserverUrl"
           v-model="tileserverUrl"
+          :disabled="selectedTileTemplate !== 'custom'"
           required
           @blur="updateServerSettings"
         />
@@ -296,6 +344,7 @@
           class="form-control"
           name="serverSettingsTileserverAttribution"
           v-model="tileserverAttribution"
+          :disabled="selectedTileTemplate !== 'custom'"
           required
           @blur="updateServerSettings"
         />
@@ -303,14 +352,17 @@
         <label class="form-label mt-1" for="serverSettingsMapBackgroundColor">{{
           $t('settingsServerSettingsZoneComponent.mapBackgroundColorLabel')
         }}</label>
-        <input
-          type="color"
-          class="form-control form-control-color"
-          name="serverSettingsMapBackgroundColor"
-          v-model="mapBackgroundColor"
-          required
-          @change="updateServerSettings"
-        />
+        <div class="d-flex align-items-center gap-3">
+          <input
+            type="color"
+            class="form-control form-control-color"
+            name="serverSettingsMapBackgroundColor"
+            v-model="mapBackgroundColor"
+            :disabled="selectedTileTemplate !== 'custom'"
+            required
+          />
+          <span>{{ mapBackgroundColor }}</span>
+        </div>
       </div>
       <hr />
       <!-- Login photo set -->
@@ -385,6 +437,8 @@ import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vu
 const { t } = useI18n()
 const isLoading = ref(true)
 const serverSettingsStore = useServerSettingsStore()
+const tileMapsTemplates = ref([])
+const selectedTileTemplate = ref('custom')
 const units = ref(serverSettingsStore.serverSettings.units)
 const currency = ref(serverSettingsStore.serverSettings.currency)
 const numRecordsPerPage = ref(serverSettingsStore.serverSettings.num_records_per_page)
@@ -409,6 +463,16 @@ const passwordLengthRegularUsers = ref(
 const passwordLengthAdminsUsers = ref(
   serverSettingsStore.serverSettings.password_length_admin_users
 )
+
+function getSelectedTemplateData() {
+  if (selectedTileTemplate.value === 'custom') return null
+  return tileMapsTemplates.value.find((t) => t.template_id === selectedTileTemplate.value)
+}
+
+function detectTemplateFromUrl(url) {
+  const template = tileMapsTemplates.value.find((t) => t.url_template === url)
+  return template ? template.template_id : 'custom'
+}
 
 async function updateServerSettings() {
   const data = {
@@ -492,6 +556,10 @@ const submitDeleteLoginPhoto = async () => {
 
 onMounted(async () => {
   try {
+    // Fetch tile map templates first
+    tileMapsTemplates.value = await serverSettings.getTileMapsTemplates()
+
+    // Fetch server settings and update store
     const settings = await serverSettings.getServerSettings()
     serverSettingsStore.setServerSettings(settings)
     // Update local state
@@ -515,6 +583,9 @@ onMounted(async () => {
     passwordLengthRegularUsers.value =
       serverSettingsStore.serverSettings.password_length_regular_users
     passwordLengthAdminsUsers.value = serverSettingsStore.serverSettings.password_length_admin_users
+
+    // Detect template based on current URL
+    selectedTileTemplate.value = detectTemplateFromUrl(tileserverUrl.value)
 
     await nextTick()
     isLoading.value = false
@@ -551,4 +622,18 @@ watch(
   },
   { immediate: false }
 )
+
+watch(selectedTileTemplate, async (newTemplate) => {
+  if (isLoading.value) return
+
+  if (newTemplate !== 'custom') {
+    const templateData = getSelectedTemplateData()
+    if (templateData) {
+      tileserverUrl.value = templateData.url_template
+      tileserverAttribution.value = templateData.attribution
+      mapBackgroundColor.value = templateData.map_background_color
+      await updateServerSettings()
+    }
+  }
+})
 </script>

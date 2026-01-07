@@ -56,7 +56,7 @@ async def read_server_settings(
 
 
 @router.get(
-    "/tile_maps/templates",
+    "/tile_maps_templates",
     response_model=list[server_settings_schema.TileMapsTemplate],
 )
 async def list_tile_maps_templates(

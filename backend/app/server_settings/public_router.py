@@ -42,7 +42,7 @@ async def read_public_server_settings(
 
 
 @router.get(
-    "/tile_maps/templates",
+    "/tile_maps_templates",
     response_model=list[server_settings_schema.TileMapsTemplate],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.API_READ_LIMIT)

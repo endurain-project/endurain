@@ -196,10 +196,7 @@ export const useAuthStore = defineStore('auth', {
             this.csrfToken = response.csrf_token
           }
           // Reconnect WebSocket with new token if currently open
-          if (
-            this.user_websocket &&
-            this.user_websocket.readyState === WebSocket.OPEN
-          ) {
+          if (this.user_websocket && this.user_websocket.readyState === WebSocket.OPEN) {
             this.user_websocket.close()
             this.setUserWebsocket()
           }

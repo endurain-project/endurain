@@ -278,11 +278,6 @@ class TileMapsTemplate(BaseModel):
             backend to use the tile map.
     """
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-    )
-
     template_id: str = Field(
         ...,
         description=("Template identifier (e.g., 'openstreetmap', 'stadia_outdoors')"),
@@ -290,6 +285,11 @@ class TileMapsTemplate(BaseModel):
     name: str = Field(..., description="Human-readable name of the tile map template")
     url_template: str = Field(..., description="URL template for fetching map tiles")
     attribution: str = Field(..., description="HTML string for map attribution")
+    map_background_color: str = Field(
+        max_length=7,
+        pattern=r"^#[0-9A-Fa-f]{6}$",
+        description=("Hex color code for map background (e.g., #dddddd)"),
+    )
     requires_api_key_frontend: bool = Field(
         ...,
         description=(
@@ -301,4 +301,9 @@ class TileMapsTemplate(BaseModel):
         description=(
             "Indicates if an API key is required on the backend " "to use the tile map"
         ),
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
     )

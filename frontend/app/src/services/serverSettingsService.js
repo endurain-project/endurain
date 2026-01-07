@@ -12,6 +12,9 @@ export const serverSettings = {
   getServerSettings() {
     return fetchGetRequest('server_settings')
   },
+  getTileMapsTemplates() {
+    return fetchGetRequest('server_settings/tile_maps_templates')
+  },
   editServerSettings(data) {
     return fetchPutRequest('server_settings', data)
   },
@@ -27,5 +30,8 @@ export const serverSettings = {
   // Server settings public
   getPublicServerSettings() {
     return fetchPublicGetRequest('public/server_settings')
+  },
+  getPublicTileMapsTemplates() {
+    return fetchPublicGetRequest('public/server_settings/tile_maps_templates')
   }
 }
