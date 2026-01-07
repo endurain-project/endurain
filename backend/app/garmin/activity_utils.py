@@ -26,7 +26,7 @@ async def fetch_and_process_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
+    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
     try:
@@ -111,7 +111,7 @@ async def fetch_and_process_activities_by_dates(
                 await activities_utils.parse_and_store_activity_from_file(
                     user_id,
                     full_file_path,
-                    websocket_manager,
+                    ws_manager,
                     db,
                     True,
                     activity_gear,
@@ -125,7 +125,7 @@ async def fetch_and_process_activities_by_dates(
 
 
 async def retrieve_garminconnect_users_activities_for_days(days: int):
-    websocket_manager = websocket_manager.get_websocket_manager()
+    ws_manager = websocket_manager.get_websocket_manager()
 
     # Create a new database session using context manager
     with SessionLocal() as db:
@@ -144,7 +144,7 @@ async def retrieve_garminconnect_users_activities_for_days(days: int):
                         calculated_start_date,
                         calculated_end_date,
                         user.id,
-                        websocket_manager,
+                        ws_manager,
                         db,
                     )
                 except Exception as err:
@@ -195,7 +195,7 @@ async def get_user_garminconnect_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
+    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
     try:
@@ -210,7 +210,7 @@ async def get_user_garminconnect_activities_by_dates(
                     start_date,
                     end_date,
                     user_id,
-                    websocket_manager,
+                    ws_manager,
                     db,
                 )
             )

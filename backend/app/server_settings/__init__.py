@@ -23,11 +23,12 @@ from .schema import (
     ServerSettingsEdit,
     ServerSettingsRead,
     ServerSettingsReadPublic,
+    TileMapsTemplate,
     Units,
     Currency,
     PasswordType,
 )
-from .utils import get_server_settings
+from .utils import get_server_settings, get_tile_maps_templates
 
 __all__ = [
     # CRUD operations
@@ -41,10 +42,12 @@ __all__ = [
     "ServerSettingsEdit",
     "ServerSettingsRead",
     "ServerSettingsReadPublic",
+    "TileMapsTemplate",
     # Enums
     "Units",
     "Currency",
     "PasswordType",
     # Utility functions
     "get_server_settings",
+    "get_tile_maps_templates",
 ]

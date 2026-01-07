@@ -109,7 +109,7 @@ async def create_new_duplicate_start_time_activity_notification(
 
 
 async def create_new_follower_request_notification(
-    user_id: int,websocket_manager
+    user_id: int,
     target_user_id: int,
     websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
@@ -164,7 +164,7 @@ async def create_new_follower_request_notification(
 
 
 async def create_accepted_follower_request_notification(
-    user_id: int,websocket_manager
+    user_id: int,
     target_user_id: int,
     websocket_manager: websocket_manager.WebSocketManager,
     db: Session,

@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import server_settings.schema as server_settings_schema
@@ -7,7 +8,7 @@ import server_settings.models as server_settings_models
 import core.logger as core_logger
 
 
-def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
+def get_server_settings(db: Session) -> server_settings_models.ServerSettings | None:
     """
     Retrieve singleton server settings from database.
 
@@ -21,12 +22,11 @@ def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
         HTTPException: If database error occurs.
     """
     try:
-        # Get the user from the database
-        return (
-            db.query(server_settings_models.ServerSettings)
-            .filter(server_settings_models.ServerSettings.id == 1)
-            .first()
+        # Get the server settings from the database
+        stmt = select(server_settings_models.ServerSettings).where(
+            server_settings_models.ServerSettings.id == 1
         )
+        return db.execute(stmt).scalar_one_or_none()
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -35,7 +35,7 @@ def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Server Error: {err}",
+            detail=f"Internal Server Error",
         ) from err
 
 
@@ -63,8 +63,7 @@ def edit_server_settings(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Server settings not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from None
 
         # Dictionary of the fields to update if they are not None
         server_settings_data = server_settings.model_dump(exclude_unset=True)
@@ -92,5 +91,5 @@ def edit_server_settings(
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal Server Error: {err}",
+            detail=f"Internal Server Error",
         ) from err

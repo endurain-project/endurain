@@ -31,7 +31,7 @@ class WebSocketManager:
         """
         await websocket.accept()
         self.active_connections[user_id] = websocket
-        core_logger.print_to_log(f"WebSocket connected for user {user_id}", "info")
+        core_logger.print_to_log(f"WebSocket connected for user {user_id}", "debug")
 
     def disconnect(self, user_id: int) -> None:
         """
@@ -43,7 +43,7 @@ class WebSocketManager:
         if self.active_connections.pop(user_id, None):
             core_logger.print_to_log(
                 f"WebSocket disconnected for user {user_id}",
-                "info",
+                "debug",
             )
 
     async def send_message(self, user_id: int, message: dict) -> None:

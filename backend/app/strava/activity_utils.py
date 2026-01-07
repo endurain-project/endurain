@@ -41,7 +41,7 @@ async def fetch_and_process_activities(
     end_date: datetime,
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations,
-    websocket_manager: websocket_manager.WebSocketManager,
+    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
     is_startup: bool = False,
 ) -> int:
@@ -118,7 +118,7 @@ async def fetch_and_process_activities(
                 user_privacy_settings,
                 strava_client,
                 user_integrations,
-                websocket_manager,
+                ws_manager,
                 db,
             )
         )
@@ -369,13 +369,11 @@ async def save_activity_streams_laps(
     activity: activities_schema.Activity,
     stream_data: list,
     laps: dict,
-    websocket_manager: websocket_manager.WebSocketManager,
+    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> activities_schema.Activity:
     # Create the activity and get the ID
-    created_activity = await activities_crud.create_activity(
-        activity, websocket_manager, db
-    )
+    created_activity = await activities_crud.create_activity(activity, ws_manager, db)
 
     if stream_data is not None:
         # Create the empty array of activity streams
@@ -411,7 +409,7 @@ async def process_activity(
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
-    websocket_manager: websocket_manager.WebSocketManager,
+    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     # Get the activity by Strava ID from the user
@@ -441,7 +439,7 @@ async def process_activity(
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],
-        websocket_manager,
+        ws_manager,
         db,
     )
 
@@ -769,7 +767,7 @@ async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager = None,
+    ws_manager: websocket_manager.WebSocketManager = None,
     db: Session = None,
     is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:
@@ -779,9 +777,9 @@ async def get_user_strava_activities_by_dates(
         db = SessionLocal()
         close_session = True
 
-    if websocket_manager is None:
+    if ws_manager is None:
         # Get the websocket manager instance
-        websocket_manager = websocket_manager.get_websocket_manager()
+        ws_manager = websocket_manager.get_websocket_manager()
 
     try:
         # Get the user integrations by user ID
@@ -809,7 +807,7 @@ async def get_user_strava_activities_by_dates(
                 end_date,
                 user_id,
                 user_integrations,
-                websocket_manager,
+                ws_manager,
                 db,
                 is_startup,
             )

@@ -1,7 +1,16 @@
 import os
+import aiofiles.os
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, Security, UploadFile, HTTPException, status
+import aiofiles
+from fastapi import (
+    APIRouter,
+    Depends,
+    Security,
+    UploadFile,
+    HTTPException,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from safeuploads import FileValidator
@@ -34,7 +43,7 @@ async def read_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> server_settings_schema.ServerSettingsRead:
     """
     Get current server settings.
 
@@ -44,6 +53,32 @@ async def read_server_settings(
         Current server settings configuration.
     """
     return server_settings_utils.get_server_settings(db)
+
+
+@router.get(
+    "/tile_maps/templates",
+    response_model=list[server_settings_schema.TileMapsTemplate],
+)
+async def list_tile_maps_templates(
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_security.check_scopes, scopes=["server_settings:read"]),
+    ],
+) -> list[server_settings_schema.TileMapsTemplate]:
+    """
+    Retrieve available tile map templates for server settings.
+
+    This endpoint returns a list of all available tile map templates that can
+    be used for configuring map display options in server settings.
+
+    Returns:
+        List of tile map template configurations available for the server.
+
+    Raises:
+        HTTPException: If the user lacks the required 'server_settings:read'
+        scope.
+    """
+    return server_settings_utils.get_tile_maps_templates()
 
 
 @router.put("", response_model=server_settings_schema.ServerSettingsRead)
@@ -57,7 +92,7 @@ async def edit_server_settings(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> server_settings_schema.ServerSettingsRead:
     """
     Update server settings.
 
@@ -89,6 +124,12 @@ async def upload_login_photo(
 
     Requires admin authentication with server_settings:write scope.
 
+    Security measures:
+    - SafeUploads validates file type via magic number (not extension)
+    - File size limit enforced (max configured image size)
+    - Filename hardcoded to 'login.png' (path traversal prevention)
+    - Uploaded to isolated directory (core_config.SERVER_IMAGES_DIR)
+
     Args:
         file: Image file to upload.
 
@@ -109,8 +150,8 @@ async def upload_login_photo(
 
         # Save the uploaded file with the name "login.png"
         content = await file.read()
-        with open(file_path, "wb") as save_file:
-            save_file.write(content)
+        async with aiofiles.open(file_path, "wb") as save_file:
+            await save_file.write(content)
 
         return {"detail": "Login photo uploaded successfully"}
     except FileValidationError as err:
@@ -158,10 +199,10 @@ async def delete_login_photo(
             "login.png",
         )
 
-        # Check if the file exists
+        # Check if the file exists and delete it asynchronously
         if os.path.exists(file_path):
-            # Delete the file
-            os.remove(file_path)
+
+            await aiofiles.os.remove(file_path)
 
         return {"detail": "Login photo deleted successfully"}
     except Exception as err:

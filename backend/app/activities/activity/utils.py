@@ -742,7 +742,7 @@ def parse_file(
 
 
 async def store_activity(
-    parsed_info: dict,websocket_manager
+    parsed_info: dict,
     websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
