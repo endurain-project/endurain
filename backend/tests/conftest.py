@@ -32,6 +32,10 @@ DEFAULT_ROUTER_MODULES = [
     "health.health_weight.router",
 ]
 
+PUBLIC_ROUTER_MODULES = [
+    "server_settings.public_router",
+]
+
 
 @pytest.fixture
 def password_hasher() -> auth_password_hasher.PasswordHasher:
@@ -147,6 +151,8 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
                 app.include_router(router, prefix="/health_targets")
             elif dotted == "health.health_weight.router":
                 app.include_router(router, prefix="/health_weight")
+            elif dotted == "server_settings.public_router":
+                app.include_router(router, prefix="/server_settings/public")
             else:
                 app.include_router(router)
     except Exception:
@@ -200,6 +206,16 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     # Include any routers you have configured
     for dotted in DEFAULT_ROUTER_MODULES:
         _include_router_if_exists(app, dotted)
+
+    # Include server_settings router with prefix
+    _include_router_if_exists(app, "server_settings.router")
+    try:
+        mod = import_module("server_settings.router")
+        router = getattr(mod, "router", None)
+        if router is not None:
+            app.include_router(router, prefix="/server_settings")
+    except Exception:
+        pass
 
     app.state._client_type = "web"
 
@@ -465,3 +481,58 @@ def set_client_type_mobile(fast_api_app: FastAPI):
     """
     fast_api_app.state._client_type = "mobile"
     return fast_api_app.state._client_type
+
+
+@pytest.fixture
+def fast_api_app_public(password_hasher, token_manager, mock_db) -> FastAPI:
+    """
+    Creates and configures a FastAPI application instance for testing public endpoints.
+
+    This fixture is similar to fast_api_app but includes public routers that
+    don't require authentication.
+
+    Args:
+        password_hasher: An object or callable used to hash passwords.
+        token_manager: An object or callable responsible for managing authentication tokens.
+        mock_db: A mock database session or connection.
+
+    Returns:
+        FastAPI: A configured FastAPI application instance for public endpoint testing.
+    """
+    app = FastAPI()
+
+    # Include public routers
+    for dotted in PUBLIC_ROUTER_MODULES:
+        _include_router_if_exists(app, dotted)
+
+    # Generic overrides
+    _override_if_exists(
+        app, "auth.password_hasher", "get_password_hasher", lambda: password_hasher
+    )
+    _override_if_exists(
+        app, "auth.token_manager", "get_token_manager", lambda: token_manager
+    )
+    _override_if_exists(
+        app, "core.database", "get_db", lambda: mock_db
+    ) or _override_if_exists(
+        app, "core_database", "get_db", lambda: mock_db
+    ) or _override_if_exists(
+        app, "app.core.database", "get_db", lambda: mock_db
+    )
+
+    return app
+
+
+@pytest.fixture
+def fast_api_client_public(fast_api_app_public: FastAPI) -> TestClient:
+    """
+    Creates and returns a TestClient instance for public endpoints.
+
+    Args:
+        fast_api_app_public (FastAPI): The FastAPI application instance configured
+            for public endpoints.
+
+    Returns:
+        TestClient: A test client for making requests to public endpoints.
+    """
+    return TestClient(fast_api_app_public)

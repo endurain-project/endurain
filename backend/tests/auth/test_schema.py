@@ -309,3 +309,103 @@ class TestDependencyFunctions:
         tracker1 = auth_schema.get_failed_login_attempts()
         tracker2 = auth_schema.get_failed_login_attempts()
         assert tracker1 is tracker2
+
+    def test_pending_mfa_login_record_attempt_while_locked(self):
+        """
+        Test that failed attempts don't increment while locked.
+        """
+        store = auth_schema.PendingMFALogin()
+
+        # Record 5 failures to trigger lockout
+        for _ in range(5):
+            store.record_failed_attempt("testuser")
+
+        # Verify user is locked out
+        assert store.is_locked_out("testuser") is True
+
+        # Try to record more failures during lockout
+        count1 = store.record_failed_attempt("testuser")
+        count2 = store.record_failed_attempt("testuser")
+
+        # Count should not increase
+        assert count1 == count2
+
+    def test_failed_login_attempts_record_attempt_while_locked(self):
+        """
+        Test that failed attempts don't increment while locked.
+        """
+        store = auth_schema.FailedLoginAttempts()
+
+        # Record 5 failures to trigger lockout
+        for _ in range(5):
+            store.record_failed_attempt("testuser")
+
+        # Verify user is locked out
+        assert store.is_locked_out("testuser") is True
+
+        # Try to record more failures during lockout
+        count1 = store.record_failed_attempt("testuser")
+        count2 = store.record_failed_attempt("testuser")
+
+        # Count should not increase
+        assert count1 == count2
+
+    def test_pending_mfa_login_lockout_10_attempts(self):
+        """
+        Test 30-minute lockout logging after 10 MFA failures.
+        """
+        store = auth_schema.PendingMFALogin()
+
+        # Record 10 failures to trigger 30-min lockout
+        for _ in range(10):
+            store.record_failed_attempt("testuser")
+
+        # Verify user is locked out
+        assert store.is_locked_out("testuser") is True
+        lockout_time = store.get_lockout_time("testuser")
+        assert lockout_time is not None
+
+    def test_pending_mfa_login_lockout_15_attempts(self):
+        """
+        Test 2-hour lockout logging after 15 MFA failures.
+        """
+        store = auth_schema.PendingMFALogin()
+
+        # Record 15 failures to trigger 2-hour lockout
+        for _ in range(15):
+            store.record_failed_attempt("testuser")
+
+        # Verify user is locked out
+        assert store.is_locked_out("testuser") is True
+        lockout_time = store.get_lockout_time("testuser")
+        assert lockout_time is not None
+
+    def test_failed_login_attempts_lockout_10_attempts(self):
+        """
+        Test 30-minute lockout logging after 10 login failures.
+        """
+        store = auth_schema.FailedLoginAttempts()
+
+        # Record 10 failures to trigger 30-min lockout
+        for _ in range(10):
+            store.record_failed_attempt("testuser")
+
+        # Verify user is locked out
+        assert store.is_locked_out("testuser") is True
+        lockout_time = store.get_lockout_time("testuser")
+        assert lockout_time is not None
+
+    def test_failed_login_attempts_lockout_20_attempts(self):
+        """
+        Test 24-hour lockout logging after 20 login failures.
+        """
+        store = auth_schema.FailedLoginAttempts()
+
+        # Record 20 failures to trigger 24-hour lockout
+        for _ in range(20):
+            store.record_failed_attempt("testuser")
+
+        # Verify user is locked out
+        assert store.is_locked_out("testuser") is True
+        lockout_time = store.get_lockout_time("testuser")
+        assert lockout_time is not None
