@@ -3,6 +3,8 @@ import re
 from pydantic import (
     BaseModel,
     StrictInt,
+    StrictBool,
+    StrictStr,
     ConfigDict,
     Field,
     field_validator,
@@ -81,30 +83,39 @@ class ServerSettingsBase(BaseModel):
     units: Units = Field(
         Units.METRIC, description="Measurement units (metric/imperial)"
     )
-    public_shareable_links: bool = Field(
+    public_shareable_links: StrictBool = Field(
         ..., description="Enable public shareable activity links"
     )
-    public_shareable_links_user_info: bool = Field(
+    public_shareable_links_user_info: StrictBool = Field(
         ..., description="Show user info on public shareable links"
     )
-    login_photo_set: bool = Field(
+    login_photo_set: StrictBool = Field(
         ..., description="Indicates if login photo has been configured"
     )
     currency: Currency = Field(..., description="Currency type (euro/dollar/pound)")
-    num_records_per_page: int = Field(
-        ..., description="Default number of records per page for pagination"
+    num_records_per_page: StrictInt = Field(
+        25,
+        ge=1,
+        le=100,
+        description="Default number of records per page for pagination",
     )
-    signup_enabled: bool = Field(..., description="Allow new user registration")
-    sso_enabled: bool = Field(..., description="Enable SSO/IdP authentication")
-    local_login_enabled: bool = Field(..., description="Allow username/password login")
-    sso_auto_redirect: bool = Field(..., description="Auto-redirect to SSO login page")
-    tileserver_url: str = Field(
-        max_length=2048, description="Default map tile server URL template"
+    signup_enabled: StrictBool = Field(..., description="Allow new user registration")
+    sso_enabled: StrictBool = Field(..., description="Enable SSO/IdP authentication")
+    local_login_enabled: StrictBool = Field(
+        ..., description="Allow username/password login"
     )
-    tileserver_attribution: str = Field(
-        max_length=1024, description="Default map tile attribution HTML"
+    sso_auto_redirect: StrictBool = Field(
+        ..., description="Auto-redirect to SSO login page"
     )
-    map_background_color: str = Field(
+    tileserver_url: StrictStr = Field(
+        max_length=2048,
+        min_length=1,
+        description="Default map tile server URL template",
+    )
+    tileserver_attribution: StrictStr = Field(
+        max_length=1024, min_length=1, description="Default map tile attribution HTML"
+    )
+    map_background_color: StrictStr = Field(
         max_length=7,
         pattern=r"^#[0-9A-Fa-f]{6}$",
         description=("Hex color code for map background (e.g., #dddddd)"),
@@ -112,11 +123,11 @@ class ServerSettingsBase(BaseModel):
     password_type: PasswordType = Field(
         PasswordType.STRICT, description="Password policy type"
     )
-    password_length_regular_users: int = Field(
-        8, description="Minimum password length for regular users"
+    password_length_regular_users: StrictInt = Field(
+        8, ge=8, le=128, description="Minimum password length for regular users"
     )
-    password_length_admin_users: int = Field(
-        12, description="Minimum password length for admin users"
+    password_length_admin_users: StrictInt = Field(
+        12, ge=8, le=128, description="Minimum password length for admin users"
     )
 
     model_config = ConfigDict(
@@ -231,11 +242,11 @@ class ServerSettingsEdit(ServerSettings):
         (plus all fields inherited from ServerSettings)
     """
 
-    signup_require_admin_approval: bool = Field(
+    signup_require_admin_approval: StrictBool = Field(
         ...,
         description="Indicates if new user signups require admin approval",
     )
-    signup_require_email_verification: bool = Field(
+    signup_require_email_verification: StrictBool = Field(
         ...,
         description="Indicates if new user signups require email verification",
     )
@@ -278,25 +289,33 @@ class TileMapsTemplate(BaseModel):
             backend to use the tile map.
     """
 
-    template_id: str = Field(
+    template_id: StrictStr = Field(
         ...,
+        min_length=1,
         description=("Template identifier (e.g., 'openstreetmap', 'stadia_outdoors')"),
     )
-    name: str = Field(..., description="Human-readable name of the tile map template")
-    url_template: str = Field(..., description="URL template for fetching map tiles")
-    attribution: str = Field(..., description="HTML string for map attribution")
-    map_background_color: str = Field(
+    name: StrictStr = Field(
+        ..., min_length=1, description="Human-readable name of the tile map template"
+    )
+    url_template: StrictStr = Field(
+        ..., min_length=1, description="URL template for fetching map tiles"
+    )
+    attribution: StrictStr = Field(
+        ..., min_length=1, description="HTML string for map attribution"
+    )
+    map_background_color: StrictStr = Field(
         max_length=7,
+        min_length=7,
         pattern=r"^#[0-9A-Fa-f]{6}$",
         description=("Hex color code for map background (e.g., #dddddd)"),
     )
-    requires_api_key_frontend: bool = Field(
+    requires_api_key_frontend: StrictBool = Field(
         ...,
         description=(
             "Indicates if an API key is required on the frontend " "to use the tile map"
         ),
     )
-    requires_api_key_backend: bool = Field(
+    requires_api_key_backend: StrictBool = Field(
         ...,
         description=(
             "Indicates if an API key is required on the backend " "to use the tile map"

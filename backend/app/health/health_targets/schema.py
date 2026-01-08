@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictFloat
 
 
 class HealthTargetsBase(BaseModel):
@@ -11,76 +11,19 @@ class HealthTargetsBase(BaseModel):
         sleep: Target sleep duration in seconds.
     """
 
-    weight: float | None = None
-    steps: int | None = None
-    sleep: int | None = None
+    weight: StrictFloat | None = Field(
+        None, gt=0, le=500, description="Target weight in kg"
+    )
+    steps: StrictInt | None = Field(None, ge=0, description="Target daily steps count")
+    sleep: StrictInt | None = Field(
+        None, ge=0, le=86400, description="Target sleep duration in seconds"
+    )
 
-    @field_validator("weight")
-    @classmethod
-    def validate_weight(cls, v: float | None) -> float | None:
-        """
-        Validate weight is positive and reasonable.
-
-        Args:
-            v: Weight value to validate.
-
-        Returns:
-            Validated weight value.
-
-        Raises:
-            ValueError: If weight is not between 0 and 500 kg.
-        """
-        if v is not None and (v <= 0 or v > 500):
-            raise ValueError("Weight must be between 0 and 500 kg")
-        return v
-
-    @field_validator("steps")
-    @classmethod
-    def validate_steps(cls, v: int | None) -> int | None:
-        """
-        Validate steps is non-negative.
-
-        Args:
-            v: Steps value to validate.
-
-        Returns:
-            Validated steps value.
-
-        Raises:
-            ValueError: If steps is negative.
-        """
-        if v is not None and v < 0:
-            raise ValueError("Steps cannot be negative")
-        return v
-
-    @field_validator("sleep")
-    @classmethod
-    def validate_sleep(cls, v: int | None) -> int | None:
-        """
-        Validate sleep duration is within reasonable bounds.
-
-        Args:
-            v: Sleep duration in seconds to validate.
-
-        Returns:
-            Validated sleep duration.
-
-        Raises:
-            ValueError: If sleep is not between 0 and 86400
-                seconds (24 hours).
-        """
-        if v is not None and (v < 0 or v > 86400):
-            raise ValueError("Sleep must be between 0 and 86400 seconds (24 hours)")
-        return v
-
-
-class HealthTargetsUpdate(HealthTargetsBase):
-    """
-    Schema for updating health targets.
-
-    Inherits all validation from HealthTargetsBase.
-    All fields are optional for partial updates.
-    """
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
+    )
 
 
 class HealthTargetsRead(HealthTargetsBase):
@@ -92,11 +35,14 @@ class HealthTargetsRead(HealthTargetsBase):
         user_id: Foreign key reference to the user.
     """
 
-    id: int
-    user_id: int
+    id: StrictInt = Field(..., description="Unique identifier for the health target")
+    user_id: StrictInt = Field(..., description="Foreign key reference to the user")
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
-    )
+
+class HealthTargetsUpdate(HealthTargetsRead):
+    """
+    Schema for updating health targets.
+
+    Inherits all validation from HealthTargetsRead.
+    All fields are optional for partial updates.
+    """

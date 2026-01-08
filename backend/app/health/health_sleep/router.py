@@ -56,7 +56,10 @@ async def read_health_sleep_all(
     total = health_sleep_crud.get_health_sleep_number(token_user_id, db)
     records = health_sleep_crud.get_all_health_sleep_by_user_id(token_user_id, db)
 
-    return health_sleep_schema.HealthSleepListResponse(total=total, records=records)
+    # Pydantic will convert ORM models to HealthSleepRead via from_attributes=True
+    return health_sleep_schema.HealthSleepListResponse(
+        total=total, records=records  # type: ignore[arg-type]
+    )
 
 
 @router.get(
@@ -112,14 +115,18 @@ async def read_health_sleep_all_pagination(
         token_user_id, db, page_number, num_records
     )
 
+    # Pydantic will convert ORM models to HealthSleepRead via from_attributes=True
     return health_sleep_schema.HealthSleepListResponse(
-        total=total, num_records=num_records, page_number=page_number, records=records
+        total=total,
+        num_records=num_records,
+        page_number=page_number,
+        records=records,  # type: ignore[arg-type]
     )
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=health_sleep_schema.HealthSleepRead)
 async def create_health_sleep(
-    health_sleep: health_sleep_schema.HealthSleep,
+    health_sleep: health_sleep_schema.HealthSleepCreate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -131,7 +138,7 @@ async def create_health_sleep(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_sleep_schema.HealthSleep:
+) -> health_sleep_schema.HealthSleepRead:
     """
     Create or update health sleep data for a user.
 
@@ -140,7 +147,7 @@ async def create_health_sleep(
     based on whether sleep data exists for the given date.
 
     Args:
-        health_sleep (health_sleep_schema.HealthSleep): The health sleep data to create
+        health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create
             or update, including the date and sleep duration.
         _check_scopes (Callable): Security dependency that verifies the user has
             'health:write' scope.
@@ -149,19 +156,16 @@ async def create_health_sleep(
         db (Session): Database session dependency for database operations.
 
     Returns:
-        health_sleep_schema.HealthSleep: The created or updated health sleep data.
+        health_sleep_schema.HealthSleepRead: The created or updated health sleep data.
 
     Raises:
         HTTPException: 400 error if the date field is not provided in the request.
     """
-    if not health_sleep.date:
-        raise HTTPException(status_code=400, detail="Date field is required.")
-
     # Calculate sleep scores before saving
     health_sleep_sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
 
-    # Convert date to string format for CRUD function
-    date_str = health_sleep.date.isoformat()
+    # Date is guaranteed to be present due to HealthSleepCreate validator
+    date_str = health_sleep.date.isoformat()  # type: ignore[union-attr]
 
     # Check if health_sleep for this date already exists
     sleep_for_date = health_sleep_crud.get_health_sleep_by_date(
@@ -169,17 +173,22 @@ async def create_health_sleep(
     )
 
     if sleep_for_date:
-        health_sleep.id = sleep_for_date.id
+        # Convert to update schema with the existing ID
+        health_sleep_update = health_sleep_schema.HealthSleepUpdate(
+            id=sleep_for_date.id, **health_sleep.model_dump()
+        )
         # Updates the health_sleep in the database and returns it
-        return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
+        return health_sleep_crud.edit_health_sleep(
+            token_user_id, health_sleep_update, db
+        )
     else:
         # Creates the health_sleep in the database and returns it
         return health_sleep_crud.create_health_sleep(token_user_id, health_sleep, db)
 
 
-@router.put("")
+@router.put("", response_model=health_sleep_schema.HealthSleepRead)
 async def edit_health_sleep(
-    health_sleep: health_sleep_schema.HealthSleep,
+    health_sleep: health_sleep_schema.HealthSleepUpdate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -191,7 +200,7 @@ async def edit_health_sleep(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_sleep_schema.HealthSleep:
+) -> health_sleep_schema.HealthSleepRead:
     """
     Edit health sleep data for a user.
 
@@ -199,7 +208,7 @@ async def edit_health_sleep(
     Requires 'health:write' scope for authorization.
 
     Args:
-        health_sleep (health_sleep_schema.HealthSleep): The health sleep data to be updated,
+        health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
             containing the new values for the health sleep record.
         _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
             scope permission.
@@ -208,7 +217,7 @@ async def edit_health_sleep(
         db (Session): Database session dependency for performing database operations.
 
     Returns:
-        health_sleep_schema.HealthSleep: The updated health sleep record with the new values
+        health_sleep_schema.HealthSleepRead: The updated health sleep record with the new values
             as stored in the database.
 
     Raises:

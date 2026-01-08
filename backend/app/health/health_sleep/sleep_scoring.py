@@ -468,7 +468,11 @@ def calculate_sleep_score_overall(
 
 
 def _calculate_and_set_sleep_scores(
-    health_sleep: health_sleep_schema.HealthSleep,
+    health_sleep: (
+        health_sleep_schema.HealthSleepCreate
+        | health_sleep_schema.HealthSleepRead
+        | health_sleep_schema.HealthSleepUpdate
+    ),
 ) -> None:
     """
     Calculate and set all sleep scores for a health sleep record.
