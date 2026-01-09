@@ -46,5 +46,6 @@
   "ssoAccountDisabled": "A sua conta está desativada. Por favor, entre em contacto com o administrador",
   "ssoAutoCreateDisabled": "A criação automática da conta está desativada. Entre em contacto com o administrador",
   "ssoErrorUndefined": "Um erro inesperado ocorreu durante a autenticação SSO",
-  "forceLocalLogin": "Autenticação local ativa. Use o seu nome de utilizador e palavra-passe para iniciar sessão."
+  "forceLocalLogin": "Autenticação local ativa. Use o seu nome de utilizador e palavra-passe para iniciar sessão.",
+  "ssoTokenExchangeFailed": "SSO token exchange failed."
 }
