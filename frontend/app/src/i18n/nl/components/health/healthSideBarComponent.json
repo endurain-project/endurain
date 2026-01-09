@@ -1,7 +1,7 @@
 {
   "dashboardSection": "Dashboard",
-  "sleepSection": "Sleep",
-  "RHRSection": "Resting heart rate",
-  "stepsSection": "Steps",
+  "sleepSection": "Slaap",
+  "RHRSection": "Hartslag in rust",
+  "stepsSection": "Stappen",
   "weightSection": "Gewicht"
 }
