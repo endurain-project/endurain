@@ -27,6 +27,6 @@
   "successFollowerDeleted": "Volger verwijderd",
   "successFollowerAccepted": "Volger geaccepteerd",
   "errorFetchingUserStats": "Fout bij ophalen gebruikersstatistieken",
-  "errorFetchingUserFollowers": "Fout bij ophalen gebruikersvolgers",
-  "errorFetchingUserActivities": "Fout bij ophalen gebruikersactiviteiten"
+  "errorFetchingUserFollowers": "Fout bij ophalen volgers",
+  "errorFetchingUserActivities": ",Fout bij ophalen gebruikersactiviteiten"
 }
