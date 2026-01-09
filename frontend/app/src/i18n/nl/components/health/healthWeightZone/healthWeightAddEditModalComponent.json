@@ -5,10 +5,10 @@
   "addWeightDateLabel": "Datum",
   "addWeightHiddenItemsLabel": "Details",
   "addWeightBMILabel": "BMI",
-  "addWeightBodyFatLabel": "Body fat",
-  "addWeightBodyWaterLabel": "Body water",
-  "addWeightBoneMassLabel": "Bone mass",
-  "addWeightMuscleMassLabel": "Muscle mass",
+  "addWeightBodyFatLabel": "Lichaamsvet",
+  "addWeightBodyWaterLabel": "Lichaam water",
+  "addWeightBoneMassLabel": "Botmassa",
+  "addWeightMuscleMassLabel": "Spiermassa",
   "successAddWeight": "Gewicht toegevoegd",
   "errorAddWeight": "Fout bij gewicht toevoegen"
 }
