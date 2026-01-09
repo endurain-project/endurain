@@ -1,8 +1,8 @@
 {
-  "buttonAddSteps": "Add steps",
-  "buttonStepsTarget": "Steps target",
-  "modalStepsTargetLabel": "Enter your steps target",
-  "labelNumberOfHealthSteps1": "There is a total of ",
-  "labelNumberOfHealthSteps2": " steps entries inserted (",
-  "labelNumberOfHealthSteps3": " loaded):"
+  "buttonAddSteps": "Schritte hinzufügen",
+  "buttonStepsTarget": "Schritte-Ziel",
+  "modalStepsTargetLabel": "Gib dein Schritte-Ziel ein",
+  "labelNumberOfHealthSteps1": "Es gibt insgesamt ",
+  "labelNumberOfHealthSteps2": " Schritte eingefügt (",
+  "labelNumberOfHealthSteps3": " geladen):"
 }
