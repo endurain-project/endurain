@@ -89,7 +89,7 @@ def fetch_and_process_bc_by_dates(
         if health_weight_db:
             # Convert to update schema with the existing ID
             health_weight_update = health_weight_schema.HealthWeightUpdate(
-                id=health_weight_db.id, **health_weight.model_dump()
+                id=health_weight_db.id, user_id=user_id, **health_weight.model_dump()
             )
             # Updates the health_weight in the database
             health_weight_crud.edit_health_weight(user_id, health_weight_update, db)
@@ -166,7 +166,7 @@ def fetch_and_process_ds_by_dates(
         if health_steps_db:
             # Convert to update schema with the existing ID
             health_steps_update = health_steps_schema.HealthStepsUpdate(
-                id=health_steps_db.id, **health_steps.model_dump()
+                id=health_steps_db.id, user_id=user_id, **health_steps.model_dump()
             )
             # Updates the health_steps in the database
             health_steps_crud.edit_health_steps(user_id, health_steps_update, db)
@@ -463,7 +463,7 @@ def fetch_and_process_sleep_by_dates(
         if health_sleep_db:
             # Convert to update schema with the existing ID
             health_sleep_update = health_sleep_schema.HealthSleepUpdate(
-                id=health_sleep_db.id, **health_sleep.model_dump()
+                id=health_sleep_db.id, user_id=user_id, **health_sleep.model_dump()
             )
             # Updates the health_sleep in the database
             health_sleep_crud.edit_health_sleep(user_id, health_sleep_update, db)
