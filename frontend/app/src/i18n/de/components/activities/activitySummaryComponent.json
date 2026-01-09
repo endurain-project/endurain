@@ -15,6 +15,7 @@
   "errorMediaUpload": "Fehler beim Hochladen der Medien",
   "labelVirtual": "(Virtuell) ",
   "privateNotes": "Private Notizen",
+  "activityDescription": "Activity description",
   "activityDistance": "Distanz",
   "activityTime": "Zeit",
   "activityPace": "Tempo",
@@ -26,6 +27,6 @@
   "activityEleLoss": "überwundenes Gefälle",
   "activityCalories": "Kalorien",
   "activityNoData": "Keine Daten",
-  "errorFetchingUserById": "Fehler beim Abrufen des Benutzers über id",
+  "errorFetchingUserById": "Fehler beim Abrufen des Benutzers anhand seiner ID",
   "errorDeletingActivity": "Fehler beim Löschen der Aktivität"
 }
