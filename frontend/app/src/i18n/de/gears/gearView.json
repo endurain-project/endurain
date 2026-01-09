@@ -2,7 +2,7 @@
   "buttonAddComponent": "Ausrüstung hinzufügen",
   "buttonEditGear": "Ausrüstung bearbeiten",
   "buttonDeleteGear": "Ausrüstung löschen",
-  "modalDeleteGearBody1": "Bist du sicher, dass du die Ausrüstung löschen möchtest?",
+  "modalDeleteGearBody1": "Bist du sicher, dass du die Ausrüstung löschen möchtest",
   "modalDeleteGearBody2": "Dieser Vorgang kann nicht rückgängig gemacht werden.",
   "gearIsActiveBadge": "Aktiv",
   "gearIsInactiveBadge": "Inaktiv",
