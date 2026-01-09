@@ -3,5 +3,5 @@
   "labelNumberOfGoals1": "You have ",
   "labelNumberOfGoals2": " goal(s) set:",
   "successGoalDeleted": "Goal deleted successfully",
-  "errorFetchingGoals": "Error fetching goals"
+  "errorFetchingGoals": "Fout bij het ophalen van doelstellingen"
 }
