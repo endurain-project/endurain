@@ -17,6 +17,7 @@ router = APIRouter()
 @router.get(
     "/",
     response_model=health_targets_schema.HealthTargetsRead | None,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_targets_all(
     _check_scopes: Annotated[

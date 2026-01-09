@@ -5,18 +5,18 @@ from pydantic import (
     model_validator,
     StrictInt,
     StrictStr,
+    StrictFloat,
     Field,
 )
 from datetime import datetime, date as datetime_date
-from decimal import Decimal
 
 
 class Source(Enum):
     """
-    An enumeration representing supported sources.
+    Enum representing the source of sleep health data.
 
-    Members:
-        GARMIN: Garmin health data source
+    Attributes:
+        GARMIN: Sleep data sourced from Garmin devices or services.
     """
 
     GARMIN = "garmin"
@@ -24,13 +24,13 @@ class Source(Enum):
 
 class SleepStageType(Enum):
     """
-    An enumeration representing sleep stage types.
+    Enum representing different stages of sleep.
 
-    Members:
-        DEEP: Deep sleep stage
-        LIGHT: Light sleep stage
-        REM: REM (Rapid Eye Movement) sleep stage
-        AWAKE: Awake periods during sleep
+    Attributes:
+        DEEP (int): Deep sleep stage, value 0. Characterized by slow brain waves and muscle relaxation.
+        LIGHT (int): Light sleep stage, value 1. Transitional sleep between wakefulness and deep sleep.
+        REM (int): Rapid Eye Movement sleep stage, value 2. Associated with vivid dreams and mental activity.
+        AWAKE (int): Awake state, value 3. The stage when the person is conscious and not sleeping.
     """
 
     DEEP = 0
@@ -41,16 +41,13 @@ class SleepStageType(Enum):
 
 class HRVStatus(Enum):
     """
-    Enum representing the status of Heart Rate Variability (HRV).
-
-    This enum defines the possible HRV status values that can be associated with
-    sleep or health data.
+    Enum representing the Heart Rate Variability (HRV) status classification.
 
     Attributes:
-        BALANCED: Indicates optimal HRV, suggesting good recovery and readiness.
-        UNBALANCED: Indicates HRV is outside the normal range, suggesting stress or incomplete recovery.
-        LOW: Indicates HRV is lower than normal, suggesting fatigue or increased stress.
-        POOR: Indicates significantly low HRV, suggesting poor recovery or health concerns.
+        BALANCED: Indicates healthy HRV levels with good cardiovascular autonomic balance.
+        UNBALANCED: Indicates HRV levels showing some autonomic imbalance or stress.
+        LOW: Indicates HRV levels that are lower than optimal, suggesting fatigue or overtraining.
+        POOR: Indicates critically low HRV levels, suggesting significant stress, illness, or recovery issues.
     """
 
     BALANCED = "BALANCED"
@@ -61,15 +58,13 @@ class HRVStatus(Enum):
 
 class SleepScore(Enum):
     """
-    Enum representing sleep score categories.
-
-    This enum defines the possible sleep score categories based on sleep quality.
+    Enumeration of sleep quality score levels.
 
     Attributes:
-        EXCELLENT: Indicates excellent sleep quality 90-100.
-        GOOD: Indicates good sleep quality ~70-89.
-        FAIR: Indicates fair sleep quality ~50-69.
-        POOR: Indicates poor sleep quality <50.
+        EXCELLENT (str): Represents excellent sleep quality.
+        GOOD (str): Represents good sleep quality.
+        FAIR (str): Represents fair sleep quality.
+        POOR (str): Represents poor sleep quality.
     """
 
     EXCELLENT = "EXCELLENT"
@@ -80,13 +75,16 @@ class SleepScore(Enum):
 
 class HealthSleepStage(BaseModel):
     """
-    Represents individual sleep stage interval.
+    Represents a sleep stage with timing and duration information.
+
+    This model captures details about individual sleep stages within a sleep session,
+    including the type of stage, when it occurred, and how long it lasted.
 
     Attributes:
-        stage_type: Type of sleep stage.
-        start_time_gmt: Start time of the stage in GMT.
-        end_time_gmt: End time of the stage in GMT.
-        duration_seconds: Duration of the stage in seconds.
+        stage_type: The classification of the sleep stage (e.g., light, deep, REM).
+        start_time_gmt: The beginning timestamp of the sleep stage in GMT timezone.
+        end_time_gmt: The ending timestamp of the sleep stage in GMT timezone.
+        duration_seconds: The length of the sleep stage in seconds. Must be non-negative.
     """
 
     stage_type: SleepStageType | None = Field(None, description="Type of sleep stage")
@@ -110,48 +108,62 @@ class HealthSleepStage(BaseModel):
 
 class HealthSleepBase(BaseModel):
     """
-    Base schema for health sleep with shared fields and validators.
+    Pydantic model representing the base schema for health sleep data.
+
+    This model defines the structure and validation rules for sleep-related health metrics,
+    including sleep duration, quality scores, heart rate variability, oxygen saturation,
+    respiration rates, and sleep stages.
 
     Attributes:
-        date: Calendar date of the sleep session.
-        sleep_start_time_gmt: Start time of sleep in GMT.
-        sleep_end_time_gmt: End time of sleep in GMT.
-        sleep_start_time_local: Start time of sleep in local time.
-        sleep_end_time_local: End time of sleep in local time.
-        total_sleep_seconds: Total duration of sleep in seconds.
-        nap_time_seconds: Duration of naps in seconds.
-        unmeasurable_sleep_seconds: Unmeasurable sleep duration.
-        deep_sleep_seconds: Duration of deep sleep in seconds.
-        light_sleep_seconds: Duration of light sleep in seconds.
-        rem_sleep_seconds: Duration of REM sleep in seconds.
-        awake_sleep_seconds: Duration of awake time in seconds.
-        avg_heart_rate: Average heart rate during sleep.
-        min_heart_rate: Minimum heart rate during sleep.
-        max_heart_rate: Maximum heart rate during sleep.
-        avg_spo2: Average SpO2 oxygen saturation percentage.
-        lowest_spo2: Lowest SpO2 reading during sleep.
-        highest_spo2: Highest SpO2 reading during sleep.
-        avg_respiration: Average respiration rate.
-        lowest_respiration: Lowest respiration rate.
-        highest_respiration: Highest respiration rate.
-        avg_stress_level: Average stress level during sleep.
-        awake_count: Number of times awakened during sleep.
-        restless_moments_count: Count of restless moments.
-        sleep_score_overall: Overall sleep score (0-100).
-        sleep_score_duration: Sleep duration score label.
-        sleep_score_quality: Sleep quality score label.
-        garminconnect_sleep_id: External Garmin Connect sleep ID.
-        sleep_stages: List of sleep stage intervals.
-        source: Data source of the sleep session.
-        hrv_status: Heart rate variability status.
-        resting_heart_rate: Resting heart rate during sleep.
-        avg_skin_temp_deviation: Skin temp deviation in Celsius.
-        awake_count_score: Awake count score label.
-        rem_percentage_score: REM percentage score label.
-        deep_percentage_score: Deep sleep percentage score label.
-        light_percentage_score: Light sleep percentage score label.
-        avg_sleep_stress: Average sleep stress level.
-        sleep_stress_score: Sleep stress score label.
+        date (datetime_date | None): Calendar date of the sleep session.
+        sleep_start_time_gmt (datetime | None): Start time of sleep in GMT.
+        sleep_end_time_gmt (datetime | None): End time of sleep in GMT.
+        sleep_start_time_local (datetime | None): Start time of sleep in local time.
+        sleep_end_time_local (datetime | None): End time of sleep in local time.
+        total_sleep_seconds (StrictInt | None): Total duration of sleep in seconds (>= 0).
+        nap_time_seconds (StrictInt | None): Duration of naps in seconds (>= 0).
+        unmeasurable_sleep_seconds (StrictInt | None): Unmeasurable sleep duration in seconds (>= 0).
+        deep_sleep_seconds (StrictInt | None): Duration of deep sleep in seconds (>= 0).
+        light_sleep_seconds (StrictInt | None): Duration of light sleep in seconds (>= 0).
+        rem_sleep_seconds (StrictInt | None): Duration of REM sleep in seconds (>= 0).
+        awake_sleep_seconds (StrictInt | None): Duration of awake time in seconds (>= 0).
+        avg_heart_rate (StrictInt | None): Average heart rate during sleep (20-220 bpm).
+        min_heart_rate (StrictInt | None): Minimum heart rate during sleep (20-220 bpm).
+        max_heart_rate (StrictInt | None): Maximum heart rate during sleep (20-220 bpm).
+        avg_spo2 (StrictInt | None): Average SpO2 oxygen saturation percentage (70-100%).
+        lowest_spo2 (StrictInt | None): Lowest SpO2 reading during sleep (70-100%).
+        highest_spo2 (StrictInt | None): Highest SpO2 reading during sleep (70-100%).
+        avg_respiration (StrictInt | None): Average respiration rate (>= 0).
+        lowest_respiration (StrictInt | None): Lowest respiration rate (>= 0).
+        highest_respiration (StrictInt | None): Highest respiration rate (>= 0).
+        avg_stress_level (StrictInt | None): Average stress level (0-100).
+        awake_count (StrictInt | None): Number of times awake during sleep (>= 0).
+        restless_moments_count (StrictInt | None): Number of restless moments during sleep (>= 0).
+        sleep_score_overall (StrictInt | None): Overall sleep score (0-100).
+        sleep_score_duration (SleepScore | None): Sleep duration score.
+        sleep_score_quality (SleepScore | None): Sleep quality score.
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        sleep_stages (list[SleepStage] | None): List of sleep stages.
+        source (Source | None): Source of the sleep data.
+        hrv_status (HRVStatus | None): Heart rate variability status.
+        resting_heart_rate (StrictInt | None): Resting heart rate (20-220 bpm).
+        avg_skin_temp_deviation (StrictFloat | None): Average skin temperature deviation.
+        awake_count_score (SleepScore | None): Awake count score.
+        rem_percentage_score (SleepScore | None): REM percentage score.
+        deep_percentage_score (SleepScore | None): Deep sleep percentage score.
+        light_percentage_score (SleepScore | None): Light sleep percentage score.
+        avg_sleep_stress (StrictInt | None): Average sleep stress (0-100).
+        sleep_stress_score (SleepScore | None): Sleep stress score.
+
+    Model Configuration:
+        - Allows population from ORM attributes
+        - Forbids extra fields
+        - Validates on assignment
+        - Uses enum values in serialization
+
+    Validators:
+        validate_sleep_times: Ensures sleep start time is before sleep end time
+                             for both GMT and local time zones.
     """
 
     date: datetime_date | None = Field(
@@ -248,7 +260,7 @@ class HealthSleepBase(BaseModel):
     resting_heart_rate: StrictInt | None = Field(
         None, ge=20, le=220, description="Resting heart rate"
     )
-    avg_skin_temp_deviation: Decimal | None = Field(
+    avg_skin_temp_deviation: StrictFloat | None = Field(
         None, description="Average skin temperature deviation"
     )
     awake_count_score: SleepScore | None = Field(None, description="Awake count score")
@@ -301,10 +313,13 @@ class HealthSleepBase(BaseModel):
 
 class HealthSleepCreate(HealthSleepBase):
     """
-    Schema for creating health sleep records.
+    Validator for HealthSleepCreate model that automatically sets the date field.
 
-    Inherits all validation from HealthSleepBase.
-    Date defaults to current date if not provided.
+    This validator runs after model initialization to ensure that if no date
+    is provided, it defaults to today's date.
+
+    Returns:
+        HealthSleepCreate: The validated model instance with date set to today if it was None.
     """
 
     @model_validator(mode="after")
@@ -315,42 +330,48 @@ class HealthSleepCreate(HealthSleepBase):
         return self
 
 
-class HealthSleepUpdate(HealthSleepBase):
+class HealthSleepRead(HealthSleepBase):
     """
-    Schema for updating health sleep records.
+    Read schema for health sleep records.
 
-    Inherits all validation from HealthSleepBase.
-    All fields are optional for partial updates.
-    ID is required to identify the record to update.
+    Extends the base health sleep schema with an identifier field for retrieving
+    or referencing existing sleep records in the database.
+
+    Attributes:
+        user_id (StrictInt): Foreign key reference to the user.
+        id (StrictInt): Unique identifier for the sleep record to update or retrieve.
     """
 
     id: StrictInt = Field(
         ..., description="Unique identifier for the sleep record to update"
     )
-
-
-class HealthSleepRead(HealthSleepBase):
-    """
-    Schema for reading health sleep records.
-
-    Attributes:
-        id: Unique identifier for the sleep record.
-        user_id: Foreign key reference to the user.
-    """
-
-    id: StrictInt = Field(..., description="Unique identifier for the sleep record")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
+
+
+class HealthSleepUpdate(HealthSleepRead):
+    """
+    Schema for updating health sleep records.
+
+    Inherits all fields from HealthSleepRead, allowing clients to update
+    existing sleep data while maintaining consistency with the read schema.
+
+    Used in PUT/PATCH requests to modify sleep tracking information such as
+    sleep duration, quality, and related health metrics.
+    """
 
 
 class HealthSleepListResponse(BaseModel):
     """
-    Response schema for health sleep list with pagination.
+    Response model for paginated health sleep records.
+
+    This model represents the paginated response structure for retrieving a user's sleep records.
+    It includes pagination metadata and a list of individual sleep record details.
 
     Attributes:
-        total: Total number of sleep records for the user.
-        num_records: Number of records in this response.
-        page_number: Current page number.
-        records: List of health sleep records.
+        total (StrictInt): Total number of sleep records available for the user.
+        num_records (StrictInt | None): Number of records included in this response page.
+        page_number (StrictInt | None): Current page number of the paginated results.
+        records (list[HealthSleepRead]): List of health sleep record objects for the current page.
     """
 
     total: StrictInt = Field(

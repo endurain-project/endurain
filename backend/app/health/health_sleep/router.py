@@ -1,6 +1,6 @@
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, Security, HTTPException
+from fastapi import APIRouter, Depends, Security, status
 from sqlalchemy.orm import Session
 
 import health.health_sleep.schema as health_sleep_schema
@@ -19,6 +19,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=health_sleep_schema.HealthSleepListResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_sleep_all(
     _check_scopes: Annotated[
@@ -65,6 +66,7 @@ async def read_health_sleep_all(
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
     response_model=health_sleep_schema.HealthSleepListResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_sleep_all_pagination(
     page_number: int,
@@ -124,7 +126,11 @@ async def read_health_sleep_all_pagination(
     )
 
 
-@router.post("", status_code=201, response_model=health_sleep_schema.HealthSleepRead)
+@router.post(
+    "",
+    response_model=health_sleep_schema.HealthSleepRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_health_sleep(
     health_sleep: health_sleep_schema.HealthSleepCreate,
     _check_scopes: Annotated[
@@ -186,7 +192,11 @@ async def create_health_sleep(
         return health_sleep_crud.create_health_sleep(token_user_id, health_sleep, db)
 
 
-@router.put("", response_model=health_sleep_schema.HealthSleepRead)
+@router.put(
+    "",
+    response_model=health_sleep_schema.HealthSleepRead,
+    status_code=status.HTTP_200_OK,
+)
 async def edit_health_sleep(
     health_sleep: health_sleep_schema.HealthSleepUpdate,
     _check_scopes: Annotated[
@@ -231,7 +241,9 @@ async def edit_health_sleep(
     return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
 
 
-@router.delete("/{health_sleep_id}", status_code=204)
+@router.delete(
+    "/{health_sleep_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_health_sleep(
     health_sleep_id: int,
     _check_scopes: Annotated[

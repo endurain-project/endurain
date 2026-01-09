@@ -1,6 +1,6 @@
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, Security, HTTPException
+from fastapi import APIRouter, Depends, Security, HTTPException, status
 from sqlalchemy.orm import Session
 
 import health.health_steps.schema as health_steps_schema
@@ -18,6 +18,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=health_steps_schema.HealthStepsListResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_steps_all(
     _check_scopes: Annotated[
@@ -56,12 +57,16 @@ async def read_health_steps_all(
     total = health_steps_crud.get_health_steps_number(token_user_id, db)
     records = health_steps_crud.get_all_health_steps_by_user_id(token_user_id, db)
 
-    return health_steps_schema.HealthStepsListResponse(total=total, records=records)
+    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
+    return health_steps_schema.HealthStepsListResponse(
+        total=total, records=records  # type: ignore[arg-type]
+    )
 
 
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
     response_model=health_steps_schema.HealthStepsListResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_steps_all_pagination(
     page_number: int,
@@ -113,14 +118,22 @@ async def read_health_steps_all_pagination(
         token_user_id, db, page_number, num_records
     )
 
+    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
     return health_steps_schema.HealthStepsListResponse(
-        total=total, num_records=num_records, page_number=page_number, records=records
+        total=total,
+        num_records=num_records,
+        page_number=page_number,
+        records=records,  # type: ignore[arg-type]
     )
 
 
-@router.post("", status_code=201)
+@router.post(
+    "",
+    response_model=health_steps_schema.HealthStepsRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_health_steps(
-    health_steps: health_steps_schema.HealthSteps,
+    health_steps: health_steps_schema.HealthStepsCreate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -132,7 +145,7 @@ async def create_health_steps(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_steps_schema.HealthSteps:
+) -> health_steps_schema.HealthStepsRead:
     """
     Create or update health steps data for a user.
 
@@ -167,17 +180,26 @@ async def create_health_steps(
     )
 
     if steps_for_date:
-        health_steps.id = steps_for_date.id
+        # Convert to update schema with the existing ID
+        health_steps_update = health_steps_schema.HealthStepsUpdate(
+            id=steps_for_date.id, **health_steps.model_dump()
+        )
         # Updates the health_steps in the database and returns it
-        return health_steps_crud.edit_health_steps(token_user_id, health_steps, db)
+        return health_steps_crud.edit_health_steps(
+            token_user_id, health_steps_update, db
+        )
     else:
         # Creates the health_steps in the database and returns it
         return health_steps_crud.create_health_steps(token_user_id, health_steps, db)
 
 
-@router.put("")
+@router.put(
+    "",
+    response_model=health_steps_schema.HealthStepsRead,
+    status_code=status.HTTP_200_OK,
+)
 async def edit_health_steps(
-    health_steps: health_steps_schema.HealthSteps,
+    health_steps: health_steps_schema.HealthStepsUpdate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -189,7 +211,7 @@ async def edit_health_steps(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_steps_schema.HealthSteps:
+) -> health_steps_schema.HealthStepsRead:
     """
     Edit health steps data for a user.
 
@@ -217,7 +239,9 @@ async def edit_health_steps(
     return health_steps_crud.edit_health_steps(token_user_id, health_steps, db)
 
 
-@router.delete("/{health_steps_id}", status_code=204)
+@router.delete(
+    "/{health_steps_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_health_steps(
     health_steps_id: int,
     _check_scopes: Annotated[

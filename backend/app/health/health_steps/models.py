@@ -1,11 +1,6 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Date,
-    ForeignKey,
-)
-from sqlalchemy.orm import relationship
+from datetime import date as date_type
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
@@ -18,15 +13,12 @@ class HealthSteps(Base):
     and maintains a relationship with the User model.
 
     Attributes:
-        id (int): Primary key, auto-incremented unique identifier for each record.
-        user_id (int): Foreign key referencing users.id. Identifies the user who owns
-            this health data. Cascades on delete and is indexed for performance.
-        date (Date): The date for which the step count is recorded.
-        steps (int): The total number of steps taken on the specified date.
-        source (str, optional): The source or origin of the step data (e.g., fitness
-            device, mobile app). Maximum length of 250 characters.
-        user (relationship): SQLAlchemy relationship to the User model, enabling
-            bidirectional access between users and their health step records.
+        id: Primary key, auto-incremented unique identifier.
+        user_id: Foreign key referencing users.id.
+        date: Calendar date for which the step count is recorded.
+        steps: Total number of steps taken on the date.
+        source: Source of the step data (e.g., fitness device, app).
+        user: Relationship to the User model.
 
     Table:
         health_steps
@@ -37,29 +29,31 @@ class HealthSteps(Base):
 
     __tablename__ = "health_steps"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="User ID that the health_steps belongs",
     )
-    date = Column(
-        Date,
+    date: Mapped[date_type] = mapped_column(
         nullable=False,
+        index=True,
         comment="Health steps date (date)",
     )
-    steps = Column(
-        Integer,
+    steps: Mapped[int] = mapped_column(
         nullable=False,
         comment="Number of steps taken",
     )
-    source = Column(
+    source: Mapped[str | None] = mapped_column(
         String(250),
         nullable=True,
         comment="Source of the health steps data",
     )
 
     # Define a relationship to the User model
+    # TODO: Change to Mapped["User"] when all modules use mapped
     user = relationship("User", back_populates="health_steps")

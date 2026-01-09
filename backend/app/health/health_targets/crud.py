@@ -47,7 +47,7 @@ def get_health_targets_by_user_id(
 
 def create_health_targets(
     user_id: int, db: Session
-) -> health_targets_schema.HealthTargetsRead:
+) -> health_targets_models.HealthTargets:
     """
     Create new health targets for a user.
 
@@ -66,7 +66,6 @@ def create_health_targets(
         # Create a new health_target
         db_health_targets = health_targets_models.HealthTargets(
             user_id=user_id,
-            weight=None,
         )
 
         # Add the health_targets to the database
@@ -74,13 +73,8 @@ def create_health_targets(
         db.commit()
         db.refresh(db_health_targets)
 
-        health_targets = health_targets_schema.HealthTargetsRead(
-            id=db_health_targets.id,
-            user_id=user_id,
-        )
-
         # Return the health_targets
-        return health_targets
+        return db_health_targets
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()

@@ -229,9 +229,7 @@ def create_health_sleep(
         # Create a new health_sleep
         db_health_sleep = health_sleep_models.HealthSleep(
             **health_sleep.model_dump(
-                exclude={"id", "user_id"},
                 exclude_none=False,
-                mode="json",
             ),
             user_id=user_id,
         )
@@ -289,9 +287,17 @@ def edit_health_sleep(
         Updated HealthSleep model.
 
     Raises:
-        HTTPException: 404 if not found, 500 if database error.
+        HTTPException: 403 if trying to edit other user record, 404 if not
+            found, 500 if database error.
     """
     try:
+        # Ensure the health_sleep belongs to the user
+        if health_sleep.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot edit health sleep for another user.",
+            )
+
         # Get the health_sleep from the database
         db_health_sleep = get_health_sleep_by_id_and_user_id(
             health_sleep.id, user_id, db

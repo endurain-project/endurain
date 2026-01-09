@@ -33,7 +33,11 @@ router = APIRouter()
 file_validator = FileValidator()
 
 
-@router.get("", response_model=server_settings_schema.ServerSettingsRead)
+@router.get(
+    "",
+    response_model=server_settings_schema.ServerSettingsRead,
+    status_code=status.HTTP_200_OK,
+)
 async def read_server_settings(
     _check_scopes: Annotated[
         Callable,
@@ -58,6 +62,7 @@ async def read_server_settings(
 @router.get(
     "/tile_maps_templates",
     response_model=list[server_settings_schema.TileMapsTemplate],
+    status_code=status.HTTP_200_OK,
 )
 async def list_tile_maps_templates(
     _check_scopes: Annotated[
@@ -81,7 +86,11 @@ async def list_tile_maps_templates(
     return server_settings_utils.get_tile_maps_templates()
 
 
-@router.put("", response_model=server_settings_schema.ServerSettingsRead)
+@router.put(
+    "",
+    response_model=server_settings_schema.ServerSettingsRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def edit_server_settings(
     server_settings_attributes: server_settings_schema.ServerSettingsEdit,
     _check_scopes: Annotated[
@@ -109,8 +118,8 @@ async def edit_server_settings(
 
 @router.post(
     "/upload/login",
-    status_code=status.HTTP_201_CREATED,
     response_model=dict,
+    status_code=status.HTTP_200_OK,
 )
 async def upload_login_photo(
     file: UploadFile,
@@ -172,8 +181,8 @@ async def upload_login_photo(
 
 @router.delete(
     "/upload/login",
-    status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_login_photo(
     _check_scopes: Annotated[
