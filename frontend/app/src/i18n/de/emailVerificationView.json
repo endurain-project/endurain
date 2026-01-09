@@ -1,6 +1,6 @@
 {
-  "title1": "Handling verify email",
-  "title2": "Bitte warte, während deine E-Mail verifiziert wird. Aktualisiere diese Seite NICHT.",
+  "title1": "Verarbeitung der Bestätigungs-E-Mail",
+  "title2": "Bitte warte, während deine E-Mail verifiziert wird. Aktualisiere diese Seite nicht.",
   "emailVerified": "E-Mail Verifizierung erfolgreich!",
   "tokenNotFound": "Token nicht gefunden",
   "tokenExpired": "Token ausgelaufen",
