@@ -31,6 +31,13 @@ class TestReadHealthWeightAll:
         mock_weight1.date = datetime_date(2024, 1, 15)
         mock_weight1.weight = 75.5
         mock_weight1.bmi = 24.5
+        mock_weight1.body_fat = None
+        mock_weight1.body_water = None
+        mock_weight1.bone_mass = None
+        mock_weight1.muscle_mass = None
+        mock_weight1.physique_rating = None
+        mock_weight1.visceral_fat = None
+        mock_weight1.metabolic_age = None
         mock_weight1.source = None
 
         mock_weight2 = MagicMock(spec=health_weight_models.HealthWeight)
@@ -39,6 +46,13 @@ class TestReadHealthWeightAll:
         mock_weight2.date = datetime_date(2024, 1, 16)
         mock_weight2.weight = 75.0
         mock_weight2.bmi = 24.3
+        mock_weight2.body_fat = None
+        mock_weight2.body_water = None
+        mock_weight2.bone_mass = None
+        mock_weight2.muscle_mass = None
+        mock_weight2.physique_rating = None
+        mock_weight2.visceral_fat = None
+        mock_weight2.metabolic_age = None
         mock_weight2.source = None
 
         mock_get_all.return_value = [mock_weight1, mock_weight2]
@@ -107,6 +121,13 @@ class TestReadHealthWeightAllPagination:
         mock_weight1.date = datetime_date(2024, 1, 15)
         mock_weight1.weight = 75.5
         mock_weight1.bmi = 24.5
+        mock_weight1.body_fat = None
+        mock_weight1.body_water = None
+        mock_weight1.bone_mass = None
+        mock_weight1.muscle_mass = None
+        mock_weight1.physique_rating = None
+        mock_weight1.visceral_fat = None
+        mock_weight1.metabolic_age = None
         mock_weight1.source = None
 
         mock_get_paginated.return_value = [mock_weight1]
@@ -176,7 +197,7 @@ class TestCreateHealthWeight:
         """
         # Arrange
         mock_get_by_date.return_value = None
-        created_weight = health_weight_schema.HealthWeight(
+        created_weight = health_weight_schema.HealthWeightRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -213,7 +234,7 @@ class TestCreateHealthWeight:
         existing_weight.id = 1
         mock_get_by_date.return_value = existing_weight
 
-        updated_weight = health_weight_schema.HealthWeight(
+        updated_weight = health_weight_schema.HealthWeightRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -248,7 +269,7 @@ class TestEditHealthWeight:
         Test successful edit of health weight entry.
         """
         # Arrange
-        updated_weight = health_weight_schema.HealthWeight(
+        updated_weight = health_weight_schema.HealthWeightRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -262,6 +283,7 @@ class TestEditHealthWeight:
             "/health_weight",
             json={
                 "id": 1,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "weight": 76.0,
             },
@@ -291,6 +313,7 @@ class TestEditHealthWeight:
             "/health_weight",
             json={
                 "id": 999,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "weight": 76.0,
             },

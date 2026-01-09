@@ -179,7 +179,9 @@ async def create_health_weight(
     if health_for_date:
         # Convert to update schema with the existing ID
         health_weight_update = health_weight_schema.HealthWeightUpdate(
-            id=health_for_date.id, **health_weight.model_dump()
+            id=health_for_date.id,
+            user_id=token_user_id,
+            **health_weight.model_dump(),
         )
         # Updates the health_weight in the database and returns it
         return health_weight_crud.edit_health_weight(

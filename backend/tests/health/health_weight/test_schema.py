@@ -7,15 +7,15 @@ import health.health_weight.schema as health_weight_schema
 
 class TestHealthWeightSchema:
     """
-    Test suite for HealthWeight Pydantic schema.
+    Test suite for HealthWeightRead Pydantic schema.
     """
 
     def test_health_weight_valid_full_data(self):
         """
-        Test HealthWeight schema with all valid fields.
+        Test HealthWeightRead schema with all valid fields.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -48,24 +48,22 @@ class TestHealthWeightSchema:
 
     def test_health_weight_minimal_data(self):
         """
-        Test HealthWeight schema with minimal required fields.
+        Test HealthWeightBase schema with minimal required fields.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight()
+        health_weight = health_weight_schema.HealthWeightBase()
 
         # Assert
-        assert health_weight.id is None
-        assert health_weight.user_id is None
         assert health_weight.date is None
         assert health_weight.weight is None
         assert health_weight.bmi is None
 
     def test_health_weight_with_none_values(self):
         """
-        Test HealthWeight schema allows None for optional fields.
+        Test HealthWeightRead schema allows None for optional fields.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -88,10 +86,10 @@ class TestHealthWeightSchema:
 
     def test_health_weight_with_float_values(self):
         """
-        Test HealthWeight schema with various float values.
+        Test HealthWeightBase schema with various float values.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightBase(
             weight=75.567, bmi=24.523, body_fat=18.234
         )
 
@@ -102,10 +100,10 @@ class TestHealthWeightSchema:
 
     def test_health_weight_with_integer_values(self):
         """
-        Test HealthWeight schema with integer values for float fields.
+        Test HealthWeightBase schema with integer values for float fields.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightBase(
             weight=75, bmi=24, body_fat=18
         )
 
@@ -116,17 +114,19 @@ class TestHealthWeightSchema:
 
     def test_health_weight_forbid_extra_fields(self):
         """
-        Test that HealthWeight schema forbids extra fields.
+        Test that HealthWeightBase schema forbids extra fields.
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_weight_schema.HealthWeight(weight=75.5, extra_field="not allowed")
+            health_weight_schema.HealthWeightBase(
+                weight=75.5, extra_field="not allowed"
+            )
 
         assert "extra_field" in str(exc_info.value)
 
     def test_health_weight_from_attributes(self):
         """
-        Test HealthWeight schema can be created from ORM model.
+        Test HealthWeightRead schema can be created from ORM model.
         """
 
         # Arrange
@@ -148,7 +148,9 @@ class TestHealthWeightSchema:
             source = "garmin"
 
         # Act
-        health_weight = health_weight_schema.HealthWeight.model_validate(MockORMModel())
+        health_weight = health_weight_schema.HealthWeightRead.model_validate(
+            MockORMModel()
+        )
 
         # Assert
         assert health_weight.id == 1
@@ -160,7 +162,7 @@ class TestHealthWeightSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_weight = health_weight_schema.HealthWeight(weight=75.5)
+        health_weight = health_weight_schema.HealthWeightBase(weight=75.5)
 
         # Act
         health_weight.weight = 80.0
@@ -175,7 +177,7 @@ class TestHealthWeightSchema:
         Test date field validation.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightBase(
             date=datetime_date(2024, 12, 31)
         )
 
@@ -187,7 +189,7 @@ class TestHealthWeightSchema:
         Test physique_rating accepts integer values.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(physique_rating=8)
+        health_weight = health_weight_schema.HealthWeightBase(physique_rating=8)
 
         # Assert
         assert health_weight.physique_rating == 8
@@ -198,7 +200,7 @@ class TestHealthWeightSchema:
         Test metabolic_age accepts integer values.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(metabolic_age=30)
+        health_weight = health_weight_schema.HealthWeightBase(metabolic_age=30)
 
         # Assert
         assert health_weight.metabolic_age == 30
@@ -222,10 +224,10 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthWeight schema.
+        Test Source enum can be used in HealthWeightBase schema.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightBase(
             source=health_weight_schema.Source.GARMIN
         )
 
@@ -237,7 +239,7 @@ class TestSourceEnum:
         Test Source enum accepts string value directly.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeight(source="garmin")
+        health_weight = health_weight_schema.HealthWeightBase(source="garmin")
 
         # Assert
         assert health_weight.source == "garmin"
@@ -248,6 +250,6 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_weight_schema.HealthWeight(source="invalid")
+            health_weight_schema.HealthWeightBase(source="invalid")
 
         assert "source" in str(exc_info.value)

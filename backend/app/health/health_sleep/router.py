@@ -179,9 +179,9 @@ async def create_health_sleep(
     )
 
     if sleep_for_date:
-        # Convert to update schema with the existing ID
+        # Convert to update schema with the existing ID and user_id
         health_sleep_update = health_sleep_schema.HealthSleepUpdate(
-            id=sleep_for_date.id, **health_sleep.model_dump()
+            id=sleep_for_date.id, user_id=token_user_id, **health_sleep.model_dump()
         )
         # Updates the health_sleep in the database and returns it
         return health_sleep_crud.edit_health_sleep(

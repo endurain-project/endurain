@@ -13,10 +13,10 @@ class TestHealthSleepSchema:
 
     def test_health_sleep_valid_full_data(self):
         """
-        Test HealthSleep schema with all valid fields.
+        Test HealthSleepRead schema with all valid fields.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -43,23 +43,21 @@ class TestHealthSleepSchema:
 
     def test_health_sleep_minimal_data(self):
         """
-        Test HealthSleep schema with minimal required fields.
+        Test HealthSleepBase schema with minimal required fields.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep()
+        health_sleep = health_sleep_schema.HealthSleepBase()
 
         # Assert
-        assert health_sleep.id is None
-        assert health_sleep.user_id is None
         assert health_sleep.date is None
         assert health_sleep.total_sleep_seconds is None
 
     def test_health_sleep_with_none_values(self):
         """
-        Test HealthSleep schema allows None for optional fields.
+        Test HealthSleepRead schema allows None for optional fields.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -76,11 +74,11 @@ class TestHealthSleepSchema:
 
     def test_health_sleep_forbid_extra_fields(self):
         """
-        Test that HealthSleep schema forbids extra fields.
+        Test that HealthSleepBase schema forbids extra fields.
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleep(
+            health_sleep_schema.HealthSleepBase(
                 total_sleep_seconds=28800, extra_field="not allowed"
             )
 
@@ -88,7 +86,7 @@ class TestHealthSleepSchema:
 
     def test_health_sleep_from_attributes(self):
         """
-        Test HealthSleep schema can be created from ORM model.
+        Test HealthSleepRead schema can be created from ORM model.
         """
 
         # Arrange
@@ -138,7 +136,9 @@ class TestHealthSleepSchema:
             sleep_stress_score = None
 
         # Act
-        health_sleep = health_sleep_schema.HealthSleep.model_validate(MockORMModel())
+        health_sleep = health_sleep_schema.HealthSleepRead.model_validate(
+            MockORMModel()
+        )
 
         # Assert
         assert health_sleep.id == 1
@@ -150,7 +150,7 @@ class TestHealthSleepSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_sleep = health_sleep_schema.HealthSleep(total_sleep_seconds=28800)
+        health_sleep = health_sleep_schema.HealthSleepBase(total_sleep_seconds=28800)
 
         # Act
         health_sleep.total_sleep_seconds = 32400
@@ -165,7 +165,7 @@ class TestHealthSleepSchema:
         Test heart rate validation with valid values.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepBase(
             avg_heart_rate=60,
             min_heart_rate=45,
             max_heart_rate=85,
@@ -182,9 +182,9 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleep(min_heart_rate=15)
+            health_sleep_schema.HealthSleepBase(min_heart_rate=15)
 
-        assert "between 20 and 220" in str(exc_info.value)
+        assert "greater than or equal to 20" in str(exc_info.value)
 
     def test_health_sleep_heart_rate_validation_invalid_high(self):
         """
@@ -192,16 +192,16 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleep(max_heart_rate=250)
+            health_sleep_schema.HealthSleepBase(max_heart_rate=250)
 
-        assert "between 20 and 220" in str(exc_info.value)
+        assert "less than or equal to 220" in str(exc_info.value)
 
     def test_health_sleep_spo2_validation_valid(self):
         """
         Test SpO2 validation with valid values.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepBase(
             avg_spo2=97,
             lowest_spo2=95,
             highest_spo2=99,
@@ -218,9 +218,9 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleep(lowest_spo2=65)
+            health_sleep_schema.HealthSleepBase(lowest_spo2=65)
 
-        assert "between 70 and 100" in str(exc_info.value)
+        assert "greater than or equal to 70" in str(exc_info.value)
 
     def test_health_sleep_spo2_validation_invalid_high(self):
         """
@@ -228,16 +228,16 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleep(highest_spo2=105)
+            health_sleep_schema.HealthSleepBase(highest_spo2=105)
 
-        assert "between 70 and 100" in str(exc_info.value)
+        assert "less than or equal to 100" in str(exc_info.value)
 
     def test_health_sleep_time_validation_valid(self):
         """
         Test sleep time validation with valid start < end times.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepBase(
             sleep_start_time_gmt=datetime(2024, 1, 14, 22, 0, 0),
             sleep_end_time_gmt=datetime(2024, 1, 15, 6, 0, 0),
         )
@@ -251,7 +251,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleep(
+            health_sleep_schema.HealthSleepBase(
                 sleep_start_time_gmt=datetime(2024, 1, 15, 6, 0, 0),
                 sleep_end_time_gmt=datetime(2024, 1, 14, 22, 0, 0),
             )
@@ -276,10 +276,10 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthSleep schema.
+        Test Source enum can be used in HealthSleepBase schema.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepBase(
             source=health_sleep_schema.Source.GARMIN
         )
 
@@ -329,13 +329,13 @@ class TestHealthSleepListResponse:
         Test HealthSleepListResponse with valid data.
         """
         # Arrange & Act
-        health_sleep1 = health_sleep_schema.HealthSleep(
+        health_sleep1 = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
             total_sleep_seconds=28800,
         )
-        health_sleep2 = health_sleep_schema.HealthSleep(
+        health_sleep2 = health_sleep_schema.HealthSleepRead(
             id=2,
             user_id=1,
             date=datetime_date(2024, 1, 16),

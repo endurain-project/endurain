@@ -3,7 +3,6 @@ from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch, ANY
 from fastapi import HTTPException, status
 
-import health.health_steps.schema as health_steps_schema
 import health.health_steps.models as health_steps_models
 
 
@@ -168,12 +167,12 @@ class TestCreateHealthSteps:
         """
         # Arrange
         mock_get_by_date.return_value = None
-        created_steps = health_steps_schema.HealthSteps(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            steps=10000,
-        )
+        created_steps = MagicMock()
+        created_steps.id = 1
+        created_steps.user_id = 1
+        created_steps.date = datetime_date(2024, 1, 15)
+        created_steps.steps = 10000
+        created_steps.source = None
         mock_create.return_value = created_steps
 
         # Act
@@ -204,12 +203,12 @@ class TestCreateHealthSteps:
         existing_steps.id = 1
         mock_get_by_date.return_value = existing_steps
 
-        updated_steps = health_steps_schema.HealthSteps(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            steps=12000,
-        )
+        updated_steps = MagicMock()
+        updated_steps.id = 1
+        updated_steps.user_id = 1
+        updated_steps.date = datetime_date(2024, 1, 15)
+        updated_steps.steps = 12000
+        updated_steps.source = None
         mock_edit.return_value = updated_steps
 
         # Act
@@ -226,10 +225,24 @@ class TestCreateHealthSteps:
         assert response.status_code == 201
         mock_edit.assert_called_once()
 
-    def test_create_health_steps_missing_date(self, fast_api_client, fast_api_app):
+    @patch("health.health_steps.router.health_steps_crud.create_health_steps")
+    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_date")
+    def test_create_health_steps_missing_date_uses_today(
+        self, mock_get_by_date, mock_create, fast_api_client, fast_api_app
+    ):
         """
-        Test creating health steps without date field raises error.
+        Test creating health steps without date uses today's date automatically.
         """
+        # Arrange
+        mock_get_by_date.return_value = None
+        created_steps = MagicMock()
+        created_steps.id = 1
+        created_steps.user_id = 1
+        created_steps.date = None  # Will be set by schema
+        created_steps.steps = 10000
+        created_steps.source = None
+        mock_create.return_value = created_steps
+
         # Act
         response = fast_api_client.post(
             "/health_steps",
@@ -239,9 +252,9 @@ class TestCreateHealthSteps:
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        # Assert
-        assert response.status_code == 400
-        assert "Date field is required" in response.json()["detail"]
+        # Assert - Now succeeds since HealthStepsCreate auto-fills date
+        assert response.status_code == 201
+        mock_create.assert_called_once()
 
 
 class TestEditHealthSteps:
@@ -255,12 +268,12 @@ class TestEditHealthSteps:
         Test successful edit of health steps entry.
         """
         # Arrange
-        updated_steps = health_steps_schema.HealthSteps(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            steps=12000,
-        )
+        updated_steps = MagicMock()
+        updated_steps.id = 1
+        updated_steps.user_id = 1
+        updated_steps.date = datetime_date(2024, 1, 15)
+        updated_steps.steps = 12000
+        updated_steps.source = None
         mock_edit.return_value = updated_steps
 
         # Act
@@ -268,6 +281,7 @@ class TestEditHealthSteps:
             "/health_steps",
             json={
                 "id": 1,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "steps": 12000,
             },
@@ -297,6 +311,7 @@ class TestEditHealthSteps:
             "/health_steps",
             json={
                 "id": 999,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "steps": 12000,
             },

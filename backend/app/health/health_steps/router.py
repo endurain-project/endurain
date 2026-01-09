@@ -180,9 +180,9 @@ async def create_health_steps(
     )
 
     if steps_for_date:
-        # Convert to update schema with the existing ID
+        # Convert to update schema with the existing ID and user_id
         health_steps_update = health_steps_schema.HealthStepsUpdate(
-            id=steps_for_date.id, **health_steps.model_dump()
+            id=steps_for_date.id, user_id=token_user_id, **health_steps.model_dump()
         )
         # Updates the health_steps in the database and returns it
         return health_steps_crud.edit_health_steps(

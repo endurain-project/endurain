@@ -119,4 +119,4 @@ class TestHealthWeightModel:
         """
         # Assert
         assert health_weight_models.HealthWeight.__doc__ is not None
-        assert "SQLAlchemy model" in health_weight_models.HealthWeight.__doc__
+        assert "health weight" in health_weight_models.HealthWeight.__doc__.lower()

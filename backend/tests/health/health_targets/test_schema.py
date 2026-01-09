@@ -11,10 +11,10 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_valid_full_data(self):
         """
-        Test HealthTargets schema with all valid fields.
+        Test HealthTargetsRead schema with all valid fields.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(
+        health_targets = health_targets_schema.HealthTargetsRead(
             id=1,
             user_id=1,
             weight=75.5,
@@ -31,24 +31,22 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_minimal_data(self):
         """
-        Test HealthTargets schema with minimal required fields.
+        Test HealthTargetsBase schema with minimal required fields.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets()
+        health_targets = health_targets_schema.HealthTargetsBase()
 
         # Assert
-        assert health_targets.id is None
-        assert health_targets.user_id is None
         assert health_targets.weight is None
         assert health_targets.steps is None
         assert health_targets.sleep is None
 
     def test_health_targets_with_none_values(self):
         """
-        Test HealthTargets schema allows None for optional fields.
+        Test HealthTargetsRead schema allows None for optional fields.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(
+        health_targets = health_targets_schema.HealthTargetsRead(
             id=1,
             user_id=1,
             weight=None,
@@ -65,30 +63,30 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_with_float_weight(self):
         """
-        Test HealthTargets schema with float weight values.
+        Test HealthTargetsBase schema with float weight values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(weight=75.567)
+        health_targets = health_targets_schema.HealthTargetsBase(weight=75.567)
 
         # Assert
         assert health_targets.weight == 75.567
 
     def test_health_targets_with_integer_weight(self):
         """
-        Test HealthTargets schema with integer weight values.
+        Test HealthTargetsBase schema with integer weight values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(weight=75)
+        health_targets = health_targets_schema.HealthTargetsBase(weight=75.0)
 
         # Assert
-        assert health_targets.weight == 75
+        assert health_targets.weight == 75.0
 
     def test_health_targets_with_integer_steps(self):
         """
-        Test HealthTargets schema with integer steps values.
+        Test HealthTargetsBase schema with integer steps values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(steps=10000)
+        health_targets = health_targets_schema.HealthTargetsBase(steps=10000)
 
         # Assert
         assert health_targets.steps == 10000
@@ -96,10 +94,10 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_with_integer_sleep(self):
         """
-        Test HealthTargets schema with integer sleep values.
+        Test HealthTargetsBase schema with integer sleep values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(sleep=28800)
+        health_targets = health_targets_schema.HealthTargetsBase(sleep=28800)
 
         # Assert
         assert health_targets.sleep == 28800
@@ -107,17 +105,19 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_forbid_extra_fields(self):
         """
-        Test that HealthTargets schema forbids extra fields.
+        Test that HealthTargetsBase schema forbids extra fields.
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_targets_schema.HealthTargets(weight=75.5, extra_field="not allowed")
+            health_targets_schema.HealthTargetsBase(
+                weight=75.5, extra_field="not allowed"
+            )
 
         assert "extra_field" in str(exc_info.value)
 
     def test_health_targets_from_attributes(self):
         """
-        Test HealthTargets schema can be created from ORM model.
+        Test HealthTargetsRead schema can be created from ORM model.
         """
 
         # Arrange
@@ -131,7 +131,7 @@ class TestHealthTargetsSchema:
             sleep = 28800
 
         # Act
-        health_targets = health_targets_schema.HealthTargets.model_validate(
+        health_targets = health_targets_schema.HealthTargetsRead.model_validate(
             MockORMModel()
         )
 
@@ -145,7 +145,7 @@ class TestHealthTargetsSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_targets = health_targets_schema.HealthTargets(weight=75.5)
+        health_targets = health_targets_schema.HealthTargetsBase(weight=75.5)
 
         # Act
         health_targets.weight = 80.0
@@ -157,30 +157,30 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_zero_steps(self):
         """
-        Test HealthTargets schema accepts zero steps.
+        Test HealthTargetsBase schema accepts zero steps.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(steps=0)
+        health_targets = health_targets_schema.HealthTargetsBase(steps=0)
 
         # Assert
         assert health_targets.steps == 0
 
     def test_health_targets_zero_sleep(self):
         """
-        Test HealthTargets schema accepts zero sleep.
+        Test HealthTargetsBase schema accepts zero sleep.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(sleep=0)
+        health_targets = health_targets_schema.HealthTargetsBase(sleep=0)
 
         # Assert
         assert health_targets.sleep == 0
 
     def test_health_targets_large_values(self):
         """
-        Test HealthTargets schema with large values.
+        Test HealthTargetsBase schema with large values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(
+        health_targets = health_targets_schema.HealthTargetsBase(
             weight=200.5, steps=50000, sleep=86400
         )
 
@@ -191,15 +191,17 @@ class TestHealthTargetsSchema:
 
     def test_health_targets_partial_data(self):
         """
-        Test HealthTargets schema with partial data.
+        Test HealthTargetsRead schema with partial data.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargets(
+        health_targets = health_targets_schema.HealthTargetsRead(
+            id=1,
             user_id=1,
             steps=10000,
         )
 
         # Assert
+        assert health_targets.id == 1
         assert health_targets.user_id == 1
         assert health_targets.steps == 10000
         assert health_targets.weight is None

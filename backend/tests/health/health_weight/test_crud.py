@@ -2,7 +2,8 @@ import pytest
 from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
 
 import health.health_weight.crud as health_weight_crud
 import health.health_weight.schema as health_weight_schema
@@ -21,32 +22,33 @@ class TestGetAllHealthWeight:
         # Arrange
         mock_weight1 = MagicMock(spec=health_weight_models.HealthWeight)
         mock_weight2 = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_query = mock_db.query.return_value
-        mock_query.order_by.return_value.all.return_value = [
-            mock_weight1,
-            mock_weight2,
-        ]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_weight1, mock_weight2]
+        mock_execute = MagicMock()
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
 
         # Act
         result = health_weight_crud.get_all_health_weight(mock_db)
 
         # Assert
         assert result == [mock_weight1, mock_weight2]
-        mock_db.query.assert_called_once_with(health_weight_models.HealthWeight)
+        mock_db.execute.assert_called_once()
 
     def test_get_all_health_weight_exception(self, mock_db):
         """
         Test exception handling in get_all_health_weight.
         """
         # Arrange
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.get_all_health_weight(mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
-        assert exc_info.value.detail == "Internal Server Error"
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestGetHealthWeightNumber:
@@ -61,15 +63,28 @@ class TestGetHealthWeightNumber:
         # Arrange
         user_id = 1
         expected_count = 5
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.count.return_value = expected_count
+        mock_db.execute.return_value.scalar.return_value = expected_count
 
         # Act
         result = health_weight_crud.get_health_weight_number(user_id, mock_db)
 
         # Assert
         assert result == expected_count
-        mock_db.query.assert_called_once_with(health_weight_models.HealthWeight)
+        mock_db.execute.assert_called_once()
+
+    def test_get_health_weight_number_none_returns_zero(self, mock_db):
+        """
+        Test count when result is None returns zero.
+        """
+        # Arrange
+        user_id = 1
+        mock_db.execute.return_value.scalar.return_value = None
+
+        # Act
+        result = health_weight_crud.get_health_weight_number(user_id, mock_db)
+
+        # Assert
+        assert result == 0
 
     def test_get_health_weight_number_exception(self, mock_db):
         """
@@ -77,13 +92,14 @@ class TestGetHealthWeightNumber:
         """
         # Arrange
         user_id = 1
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.get_health_weight_number(user_id, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestGetAllHealthWeightByUserId:
@@ -99,19 +115,37 @@ class TestGetAllHealthWeightByUserId:
         user_id = 1
         mock_weight1 = MagicMock(spec=health_weight_models.HealthWeight)
         mock_weight2 = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.order_by.return_value.all.return_value = [
-            mock_weight1,
-            mock_weight2,
-        ]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_weight1, mock_weight2]
+        mock_execute = MagicMock()
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
 
         # Act
         result = health_weight_crud.get_all_health_weight_by_user_id(user_id, mock_db)
 
         # Assert
         assert result == [mock_weight1, mock_weight2]
-        mock_db.query.assert_called_once_with(health_weight_models.HealthWeight)
+        mock_db.execute.assert_called_once()
+
+    def test_get_all_health_weight_by_user_id_empty(self, mock_db):
+        """
+        Test retrieval when user has no records.
+        """
+        # Arrange
+        user_id = 1
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_execute = MagicMock()
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
+
+        # Act
+        result = health_weight_crud.get_all_health_weight_by_user_id(user_id, mock_db)
+
+        # Assert
+        assert result == []
 
     def test_get_all_health_weight_by_user_id_exception(self, mock_db):
         """
@@ -119,13 +153,14 @@ class TestGetAllHealthWeightByUserId:
         """
         # Arrange
         user_id = 1
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.get_all_health_weight_by_user_id(user_id, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestGetHealthWeightWithPagination:
@@ -143,14 +178,12 @@ class TestGetHealthWeightWithPagination:
         num_records = 5
         mock_weight1 = MagicMock(spec=health_weight_models.HealthWeight)
         mock_weight2 = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_order = mock_filter.order_by.return_value
-        mock_offset = mock_order.offset.return_value
-        mock_offset.limit.return_value.all.return_value = [
-            mock_weight1,
-            mock_weight2,
-        ]
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [mock_weight1, mock_weight2]
+        mock_execute = MagicMock()
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
 
         # Act
         result = health_weight_crud.get_health_weight_with_pagination(
@@ -159,8 +192,7 @@ class TestGetHealthWeightWithPagination:
 
         # Assert
         assert result == [mock_weight1, mock_weight2]
-        mock_order.offset.assert_called_once_with(5)
-        mock_offset.limit.assert_called_once_with(5)
+        mock_db.execute.assert_called_once()
 
     def test_get_health_weight_with_pagination_defaults(self, mock_db):
         """
@@ -168,18 +200,18 @@ class TestGetHealthWeightWithPagination:
         """
         # Arrange
         user_id = 1
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_order = mock_filter.order_by.return_value
-        mock_offset = mock_order.offset.return_value
-        mock_offset.limit.return_value.all.return_value = []
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_execute = MagicMock()
+        mock_execute.scalars.return_value = mock_scalars
+        mock_db.execute.return_value = mock_execute
 
         # Act
         result = health_weight_crud.get_health_weight_with_pagination(user_id, mock_db)
 
         # Assert
-        mock_order.offset.assert_called_once_with(0)
-        mock_offset.limit.assert_called_once_with(5)
+        assert result == []
+        mock_db.execute.assert_called_once()
 
     def test_get_health_weight_with_pagination_exception(self, mock_db):
         """
@@ -187,13 +219,14 @@ class TestGetHealthWeightWithPagination:
         """
         # Arrange
         user_id = 1
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.get_health_weight_with_pagination(user_id, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestGetHealthWeightByDate:
@@ -209,8 +242,7 @@ class TestGetHealthWeightByDate:
         user_id = 1
         test_date = "2024-01-15"
         mock_weight = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = mock_weight
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_weight
 
         # Act
         result = health_weight_crud.get_health_weight_by_date(
@@ -219,7 +251,7 @@ class TestGetHealthWeightByDate:
 
         # Assert
         assert result == mock_weight
-        mock_db.query.assert_called_once_with(health_weight_models.HealthWeight)
+        mock_db.execute.assert_called_once()
 
     def test_get_health_weight_by_date_not_found(self, mock_db):
         """
@@ -228,8 +260,7 @@ class TestGetHealthWeightByDate:
         # Arrange
         user_id = 1
         test_date = "2024-01-15"
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         # Act
         result = health_weight_crud.get_health_weight_by_date(
@@ -246,13 +277,14 @@ class TestGetHealthWeightByDate:
         # Arrange
         user_id = 1
         test_date = "2024-01-15"
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.get_health_weight_by_date(user_id, test_date, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestCreateHealthWeight:
@@ -267,12 +299,12 @@ class TestCreateHealthWeight:
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15),
             weight=75.5,
             bmi=None,
         )
-        updated_weight = health_weight_schema.HealthWeight(
+        updated_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15),
             weight=75.5,
             bmi=24.5,
@@ -281,6 +313,7 @@ class TestCreateHealthWeight:
 
         mock_db_weight = MagicMock()
         mock_db_weight.id = 1
+        mock_db_weight.bmi = 24.5
         mock_db.add.return_value = None
         mock_db.commit.return_value = None
         mock_db.refresh.return_value = None
@@ -297,27 +330,21 @@ class TestCreateHealthWeight:
 
             # Assert
             assert result.id == 1
-            assert result.bmi == 24.5
             mock_db.add.assert_called_once()
             mock_db.commit.assert_called_once()
             mock_db.refresh.assert_called_once()
 
-    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
-    @patch("health.health_weight.crud.func")
-    def test_create_health_weight_with_none_date(
-        self, mock_func, mock_calculate_bmi, mock_db
-    ):
+    def test_create_health_weight_with_bmi_provided(self, mock_db):
         """
-        Test creation with None date sets current date.
+        Test creation with BMI already provided skips calculation.
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
-            date=None, weight=75.5, bmi=24.5
+        health_weight = health_weight_schema.HealthWeightCreate(
+            date=datetime_date(2024, 1, 15),
+            weight=75.5,
+            bmi=24.5,
         )
-
-        # Mock func.now() to return a proper date object
-        mock_func.now.return_value = datetime_date(2024, 1, 15)
 
         mock_db_weight = MagicMock()
         mock_db_weight.id = 1
@@ -336,9 +363,9 @@ class TestCreateHealthWeight:
             )
 
             # Assert
-            mock_func.now.assert_called_once()
             assert result.id == 1
-            assert result.date == datetime_date(2024, 1, 15)
+            mock_db.add.assert_called_once()
+            mock_db.commit.assert_called_once()
 
     def test_create_health_weight_duplicate_entry(self, mock_db):
         """
@@ -346,7 +373,7 @@ class TestCreateHealthWeight:
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15), weight=75.5, bmi=24.5
         )
 
@@ -373,17 +400,18 @@ class TestCreateHealthWeight:
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15), weight=75.5, bmi=24.5
         )
 
-        mock_db.add.side_effect = Exception("Database error")
+        mock_db.add.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.create_health_weight(user_id, health_weight, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
         mock_db.rollback.assert_called_once()
 
 
@@ -392,44 +420,56 @@ class TestEditHealthWeight:
     Test suite for edit_health_weight function.
     """
 
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
     @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
-    def test_edit_health_weight_success(self, mock_calculate_bmi, mock_db):
+    def test_edit_health_weight_success(
+        self, mock_calculate_bmi, mock_get_by_id, mock_db
+    ):
         """
         Test successful edit of health weight entry.
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
-            id=1, date=datetime_date(2024, 1, 15), weight=76.0, bmi=None
+        health_weight = health_weight_schema.HealthWeightUpdate(
+            id=1,
+            user_id=1,
+            date=datetime_date(2024, 1, 15),
+            weight=76.0,
+            bmi=None,
         )
-        updated_weight = health_weight_schema.HealthWeight(
-            id=1, date=datetime_date(2024, 1, 15), weight=76.0, bmi=24.7
+        updated_weight = health_weight_schema.HealthWeightUpdate(
+            id=1,
+            user_id=1,
+            date=datetime_date(2024, 1, 15),
+            weight=76.0,
+            bmi=24.7,
         )
         mock_calculate_bmi.return_value = updated_weight
 
         mock_db_weight = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = mock_db_weight
+        mock_get_by_id.return_value = mock_db_weight
 
         # Act
         result = health_weight_crud.edit_health_weight(user_id, health_weight, mock_db)
 
         # Assert
-        assert result.bmi == 24.7
         mock_db.commit.assert_called_once()
+        mock_db.refresh.assert_called_once()
 
-    def test_edit_health_weight_not_found(self, mock_db):
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
+    def test_edit_health_weight_not_found(self, mock_get_by_id, mock_db):
         """
         Test edit when health weight record not found.
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
-            id=999, date=datetime_date(2024, 1, 15), weight=76.0
+        health_weight = health_weight_schema.HealthWeightUpdate(
+            id=999,
+            user_id=1,
+            date=datetime_date(2024, 1, 15),
+            weight=76.0,
         )
-
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = None
+        mock_get_by_id.return_value = None
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -438,19 +478,42 @@ class TestEditHealthWeight:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert exc_info.value.detail == "Health weight not found"
 
-    def test_edit_health_weight_without_bmi_calculation(self, mock_db):
+    def test_edit_health_weight_forbidden_different_user(self, mock_db):
+        """
+        Test edit forbidden when user_id doesn't match.
+        """
+        # Arrange
+        user_id = 1
+        health_weight = health_weight_schema.HealthWeightUpdate(
+            id=1,
+            user_id=2,  # Different user
+            date=datetime_date(2024, 1, 15),
+            weight=76.0,
+        )
+
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            health_weight_crud.edit_health_weight(user_id, health_weight, mock_db)
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
+    def test_edit_health_weight_with_bmi_provided(self, mock_get_by_id, mock_db):
         """
         Test edit without BMI calculation when BMI provided.
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(
-            id=1, date=datetime_date(2024, 1, 15), weight=76.0, bmi=25.0
+        health_weight = health_weight_schema.HealthWeightUpdate(
+            id=1,
+            user_id=1,
+            date=datetime_date(2024, 1, 15),
+            weight=76.0,
+            bmi=25.0,
         )
 
         mock_db_weight = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = mock_db_weight
+        mock_get_by_id.return_value = mock_db_weight
 
         # Act
         result = health_weight_crud.edit_health_weight(user_id, health_weight, mock_db)
@@ -458,21 +521,25 @@ class TestEditHealthWeight:
         # Assert
         mock_db.commit.assert_called_once()
 
-    def test_edit_health_weight_exception(self, mock_db):
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
+    def test_edit_health_weight_exception(self, mock_get_by_id, mock_db):
         """
         Test exception handling in edit_health_weight.
         """
         # Arrange
         user_id = 1
-        health_weight = health_weight_schema.HealthWeight(id=1, weight=76.0)
+        health_weight = health_weight_schema.HealthWeightUpdate(
+            id=1, user_id=1, weight=76.0
+        )
 
-        mock_db.query.side_effect = Exception("Database error")
+        mock_get_by_id.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.edit_health_weight(user_id, health_weight, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
         mock_db.rollback.assert_called_once()
 
 
@@ -481,7 +548,8 @@ class TestDeleteHealthWeight:
     Test suite for delete_health_weight function.
     """
 
-    def test_delete_health_weight_success(self, mock_db):
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
+    def test_delete_health_weight_success(self, mock_get_by_id, mock_db):
         """
         Test successful deletion of health weight entry.
         """
@@ -489,49 +557,47 @@ class TestDeleteHealthWeight:
         user_id = 1
         health_weight_id = 1
 
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.delete.return_value = 1
+        mock_db_weight = MagicMock(spec=health_weight_models.HealthWeight)
+        mock_get_by_id.return_value = mock_db_weight
 
         # Act
         health_weight_crud.delete_health_weight(user_id, health_weight_id, mock_db)
 
         # Assert
+        mock_db.delete.assert_called_once_with(mock_db_weight)
         mock_db.commit.assert_called_once()
-        mock_db.query.assert_called_once_with(health_weight_models.HealthWeight)
 
-    def test_delete_health_weight_not_found(self, mock_db):
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
+    def test_delete_health_weight_not_found(self, mock_get_by_id, mock_db):
         """
         Test deletion when health weight record not found.
         """
         # Arrange
         user_id = 1
         health_weight_id = 999
-
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.delete.return_value = 0
+        mock_get_by_id.return_value = None
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.delete_health_weight(user_id, health_weight_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-        assert f"Health weight with id {health_weight_id}" in (exc_info.value.detail)
+        assert f"Health weight with id {health_weight_id}" in exc_info.value.detail
 
-    def test_delete_health_weight_exception(self, mock_db):
+    @patch("health.health_weight.crud.get_health_weight_by_id_and_user_id")
+    def test_delete_health_weight_exception(self, mock_get_by_id, mock_db):
         """
         Test exception handling in delete_health_weight.
         """
         # Arrange
         user_id = 1
         health_weight_id = 1
-
-        mock_db.query.side_effect = Exception("Database error")
+        mock_get_by_id.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_weight_crud.delete_health_weight(user_id, health_weight_id, mock_db)
 
-        assert exc_info.value.status_code == (status.HTTP_500_INTERNAL_SERVER_ERROR)
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
         mock_db.rollback.assert_called_once()

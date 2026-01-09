@@ -12,10 +12,10 @@ class TestHealthStepsSchema:
 
     def test_health_steps_valid_full_data(self):
         """
-        Test HealthSteps schema with all valid fields.
+        Test HealthStepsRead schema with all valid fields.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(
+        health_steps = health_steps_schema.HealthStepsRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -32,24 +32,22 @@ class TestHealthStepsSchema:
 
     def test_health_steps_minimal_data(self):
         """
-        Test HealthSteps schema with minimal required fields.
+        Test HealthStepsBase schema with minimal required fields.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps()
+        health_steps = health_steps_schema.HealthStepsBase()
 
         # Assert
-        assert health_steps.id is None
-        assert health_steps.user_id is None
         assert health_steps.date is None
         assert health_steps.steps is None
         assert health_steps.source is None
 
     def test_health_steps_with_none_values(self):
         """
-        Test HealthSteps schema allows None for optional fields.
+        Test HealthStepsRead schema allows None for optional fields.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(
+        health_steps = health_steps_schema.HealthStepsRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -64,10 +62,10 @@ class TestHealthStepsSchema:
 
     def test_health_steps_with_integer_steps(self):
         """
-        Test HealthSteps schema with integer steps values.
+        Test HealthStepsBase schema with integer steps values.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(steps=5000)
+        health_steps = health_steps_schema.HealthStepsBase(steps=5000)
 
         # Assert
         assert health_steps.steps == 5000
@@ -75,17 +73,17 @@ class TestHealthStepsSchema:
 
     def test_health_steps_forbid_extra_fields(self):
         """
-        Test that HealthSteps schema forbids extra fields.
+        Test that HealthStepsBase schema forbids extra fields.
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_steps_schema.HealthSteps(steps=10000, extra_field="not allowed")
+            health_steps_schema.HealthStepsBase(steps=10000, extra_field="not allowed")
 
         assert "extra_field" in str(exc_info.value)
 
     def test_health_steps_from_attributes(self):
         """
-        Test HealthSteps schema can be created from ORM model.
+        Test HealthStepsRead schema can be created from ORM model.
         """
 
         # Arrange
@@ -99,7 +97,9 @@ class TestHealthStepsSchema:
             source = "garmin"
 
         # Act
-        health_steps = health_steps_schema.HealthSteps.model_validate(MockORMModel())
+        health_steps = health_steps_schema.HealthStepsRead.model_validate(
+            MockORMModel()
+        )
 
         # Assert
         assert health_steps.id == 1
@@ -111,7 +111,7 @@ class TestHealthStepsSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_steps = health_steps_schema.HealthSteps(steps=10000)
+        health_steps = health_steps_schema.HealthStepsBase(steps=10000)
 
         # Act
         health_steps.steps = 12000
@@ -126,27 +126,29 @@ class TestHealthStepsSchema:
         Test date field validation.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(date=datetime_date(2024, 12, 31))
+        health_steps = health_steps_schema.HealthStepsBase(
+            date=datetime_date(2024, 12, 31)
+        )
 
         # Assert
         assert health_steps.date == datetime_date(2024, 12, 31)
 
     def test_health_steps_zero_steps(self):
         """
-        Test HealthSteps schema accepts zero steps.
+        Test HealthStepsBase schema accepts zero steps.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(steps=0)
+        health_steps = health_steps_schema.HealthStepsBase(steps=0)
 
         # Assert
         assert health_steps.steps == 0
 
     def test_health_steps_large_steps_value(self):
         """
-        Test HealthSteps schema with large steps values.
+        Test HealthStepsBase schema with large steps values.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(steps=50000)
+        health_steps = health_steps_schema.HealthStepsBase(steps=50000)
 
         # Assert
         assert health_steps.steps == 50000
@@ -169,10 +171,10 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthSteps schema.
+        Test Source enum can be used in HealthStepsBase schema.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(
+        health_steps = health_steps_schema.HealthStepsBase(
             source=health_steps_schema.Source.GARMIN
         )
 
@@ -184,7 +186,7 @@ class TestSourceEnum:
         Test Source enum accepts string value directly.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthSteps(source="garmin")
+        health_steps = health_steps_schema.HealthStepsBase(source="garmin")
 
         # Assert
         assert health_steps.source == "garmin"
@@ -195,7 +197,7 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_steps_schema.HealthSteps(source="invalid")
+            health_steps_schema.HealthStepsBase(source="invalid")
 
         assert "source" in str(exc_info.value)
 
@@ -210,13 +212,13 @@ class TestHealthStepsListResponse:
         Test HealthStepsListResponse with valid data.
         """
         # Arrange & Act
-        health_steps1 = health_steps_schema.HealthSteps(
+        health_steps1 = health_steps_schema.HealthStepsRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
             steps=10000,
         )
-        health_steps2 = health_steps_schema.HealthSteps(
+        health_steps2 = health_steps_schema.HealthStepsRead(
             id=2,
             user_id=1,
             date=datetime_date(2024, 1, 16),

@@ -539,7 +539,7 @@ class TestCalculateAndSetSleepScores:
         Test calculating and setting all sleep scores.
         """
         # Arrange
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepBase(
             sleep_start_time_local=datetime(2024, 1, 14, 22, 0, 0),
             sleep_end_time_local=datetime(2024, 1, 15, 6, 0, 0),
             total_sleep_seconds=28800,
@@ -572,7 +572,7 @@ class TestCalculateAndSetSleepScores:
         Test calculating scores with minimal data.
         """
         # Arrange
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepBase(
             total_sleep_seconds=28800,
         )
 

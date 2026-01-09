@@ -8,6 +8,7 @@ including retrieval and update operations.
 import pytest
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 
 import server_settings.crud as server_settings_crud
 import server_settings.schema as server_settings_schema
@@ -52,14 +53,14 @@ class TestGetServerSettings:
     def test_get_server_settings_exception(self, mock_db):
         """Test exception handling in get_server_settings."""
         # Arrange
-        mock_db.execute.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             server_settings_crud.get_server_settings(mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert exc_info.value.detail == "Internal Server Error"
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestEditServerSettings:
@@ -190,7 +191,7 @@ class TestEditServerSettings:
         # Arrange
         mock_existing_settings = MagicMock(spec=server_settings_models.ServerSettings)
         mock_get_settings.return_value = mock_existing_settings
-        mock_db.commit.side_effect = Exception("Database error")
+        mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         update_data = server_settings_schema.ServerSettingsEdit(
             id=1,
@@ -219,4 +220,5 @@ class TestEditServerSettings:
             server_settings_crud.edit_server_settings(update_data, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.detail == "Database error occurred"
         mock_db.rollback.assert_called_once()

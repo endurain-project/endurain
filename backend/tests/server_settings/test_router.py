@@ -189,7 +189,7 @@ class TestEditServerSettings:
         )
 
         # Assert
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["units"] == 2
         assert data["num_records_per_page"] == 50
@@ -272,9 +272,7 @@ class TestDeleteLoginPhoto:
         )
 
         # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["detail"] == "Login photo deleted successfully"
+        assert response.status_code == 204
 
     @patch("server_settings.router.os.path.exists")
     def test_delete_login_photo_not_exists(
@@ -291,6 +289,4 @@ class TestDeleteLoginPhoto:
         )
 
         # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["detail"] == "Login photo deleted successfully"
+        assert response.status_code == 204

@@ -124,6 +124,8 @@ class TestUpdateHealthTargets:
         response = fast_api_client.put(
             "/health_targets/",
             json={
+                "id": 1,
+                "user_id": 1,
                 "weight": 80.0,
                 "steps": 12000,
                 "sleep": 32400,
@@ -159,6 +161,8 @@ class TestUpdateHealthTargets:
         response = fast_api_client.put(
             "/health_targets/",
             json={
+                "id": 1,
+                "user_id": 1,
                 "weight": 75.0,
             },
             headers={"Authorization": "Bearer mock_token"},
@@ -190,6 +194,8 @@ class TestUpdateHealthTargets:
         response = fast_api_client.put(
             "/health_targets/",
             json={
+                "id": 1,
+                "user_id": 1,
                 "weight": None,
                 "steps": None,
                 "sleep": None,
@@ -221,6 +227,8 @@ class TestUpdateHealthTargets:
         response = fast_api_client.put(
             "/health_targets/",
             json={
+                "id": 1,
+                "user_id": 1,
                 "weight": 80.0,
             },
             headers={"Authorization": "Bearer mock_token"},

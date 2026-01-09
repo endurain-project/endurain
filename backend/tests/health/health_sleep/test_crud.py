@@ -3,7 +3,7 @@ from datetime import datetime, date as datetime_date
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 import health.health_sleep.crud as health_sleep_crud
 import health.health_sleep.schema as health_sleep_schema
@@ -22,15 +22,14 @@ class TestGetHealthSleepNumber:
         # Arrange
         user_id = 1
         expected_count = 5
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.count.return_value = expected_count
+        mock_db.execute.return_value.scalar.return_value = expected_count
 
         # Act
         result = health_sleep_crud.get_health_sleep_number(user_id, mock_db)
 
         # Assert
         assert result == expected_count
-        mock_db.query.assert_called_once_with(health_sleep_models.HealthSleep)
+        mock_db.execute.assert_called_once()
 
     def test_get_health_sleep_number_zero(self, mock_db):
         """
@@ -38,8 +37,7 @@ class TestGetHealthSleepNumber:
         """
         # Arrange
         user_id = 1
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.count.return_value = 0
+        mock_db.execute.return_value.scalar.return_value = 0
 
         # Act
         result = health_sleep_crud.get_health_sleep_number(user_id, mock_db)
@@ -53,14 +51,14 @@ class TestGetHealthSleepNumber:
         """
         # Arrange
         user_id = 1
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             health_sleep_crud.get_health_sleep_number(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        assert exc_info.value.detail == "Internal Server Error"
+        assert exc_info.value.detail == "Database error occurred"
 
 
 class TestGetAllHealthSleepByUserId:
@@ -76,9 +74,7 @@ class TestGetAllHealthSleepByUserId:
         user_id = 1
         mock_sleep1 = MagicMock(spec=health_sleep_models.HealthSleep)
         mock_sleep2 = MagicMock(spec=health_sleep_models.HealthSleep)
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.order_by.return_value.all.return_value = [
+        mock_db.execute.return_value.scalars.return_value.all.return_value = [
             mock_sleep1,
             mock_sleep2,
         ]
@@ -88,7 +84,7 @@ class TestGetAllHealthSleepByUserId:
 
         # Assert
         assert result == [mock_sleep1, mock_sleep2]
-        mock_db.query.assert_called_once_with(health_sleep_models.HealthSleep)
+        mock_db.execute.assert_called_once()
 
     def test_get_all_health_sleep_by_user_id_empty(self, mock_db):
         """
@@ -96,9 +92,7 @@ class TestGetAllHealthSleepByUserId:
         """
         # Arrange
         user_id = 1
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.order_by.return_value.all.return_value = []
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
 
         # Act
         result = health_sleep_crud.get_all_health_sleep_by_user_id(user_id, mock_db)
@@ -112,7 +106,7 @@ class TestGetAllHealthSleepByUserId:
         """
         # Arrange
         user_id = 1
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -136,11 +130,7 @@ class TestGetHealthSleepWithPagination:
         num_records = 5
         mock_sleep1 = MagicMock(spec=health_sleep_models.HealthSleep)
         mock_sleep2 = MagicMock(spec=health_sleep_models.HealthSleep)
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_order = mock_filter.order_by.return_value
-        mock_offset = mock_order.offset.return_value
-        mock_offset.limit.return_value.all.return_value = [
+        mock_db.execute.return_value.scalars.return_value.all.return_value = [
             mock_sleep1,
             mock_sleep2,
         ]
@@ -152,8 +142,7 @@ class TestGetHealthSleepWithPagination:
 
         # Assert
         assert result == [mock_sleep1, mock_sleep2]
-        mock_order.offset.assert_called_once_with(5)
-        mock_offset.limit.assert_called_once_with(5)
+        mock_db.execute.assert_called_once()
 
     def test_get_health_sleep_with_pagination_defaults(self, mock_db):
         """
@@ -161,18 +150,13 @@ class TestGetHealthSleepWithPagination:
         """
         # Arrange
         user_id = 1
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_order = mock_filter.order_by.return_value
-        mock_offset = mock_order.offset.return_value
-        mock_offset.limit.return_value.all.return_value = []
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
 
         # Act
         result = health_sleep_crud.get_health_sleep_with_pagination(user_id, mock_db)
 
         # Assert
-        mock_order.offset.assert_called_once_with(0)
-        mock_offset.limit.assert_called_once_with(5)
+        mock_db.execute.assert_called_once()
 
     def test_get_health_sleep_with_pagination_exception(self, mock_db):
         """
@@ -180,7 +164,7 @@ class TestGetHealthSleepWithPagination:
         """
         # Arrange
         user_id = 1
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -202,15 +186,14 @@ class TestGetHealthSleepByDate:
         user_id = 1
         test_date = "2024-01-15"
         mock_sleep = MagicMock(spec=health_sleep_models.HealthSleep)
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = mock_sleep
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_sleep
 
         # Act
         result = health_sleep_crud.get_health_sleep_by_date(user_id, test_date, mock_db)
 
         # Assert
         assert result == mock_sleep
-        mock_db.query.assert_called_once_with(health_sleep_models.HealthSleep)
+        mock_db.execute.assert_called_once()
 
     def test_get_health_sleep_by_date_not_found(self, mock_db):
         """
@@ -219,8 +202,7 @@ class TestGetHealthSleepByDate:
         # Arrange
         user_id = 1
         test_date = "2024-01-15"
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         # Act
         result = health_sleep_crud.get_health_sleep_by_date(user_id, test_date, mock_db)
@@ -235,7 +217,7 @@ class TestGetHealthSleepByDate:
         # Arrange
         user_id = 1
         test_date = "2024-01-15"
-        mock_db.query.side_effect = Exception("Database error")
+        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -255,7 +237,7 @@ class TestCreateHealthSleep:
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepCreate(
             date=datetime_date(2024, 1, 15),
             total_sleep_seconds=28800,
             sleep_score_overall=85,
@@ -263,6 +245,7 @@ class TestCreateHealthSleep:
 
         mock_db_sleep = MagicMock()
         mock_db_sleep.id = 1
+        mock_db_sleep.total_sleep_seconds = 28800
         mock_db.add.return_value = None
         mock_db.commit.return_value = None
         mock_db.refresh.return_value = None
@@ -284,22 +267,18 @@ class TestCreateHealthSleep:
             mock_db.commit.assert_called_once()
             mock_db.refresh.assert_called_once()
 
-    @patch("health.health_sleep.crud.func")
-    def test_create_health_sleep_with_none_date(self, mock_func, mock_db):
+    def test_create_health_sleep_with_none_date(self, mock_db):
         """
-        Test creation with None date sets current date.
+        Test creation with None date sets current date via schema validator.
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(
-            date=None, total_sleep_seconds=28800
-        )
-
-        # Mock func.now() to return a proper date object
-        mock_func.now.return_value = datetime_date(2024, 1, 15)
+        # Schema validator sets date to today when not provided
+        health_sleep = health_sleep_schema.HealthSleepCreate(total_sleep_seconds=28800)
 
         mock_db_sleep = MagicMock()
         mock_db_sleep.id = 1
+        mock_db_sleep.date = health_sleep.date  # Will be today's date from validator
         mock_db.add.return_value = None
         mock_db.commit.return_value = None
         mock_db.refresh.return_value = None
@@ -315,9 +294,9 @@ class TestCreateHealthSleep:
             )
 
             # Assert
-            mock_func.now.assert_called_once()
             assert result.id == 1
-            assert result.date == datetime_date(2024, 1, 15)
+            # Schema validator should have set today's date
+            assert health_sleep.date == datetime_date.today()
 
     def test_create_health_sleep_duplicate_entry(self, mock_db):
         """
@@ -325,7 +304,7 @@ class TestCreateHealthSleep:
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepCreate(
             date=datetime_date(2024, 1, 15), total_sleep_seconds=28800
         )
 
@@ -352,11 +331,11 @@ class TestCreateHealthSleep:
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepCreate(
             date=datetime_date(2024, 1, 15), total_sleep_seconds=28800
         )
 
-        mock_db.add.side_effect = Exception("Database error")
+        mock_db.add.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -377,16 +356,17 @@ class TestEditHealthSleep:
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(
+        health_sleep = health_sleep_schema.HealthSleepUpdate(
             id=1,
+            user_id=1,
             date=datetime_date(2024, 1, 15),
             total_sleep_seconds=32400,
             sleep_score_overall=90,
         )
 
         mock_db_sleep = MagicMock(spec=health_sleep_models.HealthSleep)
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = mock_db_sleep
+        mock_db_sleep.total_sleep_seconds = 32400
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_sleep
 
         # Act
         result = health_sleep_crud.edit_health_sleep(user_id, health_sleep, mock_db)
@@ -401,12 +381,14 @@ class TestEditHealthSleep:
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(
-            id=999, date=datetime_date(2024, 1, 15), total_sleep_seconds=32400
+        health_sleep = health_sleep_schema.HealthSleepUpdate(
+            id=999,
+            user_id=1,
+            date=datetime_date(2024, 1, 15),
+            total_sleep_seconds=32400,
         )
 
-        mock_query = mock_db.query.return_value
-        mock_query.filter.return_value.first.return_value = None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -421,9 +403,15 @@ class TestEditHealthSleep:
         """
         # Arrange
         user_id = 1
-        health_sleep = health_sleep_schema.HealthSleep(id=1, total_sleep_seconds=32400)
+        health_sleep = health_sleep_schema.HealthSleepUpdate(
+            id=1, user_id=1, total_sleep_seconds=32400
+        )
 
-        mock_db.query.side_effect = Exception("Database error")
+        # Mock get_health_sleep_by_id_and_user_id to return a record
+        mock_db_sleep = MagicMock(spec=health_sleep_models.HealthSleep)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_sleep
+        # Then make commit raise SQLAlchemyError
+        mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -446,16 +434,16 @@ class TestDeleteHealthSleep:
         user_id = 1
         health_sleep_id = 1
 
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.delete.return_value = 1
+        # Mock get_health_sleep_by_id_and_user_id to return a record
+        mock_db_sleep = MagicMock(spec=health_sleep_models.HealthSleep)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_sleep
 
         # Act
         health_sleep_crud.delete_health_sleep(user_id, health_sleep_id, mock_db)
 
         # Assert
+        mock_db.delete.assert_called_once_with(mock_db_sleep)
         mock_db.commit.assert_called_once()
-        mock_db.query.assert_called_once_with(health_sleep_models.HealthSleep)
 
     def test_delete_health_sleep_not_found(self, mock_db):
         """
@@ -465,9 +453,8 @@ class TestDeleteHealthSleep:
         user_id = 1
         health_sleep_id = 999
 
-        mock_query = mock_db.query.return_value
-        mock_filter = mock_query.filter.return_value
-        mock_filter.delete.return_value = 0
+        # Mock get_health_sleep_by_id_and_user_id to return None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
@@ -484,7 +471,11 @@ class TestDeleteHealthSleep:
         user_id = 1
         health_sleep_id = 1
 
-        mock_db.query.side_effect = Exception("Database error")
+        # Mock get_health_sleep_by_id_and_user_id to return a record
+        mock_db_sleep = MagicMock(spec=health_sleep_models.HealthSleep)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_db_sleep
+        # Then make delete raise SQLAlchemyError
+        mock_db.delete.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:

@@ -26,7 +26,7 @@ class TestCalculateBMI:
         mock_user.height = 175
         mock_get_user.return_value = mock_user
 
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15), weight=75.0, bmi=None
         )
 
@@ -49,7 +49,7 @@ class TestCalculateBMI:
         mock_db = MagicMock(spec=Session)
         mock_get_user.return_value = None
 
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15), weight=75.0, bmi=None
         )
 
@@ -72,7 +72,7 @@ class TestCalculateBMI:
         mock_user.height = None
         mock_get_user.return_value = mock_user
 
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15), weight=75.0, bmi=None
         )
 
@@ -95,7 +95,7 @@ class TestCalculateBMI:
         mock_user.height = 175
         mock_get_user.return_value = mock_user
 
-        health_weight = health_weight_schema.HealthWeight(
+        health_weight = health_weight_schema.HealthWeightCreate(
             date=datetime_date(2024, 1, 15), weight=None, bmi=None
         )
 
@@ -126,7 +126,7 @@ class TestCalculateBMI:
             mock_user.height = height
             mock_get_user.return_value = mock_user
 
-            health_weight = health_weight_schema.HealthWeight(
+            health_weight = health_weight_schema.HealthWeightCreate(
                 date=datetime_date(2024, 1, 15),
                 weight=weight,
                 bmi=None,
@@ -167,6 +167,13 @@ class TestCalculateBMIAllUserEntries:
         mock_weight1.date = datetime_date(2024, 1, 15)
         mock_weight1.weight = 75.0
         mock_weight1.bmi = None
+        mock_weight1.body_fat = None
+        mock_weight1.body_water = None
+        mock_weight1.bone_mass = None
+        mock_weight1.muscle_mass = None
+        mock_weight1.physique_rating = None
+        mock_weight1.visceral_fat = None
+        mock_weight1.metabolic_age = None
         mock_weight1.source = "garmin"
 
         mock_weight2 = MagicMock()
@@ -175,11 +182,18 @@ class TestCalculateBMIAllUserEntries:
         mock_weight2.date = datetime_date(2024, 1, 16)
         mock_weight2.weight = 74.5
         mock_weight2.bmi = None
+        mock_weight2.body_fat = None
+        mock_weight2.body_water = None
+        mock_weight2.bone_mass = None
+        mock_weight2.muscle_mass = None
+        mock_weight2.physique_rating = None
+        mock_weight2.visceral_fat = None
+        mock_weight2.metabolic_age = None
         mock_weight2.source = "garmin"
 
         mock_get_all.return_value = [mock_weight1, mock_weight2]
 
-        calculated_weight1 = health_weight_schema.HealthWeight(
+        calculated_weight1 = health_weight_schema.HealthWeightUpdate(
             id=1,
             user_id=user_id,
             date=datetime_date(2024, 1, 15),
@@ -187,7 +201,7 @@ class TestCalculateBMIAllUserEntries:
             bmi=24.5,
             source="garmin",
         )
-        calculated_weight2 = health_weight_schema.HealthWeight(
+        calculated_weight2 = health_weight_schema.HealthWeightUpdate(
             id=2,
             user_id=user_id,
             date=datetime_date(2024, 1, 16),
@@ -280,7 +294,7 @@ class TestCalculateBMIAllUserEntries:
 
         mock_get_all.return_value = [mock_weight]
 
-        calculated_weight = health_weight_schema.HealthWeight(
+        calculated_weight = health_weight_schema.HealthWeightUpdate(
             id=1,
             user_id=user_id,
             date=datetime_date(2024, 1, 15),

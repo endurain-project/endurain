@@ -234,7 +234,7 @@ class TestCreateHealthSleep:
         """
         # Arrange
         mock_get_by_date.return_value = None
-        created_sleep = health_sleep_schema.HealthSleep(
+        created_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -270,7 +270,7 @@ class TestCreateHealthSleep:
         existing_sleep.id = 1
         mock_get_by_date.return_value = existing_sleep
 
-        updated_sleep = health_sleep_schema.HealthSleep(
+        updated_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -292,10 +292,24 @@ class TestCreateHealthSleep:
         assert response.status_code == 201
         mock_edit.assert_called_once()
 
-    def test_create_health_sleep_missing_date(self, fast_api_client, fast_api_app):
+    @patch("health.health_sleep.router.health_sleep_crud.create_health_sleep")
+    @patch("health.health_sleep.router.health_sleep_crud.get_health_sleep_by_date")
+    def test_create_health_sleep_missing_date_uses_today(
+        self, mock_get_by_date, mock_create, fast_api_client, fast_api_app
+    ):
         """
-        Test creating health sleep without date field raises error.
+        Test creating health sleep without date uses today's date automatically.
         """
+        # Arrange
+        mock_get_by_date.return_value = None
+        created_sleep = health_sleep_schema.HealthSleepRead(
+            id=1,
+            user_id=1,
+            date=datetime_date.today(),
+            total_sleep_seconds=28800,
+        )
+        mock_create.return_value = created_sleep
+
         # Act
         response = fast_api_client.post(
             "/health_sleep",
@@ -305,11 +319,11 @@ class TestCreateHealthSleep:
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        # Assert
-        assert response.status_code == 400
-        assert "Date field is required" in response.json()["detail"]
+        # Assert - Now succeeds since HealthSleepCreate auto-fills date
+        assert response.status_code == 201
+        mock_create.assert_called_once()
 
-    @patch("health.health_sleep.router.sleep_scoring._calculate_and_set_sleep_scores")
+    @patch("health.health_sleep.sleep_scoring._calculate_and_set_sleep_scores")
     @patch("health.health_sleep.router.health_sleep_crud.create_health_sleep")
     @patch("health.health_sleep.router.health_sleep_crud.get_health_sleep_by_date")
     def test_create_health_sleep_calls_scoring(
@@ -320,7 +334,7 @@ class TestCreateHealthSleep:
         """
         # Arrange
         mock_get_by_date.return_value = None
-        created_sleep = health_sleep_schema.HealthSleep(
+        created_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -354,7 +368,7 @@ class TestEditHealthSleep:
         Test successful edit of health sleep entry.
         """
         # Arrange
-        updated_sleep = health_sleep_schema.HealthSleep(
+        updated_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -367,6 +381,7 @@ class TestEditHealthSleep:
             "/health_sleep",
             json={
                 "id": 1,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "total_sleep_seconds": 32400,
             },
@@ -396,6 +411,7 @@ class TestEditHealthSleep:
             "/health_sleep",
             json={
                 "id": 999,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "total_sleep_seconds": 32400,
             },
@@ -411,7 +427,7 @@ class TestEditHealthSleepScoringIntegration:
     Test suite for edit_health_sleep endpoint scoring integration.
     """
 
-    @patch("health.health_sleep.router.sleep_scoring._calculate_and_set_sleep_scores")
+    @patch("health.health_sleep.sleep_scoring._calculate_and_set_sleep_scores")
     @patch("health.health_sleep.router.health_sleep_crud.edit_health_sleep")
     def test_edit_health_sleep_calls_scoring(
         self, mock_edit, mock_scoring, fast_api_client, fast_api_app
@@ -420,7 +436,7 @@ class TestEditHealthSleepScoringIntegration:
         Test editing health sleep calls sleep scoring function.
         """
         # Arrange
-        updated_sleep = health_sleep_schema.HealthSleep(
+        updated_sleep = health_sleep_schema.HealthSleepRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
@@ -433,6 +449,7 @@ class TestEditHealthSleepScoringIntegration:
             "/health_sleep",
             json={
                 "id": 1,
+                "user_id": 1,
                 "date": "2024-01-15",
                 "total_sleep_seconds": 32400,
             },
