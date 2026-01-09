@@ -1,8 +1,8 @@
 {
-  "sleep": "Today's sleep",
-  "noSleepTarget": "No sleep target",
-  "restingHeartRate": "Resting heart rate",
-  "avgSkinTemperatureDeviation": "Skin temp. dev.",
+  "sleep": "Slaap vandaag",
+  "noSleepTarget": "Geen slaap doel",
+  "restingHeartRate": "Hartslag in rust",
+  "avgSkinTemperatureDeviation": "Huid temp. ontwikkelaar",
   "weight": "Gewicht",
   "noWeightData": "Geen gewichtsgegevens",
   "noWeightTarget": "Geen gewichtsdoel",
@@ -14,7 +14,7 @@
   "bmiObesityClass1": "Obesitas (klasse 1)",
   "bmiObesityClass2": "Obesitas (klasse 2)",
   "bmiObesityClass3": "Extreme obesitas (klasse 3)",
-  "steps": "Today's steps",
-  "stepsTargetLabel": "steps",
-  "noStepsTarget": "No steps target"
+  "steps": "Aantal stappen vandaag",
+  "stepsTargetLabel": "stappen",
+  "noStepsTarget": "Stappen doel"
 }
