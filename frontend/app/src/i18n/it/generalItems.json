@@ -97,5 +97,11 @@
   "labelHours": "Hours",
   "labelMinutes": "Minutes",
   "labelHoursShort": "h",
-  "labelMinutesShort": "min"
+  "labelMinutesShort": "min",
+  "markdownEditor": {
+    "showPreview": "Preview",
+    "hidePreview": "Edit",
+    "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
+    "noContentToPreview": "No content to preview"
+  }
 }
