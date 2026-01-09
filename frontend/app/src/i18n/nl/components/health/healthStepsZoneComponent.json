@@ -1,8 +1,8 @@
 {
-  "buttonAddSteps": "Add steps",
-  "buttonStepsTarget": "Steps target",
-  "modalStepsTargetLabel": "Enter your steps target",
-  "labelNumberOfHealthSteps1": "There is a total of ",
-  "labelNumberOfHealthSteps2": " steps entries inserted (",
-  "labelNumberOfHealthSteps3": " loaded):"
+  "buttonAddSteps": "Stappen toevoegen",
+  "buttonStepsTarget": "Stappen doel",
+  "modalStepsTargetLabel": "Voer uw stappendoel in",
+  "labelNumberOfHealthSteps1": "Er is in totaal ",
+  "labelNumberOfHealthSteps2": " invoerinvoergegevens in stappen (",
+  "labelNumberOfHealthSteps3": " geladen):"
 }
