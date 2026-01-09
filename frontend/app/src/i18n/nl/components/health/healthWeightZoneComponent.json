@@ -1,8 +1,8 @@
 {
   "buttonAddWeight": "Gewicht Toevoegen",
-  "buttonWeightTarget": "Weight target",
-  "modalWeightTargetLabel": "Enter your weight target",
-  "labelNumberOfHealthWeightWeight1": "There is a total of ",
-  "labelNumberOfHealthWeightWeight2": " weight measure(s) inserted (",
-  "labelNumberOfHealthWeightWeight3": " loaded):"
+  "buttonWeightTarget": "Geen gewichtsdoel",
+  "modalWeightTargetLabel": "Voer uw gewichtsdoel in",
+  "labelNumberOfHealthWeightWeight1": "Er is een totaal van ",
+  "labelNumberOfHealthWeightWeight2": " gewicht afmeting(en) ingevoegd (",
+  "labelNumberOfHealthWeightWeight3": " geladen):"
 }
