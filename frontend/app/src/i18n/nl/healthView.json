@@ -1,13 +1,13 @@
 {
   "title": "Gezondheid",
-  "errorFetchingHealthSteps": "Error fetching health steps",
-  "errorFetchingHealthWeight": "Error fetching health data",
-  "errorFetchingHealthSleep": "Error fetching health sleep",
+  "errorFetchingHealthSteps": "Fout bij het ophalen van gezondheid stappen",
+  "errorFetchingHealthWeight": "Fout bij het ophalen van gezondheidsgegevens",
+  "errorFetchingHealthSleep": "Fout bij het ophalen van gezondheid slaap",
   "errorFetchingHealthTargets": "Fout bij ophalen van gezondheidsdoelen",
-  "successUpdatingWeightTarget": "Successfully updated weight target",
-  "errorUpdatingWeightTarget": "Error updating weight target",
-  "successUpdatingStepsTarget": "Successfully updated steps target",
-  "errorUpdatingStepsTarget": "Error updating steps target",
-  "successUpdatingSleepTarget": "Successfully updated sleep target",
-  "errorUpdatingSleepTarget": "Error updating sleep target"
+  "successUpdatingWeightTarget": "Gewicht doelstelling succesvol bijgewerkt",
+  "errorUpdatingWeightTarget": "Fout bij het bijwerken van het streefgewicht",
+  "successUpdatingStepsTarget": "Doelstelling stappen succesvol bijgewerkt",
+  "errorUpdatingStepsTarget": "Fout bij bijwerken stappendoel",
+  "successUpdatingSleepTarget": "Slaapdoel succesvol bijgewerkt",
+  "errorUpdatingSleepTarget": "Fout bij bijwerken slaap doel"
 }
