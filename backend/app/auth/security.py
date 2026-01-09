@@ -174,9 +174,10 @@ def validate_access_token(
         # Validate the token expiration
         token_manager.validate_token_expiration(access_token)
     except HTTPException as http_err:
+        log_level = "debug" if "expired" in http_err.detail.lower() else "error"
         core_logger.print_to_log(
             f"Access token validation failed: {http_err.detail}",
-            "error",
+            log_level,
             exc=http_err,
             context={"access_token": "[REDACTED]"},
         )
@@ -220,9 +221,10 @@ def validate_access_token_for_browser_redirect(
         # Validate the token expiration
         token_manager.validate_token_expiration(access_token)
     except HTTPException as http_err:
+        log_level = "debug" if "expired" in http_err.detail.lower() else "error"
         core_logger.print_to_log(
             f"Access token validation failed: {http_err.detail}",
-            "error",
+            log_level,
             exc=http_err,
             context={"access_token": "[REDACTED]"},
         )
@@ -394,9 +396,10 @@ def validate_refresh_token(
         # Validate the token expiration
         token_manager.validate_token_expiration(refresh_token)
     except HTTPException as http_err:
+        log_level = "debug" if "expired" in http_err.detail.lower() else "error"
         core_logger.print_to_log(
             f"Refresh token validation failed: {http_err.detail}",
-            "error",
+            log_level,
             exc=http_err,
             context={"refresh_token": "[REDACTED]"},
         )
