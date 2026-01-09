@@ -4,10 +4,10 @@
   "errorFetchingHealthWeight": "Fehler beim Laden der Gesundheitsdaten",
   "errorFetchingHealthSleep": "Fehler beim Laden der Schlafdaten",
   "errorFetchingHealthTargets": "Fehler beim Laden der Gesundheitsziele",
-  "successUpdatingWeightTarget": "Successfully updated weight target",
+  "successUpdatingWeightTarget": "Gewichtsziel erfolgreich aktualisiert",
   "errorUpdatingWeightTarget": "Fehler beim Aktualisieren des Gewichtsziels",
-  "successUpdatingStepsTarget": "Successfully updated steps target",
+  "successUpdatingStepsTarget": "Schritte-Ziel erfolgreich aktualisiert",
   "errorUpdatingStepsTarget": "Fehler beim Aktualisieren der Schrittziele",
-  "successUpdatingSleepTarget": "Successfully updated sleep target",
+  "successUpdatingSleepTarget": "Schlaf-Ziel erfolgreich aktualisiert",
   "errorUpdatingSleepTarget": "Fehler beim Aktualisieren der Schlafziele"
 }
