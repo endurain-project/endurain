@@ -5,10 +5,10 @@
   "addWeightDateLabel": "Datum",
   "addWeightHiddenItemsLabel": "Details",
   "addWeightBMILabel": "BMI",
-  "addWeightBodyFatLabel": "Body fat",
-  "addWeightBodyWaterLabel": "Body water",
-  "addWeightBoneMassLabel": "Bone mass",
-  "addWeightMuscleMassLabel": "Muscle mass",
+  "addWeightBodyFatLabel": "Körperfett",
+  "addWeightBodyWaterLabel": "Körperwasser",
+  "addWeightBoneMassLabel": "Knochenmasse",
+  "addWeightMuscleMassLabel": "Muskelmasse",
   "successAddWeight": "Gewicht hinzugefügt",
-  "errorAddWeight": "Fehler beim hinzufügen des Gewichts"
+  "errorAddWeight": "Fehler beim Hinzufügen des Gewichts"
 }
