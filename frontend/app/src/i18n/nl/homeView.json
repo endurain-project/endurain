@@ -4,7 +4,7 @@
   "fieldLabelUploadFileType": "Upload .gpx of .fit bestand",
   "radioUserActivities": "Mijn activiteiten",
   "radioFollowerActivities": "Activiteiten volgers",
-  "pillIsHidden": "Hidden",
+  "pillIsHidden": "Verborgen",
   "successActivityAdded": "Activiteit succesvol toegevoegd",
   "errorActivityAdded": "Fout bij toevoegen activiteit",
   "refreshingActivities": "Activiteiten vernieuwen van gekoppelde services",
@@ -14,5 +14,5 @@
   "successActivityDeleted": "Activiteit succesvol verwijderd",
   "errorFetchingUserStats": "Fout bij ophalen gebruikersstatistieken",
   "errorFetchingUserActivities": "Fout bij ophalen gebruikersactiviteiten",
-  "errorFetchingMedia": "Error fetching media for activity"
+  "errorFetchingMedia": "Fout bij het ophalen van media voor activiteit"
 }
