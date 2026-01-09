@@ -1,8 +1,8 @@
 {
-  "title1": "Handling verify email",
-  "title2": "Please wait while your email is being verified. Do not refresh this page.",
-  "emailVerified": "Email verified successfully!",
-  "tokenNotFound": "Token not found",
-  "tokenExpired": "Token expired",
-  "verificationFailed": "Email verification failed"
+  "title1": "Verwerking verificatie e-mail",
+  "title2": "Een ogenblik geduld, uw e-mailadres wordt geverifieerd. Vernieuw deze pagina niet.",
+  "emailVerified": "E-mail succesvol geverifieerd!",
+  "tokenNotFound": "Token niet gevonden",
+  "tokenExpired": "Token verlopen",
+  "verificationFailed": "E-mailverificatie mislukt"
 }
