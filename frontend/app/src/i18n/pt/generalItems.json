@@ -99,9 +99,9 @@
   "labelHoursShort": "h",
   "labelMinutesShort": "min",
   "markdownEditor": {
-    "showPreview": "Preview",
-    "hidePreview": "Edit",
-    "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
-    "noContentToPreview": "No content to preview"
+    "showPreview": "Pré-visualizar",
+    "hidePreview": "Editar",
+    "markdownSupported": "Formatação markdown suportada (negrito, itálico, links, listas, etc.)",
+    "noContentToPreview": "Nenhum conteúdo para pré-visualizar"
   }
 }
