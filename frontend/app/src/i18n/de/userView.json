@@ -18,7 +18,7 @@
   "successFollowRequestCancelled": "Anfrage abgebrochen",
   "navigationUnfollow": "Entfolgen",
   "modalUnfollowUserTitle": "Benutzer Entfolgen",
-  "modalUnfollowUserBody": "Bist du sicher, dass du dem Benutzer folgen möchtest ",
+  "modalUnfollowUserBody": " ",
   "errorUnableToUnfollow": "Dem Benutzer konnte nicht entfolgt werden",
   "successUserUnfollowed": "Benutzer entfolgt",
   "activitiesPaginationWeek0": "Diese Woche",
