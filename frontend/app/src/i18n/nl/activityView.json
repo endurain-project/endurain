@@ -9,5 +9,5 @@
   "errorMessageDeleteGear": "Fout bij verwijderen van uitrusting uit activiteit",
   "errorMessageActivityNotFound": "Activiteit niet gevonden",
   "alertPrivacyMessage": "Je hebt informatie in deze activiteit verborgen. Je kunt het zelf zien, maar anderen niet.",
-  "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+  "isHiddenMessage": "Deze activiteit is verborgen. Waarschijnlijk omdat het een duplicaat is of door de gebruiker is verborgen."
 }
