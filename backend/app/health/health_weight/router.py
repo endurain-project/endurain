@@ -1,7 +1,7 @@
 from typing import Annotated, Callable
 from datetime import date
 
-from fastapi import APIRouter, Depends, Security, HTTPException
+from fastapi import APIRouter, Depends, Security, HTTPException, status
 from sqlalchemy.orm import Session
 
 import health.health_weight.schema as health_weight_schema
@@ -19,6 +19,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=health_weight_schema.HealthWeightListResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_weight_all(
     _check_scopes: Annotated[
@@ -56,12 +57,16 @@ async def read_health_weight_all(
     total = health_weight_crud.get_health_weight_number(token_user_id, db)
     records = health_weight_crud.get_all_health_weight_by_user_id(token_user_id, db)
 
-    return health_weight_schema.HealthWeightListResponse(total=total, records=records)
+    # Pydantic will convert ORM models to HealthWeightRead via from_attributes=True
+    return health_weight_schema.HealthWeightListResponse(
+        total=total, records=records  # type: ignore[arg-type]
+    )
 
 
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
     response_model=health_weight_schema.HealthWeightListResponse,
+    status_code=status.HTTP_200_OK,
 )
 async def read_health_weight_all_pagination(
     page_number: int,
@@ -113,14 +118,22 @@ async def read_health_weight_all_pagination(
         token_user_id, db, page_number, num_records
     )
 
+    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
     return health_weight_schema.HealthWeightListResponse(
-        total=total, num_records=num_records, page_number=page_number, records=records
+        total=total,
+        num_records=num_records,
+        page_number=page_number,
+        records=records,  # type: ignore[arg-type]
     )
 
 
-@router.post("", status_code=201)
+@router.post(
+    "",
+    response_model=health_weight_schema.HealthWeightRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_health_weight(
-    health_weight: health_weight_schema.HealthWeight,
+    health_weight: health_weight_schema.HealthWeightCreate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -132,7 +145,7 @@ async def create_health_weight(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_weight_schema.HealthWeight:
+) -> health_weight_schema.HealthWeightRead:
     """
     Create or update a health weight record for the authenticated user.
 
@@ -140,14 +153,14 @@ async def create_health_weight(
     or updates an existing record if one is already present for that date.
 
     Args:
-        health_weight (health_weight_schema.HealthWeight): The health weight data to create or update.
+        health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create or update.
             Must include a date field.
         _check_scopes (Callable): Security dependency that verifies the user has 'health:write' scope.
         token_user_id (int): The ID of the authenticated user extracted from the access token.
         db (Session): Database session dependency for performing database operations.
 
     Returns:
-        health_weight_schema.HealthWeight: The created or updated health weight record.
+        health_weight_schema.HealthWeightRead: The created or updated health weight record.
 
     Raises:
         HTTPException: 400 error if the date field is not provided in the request.
@@ -164,17 +177,26 @@ async def create_health_weight(
     )
 
     if health_for_date:
-        health_weight.id = health_for_date.id
+        # Convert to update schema with the existing ID
+        health_weight_update = health_weight_schema.HealthWeightUpdate(
+            id=health_for_date.id, **health_weight.model_dump()
+        )
         # Updates the health_weight in the database and returns it
-        return health_weight_crud.edit_health_weight(token_user_id, health_weight, db)
+        return health_weight_crud.edit_health_weight(
+            token_user_id, health_weight_update, db
+        )
     else:
         # Creates the health_weight in the database and returns it
         return health_weight_crud.create_health_weight(token_user_id, health_weight, db)
 
 
-@router.put("")
+@router.put(
+    "",
+    response_model=health_weight_schema.HealthWeightRead,
+    status_code=status.HTTP_200_OK,
+)
 async def edit_health_weight(
-    health_weight: health_weight_schema.HealthWeight,
+    health_weight: health_weight_schema.HealthWeightUpdate,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -186,7 +208,7 @@ async def edit_health_weight(
         Session,
         Depends(core_database.get_db),
     ],
-) -> health_weight_schema.HealthWeight:
+) -> health_weight_schema.HealthWeightRead:
     """
     Edit a health weight entry for the authenticated user.
 
@@ -213,7 +235,9 @@ async def edit_health_weight(
     return health_weight_crud.edit_health_weight(token_user_id, health_weight, db)
 
 
-@router.delete("/{health_weight_id}", status_code=204)
+@router.delete(
+    "/{health_weight_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_health_weight(
     health_weight_id: int,
     _check_scopes: Annotated[

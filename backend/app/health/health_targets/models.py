@@ -44,5 +44,6 @@ class HealthTargets(Base):
         comment="Number of hours slept in seconds",
     )
 
+    # Define a relationship to the User model
     # TODO: Change to Mapped["User"] when all modules use mapped
     user = relationship("User", back_populates="health_targets")

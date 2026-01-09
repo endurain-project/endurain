@@ -88,11 +88,11 @@ def get_health_sleep_by_id_and_user_id(
     health_sleep_id: int, user_id: int, db: Session
 ) -> health_sleep_models.HealthSleep | None:
     """
-    Retrieve health sleep records by ID and user ID.
+    Retrieve health sleep record by ID and user ID.
 
     Args:
         health_sleep_id: Health sleep record ID to fetch.
-        user_id: User ID to fetch records for.
+        user_id: User ID to fetch record for.
         db: Database session.
 
     Returns:
@@ -230,6 +230,7 @@ def create_health_sleep(
         db_health_sleep = health_sleep_models.HealthSleep(
             **health_sleep.model_dump(
                 exclude_none=False,
+                mode="json",
             ),
             user_id=user_id,
         )

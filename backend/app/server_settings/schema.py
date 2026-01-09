@@ -55,73 +55,92 @@ class PasswordType(Enum):
 
 class ServerSettingsBase(BaseModel):
     """
-    Base schema for server configuration settings.
+    Pydantic model for server settings configuration.
 
-    Shared fields and validation rules used across all server settings
-    schemas. Does not include the id field, allowing flexible inheritance
-    for different use cases.
+    This model defines all configurable server settings for the Endurain application,
+    including units, currency, authentication methods, map configuration, and password policies.
 
     Attributes:
-        units: Measurement units (metric/imperial).
-        public_shareable_links: Enable public shareable activity links.
-        public_shareable_links_user_info: Show user info on public links.
-        login_photo_set: Whether login photo has been configured.
-        currency: Currency type (euro/dollar/pound).
-        num_records_per_page: Default pagination size.
-        signup_enabled: Allow new user registration.
-        sso_enabled: Enable SSO/IdP authentication.
-        local_login_enabled: Allow username/password login.
-        sso_auto_redirect: Auto-redirect to SSO login.
-        tileserver_url: Map tile server URL template.
-        tileserver_attribution: Map tile attribution HTML.
-        map_background_color: Map background hex color.
-        password_type: Password policy type.
-        password_length_regular_users: Min length for regular users.
-        password_length_admin_users: Min length for admin users.
+        units (Units): Unit system for measurements (METRIC or IMPERIAL).
+        public_shareable_links (StrictBool): Enable/disable public shareable links.
+        public_shareable_links_user_info (StrictBool): Show user info on public shareable links.
+        login_photo_set (StrictBool): Whether login photo is configured.
+        currency (Currency): Currency type (EURO, DOLLAR, or POUND).
+        num_records_per_page (StrictInt): Number of records per page in lists (1-100, default: 25).
+        signup_enabled (StrictBool): Allow new user registration.
+        sso_enabled (StrictBool): Enable SSO/IdP authentication.
+        local_login_enabled (StrictBool): Allow local username/password authentication.
+        sso_auto_redirect (StrictBool): Automatically redirect to SSO when only one IdP is configured.
+        tileserver_url (StrictStr): URL template for map tile server with coordinate placeholders.
+        tileserver_attribution (StrictStr): Attribution string for map tile server.
+        map_background_color (StrictStr): Hex color code for map background (#RRGGBB format).
+        password_type (PasswordType): Password policy enforcement level (STRICT or LENGTH_ONLY).
+        password_length_regular_users (StrictInt): Minimum password length for regular users (8-128, default: 8).
+        password_length_admin_users (StrictInt): Minimum password length for admin users (8-128, default: 12).
+
+    Validators:
+        - validate_tileserver_url: Ensures tile server URL is secure, uses proper protocol, contains required placeholders, and blocks dangerous patterns.
+        - validate_attribution: Sanitizes attribution string to prevent XSS attacks.
+
+    Model Config:
+        - Validates on assignment.
+        - Forbids extra fields.
+        - Uses enum values in serialization.
+        - Supports ORM attribute mapping.
     """
 
     units: Units = Field(
-        Units.METRIC, description="Measurement units (metric/imperial)"
+        Units.METRIC, description="Units (one digit)(1 - metric, 2 - imperial)"
     )
     public_shareable_links: StrictBool = Field(
-        ..., description="Enable public shareable activity links"
+        ..., description="Allow public shareable links (true - yes, false - no)"
     )
     public_shareable_links_user_info: StrictBool = Field(
-        ..., description="Show user info on public shareable links"
+        ...,
+        description="Allow show user info on public shareable links (true - yes, false - no)",
     )
     login_photo_set: StrictBool = Field(
-        ..., description="Indicates if login photo has been configured"
+        ..., description="Is login photo set (true - yes, false - no)"
     )
-    currency: Currency = Field(..., description="Currency type (euro/dollar/pound)")
+    currency: Currency = Field(
+        ..., description="Currency (one digit)(1 - euro, 2 - dollar, 3 - pound)"
+    )
     num_records_per_page: StrictInt = Field(
         25,
         ge=1,
         le=100,
-        description="Default number of records per page for pagination",
+        description="Number of records per page in lists",
     )
-    signup_enabled: StrictBool = Field(..., description="Allow new user registration")
-    sso_enabled: StrictBool = Field(..., description="Enable SSO/IdP authentication")
+    signup_enabled: StrictBool = Field(
+        ..., description="Allow user sign-up registration (true - yes, false - no)"
+    )
+    sso_enabled: StrictBool = Field(
+        ...,
+        description="Enable SSO/IdP login (true - yes, false - no)",
+    )
     local_login_enabled: StrictBool = Field(
-        ..., description="Allow username/password login"
+        ..., description="Allow local username/password login (true - yes, false - no)"
     )
     sso_auto_redirect: StrictBool = Field(
-        ..., description="Auto-redirect to SSO login page"
+        ..., description="Auto-redirect to SSO if only one IdP (true - yes, false - no)"
     )
     tileserver_url: StrictStr = Field(
         max_length=2048,
         min_length=1,
-        description="Default map tile server URL template",
+        description="URL template for the map tileserver",
     )
     tileserver_attribution: StrictStr = Field(
-        max_length=1024, min_length=1, description="Default map tile attribution HTML"
+        max_length=1024,
+        min_length=1,
+        description="Attribution string for the map tileserver",
     )
     map_background_color: StrictStr = Field(
         max_length=7,
         pattern=r"^#[0-9A-Fa-f]{6}$",
-        description=("Hex color code for map background (e.g., #dddddd)"),
+        description=("Background color for the map (hex format)"),
     )
     password_type: PasswordType = Field(
-        PasswordType.STRICT, description="Password policy type"
+        PasswordType.STRICT, description="Password type policy (strict, length_only)"
     )
     password_length_regular_users: StrictInt = Field(
         8, ge=8, le=128, description="Minimum password length for regular users"
@@ -237,18 +256,20 @@ class ServerSettingsEdit(ServerSettings):
     Extends ServerSettings with signup requirement fields.
 
     Attributes:
-        signup_require_admin_approval: Admin approval required.
-        signup_require_email_verification: Email verification required.
+        signup_require_admin_approval: Require admin approval for new sign-ups
+            (true - yes, false - no).
+        signup_require_email_verification: Require email verification for new
+            sign-ups (true - yes, false - no).
         (plus all fields inherited from ServerSettings)
     """
 
     signup_require_admin_approval: StrictBool = Field(
         ...,
-        description="Indicates if new user signups require admin approval",
+        description="Require admin approval for new sign-ups (true - yes, false - no)",
     )
     signup_require_email_verification: StrictBool = Field(
         ...,
-        description="Indicates if new user signups require email verification",
+        description="Require email verification for new sign-ups (true - yes, false - no)",
     )
 
 

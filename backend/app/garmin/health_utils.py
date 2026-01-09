@@ -66,8 +66,7 @@ def fetch_and_process_bc_by_dates(
         if metabolic_age is not None and (metabolic_age < 1 or metabolic_age > 150):
             metabolic_age = None
 
-        health_weight = health_weight_schema.HealthWeight(
-            user_id=user_id,
+        health_weight = health_weight_schema.HealthWeightBase(
             date=bc["calendarDate"],
             weight=bc["weight"] / 1000 if bc["weight"] is not None else None,
             bmi=bc["bmi"],
@@ -84,17 +83,26 @@ def fetch_and_process_bc_by_dates(
         )
 
         health_weight_db = health_weight_crud.get_health_weight_by_date(
-            user_id, health_weight.date, db
+            user_id, str(health_weight.date), db
         )
 
         if health_weight_db:
-            health_weight.id = health_weight_db.id
-            health_weight_crud.edit_health_weight(user_id, health_weight, db)
+            # Convert to update schema with the existing ID
+            health_weight_update = health_weight_schema.HealthWeightUpdate(
+                id=health_weight_db.id, **health_weight.model_dump()
+            )
+            # Updates the health_weight in the database
+            health_weight_crud.edit_health_weight(user_id, health_weight_update, db)
             core_logger.print_to_log(
                 f"User {user_id}: Body composition edited for date {health_weight.date}"
             )
         else:
-            health_weight_crud.create_health_weight(user_id, health_weight, db)
+            # Convert to update schema with the existing ID
+            health_weight_create = health_weight_schema.HealthWeightCreate(
+                **health_weight.model_dump()
+            )
+            # Creates the health_weight in the database
+            health_weight_crud.create_health_weight(user_id, health_weight_create, db)
             core_logger.print_to_log(
                 f"User {user_id}: Body composition created for date {health_weight.date}"
             )
@@ -145,25 +153,33 @@ def fetch_and_process_ds_by_dates(
         if ds["totalSteps"] is None:
             continue
 
-        health_steps = health_steps_schema.HealthSteps(
-            user_id=user_id,
+        health_steps = health_steps_schema.HealthStepsBase(
             date=ds["calendarDate"],
             steps=ds["totalSteps"],
             source=health_steps_schema.Source.GARMIN,
         )
 
         health_steps_db = health_steps_crud.get_health_steps_by_date(
-            user_id, health_steps.date, db
+            user_id, str(health_steps.date), db
         )
 
         if health_steps_db:
-            health_steps.id = health_steps_db.id
-            health_steps_crud.edit_health_steps(user_id, health_steps, db)
+            # Convert to update schema with the existing ID
+            health_steps_update = health_steps_schema.HealthStepsUpdate(
+                id=health_steps_db.id, **health_steps.model_dump()
+            )
+            # Updates the health_steps in the database
+            health_steps_crud.edit_health_steps(user_id, health_steps_update, db)
             core_logger.print_to_log(
                 f"User {user_id}: Daily steps edited for date {health_steps.date}"
             )
         else:
-            health_steps_crud.create_health_steps(user_id, health_steps, db)
+            # Convert to update schema with the existing ID
+            health_steps_create = health_steps_schema.HealthStepsCreate(
+                **health_steps.model_dump()
+            )
+            # Creates the health_steps in the database
+            health_steps_crud.create_health_steps(user_id, health_steps_create, db)
             core_logger.print_to_log(
                 f"User {user_id}: Daily steps created for date {health_steps.date}"
             )
@@ -330,8 +346,7 @@ def fetch_and_process_sleep_by_dates(
         )
         sleep_stress_score = sleep_scores.get("stress", {})
 
-        health_sleep = health_sleep_schema.HealthSleep(
-            user_id=user_id,
+        health_sleep = health_sleep_schema.HealthSleepBase(
             date=sleep_dto["calendarDate"],
             sleep_start_time_gmt=sleep_start_gmt,
             sleep_end_time_gmt=sleep_end_gmt,
@@ -442,17 +457,26 @@ def fetch_and_process_sleep_by_dates(
         )
 
         health_sleep_db = health_sleep_crud.get_health_sleep_by_date(
-            user_id, health_sleep.date, db
+            user_id, str(health_sleep.date), db
         )
 
         if health_sleep_db:
-            health_sleep.id = health_sleep_db.id
-            health_sleep_crud.edit_health_sleep(user_id, health_sleep, db)
+            # Convert to update schema with the existing ID
+            health_sleep_update = health_sleep_schema.HealthSleepUpdate(
+                id=health_sleep_db.id, **health_sleep.model_dump()
+            )
+            # Updates the health_sleep in the database
+            health_sleep_crud.edit_health_sleep(user_id, health_sleep_update, db)
             core_logger.print_to_log(
                 f"User {user_id}: Sleep data edited for date " f"{health_sleep.date}"
             )
         else:
-            health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
+            # Convert to update schema with the existing ID
+            health_sleep_create = health_sleep_schema.HealthSleepCreate(
+                **health_sleep.model_dump()
+            )
+            # Creates the health_sleep in the database
+            health_sleep_crud.create_health_sleep(user_id, health_sleep_create, db)
             core_logger.print_to_log(
                 f"User {user_id}: Sleep data created for date " f"{health_sleep.date}"
             )

@@ -44,67 +44,67 @@ class ServerSettings(Base):
     units: Mapped[int] = mapped_column(
         default=1,
         nullable=False,
-        comment="Units (1=metric, 2=imperial)",
+        comment="Units (one digit)(1 - metric, 2 - imperial)",
     )
     public_shareable_links: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
-        comment="Allow public shareable links",
+        comment="Allow public shareable links (true - yes, false - no)",
     )
     public_shareable_links_user_info: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
-        comment="Show user info on public links",
+        comment="Allow show user info on public shareable links (true - yes, false - no)",
     )
     login_photo_set: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
-        comment="Login photo has been set",
+        comment="Is login photo set (true - yes, false - no)",
     )
     currency: Mapped[int] = mapped_column(
         default=1,
         nullable=False,
-        comment="Currency (1=euro, 2=dollar, 3=pound)",
+        comment="Currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
     )
     num_records_per_page: Mapped[int] = mapped_column(
         default=25,
         nullable=False,
-        comment="Records per page in lists",
+        comment="Number of records per page in lists",
     )
     signup_enabled: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
-        comment="Allow user registration",
+        comment="Allow user sign-up registration (true - yes, false - no)",
     )
     signup_require_admin_approval: Mapped[bool] = mapped_column(
         default=True,
         nullable=False,
-        comment="Require admin approval for signups",
+        comment="Require admin approval for new sign-ups (true - yes, false - no)",
     )
     signup_require_email_verification: Mapped[bool] = mapped_column(
         default=True,
         nullable=False,
-        comment="Require email verification for signups",
+        comment="Require email verification for new sign-ups (true - yes, false - no)",
     )
     sso_enabled: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
-        comment="Enable SSO/IdP login",
+        comment="Enable SSO/IdP login (true - yes, false - no)",
     )
     local_login_enabled: Mapped[bool] = mapped_column(
         default=True,
         nullable=False,
-        comment="Allow local username/password login",
+        comment="Allow local username/password login (true - yes, false - no)",
     )
     sso_auto_redirect: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
-        comment="Auto-redirect to SSO if only one IdP",
+        comment="Auto-redirect to SSO if only one IdP (true - yes, false - no)",
     )
     tileserver_url: Mapped[str] = mapped_column(
         default=("https://{s}.tile.openstreetmap.org/" "{z}/{x}/{y}.png"),
         nullable=False,
-        comment="Map tile server URL template",
+        comment="URL template for the map tileserver",
     )
     tileserver_attribution: Mapped[str] = mapped_column(
         default=(
@@ -112,27 +112,27 @@ class ServerSettings(Base):
             'copyright">OpenStreetMap</a> contributors'
         ),
         nullable=False,
-        comment="Map tile attribution",
+        comment="Attribution string for the map tileserver",
     )
     map_background_color: Mapped[str] = mapped_column(
         default="#dddddd",
         nullable=False,
-        comment="Map background hex color",
+        comment="Background color for the map (hex format)",
     )
     password_type: Mapped[str] = mapped_column(
         default="strict",
         nullable=False,
-        comment="Password policy (strict, length_only)",
+        comment="Password type policy (strict, length_only)",
     )
     password_length_regular_users: Mapped[int] = mapped_column(
         default=8,
         nullable=False,
-        comment="Min password length for regular users",
+        comment="Minimum password length for regular users",
     )
     password_length_admin_users: Mapped[int] = mapped_column(
         default=12,
         nullable=False,
-        comment="Min password length for admin users",
+        comment="Minimum password length for admin users",
     )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

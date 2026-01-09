@@ -1,107 +1,97 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Date,
-    ForeignKey,
-    DECIMAL,
-)
-from sqlalchemy.orm import relationship
+from datetime import date as date_type
+from decimal import Decimal
+from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
 class HealthWeight(Base):
     """
-    SQLAlchemy model representing health weight measurements and body composition data.
-
-    This model stores comprehensive health metrics including weight, BMI, and various
-    body composition measurements for users. Each record is associated with a specific
-    user and date.
+    User health weight and body composition data.
 
     Attributes:
-        id (int): Primary key, auto-incremented unique identifier.
-        user_id (int): Foreign key referencing the user who owns this health weight record.
-            Indexed for query performance. Cascades on delete.
-        date (Date): The date when the health weight measurement was taken.
-        weight (Decimal): Weight measurement in kilograms (precision: 10, scale: 2).
-        bmi (Decimal, optional): Body Mass Index calculation (precision: 10, scale: 2).
-        body_fat (Decimal, optional): Body fat percentage (precision: 10, scale: 2).
-        body_water (Decimal, optional): Body hydration/water percentage (precision: 10, scale: 2).
-        bone_mass (Decimal, optional): Bone mass percentage (precision: 10, scale: 2).
-        muscle_mass (Decimal, optional): Muscle mass percentage (precision: 10, scale: 2).
-        physique_rating (int, optional): Overall physique rating score.
-        visceral_fat (Decimal, optional): Visceral fat rating (precision: 10, scale: 2).
-        metabolic_age (int, optional): Calculated metabolic age.
-        source (str, optional): Source or origin of the health weight data (max length: 250).
-
-    Relationships:
-        user (User): Many-to-one relationship with the User model. References the user
-            who owns this health weight record.
+        id: Primary key.
+        user_id: Foreign key to users table.
+        date: Calendar date of the measurement.
+        weight: Weight in kilograms.
+        bmi: Body Mass Index.
+        body_fat: Body fat percentage.
+        body_water: Body hydration percentage.
+        bone_mass: Bone mass percentage.
+        muscle_mass: Muscle mass percentage.
+        physique_rating: Physique rating score.
+        visceral_fat: Visceral fat rating.
+        metabolic_age: Calculated metabolic age.
+        source: Data source.
+        user: Relationship to User model.
     """
 
     __tablename__ = "health_weight"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="User ID that the health_weight belongs",
     )
-    date = Column(
-        Date,
+    date: Mapped[date_type] = mapped_column(
         nullable=False,
+        index=True,
         comment="Health weight date (date)",
     )
-    weight = Column(
-        DECIMAL(precision=10, scale=2),
+    weight: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=False,
         comment="Weight in kg",
     )
-    bmi = Column(
-        DECIMAL(precision=10, scale=2),
+    bmi: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Body mass index (BMI)",
     )
-    body_fat = Column(
-        DECIMAL(precision=10, scale=2),
+    body_fat: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Body fat percentage",
     )
-    body_water = Column(
-        DECIMAL(precision=10, scale=2),
+    body_water: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Body hydration percentage",
     )
-    bone_mass = Column(
-        DECIMAL(precision=10, scale=2),
+    bone_mass: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Bone mass percentage",
     )
-    muscle_mass = Column(
-        DECIMAL(precision=10, scale=2),
+    muscle_mass: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Muscle mass percentage",
     )
-    physique_rating = Column(
-        Integer,
+    physique_rating: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Physique rating",
     )
-    visceral_fat = Column(
-        DECIMAL(precision=10, scale=2),
+    visceral_fat: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=10, scale=2),
         nullable=True,
         comment="Visceral fat rating",
     )
-    metabolic_age = Column(
-        Integer,
+    metabolic_age: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Metabolic age",
     )
-    source = Column(
-        String(length=250), nullable=True, comment="Source of the health weight data"
+    source: Mapped[str | None] = mapped_column(
+        String(250),
+        nullable=True,
+        comment="Source of the health weight data",
     )
 
     # Define a relationship to the User model
+    # TODO: Change to Mapped["User"] when all modules use mapped
     user = relationship("User", back_populates="health_weight")

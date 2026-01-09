@@ -88,10 +88,10 @@ def get_health_steps_by_id_and_user_id(
     health_steps_id: int, user_id: int, db: Session
 ) -> health_steps_models.HealthSteps | None:
     """
-    Retrieve health steps records by ID and user ID.
+    Retrieve health steps record by ID and user ID.
     Args:
         health_steps_id: Health steps record ID to fetch.
-        user_id: User ID to fetch records for.
+        user_id: User ID to fetch record for.
         db: Database session.
 
     Returns:
