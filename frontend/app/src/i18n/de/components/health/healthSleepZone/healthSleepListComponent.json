@@ -1,10 +1,10 @@
 {
-  "labelDate": "Date",
-  "sleepStagesTitle": "Sleep stages",
-  "modalDeleteSleepTitle": "Delete sleep entry",
-  "modalDeleteSleepBody": "Are you sure you want to delete sleep entry for ",
-  "successDeleteSleep": "Sleep deleted",
-  "errorDeleteSleep": "It was not possible to delete sleep entry",
-  "successEditSleep": "Sleep edited",
-  "errorEditSleep": "It was not possible to edit sleep entry"
+  "labelDate": "Datum",
+  "sleepStagesTitle": "Schlafphasen",
+  "modalDeleteSleepTitle": "Schlafdaten löschen",
+  "modalDeleteSleepBody": "Bist du sicher, dass du die Schlafdaten löschen möchtest? ",
+  "successDeleteSleep": "Schlafdaten gelöscht",
+  "errorDeleteSleep": "Die Schlafdaten konnten nicht gelöscht werden",
+  "successEditSleep": "Schlafdaten bearbeitet",
+  "errorEditSleep": "Die Schlafdaten konnten nicht bearbeitet werden"
 }
