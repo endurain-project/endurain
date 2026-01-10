@@ -1,5 +1,8 @@
+from urllib.parse import urlparse
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+
+import core.logger as core_logger
 
 import server_settings.crud as server_settings_crud
 import server_settings.models as server_settings_models
@@ -90,3 +93,85 @@ def get_tile_maps_templates() -> list[server_settings_schema.TileMapsTemplate]:
             )
         )
     return templates
+
+
+def extract_domain_from_tile_url(url: str) -> str | None:
+    """
+    Extract domain from tile server URL for CSP purposes.
+
+    Args:
+        url: Tile server URL template (e.g., https://tiles.example.com/map/{z}/{x}/{y}.png).
+
+    Returns:
+        Domain with protocol and wildcard (e.g., https://*.example.com) or None if invalid.
+
+    Examples:
+        - https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png -> https://*.openstreetmap.org
+        - https://tiles.stadiamaps.com/tiles/{z}/{x}/{y}.png -> https://*.stadiamaps.com
+    """
+    try:
+        # Replace common tile URL placeholders before parsing
+        # {s} is used for subdomains (a, b, c for load balancing)
+        clean_url = url.replace("{s}", "a").replace("{S}", "a")
+
+        parsed = urlparse(clean_url)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+
+        # For localhost/IP addresses, return as-is
+        if parsed.netloc.startswith("localhost") or parsed.netloc.startswith("127."):
+            return f"{parsed.scheme}://{parsed.netloc}"
+
+        # For regular domains, extract base domain for wildcard
+        hostname = parsed.hostname or parsed.netloc
+
+        # Split hostname and get the base domain (last 2 parts for most cases)
+        # e.g., a.tile.openstreetmap.org -> openstreetmap.org
+        # Then add wildcard: *.openstreetmap.org
+        parts = hostname.split(".")
+        if len(parts) >= 2:
+            # Use last 2 parts as base domain (handles .com, .org, .co.uk, etc.)
+            base_domain = ".".join(parts[-2:])
+            return f"{parsed.scheme}://*.{base_domain}"
+
+        # Fallback: use full hostname with wildcard
+        return f"{parsed.scheme}://*.{hostname}"
+    except Exception:
+        return None
+
+
+def get_allowed_tile_domains(db: Session) -> list[str]:
+    """
+    Get list of allowed tile domains for CSP img-src directive.
+
+    This includes:
+    - Built-in tile provider domains (from DEFAULT_ALLOWED_TILE_DOMAINS)
+    - Custom tile server domain from server settings
+
+    Args:
+        db: Database session.
+
+    Returns:
+        List of domain patterns for CSP (e.g., ['https://*.tile.openstreetmap.org', 'https://*.stadiamaps.com']).
+    """
+    # Start with built-in providers
+    allowed_domains: list[str] = (
+        server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+    )
+
+    # Add custom tile server domain if configured
+    try:
+        server_settings = get_server_settings(db)
+        if server_settings and server_settings.tileserver_url:
+            custom_domain = extract_domain_from_tile_url(server_settings.tileserver_url)
+            if custom_domain and custom_domain not in allowed_domains:
+                allowed_domains.append(custom_domain)
+    except Exception:
+        # If we can't get server settings, just use built-in providers
+        core_logger.print_to_log(
+            "Error retrieving server settings for allowed tile domains, using defaults",
+            "debug",
+        )
+        pass
+
+    return allowed_domains

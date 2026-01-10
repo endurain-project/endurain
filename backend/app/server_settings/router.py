@@ -9,6 +9,7 @@ from fastapi import (
     Security,
     UploadFile,
     HTTPException,
+    Request,
     status,
 )
 from sqlalchemy.orm import Session
@@ -92,6 +93,7 @@ async def list_tile_maps_templates(
     status_code=status.HTTP_201_CREATED,
 )
 async def edit_server_settings(
+    request: Request,
     server_settings_attributes: server_settings_schema.ServerSettingsEdit,
     _check_scopes: Annotated[
         Callable,
@@ -108,12 +110,29 @@ async def edit_server_settings(
     Requires admin authentication with server_settings:write scope.
 
     Args:
+        request: FastAPI request object for accessing app state.
         server_settings_attributes: Settings to update.
 
     Returns:
         Updated server settings configuration.
     """
-    return server_settings_crud.edit_server_settings(server_settings_attributes, db)
+    result = server_settings_crud.edit_server_settings(server_settings_attributes, db)
+
+    # Update allowed tile domains in app.state if tileserver_url changed
+    if server_settings_attributes.tileserver_url is not None:
+        try:
+            request.app.state.allowed_tile_domains = (
+                server_settings_utils.get_allowed_tile_domains(db)
+            )
+            core_logger.print_to_log(
+                f"Updated allowed tile domains: {request.app.state.allowed_tile_domains}"
+            )
+        except Exception as e:
+            core_logger.print_to_log(
+                f"Error updating tile domains in app.state: {e}", "error", exc=e
+            )
+
+    return result
 
 
 @router.post(

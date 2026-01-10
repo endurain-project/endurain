@@ -1,6 +1,8 @@
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
+import server_settings.schema as server_settings_schema
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
@@ -34,9 +36,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             Disables unnecessary browser features to reduce attack surface.
             Prevents unauthorized access to sensitive device APIs.
 
-        Content-Security-Policy: default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'
+        Content-Security-Policy: default-src 'self'; img-src 'self' data: <dynamic-tile-domains>; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'
             Restricts resources to same origin by default (API responses).
-            Allows inline base64 images (data: URIs) and OpenStreetMap tiles for maps.
+            Allows inline base64 images (data: URIs) and map tiles from configured tile servers.
+            Tile domains are dynamically loaded from app.state.allowed_tile_domains (updated on startup and settings changes).
             Allows inline styles and scripts required by frontend libraries.
             For frontend serving, this would need customization.
 
@@ -79,9 +82,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Note: Only add CSP for HTML responses to avoid affecting JSON API responses
         content_type = response.headers.get("content-type", "")
         if "text/html" in content_type:
+            # Get allowed tile domains from app state (initialized on startup, updated on settings change)
+            allowed_tile_domains = getattr(
+                request.app.state,
+                "allowed_tile_domains",
+                server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS,
+            )
+            tile_domains_str = " ".join(allowed_tile_domains)
+
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                "img-src 'self' data: https://*.tile.openstreetmap.org https://fastapi.tiangolo.com; "
+                f"img-src 'self' data: {tile_domains_str} https://fastapi.tiangolo.com; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "connect-src 'self' https://cdn.jsdelivr.net; "
