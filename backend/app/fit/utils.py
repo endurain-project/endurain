@@ -2,7 +2,7 @@ import fitdecode
 from enum import Enum
 
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo, available_timezones
@@ -444,6 +444,7 @@ def parse_fit_file(
         time_offset = 0
         last_waypoint_time = None
         activity_name = activity_name_input if activity_name_input else "Workout"
+        resting_heart_rate = None
 
         # Arrays to store waypoint data
         lat_lon_waypoints = []
@@ -474,6 +475,12 @@ def parse_fit_file(
 
         # Array to store lengths
         lengths = []
+
+        # Array to store intraday steps
+        intraday_steps = []
+
+        # Array to store intraday heart rate
+        intraday_heart_rate = []
 
         # Dictionary to store file ID data
         file_id = {}
@@ -732,6 +739,14 @@ def parse_fit_file(
                     if frame.name == "file_id":
                         file_id = parse_frame_file_id(frame)
 
+                    if frame.name == "monitoring":
+                        steps, heart_rate = parse_frame_monitoring(frame, fit_data.last_timestamp)
+                        intraday_steps.extend(steps)
+                        intraday_heart_rate.extend(heart_rate)
+
+                    if frame.name == "monitoring_hr_data":
+                        resting_heart_rate = parse_frame_monitoring_hr_data(frame)
+
         # Check if exercises titles is not none
         if exercises_titles:
             activity_exercise_titles_crud.create_activity_exercise_titles(
@@ -763,6 +778,9 @@ def parse_fit_file(
             "workout_steps": workout_steps,
             "lengths": lengths,
             "file_id": file_id,
+            "intraday_steps": intraday_steps,
+            "intraday_heart_rate": intraday_heart_rate,
+            "resting_heart_rate": resting_heart_rate,
         }
     except HTTPException as http_err:
         raise http_err
@@ -1091,6 +1109,60 @@ def parse_frame_file_id(frame):
         "product": get_value_from_frame(frame, "product"),
         "serial_number": get_value_from_frame(frame, "serial_number"),
         "time_created": get_value_from_frame(frame, "time_created"),
+    }
+
+
+def parse_frame_monitoring(frame, last_timestamp):
+    steps = []
+    heart_rate = []
+
+    data = {}
+    for field in frame.fields:
+        data.update({field.name: field.value})
+        for sf in getattr(field.field, "subfields", []) or []:
+            data.update({sf.name: sf.render(field.raw_value)})
+
+    # Reconstruct timestamp with timestamp_16.
+    current_timestamp = None
+    if data.get("timestamp_16") is not None:
+        current_timestamp = (last_timestamp & 0xffff0000) | data["timestamp_16"]
+        if current_timestamp < last_timestamp:
+            current_timestamp += 0x10000
+    else:
+        current_timestamp = last_timestamp
+        
+    timestamp = datetime.fromtimestamp(
+        current_timestamp + fitdecode.FIT_UTC_REFERENCE, 
+        tz=timezone.utc,
+    )
+
+    if data.get("steps"):
+        steps.append({
+            "steps": data.get("steps"),
+            "active_time": data.get("active_time"),
+            "active_calories": data.get("active_calories"),
+            "current_activity_type_intensity": data.get("current_activity_type_intensity"),
+            "activity_type": data.get("activity_type"),
+            "intensity": data.get("intensity"),
+            "distance": data.get("distance"),
+            "duration_min": data.get("duration_min"),
+            "timestamp": timestamp,
+        })
+
+    if data.get("heart_rate"):
+        heart_rate.append({
+            "heart_rate": data.get("heart_rate"),
+            "timestamp": timestamp,
+        })
+    
+    return steps, heart_rate
+
+
+def parse_frame_monitoring_hr_data(frame):
+    return {
+        "timestamp": get_value_from_frame(frame, "timestamp"),
+        "resting_heart_rate": get_value_from_frame(frame, "resting_heart_rate"),
+        "current_day_resting_heart_rate": get_value_from_frame(frame, "current_day_resting_heart_rate"),
     }
 
 

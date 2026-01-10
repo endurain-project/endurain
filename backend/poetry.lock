@@ -1125,18 +1125,18 @@ platformdirs = ">=4.3.6"
 
 [[package]]
 name = "fitdecode"
-version = "0.10.0"
+version = "0.11.0"
 description = "FIT file parser and decoder"
 optional = false
 python-versions = ">=3.6"
 groups = ["main"]
 files = [
-    {file = "fitdecode-0.10.0-py3-none-any.whl", hash = "sha256:527dc2e4b0fe45dbe868a2131af0a544cb686f631f608d94e392bcce57b047cf"},
-    {file = "fitdecode-0.10.0.tar.gz", hash = "sha256:1b85d1303c87650c11377a7322757eaa1caf229776bbd5b545591dd6815123e4"},
+    {file = "fitdecode-0.11.0-py3-none-any.whl", hash = "sha256:a1bdb9b4d1e9ebac0001fc58c22fe07a3f9967ca4e13258c6ef99cdb8d697a78"},
+    {file = "fitdecode-0.11.0.tar.gz", hash = "sha256:52d920e50eaa76eb065b20bfd4e42f72195e894a079098dacc1cafa908cd4b83"},
 ]
 
 [package.extras]
-docs = ["sphinx", "sphinx-rtd-theme"]
+dev = ["build", "check_manifest (>=0.48)", "dlint", "flake8", "flake8-bugbear", "flake8-import-order", "flake8-noqa", "flake8-pyproject", "flake8-ruff", "mccabe", "openpyxl", "pycodestyle", "pyflakes", "pytest", "readme_renderer (>=33.0)", "setuptools (>=61.0.0)", "sphinx", "sphinx_rtd_theme", "twine"]
 
 [[package]]
 name = "flatbuffers"
@@ -4189,4 +4189,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "051cf121474471e5bce074b523c4f33122565ac22d4a71be97db708a1d7ccc21"
+content-hash = "3b0e3bc1c24df69f30db28513e66fb73bd701dc86623d5557e5054ad68a0c88f"
