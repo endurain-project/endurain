@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Column, Mapped, mapped_column, relationship
 from core.database import Base
 
 
@@ -19,6 +19,8 @@ class HealthIntradaySteps(Base):
         steps: Total number of steps taken on the date.
         source: Source of the step data (e.g., fitness device, app).
         user: Relationship to the User model.
+        activity_type: Activity type.
+        intensity: Intensity.
 
     Table:
         health_intraday_steps
@@ -37,7 +39,7 @@ class HealthIntradaySteps(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        comment="User ID that the health_steps belongs",
+        comment="User ID that the health_intraday_steps belongs",
     )
     timestamp: Mapped[datetime] = mapped_column(
         nullable=False,
@@ -53,7 +55,14 @@ class HealthIntradaySteps(Base):
         nullable=True,
         comment="Source of the health steps data",
     )
-
+    activity_type: Mapped[int] = mapped_column(
+        nullable=True,
+        comment="Activity type",
+    )
+    intensity: Mapped[int] = mapped_column(
+        nullable=True,
+        comment="Intensity",
+    )
     # Define a relationship to the User model
     # TODO: Change to Mapped["User"] when all modules use mapped
     user = relationship("User", back_populates="health_intraday_steps")

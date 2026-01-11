@@ -318,21 +318,23 @@ def transform_schema_activity_to_model_activity(
     return new_activity
 
 
+def make_aware_and_format(dt, timezone):
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def convert_to_datetime_if_string(dt: str | datetime | None) -> datetime:
+    if dt is None:
+        raise ValueError("Datetime cannot be None")
+    if isinstance(dt, str):
+        return datetime.fromisoformat(dt)
+    return dt
+
+
 def serialize_activity(activity: activities_schema.Activity):
-    def make_aware_and_format(dt, timezone):
-        if isinstance(dt, str):
-            dt = datetime.fromisoformat(dt)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-        return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
-
-    def convert_to_datetime_if_string(dt: str | datetime | None) -> datetime:
-        if dt is None:
-            raise ValueError("Datetime cannot be None")
-        if isinstance(dt, str):
-            return datetime.fromisoformat(dt)
-        return dt
-
     timezone = (
         ZoneInfo(activity.timezone)
         if activity.timezone
