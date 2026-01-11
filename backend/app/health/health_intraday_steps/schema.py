@@ -19,7 +19,7 @@ class HealthIntradayStepsBase(BaseModel):
     Base model for health intraday steps data.
 
     Represents the core attributes of a user's intraday step count record, including the user reference,
-    datetime of the record, number of steps taken, and the source of the data.
+    timestamp of the record, number of steps taken, and the source of the data.
 
     Attributes:
         timestamp (datetime | None): Timestamp of the steps record. Optional field.

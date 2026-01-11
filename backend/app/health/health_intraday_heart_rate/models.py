@@ -4,11 +4,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
-class HealthIntradaySteps(Base):
+class HealthIntradayHeartrate(Base):
     """
-    SQLAlchemy model representing intraday step counts data for users.
+    SQLAlchemy model representing intraday heart rate measurements data for users.
 
-    This model stores health and fitness tracking data related to the number of steps
+    This model stores health and fitness tracking data related to the heart rate measurements
     taken by a user at a specific time. It includes information about the data source
     and maintains a relationship with the User model.
 
@@ -16,18 +16,18 @@ class HealthIntradaySteps(Base):
         id: Primary key, auto-incremented unique identifier.
         user_id: Foreign key referencing users.id.
         timestamp: Timestamp for which the step count is recorded.
-        steps: Total number of steps taken on the date.
-        source: Source of the step data (e.g., fitness device, app).
+        heart_rate: Heart rate measurement taken at a specific time.
+        source: Source of the heart rate data (e.g., fitness device, app).
         user: Relationship to the User model.
 
     Table:
-        health_intraday_steps
+        health_intraday_heart_rate
 
     Relationships:
         - Many-to-One with User model through user_id
     """
 
-    __tablename__ = "health_intraday_steps"
+    __tablename__ = "health_intraday_heart_rate"
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -42,18 +42,18 @@ class HealthIntradaySteps(Base):
     timestamp: Mapped[datetime] = mapped_column(
         nullable=False,
         index=True,
-        comment="Health intraday steps timestamp (datetime)",
+        comment="Health intraday heart rates timestamp (datetime)",
     )
-    steps: Mapped[int] = mapped_column(
+    heart_rate: Mapped[int] = mapped_column(
         nullable=False,
-        comment="Number of steps taken",
+        comment="Heart rate measurment (bpm)",
     )
     source: Mapped[str | None] = mapped_column(
         String(250),
         nullable=True,
-        comment="Source of the health steps data",
+        comment="Source of the health heart rate data",
     )
 
     # Define a relationship to the User model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_intraday_steps")
+    user = relationship("User", back_populates="health_intraday_heart_rate")
