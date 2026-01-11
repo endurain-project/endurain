@@ -43,12 +43,12 @@ def setup_main_logger():
 
     # Attach the same handler to Alembic's logger
     alembic_logger = logging.getLogger("alembic")
-    alembic_logger.setLevel(logging.INFO)
+    alembic_logger.setLevel(log_level)
     alembic_logger.addHandler(file_handler)
 
     # Attach the same handler to sheduler's logger
     scheduler_logger = logging.getLogger("apscheduler")
-    scheduler_logger.setLevel(logging.INFO)
+    scheduler_logger.setLevel(log_level)
     scheduler_logger.addHandler(file_handler)
 
     return main_logger
