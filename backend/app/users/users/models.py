@@ -261,6 +261,16 @@ class Users(Base):
         back_populates="users",
         cascade="all, delete-orphan",
     )
+    health_intraday_steps = relationship(
+        "HealthIntradaySteps",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    health_intraday_heart_rate = relationship(
+        "HealthIntradayHeartrate",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     notifications = relationship(
         "Notification",
         back_populates="users",
