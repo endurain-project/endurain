@@ -31,7 +31,7 @@ import core.config as core_config
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     garmin_activity_id: int | None = None,
     garminconnect_gear: dict | None = None,
     db: Session = None,

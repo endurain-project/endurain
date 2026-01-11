@@ -690,7 +690,7 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
 
 def parse_file(
     token_user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     file_extension: str,
     filename: str,
     db: Session,

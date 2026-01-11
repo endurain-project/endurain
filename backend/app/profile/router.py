@@ -239,7 +239,7 @@ async def edit_user(
 
 @router.put("/privacy")
 async def edit_profile_privacy_settings(
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
     token_user_id: Annotated[
         int,
         Depends(auth_security.get_sub_from_access_token),

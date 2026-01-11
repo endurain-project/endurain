@@ -20,7 +20,7 @@ import core.config as core_config
 def parse_gpx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     db: Session,
     activity_name_input: str | None = None,
 ) -> dict:

@@ -130,7 +130,7 @@ async def fetch_and_process_activities(
 def parse_activity(
     activity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
@@ -406,7 +406,7 @@ async def save_activity_streams_laps(
 async def process_activity(
     activity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
     ws_manager: websocket_manager.WebSocketManager,
