@@ -243,7 +243,14 @@ class User(Base):
 
     # Establish a one-to-many relationship with 'health_intraday_steps'
     health_intraday_steps = relationship(
-        "HealthStepsIntraday",
+        "HealthIntradaySteps",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'health_intraday_heart_rate'
+    health_intraday_heart_rate = relationship(
+        "HealthIntradayHeartrate",
         back_populates="user",
         cascade="all, delete-orphan",
     )
