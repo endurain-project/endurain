@@ -35,6 +35,8 @@ class HealthIntradayStepsBase(BaseModel):
 
     timestamp: datetime | None = Field(None, description="Timestamp of the steps")
     steps: StrictInt | None = Field(None, ge=0, description="Number of steps taken")
+    activity_type: StrictInt | None = Field(None, ge=0, description="Activity type")
+    intensity: StrictInt | None = Field(None, ge=0, description="Intensity")
     source: Source | None = Field(None, description="Source of the steps data")
 
     model_config = ConfigDict(
