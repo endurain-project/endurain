@@ -117,20 +117,33 @@ def get_access_token(
 
 def get_access_token_for_browser_redirect(
     access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
+    access_token_query: Annotated[
+        Union[str, None], Query(alias="access_token", default=None)
+    ] = None,
     client_type: str | None = Depends(header_client_type_scheme_optional),
 ) -> str | None:
     """
     Retrieve the access token for browser redirect scenarios.
 
+    This function supports both Authorization header and query parameter for
+    the access token. Browser redirects cannot include custom headers, so the
+    access token can be passed as a query parameter.
+
     Args:
-        access_token (Union[str, None]): The access token from the Authorization header
-            or query parameter, extracted via OAuth2 scheme dependency.
+        access_token (Union[str, None]): The access token from the Authorization header,
+            extracted via OAuth2 scheme dependency.
+        access_token_query (Union[str, None]): The access token from query parameter,
+            used as fallback for browser redirects.
         client_type (str | None, optional): The type of client making the request
             (e.g., "web", "mobile"). Defaults to "web" if not provided, as browser
             redirects typically originate from web clients.
 
     Returns:
         str | None: The access token if found and valid, None otherwise.
+
+    Raises:
+        HTTPException: If neither Authorization header nor query parameter contains
+            a valid access token.
 
     Note:
         This function defaults client_type to "web" when None is provided,
@@ -140,12 +153,17 @@ def get_access_token_for_browser_redirect(
     if client_type is None:
         client_type = "web"
 
-    return get_token(
-        access_token,
-        None,
-        client_type,
-        "access",
-    )
+    # Try Authorization header first, then fall back to query parameter
+    token = access_token or access_token_query
+
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token missing from Authorization header or query parameter",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return token
 
 
 def validate_access_token(

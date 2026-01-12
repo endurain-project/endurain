@@ -252,5 +252,7 @@ export async function fetchDeleteRequest(url) {
 }
 
 export async function fetchGetRequestWithRedirect(url) {
-  window.location.href = `${API_URL}${url}`
+  const accessToken = getAccessToken()
+  const separator = url.includes('?') ? '&' : '?'
+  window.location.href = `${API_URL}${url}${separator}access_token=${accessToken}`
 }
