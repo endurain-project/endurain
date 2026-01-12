@@ -409,3 +409,58 @@ class TestDependencyFunctions:
         assert store.is_locked_out("testuser") is True
         lockout_time = store.get_lockout_time("testuser")
         assert lockout_time is not None
+
+    def test_pending_mfa_login_lockout_expired_auto_reset(self):
+        """Test that expired lockout is automatically reset when checking."""
+        from unittest.mock import patch
+        from datetime import timedelta
+
+        store = auth_schema.PendingMFALogin()
+
+        # Simulate lockout in the past
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        store._failed_attempts["testuser"] = (5, past_time)
+
+        # Check if locked out - should return False and reset
+        assert store.is_locked_out("testuser") is False
+        assert "testuser" not in store._failed_attempts
+
+    def test_failed_login_attempts_lockout_expired_auto_reset(self):
+        """Test that expired lockout is automatically reset when checking."""
+        from datetime import timedelta
+
+        store = auth_schema.FailedLoginAttempts()
+
+        # Simulate lockout in the past
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        store._attempts["testuser"] = (5, past_time)
+
+        # Check if locked out - should return False and reset
+        assert store.is_locked_out("testuser") is False
+        assert "testuser" not in store._attempts
+
+    def test_pending_mfa_get_lockout_time_expired(self):
+        """Test get_lockout_time returns None for expired lockouts."""
+        from datetime import timedelta
+
+        store = auth_schema.PendingMFALogin()
+
+        # Simulate expired lockout
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        store._failed_attempts["testuser"] = (5, past_time)
+
+        # Should return None for expired lockout
+        assert store.get_lockout_time("testuser") is None
+
+    def test_failed_login_attempts_get_lockout_time_expired(self):
+        """Test get_lockout_time returns None for expired lockouts."""
+        from datetime import timedelta
+
+        store = auth_schema.FailedLoginAttempts()
+
+        # Simulate expired lockout
+        past_time = datetime.now(timezone.utc) - timedelta(hours=1)
+        store._attempts["testuser"] = (5, past_time)
+
+        # Should return None for expired lockout
+        assert store.get_lockout_time("testuser") is None

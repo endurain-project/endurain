@@ -559,3 +559,59 @@ class TestTokenManagerSecurity:
                 token_manager.validate_token_expiration(token)
             assert exc_info.value.status_code == 401
             assert "not valid yet" in exc_info.value.detail
+
+    def test_decode_token_invalid_payload_error(self, token_manager):
+        """
+        Test that decode_token handles InvalidPayloadError correctly.
+        """
+        from joserfc.errors import InvalidPayloadError
+
+        with patch(
+            "auth.token_manager.jwt.decode",
+            side_effect=InvalidPayloadError("Invalid payload"),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                token_manager.decode_token("invalid_token")
+            assert exc_info.value.status_code == 401
+            assert "Invalid token payload" in exc_info.value.detail
+
+    def test_decode_token_generic_exception(self, token_manager):
+        """
+        Test that decode_token handles generic exceptions correctly.
+        """
+        with patch(
+            "auth.token_manager.jwt.decode",
+            side_effect=RuntimeError("Unexpected error"),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                token_manager.decode_token("invalid_token")
+            assert exc_info.value.status_code == 401
+            assert "Unable to decode token" in exc_info.value.detail
+
+    def test_create_token_regular_user_gets_regular_scope(self, token_manager):
+        """
+        Test that regular users get regular scope in their tokens.
+        """
+        from users.user.schema import UserRead, UserAccessType
+
+        regular_user = UserRead(
+            id=2,
+            name="Regular User",
+            username="regular",
+            email="regular@test.com",
+            access_type=UserAccessType.REGULAR,
+            active=True,
+        )
+
+        _, token = token_manager.create_token(
+            "session-id", regular_user, auth_token_manager.TokenType.ACCESS
+        )
+
+        scope = token_manager.get_token_claim(token, "scope")
+
+        # Should contain only regular scopes
+        assert "profile" in scope
+        assert "users:read" in scope
+        # Should not contain admin scopes
+        assert "users:write" not in scope
+        assert "users:write" not in scope

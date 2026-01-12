@@ -141,6 +141,39 @@ class TestCreateBackupCodes:
         """Test exception handling in create_backup_codes."""
         # Arrange
         user_id = 1
+        mock_db.commit.side_effect = Exception("Database error")
+
+        # Mock the model instantiation to avoid SQLAlchemy mapper issues
+        with patch.object(backup_crud, "delete_user_backup_codes"), patch(
+            "auth.mfa_backup_codes.crud.mfa_backup_codes_models.MFABackupCode"
+        ):
+            # Act & Assert
+            with pytest.raises(HTTPException) as exc_info:
+                backup_crud.create_backup_codes(user_id, password_hasher, mock_db)
+
+            assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+            assert "Failed to regenerate backup codes" in exc_info.value.detail
+
+    def test_create_backup_codes_http_exception_reraise(self, mock_db, password_hasher):
+        """Test that HTTPException from delete is re-raised."""
+        # Arrange
+        user_id = 1
+        http_exc = HTTPException(status_code=404, detail="User not found")
+
+        # Mock delete to raise HTTPException
+        with patch.object(
+            backup_crud, "delete_user_backup_codes", side_effect=http_exc
+        ):
+            # Act & Assert
+            with pytest.raises(HTTPException) as exc_info:
+                backup_crud.create_backup_codes(user_id, password_hasher, mock_db)
+
+            # Should re-raise the same HTTPException
+            assert exc_info.value.status_code == 404
+            assert exc_info.value.detail == "User not found"
+        """Test exception handling in create_backup_codes."""
+        # Arrange
+        user_id = 1
         mock_db.add.side_effect = Exception("Database error")
 
         with patch.object(backup_crud, "delete_user_backup_codes"):
