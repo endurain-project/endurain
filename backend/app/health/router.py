@@ -31,7 +31,7 @@ executor = ThreadPoolExecutor(max_workers=2)
 @router.post(
     "/create/upload",
     status_code=201,
-    response_model=list[health_schema.HealthImportResponse],
+    response_model=health_schema.HealthImportResponse,
 )
 async def create_health_with_uploaded_file(
     token_user_id: Annotated[
@@ -42,7 +42,7 @@ async def create_health_with_uploaded_file(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
-    websocket_manager: Annotated[
+    _websocket_manager: Annotated[
         websocket_manager.WebSocketManager,
         Depends(websocket_manager.get_websocket_manager),
     ],
@@ -52,8 +52,8 @@ async def create_health_with_uploaded_file(
     ],
 ):
     try:
-        return await health_utils.parse_and_store_activity_from_uploaded_file(
-            token_user_id, file, websocket_manager, db
+        return await health_utils.parse_and_store_health_from_uploaded_file(
+            token_user_id, file, db
         )
     except Exception as err:
         # Log the exception

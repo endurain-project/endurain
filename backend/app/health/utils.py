@@ -8,11 +8,13 @@ from fastapi import HTTPException, status, UploadFile
 
 from sqlalchemy.orm import Session
 
+import health.schema as health_schema
 import health.health_intraday_steps.crud as health_intraday_steps_crud
 import health.health_intraday_steps.schema as health_intraday_steps_schema
-
+import health.health_intraday_steps.models as health_intraday_steps_models
 import health.health_intraday_heart_rate.crud as health_intraday_heart_rate_crud
 import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_schema
+import health.health_intraday_heart_rate.models as health_intraday_heart_rate_models
 
 import users.user.crud as users_crud
 
@@ -70,6 +72,8 @@ async def parse_and_store_health_from_uploaded_file(
             )
         )
 
+        created_intraday_steps = []
+        created_intraday_heart_rate = []
         if file_extension.lower() == ".fit":
             # Parse the file
             parsed_info = activity_utils.parse_file(
@@ -80,7 +84,13 @@ async def parse_and_store_health_from_uploaded_file(
                 db,
             )
 
-            intraday_steps, intraday_health, resting_heart_rate = process_info(parsed_info, health_intraday_steps_schema.Source.GARMIN)
+            intraday_steps, intraday_heart_rate, resting_heart_rate = process_info(parsed_info)
+
+            # Set the source
+            for step in intraday_steps:
+                step.source = health_intraday_steps_schema.Source.GARMIN
+            for heart_rate in intraday_heart_rate:
+                heart_rate.source = health_intraday_heart_rate_schema.Source.GARMIN
 
             # Store step data in the database
             if intraday_steps:
@@ -89,9 +99,9 @@ async def parse_and_store_health_from_uploaded_file(
                 )
 
             # Store heart rate data in the database
-            if intraday_health:
+            if intraday_heart_rate:
                 created_intraday_heart_rate = await store_intraday_heart_rate(
-                    intraday_health, db, user.id
+                    intraday_heart_rate, db, user.id
                 )
         else:
             core_logger.print_to_log_and_console(
@@ -113,9 +123,7 @@ async def parse_and_store_health_from_uploaded_file(
         for i, heart_rate in enumerate(created_intraday_heart_rate):
             created_intraday_heart_rate[i] = serialize_intraday_heart_rate(heart_rate)
 
-        # Return the created stats
-        # TODO: Convert to HealthImportResponse
-        return created_intraday_steps
+        return create_health_import_response(created_intraday_steps, created_intraday_heart_rate)
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
@@ -130,9 +138,29 @@ async def parse_and_store_health_from_uploaded_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(err)}",
         ) from err
+    
+
+def create_health_import_response(
+    created_intraday_steps: list[health_intraday_steps_models.HealthIntradaySteps], 
+    created_intraday_heart_rate: list[health_intraday_heart_rate_models.HealthIntradayHeartrate]
+):
+    created_intraday_steps = [
+        health_intraday_steps_schema.HealthIntradayStepsRead.model_validate(step, from_attributes=True)
+        for step in created_intraday_steps
+    ]
+
+    created_intraday_heart_rate = [
+        health_intraday_heart_rate_schema.HealthIntradayHeartrateRead.model_validate(hr, from_attributes=True)
+        for hr in created_intraday_heart_rate
+    ]   
+
+    return health_schema.HealthImportResponse(
+        created_intraday_step_records=created_intraday_steps,
+        created_intraday_heart_rate_records=created_intraday_heart_rate,
+    )
 
 
-def process_info(parsed_info: dict, source: health_intraday_heart_rate_schema.Source) -> tuple[
+def process_info(parsed_info: dict) -> tuple[
     list[health_intraday_steps_schema.HealthIntradayStepsCreate], 
     list[health_intraday_heart_rate_schema.HealthIntradayHeartrateCreate],
     dict,
@@ -153,7 +181,6 @@ def process_info(parsed_info: dict, source: health_intraday_heart_rate_schema.So
             steps=info["steps"],
             intensity=info.get("intensity"),
             activity_type=activity_utils.define_activity_type(info.get("activity_type")),
-            source=source,
         )
         for info in steps
         # Remove any entries without an increase in steps (e.g, the final record 
@@ -166,7 +193,6 @@ def process_info(parsed_info: dict, source: health_intraday_heart_rate_schema.So
         health_intraday_heart_rate_schema.HealthIntradayHeartrateCreate(
             timestamp=info["timestamp"],
             heart_rate=info["heart_rate"],
-            source=source,
         )
         for info in heart_rates
     ]
@@ -231,7 +257,7 @@ async def store_intraday_heart_rate(
     return created_heart_rate
 
 
-def serialize_intraday_steps(steps: health_intraday_steps_schema.HealthStepsIntraday):
+def serialize_intraday_steps(steps: health_intraday_steps_models.HealthIntradaySteps):
     timezone =  ZoneInfo(os.environ.get("TZ", "UTC"))
     steps.timestamp = activity_utils.make_aware_and_format(
         steps.timestamp, timezone
@@ -242,7 +268,7 @@ def serialize_intraday_steps(steps: health_intraday_steps_schema.HealthStepsIntr
     return steps
 
 
-def serialize_intraday_heart_rate(heart_rate: health_intraday_heart_rate_schema.HealthHeartrateIntraday):
+def serialize_intraday_heart_rate(heart_rate: health_intraday_heart_rate_models.HealthIntradayHeartrate):
     timezone =  ZoneInfo(os.environ.get("TZ", "UTC"))
     heart_rate.timestamp = activity_utils.make_aware_and_format(
         heart_rate.timestamp, timezone
@@ -254,40 +280,40 @@ def serialize_intraday_heart_rate(heart_rate: health_intraday_heart_rate_schema.
 
 
 # TODO: Implement
-def process_all_files_sync(
-    user_id: int,
-    file_paths: list[str],
-    websocket_manager: websocket_manager.WebSocketManager,
-):
-    """
-    Process all files sequentially in single thread.
-
-    Args:
-        user_id: User ID.
-        file_paths: List of file paths to process.
-        websocket_manager: WebSocket manager instance.
-    """
-    db = next(core_database.get_db())
-    try:
-        total_files = len(file_paths)
-        for idx, file_path in enumerate(file_paths, 1):
-            core_logger.print_to_log_and_console(
-                f"Processing file {idx}/{total_files}: " f"{file_path}"
-            )
-            asyncio.run(
-                parse_and_store_health_from_file(
-                    user_id,
-                    file_path,
-                    websocket_manager,
-                    db,
-                )
-            )
-            # Small delay between files
-            time.sleep(0.1)
-
-        core_logger.print_to_log_and_console(
-            f"Bulk import completed: {total_files} files "
-            f"processed for user {user_id}"
-        )
-    finally:
-        db.close()
+#def process_all_files_sync(
+#    user_id: int,
+#    file_paths: list[str],
+#    websocket_manager: websocket_manager.WebSocketManager,
+#):
+#    """
+#    Process all files sequentially in single thread.
+#
+#    Args:
+#        user_id: User ID.
+#        file_paths: List of file paths to process.
+#        websocket_manager: WebSocket manager instance.
+#    """
+#    db = next(core_database.get_db())
+#    try:
+#        total_files = len(file_paths)
+#        for idx, file_path in enumerate(file_paths, 1):
+#            core_logger.print_to_log_and_console(
+#                f"Processing file {idx}/{total_files}: " f"{file_path}"
+#            )
+#            asyncio.run(
+#                parse_and_store_health_from_file(
+#                    user_id,
+#                    file_path,
+#                    websocket_manager,
+#                    db,
+#                )
+#            )
+#            # Small delay between files
+#            time.sleep(0.1)
+#
+#        core_logger.print_to_log_and_console(
+#            f"Bulk import completed: {total_files} files "
+#            f"processed for user {user_id}"
+#        )
+#    finally:
+#        db.close()

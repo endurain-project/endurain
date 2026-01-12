@@ -1,4 +1,5 @@
-import datetime as datetime
+import os
+from datetime import datetime, time as datetime_time, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, desc, select
@@ -9,6 +10,8 @@ import health.health_intraday_steps.schema as health_intraday_steps_schema
 import health.health_intraday_steps.models as health_intraday_steps_models
 
 import core.logger as core_logger
+
+from zoneinfo import ZoneInfo
 
 
 def get_health_intraday_steps_number(user_id: int, db: Session) -> int:
@@ -46,6 +49,37 @@ def get_health_intraday_steps_number(user_id: int, db: Session) -> int:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",
         ) from db_err
+    
+
+def get_health_intraday_steps_number_by_date(
+        user_id: int, 
+        date: str, 
+        db: Session
+) -> list[health_intraday_steps_models.HealthIntradaySteps]:
+    """
+    Retrieve total count of health intraday steps records for a user and given date.
+
+    Args:
+        user_id: User ID to count records for.
+        date: Date string for the step count.
+        db: Database session.
+
+    Returns:
+        Step records.
+
+    Raises:
+        HTTPException: If database error occurs.
+    """
+    tz =  ZoneInfo(os.environ.get("TZ", "UTC"))
+    date_dt = datetime.strptime(date, "%Y-%m-%d").date()
+
+    local_start = datetime.combine(date_dt, datetime_time.min, tzinfo=tz)
+    local_end = datetime.combine(date_dt + timedelta(days=1), datetime_time.min, tzinfo=tz)
+
+    utc_start = local_start.astimezone(ZoneInfo("UTC"))
+    utc_end = local_end.astimezone(ZoneInfo("UTC"))
+
+    return get_health_intraday_steps_by_timerange(user_id, utc_start, utc_end, db)
 
 
 def get_all_health_intraday_steps_by_user_id(
@@ -259,7 +293,7 @@ def create_health_intraday_steps(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Duplicate entry error. Check if there is already "
-                f"a entry created for {health_intraday_steps.timestamp}"
+                f"a entry created for {step.timestamp}"
             ),
         ) from integrity_error
     except SQLAlchemyError as db_err:

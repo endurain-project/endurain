@@ -1,6 +1,6 @@
 from datetime import datetime
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Column, Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
@@ -30,6 +30,10 @@ class HealthIntradaySteps(Base):
     """
 
     __tablename__ = "health_intraday_steps"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "timestamp", name="uq_user_timestamp_health_intraday_steps"),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

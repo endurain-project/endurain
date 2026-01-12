@@ -99,15 +99,10 @@ class HealthIntradayHeartrateListResponse(BaseModel):
     Response model for listing health heart rate records.
 
     Attributes:
-        total (StrictInt): Total measurement of heart rate records for the user.
         num_records (StrictInt | None): Number of records in this response.
         page_number (StrictInt | None): Current page number.
         records (list[HealthIntradayHeartrateRead]): List of health heart rate records.
     """
-
-    total: StrictInt = Field(
-        ..., description="Total measurement of heart rate records for the user"
-    )
     num_records: StrictInt | None = Field(
         None, description="Number of records in this response"
     )
