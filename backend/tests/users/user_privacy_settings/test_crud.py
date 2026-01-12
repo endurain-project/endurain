@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import users.user_privacy_settings.crud as user_privacy_settings_crud
-import users.user_privacy_settings.schema as user_privacy_settings_schema
-import users.user_privacy_settings.models as user_privacy_settings_models
+import users.user_privacy_settings.crud as users_privacy_settings_crud
+import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.user_privacy_settings.models as users_privacy_settings_models
 
 
 class TestGetUserPrivacySettingsByUserId:
@@ -20,14 +20,14 @@ class TestGetUserPrivacySettingsByUserId:
         # Arrange
         user_id = 1
         mock_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_settings
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = user_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+        result = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
             user_id, mock_db
         )
 
@@ -46,7 +46,7 @@ class TestGetUserPrivacySettingsByUserId:
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = user_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+        result = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
             user_id, mock_db
         )
 
@@ -63,7 +63,7 @@ class TestGetUserPrivacySettingsByUserId:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
                 user_id, mock_db
             )
 
@@ -84,7 +84,7 @@ class TestCreateUserPrivacySettings:
         user_id = 1
 
         mock_db_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_db_settings.id = 1
         mock_db_settings.user_id = user_id
@@ -93,12 +93,12 @@ class TestCreateUserPrivacySettings:
         mock_db.refresh.return_value = None
 
         with patch.object(
-            user_privacy_settings_models,
+            users_privacy_settings_models,
             "UsersPrivacySettings",
             return_value=mock_db_settings,
         ):
             # Act
-            result = user_privacy_settings_crud.create_user_privacy_settings(
+            result = users_privacy_settings_crud.create_user_privacy_settings(
                 user_id, mock_db
             )
 
@@ -120,13 +120,13 @@ class TestCreateUserPrivacySettings:
         mock_db.commit.side_effect = IntegrityError("Duplicate entry", None, None)
 
         with patch.object(
-            user_privacy_settings_models,
+            users_privacy_settings_models,
             "UsersPrivacySettings",
             return_value=mock_db_settings,
         ):
             # Act & Assert
             with pytest.raises(HTTPException) as exc_info:
-                user_privacy_settings_crud.create_user_privacy_settings(
+                users_privacy_settings_crud.create_user_privacy_settings(
                     user_id, mock_db
                 )
 
@@ -144,7 +144,7 @@ class TestCreateUserPrivacySettings:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_privacy_settings_crud.create_user_privacy_settings(user_id, mock_db)
+            users_privacy_settings_crud.create_user_privacy_settings(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert exc_info.value.detail == "Database error occurred"
@@ -162,20 +162,20 @@ class TestEditUserPrivacySettings:
         """
         # Arrange
         user_id = 1
-        update_data = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
             default_activity_visibility=2,
             hide_activity_map=True,
         )
 
         mock_db_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_db_settings
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = user_privacy_settings_crud.edit_user_privacy_settings(
+        result = users_privacy_settings_crud.edit_user_privacy_settings(
             user_id, update_data, mock_db
         )
 
@@ -190,7 +190,7 @@ class TestEditUserPrivacySettings:
         """
         # Arrange
         user_id = 1
-        update_data = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
             hide_activity_map=True
         )
 
@@ -200,7 +200,7 @@ class TestEditUserPrivacySettings:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_privacy_settings_crud.edit_user_privacy_settings(
+            users_privacy_settings_crud.edit_user_privacy_settings(
                 user_id, update_data, mock_db
             )
 
@@ -213,19 +213,19 @@ class TestEditUserPrivacySettings:
         """
         # Arrange
         user_id = 1
-        update_data = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
             hide_activity_hr=True
         )
 
         mock_db_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_db_settings
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = user_privacy_settings_crud.edit_user_privacy_settings(
+        result = users_privacy_settings_crud.edit_user_privacy_settings(
             user_id, update_data, mock_db
         )
 
@@ -238,7 +238,7 @@ class TestEditUserPrivacySettings:
         """
         # Arrange
         user_id = 1
-        update_data = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
             default_activity_visibility=1,
             hide_activity_start_time=True,
             hide_activity_location=True,
@@ -255,14 +255,14 @@ class TestEditUserPrivacySettings:
         )
 
         mock_db_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_db_settings
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = user_privacy_settings_crud.edit_user_privacy_settings(
+        result = users_privacy_settings_crud.edit_user_privacy_settings(
             user_id, update_data, mock_db
         )
 
@@ -275,13 +275,13 @@ class TestEditUserPrivacySettings:
         """
         # Arrange
         user_id = 1
-        update_data = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
             hide_activity_map=True
         )
 
         # Mock successful get but fail on commit
         mock_db_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_db_settings
@@ -290,7 +290,7 @@ class TestEditUserPrivacySettings:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_privacy_settings_crud.edit_user_privacy_settings(
+            users_privacy_settings_crud.edit_user_privacy_settings(
                 user_id, update_data, mock_db
             )
 
@@ -304,19 +304,19 @@ class TestEditUserPrivacySettings:
         """
         # Arrange
         user_id = 1
-        update_data = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
             default_activity_visibility=2
         )
 
         mock_db_settings = MagicMock(
-            spec=user_privacy_settings_models.UsersPrivacySettings
+            spec=users_privacy_settings_models.UsersPrivacySettings
         )
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_db_settings
         mock_db.execute.return_value = mock_result
 
         # Act
-        result = user_privacy_settings_crud.edit_user_privacy_settings(
+        result = users_privacy_settings_crud.edit_user_privacy_settings(
             user_id, update_data, mock_db
         )
 

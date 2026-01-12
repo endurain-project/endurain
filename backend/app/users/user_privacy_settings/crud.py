@@ -5,15 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import users.user_privacy_settings.schema as user_privacy_settings_schema
-import users.user_privacy_settings.models as user_privacy_settings_models
+import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.user_privacy_settings.models as users_privacy_settings_models
 
 import core.logger as core_logger
 
 
 def get_user_privacy_settings_by_user_id(
     user_id: int, db: Session
-) -> user_privacy_settings_models.UsersPrivacySettings | None:
+) -> users_privacy_settings_models.UsersPrivacySettings | None:
     """
     Retrieve privacy settings for a specific user.
 
@@ -29,8 +29,8 @@ def get_user_privacy_settings_by_user_id(
     """
     try:
         # Get the user privacy settings by the user id
-        stmt = select(user_privacy_settings_models.UsersPrivacySettings).where(
-            user_privacy_settings_models.UsersPrivacySettings.user_id == user_id
+        stmt = select(users_privacy_settings_models.UsersPrivacySettings).where(
+            users_privacy_settings_models.UsersPrivacySettings.user_id == user_id
         )
         return db.execute(stmt).scalar_one_or_none()
     except SQLAlchemyError as db_err:
@@ -49,7 +49,7 @@ def get_user_privacy_settings_by_user_id(
 
 def create_user_privacy_settings(
     user_id: int, db: Session
-) -> user_privacy_settings_models.UsersPrivacySettings:
+) -> users_privacy_settings_models.UsersPrivacySettings:
     """
     Create privacy settings for a user.
 
@@ -66,7 +66,7 @@ def create_user_privacy_settings(
     """
     try:
         # Create a new user privacy settings with model defaults
-        db_privacy_settings = user_privacy_settings_models.UsersPrivacySettings(
+        db_privacy_settings = users_privacy_settings_models.UsersPrivacySettings(
             user_id=user_id,
         )
 
@@ -106,9 +106,9 @@ def create_user_privacy_settings(
 
 def edit_user_privacy_settings(
     user_id: int,
-    user_privacy_settings_data: user_privacy_settings_schema.UsersPrivacySettingsUpdate,
+    user_privacy_settings_data: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
     db: Session,
-) -> user_privacy_settings_models.UsersPrivacySettings:
+) -> users_privacy_settings_models.UsersPrivacySettings:
     """
     Update privacy settings for a specific user.
 

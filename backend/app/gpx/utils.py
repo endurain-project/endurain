@@ -11,7 +11,7 @@ import activities.activity.schema as activities_schema
 
 import users.user_default_gear.utils as user_default_gear_utils
 
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.user_privacy_settings.models as users_privacy_settings_models
 
 import core.logger as core_logger
 import core.config as core_config
@@ -20,7 +20,7 @@ import core.config as core_config
 def parse_gpx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     db: Session,
     activity_name_input: str | None = None,
 ) -> dict:

@@ -26,7 +26,7 @@ import activities.activity.models as activities_models
 import users.user.crud as users_crud
 
 import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.user_privacy_settings.models as users_privacy_settings_models
 
 import activities.activity_laps.crud as activity_laps_crud
 
@@ -690,7 +690,7 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
 
 def parse_file(
     token_user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     file_extension: str,
     filename: str,
     db: Session,

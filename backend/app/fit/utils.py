@@ -21,7 +21,7 @@ import garmin.utils as garmin_utils
 
 import gears.gear.crud as gears_crud
 
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.user_privacy_settings.models as users_privacy_settings_models
 
 import core.logger as core_logger
 
@@ -31,7 +31,7 @@ import core.config as core_config
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     garmin_activity_id: int | None = None,
     garminconnect_gear: dict | None = None,
     db: Session = None,
