@@ -24,6 +24,8 @@ import health.health_sleep.models
 import health.health_steps.models
 import health.health_targets.models
 import health.health_weight.models
+import health.health_intraday_steps.models
+import health.health_intraday_heart_rate.models
 import migrations.models
 import notifications.models
 import password_reset_tokens.models

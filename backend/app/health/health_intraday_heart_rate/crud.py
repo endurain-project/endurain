@@ -1,7 +1,8 @@
-import datetime as datetime
+import os
+from datetime import datetime, time as datetime_time, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, desc, select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -9,6 +10,8 @@ import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_sc
 import health.health_intraday_heart_rate.models as health_intraday_heart_rate_models
 
 import core.logger as core_logger
+
+from zoneinfo import ZoneInfo
 
 
 def get_all_health_intraday_heart_rate_by_user_id(
@@ -129,6 +132,37 @@ def get_health_intraday_heart_rate_with_pagination(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",
         ) from db_err
+
+
+def get_health_intraday_heart_rate_number_by_date(
+        user_id: int, 
+        date: str, 
+        db: Session
+) -> list[health_intraday_heart_rate_models.HealthIntradayHeartrate]:
+    """
+    Retrieve health intraday heart rate records for a user and given date.
+
+    Args:
+        user_id: User ID to count records for.
+        date: Date string for the step count.
+        db: Database session.
+
+    Returns:
+        Heart rate measurement records.
+
+    Raises:
+        HTTPException: If database error occurs.
+    """
+    tz =  ZoneInfo(os.environ.get("TZ", "UTC"))
+    date_dt = datetime.strptime(date, "%Y-%m-%d").date()
+
+    local_start = datetime.combine(date_dt, datetime_time.min, tzinfo=tz)
+    local_end = datetime.combine(date_dt + timedelta(days=1), datetime_time.min, tzinfo=tz)
+
+    utc_start = local_start.astimezone(ZoneInfo("UTC"))
+    utc_end = local_end.astimezone(ZoneInfo("UTC"))
+
+    return get_health_intraday_heart_rate_by_timerange(user_id, utc_start, utc_end, db)
 
 
 def get_health_intraday_heart_rate_by_timerange(

@@ -30,6 +30,7 @@ import health.health_sleep.router as health_sleep_router
 import health.health_weight.router as health_weight_router
 import health.health_steps.router as health_steps_router
 import health.health_intraday_steps.router as health_intraday_steps_router
+import health.health_intraday_heart_rate.router as health_intraday_heart_rate_router
 import health.health_targets.router as health_targets_router
 import notifications.router as notifications_router
 import password_reset_tokens.router as password_reset_tokens_router
@@ -159,6 +160,12 @@ router.include_router(
     health_intraday_steps_router.router,
     prefix=core_config.ROOT_PATH + "/health/intraday_steps",
     tags=["health_intraday_steps"],
+    dependencies=[Depends(auth_security.validate_access_token)],
+)
+router.include_router(
+    health_intraday_heart_rate_router.router,
+    prefix=core_config.ROOT_PATH + "/health/intraday_heart_rate",
+    tags=["health_intraday_heart_rate"],
     dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(

@@ -64,6 +64,54 @@ async def read_health_intraday_heart_rate_all(
 
 
 @router.get(
+    "/{date_str}",
+    response_model=health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def read_health_intraday_heart_rate_by_date(
+    date_str: str,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["health:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse:
+    """
+    Retrieve all health intraday heart rate measurements for the authenticated user and given date.
+
+    This endpoint fetches all health intraday heart rate measurements associated with the authenticated user's ID
+    and for the given date. It requires the 'health:read' scope for authorization.
+
+    Args:
+        date: The date of interest (in local timezone).
+        _check_scopes (Callable): Security dependency that validates the required scopes.
+        token_user_id (int): The user ID extracted from the access token.
+        db (Session): Database session dependency for querying the database.
+
+    Returns:
+        HealthIntradayHeartrateListResponse: A response object containing:
+            - records (List): A list of all health intraday heart rate measurements for the user.
+
+    Raises:
+        HTTPException: May raise authentication or authorization related exceptions
+            if the token is invalid or the user lacks required permissions.
+    """
+    # Get all records from the database
+    records = health_intraday_heart_rate_crud.get_health_intraday_heart_rate_number_by_date(token_user_id, date_str, db)
+    
+    # Pydantic will convert ORM models to HealthIntradayHeartrateRead via from_attributes=True
+    return health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse(
+        records=records, num_records=len(records)  # type: ignore[arg-type]
+    )
+
+
+@router.get(
     "/page_number/{page_number}/num_records/{num_records}",
     response_model=health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse,
     status_code=status.HTTP_200_OK,

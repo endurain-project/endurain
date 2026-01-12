@@ -5,7 +5,8 @@ This module provides CRUD operations and data models for user
 step tracking including intraday step counts and data sources.
 
 Exports:
-    - CRUD: get_health_intraday_steps_number, get_all_health_intraday_steps_by_user_id,
+    - CRUD: get_health_intraday_steps_number, get_health_intraday_steps_number_by_date,
+      get_all_health_intraday_steps_by_user_id,
       get_health_intraday_steps_by_id_and_user_id,
       get_health_intraday_steps_with_pagination, get_health_intraday_steps_by_timerange,
       create_health_intraday_steps, edit_health_intraday_steps, delete_health_intraday_steps
@@ -17,6 +18,7 @@ Exports:
 
 from .crud import (
     get_health_intraday_steps_number,
+    get_health_intraday_steps_number_by_date,
     get_all_health_intraday_steps_by_user_id,
     get_health_intraday_steps_by_id_and_user_id,
     get_health_intraday_steps_with_pagination,
@@ -38,6 +40,7 @@ from .schema import (
 __all__ = [
     # CRUD operations
     "get_health_intraday_steps_number",
+    "get_health_intraday_steps_number_by_date",
     "get_all_health_intraday_steps_by_user_id",
     "get_health_intraday_steps_by_id_and_user_id",
     "get_health_intraday_steps_with_pagination",
