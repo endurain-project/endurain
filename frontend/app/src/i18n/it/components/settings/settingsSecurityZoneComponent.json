@@ -57,6 +57,7 @@
   "unlinkAccountLastMethodError": "Cannot unlink last authentication method. Please set a password first.",
   "linkAccountSuccess": "{providerName} account linked successfully",
   "linkAccountError": "Error linking account",
+  "linkAccountRateLimitError": "Troppi tentativi di collegamento. Attendi un momento e riprova.",
   "linkAccountAlreadyLinked": "This {providerName} account is already linked",
   "linkAccountInUse": "This {providerName} account is already linked to another user",
   "errorLoadingLinkedAccounts": "Error loading linked accounts",

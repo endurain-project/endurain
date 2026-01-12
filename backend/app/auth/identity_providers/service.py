@@ -4,7 +4,6 @@ import base64
 from enum import Enum
 from typing import Dict, Any
 from datetime import datetime, timedelta, timezone
-import secrets
 import httpx
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Request
@@ -33,6 +32,7 @@ import users.user_identity_providers.models as user_idp_models
 import auth.password_hasher as auth_password_hasher
 import auth.oauth_state.models as oauth_state_models
 import auth.oauth_state.crud as oauth_state_crud
+import auth.oauth_state.utils as oauth_state_utils
 import server_settings.schema as server_settings_schema
 
 
@@ -756,32 +756,36 @@ class IdentityProviderService:
         request: Request,
         user_id: int,
         db: Session,
+        oauth_state_id: str | None = None,
     ) -> str:
         """
         Initiates the OAuth/OIDC authorization flow for linking an identity provider to an existing user account.
         This method generates the authorization URL that redirects the user to the identity provider's
-        login page. It creates secure state and nonce tokens to prevent CSRF attacks and stores session
-        data to track the linking operation.
+        login page. Uses database-backed OAuth state for security and replay protection.
+
         Args:
             idp (idp_models.IdentityProvider): The identity provider configuration object containing
                 client credentials, endpoints, and other OAuth/OIDC settings.
             request (Request): The FastAPI request object used to access and store session data.
             user_id (int): The ID of the authenticated user who is linking their account to the
                 identity provider.
-            db (Session): The database session for potential database operations.
+            db (Session): The database session for database operations.
+            oauth_state_id (str | None): Database OAuth state ID (required for secure linking).
+
         Returns:
             str: The authorization URL to redirect the user to for identity provider authentication.
+
         Raises:
             HTTPException:
                 - 500 status code if the identity provider is not properly configured (missing
                   authorization endpoint).
+                - 500 status code if OAuth state ID is missing or invalid.
                 - 500 status code if any unexpected error occurs during the OAuth flow initiation.
+
         Note:
             - If authorization_endpoint is not directly configured, the method attempts OIDC
               discovery using the issuer_url.
-            - State data includes: random token, timestamp, idp_id, mode flag ('link'), and user_id.
-            - State is base64-encoded for URL safety.
-            - Session stores: oauth_state, oauth_nonce, oauth_idp_id, and oauth_link_user_id.
+            - OAuth state is stored in database with user_id to indicate link mode.
         """
         try:
             client_id = self._decrypt_client_id(idp)
@@ -801,26 +805,29 @@ class IdentityProviderService:
                     detail="Identity provider not properly configured",
                 )
 
-            # Generate state and nonce for security
-            # State includes timestamp, mode flag, and user_id for link mode
-            random_state = secrets.token_urlsafe(32)
-            state_data = {
-                "random": random_state,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "idp_id": idp.id,
-                "mode": "link",  # Indicates link mode (vs login mode)
-                "user_id": user_id,  # Ensures callback links to correct user
-            }
-            # Encode state as base64 JSON for URL safety
-            state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
+            # Retrieve database-backed OAuth state (required for link mode)
+            if not oauth_state_id:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="OAuth state ID is required for secure linking",
+                )
 
-            nonce = secrets.token_urlsafe(32)
+            oauth_state_obj = oauth_state_crud.get_oauth_state_by_id(oauth_state_id, db)
+            if not oauth_state_obj:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="OAuth state not found",
+                )
 
-            # Store in session (using SessionMiddleware)
-            request.session[f"oauth_state_{idp.id}"] = state
-            request.session[f"oauth_nonce_{idp.id}"] = nonce
-            request.session["oauth_idp_id"] = idp.id
-            request.session["oauth_link_user_id"] = user_id  # Track linking user
+            # Validate user_id matches (security check for link mode)
+            if oauth_state_obj.user_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="OAuth state user mismatch",
+                )
+
+            state = oauth_state_id
+            nonce = oauth_state_obj.nonce
 
             # Build authorization URL
             redirect_uri = self._get_redirect_uri(idp.slug)
