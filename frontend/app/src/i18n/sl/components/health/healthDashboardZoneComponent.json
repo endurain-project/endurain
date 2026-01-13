@@ -2,7 +2,7 @@
   "sleep": "Today's sleep",
   "noSleepTarget": "No sleep target",
   "restingHeartRate": "Resting heart rate",
-  "avgSkinTemperatureDeviation": "Skin temp. dev.",
+  "avgSkinTemperatureDeviation": ".",
   "weight": "Teža",
   "noWeightData": "Ni podatkov o teži",
   "noWeightTarget": "Ni ciljne teže",
@@ -14,7 +14,7 @@
   "bmiObesityClass1": "Debelost (Razred 1)",
   "bmiObesityClass2": "Debelost (Razred 2)",
   "bmiObesityClass3": "Ekstremna debelost (Razred 3)",
-  "steps": "Today's steps",
+  "steps": "Današnji koraki",
   "stepsTargetLabel": "steps",
-  "noStepsTarget": "No steps target"
+  "noStepsTarget": ""
 }

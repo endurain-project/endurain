@@ -57,7 +57,7 @@
   "unlinkAccountLastMethodError": "Não é possível desvincular o último método de autenticação. Por favor, defina uma palavra passe primeiro.",
   "linkAccountSuccess": "Conta {providerName} vinculada com sucesso",
   "linkAccountError": "Erro ao desvincular conta",
-  "linkAccountRateLimitError": "Demasiadas tentativas de ligação. Por favor, aguarde um momento e tente novamente.",
+  "linkAccountRateLimitError": "Muitas tentativas de ligação. Por favor, aguarde um momento e tente novamente.",
   "linkAccountAlreadyLinked": "Conta {providerName} já está vinculada",
   "linkAccountInUse": "Esta conta do {providerName} já está vinculada a outro utilizador",
   "errorLoadingLinkedAccounts": "Erro ao carregar contas conectadas",
