@@ -1,6 +1,9 @@
+"""CRUD operations for user goals."""
+
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy.exc import SQLAlchemyError
 
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.models as user_goals_models
@@ -10,76 +13,113 @@ import core.logger as core_logger
 
 def get_user_goals_by_user_id(
     user_id: int, db: Session
-) -> List[user_goals_models.UserGoal] | None:
+) -> list[user_goals_models.UserGoal]:
     """
-    Retrieve all goals associated with a specific user.
+    Retrieve all goals for a specific user.
+
     Args:
-        user_id (int): The ID of the user whose goals are to be retrieved.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        db: SQLAlchemy database session.
+
     Returns:
-        List[user_goals_models.UserGoal] | None: A list of UserGoal objects if found, otherwise None.
+        List of UserGoal models.
+
     Raises:
-        HTTPException: If an HTTP error occurs or an unexpected exception is raised.
+        HTTPException: If database error occurs.
     """
     try:
-        goals = (
-            db.query(user_goals_models.UserGoal)
-            .filter(user_goals_models.UserGoal.user_id == user_id)
-            .all()
+        stmt = select(user_goals_models.UserGoal).where(
+            user_goals_models.UserGoal.user_id == user_id
         )
-
-        if not goals:
-            return None
-
-        return goals
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
+        return db.execute(stmt).scalars().all()
+    except SQLAlchemyError as db_err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_goals_by_user_id: {err}", "error", exc=err)
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        core_logger.print_to_log(
+            f"Database error in get_user_goals_by_user_id: {db_err}",
+            "error",
+            exc=db_err,
+        )
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+            detail="Database error occurred",
+        ) from db_err
 
 
-def create_user_goal(user_id: int, user_goal: user_goals_schema.UserGoalCreate, db: Session):
+def get_user_goal_by_user_and_goal_id(
+    user_id: int, goal_id: int, db: Session
+) -> user_goals_models.UserGoal | None:
     """
-    Creates a new user goal for a specific user, activity type, and interval.
-
-    Checks if a goal with the same user, activity type, and interval already exists.
-    If such a goal exists, raises an HTTP 409 Conflict error.
-    Otherwise, creates and persists the new goal in the database.
+    Retrieve a specific goal by user ID and goal ID.
 
     Args:
-        user_id (int): The ID of the user for whom the goal is being created.
-        user_goal (user_goals_schema.UserGoalCreate): The goal data to be created.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        goal_id: The ID of the goal.
+        db: SQLAlchemy database session.
 
     Returns:
-        user_goals_models.UserGoalRead: The newly created user goal object.
+        UserGoal model if found, None otherwise.
 
     Raises:
-        HTTPException: If a goal for the user, activity type, and interval already exists (409 Conflict),
-                       or if an integrity/database error occurs (409 Conflict),
-                       or for any other unexpected error (500 Internal Server Error).
+        HTTPException: If database error occurs.
     """
     try:
-        existing_goals = (
-            db.query(user_goals_models.UserGoal)
-            .filter(user_goals_models.UserGoal.user_id == user_id)
-            .filter(user_goals_models.UserGoal.interval == user_goal.interval)
-            .filter(user_goals_models.UserGoal.activity_type == user_goal.activity_type)
-            .filter(user_goals_models.UserGoal.goal_type == user_goal.goal_type)
-            .all()
+        stmt = select(user_goals_models.UserGoal).where(
+            user_goals_models.UserGoal.user_id == user_id,
+            user_goals_models.UserGoal.id == goal_id,
         )
+        return db.execute(stmt).scalar_one_or_none()
+    except SQLAlchemyError as db_err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Database error in get_user_goal_by_user_and_goal_id: {db_err}",
+            "error",
+            exc=db_err,
+        )
+        # Raise an HTTPException with a 500 status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
 
-        if existing_goals:
-            # If there are existing goals for this user, interval, activity type, and goal type, raise an error
+
+def create_user_goal(
+    user_id: int,
+    user_goal: user_goals_schema.UserGoalCreate,
+    db: Session,
+) -> user_goals_models.UserGoal:
+    """
+    Create a new user goal.
+
+    Args:
+        user_id: The ID of the user.
+        user_goal: Goal data to create.
+        db: SQLAlchemy database session.
+
+    Returns:
+        The created UserGoal model.
+
+    Raises:
+        HTTPException: If goal already exists (409) or database
+            error occurs (500).
+    """
+    try:
+        # Check if goal already exists
+        stmt = select(user_goals_models.UserGoal).where(
+            user_goals_models.UserGoal.user_id == user_id,
+            user_goals_models.UserGoal.interval == user_goal.interval,
+            user_goals_models.UserGoal.activity_type == user_goal.activity_type,
+            user_goals_models.UserGoal.goal_type == user_goal.goal_type,
+        )
+        existing_goal = db.execute(stmt).scalar_one_or_none()
+
+        if existing_goal:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="User already has a goal for this activity type, interval, and goal type.",
+                detail=(
+                    "User already has a goal for this activity type, "
+                    "interval, and goal type."
+                ),
             )
 
         db_user_goal = user_goals_models.UserGoal(
@@ -99,47 +139,59 @@ def create_user_goal(user_id: int, user_goal: user_goals_schema.UserGoalCreate, 
         return db_user_goal
     except HTTPException as http_err:
         raise http_err
-    except Exception as err:
+    except SQLAlchemyError as db_err:
+        # Rollback the transaction
+        db.rollback()
+
         # Log the exception
-        core_logger.print_to_log(f"Error in create_user_goal: {err}", "error", exc=err)
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        core_logger.print_to_log(
+            f"Database error in create_user_goal: {db_err}",
+            "error",
+            exc=db_err,
+        )
+
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+            detail="Database error occurred",
+        ) from db_err
 
 
 def update_user_goal(
-    user_id: int, goal_id: int, user_goal: user_goals_schema.UserGoalRead, db: Session
-):
+    user_id: int,
+    goal_id: int,
+    user_goal: user_goals_schema.UserGoalEdit,
+    db: Session,
+) -> user_goals_models.UserGoal:
     """
-    Updates a user's goal in the database with the provided fields.
+    Update a user's goal.
 
     Args:
-        db (Session): SQLAlchemy database session.
-        user_id (int): ID of the user whose goal is being updated.
-        goal_id (int): ID of the goal to update.
-        user_goal (user_goals_schema.UserGoalRead): Schema containing fields to update.
+        user_id: ID of the user.
+        goal_id: ID of the goal to update.
+        user_goal: Schema with fields to update.
+        db: SQLAlchemy database session.
 
     Returns:
-        user_goals_models.UserGoalRead: The updated user goal object.
+        The updated UserGoal model.
 
     Raises:
-        HTTPException: If the user goal is not found (404) or if an internal error occurs (500).
+        HTTPException: If goal not found (404) or database
+            error occurs (500).
     """
     try:
-        db_user_goal = (
-            db.query(user_goals_models.UserGoal)
-            .filter(
-                user_goals_models.UserGoal.user_id == user_id,
-                user_goals_models.UserGoal.id == goal_id,
-            )
-            .first()
-        )
+        db_user_goal = get_user_goal_by_user_and_goal_id(user_id, goal_id, db)
 
         if not db_user_goal:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User goal not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User goal not found",
+            )
+
+        if user_id != db_user_goal.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot edit user goal for another user",
             )
 
         # Update only provided fields
@@ -152,65 +204,63 @@ def update_user_goal(
         return db_user_goal
     except HTTPException as http_err:
         raise http_err
-    except Exception as err:
+    except SQLAlchemyError as db_err:
+        # Rollback the transaction
+        db.rollback()
+
         # Log the exception
-        core_logger.print_to_log(f"Error in update_user_goal: {err}", "error", exc=err)
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def delete_user_goal(user_id: int, goal_id: int, db: Session):
-    """
-    Delete a user's goal from the database and commit the change.
-    Parameters:
-        user_id (int): ID of the user who owns the goal to delete.
-        goal_id (int): ID of the goal to delete.
-        db (Session): SQLAlchemy Session used to perform the delete and commit.
-    Returns:
-        None
-    Side effects:
-        - Deletes the matching UserGoal record from the database.
-        - Commits the transaction on success (db.commit()).
-        - Logs unexpected exceptions via core_logger.print_to_log.
-    Raises:
-        HTTPException: 404 Not Found if no UserGoal matches the provided user_id and goal_id.
-        HTTPException: 500 Internal Server Error for unexpected errors (these are logged before raising).
-        HTTPException: Re-raises any HTTPException caught internally.
-    Notes:
-        - The deletion is performed using a filtered Query.delete() call; the change is only persisted
-          after db.commit() succeeds.
-        - This function does not perform an explicit db.rollback() on failure; callers that manage
-          transactions should handle rollback as appropriate to avoid leaving the session in an inconsistent state.
-    """
-    try:
-        # Delete the user goal
-        num_deleted = (
-            db.query(user_goals_models.UserGoal)
-            .filter(
-                user_goals_models.UserGoal.user_id == user_id,
-                user_goals_models.UserGoal.id == goal_id,
-            )
-            .delete()
+        core_logger.print_to_log(
+            f"Database error in update_user_goal: {db_err}",
+            "error",
+            exc=db_err,
         )
 
-        # Check if the user goal was found and deleted
-        if num_deleted == 0:
+        # Raise an HTTPException with a 500 status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
+
+
+def delete_user_goal(user_id: int, goal_id: int, db: Session) -> None:
+    """
+    Delete a user's goal from the database.
+
+    Args:
+        user_id: ID of the user who owns the goal.
+        goal_id: ID of the goal to delete.
+        db: SQLAlchemy database session.
+
+    Raises:
+        HTTPException: If goal not found (404) or database
+            error occurs (500).
+    """
+    try:
+        db_user_goal = get_user_goal_by_user_and_goal_id(user_id, goal_id, db)
+
+        if not db_user_goal:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="User goal not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User goal not found",
             )
-        
-        # Commit the transaction
+
+        db.delete(db_user_goal)
         db.commit()
     except HTTPException as http_err:
         raise http_err
-    except Exception as err:
+    except SQLAlchemyError as db_err:
+        # Rollback the transaction
+        db.rollback()
+
         # Log the exception
-        core_logger.print_to_log(f"Error in delete_user_goal: {err}", "error", exc=err)
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        core_logger.print_to_log(
+            f"Database error in delete_user_goal: {db_err}",
+            "error",
+            exc=db_err,
+        )
+
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+            detail="Database error occurred",
+        ) from db_err

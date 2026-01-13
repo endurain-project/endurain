@@ -1,64 +1,75 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    ForeignKey,
-)
-from sqlalchemy.orm import relationship
+"""User fitness goals database models."""
+
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
 class UserGoal(Base):
+    """
+    User fitness goal tracking model.
+
+    Attributes:
+        id: Primary key.
+        user_id: Foreign key to users table.
+        interval: Goal time interval (daily, weekly, monthly,
+            yearly).
+        activity_type: Type of activity for the goal.
+        goal_type: Type of goal metric.
+        goal_calories: Target calories in kcal.
+        goal_activities_number: Target number of activities.
+        goal_distance: Target distance in meters.
+        goal_elevation: Target elevation gain in meters.
+        goal_duration: Target duration in seconds.
+        user: Relationship to User model.
+    """
+
     __tablename__ = "users_goals"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
-        Integer,
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="User ID that the goals belongs",
     )
-    interval = Column(
+    interval: Mapped[str] = mapped_column(
         String(length=250),
         nullable=False,
-        comment="Goal interval (e.g., 'daily', 'weekly', 'monthly', 'yearly')",
+        comment=("Goal interval (e.g., 'daily', 'weekly', 'monthly', 'yearly')"),
     )
-    activity_type = Column(
-        Integer,
+    activity_type: Mapped[int] = mapped_column(
         nullable=False,
         comment="Activity type",
     )
-    goal_type = Column(
-        Integer,
+    goal_type: Mapped[int] = mapped_column(
         nullable=False,
         comment="Goal type",
     )
-    goal_calories = Column(
-        Integer,
+    goal_calories: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Goal calories in kcal (e.g., 5000 for 5000 kcal)",
     )
-    goal_activities_number = Column(
-        Integer,
+    goal_activities_number: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Goal activities number (e.g., 5 for 5 activities)",
+        comment=("Goal activities number (e.g., 5 for 5 activities)"),
     )
-    goal_distance = Column(
-        Integer,
+    goal_distance: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Goal distance in meters (e.g., 10000 for 10 km)",
+        comment=("Goal distance in meters (e.g., 10000 for 10 km)"),
     )
-    goal_elevation = Column(
-        Integer,
+    goal_elevation: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Goal elevation in meters (e.g., 1000 for 1000 m)",
+        comment=("Goal elevation in meters (e.g., 1000 for 1000 m)"),
     )
-    goal_duration = Column(
-        Integer,
+    goal_duration: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Goal duration in seconds (e.g., 3600 for 1 hours)",
+        comment=("Goal duration in seconds (e.g., 3600 for 1 hours)"),
     )
 
     # Relationship to User
+    # TODO: Change to Mapped["User"] when all modules use mapped
     user = relationship("User", back_populates="goals")

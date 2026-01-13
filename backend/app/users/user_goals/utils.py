@@ -1,9 +1,8 @@
+"""User goals utility functions for progress calculation."""
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from typing import List
-
-from activities.activity.utils import ACTIVITY_ID_TO_NAME
 
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.models as user_goals_models
@@ -12,24 +11,35 @@ import users.user_goals.crud as user_goals_crud
 import activities.activity.crud as activity_crud
 import core.logger as core_logger
 
+_ACTIVITY_TYPE_MAP: dict[user_goals_schema.ActivityType, list[int]] = {
+    user_goals_schema.ActivityType.RUN: [1, 2, 3, 34, 40],
+    user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29, 35, 36],
+    user_goals_schema.ActivityType.SWIM: [8, 9],
+    user_goals_schema.ActivityType.WALK: [11, 12, 44],
+    user_goals_schema.ActivityType.CARDIO: [20, 41, 46],
+}
+
+_DEFAULT_ACTIVITY_TYPES: list[int] = [10, 19]
+
 
 def calculate_user_goals(
     user_id: int, date: str | None, db: Session
-) -> List[user_goals_schema.UserGoalProgress] | None:
+) -> list[user_goals_schema.UserGoalProgress] | None:
     """
-    Calculates the progress of all goals for a given user on a specified date.
+    Calculate progress for all user goals on a specified date.
 
     Args:
-        user_id (int): The ID of the user whose goals are to be calculated.
-        date (str | None): The date for which to calculate goal progress, in "YYYY-MM-DD" format. If None, uses the current date.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        date: Date in YYYY-MM-DD format. If None, uses
+            current date.
+        db: SQLAlchemy database session.
 
     Returns:
-        List[user_goals_schema.UserGoalProgress] | None:
-            A list of UserGoalProgress objects representing the progress of each goal, or None if no goals are found.
+        List of UserGoalProgress objects, or None if no
+            goals found.
 
     Raises:
-        HTTPException: If an error occurs during calculation or database access.
+        HTTPException: If database error occurs.
     """
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
@@ -44,12 +54,26 @@ def calculate_user_goals(
         ]
     except HTTPException as http_err:
         raise http_err
-    except Exception as err:
+    except (ValueError, TypeError) as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in calculate_user_goals: {err}", "error", exc=err
+            f"Error in calculate_user_goals: {err}",
+            "error",
+            exc=err,
         )
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        # Raise an HTTPException with a 400 status code
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid data provided",
+        ) from err
+    except Exception as err:
+        # Log unexpected exceptions
+        core_logger.print_to_log(
+            f"Unexpected error in calculate_user_goals: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
@@ -60,41 +84,37 @@ def calculate_goal_progress_by_activity_type(
     goal: user_goals_models.UserGoal,
     date: str,
     db: Session,
-) -> user_goals_schema.UserGoalProgress | None:
+) -> user_goals_schema.UserGoalProgress:
     """
-    Calculates the progress of a user's goal for a specific activity type within a given time interval.
-    This function determines the progress of a goal (calories, distance, elevation, duration, or number of activities)
-    based on the user's activities of a specified type (run, bike, swim, walk) within the interval defined by the goal.
-    It fetches relevant activities from the database, aggregates the required metrics, and computes the percentage
-    completion of the goal.
+    Calculate goal progress for a specific activity type.
+
     Args:
-        goal (user_goals_models.UserGoal): The user goal object containing goal details and parameters.
-        date (str): The reference date (in 'YYYY-MM-DD' format) to determine the interval for progress calculation.
-        db (Session): The SQLAlchemy database session used for querying activities.
+        goal: User goal object with goal details.
+        date: Reference date in YYYY-MM-DD format.
+        db: SQLAlchemy database session.
+
     Returns:
-        user_goals_schema.UserGoalProgress | None: An object containing progress details for the goal, or None if no activities are found.
+        UserGoalProgress object with progress details.
+
     Raises:
-        HTTPException: If an error occurs during processing or database access.
+        HTTPException: If database error occurs.
     """
     try:
         start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
 
-        # Define activity type mappings
-        TYPE_MAP = {
-            user_goals_schema.ActivityType.RUN: [1, 2, 3, 34, 40],
-            user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29, 35, 36],
-            user_goals_schema.ActivityType.SWIM: [8, 9],
-            user_goals_schema.ActivityType.WALK: [11, 12, 44],
-            user_goals_schema.ActivityType.CARDIO: [20, 41, 46],
-        }
-        DEFAULT_TYPES = (10, 19)
-
-        # Get activity types based on goal.activity_type, default to [10, 19]
-        activity_types = TYPE_MAP.get(goal.activity_type, DEFAULT_TYPES)
+        # Get activity types based on goal.activity_type
+        activity_types = _ACTIVITY_TYPE_MAP.get(
+            goal.activity_type, _DEFAULT_ACTIVITY_TYPES
+        )
 
         # Fetch all activities in a single query
         activities = activity_crud.get_user_activities_per_timeframe_and_activity_types(
-            goal.user_id, activity_types, start_date, end_date, db, True
+            goal.user_id,
+            activity_types,
+            start_date,
+            end_date,
+            db,
+            True,
         )
 
         # Calculate totals based on goal type
@@ -108,25 +128,30 @@ def calculate_goal_progress_by_activity_type(
         if activities:
             if goal.goal_type == user_goals_schema.GoalType.CALORIES:
                 total_calories = sum(activity.calories or 0 for activity in activities)
-                percentage_completed = (total_calories / goal.goal_calories) * 100
+                if goal.goal_calories and goal.goal_calories > 0:
+                    percentage_completed = (total_calories / goal.goal_calories) * 100
             elif goal.goal_type == user_goals_schema.GoalType.DISTANCE:
                 total_distance = sum(activity.distance or 0 for activity in activities)
-                percentage_completed = (total_distance / goal.goal_distance) * 100
+                if goal.goal_distance and goal.goal_distance > 0:
+                    percentage_completed = (total_distance / goal.goal_distance) * 100
             elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
                 total_elevation = sum(
                     activity.elevation_gain or 0 for activity in activities
                 )
-                percentage_completed = (total_elevation / goal.goal_elevation) * 100
+                if goal.goal_elevation and goal.goal_elevation > 0:
+                    percentage_completed = (total_elevation / goal.goal_elevation) * 100
             elif goal.goal_type == user_goals_schema.GoalType.DURATION:
                 total_duration = sum(
                     activity.total_elapsed_time or 0 for activity in activities
                 )
-                percentage_completed = (total_duration / goal.goal_duration) * 100
+                if goal.goal_duration and goal.goal_duration > 0:
+                    percentage_completed = (total_duration / goal.goal_duration) * 100
             elif goal.goal_type == user_goals_schema.GoalType.ACTIVITIES:
                 total_activities_number = len(activities)
-                percentage_completed = (
-                    total_activities_number / goal.goal_activities_number
-                ) * 100
+                if goal.goal_activities_number and goal.goal_activities_number > 0:
+                    percentage_completed = (
+                        total_activities_number / goal.goal_activities_number
+                    ) * 100
 
         if percentage_completed > 100:
             percentage_completed = 100
@@ -153,14 +178,26 @@ def calculate_goal_progress_by_activity_type(
         )
     except HTTPException as http_err:
         raise http_err
-    except Exception as err:
+    except (ValueError, TypeError) as err:
         # Log the exception
         core_logger.print_to_log(
             f"Error in calculate_goal_progress_by_activity_type: {err}",
             "error",
             exc=err,
         )
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        # Raise an HTTPException with a 400 status code
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid data provided",
+        ) from err
+    except Exception as err:
+        # Log unexpected exceptions
+        core_logger.print_to_log(
+            f"Unexpected error in calculate_goal_progress_by_activity_type: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
@@ -171,46 +208,17 @@ def get_start_end_date_by_interval(
     interval: str, date: str
 ) -> tuple[datetime, datetime]:
     """
-    Return the start and end datetimes for the interval containing the given date.
+    Get start and end datetimes for interval containing date.
 
-    Parameters
-    ----------
-    interval : str
-        One of "yearly", "monthly", "weekly", or "daily". Determines how the window is aligned:
-        - "yearly": calendar year containing the date
-        - "monthly": calendar month containing the date
-        - "weekly": ISO week starting on Monday containing the date
-        - "daily": the given calendar day
-    date : str
-        Date string in "YYYY-MM-DD" format. This is parsed with datetime.strptime(date, "%Y-%m-%d").
+    Args:
+        interval: One of yearly, monthly, weekly, or daily.
+        date: Date string in YYYY-MM-DD format.
 
-    Returns
-    -------
-    tuple[datetime, datetime]
-        A pair (start_date, end_date) where:
-        - start_date is the beginning of the requested interval (00:00:00 on the start day),
-        - end_date is the last second of the requested interval (23:59:59 on the end day).
-        Both datetimes are naive (no tzinfo) and use second precision.
+    Returns:
+        Tuple of (start_date, end_date) datetimes.
 
-    Raises
-    ------
-    HTTPException
-        Raises an HTTPException with status_code=400 if an unsupported interval string is provided.
-
-    Notes
-    -----
-    - "yearly": start is January 1st of the date's year at 00:00:00; end is the last second of December 31st.
-    - "monthly": start is the first day of the month at 00:00:00; end is the last second of that month.
-    - "weekly": start is the Monday of the week at 00:00:00; end is the following Sunday at 23:59:59.
-    - "daily": start is the date at 00:00:00; end is the date at 23:59:59.
-    - The implementation computes month/year boundaries by advancing to the next period and
-      subtracting one second; if you need timezone-aware behavior or sub-second precision,
-      convert inputs/outputs to timezone-aware datetimes and adjust the logic accordingly.
-
-    Examples
-    --------
-    >>> get_start_end_date_by_interval("daily", "2023-03-15")
-    (datetime(2023, 3, 15, 0, 0, 0), datetime(2023, 3, 15, 23, 59, 59))
+    Raises:
+        HTTPException: If invalid interval specified.
     """
     date_obj = datetime.strptime(date, "%Y-%m-%d")
     if interval == "yearly":
@@ -239,7 +247,8 @@ def get_start_end_date_by_interval(
         end_date = date_obj.replace(hour=23, minute=59, second=59, microsecond=0)
     else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interval specified"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid interval specified",
         )
 
     return start_date, end_date

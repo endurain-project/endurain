@@ -1,7 +1,8 @@
-from typing import Annotated, List, Callable
-from datetime import datetime
+"""User goals API endpoints."""
 
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 import users.user_goals.dependencies as user_goals_dependencies
@@ -17,109 +18,117 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("", response_model=List[user_goals_schema.UserGoalRead] | None)
+@router.get(
+    "",
+    response_model=list[user_goals_schema.UserGoalRead],
+    status_code=status.HTTP_200_OK,
+)
 async def get_user_goals(
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
+) -> list[user_goals_schema.UserGoalRead]:
     """
-    Retrieve the goals associated with the authenticated user.
+    Retrieve all goals for the authenticated user.
 
     Args:
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        token_user_id: User ID from access token.
+        db: Database session dependency.
 
     Returns:
-        List[UserGoalRead]: A list of user goal objects for the authenticated user.
+        List of user goal objects.
     """
-    return user_goals_crud.get_user_goals_by_user_id(token_user_id, db)
+    # Pydantic will convert ORM models to HealthWeightRead via from_attributes=True
+    return user_goals_crud.get_user_goals_by_user_id(token_user_id, db)  # type: ignore[arg-type]
 
 
-@router.get("/results", response_model=List[user_goals_schema.UserGoalProgress] | None)
+@router.get(
+    "/results",
+    response_model=list[user_goals_schema.UserGoalProgress] | None,
+    status_code=status.HTTP_200_OK,
+)
 async def get_user_goals_results(
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
+) -> list[user_goals_schema.UserGoalProgress] | None:
     """
-    Retrieve the results of user goals.
+    Calculate and retrieve goal progress for authenticated user.
 
     Args:
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        token_user_id: User ID from access token.
+        db: Database session dependency.
 
     Returns:
-        Any: The calculated user goals results for the specified user.
+        List of goal progress objects, or None if no goals.
     """
     return user_goals_utils.calculate_user_goals(token_user_id, None, db)
 
 
-@router.post("", response_model=user_goals_schema.UserGoalRead, status_code=201)
+@router.post(
+    "",
+    response_model=user_goals_schema.UserGoalRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_user_goal(
     user_goal: user_goals_schema.UserGoalCreate,
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
+) -> user_goals_schema.UserGoalRead:
     """
-    Creates a new user goal for the authenticated user.
+    Create a new goal for the authenticated user.
 
     Args:
-        user_goal (user_goals_schema.UserGoalCreate): The data for the new user goal.
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        user_goal: Goal data to create.
+        token_user_id: User ID from access token.
+        db: Database session dependency.
 
     Returns:
-        The created user goal object.
-
-    Raises:
-        Depends on the implementation of user_goals_crud.create_user_goal.
+        The created goal object.
     """
     return user_goals_crud.create_user_goal(token_user_id, user_goal, db)
 
 
-@router.put("/{goal_id}", response_model=user_goals_schema.UserGoalRead)
+@router.put(
+    "/{goal_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=user_goals_schema.UserGoalRead,
+)
 async def update_user_goal(
     goal_id: int,
-    validate_id: Annotated[Callable, Depends(user_goals_dependencies.validate_goal_id)],
     user_goal: user_goals_schema.UserGoalEdit,
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
+    _: None = Depends(user_goals_dependencies.validate_goal_id),
+) -> user_goals_schema.UserGoalRead:
     """
-    Update a user's goal with new data.
+    Update an existing goal for the authenticated user.
 
     Args:
-        goal_id (int): The ID of the goal to update.
-        validate_id (Callable): Dependency that validates the goal ID.
-        user_goal (user_goals_schema.UserGoalEdit): The updated goal data.
-        token_user_id (int): The user ID extracted from the access token.
-        db (Session): Database session dependency.
+        goal_id: ID of the goal to update.
+        user_goal: Updated goal data.
+        token_user_id: User ID from access token.
+        db: Database session dependency.
 
     Returns:
-        The updated user goal object.
-
-    Raises:
-        HTTPException: If the goal ID is invalid or the update fails.
+        The updated goal object.
     """
     return user_goals_crud.update_user_goal(token_user_id, goal_id, user_goal, db)
 
 
-@router.delete("/{goal_id}")
+@router.delete(
+    "/{goal_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
 async def delete_user_goal(
     goal_id: int,
-    validate_id: Annotated[Callable, Depends(user_goals_dependencies.validate_goal_id)],
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
+    _: None = Depends(user_goals_dependencies.validate_goal_id),
+) -> None:
     """
-    Deletes a user goal from the database.
+    Delete a goal for the authenticated user.
 
     Args:
-        goal_id (int): The ID of the goal to be deleted.
-        validate_id (Callable): Dependency that validates the goal ID.
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): Database session dependency.
-
-    Returns:
-        Any: The result of the delete operation from user_goals_crud.
+        goal_id: ID of the goal to delete.
+        token_user_id: User ID from access token.
+        db: Database session dependency.
     """
     return user_goals_crud.delete_user_goal(token_user_id, goal_id, db)

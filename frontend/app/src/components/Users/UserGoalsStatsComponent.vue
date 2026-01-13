@@ -59,8 +59,8 @@
             }}{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFt') }}</span
           >
           <span v-if="goal.goal_type === 5"
-            >{{ formatDuration(t, goal.total_duration) }}{{ $t('generalItems.ofWithSpaces')
-            }}{{ formatDuration(t, goal.goal_duration) }}</span
+            >{{ formatDuration(goal.total_duration) }}{{ $t('generalItems.ofWithSpaces')
+            }}{{ formatDuration(goal.goal_duration) }}</span
           >
         </div>
         <div
@@ -88,7 +88,8 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
-import { formatDistanceRaw, formatDuration } from '@/utils/activityUtils'
+import { formatDistanceRaw } from '@/utils/activityUtils'
+import { formatDuration } from '@/utils/dateTimeUtils'
 import { metersToFeet } from '@/utils/unitsUtils'
 
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'

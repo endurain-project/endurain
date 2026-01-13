@@ -226,16 +226,28 @@
                   $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel')
                 }}</b></label
               >
-              <input
-                class="form-control"
-                type="number"
-                step="0.1"
-                name="goalDurationAddEdit"
-                :placeholder="
-                  $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationPlaceholder')
-                "
-                v-model="newEditGoalDuration"
-              />
+              <div class="d-flex">
+                <div class="input-group me-1">
+                  <input
+                    class="form-control"
+                    type="number"
+                    name="goalDurationHoursAddEdit"
+                    :placeholder="$t('generalItems.labelHours')"
+                    v-model="newEditGoalDurationHours"
+                  />
+                  <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
+                </div>
+                <div class="input-group ms-1">
+                  <input
+                    class="form-control"
+                    type="number"
+                    name="goalDurationMinutesAddEdit"
+                    :placeholder="$t('generalItems.labelMinutes')"
+                    v-model="newEditGoalDurationMinutes"
+                  />
+                  <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
+                </div>
+              </div>
             </div>
 
             <p>* {{ $t('generalItems.requiredField') }}</p>
@@ -283,6 +295,7 @@ import {
   metersToFeet,
   metersToKm
 } from '@/utils/unitsUtils'
+import { returnHoursMinutesFromSeconds, returnSecondsFromHoursMinutes } from '@/utils/dateTimeUtils'
 
 import { userGoals as userGoalsService } from '@/services/userGoalsService'
 
@@ -310,7 +323,8 @@ const newEditGoalDistanceMetric = ref(null)
 const newEditGoalDistanceImperial = ref(null)
 const newEditGoalElevationMetric = ref(null)
 const newEditGoalElevationImperial = ref(null)
-const newEditGoalDuration = ref(null)
+const newEditGoalDurationHours = ref(null)
+const newEditGoalDurationMinutes = ref(null)
 
 if (props.goal) {
   if (props.action === 'edit') {
@@ -328,37 +342,65 @@ if (props.goal) {
       newEditGoalElevationMetric.value = props.goal.goal_elevation
       newEditGoalElevationImperial.value = metersToFeet(props.goal.goal_elevation)
     }
-    newEditGoalDuration.value = props.goal.goal_duration
+    const { hours, minutes } = returnHoursMinutesFromSeconds(props.goal.goal_duration)
+    newEditGoalDurationHours.value = hours
+    newEditGoalDurationMinutes.value = minutes
   }
 }
 
 function setGoalObject() {
   let distance = null
   let elevation = null
-  if (Number(authStore?.user?.units) === 2) {
-    if (newEditGoalDistanceImperial.value) {
-      distance = milesToMeters(newEditGoalDistanceImperial.value)
+  let duration = null
+
+  // Only set the field that matches the selected goal type
+  if (newEditGoalType.value === 3) {
+    // Distance goal
+    if (Number(authStore?.user?.units) === 2) {
+      if (newEditGoalDistanceImperial.value) {
+        distance = Math.round(milesToMeters(newEditGoalDistanceImperial.value))
+      }
+    } else if (Number(authStore?.user?.units) === 1) {
+      if (newEditGoalDistanceMetric.value) {
+        distance = Math.round(kmToMeters(newEditGoalDistanceMetric.value))
+      }
     }
-    if (newEditGoalElevationImperial.value) {
-      elevation = feetToMeters(newEditGoalElevationImperial.value)
+  } else if (newEditGoalType.value === 4) {
+    // Elevation goal
+    if (Number(authStore?.user?.units) === 2) {
+      if (newEditGoalElevationImperial.value) {
+        elevation = Math.round(feetToMeters(newEditGoalElevationImperial.value))
+      }
+    } else if (Number(authStore?.user?.units) === 1) {
+      if (newEditGoalElevationMetric.value) {
+        elevation = Math.round(newEditGoalElevationMetric.value)
+      }
     }
-  } else if (Number(authStore?.user?.units) === 1) {
-    if (newEditGoalDistanceMetric.value) {
-      distance = kmToMeters(newEditGoalDistanceMetric.value)
-    }
-    if (newEditGoalElevationMetric.value) {
-      elevation = newEditGoalElevationMetric.value
+  } else if (newEditGoalType.value === 5) {
+    // Duration goal
+    if (newEditGoalDurationHours.value || newEditGoalDurationMinutes.value) {
+      duration = returnSecondsFromHoursMinutes(
+        newEditGoalDurationHours.value ? parseInt(newEditGoalDurationHours.value) : 0,
+        newEditGoalDurationMinutes.value ? parseInt(newEditGoalDurationMinutes.value) : 0
+      )
     }
   }
+
   return {
     interval: newEditGoalInterval.value,
     activity_type: newEditGoalActivityType.value,
     goal_type: newEditGoalType.value,
-    goal_calories: newEditGoalCalories.value,
-    goal_activities_number: newEditGoalActivitiesNumber.value,
+    goal_calories:
+      newEditGoalType.value === 1 && newEditGoalCalories.value
+        ? parseInt(newEditGoalCalories.value)
+        : null,
+    goal_activities_number:
+      newEditGoalType.value === 2 && newEditGoalActivitiesNumber.value
+        ? parseInt(newEditGoalActivitiesNumber.value)
+        : null,
     goal_distance: distance,
     goal_elevation: elevation,
-    goal_duration: newEditGoalDuration.value
+    goal_duration: duration
   }
 }
 
