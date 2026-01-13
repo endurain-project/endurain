@@ -114,6 +114,12 @@ class ServerSettings(Base):
         nullable=False,
         comment="Attribution string for the map tileserver",
     )
+    tileserver_api_key: Mapped[str | None] = mapped_column(
+        String(length=512),
+        default=None,
+        nullable=True,
+        comment=("API key encrypted for the tile server"),
+    )
     map_background_color: Mapped[str] = mapped_column(
         default="#dddddd",
         nullable=False,

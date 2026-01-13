@@ -9,7 +9,8 @@ from pydantic import (
     Field,
     field_validator,
 )
-from core.sanitization import sanitize_attribution
+
+import core.sanitization as core_sanitization
 
 # Default allowed tile domains for map tiles
 DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
@@ -235,7 +236,7 @@ class ServerSettingsBase(BaseModel):
         Returns:
             Sanitized string with only safe HTML.
         """
-        return sanitize_attribution(value) or ""
+        return core_sanitization.sanitize_attribution(value) or ""
 
 
 class ServerSettings(ServerSettingsBase):
@@ -247,11 +248,17 @@ class ServerSettings(ServerSettingsBase):
 
     Attributes:
         id: Unique identifier (always 1, singleton pattern).
+        tileserver_api_key: API key encrypted for the tile server.
         (plus all fields inherited from ServerSettingsBase)
     """
 
     id: StrictInt = Field(
         ..., description="Unique identifier for server settings (always 1)"
+    )
+    tileserver_api_key: StrictStr | None = Field(
+        default=None,
+        max_length=512,
+        description="API key encrypted for the tile server",
     )
 
 

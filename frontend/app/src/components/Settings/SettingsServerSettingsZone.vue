@@ -348,6 +348,19 @@
           required
           @blur="updateServerSettings"
         />
+        <!-- Tile server Attribution -->
+        <label class="form-label mt-1" for="serverSettingsTileserverApiKey">{{
+          $t('settingsServerSettingsZoneComponent.tileserverApiKeyLabel')
+        }}</label>
+        <input
+          type="text"
+          class="form-control"
+          name="serverSettingsTileserverApiKey"
+          :placeholder="$t('settingsServerSettingsZoneComponent.tileserverApiKeyLabel')"
+          v-model="tileserverApiKey"
+          required
+          @blur="updateServerSettings"
+        />
         <!-- Map Background Color -->
         <label class="form-label mt-1" for="serverSettingsMapBackgroundColor">{{
           $t('settingsServerSettingsZoneComponent.mapBackgroundColorLabel')
@@ -455,6 +468,7 @@ const localLoginEnabled = ref(serverSettingsStore.serverSettings.local_login_ena
 const ssoAutoRedirect = ref(serverSettingsStore.serverSettings.sso_auto_redirect)
 const tileserverUrl = ref(serverSettingsStore.serverSettings.tileserver_url)
 const tileserverAttribution = ref(serverSettingsStore.serverSettings.tileserver_attribution)
+const tileserverApiKey = ref(serverSettingsStore.serverSettings.tileserver_api_key)
 const mapBackgroundColor = ref(serverSettingsStore.serverSettings.map_background_color)
 const passwordType = ref(serverSettingsStore.serverSettings.password_type)
 const passwordLengthRegularUsers = ref(
@@ -491,6 +505,7 @@ async function updateServerSettings() {
     sso_auto_redirect: ssoAutoRedirect.value,
     tileserver_url: tileserverUrl.value,
     tileserver_attribution: tileserverAttribution.value,
+    tileserver_api_key: tileserverApiKey.value,
     map_background_color: mapBackgroundColor.value,
     password_type: passwordType.value,
     password_length_regular_users: passwordLengthRegularUsers.value,
@@ -578,6 +593,7 @@ onMounted(async () => {
     ssoAutoRedirect.value = serverSettingsStore.serverSettings.sso_auto_redirect
     tileserverUrl.value = serverSettingsStore.serverSettings.tileserver_url
     tileserverAttribution.value = serverSettingsStore.serverSettings.tileserver_attribution
+    tileserverApiKey.value = serverSettingsStore.serverSettings.tileserver_api_key
     mapBackgroundColor.value = serverSettingsStore.serverSettings.map_background_color
     passwordType.value = serverSettingsStore.serverSettings.password_type
     passwordLengthRegularUsers.value =
@@ -610,6 +626,7 @@ watch(
     ssoAutoRedirect,
     tileserverUrl,
     tileserverAttribution,
+    tileserverApiKey,
     mapBackgroundColor,
     passwordType,
     passwordLengthRegularUsers,
@@ -631,6 +648,7 @@ watch(selectedTileTemplate, async (newTemplate) => {
     if (templateData) {
       tileserverUrl.value = templateData.url_template
       tileserverAttribution.value = templateData.attribution
+      tileserverApiKey.value = null
       mapBackgroundColor.value = templateData.map_background_color
       await updateServerSettings()
     }

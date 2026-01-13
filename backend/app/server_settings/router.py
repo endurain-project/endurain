@@ -55,9 +55,9 @@ async def read_server_settings(
     Requires admin authentication with server_settings:read scope.
 
     Returns:
-        Current server settings configuration.
+        Current server settings configuration with decrypted API key.
     """
-    return server_settings_utils.get_server_settings(db)
+    return server_settings_utils.get_server_settings_for_admin(db)
 
 
 @router.get(

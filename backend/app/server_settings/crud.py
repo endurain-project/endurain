@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import server_settings.schema as server_settings_schema
 import server_settings.models as server_settings_models
 
+import core.cryptography as core_cryptography
 import core.logger as core_logger
 
 
@@ -67,6 +68,13 @@ def edit_server_settings(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Server settings not found",
             ) from None
+
+        if server_settings.tileserver_api_key is not None:
+            # Encrypt the tile server API key before storing
+            encrypted_api_key = core_cryptography.encrypt_token_fernet(
+                server_settings.tileserver_api_key
+            )
+            server_settings.tileserver_api_key = encrypted_api_key
 
         # Dictionary of the fields to update if they are not None
         server_settings_data = server_settings.model_dump(exclude_unset=True)
