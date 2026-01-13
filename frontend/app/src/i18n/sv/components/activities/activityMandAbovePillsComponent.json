@@ -1,0 +1,16 @@
+{
+  "labelPillGraphs": "Graphs",
+  "labelPillLaps": "Laps",
+  "labelPillWorkoutSets": "Sets",
+  "labelGraph": "Activity data graphs",
+  "labelGraphHR": "Heart rate",
+  "labelHRZones": "Heart rate zones",
+  "labelGraphPower": "Power",
+  "labelGraphCadence": "Cadence",
+  "labelGraphElevation": "Elevation",
+  "labelGraphVelocity": "Speed",
+  "labelGraphPace": "Pace",
+  "labelGraphHRZone": "Zone",
+  "errorMessageProcessingActivityStreams": "Error processing activity streams",
+  "labelGraphStrokeRate": "Stroke rate"
+}
