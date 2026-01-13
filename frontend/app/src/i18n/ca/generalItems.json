@@ -99,8 +99,8 @@
   "labelHoursShort": "h",
   "labelMinutesShort": "min",
   "markdownEditor": {
-    "showPreview": "Preview",
-    "hidePreview": "Edit",
+    "showPreview": "Previsualitza",
+    "hidePreview": "Edita",
     "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
     "noContentToPreview": "No content to preview"
   }
