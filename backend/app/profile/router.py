@@ -22,6 +22,7 @@ import users.user.utils as users_utils
 
 import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.schema as user_idp_schema
+import users.user_identity_providers.utils as user_idp_utils
 
 import auth.identity_providers.crud as idp_crud
 import auth.idp_link_tokens.utils as idp_link_token_utils
@@ -969,33 +970,17 @@ async def get_my_identity_providers(
         HTTPException: May raise authentication/authorization errors via the dependency injection.
     """
     # Get user's IdP links
-    idp_links = user_idp_crud.get_user_identity_providers_by_user_id(token_user_id, db)
+    idp_links = user_idp_crud.get_user_identity_providers_by_user_id(
+        token_user_id,
+        db,
+    )
 
-    # Enrich with IDP details (reuse logic from admin endpoint)
-    enriched_links = []
-    for link in idp_links:
-        # Convert SQLAlchemy model to dict
-        link_dict = {
-            "id": link.id,
-            "user_id": link.user_id,
-            "idp_id": link.idp_id,
-            "idp_subject": link.idp_subject,
-            "linked_at": link.linked_at,
-            "last_login": link.last_login,
-            "idp_access_token_expires_at": link.idp_access_token_expires_at,
-            "idp_refresh_token_updated_at": link.idp_refresh_token_updated_at,
-        }
-
-        # Fetch IDP details for display
-        idp = idp_crud.get_identity_provider(link.idp_id, db)
-        if idp:
-            link_dict["idp_name"] = idp.name
-            link_dict["idp_slug"] = idp.slug
-            link_dict["idp_icon"] = idp.icon
-            link_dict["idp_provider_type"] = idp.provider_type
-
-        enriched_links.append(link_dict)
-    return enriched_links
+    # Enrich with IDP details (batch fetch to avoid N+1 queries)
+    return user_idp_utils.enrich_user_identity_providers(
+        idp_links,
+        token_user_id,
+        db,
+    )
 
 
 @router.delete(

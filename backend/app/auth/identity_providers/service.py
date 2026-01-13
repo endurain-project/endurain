@@ -29,10 +29,10 @@ import users.user.models as users_models
 import users.user.utils as users_utils
 import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.models as user_idp_models
+import users.user_identity_providers.utils as user_idp_utils
 import auth.password_hasher as auth_password_hasher
 import auth.oauth_state.models as oauth_state_models
 import auth.oauth_state.crud as oauth_state_crud
-import auth.oauth_state.utils as oauth_state_utils
 import server_settings.schema as server_settings_schema
 
 
@@ -1679,7 +1679,7 @@ class IdentityProviderService:
             )
 
         # Get the encrypted refresh token from database
-        encrypted_refresh_token = user_idp_crud.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+        encrypted_refresh_token = user_idp_utils.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
             user_id, idp_id, db
         )
 
@@ -1846,7 +1846,7 @@ class IdentityProviderService:
                 return False
 
             # Get the encrypted refresh token from database
-            encrypted_refresh_token = user_idp_crud.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+            encrypted_refresh_token = user_idp_utils.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
                 user_id, idp_id, db
             )
 

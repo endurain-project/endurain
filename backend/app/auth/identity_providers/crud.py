@@ -112,18 +112,59 @@ def get_all_identity_providers(db: Session) -> List[idp_models.IdentityProvider]
         ) from err
 
 
-def get_enabled_providers(db: Session) -> List[idp_models.IdentityProvider]:
+def get_identity_providers_by_ids(
+    idp_ids: list[int],
+    db: Session,
+) -> list[idp_models.IdentityProvider]:
     """
-    Retrieve all enabled identity providers from the database, ordered by name.
+    Retrieve multiple identity providers by their IDs.
+
+    Batch fetch to avoid N+1 query problems when enriching
+    user identity provider links.
 
     Args:
-        db (Session): SQLAlchemy database session.
+        idp_ids: List of identity provider IDs to fetch.
+        db: SQLAlchemy database session.
 
     Returns:
-        List[idp_models.IdentityProvider]: A list of enabled IdentityProvider objects.
+        List of IdentityProvider objects matching the IDs.
 
     Raises:
-        HTTPException: If an error occurs during the database query, raises a 500 Internal Server Error.
+        HTTPException: 500 error if database query fails.
+    """
+    if not idp_ids:
+        return []
+
+    try:
+        return (
+            db.query(idp_models.IdentityProvider)
+            .filter(idp_models.IdentityProvider.id.in_(idp_ids))
+            .all()
+        )
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_identity_providers_by_ids: {err}",
+            "error",
+            exc=err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_enabled_providers(db: Session) -> list[idp_models.IdentityProvider]:
+    """
+    Retrieve all enabled identity providers, ordered by name.
+
+    Args:
+        db: SQLAlchemy database session.
+
+    Returns:
+        List of enabled IdentityProvider objects.
+
+    Raises:
+        HTTPException: 500 error if database query fails.
     """
     try:
         return (

@@ -1,165 +1,251 @@
+"""CRUD operations for user identity providers."""
+
 from datetime import datetime, timezone
-from sqlalchemy import exists
+from fastapi import HTTPException, status
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func
-from users.user_identity_providers import models as user_idp_models
+
+import core.logger as core_logger
+import users.user_identity_providers.models as user_idp_models
 
 
-def check_user_identity_providers_by_idp_id(idp_id: int, db: Session) -> bool:
+def check_user_identity_providers_by_idp_id(
+    idp_id: int,
+    db: Session,
+) -> bool:
     """
-    Checks if there are any user links associated with a given identity provider ID.
+    Check if any user links exist for an identity provider.
 
     Args:
-        idp_id (int): The ID of the identity provider to check for user links.
-        db (Session): The SQLAlchemy database session to use for the query.
+        idp_id: The ID of the identity provider.
+        db: SQLAlchemy database session.
 
     Returns:
-        bool: True if there is at least one user linked to the specified identity provider, False otherwise.
+        True if at least one user is linked, False otherwise.
+
+    Raises:
+        HTTPException: 500 error if database query fails.
     """
-    return db.query(
-        exists().where(user_idp_models.UserIdentityProvider.idp_id == idp_id)
-    ).scalar()
-
-
-def get_user_identity_provider_by_user_id_and_idp_id(
-    user_id: int, idp_id: int, db: Session
-) -> user_idp_models.UserIdentityProvider | None:
-    """
-    Retrieve the UserIdentityProvider link for a specific user and identity provider.
-
-    Args:
-        user_id (int): The ID of the user.
-        idp_id (int): The ID of the identity provider.
-        db (Session): The SQLAlchemy database session.
-
-    Returns:
-        UserIdentityProvider | None: The UserIdentityProvider instance if found, otherwise None.
-    """
-    return (
-        db.query(user_idp_models.UserIdentityProvider)
-        .filter(
-            user_idp_models.UserIdentityProvider.user_id == user_id,
-            user_idp_models.UserIdentityProvider.idp_id == idp_id,
+    try:
+        stmt = select(
+            exists().where(user_idp_models.UserIdentityProvider.idp_id == idp_id)
         )
-        .first()
-    )
-
-
-def get_user_identity_provider_by_subject_and_idp_id(
-    idp_id: int, idp_subject: str, db: Session
-) -> user_idp_models.UserIdentityProvider | None:
-    """
-    Retrieve a UserIdentityProvider record by identity provider ID and subject.
-
-    Args:
-        idp_id (int): The ID of the identity provider.
-        idp_subject (str): The subject identifier from the identity provider.
-        db (Session): The SQLAlchemy database session.
-
-    Returns:
-        UserIdentityProvider | None: The matching UserIdentityProvider record if found, otherwise None.
-    """
-    return (
-        db.query(user_idp_models.UserIdentityProvider)
-        .filter(
-            user_idp_models.UserIdentityProvider.idp_id == idp_id,
-            user_idp_models.UserIdentityProvider.idp_subject == idp_subject,
+        return db.execute(stmt).scalar() or False
+    except SQLAlchemyError as db_err:
+        core_logger.print_to_log(
+            f"Database error checking IdP links: {db_err}",
+            "error",
+            exc=db_err,
         )
-        .first()
-    )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
 
 
 def get_user_identity_providers_by_user_id(
-    user_id: int, db: Session
+    user_id: int,
+    db: Session,
 ) -> list[user_idp_models.UserIdentityProvider]:
     """
-    Retrieve all identity provider links associated with a given user.
+    Retrieve all identity provider links for a user.
 
     Args:
-        user_id (int): The ID of the user whose identity provider links are to be retrieved.
-        db (Session): The SQLAlchemy database session to use for the query.
+        user_id: The ID of the user.
+        db: SQLAlchemy database session.
 
     Returns:
-        list[user_idp_models.UserIdentityProvider]: A list of UserIdentityProvider objects linked to the specified user.
+        List of UserIdentityProvider objects linked to the user.
+
+    Raises:
+        HTTPException: 500 error if database query fails.
     """
-    return (
-        db.query(user_idp_models.UserIdentityProvider)
-        .filter(user_idp_models.UserIdentityProvider.user_id == user_id)
-        .all()
-    )
+    try:
+        stmt = select(user_idp_models.UserIdentityProvider).where(
+            user_idp_models.UserIdentityProvider.user_id == user_id
+        )
+        return list(db.execute(stmt).scalars().all())
+    except SQLAlchemyError as db_err:
+        core_logger.print_to_log(
+            f"Database error fetching user IdP links: {db_err}",
+            "error",
+            exc=db_err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
 
 
-def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-    user_id: int, idp_id: int, db: Session
-) -> str | None:
+def get_user_identity_provider_by_user_id_and_idp_id(
+    user_id: int,
+    idp_id: int,
+    db: Session,
+) -> user_idp_models.UserIdentityProvider | None:
     """
-    Get the encrypted refresh token for a user-IdP link.
-
-    This function retrieves the encrypted refresh token. The caller is responsible
-    for decrypting it using Fernet before use.
+    Retrieve identity provider link for a user.
 
     Args:
-        user_id (int): The ID of the user.
-        idp_id (int): The ID of the identity provider.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        idp_id: The ID of the identity provider.
+        db: SQLAlchemy database session.
 
     Returns:
-        str | None: The encrypted refresh token string if found, otherwise None.
+        The UserIdentityProvider instance if found, None otherwise.
 
-    Security Note:
-        - Returns the encrypted token (not plaintext)
-        - Caller must decrypt using Fernet
-        - Returns None if link doesn't exist or token is not set
+    Raises:
+        HTTPException: 500 error if database query fails.
     """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
-    if db_link:
-        return db_link.idp_refresh_token
-    return None
+    try:
+        stmt = select(user_idp_models.UserIdentityProvider).where(
+            user_idp_models.UserIdentityProvider.user_id == user_id,
+            user_idp_models.UserIdentityProvider.idp_id == idp_id,
+        )
+        return db.execute(stmt).scalar_one_or_none()
+    except SQLAlchemyError as db_err:
+        core_logger.print_to_log(
+            f"Database error fetching IdP link: {db_err}",
+            "error",
+            exc=db_err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
+
+
+def get_user_identity_provider_by_subject_and_idp_id(
+    idp_id: int,
+    idp_subject: str,
+    db: Session,
+) -> user_idp_models.UserIdentityProvider | None:
+    """
+    Retrieve identity provider link by IdP and subject.
+
+    Args:
+        idp_id: The ID of the identity provider.
+        idp_subject: The subject identifier from the IdP.
+        db: SQLAlchemy database session.
+
+    Returns:
+        The matching UserIdentityProvider record if found, None
+        otherwise.
+
+    Raises:
+        HTTPException: 500 error if database query fails.
+    """
+    try:
+        stmt = select(user_idp_models.UserIdentityProvider).where(
+            user_idp_models.UserIdentityProvider.idp_id == idp_id,
+            user_idp_models.UserIdentityProvider.idp_subject == idp_subject,
+        )
+        return db.execute(stmt).scalar_one_or_none()
+    except SQLAlchemyError as db_err:
+        core_logger.print_to_log(
+            f"Database error fetching IdP link by subject: {db_err}",
+            "error",
+            exc=db_err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
 
 
 def create_user_identity_provider(
-    user_id: int, idp_id: int, idp_subject: str, db: Session
+    user_id: int,
+    idp_id: int,
+    idp_subject: str,
+    db: Session,
 ) -> user_idp_models.UserIdentityProvider:
     """
-    Creates a link between a user and an identity provider (IDP) in the database.
+    Create a link between a user and an identity provider.
 
     Args:
-        user_id (int): The ID of the user to link.
-        idp_id (int): The ID of the identity provider.
-        idp_subject (str): The subject identifier from the identity provider.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user to link.
+        idp_id: The ID of the identity provider.
+        idp_subject: The subject identifier from the IdP.
+        db: SQLAlchemy database session.
 
     Returns:
-        user_idp_models.UserIdentityProvider: The newly created UserIdentityProvider link object.
+        The newly created UserIdentityProvider link object.
+
+    Raises:
+        HTTPException: 409 error if link already exists.
+        HTTPException: 500 error if database operation fails.
     """
-    db_link = user_idp_models.UserIdentityProvider(
-        user_id=user_id, idp_id=idp_id, idp_subject=idp_subject, last_login=func.now()
-    )
-    db.add(db_link)
-    db.commit()
-    db.refresh(db_link)
-    return db_link
+    try:
+        db_link = user_idp_models.UserIdentityProvider(
+            user_id=user_id,
+            idp_id=idp_id,
+            idp_subject=idp_subject,
+            last_login=func.now(),
+        )
+        db.add(db_link)
+        db.commit()
+        db.refresh(db_link)
+        return db_link
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        core_logger.print_to_log(
+            f"Database error creating IdP link: {db_err}",
+            "error",
+            exc=db_err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred",
+        ) from db_err
 
 
 def update_user_identity_provider_last_login(
-    user_id: int, idp_id: int, db: Session
+    user_id: int,
+    idp_id: int,
+    db: Session,
 ) -> user_idp_models.UserIdentityProvider | None:
     """
-    Updates the 'last_login' timestamp for a user's identity provider link to the current UTC time.
+    Update last login timestamp for a user-IdP link.
 
     Args:
-        user_id (int): The ID of the user.
-        idp_id (int): The ID of the identity provider.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        idp_id: The ID of the identity provider.
+        db: SQLAlchemy database session.
 
     Returns:
-        user_idp_models.UserIdentityProvider | None: The updated UserIdentityProvider link if found, otherwise None.
+        The updated UserIdentityProvider link if found, None
+        otherwise.
+
+    Raises:
+        HTTPException: 500 error if database operation fails.
     """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(
+        user_id,
+        idp_id,
+        db,
+    )
     if db_link:
-        db_link.last_login = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(db_link)
+        try:
+            db_link.last_login = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(db_link)
+        except SQLAlchemyError as db_err:
+            db.rollback()
+            core_logger.print_to_log(
+                f"Database error updating last login: {db_err}",
+                "error",
+                exc=db_err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error occurred",
+            ) from db_err
+    else:
+        core_logger.print_to_log(
+            f"IdP link not found for user {user_id}, idp {idp_id}",
+            "warning",
+        )
     return db_link
 
 
@@ -171,93 +257,163 @@ def store_user_identity_provider_tokens(
     db: Session,
 ) -> user_idp_models.UserIdentityProvider | None:
     """
-    Store IdP tokens for a user-IdP link.
+    Store encrypted IdP tokens for a user-IdP link.
 
-    This function stores the encrypted refresh token and its metadata. The refresh token
-    must already be encrypted using Fernet before calling this function.
+    Token must be pre-encrypted with Fernet before calling.
 
     Args:
-        user_id (int): The ID of the user.
-        idp_id (int): The ID of the identity provider.
-        encrypted_refresh_token (str): The Fernet-encrypted refresh token from the IdP.
-        access_token_expires_at (datetime): When the IdP access token expires.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        idp_id: The ID of the identity provider.
+        encrypted_refresh_token: Fernet-encrypted refresh token.
+        access_token_expires_at: Access token expiry time.
+        db: SQLAlchemy database session.
 
     Returns:
-        user_idp_models.UserIdentityProvider | None: The updated UserIdentityProvider link if found, otherwise None.
+        The updated UserIdentityProvider link if found, None
+        otherwise.
 
-    Security Note:
-        The refresh_token parameter must be pre-encrypted with Fernet before calling this function.
-        Never pass plaintext tokens to this function.
+    Raises:
+        HTTPException: 500 error if database operation fails.
     """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(
+        user_id,
+        idp_id,
+        db,
+    )
     if db_link:
-        db_link.idp_refresh_token = encrypted_refresh_token
-        db_link.idp_access_token_expires_at = access_token_expires_at
-        db_link.idp_refresh_token_updated_at = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(db_link)
+        try:
+            db_link.idp_refresh_token = encrypted_refresh_token
+            db_link.idp_access_token_expires_at = access_token_expires_at
+            db_link.idp_refresh_token_updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(db_link)
+        except SQLAlchemyError as db_err:
+            db.rollback()
+            core_logger.print_to_log(
+                f"Database error storing IdP tokens: {db_err}",
+                "error",
+                exc=db_err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error occurred",
+            ) from db_err
+    else:
+        core_logger.print_to_log(
+            f"IdP link not found for user {user_id}, "
+            f"idp {idp_id} when storing tokens",
+            "warning",
+        )
     return db_link
 
 
 def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-    user_id: int, idp_id: int, db: Session
+    user_id: int,
+    idp_id: int,
+    db: Session,
 ) -> bool:
     """
-    Clear the IdP refresh token and related metadata.
+    Clear IdP refresh token and metadata.
 
-    This function should be called when:
-    - User logs out
-    - Token refresh fails (invalid/revoked token)
-    - User unlinks the IdP
-    - Security requires token invalidation
+    Called when user logs out, token refresh fails, user unlinks
+    IdP, or security requires token invalidation.
 
     Args:
-        user_id (int): The ID of the user.
-        idp_id (int): The ID of the identity provider.
-        db (Session): The SQLAlchemy database session.
+        user_id: The ID of the user.
+        idp_id: The ID of the identity provider.
+        db: SQLAlchemy database session.
 
     Returns:
-        bool: True if the token was cleared, False if the link was not found.
+        True if token was cleared, False if link not found.
+
+    Raises:
+        HTTPException: 500 error if database operation fails.
     """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(
+        user_id,
+        idp_id,
+        db,
+    )
     if db_link:
-        db_link.idp_refresh_token = None
-        db_link.idp_access_token_expires_at = None
-        db_link.idp_refresh_token_updated_at = None
-        db.commit()
-        return True
+        try:
+            db_link.idp_refresh_token = None
+            db_link.idp_access_token_expires_at = None
+            db_link.idp_refresh_token_updated_at = None
+            db.commit()
+            return True
+        except SQLAlchemyError as db_err:
+            db.rollback()
+            core_logger.print_to_log(
+                f"Database error clearing IdP tokens: {db_err}",
+                "error",
+                exc=db_err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error occurred",
+            ) from db_err
+    else:
+        core_logger.print_to_log(
+            f"IdP link not found for user {user_id}, "
+            f"idp {idp_id} when clearing tokens",
+            "warning",
+        )
     return False
 
 
-def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
+def delete_user_identity_provider(
+    user_id: int,
+    idp_id: int,
+    db: Session,
+) -> bool:
     """
-    Deletes the link between a user and an identity provider (IDP) from the database.
+    Delete link between user and identity provider.
 
-    This function implements defense-in-depth by clearing sensitive token data before
-    deleting the record, even though the database CASCADE would handle deletion.
+    Implements defense-in-depth by clearing sensitive token
+    data before deletion.
 
     Args:
-        user_id (int): The ID of the user whose IDP link is to be deleted.
-        idp_id (int): The ID of the identity provider to unlink from the user.
-        db (Session): The SQLAlchemy database session to use for the operation.
+        user_id: The ID of the user.
+        idp_id: The ID of the identity provider to unlink.
+        db: SQLAlchemy database session.
 
     Returns:
-        bool: True if the link was found and deleted, False otherwise.
+        True if link was found and deleted, False otherwise.
 
-    Security Note:
-        Sensitive token data is explicitly cleared before deletion as a defense-in-depth measure.
+    Raises:
+        HTTPException: 500 error if database operation fails.
     """
-    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(
+        user_id,
+        idp_id,
+        db,
+    )
     if db_link:
-        # Clear sensitive data first (defense in depth)
-        db_link.idp_refresh_token = None
-        db_link.idp_access_token_expires_at = None
-        db_link.idp_refresh_token_updated_at = None
-        db.commit()
+        try:
+            # Clear sensitive data first (defense in depth)
+            db_link.idp_refresh_token = None
+            db_link.idp_access_token_expires_at = None
+            db_link.idp_refresh_token_updated_at = None
+            db.commit()
 
-        # Then delete the link
-        db.delete(db_link)
-        db.commit()
-        return True
+            # Then delete the link
+            db.delete(db_link)
+            db.commit()
+            return True
+        except SQLAlchemyError as db_err:
+            db.rollback()
+            core_logger.print_to_log(
+                f"Database error deleting IdP link: {db_err}",
+                "error",
+                exc=db_err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error occurred",
+            ) from db_err
+    else:
+        core_logger.print_to_log(
+            f"IdP link not found for user {user_id}, idp {idp_id} when deleting",
+            "warning",
+        )
     return False

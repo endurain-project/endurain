@@ -268,6 +268,133 @@ class TestGetEnabledProviders:
         assert exc_info.value.status_code == 500
 
 
+class TestGetIdentityProvidersByIds:
+    """Test suite for get_identity_providers_by_ids function."""
+
+    def test_get_identity_providers_by_ids_success(self, mock_db):
+        """Test successfully retrieving multiple identity providers by IDs.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - All requested providers are returned
+            - Query uses correct filter
+        """
+        # Arrange
+        mock_idps = [
+            MagicMock(spec=IdentityProvider, id=1, name="Provider 1"),
+            MagicMock(spec=IdentityProvider, id=2, name="Provider 2"),
+            MagicMock(spec=IdentityProvider, id=3, name="Provider 3"),
+        ]
+        mock_db.query.return_value.filter.return_value.all.return_value = mock_idps
+
+        # Act
+        result = idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
+
+        # Assert
+        assert result == mock_idps
+        assert len(result) == 3
+        mock_db.query.assert_called_once()
+        mock_db.query.return_value.filter.assert_called_once()
+
+    def test_get_identity_providers_by_ids_empty_list(self, mock_db):
+        """Test behavior when given an empty list of IDs.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - Empty list is returned without querying database
+        """
+        # Act
+        result = idp_crud.get_identity_providers_by_ids([], mock_db)
+
+        # Assert
+        assert result == []
+        mock_db.query.assert_not_called()
+
+    def test_get_identity_providers_by_ids_partial_results(self, mock_db):
+        """Test retrieving providers when only some IDs exist.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - Only existing providers are returned
+        """
+        # Arrange
+        mock_idps = [
+            MagicMock(spec=IdentityProvider, id=1),
+            MagicMock(spec=IdentityProvider, id=3),
+        ]
+        mock_db.query.return_value.filter.return_value.all.return_value = mock_idps
+
+        # Act
+        result = idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
+
+        # Assert
+        assert result == mock_idps
+        assert len(result) == 2
+
+    def test_get_identity_providers_by_ids_no_results(self, mock_db):
+        """Test retrieving providers when no IDs match.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - Empty list is returned
+        """
+        # Arrange
+        mock_db.query.return_value.filter.return_value.all.return_value = []
+
+        # Act
+        result = idp_crud.get_identity_providers_by_ids([999, 1000], mock_db)
+
+        # Assert
+        assert result == []
+
+    def test_get_identity_providers_by_ids_database_error(self, mock_db):
+        """Test get_identity_providers_by_ids handles database errors.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - HTTPException with 500 status is raised on database error
+        """
+        # Arrange
+        mock_db.query.side_effect = Exception("Database error")
+
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
+
+        assert exc_info.value.status_code == 500
+        assert "Internal Server Error" in str(exc_info.value.detail)
+
+    def test_get_identity_providers_by_ids_single_id(self, mock_db):
+        """Test retrieving a single provider by ID using batch function.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - Single provider is returned correctly
+        """
+        # Arrange
+        mock_idp = MagicMock(spec=IdentityProvider, id=1, name="Provider 1")
+        mock_db.query.return_value.filter.return_value.all.return_value = [mock_idp]
+
+        # Act
+        result = idp_crud.get_identity_providers_by_ids([1], mock_db)
+
+        # Assert
+        assert result == [mock_idp]
+        assert len(result) == 1
+
+
 class TestCreateIdentityProvider:
     """Test suite for create_identity_provider function."""
 
