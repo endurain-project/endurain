@@ -1,0 +1,18 @@
+{
+  "bulkImportIntegrationTitle": "Bulk import",
+  "bulkImportIntegrationBody": "Bulk import activities from files (in the data/activity_files/bulk_import folder)",
+  "buttonBulkImport": "Import activities",
+  "loadingMessageBulkImport": "Importing activities from files...",
+  "errorMessageUnableToImportActivities": "An error occurred while importing activities",
+  "importTitle": "Import",
+  "stravaGearImportTitle": "Strava gear import",
+  "stravaGearImportBody": "Import gear from a Strava bulk export (in the data/activity_files/bulk_import folder)",
+  "stravaGearImportbuttonBikes": "Import Strava bikes",
+  "loadingMessageStravaBikesImport": "Importing Strava bikes from file...",
+  "successMessageStravaBikesImport": "Strava bikes imported successfully",
+  "errorMessageUnableToImportBikes": "An error occurred while importing Strava bikes",
+  "stravaImportbuttonShoes": "Import Strava shoes",
+  "loadingMessageStravaShoesImport": "Importing Strava shoes from file...",
+  "successMessageStravaShoesImport": "Strava shoes imported successfully",
+  "errorMessageUnableToImportShoes": "An error occurred while importing Strava shoes"
+}

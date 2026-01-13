@@ -1,0 +1,14 @@
+{
+  "title": "Goals",
+  "activityTypeRun": "Run",
+  "activityTypeBike": "Bike",
+  "activityTypeSwim": "Swim",
+  "activityTypeWalk": "Walk",
+  "activityTypeStrength": "Strength",
+  "activityTypeCardio": "Cardio",
+  "intervalOption1": "Daily",
+  "intervalOption2": "Weekly",
+  "intervalOption3": "Monthly",
+  "intervalOption4": "Yearly",
+  "activities": "activities"
+}

@@ -1,0 +1,13 @@
+{
+  "title": "Health",
+  "errorFetchingHealthSteps": "Error fetching health steps",
+  "errorFetchingHealthWeight": "Error fetching health data",
+  "errorFetchingHealthSleep": "Error fetching health sleep",
+  "errorFetchingHealthTargets": "Error fetching health targets",
+  "successUpdatingWeightTarget": "Successfully updated weight target",
+  "errorUpdatingWeightTarget": "Error updating weight target",
+  "successUpdatingStepsTarget": "Successfully updated steps target",
+  "errorUpdatingStepsTarget": "Error updating steps target",
+  "successUpdatingSleepTarget": "Successfully updated sleep target",
+  "errorUpdatingSleepTarget": "Error updating sleep target"
+}

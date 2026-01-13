@@ -41,6 +41,7 @@ class Language(Enum):
         DUTCH: Dutch language code ("nl").
         PORTUGUESE: Portuguese language code ("pt").
         SLOVENIAN: Slovenian language code ("sl").
+        SWEDISH: Swedish language code ("sv").
         SPANISH: Spanish language code ("es").
         ENGLISH_USA: US English language code ("us").
     """
@@ -55,6 +56,7 @@ class Language(Enum):
     DUTCH = "nl"
     PORTUGUESE = "pt"
     SLOVENIAN = "sl"
+    SWEDISH = "sv"
     SPANISH = "es"
     ENGLISH_USA = "us"
 

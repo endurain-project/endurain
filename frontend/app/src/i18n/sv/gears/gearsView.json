@@ -1,0 +1,13 @@
+{
+  "title": "Gear",
+  "buttonAddGear": "Add Gear",
+  "subTitleSearchGearByNickname": "Search gear by nickname",
+  "placeholderSearchGearByNickname": "Nickname",
+  "buttonSearchGear": "Search Gear",
+  "displayUserNumberOfGears1": "There is a total of ",
+  "displayUserNumberOfGears2": " gear(s) (",
+  "displayUserNumberOfGears3": " loaded):",
+  "successGearDeleted": "Gear deleted successfully",
+  "errorGearNotFound": "Gear not found",
+  "errorFetchingGears": "Error fetching gears"
+}

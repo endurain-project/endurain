@@ -2,12 +2,12 @@ import { createI18n } from 'vue-i18n'
 
 // Bundle only locale JSON files (root + nested), eagerly so they're in dist
 const translationModules = {
-  ...import.meta.glob('./{ca,cn,de,es,fr,gl,it,nl,pt,sl,tw,us}/*.json', { eager: true }),
-  ...import.meta.glob('./{ca,cn,de,es,fr,gl,it,nl,pt,sl,tw,us}/**/*.json', { eager: true })
+  ...import.meta.glob('./{ca,cn,de,es,fr,gl,it,nl,pt,sl,sv,tw,us}/*.json', { eager: true }),
+  ...import.meta.glob('./{ca,cn,de,es,fr,gl,it,nl,pt,sl,sv,tw,us}/**/*.json', { eager: true })
 }
 
 // Define available locales
-const locales = ['ca', 'cn', 'de', 'es', 'fr', 'gl', 'it', 'nl', 'pt', 'sl', 'tw', 'us']
+const locales = ['ca', 'cn', 'de', 'es', 'fr', 'gl', 'it', 'nl', 'pt', 'sl', 'sv', 'tw', 'us']
 
 // Define all component paths
 const componentPaths = {

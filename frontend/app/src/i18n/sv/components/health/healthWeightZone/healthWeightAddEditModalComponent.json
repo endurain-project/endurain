@@ -1,0 +1,14 @@
+{
+  "addWeightModalTitle": "Add weight",
+  "editWeightModalTitle": "Edit weight",
+  "addWeightWeightLabel": "Weight",
+  "addWeightDateLabel": "Date",
+  "addWeightHiddenItemsLabel": "Details",
+  "addWeightBMILabel": "BMI",
+  "addWeightBodyFatLabel": "Body fat",
+  "addWeightBodyWaterLabel": "Body water",
+  "addWeightBoneMassLabel": "Bone mass",
+  "addWeightMuscleMassLabel": "Muscle mass",
+  "successAddWeight": "Weight added",
+  "errorAddWeight": "Error adding weight"
+}

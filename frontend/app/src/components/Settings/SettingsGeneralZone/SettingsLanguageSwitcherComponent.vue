@@ -35,6 +35,7 @@ export default {
       { value: 'nl', label: t('generalItems.languageOption6') },
       { value: 'pt', label: t('generalItems.languageOption3') },
       { value: 'sl', label: t('generalItems.languageOption12') },
+      { value: 'sv', label: t('generalItems.languageOption13') },
       { value: 'es', label: t('generalItems.languageOption7') },
       { value: 'us', label: t('generalItems.languageOption1') }
     ])
