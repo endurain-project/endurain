@@ -101,7 +101,7 @@
   "markdownEditor": {
     "showPreview": "Previsualitza",
     "hidePreview": "Edita",
-    "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
-    "noContentToPreview": "No content to preview"
+    "markdownSupported": "S'admet el format de Markdown (negreta, cursiva, enllaços, llistes, etc.)",
+    "noContentToPreview": "Sense contingut a previsualitzar"
   }
 }
