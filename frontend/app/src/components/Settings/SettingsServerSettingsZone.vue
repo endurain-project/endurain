@@ -361,6 +361,13 @@
           required
           @blur="updateServerSettings"
         />
+        <!-- API key warnings -->
+        <div class="alert alert-warning mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.tileApiKeyWarning')
+          }}</span>
+        </div>
         <!-- Map Background Color -->
         <label class="form-label mt-1" for="serverSettingsMapBackgroundColor">{{
           $t('settingsServerSettingsZoneComponent.mapBackgroundColorLabel')
