@@ -17,12 +17,12 @@ import activities.activity_laps.crud as activity_laps_crud
 import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_streams.crud as activity_streams_crud
 
-import users.user_integrations.schema as user_integrations_schema
+import users.user_integrations.models as user_integrations_models
 
 import users.user_default_gear.utils as user_default_gear_utils
 
 import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.user_privacy_settings.models as users_privacy_settings_models
 
 import users.user.crud as users_crud
 
@@ -40,7 +40,7 @@ async def fetch_and_process_activities(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    user_integrations: user_integrations_schema.UsersIntegrations,
+    user_integrations: user_integrations_models.UsersIntegrations,
     ws_manager: websocket_manager.WebSocketManager,
     db: Session,
     is_startup: bool = False,
@@ -130,9 +130,9 @@ async def fetch_and_process_activities(
 def parse_activity(
     activity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     strava_client: Client,
-    user_integrations: user_integrations_schema.UsersIntegrations,
+    user_integrations: user_integrations_models.UsersIntegrations,
     db: Session,
 ) -> dict:
     # Create an instance of TimezoneFinder
@@ -406,9 +406,9 @@ async def save_activity_streams_laps(
 async def process_activity(
     activity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     strava_client: Client,
-    user_integrations: user_integrations_schema.UsersIntegrations,
+    user_integrations: user_integrations_models.UsersIntegrations,
     ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):

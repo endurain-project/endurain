@@ -177,10 +177,7 @@ router.include_router(
     profile_browser_redirect_router.router,
     prefix=core_config.ROOT_PATH + "/profile",
     tags=["profile"],
-    dependencies=[
-        Depends(auth_security.validate_access_token_for_browser_redirect),
-        Security(auth_security.check_scopes_for_browser_redirect, scopes=["profile"]),
-    ],
+    # No authentication required - endpoints validate via link_token parameter
 )
 router.include_router(
     profile_router.router,

@@ -27,8 +27,13 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 import sign_up_tokens.utils as sign_up_tokens_utils
 
 import auth.oauth_state.utils as oauth_state_utils
+import auth.idp_link_tokens.utils as idp_link_token_utils
+
+import server_settings.utils as server_settings_utils
+import server_settings.schema as server_settings_schema
 
 from core.routes import router as api_router
+from core.database import SessionLocal
 
 
 async def startup_event():
@@ -84,6 +89,35 @@ async def startup_event():
         "Deleting expired OAuth states from the database"
     )
     oauth_state_utils.delete_expired_oauth_states_from_db()
+
+    # Delete expired IdP link tokens
+    core_logger.print_to_log_and_console(
+        "Deleting expired IdP link tokens from the database"
+    )
+    idp_link_token_utils.delete_idp_link_expired_tokens_from_db()
+
+    # Initialize allowed tile domains for CSP
+    core_logger.print_to_log_and_console(
+        "Initializing allowed tile domains for Content Security Policy"
+    )
+    with SessionLocal() as db:
+        try:
+            app.state.allowed_tile_domains = (
+                server_settings_utils.get_allowed_tile_domains(db)
+            )
+            core_logger.print_to_log_and_console(
+                f"Allowed tile domains: {app.state.allowed_tile_domains}"
+            )
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error initializing tile domains, using defaults: {err}",
+                "error",
+                exc=err,
+            )
+            # Fallback to built-in providers
+            app.state.allowed_tile_domains = (
+                server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+            )
 
 
 def shutdown_event():

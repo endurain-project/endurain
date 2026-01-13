@@ -8,15 +8,15 @@
         <!-- Units -->
         <label>{{ $t('settingsServerSettingsZoneComponent.unitsLabel') }}</label>
         <select class="form-select" name="serverSettingsUnits" v-model="units" required>
-          <option value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
-          <option value="2">{{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}</option>
+          <option :value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
+          <option :value="2">{{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}</option>
         </select>
         <!-- Currency -->
         <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.currencyLabel') }}</label>
         <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
-          <option value="1">{{ $t('generalItems.currencyEuro') }}</option>
-          <option value="2">{{ $t('generalItems.currencyDollar') }}</option>
-          <option value="3">{{ $t('generalItems.currencyPound') }}</option>
+          <option :value="1">{{ $t('generalItems.currencyEuro') }}</option>
+          <option :value="2">{{ $t('generalItems.currencyDollar') }}</option>
+          <option :value="3">{{ $t('generalItems.currencyPound') }}</option>
         </select>
         <!-- Num records per list -->
         <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.numRecordsLabel') }}</label>
@@ -26,11 +26,11 @@
           v-model="numRecordsPerPage"
           required
         >
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
+          <option :value="5">5</option>
+          <option :value="10">10</option>
+          <option :value="25">25</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
         </select>
       </div>
       <hr />
@@ -94,10 +94,10 @@
           v-model="signUp"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -111,10 +111,10 @@
           v-model="adminApproval"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -128,10 +128,10 @@
           v-model="emailConfirmation"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -151,10 +151,10 @@
           v-model="ssoEnabled"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -174,10 +174,10 @@
           v-model="localLoginEnabled"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -197,10 +197,10 @@
           v-model="ssoAutoRedirect"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -228,10 +228,10 @@
           v-model="publicShareableLinks"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>
@@ -253,10 +253,10 @@
           v-model="publicShareableLinksUserInfo"
           required
         >
-          <option value="false">
+          <option :value="false">
             {{ $t('generalItems.false') }}
           </option>
-          <option value="true">
+          <option :value="true">
             {{ $t('generalItems.true') }}
           </option>
         </select>

@@ -536,3 +536,88 @@ class TestGetAndReturnTokens:
                     )
                 )
             assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
+
+
+class TestGetAccessTokenForBrowserRedirect:
+    """Test get_access_token_for_browser_redirect function."""
+
+    def test_get_access_token_for_browser_redirect_defaults_client_type(self):
+        """Test that client_type defaults to 'web' when None."""
+        # When client_type is None, it should default to "web"
+        result = auth_security.get_access_token_for_browser_redirect(
+            access_token="test_token", client_type=None
+        )
+        assert result == "test_token"
+
+
+class TestValidateAccessTokenExceptionPaths:
+    """Test exception handling in validate_access_token."""
+
+    def test_validate_access_token_with_expired_token_logs_debug(self, token_manager):
+        """Test that expired token logs at debug level."""
+        with patch.object(
+            token_manager,
+            "validate_token_expiration",
+            side_effect=HTTPException(
+                status_code=401, detail="Token expired - please refresh"
+            ),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_security.validate_access_token("expired_token", token_manager)
+            assert "expired" in exc_info.value.detail.lower()
+
+    def test_validate_access_token_with_non_expired_error_logs_error(
+        self, token_manager
+    ):
+        """Test that non-expired error logs at error level."""
+        with patch.object(
+            token_manager,
+            "validate_token_expiration",
+            side_effect=HTTPException(
+                status_code=401, detail="Invalid token signature"
+            ),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_security.validate_access_token("invalid_token", token_manager)
+            assert "invalid" in exc_info.value.detail.lower()
+
+    def test_validate_access_token_with_generic_exception(self, token_manager):
+        """Test unexpected error during token validation."""
+        with patch.object(
+            token_manager,
+            "validate_token_expiration",
+            side_effect=RuntimeError("Unexpected error"),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_security.validate_access_token("test_token", token_manager)
+            # Should wrap generic exception as HTTP 500
+            assert exc_info.value.status_code == 500
+
+
+class TestGetSubFromAccessTokenExceptionPath:
+    """Test exception handling in get_sub_from_access_token."""
+
+    def test_get_sub_from_access_token_list_raises_error(self, token_manager):
+        """Test that list sub claim raises proper error."""
+        with patch.object(
+            token_manager, "get_token_claim", return_value=["user1", "user2"]
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_security.get_sub_from_access_token("test_token", token_manager)
+            assert exc_info.value.status_code == 401
+            assert "must be an integer" in exc_info.value.detail
+
+
+class TestCheckScopesExceptionPaths:
+    """Test exception handling in check_scopes."""
+
+    def test_check_scopes_with_http_exception(self, token_manager):
+        """Test that HTTPException from scope check is re-raised."""
+        security_scopes = SecurityScopes(scopes=["users:write"])
+
+        with patch.object(
+            token_manager, "get_token_claim", return_value="invalid scope format"
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                auth_security.check_scopes("test_token", token_manager, security_scopes)
+            assert exc_info.value.status_code == 403

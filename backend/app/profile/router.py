@@ -24,6 +24,8 @@ import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.schema as user_idp_schema
 
 import auth.identity_providers.crud as idp_crud
+import auth.idp_link_tokens.utils as idp_link_token_utils
+import auth.idp_link_tokens.schema as idp_link_token_schema
 
 import users.user_integrations.crud as user_integrations_crud
 
@@ -165,6 +167,87 @@ async def read_sessions_me(
         return []
 
 
+@core_rate_limit.limiter.limit(core_rate_limit.OAUTH_DISCONNECT_LIMIT)
+@router.post(
+    "/idp/{idp_id}/link/token",
+    response_model=idp_link_token_schema.IdpLinkTokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def generate_link_token(
+    idp_id: int,
+    request: Request,
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """
+    Generate a one-time token for linking an identity provider.
+
+    This endpoint creates a short-lived (60 seconds), single-use token
+    that can be used to securely initiate the OAuth flow for linking
+    an identity provider to the authenticated user's account.
+
+    This approach is more secure than passing access tokens in query
+    parameters, as the link token:
+    - Expires in 60 seconds
+    - Can only be used once
+    - Is scoped specifically for IdP linking
+    - Limits exposure in server logs and browser history
+
+    Args:
+        idp_id (int): The ID of the identity provider to link.
+        request (Request): The FastAPI request object.
+        token_user_id (int): The authenticated user's ID extracted from the access token.
+        db (Session): The database session.
+
+    Returns:
+        IdpLinkTokenResponse: Contains the one-time token and expiration time.
+
+    Raises:
+        HTTPException:
+            - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
+            - 409 CONFLICT: If the identity provider is already linked.
+            - 500 INTERNAL_SERVER_ERROR: If token generation fails.
+    """
+    # Validate IDP exists and is enabled
+    idp = idp_crud.get_identity_provider(idp_id, db)
+    if not idp or not idp.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Identity provider not found or disabled",
+        )
+
+    # Check if already linked
+    existing_link = user_idp_crud.get_user_identity_provider_by_user_id_and_idp_id(
+        token_user_id, idp_id, db
+    )
+    if existing_link:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Identity provider {idp.name} is already linked to your account",
+        )
+
+    # Get client IP address
+    ip_address = request.client.host if request.client else None
+
+    # Generate one-time link token
+    link_token = idp_link_token_utils.generate_idp_link_token(
+        user_id=token_user_id, idp_id=idp_id, ip_address=ip_address, db=db
+    )
+
+    core_logger.print_to_log(
+        f"Generated link token for user {token_user_id}, idp_id={idp_id} ({idp.name})",
+        "debug",
+    )
+
+    return link_token
+
+
 @router.post(
     "/image",
     status_code=201,
@@ -239,7 +322,7 @@ async def edit_user(
 
 @router.put("/privacy")
 async def edit_profile_privacy_settings(
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
     token_user_id: Annotated[
         int,
         Depends(auth_security.get_sub_from_access_token),

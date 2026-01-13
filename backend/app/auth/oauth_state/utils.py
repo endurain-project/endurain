@@ -1,10 +1,25 @@
 """OAuth state utility functions for cleanup and maintenance."""
 
+import secrets
+
 from core.database import SessionLocal
 
 import auth.oauth_state.crud as oauth_state_crud
 
 import core.logger as core_logger
+
+
+def create_state_id_and_nonce() -> tuple[str, str]:
+    """
+    Generate a new random state ID and nonce for OAuth flows.
+
+    Returns:
+        A tuple containing (state_id, nonce), both URL-safe random strings.
+    """
+    state_id = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
+
+    return state_id, nonce
 
 
 def delete_expired_oauth_states_from_db() -> None:

@@ -248,9 +248,17 @@
               type="button"
               class="btn btn-secondary"
               @click="linkAccount(provider.id)"
+              :disabled="linkingProviderId !== null"
               :aria-label="`${provider.name}`"
             >
+              <span
+                v-if="linkingProviderId === provider.id"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
               <img
+                v-else
                 :src="getProviderCustomLogo(provider.icon)"
                 :alt="`${provider.name} logo`"
                 style="height: 20px; width: 20px; object-fit: contain"
@@ -354,6 +362,7 @@ const linkedAccounts = ref([])
 const availableProviders = ref([])
 const allProviders = ref([])
 const isLoadingLinkedAccounts = ref(false)
+const linkingProviderId = ref(null)
 
 // Toggle visibility for new password
 const toggleNewPasswordVisibility = () => {
@@ -563,9 +572,22 @@ async function unlinkAccount(idpId) {
   }
 }
 
-function linkAccount(providerId) {
-  // This will redirect to the OAuth flow
-  profile.linkIdentityProvider(providerId)
+async function linkAccount(providerId) {
+  try {
+    linkingProviderId.value = providerId
+    // Generate token and redirect to OAuth flow
+    await profile.linkIdentityProvider(providerId)
+  } catch (error) {
+    linkingProviderId.value = null
+    const errorMessage = error.message || error.toString()
+
+    // Check for rate limiting
+    if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate limit')) {
+      push.error(t('settingsSecurityZone.linkAccountRateLimitError'))
+    } else {
+      push.error(`${t('settingsSecurityZone.linkAccountError')} - ${errorMessage}`)
+    }
+  }
 }
 
 // Check for OAuth link success/error in URL params

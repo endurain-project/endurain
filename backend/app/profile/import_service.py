@@ -578,10 +578,8 @@ class ImportService:
         )
 
         integrations_data = user_integrations_data[0]
-        integrations_data["id"] = current_user_integrations.id
-        integrations_data["user_id"] = self.user_id
 
-        user_integrations = users_integrations_schema.UsersIntegrations(
+        user_integrations = users_integrations_schema.UsersIntegrationsUpdate(
             **integrations_data
         )
         user_integrations_crud.edit_user_integrations(
@@ -656,11 +654,9 @@ class ImportService:
         )
 
         privacy_data = user_privacy_settings_data[0]
-        privacy_data["id"] = current_user_privacy_settings.id
-        privacy_data["user_id"] = self.user_id
 
-        user_privacy_settings = users_privacy_settings_schema.UsersPrivacySettings(
-            **privacy_data
+        user_privacy_settings = (
+            users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
         )
         users_privacy_settings_crud.edit_user_privacy_settings(
             self.user_id, user_privacy_settings, self.db

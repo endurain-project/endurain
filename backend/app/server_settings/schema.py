@@ -11,6 +11,12 @@ from pydantic import (
 )
 from core.sanitization import sanitize_attribution
 
+# Default allowed tile domains for map tiles
+DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
+    "https://*.openstreetmap.org",  # OpenStreetMap
+    "https://*.stadiamaps.com",  # Stadia Maps
+]
+
 
 class Units(IntEnum):
     """

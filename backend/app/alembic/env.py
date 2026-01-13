@@ -9,6 +9,7 @@ from alembic import context
 import auth.identity_providers.models
 import auth.mfa_backup_codes.models
 import auth.oauth_state.models
+import auth.idp_link_tokens.models
 import activities.activity.models
 import activities.activity_exercise_titles.models
 import activities.activity_laps.models

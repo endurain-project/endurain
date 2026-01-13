@@ -6,6 +6,6 @@
   "modalDeleteStepsBody": "Are you sure you want to delete steps entry for ",
   "successDeleteSteps": "Steps deleted",
   "errorDeleteSteps": "It was not possible to delete steps entry",
-  "successEditSteps": "Steps edited",
+  "successEditSteps": "Koraki so bili spremenjeni",
   "errorEditSteps": "It was not possible to edit steps entry"
 }

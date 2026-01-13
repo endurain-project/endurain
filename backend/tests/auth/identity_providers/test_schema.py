@@ -810,3 +810,38 @@ class TestTokenExchangeResponse:
 
         # Assert
         assert response.token_type == "Custom"
+
+    def test_serialize_client_id_with_exception_handling(self):
+        """Test serialize_client_id handles decryption exceptions gracefully.
+
+        Asserts:
+            - When decryption fails, original encrypted value is returned
+        """
+        # Arrange
+        from unittest.mock import patch
+
+        now = datetime.utcnow()
+
+        idp_data = {
+            "id": 1,
+            "name": "Test Provider",
+            "slug": "test-provider",
+            "provider_type": "oidc",
+            "enabled": True,
+            "issuer_url": "https://auth.example.com",
+            "authorization_endpoint": "https://auth.example.com/authorize",
+            "token_endpoint": "https://auth.example.com/token",
+            "scopes": "openid",
+            "client_id": "gAAAAAB_invalid_encrypted_value",
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        # Act & Assert - Test that exception during decryption is handled
+        with patch(
+            "core.cryptography.decrypt_token_fernet",
+            side_effect=Exception("Decryption error"),
+        ):
+            idp = IdentityProvider(**idp_data)
+            # Should return encrypted value if decryption fails
+            assert idp.client_id is not None

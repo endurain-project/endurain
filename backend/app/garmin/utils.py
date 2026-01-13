@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 
-import users.user_integrations.schema as user_integrations_schema
 import users.user_integrations.crud as user_integrations_crud
+import users.user_integrations.models as user_integrations_models
 
 import websocket.manager as websocket_manager
 import websocket.utils as websocket_utils
@@ -257,7 +257,7 @@ def deserialize_oauth2_token(data):
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> user_integrations_schema.UsersIntegrations | None:
+) -> user_integrations_models.UsersIntegrations | None:
     # Get the user integrations by user ID
     user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
         user_id, db

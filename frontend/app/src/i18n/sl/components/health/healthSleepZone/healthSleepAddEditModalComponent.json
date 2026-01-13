@@ -32,6 +32,6 @@
   "stageEndTimeLabel": "End time",
   "stageDurationLabel": "Duration",
   "noStagesMessage": "No sleep stages added yet. Click 'Add stage' to add a sleep stage.",
-  "successAddSleep": "Sleep added successfully",
-  "errorAddSleep": "Error adding sleep"
+  "successAddSleep": "Uspešno je bilo dodano spanje",
+  "errorAddSleep": "Napaka pri dodajanju spanca"
 }

@@ -897,7 +897,6 @@ async function submitChangeUserActivitiesVisibility(visibility) {
 
 async function updateUserPrivacySettings() {
   const data = {
-    user_id: authStore.user.id,
     default_activity_visibility: activityVisibility.value,
     hide_activity_start_time: activityStartTime.value,
     hide_activity_location: activityLocation.value,

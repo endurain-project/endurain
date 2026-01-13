@@ -57,6 +57,7 @@
   "unlinkAccountLastMethodError": "Kan de laatste verificatiemethode niet ontkoppelen. Stel eerst een wachtwoord in.",
   "linkAccountSuccess": "{providerName} account met succes gekoppeld",
   "linkAccountError": "Fout bij het koppelen van account",
+  "linkAccountRateLimitError": "Te veel koppelpogingen. Wacht even en probeer het opnieuw.",
   "linkAccountAlreadyLinked": "Dit {providerName} account is al gekoppeld",
   "linkAccountInUse": "Dit {providerName} account is al aan een andere gebruiker gekoppeld",
   "errorLoadingLinkedAccounts": "Fout bij het laden van gekoppelde accounts",
