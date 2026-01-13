@@ -1,0 +1,16 @@
+{
+  "requestAccepted": "Accepted",
+  "requestPending": "Request pending",
+  "followingModalTitle": "Delete following",
+  "followingModalBody": "Are you sure you want to delete following user ",
+  "followerModalTitle": "Delete follower",
+  "followerModalBody": "Are you sure you want to delete follower user ",
+  "followerAcceptModalTitle": "Accept user request",
+  "followerAcceptModalBody": "Are you sure you want to accept follow request from user ",
+  "followerDeclineModalTitle": "Decline user request ",
+  "followerDeclineModalBody": "Are you sure you want to decline follow request from user ",
+  "errorDeleteFollowing": "Error deleting following",
+  "errorDeleteFollower": "Error deleting follower",
+  "errorUpdateFollower": "Error updating follower",
+  "errorFetchingFollowersDetails": "Error fetching followers details"
+}
