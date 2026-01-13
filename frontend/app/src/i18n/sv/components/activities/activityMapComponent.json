@@ -1,0 +1,8 @@
+{
+  "modalMediaDeleteTitle": "Delete media",
+  "modalMediaDeleteBody1": "Are you sure you want to delete media with ID ",
+  "modalMediaDeleteBody2": " and name ",
+  "errorFetchingActivityStream": "Error fetching activity stream data",
+  "mediaDeletedSuccessfully": "Media deleted successfully",
+  "errorDeletingMedia": "Error deleting media"
+}
