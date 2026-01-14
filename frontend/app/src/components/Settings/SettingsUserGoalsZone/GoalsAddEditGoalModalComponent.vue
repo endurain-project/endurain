@@ -38,16 +38,16 @@
               required
             >
               <option value="daily">
-                {{ $t('goalsAddEditGoalModalComponent.intervalOption1') }}
+                {{ $t('goalsAddEditGoalModalComponent.intervalDaily') }}
               </option>
               <option value="weekly">
-                {{ $t('goalsAddEditGoalModalComponent.intervalOption2') }}
+                {{ $t('goalsAddEditGoalModalComponent.intervalWeekly') }}
               </option>
               <option value="monthly">
-                {{ $t('goalsAddEditGoalModalComponent.intervalOption3') }}
+                {{ $t('goalsAddEditGoalModalComponent.intervalMonthly') }}
               </option>
               <option value="yearly">
-                {{ $t('goalsAddEditGoalModalComponent.intervalOption4') }}
+                {{ $t('goalsAddEditGoalModalComponent.intervalYearly') }}
               </option>
             </select>
             <!-- activity type fields -->
@@ -63,20 +63,22 @@
               v-model="newEditGoalActivityType"
               required
             >
-              <option :value="1">{{ $t('goalsAddEditGoalModalComponent.activityTypeRun') }}</option>
-              <option :value="2">
+              <option value="run">
+                {{ $t('goalsAddEditGoalModalComponent.activityTypeRun') }}
+              </option>
+              <option value="bike">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeBike') }}
               </option>
-              <option :value="3">
+              <option value="swim">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeSwim') }}
               </option>
-              <option :value="4">
+              <option value="walk">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeWalk') }}
               </option>
-              <option :value="5">
+              <option value="strength">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeStrength') }}
               </option>
-              <option :value="6">
+              <option value="cardio">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeCardio') }}
               </option>
             </select>
@@ -87,24 +89,24 @@
               ></label
             >
             <select class="form-select" name="goalTypeAddEdit" v-model="newEditGoalType" required>
-              <option :value="1">
+              <option value="calories">
                 {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel') }}
               </option>
-              <option :value="2">
+              <option value="activities">
                 {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel') }}
               </option>
-              <option :value="3">
+              <option value="distance">
                 {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel') }}
               </option>
-              <option :value="4">
+              <option value="elevation">
                 {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel') }}
               </option>
-              <option :value="5">
+              <option value="duration">
                 {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel') }}
               </option>
             </select>
             <!-- calories fields -->
-            <div v-if="newEditGoalType === 1">
+            <div v-if="newEditGoalType === 'calories'">
               <label for="goalCaloriesAddEdit"
                 ><b>{{
                   $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel')
@@ -121,7 +123,7 @@
               />
             </div>
             <!-- activities number fields -->
-            <div v-if="newEditGoalType === 2">
+            <div v-if="newEditGoalType === 'activities'">
               <label for="goalActivitiesNumberAddEdit"
                 ><b>{{
                   $t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel')
@@ -138,7 +140,7 @@
               />
             </div>
             <!-- distance fields -->
-            <div v-if="newEditGoalType === 3">
+            <div v-if="newEditGoalType === 'distance'">
               <div v-if="Number(authStore?.user?.units) === 1">
                 <label for="goalDistanceMetricAddEdit"
                   ><b>{{
@@ -179,7 +181,7 @@
               </div>
             </div>
             <!-- elevation fields -->
-            <div v-if="newEditGoalType === 4">
+            <div v-if="newEditGoalType === 'elevation'">
               <div v-if="Number(authStore?.user?.units) === 1">
                 <label for="goalElevationMetricAddEdit"
                   ><b>{{
@@ -220,7 +222,7 @@
               </div>
             </div>
             <!-- duration value fields -->
-            <div v-if="newEditGoalType === 5">
+            <div v-if="newEditGoalType === 'duration'">
               <label for="goalDurationAddEdit"
                 ><b>{{
                   $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel')
@@ -315,8 +317,8 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const editGoalModalId = ref('')
 const newEditGoalInterval = ref('daily')
-const newEditGoalActivityType = ref(1)
-const newEditGoalType = ref(1)
+const newEditGoalActivityType = ref('run')
+const newEditGoalType = ref('calories')
 const newEditGoalCalories = ref(null)
 const newEditGoalActivitiesNumber = ref(null)
 const newEditGoalDistanceMetric = ref(null)
@@ -354,7 +356,7 @@ function setGoalObject() {
   let duration = null
 
   // Only set the field that matches the selected goal type
-  if (newEditGoalType.value === 3) {
+  if (newEditGoalType.value === 'distance') {
     // Distance goal
     if (Number(authStore?.user?.units) === 2) {
       if (newEditGoalDistanceImperial.value) {
@@ -365,7 +367,7 @@ function setGoalObject() {
         distance = Math.round(kmToMeters(newEditGoalDistanceMetric.value))
       }
     }
-  } else if (newEditGoalType.value === 4) {
+  } else if (newEditGoalType.value === 'elevation') {
     // Elevation goal
     if (Number(authStore?.user?.units) === 2) {
       if (newEditGoalElevationImperial.value) {
@@ -376,7 +378,7 @@ function setGoalObject() {
         elevation = Math.round(newEditGoalElevationMetric.value)
       }
     }
-  } else if (newEditGoalType.value === 5) {
+  } else if (newEditGoalType.value === 'duration') {
     // Duration goal
     if (newEditGoalDurationHours.value || newEditGoalDurationMinutes.value) {
       duration = returnSecondsFromHoursMinutes(
@@ -391,11 +393,11 @@ function setGoalObject() {
     activity_type: newEditGoalActivityType.value,
     goal_type: newEditGoalType.value,
     goal_calories:
-      newEditGoalType.value === 1 && newEditGoalCalories.value
+      newEditGoalType.value === 'calories' && newEditGoalCalories.value
         ? parseInt(newEditGoalCalories.value)
         : null,
     goal_activities_number:
-      newEditGoalType.value === 2 && newEditGoalActivitiesNumber.value
+      newEditGoalType.value === 'activities' && newEditGoalActivitiesNumber.value
         ? parseInt(newEditGoalActivitiesNumber.value)
         : null,
     goal_distance: distance,

@@ -1,6 +1,6 @@
 """User goals Pydantic schemas and validators."""
 
-from enum import Enum, IntEnum
+from enum import Enum
 from typing import Annotated
 from pydantic import (
     BaseModel,
@@ -30,7 +30,7 @@ class Interval(str, Enum):
     YEARLY = "yearly"
 
 
-class ActivityType(IntEnum):
+class ActivityType(str, Enum):
     """
     Supported activity types for user goals.
 
@@ -43,15 +43,15 @@ class ActivityType(IntEnum):
         CARDIO: Cardiovascular training.
     """
 
-    RUN = 1
-    BIKE = 2
-    SWIM = 3
-    WALK = 4
-    STRENGTH = 5
-    CARDIO = 6
+    RUN = "run"
+    BIKE = "bike"
+    SWIM = "swim"
+    WALK = "walk"
+    STRENGTH = "strength"
+    CARDIO = "cardio"
 
 
-class GoalType(IntEnum):
+class GoalType(str, Enum):
     """
     Types of measurable user goals.
 
@@ -63,20 +63,20 @@ class GoalType(IntEnum):
         DURATION: Target total duration.
     """
 
-    CALORIES = 1
-    ACTIVITIES = 2
-    DISTANCE = 3
-    ELEVATION = 4
-    DURATION = 5
+    CALORIES = "calories"
+    ACTIVITIES = "activities"
+    DISTANCE = "distance"
+    ELEVATION = "elevation"
+    DURATION = "duration"
 
 
 # goal_type -> field name
 TYPE_TO_FIELD = {
-    GoalType.CALORIES: "goal_calories",
-    GoalType.ACTIVITIES: "goal_activities_number",
-    GoalType.DISTANCE: "goal_distance",
-    GoalType.ELEVATION: "goal_elevation",
-    GoalType.DURATION: "goal_duration",
+    GoalType.CALORIES.value: "goal_calories",
+    GoalType.ACTIVITIES.value: "goal_activities_number",
+    GoalType.DISTANCE.value: "goal_distance",
+    GoalType.ELEVATION.value: "goal_elevation",
+    GoalType.DURATION.value: "goal_duration",
 }
 
 
@@ -100,9 +100,7 @@ class UserGoalBase(BaseModel):
     activity_type: ActivityType = Field(
         ..., description="Type of activity for the goal"
     )
-    goal_type: GoalType = Field(
-        ..., description="Type of goal metric being tracked"
-    )
+    goal_type: GoalType = Field(..., description="Type of goal metric being tracked")
     goal_calories: StrictInt | None = Field(
         None, ge=0, description="Target calories in kcal"
     )
@@ -138,14 +136,8 @@ class UserGoalBase(BaseModel):
             PydanticCustomError: If required field missing or
                 extra fields set.
         """
-        # Handle both enum instance and integer value
         goal_type_value = (
-            self.goal_type if isinstance(self.goal_type, int) else self.goal_type.value
-        )
-        goal_type_name = (
-            GoalType(goal_type_value).name
-            if isinstance(self.goal_type, int)
-            else self.goal_type.name
+            self.goal_type if isinstance(self.goal_type, str) else self.goal_type.value
         )
 
         required_field = TYPE_TO_FIELD.get(goal_type_value)
@@ -158,7 +150,7 @@ class UserGoalBase(BaseModel):
                 "{field} is required when goal_type={goal_type}",
                 {
                     "field": required_field,
-                    "goal_type": goal_type_name,
+                    "goal_type": goal_type_value,
                 },
             )
 
@@ -169,7 +161,7 @@ class UserGoalBase(BaseModel):
                     "Only {field} may be set when goal_type={goal_type}",
                     {
                         "field": required_field,
-                        "goal_type": goal_type_name,
+                        "goal_type": goal_type_value,
                     },
                 )
         return self

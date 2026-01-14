@@ -6,69 +6,69 @@
           class="ms-2 me-1"
           icon="fa-solid fa-person-running"
           size="2x"
-          v-if="goal.activity_type == 1"
+          v-if="goal.activity_type == 'run'"
         />
         <font-awesome-icon
           icon="fa-solid fa-person-biking"
           size="2x"
-          v-else-if="goal.activity_type == 2"
+          v-else-if="goal.activity_type == 'bike'"
         />
         <font-awesome-icon
           class="ms-1"
           icon="fa-solid fa-person-swimming"
           size="2x"
-          v-else-if="goal.activity_type == 3"
+          v-else-if="goal.activity_type == 'swim'"
         />
         <font-awesome-icon
           class="ms-2 me-2"
           icon="fa-solid fa-person-walking"
           size="2x"
-          v-else-if="goal.activity_type == 4"
+          v-else-if="goal.activity_type == 'walk'"
         />
         <font-awesome-icon icon="fa-solid fa-dumbbell" size="2x" v-else />
         <div class="ms-3">
           <div class="fw-bold">
-            <span v-if="goal.activity_type == 1">{{
+            <span v-if="goal.activity_type == 'run'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeRun')
             }}</span>
-            <span v-if="goal.activity_type == 2">{{
+            <span v-if="goal.activity_type == 'bike'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeBike')
             }}</span>
-            <span v-if="goal.activity_type == 3">{{
+            <span v-if="goal.activity_type == 'swim'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeSwim')
             }}</span>
-            <span v-if="goal.activity_type == 4">{{
+            <span v-if="goal.activity_type == 'walk'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeWalk')
             }}</span>
-            <span v-if="goal.activity_type == 5">{{
+            <span v-if="goal.activity_type == 'strength'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeStrength')
             }}</span>
-            <span v-if="goal.activity_type == 6">{{
+            <span v-if="goal.activity_type == 'cardio'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeCardio')
             }}</span>
           </div>
           <span v-if="goal.interval == 'daily'">{{
-            $t('goalsAddEditGoalModalComponent.intervalOption1')
+            $t('goalsAddEditGoalModalComponent.intervalDaily')
           }}</span>
           <span v-if="goal.interval == 'weekly'">{{
-            $t('goalsAddEditGoalModalComponent.intervalOption2')
+            $t('goalsAddEditGoalModalComponent.intervalWeekly')
           }}</span>
           <span v-if="goal.interval == 'monthly'">{{
-            $t('goalsAddEditGoalModalComponent.intervalOption3')
+            $t('goalsAddEditGoalModalComponent.intervalMonthly')
           }}</span>
           <span v-if="goal.interval == 'yearly'">{{
-            $t('goalsAddEditGoalModalComponent.intervalOption4')
+            $t('goalsAddEditGoalModalComponent.intervalYearly')
           }}</span>
           <span> | </span>
-          <span v-if="goal.goal_type == 1"
+          <span v-if="goal.goal_type == 'calories'"
             >{{ $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel') }} -
             {{ goal.goal_calories }} {{ $t('generalItems.unitsCalories') }}</span
           >
-          <span v-if="goal.goal_type == 2"
+          <span v-if="goal.goal_type == 'activities'"
             >{{ $t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel') }} -
             {{ goal.goal_activities_number }}</span
           >
-          <span v-if="goal.goal_type == 3"
+          <span v-if="goal.goal_type == 'distance'"
             >{{ $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel') }} -
             <span v-if="authStore.user.units === 1"
               >{{ metersToKm(goal.goal_distance) }} {{ $t('generalItems.unitsKm') }}</span
@@ -76,7 +76,7 @@
               >{{ metersToMiles(goal.goal_distance) }} {{ $t('generalItems.unitsMiles') }}</span
             >
           </span>
-          <span v-if="goal.goal_type == 4">
+          <span v-if="goal.goal_type == 'elevation'">
             {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel') }} -
             <span v-if="authStore.user.units === 1"
               >{{ goal.goal_elevation }} {{ $t('generalItems.unitsM') }}</span
@@ -84,7 +84,7 @@
               >{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFeetShort') }}</span
             >
           </span>
-          <span v-if="goal.goal_type == 5"
+          <span v-if="goal.goal_type == 'duration'"
             >{{ $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel') }} -
             {{ formatDuration(goal.goal_duration) }}</span
           >

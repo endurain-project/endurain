@@ -12,17 +12,24 @@ import core.logger as core_logger
 
 
 def get_user_goals_by_user_id(
-    user_id: int, db: Session
+    user_id: int,
+    db: Session,
+    interval: user_goals_schema.Interval | None = None,
+    activity_type: user_goals_schema.ActivityType | None = None,
+    goal_type: user_goals_schema.GoalType | None = None,
 ) -> list[user_goals_models.UserGoal]:
     """
-    Retrieve all goals for a specific user.
+    Retrieve goals for a specific user with optional filters.
 
     Args:
         user_id: The ID of the user.
         db: SQLAlchemy database session.
+        interval: Optional filter by goal interval.
+        activity_type: Optional filter by activity type.
+        goal_type: Optional filter by goal type.
 
     Returns:
-        List of UserGoal models.
+        List of UserGoal models matching the filters.
 
     Raises:
         HTTPException: If database error occurs.
@@ -31,6 +38,16 @@ def get_user_goals_by_user_id(
         stmt = select(user_goals_models.UserGoal).where(
             user_goals_models.UserGoal.user_id == user_id
         )
+
+        if interval is not None:
+            stmt = stmt.where(user_goals_models.UserGoal.interval == interval.value)
+        if activity_type is not None:
+            stmt = stmt.where(
+                user_goals_models.UserGoal.activity_type == activity_type.value
+            )
+        if goal_type is not None:
+            stmt = stmt.where(user_goals_models.UserGoal.goal_type == goal_type.value)
+
         return db.execute(stmt).scalars().all()
     except SQLAlchemyError as db_err:
         # Log the exception

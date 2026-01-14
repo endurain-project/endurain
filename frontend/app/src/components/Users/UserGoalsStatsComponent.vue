@@ -4,61 +4,61 @@
     <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
       <div class="flex-grow-1">
         <div>
-          <span v-if="goal.activity_type == 1">{{
+          <span v-if="goal.activity_type == 'run'">{{
             $t('userGoalsStatsComponent.activityTypeRun')
           }}</span>
-          <span v-if="goal.activity_type == 2">{{
+          <span v-if="goal.activity_type == 'bike'">{{
             $t('userGoalsStatsComponent.activityTypeBike')
           }}</span>
-          <span v-if="goal.activity_type == 3">{{
+          <span v-if="goal.activity_type == 'swim'">{{
             $t('userGoalsStatsComponent.activityTypeSwim')
           }}</span>
-          <span v-if="goal.activity_type == 4">{{
+          <span v-if="goal.activity_type == 'walk'">{{
             $t('userGoalsStatsComponent.activityTypeWalk')
           }}</span>
-          <span v-if="goal.activity_type == 5">{{
+          <span v-if="goal.activity_type == 'strength'">{{
             $t('userGoalsStatsComponent.activityTypeStrength')
           }}</span>
-          <span v-if="goal.activity_type == 6">{{
+          <span v-if="goal.activity_type == 'cardio'">{{
             $t('userGoalsStatsComponent.activityTypeCardio')
           }}</span>
           <span> | </span>
           <span v-if="goal.interval == 'daily'">{{
-            $t('userGoalsStatsComponent.intervalOption1')
+            $t('userGoalsStatsComponent.intervalDaily')
           }}</span>
           <span v-if="goal.interval == 'weekly'">{{
-            $t('userGoalsStatsComponent.intervalOption2')
+            $t('userGoalsStatsComponent.intervalWeekly')
           }}</span>
           <span v-if="goal.interval == 'monthly'">{{
-            $t('userGoalsStatsComponent.intervalOption3')
+            $t('userGoalsStatsComponent.intervalMonthly')
           }}</span>
           <span v-if="goal.interval == 'yearly'">{{
-            $t('userGoalsStatsComponent.intervalOption4')
+            $t('userGoalsStatsComponent.intervalYearly')
           }}</span>
           <br />
-          <span v-if="goal.goal_type === 1"
+          <span v-if="goal.goal_type === 'calories'"
             >{{ goal.total_calories }} {{ $t('generalItems.unitsCalories')
             }}{{ $t('generalItems.ofWithSpaces') }}{{ goal.goal_calories }}
             {{ $t('generalItems.unitsCalories') }}</span
           >
-          <span v-if="goal.goal_type === 2"
+          <span v-if="goal.goal_type === 'activities'"
             >{{ goal.total_activities_number }}{{ $t('generalItems.ofWithSpaces')
             }}{{ goal.goal_activities_number }} {{ $t('userGoalsStatsComponent.activities') }}</span
           >
-          <span v-if="goal.goal_type === 3"
+          <span v-if="goal.goal_type === 'distance'"
             >{{ formatDistanceRaw(t, goal.total_distance, authStore.user.units, false)
             }}{{ $t('generalItems.ofWithSpaces')
             }}{{ formatDistanceRaw(t, goal.goal_distance, authStore.user.units) }}</span
           >
-          <span v-if="goal.goal_type === 4 && authStore.user.units === 1"
+          <span v-if="goal.goal_type === 'elevation' && authStore.user.units === 1"
             >{{ goal.total_elevation }}{{ $t('generalItems.ofWithSpaces')
             }}{{ goal.goal_elevation }} {{ $t('generalItems.unitsM') }}</span
           >
-          <span v-if="goal.goal_type === 4 && authStore.user.units === 2"
+          <span v-if="goal.goal_type === 'elevation' && authStore.user.units === 2"
             >{{ metersToFeet(goal.total_elevation) }}{{ $t('generalItems.ofWithSpaces')
             }}{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFt') }}</span
           >
-          <span v-if="goal.goal_type === 5"
+          <span v-if="goal.goal_type === 'duration'"
             >{{ formatDuration(goal.total_duration) }}{{ $t('generalItems.ofWithSpaces')
             }}{{ formatDuration(goal.goal_duration) }}</span
           >

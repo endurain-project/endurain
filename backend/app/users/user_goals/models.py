@@ -41,13 +41,15 @@ class UserGoal(Base):
         nullable=False,
         comment=("Goal interval (e.g., 'daily', 'weekly', 'monthly', 'yearly')"),
     )
-    activity_type: Mapped[int] = mapped_column(
+    activity_type: Mapped[str] = mapped_column(
+        String(length=50),
         nullable=False,
-        comment="Activity type",
+        comment="Activity type (e.g., 'run', 'bike', 'swim')",
     )
-    goal_type: Mapped[int] = mapped_column(
+    goal_type: Mapped[str] = mapped_column(
+        String(length=50),
         nullable=False,
-        comment="Goal type",
+        comment="Goal type (e.g., 'calories', 'distance', 'duration')",
     )
     goal_calories: Mapped[int | None] = mapped_column(
         nullable=True,

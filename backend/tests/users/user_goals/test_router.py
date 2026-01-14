@@ -24,8 +24,8 @@ class TestGetUserGoals:
         mock_goal1.id = 1
         mock_goal1.user_id = 1
         mock_goal1.interval = "weekly"
-        mock_goal1.activity_type = 1
-        mock_goal1.goal_type = 1
+        mock_goal1.activity_type = "run"
+        mock_goal1.goal_type = "calories"
         mock_goal1.goal_calories = 5000
         mock_goal1.goal_activities_number = None
         mock_goal1.goal_distance = None
@@ -47,9 +47,7 @@ class TestGetUserGoals:
         assert len(data) == 1
 
     @patch("users.user_goals.router.user_goals_crud.get_user_goals_by_user_id")
-    def test_get_user_goals_empty(
-        self, mock_get_goals, fast_api_client, fast_api_app
-    ):
+    def test_get_user_goals_empty(self, mock_get_goals, fast_api_client, fast_api_app):
         """Test retrieval when user has no goals."""
         # Arrange
         mock_get_goals.return_value = []
@@ -76,13 +74,11 @@ class TestGetUserGoalsResults:
     ):
         """Test successful calculation of goal progress."""
         # Arrange
-        mock_progress = MagicMock(
-            spec=user_goals_schema.UserGoalProgress
-        )
+        mock_progress = MagicMock(spec=user_goals_schema.UserGoalProgress)
         mock_progress.goal_id = 1
         mock_progress.interval = "weekly"
-        mock_progress.activity_type = 1
-        mock_progress.goal_type = 1
+        mock_progress.activity_type = "run"
+        mock_progress.goal_type = "calories"
         mock_progress.start_date = "2024-01-15"
         mock_progress.end_date = "2024-01-21"
         mock_progress.percentage_completed = 75
@@ -136,17 +132,15 @@ class TestCreateUserGoal:
     """
 
     @patch("users.user_goals.router.user_goals_crud.create_user_goal")
-    def test_create_user_goal_success(
-        self, mock_create, fast_api_client, fast_api_app
-    ):
+    def test_create_user_goal_success(self, mock_create, fast_api_client, fast_api_app):
         """Test successful goal creation."""
         # Arrange
         mock_created_goal = MagicMock(spec=user_goals_models.UserGoal)
         mock_created_goal.id = 1
         mock_created_goal.user_id = 1
         mock_created_goal.interval = "weekly"
-        mock_created_goal.activity_type = 1
-        mock_created_goal.goal_type = 1
+        mock_created_goal.activity_type = "run"
+        mock_created_goal.goal_type = "calories"
         mock_created_goal.goal_calories = 5000
         mock_created_goal.goal_activities_number = None
         mock_created_goal.goal_distance = None
@@ -161,8 +155,8 @@ class TestCreateUserGoal:
             headers={"Authorization": "Bearer mock_token"},
             json={
                 "interval": "weekly",
-                "activity_type": 1,
-                "goal_type": 1,
+                "activity_type": "run",
+                "goal_type": "calories",
                 "goal_calories": 5000,
                 "goal_activities_number": None,
                 "goal_distance": None,
@@ -177,9 +171,7 @@ class TestCreateUserGoal:
         assert data["id"] == 1
         assert data["goal_calories"] == 5000
 
-    def test_create_user_goal_invalid_data(
-        self, fast_api_client, fast_api_app
-    ):
+    def test_create_user_goal_invalid_data(self, fast_api_client, fast_api_app):
         """Test creation fails with invalid data."""
         # Act
         response = fast_api_client.post(
@@ -233,8 +225,8 @@ class TestUpdateUserGoal:
             headers={"Authorization": "Bearer mock_token"},
             json={
                 "interval": "monthly",
-                "activity_type": 1,  # RUN
-                "goal_type": 1,  # CALORIES
+                "activity_type": "run",  # RUN
+                "goal_type": "calories",  # CALORIES
                 "goal_calories": 10000,
             },
         )
@@ -246,9 +238,7 @@ class TestUpdateUserGoal:
         assert data["goal_calories"] == 10000
 
     @patch("users.user_goals.router.user_goals_crud.update_user_goal")
-    @patch(
-        "users.user_goals.router.user_goals_dependencies.validate_goal_id"
-    )
+    @patch("users.user_goals.router.user_goals_dependencies.validate_goal_id")
     def test_update_user_goal_not_found(
         self,
         mock_validate,
@@ -270,8 +260,8 @@ class TestUpdateUserGoal:
             headers={"Authorization": "Bearer mock_token"},
             json={
                 "interval": "weekly",
-                "activity_type": 1,
-                "goal_type": 1,
+                "activity_type": "run",
+                "goal_type": "calories",
                 "goal_calories": 5000,
                 "goal_activities_number": None,
                 "goal_distance": None,
@@ -314,9 +304,7 @@ class TestDeleteUserGoal:
         assert response.content == b""
 
     @patch("users.user_goals.router.user_goals_crud.delete_user_goal")
-    @patch(
-        "users.user_goals.router.user_goals_dependencies.validate_goal_id"
-    )
+    @patch("users.user_goals.router.user_goals_dependencies.validate_goal_id")
     def test_delete_user_goal_not_found(
         self,
         mock_validate,

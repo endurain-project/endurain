@@ -95,5 +95,5 @@ class TestUserGoalModel:
         assert model.id.type.python_type == int
         assert model.user_id.type.python_type == int
         assert model.interval.type.python_type == str
-        assert model.activity_type.type.python_type == int
-        assert model.goal_type.type.python_type == int
+        assert model.activity_type.type.python_type == str
+        assert model.goal_type.type.python_type == str

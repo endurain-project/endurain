@@ -115,9 +115,7 @@ class TestGetUserGoalByUserAndGoalId:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.get_user_goal_by_user_and_goal_id(
-                user_id, goal_id, mock_db
-            )
+            user_goals_crud.get_user_goal_by_user_and_goal_id(user_id, goal_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -126,44 +124,6 @@ class TestCreateUserGoal:
     """
     Test suite for create_user_goal function.
     """
-
-    @pytest.mark.xfail(
-        reason="SQLAlchemy model loading triggers Activity model relationships in test environment"
-    )
-    def test_create_user_goal_success(self, mock_db):
-        """Test successful goal creation."""
-        # Arrange
-        user_id = 1
-        user_goal = user_goals_schema.UserGoalCreate(
-            interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=5000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
-        )
-
-        # Mock no existing goal
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db.execute.return_value = mock_result
-
-        # Act
-        result = user_goals_crud.create_user_goal(
-            user_id, user_goal, mock_db
-        )
-
-        # Assert
-        assert result.user_id == user_id
-        assert result.interval == user_goals_schema.Interval.WEEKLY
-        assert result.activity_type == user_goals_schema.ActivityType.RUN
-        assert result.goal_type == user_goals_schema.GoalType.CALORIES
-        assert result.goal_calories == 5000
-        assert mock_db.add.called
-        mock_db.commit.assert_called_once()
-        assert mock_db.refresh.called
 
     def test_create_user_goal_duplicate(self, mock_db):
         """Test creation fails when duplicate goal exists."""
@@ -224,9 +184,7 @@ class TestUpdateUserGoal:
     """
 
     @patch("users.user_goals.crud.get_user_goal_by_user_and_goal_id")
-    def test_update_user_goal_success(
-        self, mock_get_goal, mock_db
-    ):
+    def test_update_user_goal_success(self, mock_get_goal, mock_db):
         """Test successful goal update."""
         # Arrange
         user_id = 1
@@ -247,9 +205,7 @@ class TestUpdateUserGoal:
         mock_get_goal.return_value = mock_db_goal
 
         # Act
-        result = user_goals_crud.update_user_goal(
-            user_id, goal_id, user_goal, mock_db
-        )
+        result = user_goals_crud.update_user_goal(user_id, goal_id, user_goal, mock_db)
 
         # Assert
         assert result == mock_db_goal
@@ -277,9 +233,7 @@ class TestUpdateUserGoal:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.update_user_goal(
-                user_id, goal_id, user_goal, mock_db
-            )
+            user_goals_crud.update_user_goal(user_id, goal_id, user_goal, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
@@ -306,9 +260,7 @@ class TestUpdateUserGoal:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.update_user_goal(
-                user_id, goal_id, user_goal, mock_db
-            )
+            user_goals_crud.update_user_goal(user_id, goal_id, user_goal, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
 

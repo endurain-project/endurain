@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 import users.user_goals.dependencies as user_goals_dependencies
@@ -26,19 +26,40 @@ router = APIRouter()
 async def get_user_goals(
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
+    interval: Annotated[
+        user_goals_schema.Interval | None,
+        Query(description="Filter by goal interval"),
+    ] = None,
+    activity_type: Annotated[
+        user_goals_schema.ActivityType | None,
+        Query(description="Filter by activity type"),
+    ] = None,
+    goal_type: Annotated[
+        user_goals_schema.GoalType | None,
+        Query(description="Filter by goal type"),
+    ] = None,
 ) -> list[user_goals_schema.UserGoalRead]:
     """
-    Retrieve all goals for the authenticated user.
+    Retrieve goals for the authenticated user with optional filters.
 
     Args:
         token_user_id: User ID from access token.
         db: Database session dependency.
+        interval: Optional filter by goal interval.
+        activity_type: Optional filter by activity type.
+        goal_type: Optional filter by goal type.
 
     Returns:
-        List of user goal objects.
+        List of user goal objects matching the filters.
     """
     # Pydantic will convert ORM models to HealthWeightRead via from_attributes=True
-    return user_goals_crud.get_user_goals_by_user_id(token_user_id, db)  # type: ignore[arg-type]
+    return user_goals_crud.get_user_goals_by_user_id(
+        user_id=token_user_id,
+        db=db,
+        interval=interval,
+        activity_type=activity_type,
+        goal_type=goal_type,
+    )  # type: ignore[arg-type]
 
 
 @router.get(

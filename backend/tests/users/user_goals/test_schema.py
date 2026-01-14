@@ -36,27 +36,27 @@ class TestActivityTypeEnum:
 
     def test_activity_type_run_value(self):
         """Test ActivityType.RUN has correct value."""
-        assert user_goals_schema.ActivityType.RUN == 1
+        assert user_goals_schema.ActivityType.RUN == "run"
 
     def test_activity_type_bike_value(self):
         """Test ActivityType.BIKE has correct value."""
-        assert user_goals_schema.ActivityType.BIKE == 2
+        assert user_goals_schema.ActivityType.BIKE == "bike"
 
     def test_activity_type_swim_value(self):
         """Test ActivityType.SWIM has correct value."""
-        assert user_goals_schema.ActivityType.SWIM == 3
+        assert user_goals_schema.ActivityType.SWIM == "swim"
 
     def test_activity_type_walk_value(self):
         """Test ActivityType.WALK has correct value."""
-        assert user_goals_schema.ActivityType.WALK == 4
+        assert user_goals_schema.ActivityType.WALK == "walk"
 
     def test_activity_type_strength_value(self):
         """Test ActivityType.STRENGTH has correct value."""
-        assert user_goals_schema.ActivityType.STRENGTH == 5
+        assert user_goals_schema.ActivityType.STRENGTH == "strength"
 
     def test_activity_type_cardio_value(self):
         """Test ActivityType.CARDIO has correct value."""
-        assert user_goals_schema.ActivityType.CARDIO == 6
+        assert user_goals_schema.ActivityType.CARDIO == "cardio"
 
 
 class TestGoalTypeEnum:
@@ -66,23 +66,23 @@ class TestGoalTypeEnum:
 
     def test_goal_type_calories_value(self):
         """Test GoalType.CALORIES has correct value."""
-        assert user_goals_schema.GoalType.CALORIES == 1
+        assert user_goals_schema.GoalType.CALORIES == "calories"
 
     def test_goal_type_activities_value(self):
         """Test GoalType.ACTIVITIES has correct value."""
-        assert user_goals_schema.GoalType.ACTIVITIES == 2
+        assert user_goals_schema.GoalType.ACTIVITIES == "activities"
 
     def test_goal_type_distance_value(self):
         """Test GoalType.DISTANCE has correct value."""
-        assert user_goals_schema.GoalType.DISTANCE == 3
+        assert user_goals_schema.GoalType.DISTANCE == "distance"
 
     def test_goal_type_elevation_value(self):
         """Test GoalType.ELEVATION has correct value."""
-        assert user_goals_schema.GoalType.ELEVATION == 4
+        assert user_goals_schema.GoalType.ELEVATION == "elevation"
 
     def test_goal_type_duration_value(self):
         """Test GoalType.DURATION has correct value."""
-        assert user_goals_schema.GoalType.DURATION == 5
+        assert user_goals_schema.GoalType.DURATION == "duration"
 
 
 class TestUserGoalBaseSchema:
@@ -106,8 +106,8 @@ class TestUserGoalBaseSchema:
 
         # Assert
         assert goal.interval == "weekly"
-        assert goal.activity_type == 1
-        assert goal.goal_type == 1
+        assert goal.activity_type == "run"
+        assert goal.goal_type == "calories"
         assert goal.goal_calories == 5000
         assert goal.goal_activities_number is None
 
@@ -347,6 +347,5 @@ class TestUserGoalProgressSchema:
         # Assert
         assert hasattr(user_goals_schema.UserGoalProgress, "model_config")
         assert (
-            user_goals_schema.UserGoalProgress.model_config["from_attributes"]
-            is True
+            user_goals_schema.UserGoalProgress.model_config["from_attributes"] is True
         )
