@@ -20,22 +20,9 @@ import core.dependencies as core_dependencies
 router = APIRouter()
 
 
-@router.get("/number", response_model=int)
-async def read_users_number(
-    _check_scopes: Annotated[
-        Callable, Security(auth_security.check_scopes, scopes=["users:read"])
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    return users_crud.get_users_number(db)
-
-
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[users_schema.UserRead] | None,
+    response_model=users_schema.UserListResponse,
 )
 async def read_users_all_pagination(
     page_number: int,
@@ -52,7 +39,17 @@ async def read_users_all_pagination(
     ],
 ):
     # Get the users from the database with pagination
-    return users_crud.get_users_with_pagination(db, page_number, num_records)
+
+    total = users_crud.get_users_number(db)
+    records = users_crud.get_users_with_pagination(db, page_number, num_records)
+
+    # Pydantic will convert ORM models to UserRead via from_attributes=True
+    return users_schema.UserListResponse(
+        total=total,
+        num_records=num_records,
+        page_number=page_number,
+        records=records,  # type: ignore[arg-type]
+    )
 
 
 @router.get(

@@ -16,29 +16,47 @@
           <div class="row mt-3">
             <div class="col">
               <!-- Delete profile photo section -->
-              <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal"
-                data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path"><font-awesome-icon
-                  :icon="['fas', 'image']" class="me-1" />{{
-                    $t('settingsUserProfileZone.buttonDeleteProfilePhoto')
-                  }}</a>
+              <a
+                class="w-100 btn btn-danger"
+                href="#"
+                role="button"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteProfilePhotoModal"
+                v-if="authStore.user.photo_path"
+                ><font-awesome-icon :icon="['fas', 'image']" class="me-1" />{{
+                  $t('settingsUserProfileZone.buttonDeleteProfilePhoto')
+                }}</a
+              >
 
               <!-- Modal delete profile photo -->
-              <ModalComponent modalId="deleteProfilePhotoModal"
+              <ModalComponent
+                modalId="deleteProfilePhotoModal"
                 :title="t('settingsUserProfileZone.buttonDeleteProfilePhoto')"
-                :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`" actionButtonType="danger"
+                :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`"
+                actionButtonType="danger"
                 :actionButtonText="t('settingsUserProfileZone.buttonDeleteProfilePhoto')"
-                @submitAction="submitDeleteUserPhoto" />
+                @submitAction="submitDeleteUserPhoto"
+              />
             </div>
             <div class="col">
               <!-- Edit profile section -->
-              <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal"
-                data-bs-target="#editProfileModal"><font-awesome-icon :icon="['fas', 'user-pen']" class="me-1" />{{
+              <a
+                class="w-100 btn btn-primary"
+                href="#"
+                role="button"
+                data-bs-toggle="modal"
+                data-bs-target="#editProfileModal"
+                ><font-awesome-icon :icon="['fas', 'user-pen']" class="me-1" />{{
                   $t('settingsUserProfileZone.buttonEditProfile')
-                }}</a>
+                }}</a
+              >
 
               <!-- Modal edit user -->
-              <UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"
-                @userPhotoDeleted="submitDeleteUserPhoto" />
+              <UsersAddEditUserModalComponent
+                :action="'profile'"
+                :user="authStore.user"
+                @userPhotoDeleted="submitDeleteUserPhoto"
+              />
             </div>
           </div>
         </div>
@@ -65,8 +83,16 @@
           </p>
           <!-- user gender -->
           <p>
-            <font-awesome-icon :icon="['fas', 'mars']" class="me-2" v-if="authStore.user.gender == 1" />
-            <font-awesome-icon :icon="['fas', 'venus']" class="me-2" v-else-if="authStore.user.gender == 2" />
+            <font-awesome-icon
+              :icon="['fas', 'mars']"
+              class="me-2"
+              v-if="authStore.user.gender == 1"
+            />
+            <font-awesome-icon
+              :icon="['fas', 'venus']"
+              class="me-2"
+              v-else-if="authStore.user.gender == 2"
+            />
             <font-awesome-icon :icon="['fas', 'genderless']" class="me-2" v-else />
             <b>{{ $t('settingsUserProfileZone.genderLabel') }}: </b>
             <span v-if="authStore.user.gender == 1">{{
@@ -101,14 +127,17 @@
           <!-- user height -->
           <p>
             <font-awesome-icon :icon="['fas', 'person-arrow-up-from-line']" class="me-2" />
-            <b>{{ $t('settingsUserProfileZone.heightLabel') }}
-              <span v-if="Number(authStore?.user?.units) === 1">({{ $t('generalItems.unitsCm') }}):
+            <b
+              >{{ $t('settingsUserProfileZone.heightLabel') }}
+              <span v-if="Number(authStore?.user?.units) === 1"
+                >({{ $t('generalItems.unitsCm') }}):
               </span>
               <span v-else>({{ $t('generalItems.unitsFeetInches') }}): </span>
             </b>
             <span v-if="authStore.user.height">
-              <span v-if="Number(authStore?.user?.units) === 1">{{ authStore.user.height }}{{ $t('generalItems.unitsCm')
-              }}</span>
+              <span v-if="Number(authStore?.user?.units) === 1"
+                >{{ authStore.user.height }}{{ $t('generalItems.unitsCm') }}</span
+              >
               <span v-else>{{ feet }}’{{ inches }}’’</span>
             </span>
             <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
@@ -117,8 +146,9 @@
           <p>
             <font-awesome-icon :icon="['fas', 'heart-pulse']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.maxHeartRateLabel') }}: </b>
-            <span v-if="authStore.user.max_heart_rate">{{ authStore.user.max_heart_rate }} {{
-              $t('generalItems.unitsBpm') }}</span>
+            <span v-if="authStore.user.max_heart_rate"
+              >{{ authStore.user.max_heart_rate }} {{ $t('generalItems.unitsBpm') }}</span
+            >
             <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
           </p>
           <!-- user preferred language -->
@@ -214,7 +244,12 @@
               <label class="form-label" for="settingsUserProfileRunGearSelect">{{
                 $t('settingsUserProfileZone.subTitleRun')
               }}</label>
-              <select class="form-select" name="settingsUserProfileRunGearSelect" v-model="defaultRunGear" required>
+              <select
+                class="form-select"
+                name="settingsUserProfileRunGearSelect"
+                v-model="defaultRunGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -226,8 +261,12 @@
               <label class="form-label" for="settingsUserProfileTrailRunGearSelect">{{
                 $t('settingsUserProfileZone.subTitleTrailRun')
               }}</label>
-              <select class="form-select" name="settingsUserProfileTrailRunGearSelect" v-model="defaultTrailRunGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileTrailRunGearSelect"
+                v-model="defaultTrailRunGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -239,8 +278,12 @@
               <label class="form-label" for="settingsUserProfileVirtualRunGearSelect">{{
                 $t('settingsUserProfileZone.subTitleVirtualRun')
               }}</label>
-              <select class="form-select" name="settingsUserProfileVirtualRunGearSelect" v-model="defaultVirtualRunGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileVirtualRunGearSelect"
+                v-model="defaultVirtualRunGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -252,7 +295,12 @@
               <label class="form-label" for="settingsUserProfileWalkGearSelect">{{
                 $t('settingsUserProfileZone.subTitleWalk')
               }}</label>
-              <select class="form-select" name="settingsUserProfileWalkGearSelect" v-model="defaultWalkGear" required>
+              <select
+                class="form-select"
+                name="settingsUserProfileWalkGearSelect"
+                v-model="defaultWalkGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -264,7 +312,12 @@
               <label class="form-label" for="settingsUserProfileHikeGearSelect">{{
                 $t('settingsUserProfileZone.subTitleHike')
               }}</label>
-              <select class="form-select" name="settingsUserProfileHikeGearSelect" v-model="defaultHikeGear" required>
+              <select
+                class="form-select"
+                name="settingsUserProfileHikeGearSelect"
+                v-model="defaultHikeGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -281,7 +334,12 @@
               <label class="form-label" for="settingsUserProfileRideGearSelect">{{
                 $t('settingsUserProfileZone.subTitleBike')
               }}</label>
-              <select class="form-select" name="settingsUserProfileRideGearSelect" v-model="defaultRideGear" required>
+              <select
+                class="form-select"
+                name="settingsUserProfileRideGearSelect"
+                v-model="defaultRideGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -293,8 +351,12 @@
               <label class="form-label" for="settingsUserProfileMTBRideGearSelect">{{
                 $t('settingsUserProfileZone.subTitleMTBBike')
               }}</label>
-              <select class="form-select" name="settingsUserProfileMTBRideGearSelect" v-model="defaultMTBRideGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileMTBRideGearSelect"
+                v-model="defaultMTBRideGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -306,8 +368,12 @@
               <label class="form-label" for="settingsUserProfileGravelRideGearSelect">{{
                 $t('settingsUserProfileZone.subTitleGravelBike')
               }}</label>
-              <select class="form-select" name="settingsUserProfileGravelRideGearSelect" v-model="defaultGravelRideGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileGravelRideGearSelect"
+                v-model="defaultGravelRideGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -319,8 +385,12 @@
               <label class="form-label" for="settingsUserProfileVirtualRideGearSelect">{{
                 $t('settingsUserProfileZone.subTitleVirtualBike')
               }}</label>
-              <select class="form-select" name="settingsUserProfileVirtualRideGearSelect"
-                v-model="defaultVirtualRideGear" required>
+              <select
+                class="form-select"
+                name="settingsUserProfileVirtualRideGearSelect"
+                v-model="defaultVirtualRideGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -337,7 +407,12 @@
               <label class="form-label" for="settingsUserProfileOWSGearSelect">{{
                 $t('settingsUserProfileZone.subTitleSwim')
               }}</label>
-              <select class="form-select" name="settingsUserProfileOWSGearSelect" v-model="defaultOWSGear" required>
+              <select
+                class="form-select"
+                name="settingsUserProfileOWSGearSelect"
+                v-model="defaultOWSGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -349,8 +424,12 @@
               <label class="form-label" for="settingsUserProfileWindsurfGearSelect">{{
                 $t('settingsUserProfileZone.subTitleWindsurf')
               }}</label>
-              <select class="form-select" name="settingsUserProfileWindsurfGearSelect" v-model="defaultWindsurfGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileWindsurfGearSelect"
+                v-model="defaultWindsurfGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -367,8 +446,12 @@
               <label class="form-label" for="settingsUserProfileTennisGearSelect">{{
                 $t('settingsUserProfileZone.subTitleTennis')
               }}</label>
-              <select class="form-select" name="settingsUserProfileTennisGearSelect" v-model="defaultTennisGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileTennisGearSelect"
+                v-model="defaultTennisGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -385,8 +468,12 @@
               <label class="form-label" for="settingsUserProfileAlpineSkiGearSelect">{{
                 $t('settingsUserProfileZone.subTitleAlpineSki')
               }}</label>
-              <select class="form-select" name="settingsUserProfileAlpineSkiGearSelect" v-model="defaultAlpineSkiGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileAlpineSkiGearSelect"
+                v-model="defaultAlpineSkiGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -398,8 +485,12 @@
               <label class="form-label" for="settingsUserProfileNordicSkiGearSelect">{{
                 $t('settingsUserProfileZone.subTitleNordicSki')
               }}</label>
-              <select class="form-select" name="settingsUserProfileNordicSkiGearSelect" v-model="defaultNordicSkiGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileNordicSkiGearSelect"
+                v-model="defaultNordicSkiGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -411,8 +502,12 @@
               <label class="form-label" for="settingsUserProfileSnowboardGearSelect">{{
                 $t('settingsUserProfileZone.subTitleSnowboard')
               }}</label>
-              <select class="form-select" name="settingsUserProfileSnowboardGearSelect" v-model="defaultSnowboardGear"
-                required>
+              <select
+                class="form-select"
+                name="settingsUserProfileSnowboardGearSelect"
+                v-model="defaultSnowboardGear"
+                required
+              >
                 <option :value="null">
                   {{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
                 </option>
@@ -435,7 +530,12 @@
               <label for="activityVisibility">{{
                 $t('settingsUserProfileZone.defaultActivityVisibility')
               }}</label>
-              <select class="form-select" name="activityVisibility" v-model="activityVisibility" required>
+              <select
+                class="form-select"
+                name="activityVisibility"
+                v-model="activityVisibility"
+                required
+              >
                 <option :value="0">{{ $t('settingsUserProfileZone.privacyOption1') }}</option>
                 <option :value="1">{{ $t('settingsUserProfileZone.privacyOption2') }}</option>
                 <option :value="2">{{ $t('settingsUserProfileZone.privacyOption3') }}</option>
@@ -446,7 +546,12 @@
               <label for="activityStartTime">{{
                 $t('settingsUserProfileZone.defaultActivityStartTime')
               }}</label>
-              <select class="form-select" name="activityStartTime" v-model="activityStartTime" required>
+              <select
+                class="form-select"
+                name="activityStartTime"
+                v-model="activityStartTime"
+                required
+              >
                 <option :value="true">{{ $t('generalItems.yes') }}</option>
                 <option :value="false">{{ $t('generalItems.no') }}</option>
               </select>
@@ -456,7 +561,12 @@
               <label for="activityLocation">{{
                 $t('settingsUserProfileZone.defaultActivityLocation')
               }}</label>
-              <select class="form-select" name="activityLocation" v-model="activityLocation" required>
+              <select
+                class="form-select"
+                name="activityLocation"
+                v-model="activityLocation"
+                required
+              >
                 <option :value="true">{{ $t('generalItems.yes') }}</option>
                 <option :value="false">{{ $t('generalItems.no') }}</option>
               </select>
@@ -508,7 +618,12 @@
               <label for="activityElevation">{{
                 $t('settingsUserProfileZone.defaultActivityElevation')
               }}</label>
-              <select class="form-select" name="activityElevation" v-model="activityElevation" required>
+              <select
+                class="form-select"
+                name="activityElevation"
+                v-model="activityElevation"
+                required
+              >
                 <option :value="true">{{ $t('generalItems.yes') }}</option>
                 <option :value="false">{{ $t('generalItems.no') }}</option>
               </select>
@@ -550,7 +665,12 @@
               <label for="activitySetsSteps">{{
                 $t('settingsUserProfileZone.defaultActivitySetsSteps')
               }}</label>
-              <select class="form-select" name="activitySetsSteps" v-model="activitySetsSteps" required>
+              <select
+                class="form-select"
+                name="activitySetsSteps"
+                v-model="activitySetsSteps"
+                required
+              >
                 <option :value="true">{{ $t('generalItems.yes') }}</option>
                 <option :value="false">{{ $t('generalItems.no') }}</option>
               </select>
@@ -571,20 +691,30 @@
         <div class="row mt-3">
           <div class="col">
             <!-- Edit activities visibility section -->
-            <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal"
-              data-bs-target="#editUserActivitiesVisibilityModal"><font-awesome-icon :icon="['fas', 'eye-slash']"
-                class="me-1" />{{
-                  $t('settingsUserProfileZone.buttonChangeUserActivitiesVisibility')
-                }}</a>
+            <a
+              class="btn btn-primary w-100"
+              href="#"
+              role="button"
+              data-bs-toggle="modal"
+              data-bs-target="#editUserActivitiesVisibilityModal"
+              ><font-awesome-icon :icon="['fas', 'eye-slash']" class="me-1" />{{
+                $t('settingsUserProfileZone.buttonChangeUserActivitiesVisibility')
+              }}</a
+            >
 
             <!-- modal retrieve Garmin Connect health data by days -->
-            <ModalComponentSelectInput modalId="editUserActivitiesVisibilityModal"
+            <ModalComponentSelectInput
+              modalId="editUserActivitiesVisibilityModal"
               :title="t('settingsUserProfileZone.buttonChangeUserActivitiesVisibility')"
               :selectFieldLabel="`${t('settingsUserProfileZone.changeUserActivitiesVisibilityModalVisibilityLabel')}`"
               :selectOptions="visibilityOptionsForModal"
-              :selectCurrentOption="authStore.user.default_activity_visibility" :actionButtonType="`success`"
-              :actionButtonText="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalButton')
-                " @optionToEmitAction="submitChangeUserActivitiesVisibility" />
+              :selectCurrentOption="authStore.user.default_activity_visibility"
+              :actionButtonType="`success`"
+              :actionButtonText="
+                t('settingsUserProfileZone.changeUserActivitiesVisibilityModalButton')
+              "
+              @optionToEmitAction="submitChangeUserActivitiesVisibility"
+            />
           </div>
         </div>
       </div>
@@ -604,8 +734,12 @@
               <span>{{ $t('settingsUserProfileZone.buttonExportData') }}</span>
             </button>
 
-            <button class="btn btn-primary w-50" data-bs-toggle="modal" data-bs-target="#importDataModal"
-              :disabled="loadingImport">
+            <button
+              class="btn btn-primary w-50"
+              data-bs-toggle="modal"
+              data-bs-target="#importDataModal"
+              :disabled="loadingImport"
+            >
               <font-awesome-icon :icon="['fas', 'upload']" class="me-1" v-if="!loadingImport" />
               <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" v-else></span>
               <span>{{ $t('settingsUserProfileZone.buttonImportData') }}</span>
@@ -615,9 +749,15 @@
       </div>
 
       <!-- Import Data Modal -->
-      <ModalComponentUploadFile modalId="importDataModal" :title="$t('settingsUserProfileZone.modalImportTitle')"
-        :fileFieldLabel="$t('settingsUserProfileZone.modalImportBody')" filesAccepted=".zip" actionButtonType="success"
-        :actionButtonText="$t('settingsUserProfileZone.modalImportTitle')" @fileToEmitAction="uploadImportFile" />
+      <ModalComponentUploadFile
+        modalId="importDataModal"
+        :title="$t('settingsUserProfileZone.modalImportTitle')"
+        :fileFieldLabel="$t('settingsUserProfileZone.modalImportBody')"
+        filesAccepted=".zip"
+        actionButtonType="success"
+        :actionButtonText="$t('settingsUserProfileZone.modalImportTitle')"
+        @fileToEmitAction="uploadImportFile"
+      />
     </div>
   </div>
 </template>

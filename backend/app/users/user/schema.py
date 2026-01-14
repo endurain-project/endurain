@@ -6,8 +6,8 @@ from pydantic import (
     field_validator,
     StrictInt,
     ConfigDict,
+    Field,
 )
-import re
 import server_settings.schema as server_settings_schema
 
 
@@ -182,3 +182,28 @@ class UserCreate(User):
 
 class UserEditPassword(BaseModel):
     password: str
+
+
+class UserListResponse(BaseModel):
+    """
+    Response model for listing user records.
+
+    Attributes:
+        total (StrictInt): Total number of user records.
+        num_records (StrictInt | None): Number of records in this response.
+        page_number (StrictInt | None): Current page number.
+        records (list[UserRead]): List of user records.
+    """
+
+    total: StrictInt = Field(..., description="Total number of user records")
+    num_records: StrictInt | None = Field(
+        None, description="Number of records in this response"
+    )
+    page_number: StrictInt | None = Field(None, description="Current page number")
+    records: list[UserRead] = Field(..., description="List of user records")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
+    )
