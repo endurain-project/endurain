@@ -175,14 +175,6 @@ class UserGoalCreate(UserGoalBase):
     """
 
 
-class UserGoalEdit(UserGoalBase):
-    """
-    Schema for updating an existing user goal.
-
-    Supports partial updates. Omitted fields remain unchanged.
-    """
-
-
 class UserGoalRead(UserGoalBase):
     """
     Schema for reading a user goal.
@@ -192,8 +184,16 @@ class UserGoalRead(UserGoalBase):
         user_id: User who owns this goal.
     """
 
-    id: StrictInt = Field(..., description="Unique identifier for the goal")
-    user_id: StrictInt = Field(..., description="User who owns this goal")
+    id: StrictInt = Field(..., ge=1, description="Unique identifier for the goal")
+    user_id: StrictInt = Field(..., ge=1, description="User who owns this goal")
+
+
+class UserGoalUpdate(UserGoalRead):
+    """
+    Schema for updating an existing user goal.
+
+    Supports partial updates. Omitted fields remain unchanged.
+    """
 
 
 class UserGoalProgress(BaseModel):
@@ -220,7 +220,7 @@ class UserGoalProgress(BaseModel):
         goal_duration: Target duration.
     """
 
-    goal_id: StrictInt = Field(..., ge=0, description="Goal identifier")
+    goal_id: StrictInt = Field(..., ge=1, description="Goal identifier")
     interval: Interval = Field(..., description="Goal time interval")
     activity_type: ActivityType = Field(..., description="Activity type for this goal")
     goal_type: GoalType

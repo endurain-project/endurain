@@ -235,15 +235,17 @@ class TestUserGoalCreateSchema:
         assert "missing_goal_value" in str(exc_info.value)
 
 
-class TestUserGoalEditSchema:
+class TestUserGoalUpdateSchema:
     """
-    Test suite for UserGoalEdit schema.
+    Test suite for UserGoalUpdate schema.
     """
 
-    def test_edit_schema_allows_partial_updates(self):
-        """Test UserGoalEdit supports partial updates."""
+    def test_update_schema_allows_partial_updates(self):
+        """Test UserGoalUpdate supports partial updates."""
         # Act
-        goal = user_goals_schema.UserGoalEdit(
+        goal = user_goals_schema.UserGoalUpdate(
+            id=1,
+            user_id=1,
             interval=user_goals_schema.Interval.DAILY,
             activity_type=user_goals_schema.ActivityType.RUN,
             goal_type=user_goals_schema.GoalType.DISTANCE,

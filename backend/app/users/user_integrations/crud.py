@@ -622,7 +622,9 @@ def edit_user_integrations(
             )
 
         # Get fields to update
-        user_integrations_data = user_integrations.model_dump(exclude_unset=True)
+        user_integrations_data = user_integrations.model_dump(
+            exclude_unset=True, exclude={"user_id", "id"}
+        )
         # Update fields dynamically
         for key, value in user_integrations_data.items():
             setattr(db_user_integrations, key, value)

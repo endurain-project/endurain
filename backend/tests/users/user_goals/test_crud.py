@@ -189,7 +189,9 @@ class TestUpdateUserGoal:
         # Arrange
         user_id = 1
         goal_id = 1
-        user_goal = user_goals_schema.UserGoalEdit(
+        user_goal = user_goals_schema.UserGoalUpdate(
+            id=goal_id,
+            user_id=user_id,
             interval=user_goals_schema.Interval.MONTHLY,
             activity_type=user_goals_schema.ActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -205,7 +207,7 @@ class TestUpdateUserGoal:
         mock_get_goal.return_value = mock_db_goal
 
         # Act
-        result = user_goals_crud.update_user_goal(user_id, goal_id, user_goal, mock_db)
+        result = user_goals_crud.update_user_goal(user_id, user_goal, mock_db)
 
         # Assert
         assert result == mock_db_goal
@@ -218,7 +220,9 @@ class TestUpdateUserGoal:
         # Arrange
         user_id = 1
         goal_id = 999
-        user_goal = user_goals_schema.UserGoalEdit(
+        user_goal = user_goals_schema.UserGoalUpdate(
+            id=goal_id,
+            user_id=user_id,
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.ActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -233,7 +237,7 @@ class TestUpdateUserGoal:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.update_user_goal(user_id, goal_id, user_goal, mock_db)
+            user_goals_crud.update_user_goal(user_id, user_goal, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
@@ -243,7 +247,9 @@ class TestUpdateUserGoal:
         # Arrange
         user_id = 1
         goal_id = 1
-        user_goal = user_goals_schema.UserGoalEdit(
+        user_goal = user_goals_schema.UserGoalUpdate(
+            id=goal_id,
+            user_id=2,  # Different user
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.ActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -260,7 +266,7 @@ class TestUpdateUserGoal:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_crud.update_user_goal(user_id, goal_id, user_goal, mock_db)
+            user_goals_crud.update_user_goal(user_id, user_goal, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
 

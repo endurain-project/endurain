@@ -109,22 +109,19 @@ async def create_user_goal(
 
 
 @router.put(
-    "/{goal_id}",
+    "",
     status_code=status.HTTP_200_OK,
     response_model=user_goals_schema.UserGoalRead,
 )
 async def update_user_goal(
-    goal_id: int,
-    user_goal: user_goals_schema.UserGoalEdit,
+    user_goal: user_goals_schema.UserGoalUpdate,
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-    _: None = Depends(user_goals_dependencies.validate_goal_id),
 ) -> user_goals_schema.UserGoalRead:
     """
     Update an existing goal for the authenticated user.
 
     Args:
-        goal_id: ID of the goal to update.
         user_goal: Updated goal data.
         token_user_id: User ID from access token.
         db: Database session dependency.
@@ -132,7 +129,7 @@ async def update_user_goal(
     Returns:
         The updated goal object.
     """
-    return user_goals_crud.update_user_goal(token_user_id, goal_id, user_goal, db)
+    return user_goals_crud.update_user_goal(token_user_id, user_goal, db)
 
 
 @router.delete(

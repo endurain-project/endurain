@@ -1,12 +1,7 @@
 <template>
   <!-- Modal add/edit goal -->
-  <div
-    class="modal fade"
-    :id="action == 'add' ? 'addGoalModal' : action == 'edit' ? editGoalModalId : ''"
-    tabindex="-1"
-    :aria-labelledby="action == 'add' ? 'addGoalModal' : action == 'edit' ? editGoalModalId : ''"
-    aria-hidden="true"
-  >
+  <div class="modal fade" :id="action == 'add' ? 'addGoalModal' : action == 'edit' ? editGoalModalId : ''" tabindex="-1"
+    :aria-labelledby="action == 'add' ? 'addGoalModal' : action == 'edit' ? editGoalModalId : ''" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -16,27 +11,14 @@
           <h1 class="modal-title fs-5" :id="editGoalModalId" v-else-if="action == 'edit'">
             {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalEditTitle') }}
           </h1>
-          <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="modal"
-            aria-label="Close"
-          ></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
             <!-- interval fields -->
-            <label for="goalIntervalAddEdit"
-              ><b
-                >* {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalGoalIntervalLabel') }}</b
-              ></label
-            >
-            <select
-              class="form-select"
-              name="goalIntervalAddEdit"
-              v-model="newEditGoalInterval"
-              required
-            >
+            <label for="goalIntervalAddEdit"><b>* {{
+              $t('goalsAddEditGoalModalComponent.addEditGoalModalGoalIntervalLabel') }}</b></label>
+            <select class="form-select" name="goalIntervalAddEdit" v-model="newEditGoalInterval" required>
               <option value="daily">
                 {{ $t('goalsAddEditGoalModalComponent.intervalDaily') }}
               </option>
@@ -51,18 +33,9 @@
               </option>
             </select>
             <!-- activity type fields -->
-            <label for="goalActivityTypeAddEdit"
-              ><b
-                >*
-                {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalGoalActivityTypeLabel') }}</b
-              ></label
-            >
-            <select
-              class="form-select"
-              name="goalActivityTypeAddEdit"
-              v-model="newEditGoalActivityType"
-              required
-            >
+            <label for="goalActivityTypeAddEdit"><b>*
+                {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalGoalActivityTypeLabel') }}</b></label>
+            <select class="form-select" name="goalActivityTypeAddEdit" v-model="newEditGoalActivityType" required>
               <option value="run">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeRun') }}
               </option>
@@ -83,11 +56,8 @@
               </option>
             </select>
             <!-- goal type fields -->
-            <label for="goalTypeAddEdit"
-              ><b
-                >* {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalGoalTypeLabel') }}</b
-              ></label
-            >
+            <label for="goalTypeAddEdit"><b>* {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalGoalTypeLabel')
+            }}</b></label>
             <select class="form-select" name="goalTypeAddEdit" v-model="newEditGoalType" required>
               <option value="calories">
                 {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel') }}
@@ -107,75 +77,39 @@
             </select>
             <!-- calories fields -->
             <div v-if="newEditGoalType === 'calories'">
-              <label for="goalCaloriesAddEdit"
-                ><b>{{
-                  $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel')
-                }}</b></label
-              >
-              <input
-                class="form-control"
-                type="number"
-                name="goalCaloriesAddEdit"
-                :placeholder="
-                  $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesPlaceholder')
-                "
-                v-model="newEditGoalCalories"
-              />
+              <label for="goalCaloriesAddEdit"><b>{{
+                $t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel')
+                  }}</b></label>
+              <input class="form-control" type="number" name="goalCaloriesAddEdit" :placeholder="$t('goalsAddEditGoalModalComponent.addEditGoalModalCaloriesPlaceholder')
+                " v-model="newEditGoalCalories" />
             </div>
             <!-- activities number fields -->
             <div v-if="newEditGoalType === 'activities'">
-              <label for="goalActivitiesNumberAddEdit"
-                ><b>{{
-                  $t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel')
-                }}</b></label
-              >
-              <input
-                class="form-control"
-                type="number"
-                name="goalActivitiesNumberAddEdit"
-                :placeholder="
-                  $t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberPlaceholder')
-                "
-                v-model="newEditGoalActivitiesNumber"
-              />
+              <label for="goalActivitiesNumberAddEdit"><b>{{
+                $t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel')
+                  }}</b></label>
+              <input class="form-control" type="number" name="goalActivitiesNumberAddEdit" :placeholder="$t('goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberPlaceholder')
+                " v-model="newEditGoalActivitiesNumber" />
             </div>
             <!-- distance fields -->
             <div v-if="newEditGoalType === 'distance'">
               <div v-if="Number(authStore?.user?.units) === 1">
-                <label for="goalDistanceMetricAddEdit"
-                  ><b>{{
-                    $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel')
-                  }}</b></label
-                >
+                <label for="goalDistanceMetricAddEdit"><b>{{
+                  $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel')
+                    }}</b></label>
                 <div class="input-group">
-                  <input
-                    class="form-control"
-                    type="number"
-                    name="goalDistanceMetricAddEdit"
-                    :placeholder="
-                      $t('goalsAddEditGoalModalComponent.addEditGoalModalDistancePlaceholder')
-                    "
-                    v-model="newEditGoalDistanceMetric"
-                  />
+                  <input class="form-control" type="number" name="goalDistanceMetricAddEdit" :placeholder="$t('goalsAddEditGoalModalComponent.addEditGoalModalDistancePlaceholder')
+                    " v-model="newEditGoalDistanceMetric" />
                   <span class="input-group-text">{{ $t('generalItems.unitsKm') }}</span>
                 </div>
               </div>
               <div v-else>
-                <label for="goalDistanceImperialAddEdit"
-                  ><b>{{
-                    $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel')
-                  }}</b></label
-                >
+                <label for="goalDistanceImperialAddEdit"><b>{{
+                  $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel')
+                    }}</b></label>
                 <div class="input-group">
-                  <input
-                    class="form-control"
-                    type="number"
-                    name="goalDistanceImperialAddEdit"
-                    :placeholder="
-                      $t('goalsAddEditGoalModalComponent.addEditGoalModalDistancePlaceholder')
-                    "
-                    v-model="newEditGoalDistanceImperial"
-                  />
+                  <input class="form-control" type="number" name="goalDistanceImperialAddEdit" :placeholder="$t('goalsAddEditGoalModalComponent.addEditGoalModalDistancePlaceholder')
+                    " v-model="newEditGoalDistanceImperial" />
                   <span class="input-group-text">{{ $t('generalItems.unitsMiles') }}</span>
                 </div>
               </div>
@@ -183,70 +117,40 @@
             <!-- elevation fields -->
             <div v-if="newEditGoalType === 'elevation'">
               <div v-if="Number(authStore?.user?.units) === 1">
-                <label for="goalElevationMetricAddEdit"
-                  ><b>{{
-                    $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel')
-                  }}</b></label
-                >
+                <label for="goalElevationMetricAddEdit"><b>{{
+                  $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel')
+                    }}</b></label>
                 <div class="input-group">
-                  <input
-                    class="form-control"
-                    type="number"
-                    name="goalElevationMetricAddEdit"
-                    :placeholder="
-                      $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationPlaceholder')
-                    "
-                    v-model="newEditGoalElevationMetric"
-                  />
+                  <input class="form-control" type="number" name="goalElevationMetricAddEdit" :placeholder="$t('goalsAddEditGoalModalComponent.addEditGoalModalElevationPlaceholder')
+                    " v-model="newEditGoalElevationMetric" />
                   <span class="input-group-text">{{ $t('generalItems.unitsM') }}</span>
                 </div>
               </div>
               <div v-else>
-                <label for="goalElevationImperialAddEdit"
-                  ><b>{{
-                    $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel')
-                  }}</b></label
-                >
+                <label for="goalElevationImperialAddEdit"><b>{{
+                  $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel')
+                    }}</b></label>
                 <div class="input-group">
-                  <input
-                    class="form-control"
-                    type="number"
-                    name="goalElevationImperialAddEdit"
-                    :placeholder="
-                      $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationPlaceholder')
-                    "
-                    v-model="newEditGoalElevationImperial"
-                  />
+                  <input class="form-control" type="number" name="goalElevationImperialAddEdit" :placeholder="$t('goalsAddEditGoalModalComponent.addEditGoalModalElevationPlaceholder')
+                    " v-model="newEditGoalElevationImperial" />
                   <span class="input-group-text">{{ $t('generalItems.unitsFeetShort') }}</span>
                 </div>
               </div>
             </div>
             <!-- duration value fields -->
             <div v-if="newEditGoalType === 'duration'">
-              <label for="goalDurationAddEdit"
-                ><b>{{
-                  $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel')
-                }}</b></label
-              >
+              <label for="goalDurationAddEdit"><b>{{
+                $t('goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel')
+                  }}</b></label>
               <div class="d-flex">
                 <div class="input-group me-1">
-                  <input
-                    class="form-control"
-                    type="number"
-                    name="goalDurationHoursAddEdit"
-                    :placeholder="$t('generalItems.labelHours')"
-                    v-model="newEditGoalDurationHours"
-                  />
+                  <input class="form-control" type="number" name="goalDurationHoursAddEdit"
+                    :placeholder="$t('generalItems.labelHours')" v-model="newEditGoalDurationHours" />
                   <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
                 </div>
                 <div class="input-group ms-1">
-                  <input
-                    class="form-control"
-                    type="number"
-                    name="goalDurationMinutesAddEdit"
-                    :placeholder="$t('generalItems.labelMinutes')"
-                    v-model="newEditGoalDurationMinutes"
-                  />
+                  <input class="form-control" type="number" name="goalDurationMinutesAddEdit"
+                    :placeholder="$t('generalItems.labelMinutes')" v-model="newEditGoalDurationMinutes" />
                   <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
                 </div>
               </div>
@@ -258,22 +162,11 @@
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button
-              type="submit"
-              class="btn btn-success"
-              name="goalAdd"
-              data-bs-dismiss="modal"
-              v-if="action == 'add'"
-            >
+            <button type="submit" class="btn btn-success" name="goalAdd" data-bs-dismiss="modal" v-if="action == 'add'">
               {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalAddTitle') }}
             </button>
-            <button
-              type="submit"
-              class="btn btn-success"
-              name="goalEdit"
-              data-bs-dismiss="modal"
-              v-else-if="action == 'edit'"
-            >
+            <button type="submit" class="btn btn-success" name="goalEdit" data-bs-dismiss="modal"
+              v-else-if="action == 'edit'">
               {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalEditTitle') }}
             </button>
           </div>
@@ -423,8 +316,10 @@ async function submitAddGoalForm() {
 
 async function submitEditGoalForm() {
   const goalData = setGoalObject()
+  goalData.id = props.goal.id
+  goalData.user_id = props.goal.user_id
   try {
-    const editedGoal = await userGoalsService.editGoal(props.goal.id, goalData)
+    const editedGoal = await userGoalsService.editGoal(goalData)
     emit('editedGoal', editedGoal)
     push.success(t('goalsAddEditGoalModalComponent.addEditGoalModalSuccessEditGoal'))
   } catch (error) {

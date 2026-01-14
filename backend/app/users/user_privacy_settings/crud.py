@@ -136,7 +136,7 @@ def edit_user_privacy_settings(
 
         # Dictionary of the fields to update if they are not None
         privacy_settings_dict = user_privacy_settings_data.model_dump(
-            exclude_unset=True
+            exclude_unset=True, exclude={"user_id", "id"}
         )
         # Iterate over the fields and update dynamically
         for key, value in privacy_settings_dict.items():

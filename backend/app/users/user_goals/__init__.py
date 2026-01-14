@@ -8,7 +8,7 @@ progress calculation.
 Exports:
     - CRUD: get_user_goals_by_user_id, get_user_goal_by_user_and_goal_id,
       create_user_goal, update_user_goal, delete_user_goal
-    - Schemas: UserGoalBase, UserGoalCreate, UserGoalEdit,
+    - Schemas: UserGoalBase, UserGoalCreate, UserGoalUpdate,
       UserGoalRead, UserGoalProgress
     - Models: UserGoal (ORM model)
     - Enums: Interval, ActivityType, GoalType
@@ -29,7 +29,7 @@ from .schema import (
     GoalType,
     UserGoalBase,
     UserGoalCreate,
-    UserGoalEdit,
+    UserGoalUpdate,
     UserGoalRead,
     UserGoalProgress,
 )
@@ -47,7 +47,7 @@ __all__ = [
     # Pydantic schemas
     "UserGoalBase",
     "UserGoalCreate",
-    "UserGoalEdit",
+    "UserGoalUpdate",
     "UserGoalRead",
     "UserGoalProgress",
     # Enums

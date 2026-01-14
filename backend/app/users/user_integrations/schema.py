@@ -112,5 +112,7 @@ class UsersIntegrationsRead(UsersIntegrationsBase):
         user_id: Foreign key reference to the user.
     """
 
-    id: StrictInt = Field(..., description="Unique identifier for integrations")
-    user_id: StrictInt = Field(..., description="Foreign key reference to the user")
+    id: StrictInt = Field(..., ge=1, description="Unique identifier for integrations")
+    user_id: StrictInt = Field(
+        ..., ge=1, description="Foreign key reference to the user"
+    )

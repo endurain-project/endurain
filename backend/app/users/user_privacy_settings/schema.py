@@ -128,5 +128,9 @@ class UsersPrivacySettingsRead(UsersPrivacySettingsBase):
         user_id: Foreign key reference to the user.
     """
 
-    id: StrictInt = Field(..., description="Unique identifier for privacy settings")
-    user_id: StrictInt = Field(..., description="Foreign key reference to the user")
+    id: StrictInt = Field(
+        ..., ge=1, description="Unique identifier for privacy settings"
+    )
+    user_id: StrictInt = Field(
+        ..., ge=1, description="Foreign key reference to the user"
+    )

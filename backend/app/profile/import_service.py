@@ -522,6 +522,10 @@ class ImportService:
             )
         )
 
+        if current_user_default_gear is None:
+            core_logger.print_to_log("No existing user default gear to update", "info")
+            return
+
         gear_data = user_default_gear_data[0]
         gear_data["id"] = current_user_default_gear.id
         gear_data["user_id"] = self.user_id
@@ -542,6 +546,7 @@ class ImportService:
             "alpine_ski_gear_id",
             "nordic_ski_gear_id",
             "snowboard_gear_id",
+            "windsurf_gear_id",
         ]
 
         for field in gear_fields:
@@ -551,7 +556,7 @@ class ImportService:
             else:
                 gear_data[field] = None
 
-        user_default_gear = user_default_gear_schema.UserDefaultGear(**gear_data)
+        user_default_gear = user_default_gear_schema.UserDefaultGearUpdate(**gear_data)
         user_default_gear_crud.edit_user_default_gear(
             user_default_gear, self.user_id, self.db
         )
@@ -570,12 +575,6 @@ class ImportService:
         if not user_integrations_data:
             core_logger.print_to_log("No user integrations data to import", "info")
             return
-
-        current_user_integrations = (
-            user_integrations_crud.get_user_integrations_by_user_id(
-                self.user_id, self.db
-            )
-        )
 
         integrations_data = user_integrations_data[0]
 
@@ -646,12 +645,6 @@ class ImportService:
         if not user_privacy_settings_data:
             core_logger.print_to_log("No user privacy settings data to import", "info")
             return
-
-        current_user_privacy_settings = (
-            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
-                self.user_id, self.db
-            )
-        )
 
         privacy_data = user_privacy_settings_data[0]
 
@@ -1069,7 +1062,7 @@ class ImportService:
                 health_weight["user_id"] = self.user_id
                 health_weight.pop("id", None)
 
-                data = health_weight_schema.HealthWeight(**health_weight)
+                data = health_weight_schema.HealthWeightCreate(**health_weight)
                 health_weight_crud.create_health_weight(self.user_id, data, self.db)
                 self.counts["health_weight"] += 1
             core_logger.print_to_log(
@@ -1093,7 +1086,7 @@ class ImportService:
                 else:
                     target_data.pop("id", None)
 
-                target = health_targets_schema.HealthTargets(**target_data)
+                target = health_targets_schema.HealthTargetsUpdate(**target_data)
                 health_targets_crud.edit_health_target(target, self.user_id, self.db)
                 self.counts["health_targets"] += 1
             core_logger.print_to_log(

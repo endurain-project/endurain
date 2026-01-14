@@ -176,8 +176,7 @@ def create_user_goal(
 
 def update_user_goal(
     user_id: int,
-    goal_id: int,
-    user_goal: user_goals_schema.UserGoalEdit,
+    user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
 ) -> user_goals_models.UserGoal:
     """
@@ -185,7 +184,6 @@ def update_user_goal(
 
     Args:
         user_id: ID of the user.
-        goal_id: ID of the goal to update.
         user_goal: Schema with fields to update.
         db: SQLAlchemy database session.
 
@@ -197,7 +195,13 @@ def update_user_goal(
             error occurs (500).
     """
     try:
-        db_user_goal = get_user_goal_by_user_and_goal_id(user_id, goal_id, db)
+        if user_goal.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot edit user goal for another user",
+            )
+
+        db_user_goal = get_user_goal_by_user_and_goal_id(user_id, user_goal.id, db)
 
         if not db_user_goal:
             raise HTTPException(
@@ -205,14 +209,10 @@ def update_user_goal(
                 detail="User goal not found",
             )
 
-        if user_id != db_user_goal.user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot edit user goal for another user",
-            )
-
         # Update only provided fields
-        update_data = user_goal.model_dump(exclude_unset=True)
+        update_data = user_goal.model_dump(
+            exclude_unset=True, exclude={"user_id", "id"}
+        )
         for field, value in update_data.items():
             setattr(db_user_goal, field, value)
 

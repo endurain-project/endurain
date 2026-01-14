@@ -45,6 +45,7 @@ class TestReadServerSettings:
         mock_settings.password_type = "strict"
         mock_settings.password_length_regular_users = 8
         mock_settings.password_length_admin_users = 12
+        mock_settings.tileserver_api_key = None
 
         mock_get_settings.return_value = mock_settings
 
@@ -158,6 +159,7 @@ class TestEditServerSettings:
         mock_updated_settings.password_type = "length_only"
         mock_updated_settings.password_length_regular_users = 10
         mock_updated_settings.password_length_admin_users = 15
+        mock_updated_settings.tileserver_api_key = None
 
         mock_edit_settings.return_value = mock_updated_settings
 

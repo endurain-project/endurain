@@ -31,8 +31,8 @@ export const userGoals = {
   createGoal(data) {
     return fetchPostRequest('profile/goals', data)
   },
-  editGoal(goal_id, data) {
-    return fetchPutRequest(`profile/goals/${goal_id}`, data)
+  editGoal(data) {
+    return fetchPutRequest('profile/goals', data)
   },
   deleteGoal(goal_id) {
     return fetchDeleteRequest(`profile/goals/${goal_id}`)
