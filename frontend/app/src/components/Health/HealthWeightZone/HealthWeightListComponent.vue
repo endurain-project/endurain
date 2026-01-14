@@ -18,7 +18,7 @@
         </div>
       </div>
       <div>
-        <!-- button toggle sleep details -->
+        <!-- button toggle weight details -->
         <a
           class="btn btn-link btn-lg link-body-emphasis"
           data-bs-toggle="collapse"

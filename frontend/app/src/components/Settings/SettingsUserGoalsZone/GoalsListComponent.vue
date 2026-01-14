@@ -90,7 +90,7 @@
           >
         </div>
       </div>
-      <div>
+      <div class="d-flex">
         <!-- edit goal button -->
         <a
           class="btn btn-link btn-lg link-body-emphasis"
