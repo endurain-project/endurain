@@ -100,7 +100,9 @@ class UserGoalBase(BaseModel):
     activity_type: ActivityType = Field(
         ..., description="Type of activity for the goal"
     )
-    goal_type: GoalType = Field(..., description="Type of goal metric being tracked")
+    goal_type: GoalType = Field(
+        ..., description="Type of goal metric being tracked"
+    )
     goal_calories: StrictInt | None = Field(
         None, ge=0, description="Target calories in kcal"
     )
