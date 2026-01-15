@@ -7,6 +7,9 @@ import users.user.schema as users_schema
 import users.user.crud as users_crud
 import users.user.dependencies as users_dependencies
 import users.user.utils as users_utils
+import users.user.models as users_models
+
+import users.user_identity_providers.crud as user_idp_crud
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 import auth.security as auth_security
@@ -41,14 +44,26 @@ async def read_users_all_pagination(
     # Get the users from the database with pagination
 
     total = users_crud.get_users_number(db)
-    records = users_crud.get_users_with_pagination(db, page_number, num_records)
+    users = users_crud.get_users_with_pagination(db, page_number, num_records)
 
-    # Pydantic will convert ORM models to UserRead via from_attributes=True
+    # Enrich with IDP count before serializing
+    enriched_users = []
+    for user in users:
+        idp_count = len(
+            user_idp_crud.get_user_identity_providers_by_user_id(user.id, db)
+        )
+        enriched_users.append(
+            users_schema.UserRead(
+                **users_models.User.model_validate(user).model_dump(),
+                external_auth_count=idp_count,
+            )
+        )
+
     return users_schema.UserListResponse(
         total=total,
         num_records=num_records,
         page_number=page_number,
-        records=records,  # type: ignore[arg-type]
+        records=enriched_users,
     )
 
 
@@ -67,7 +82,7 @@ async def read_users_contain_username(
     ],
 ):
     # Get the users from the database by username
-    return users_crud.get_user_if_contains_username(username=username, db=db)
+    return users_crud.get_user_by_username(username=username, db=db, contains=True)
 
 
 @router.get(
@@ -252,7 +267,7 @@ async def delete_user_photo(
     ],
 ):
     # Update the user photo_path in the database
-    users_crud.delete_user_photo(user_id, db)
+    users_crud.update_user_photo(user_id, db)
 
     # Return success message
     return {"detail": f"User ID {user_id} photo deleted successfully"}

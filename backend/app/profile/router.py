@@ -412,7 +412,7 @@ async def delete_profile_photo(
         Success message.
     """
     # Update the user photo_path in the database
-    users_crud.delete_user_photo(token_user_id, db)
+    users_crud.update_user_photo(token_user_id, db)
 
     # Return success message
     return f"User ID {token_user_id} photo deleted successfully"

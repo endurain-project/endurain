@@ -1,16 +1,15 @@
 """CRUD operations for user identity providers."""
 
 from datetime import datetime, timezone
-from fastapi import HTTPException, status
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func
 
-import core.logger as core_logger
+import core.decorators as core_decorators
 import users.user_identity_providers.models as user_idp_models
 
 
+@core_decorators.handle_db_errors
 def check_user_identity_providers_by_idp_id(
     idp_id: int,
     db: Session,
@@ -28,23 +27,11 @@ def check_user_identity_providers_by_idp_id(
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    try:
-        stmt = select(
-            exists().where(user_idp_models.UserIdentityProvider.idp_id == idp_id)
-        )
-        return db.execute(stmt).scalar() or False
-    except SQLAlchemyError as db_err:
-        core_logger.print_to_log(
-            f"Database error checking IdP links: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    stmt = select(exists().where(user_idp_models.UserIdentityProvider.idp_id == idp_id))
+    return db.execute(stmt).scalar() or False
 
 
+@core_decorators.handle_db_errors
 def get_user_identity_providers_by_user_id(
     user_id: int,
     db: Session,
@@ -62,23 +49,13 @@ def get_user_identity_providers_by_user_id(
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    try:
-        stmt = select(user_idp_models.UserIdentityProvider).where(
-            user_idp_models.UserIdentityProvider.user_id == user_id
-        )
-        return list(db.execute(stmt).scalars().all())
-    except SQLAlchemyError as db_err:
-        core_logger.print_to_log(
-            f"Database error fetching user IdP links: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    stmt = select(user_idp_models.UserIdentityProvider).where(
+        user_idp_models.UserIdentityProvider.user_id == user_id
+    )
+    return list(db.execute(stmt).scalars().all())
 
 
+@core_decorators.handle_db_errors
 def get_user_identity_provider_by_user_id_and_idp_id(
     user_id: int,
     idp_id: int,
@@ -98,24 +75,14 @@ def get_user_identity_provider_by_user_id_and_idp_id(
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    try:
-        stmt = select(user_idp_models.UserIdentityProvider).where(
-            user_idp_models.UserIdentityProvider.user_id == user_id,
-            user_idp_models.UserIdentityProvider.idp_id == idp_id,
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        core_logger.print_to_log(
-            f"Database error fetching IdP link: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    stmt = select(user_idp_models.UserIdentityProvider).where(
+        user_idp_models.UserIdentityProvider.user_id == user_id,
+        user_idp_models.UserIdentityProvider.idp_id == idp_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def get_user_identity_provider_by_subject_and_idp_id(
     idp_id: int,
     idp_subject: str,
@@ -136,24 +103,14 @@ def get_user_identity_provider_by_subject_and_idp_id(
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    try:
-        stmt = select(user_idp_models.UserIdentityProvider).where(
-            user_idp_models.UserIdentityProvider.idp_id == idp_id,
-            user_idp_models.UserIdentityProvider.idp_subject == idp_subject,
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        core_logger.print_to_log(
-            f"Database error fetching IdP link by subject: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    stmt = select(user_idp_models.UserIdentityProvider).where(
+        user_idp_models.UserIdentityProvider.idp_id == idp_id,
+        user_idp_models.UserIdentityProvider.idp_subject == idp_subject,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def create_user_identity_provider(
     user_id: int,
     idp_id: int,
@@ -176,30 +133,19 @@ def create_user_identity_provider(
         HTTPException: 409 error if link already exists.
         HTTPException: 500 error if database operation fails.
     """
-    try:
-        db_link = user_idp_models.UserIdentityProvider(
-            user_id=user_id,
-            idp_id=idp_id,
-            idp_subject=idp_subject,
-            last_login=func.now(),
-        )
-        db.add(db_link)
-        db.commit()
-        db.refresh(db_link)
-        return db_link
-    except SQLAlchemyError as db_err:
-        db.rollback()
-        core_logger.print_to_log(
-            f"Database error creating IdP link: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    db_link = user_idp_models.UserIdentityProvider(
+        user_id=user_id,
+        idp_id=idp_id,
+        idp_subject=idp_subject,
+        last_login=func.now(),
+    )
+    db.add(db_link)
+    db.commit()
+    db.refresh(db_link)
+    return db_link
 
 
+@core_decorators.handle_db_errors
 def update_user_identity_provider_last_login(
     user_id: int,
     idp_id: int,
@@ -226,29 +172,13 @@ def update_user_identity_provider_last_login(
         db,
     )
     if db_link:
-        try:
-            db_link.last_login = datetime.now(timezone.utc)
-            db.commit()
-            db.refresh(db_link)
-        except SQLAlchemyError as db_err:
-            db.rollback()
-            core_logger.print_to_log(
-                f"Database error updating last login: {db_err}",
-                "error",
-                exc=db_err,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database error occurred",
-            ) from db_err
-    else:
-        core_logger.print_to_log(
-            f"IdP link not found for user {user_id}, idp {idp_id}",
-            "warning",
-        )
+        db_link.last_login = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(db_link)
     return db_link
 
 
+@core_decorators.handle_db_errors
 def store_user_identity_provider_tokens(
     user_id: int,
     idp_id: int,
@@ -281,32 +211,15 @@ def store_user_identity_provider_tokens(
         db,
     )
     if db_link:
-        try:
-            db_link.idp_refresh_token = encrypted_refresh_token
-            db_link.idp_access_token_expires_at = access_token_expires_at
-            db_link.idp_refresh_token_updated_at = datetime.now(timezone.utc)
-            db.commit()
-            db.refresh(db_link)
-        except SQLAlchemyError as db_err:
-            db.rollback()
-            core_logger.print_to_log(
-                f"Database error storing IdP tokens: {db_err}",
-                "error",
-                exc=db_err,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database error occurred",
-            ) from db_err
-    else:
-        core_logger.print_to_log(
-            f"IdP link not found for user {user_id}, "
-            f"idp {idp_id} when storing tokens",
-            "warning",
-        )
+        db_link.idp_refresh_token = encrypted_refresh_token
+        db_link.idp_access_token_expires_at = access_token_expires_at
+        db_link.idp_refresh_token_updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(db_link)
     return db_link
 
 
+@core_decorators.handle_db_errors
 def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
     user_id: int,
     idp_id: int,
@@ -335,32 +248,15 @@ def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
         db,
     )
     if db_link:
-        try:
-            db_link.idp_refresh_token = None
-            db_link.idp_access_token_expires_at = None
-            db_link.idp_refresh_token_updated_at = None
-            db.commit()
-            return True
-        except SQLAlchemyError as db_err:
-            db.rollback()
-            core_logger.print_to_log(
-                f"Database error clearing IdP tokens: {db_err}",
-                "error",
-                exc=db_err,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database error occurred",
-            ) from db_err
-    else:
-        core_logger.print_to_log(
-            f"IdP link not found for user {user_id}, "
-            f"idp {idp_id} when clearing tokens",
-            "warning",
-        )
+        db_link.idp_refresh_token = None
+        db_link.idp_access_token_expires_at = None
+        db_link.idp_refresh_token_updated_at = None
+        db.commit()
+        return True
     return False
 
 
+@core_decorators.handle_db_errors
 def delete_user_identity_provider(
     user_id: int,
     idp_id: int,
@@ -389,31 +285,14 @@ def delete_user_identity_provider(
         db,
     )
     if db_link:
-        try:
-            # Clear sensitive data first (defense in depth)
-            db_link.idp_refresh_token = None
-            db_link.idp_access_token_expires_at = None
-            db_link.idp_refresh_token_updated_at = None
-            db.commit()
+        # Clear sensitive data first (defense in depth)
+        db_link.idp_refresh_token = None
+        db_link.idp_access_token_expires_at = None
+        db_link.idp_refresh_token_updated_at = None
+        db.commit()
 
-            # Then delete the link
-            db.delete(db_link)
-            db.commit()
-            return True
-        except SQLAlchemyError as db_err:
-            db.rollback()
-            core_logger.print_to_log(
-                f"Database error deleting IdP link: {db_err}",
-                "error",
-                exc=db_err,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database error occurred",
-            ) from db_err
-    else:
-        core_logger.print_to_log(
-            f"IdP link not found for user {user_id}, idp {idp_id} when deleting",
-            "warning",
-        )
+        # Then delete the link
+        db.delete(db_link)
+        db.commit()
+        return True
     return False

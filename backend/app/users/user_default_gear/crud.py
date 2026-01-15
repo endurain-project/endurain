@@ -3,14 +3,15 @@
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 import users.user_default_gear.models as user_default_gear_models
 import users.user_default_gear.schema as user_default_gear_schema
 
-import core.logger as core_logger
+import core.decorators as core_decorators
 
 
+@core_decorators.handle_db_errors
 def get_user_default_gear_by_user_id(
     user_id: int,
     db: Session,
@@ -29,25 +30,13 @@ def get_user_default_gear_by_user_id(
         HTTPException: 404 error if settings not found.
         HTTPException: 500 error if database query fails.
     """
-    try:
-        stmt = select(user_default_gear_models.UsersDefaultGear).where(
-            user_default_gear_models.UsersDefaultGear.user_id == user_id
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except HTTPException:
-        raise
-    except SQLAlchemyError as db_err:
-        core_logger.print_to_log(
-            f"Database error in get_user_default_gear_by_user_id: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    stmt = select(user_default_gear_models.UsersDefaultGear).where(
+        user_default_gear_models.UsersDefaultGear.user_id == user_id
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def create_user_default_gear(
     user_id: int,
     db: Session,
@@ -83,21 +72,9 @@ def create_user_default_gear(
             status_code=status.HTTP_409_CONFLICT,
             detail=("Default gear settings already exist for this user"),
         ) from integrity_error
-    except SQLAlchemyError as db_err:
-        db.rollback()
-
-        core_logger.print_to_log(
-            f"Database error in create_user_default_gear: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
 
 
+@core_decorators.handle_db_errors
 def edit_user_default_gear(
     user_default_gear: user_default_gear_schema.UserDefaultGearUpdate,
     user_id: int,
@@ -118,43 +95,27 @@ def edit_user_default_gear(
         HTTPException: 404 error if settings not found.
         HTTPException: 500 error if database operation fails.
     """
-    try:
-        if user_default_gear.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot edit default gear for another user.",
-            )
-
-        db_user_default_gear = get_user_default_gear_by_user_id(user_id, db)
-
-        if db_user_default_gear is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User default gear not found",
-            )
-
-        user_default_gear_data = user_default_gear.model_dump(
-            exclude_unset=True, exclude={"user_id", "id"}
-        )
-        for key, value in user_default_gear_data.items():
-            setattr(db_user_default_gear, key, value)
-
-        db.commit()
-        db.refresh(db_user_default_gear)
-
-        return db_user_default_gear
-    except HTTPException:
-        raise
-    except SQLAlchemyError as db_err:
-        db.rollback()
-
-        core_logger.print_to_log(
-            f"Database error in edit_user_default_gear: {db_err}",
-            "error",
-            exc=db_err,
-        )
-
+    if user_default_gear.user_id != user_id:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot edit default gear for another user.",
+        )
+
+    db_user_default_gear = get_user_default_gear_by_user_id(user_id, db)
+
+    if db_user_default_gear is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User default gear not found",
+        )
+
+    user_default_gear_data = user_default_gear.model_dump(
+        exclude_unset=True, exclude={"user_id", "id"}
+    )
+    for key, value in user_default_gear_data.items():
+        setattr(db_user_default_gear, key, value)
+
+    db.commit()
+    db.refresh(db_user_default_gear)
+
+    return db_user_default_gear

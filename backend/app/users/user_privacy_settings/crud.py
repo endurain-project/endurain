@@ -3,14 +3,15 @@
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 import users.user_privacy_settings.schema as users_privacy_settings_schema
 import users.user_privacy_settings.models as users_privacy_settings_models
 
-import core.logger as core_logger
+import core.decorators as core_decorators
 
 
+@core_decorators.handle_db_errors
 def get_user_privacy_settings_by_user_id(
     user_id: int, db: Session
 ) -> users_privacy_settings_models.UsersPrivacySettings | None:
@@ -27,26 +28,14 @@ def get_user_privacy_settings_by_user_id(
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    try:
-        # Get the user privacy settings by the user id
-        stmt = select(users_privacy_settings_models.UsersPrivacySettings).where(
-            users_privacy_settings_models.UsersPrivacySettings.user_id == user_id
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in " f"get_user_privacy_settings_by_user_id: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the user privacy settings by the user id
+    stmt = select(users_privacy_settings_models.UsersPrivacySettings).where(
+        users_privacy_settings_models.UsersPrivacySettings.user_id == user_id
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def create_user_privacy_settings(
     user_id: int, db: Session
 ) -> users_privacy_settings_models.UsersPrivacySettings:
@@ -86,24 +75,9 @@ def create_user_privacy_settings(
             status_code=status.HTTP_409_CONFLICT,
             detail="Privacy settings already exist for this user",
         ) from integrity_error
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in create_user_privacy_settings: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
 
 
+@core_decorators.handle_db_errors
 def edit_user_privacy_settings(
     user_id: int,
     user_privacy_settings_data: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
@@ -124,45 +98,26 @@ def edit_user_privacy_settings(
         HTTPException: 404 error if settings not found.
         HTTPException: 500 error if database operation fails.
     """
-    try:
-        # Get the user privacy settings by the user id
-        db_user_privacy_settings = get_user_privacy_settings_by_user_id(user_id, db)
+    # Get the user privacy settings by the user id
+    db_user_privacy_settings = get_user_privacy_settings_by_user_id(user_id, db)
 
-        if db_user_privacy_settings is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User privacy settings not found",
-            )
-
-        # Dictionary of the fields to update if they are not None
-        privacy_settings_dict = user_privacy_settings_data.model_dump(
-            exclude_unset=True, exclude={"user_id", "id"}
-        )
-        # Iterate over the fields and update dynamically
-        for key, value in privacy_settings_dict.items():
-            setattr(db_user_privacy_settings, key, value)
-
-        # Commit the transaction
-        db.commit()
-        db.refresh(db_user_privacy_settings)
-
-        # Return the updated user privacy settings
-        return db_user_privacy_settings
-    except HTTPException as http_err:
-        raise http_err
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in edit_user_privacy_settings: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        # Raise an HTTPException with a 500 status code
+    if db_user_privacy_settings is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User privacy settings not found",
+        )
+
+    # Dictionary of the fields to update if they are not None
+    privacy_settings_dict = user_privacy_settings_data.model_dump(
+        exclude_unset=True, exclude={"user_id", "id"}
+    )
+    # Iterate over the fields and update dynamically
+    for key, value in privacy_settings_dict.items():
+        setattr(db_user_privacy_settings, key, value)
+
+    # Commit the transaction
+    db.commit()
+    db.refresh(db_user_privacy_settings)
+
+    # Return the updated user privacy settings
+    return db_user_privacy_settings

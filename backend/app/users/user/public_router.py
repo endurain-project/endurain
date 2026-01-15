@@ -23,4 +23,4 @@ async def read_users_id(
     ],
 ):
     # Get the users from the database by id
-    return users_crud.get_user_by_id_if_is_public(user_id, db)
+    return users_crud.get_user_by_id(user_id, db, public_check=True)

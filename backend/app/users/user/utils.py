@@ -10,6 +10,7 @@ import auth.password_hasher as auth_password_hasher
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
+import users.user.models as users_models
 
 import users.user_integrations.crud as user_integrations_crud
 import users.user_default_gear.crud as user_default_gear_crud
@@ -20,6 +21,33 @@ import server_settings.schema as server_settings_schema
 
 import core.logger as core_logger
 import core.config as core_config
+
+
+def get_user_by_id_or_404(user_id: int, db: Session) -> users_models.User:
+    """
+    Retrieve user by ID or raise 404 error.
+
+    Args:
+        user_id: User ID to search for.
+        db: SQLAlchemy database session.
+
+    Returns:
+        User model (guaranteed non-None).
+
+    Raises:
+        HTTPException: 404 if user not found.
+    """
+    # Get the user from the database
+    db_user = users_crud.get_user_by_id(user_id, db)
+
+    if db_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return db_user
 
 
 def create_user_default_data(user_id: int, db: Session) -> None:
@@ -189,7 +217,7 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
         with open(file_path_to_save, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        return users_crud.edit_user_photo_path(user_id, url_path_to_save, db)
+        return users_crud.update_user_photo(user_id, db, url_path_to_save)
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in save_user_image: {err}", "error", exc=err)

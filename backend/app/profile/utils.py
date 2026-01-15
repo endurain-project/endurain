@@ -243,7 +243,7 @@ def enable_user_mfa(
         )
 
     # Update user with MFA enabled and secret
-    users_crud.enable_user_mfa(user_id, encrypted_secret, db)
+    users_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
 
     backup_codes = mfa_backup_codes_crud.create_backup_codes(
         user_id, password_hasher, db
@@ -294,7 +294,7 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session) -> None:
         )
 
     # Disable MFA for user
-    users_crud.disable_user_mfa(user_id, db)
+    users_crud.update_user_mfa(user_id, db)
 
     # Delete all backup codes for user
     mfa_backup_codes_crud.delete_user_backup_codes(user_id, db)

@@ -3,15 +3,16 @@ from typing import cast
 from fastapi import HTTPException, status
 from sqlalchemy import func, desc, select
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 import health.health_weight.schema as health_weight_schema
 import health.health_weight.models as health_weight_models
 import health.health_weight.utils as health_weight_utils
 
-import core.logger as core_logger
+import core.decorators as core_decorators
 
 
+@core_decorators.handle_db_errors
 def get_all_health_weight(
     db: Session,
 ) -> list[health_weight_models.HealthWeight]:
@@ -27,26 +28,14 @@ def get_all_health_weight(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_weight from the database
-        stmt = select(health_weight_models.HealthWeight).order_by(
-            desc(health_weight_models.HealthWeight.date)
-        )
-        return db.execute(stmt).scalars().all()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_all_health_weight: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_weight from the database
+    stmt = select(health_weight_models.HealthWeight).order_by(
+        desc(health_weight_models.HealthWeight.date)
+    )
+    return db.execute(stmt).scalars().all()
 
 
+@core_decorators.handle_db_errors
 def get_health_weight_number(user_id: int, db: Session) -> int:
     """
     Retrieve total count of health weight records for a user.
@@ -61,29 +50,16 @@ def get_health_weight_number(user_id: int, db: Session) -> int:
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the number of health_weight from the database
-        stmt = (
-            select(func.count())
-            .select_from(health_weight_models.HealthWeight)
-            .where(health_weight_models.HealthWeight.user_id == user_id)
-        )
-        result = db.execute(stmt).scalar()
-        return result if result is not None else 0
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_weight_number: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the number of health_weight from the database
+    stmt = (
+        select(func.count())
+        .select_from(health_weight_models.HealthWeight)
+        .where(health_weight_models.HealthWeight.user_id == user_id)
+    )
+    return db.execute(stmt).scalar_one()
 
 
+@core_decorators.handle_db_errors
 def get_all_health_weight_by_user_id(
     user_id: int, db: Session
 ) -> list[health_weight_models.HealthWeight]:
@@ -100,28 +76,16 @@ def get_all_health_weight_by_user_id(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_weight from the database
-        stmt = (
-            select(health_weight_models.HealthWeight)
-            .where(health_weight_models.HealthWeight.user_id == user_id)
-            .order_by(desc(health_weight_models.HealthWeight.date))
-        )
-        return db.execute(stmt).scalars().all()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_all_health_weight_by_user_id: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_weight from the database
+    stmt = (
+        select(health_weight_models.HealthWeight)
+        .where(health_weight_models.HealthWeight.user_id == user_id)
+        .order_by(desc(health_weight_models.HealthWeight.date))
+    )
+    return db.execute(stmt).scalars().all()
 
 
+@core_decorators.handle_db_errors
 def get_health_weight_by_id_and_user_id(
     health_weight_id: int, user_id: int, db: Session
 ) -> health_weight_models.HealthWeight | None:
@@ -139,27 +103,15 @@ def get_health_weight_by_id_and_user_id(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_weight from the database
-        stmt = select(health_weight_models.HealthWeight).where(
-            health_weight_models.HealthWeight.id == health_weight_id,
-            health_weight_models.HealthWeight.user_id == user_id,
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_weight_by_id_and_user_id: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_weight from the database
+    stmt = select(health_weight_models.HealthWeight).where(
+        health_weight_models.HealthWeight.id == health_weight_id,
+        health_weight_models.HealthWeight.user_id == user_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def get_health_weight_with_pagination(
     user_id: int,
     db: Session,
@@ -181,30 +133,18 @@ def get_health_weight_with_pagination(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_weight from the database
-        stmt = (
-            select(health_weight_models.HealthWeight)
-            .where(health_weight_models.HealthWeight.user_id == user_id)
-            .order_by(desc(health_weight_models.HealthWeight.date))
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
-        )
-        return db.execute(stmt).scalars().all()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_weight_with_pagination: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_weight from the database
+    stmt = (
+        select(health_weight_models.HealthWeight)
+        .where(health_weight_models.HealthWeight.user_id == user_id)
+        .order_by(desc(health_weight_models.HealthWeight.date))
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    return db.execute(stmt).scalars().all()
 
 
+@core_decorators.handle_db_errors
 def get_health_weight_by_date(
     user_id: int, date: str, db: Session
 ) -> health_weight_models.HealthWeight | None:
@@ -222,27 +162,15 @@ def get_health_weight_by_date(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_weight from the database
-        stmt = select(health_weight_models.HealthWeight).where(
-            health_weight_models.HealthWeight.date == func.date(date),
-            health_weight_models.HealthWeight.user_id == user_id,
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_weight_by_date: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_weight from the database
+    stmt = select(health_weight_models.HealthWeight).where(
+        health_weight_models.HealthWeight.date == func.date(date),
+        health_weight_models.HealthWeight.user_id == user_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def create_health_weight(
     user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_models.HealthWeight:
@@ -302,21 +230,9 @@ def create_health_weight(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Duplicate entry error. Check if there is already a entry created for {health_weight.date}",
         ) from integrity_error
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in create_health_weight: {db_err}", "error", exc=db_err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
 
 
+@core_decorators.handle_db_errors
 def edit_health_weight(
     user_id: int,
     health_weight: health_weight_schema.HealthWeightUpdate,
@@ -336,64 +252,46 @@ def edit_health_weight(
     Raises:
         HTTPException: If record not found or database error.
     """
-    try:
-        # Ensure the health_weight belongs to the user
-        if health_weight.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot edit health weight for another user.",
-            )
-
-        # Get the health_weight from the database
-        db_health_weight = get_health_weight_by_id_and_user_id(
-            health_weight.id, user_id, db
-        )
-
-        if db_health_weight is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Health weight not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # Check if bmi is None
-        if health_weight.bmi is None and health_weight.weight is not None:
-            health_weight = cast(
-                health_weight_schema.HealthWeightUpdate,
-                health_weight_utils.calculate_bmi(health_weight, user_id, db),
-            )
-
-        # Dictionary of fields to update if they are not None
-        health_weight_data = health_weight.model_dump(exclude_unset=True)
-        # Iterate over the fields and update dynamically
-        for key, value in health_weight_data.items():
-            setattr(db_health_weight, key, value)
-
-        # Commit the transaction and refresh
-        db.commit()
-        db.refresh(db_health_weight)
-
-        return db_health_weight
-    except HTTPException as http_err:
-        raise http_err
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in edit_health_weight: {db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        # Raise an HTTPException with a 500 status code
+    # Ensure the health_weight belongs to the user
+    if health_weight.user_id != user_id:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot edit health weight for another user.",
+        )
+
+    # Get the health_weight from the database
+    db_health_weight = get_health_weight_by_id_and_user_id(
+        health_weight.id, user_id, db
+    )
+
+    if db_health_weight is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Health weight not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check if bmi is None
+    if health_weight.bmi is None and health_weight.weight is not None:
+        health_weight = cast(
+            health_weight_schema.HealthWeightUpdate,
+            health_weight_utils.calculate_bmi(health_weight, user_id, db),
+        )
+
+    # Dictionary of fields to update if they are not None
+    health_weight_data = health_weight.model_dump(exclude_unset=True)
+    # Iterate over the fields and update dynamically
+    for key, value in health_weight_data.items():
+        setattr(db_health_weight, key, value)
+
+    # Commit the transaction and refresh
+    db.commit()
+    db.refresh(db_health_weight)
+
+    return db_health_weight
 
 
+@core_decorators.handle_db_errors
 def delete_health_weight(user_id: int, health_weight_id: int, db: Session) -> None:
     """
     Delete a health weight record for a user.
@@ -409,40 +307,21 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session) -> No
     Raises:
         HTTPException: If record not found or database error.
     """
-    try:
-        # Get and delete the health_weight
-        db_health_weight = get_health_weight_by_id_and_user_id(
-            health_weight_id, user_id, db
-        )
+    # Get and delete the health_weight
+    db_health_weight = get_health_weight_by_id_and_user_id(
+        health_weight_id, user_id, db
+    )
 
-        # Check if the health_weight was found
-        if db_health_weight is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=(
-                    f"Health weight with id {health_weight_id} "
-                    f"for user {user_id} not found"
-                ),
-            )
-
-        # Delete the record
-        db.delete(db_health_weight)
-        db.commit()
-    except HTTPException as http_err:
-        raise http_err
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in delete_health_weight: {db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        # Raise an HTTPException with a 500 status code
+    # Check if the health_weight was found
+    if db_health_weight is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"Health weight with id {health_weight_id} "
+                f"for user {user_id} not found"
+            ),
+        )
+
+    # Delete the record
+    db.delete(db_health_weight)
+    db.commit()

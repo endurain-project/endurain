@@ -43,7 +43,7 @@ def authenticate_user(
         HTTPException: If the username does not exist or the password is invalid.
     """
     # Get the user from the database
-    user = users_crud.authenticate_user(username, db)
+    user = users_crud.get_user_by_username(username, db)
 
     # Check if the user exists and if the password is correct
     if not user:
