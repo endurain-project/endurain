@@ -15,7 +15,7 @@ import server_settings.models as server_settings_models
 
 
 class TestGetServerSettings:
-    """Test suite for get_server_settings utility function."""
+    """Test suite for get_server_settings_or_404 utility function."""
 
     @patch("server_settings.utils.server_settings_crud.get_server_settings")
     def test_get_server_settings_success(self, mock_crud_get_settings, mock_db):
@@ -27,7 +27,7 @@ class TestGetServerSettings:
         mock_crud_get_settings.return_value = mock_settings
 
         # Act
-        result = server_settings_utils.get_server_settings(mock_db)
+        result = server_settings_utils.get_server_settings_or_404(mock_db)
 
         # Assert
         assert result == mock_settings
@@ -41,7 +41,7 @@ class TestGetServerSettings:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            server_settings_utils.get_server_settings(mock_db)
+            server_settings_utils.get_server_settings_or_404(mock_db)
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert exc_info.value.detail == "Server settings not found"
@@ -287,7 +287,7 @@ class TestExtractDomainFromTileUrl:
 class TestGetAllowedTileDomains:
     """Test suite for get_allowed_tile_domains function."""
 
-    @patch("server_settings.utils.get_server_settings")
+    @patch("server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_with_custom_domain(
         self, mock_get_settings, mock_db
     ):
@@ -306,7 +306,7 @@ class TestGetAllowedTileDomains:
         assert "https://*.tiles.com" in result
         assert len(result) == 3
 
-    @patch("server_settings.utils.get_server_settings")
+    @patch("server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_with_builtin_domain(
         self, mock_get_settings, mock_db
     ):
@@ -328,7 +328,7 @@ class TestGetAllowedTileDomains:
         assert result.count("https://*.stadiamaps.com") == 1
         assert len(result) == 2
 
-    @patch("server_settings.utils.get_server_settings")
+    @patch("server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_with_localhost(self, mock_get_settings, mock_db):
         """Test that localhost URLs are added correctly."""
         # Arrange
@@ -345,7 +345,7 @@ class TestGetAllowedTileDomains:
         assert "http://localhost:8080" in result
         assert len(result) == 3
 
-    @patch("server_settings.utils.get_server_settings")
+    @patch("server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_no_custom_domain(
         self, mock_get_settings, mock_db
     ):
@@ -363,7 +363,7 @@ class TestGetAllowedTileDomains:
         assert "https://*.stadiamaps.com" in result
         assert len(result) == 2
 
-    @patch("server_settings.utils.get_server_settings")
+    @patch("server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_invalid_url(self, mock_get_settings, mock_db):
         """Test that invalid custom URLs are ignored."""
         # Arrange
@@ -379,7 +379,7 @@ class TestGetAllowedTileDomains:
         assert "https://*.stadiamaps.com" in result
         assert len(result) == 2
 
-    @patch("server_settings.utils.get_server_settings")
+    @patch("server_settings.utils.get_server_settings_or_404")
     def test_get_allowed_tile_domains_db_error(self, mock_get_settings, mock_db):
         """Test that DB errors are handled gracefully."""
         # Arrange

@@ -66,6 +66,7 @@ def create_user_default_gear(
 
         return db_default_gear
     except IntegrityError as integrity_error:
+        # Rollback the transaction
         db.rollback()
 
         raise HTTPException(

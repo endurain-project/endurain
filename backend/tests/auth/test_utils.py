@@ -29,7 +29,9 @@ class TestAuthenticateUser:
         mock_user.username = username
 
         # Mock the CRUD function to return our user
-        with patch("auth.utils.users_crud.authenticate_user", return_value=mock_user):
+        with patch(
+            "auth.utils.users_crud.get_user_by_username", return_value=mock_user
+        ):
             # Act
             result = auth_utils.authenticate_user(
                 username, password, password_hasher, mock_db
@@ -40,7 +42,7 @@ class TestAuthenticateUser:
 
     def test_authenticate_user_invalid_username(self, password_hasher, mock_db):
         """Test authentication with invalid username raises 401."""
-        with patch("auth.utils.users_crud.authenticate_user", return_value=None):
+        with patch("auth.utils.users_crud.get_user_by_username", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user(
                     "nonexistent", "password", password_hasher, mock_db
@@ -59,7 +61,9 @@ class TestAuthenticateUser:
         mock_user = MagicMock()
         mock_user.password = hashed_password
 
-        with patch("auth.utils.users_crud.authenticate_user", return_value=mock_user):
+        with patch(
+            "auth.utils.users_crud.get_user_by_username", return_value=mock_user
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user(
                     username, wrong_password, password_hasher, mock_db
@@ -86,7 +90,9 @@ class TestAuthenticateUser:
         mock_user.password = old_hash
         mock_user.username = username
 
-        with patch("auth.utils.users_crud.authenticate_user", return_value=mock_user):
+        with patch(
+            "auth.utils.users_crud.get_user_by_username", return_value=mock_user
+        ):
             with patch("auth.utils.users_crud.edit_user_password") as mock_edit:
                 # Act
                 result = auth_utils.authenticate_user(

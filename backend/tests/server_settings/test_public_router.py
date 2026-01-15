@@ -16,7 +16,9 @@ import server_settings.models as server_settings_models
 class TestReadPublicServerSettings:
     """Test suite for read_public_server_settings endpoint."""
 
-    @patch("server_settings.public_router.server_settings_utils.get_server_settings")
+    @patch(
+        "server_settings.public_router.server_settings_utils.get_server_settings_or_404"
+    )
     def test_read_public_server_settings_success(
         self, mock_get_settings, fast_api_client_public, fast_api_app
     ):
@@ -57,7 +59,9 @@ class TestReadPublicServerSettings:
         assert "signup_require_admin_approval" not in data
         assert "signup_require_email_verification" not in data
 
-    @patch("server_settings.public_router.server_settings_utils.get_server_settings")
+    @patch(
+        "server_settings.public_router.server_settings_utils.get_server_settings_or_404"
+    )
     def test_read_public_server_settings_not_found(
         self, mock_get_settings, fast_api_client_public, fast_api_app
     ):

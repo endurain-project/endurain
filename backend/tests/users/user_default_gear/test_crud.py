@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
 
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_default_gear.schema as user_default_gear_schema
@@ -17,7 +18,7 @@ import users.user_default_gear.models as user_default_gear_models
 @pytest.fixture
 def mock_db():
     """Create a mock database session."""
-    return MagicMock()
+    return MagicMock(spec=Session)
 
 
 class TestGetUserDefaultGearByUserId:
@@ -106,13 +107,21 @@ class TestCreateUserDefaultGear:
         """Test database error handling during creation."""
         # Arrange
         user_id = 1
+        mock_db_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
+        mock_db_gear.user_id = user_id
         mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            user_default_gear_crud.create_user_default_gear(user_id, mock_db)
+        with patch.object(
+            user_default_gear_models,
+            "UsersDefaultGear",
+            return_value=mock_db_gear,
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                user_default_gear_crud.create_user_default_gear(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        # Decorator should call rollback when catching SQLAlchemyError
         mock_db.rollback.assert_called_once()
 
 

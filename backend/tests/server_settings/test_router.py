@@ -17,7 +17,7 @@ import server_settings.models as server_settings_models
 class TestReadServerSettings:
     """Test suite for read_server_settings endpoint."""
 
-    @patch("server_settings.router.server_settings_utils.get_server_settings")
+    @patch("server_settings.router.server_settings_utils.get_server_settings_or_404")
     def test_read_server_settings_success(
         self, mock_get_settings, fast_api_client, fast_api_app
     ):
@@ -62,7 +62,7 @@ class TestReadServerSettings:
         assert data["units"] == 1
         assert data["public_shareable_links"] is False
 
-    @patch("server_settings.router.server_settings_utils.get_server_settings")
+    @patch("server_settings.router.server_settings_utils.get_server_settings_or_404")
     def test_read_server_settings_not_found(
         self, mock_get_settings, fast_api_client, fast_api_app
     ):

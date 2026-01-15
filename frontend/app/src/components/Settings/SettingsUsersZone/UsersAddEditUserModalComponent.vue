@@ -737,7 +737,8 @@ async function submitEditUserForm() {
     if (props.action === 'profile') {
       await profile.editProfile(data)
     } else {
-      await users.editUser(data.id, data)
+      const editedUser = await users.editUser(data.id, data)
+      data.external_auth_count = editedUser.external_auth_count
     }
     if (newEditUserPhotoFile.value) {
       try {
