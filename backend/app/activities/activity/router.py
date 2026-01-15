@@ -512,7 +512,7 @@ async def read_activities_user_activities_refresh(
         Session,
         Depends(core_database.get_db),
     ],
-    websocket_manager: Annotated[
+    ws_manager: Annotated[
         websocket_manager.WebSocketManager,
         Depends(websocket_manager.get_websocket_manager),
     ],
@@ -525,7 +525,7 @@ async def read_activities_user_activities_refresh(
         start_date=datetime.now(timezone.utc) - timedelta(days=1),
         end_date=datetime.now(timezone.utc),
         user_id=token_user_id,
-        websocket_manager=websocket_manager,
+        ws_manager=ws_manager,
         db=db,
     )
 
@@ -535,7 +535,7 @@ async def read_activities_user_activities_refresh(
             start_date=datetime.now(timezone.utc) - timedelta(days=1),
             end_date=datetime.now(timezone.utc),
             user_id=token_user_id,
-            websocket_manager=websocket_manager,
+            ws_manager=ws_manager,
             db=db,
         )
     )
@@ -617,7 +617,7 @@ async def create_activity_with_uploaded_file(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
-    websocket_manager: Annotated[
+    ws_manager: Annotated[
         websocket_manager.WebSocketManager,
         Depends(websocket_manager.get_websocket_manager),
     ],
@@ -629,7 +629,7 @@ async def create_activity_with_uploaded_file(
     try:
         # Return activity/activities
         return await activities_utils.parse_and_store_activity_from_uploaded_file(
-            token_user_id, file, websocket_manager, db
+            token_user_id, file, ws_manager, db
         )
     except Exception as err:
         # Log the exception
@@ -652,7 +652,7 @@ async def create_activity_with_bulk_import(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
-    websocket_manager: Annotated[
+    ws_manager: Annotated[
         websocket_manager.WebSocketManager,
         Depends(websocket_manager.get_websocket_manager),
     ],
@@ -696,7 +696,7 @@ async def create_activity_with_bulk_import(
                 activities_utils.process_all_files_sync,
                 token_user_id,
                 files_to_process,
-                websocket_manager,
+                ws_manager,
             ),
         )
 

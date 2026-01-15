@@ -169,7 +169,7 @@ def calculate_goal_progress_by_activity_type(
             total_activities_number=total_activities_number,
             total_distance=round(total_distance),
             total_elevation=round(total_elevation),
-            total_duration=total_duration,
+            total_duration=round(total_duration),
             goal_calories=goal.goal_calories,
             goal_activities_number=goal.goal_activities_number,
             goal_distance=goal.goal_distance,

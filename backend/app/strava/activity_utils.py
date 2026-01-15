@@ -767,7 +767,7 @@ async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    ws_manager: websocket_manager.WebSocketManager = None,
+    ws_manager: websocket_manager.WebSocketManager | None = None,
     db: Session = None,
     is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:
