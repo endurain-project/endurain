@@ -68,7 +68,7 @@ custom_config.limits = custom_limits
 file_validator = FileValidator(config=custom_config)
 
 
-@router.get("", response_model=users_schema.UserMe)
+@router.get("", status_code=status.HTTP_200_OK, response_model=users_schema.UserMe)
 async def read_users_me(
     token_user_id: Annotated[
         int,
@@ -78,7 +78,7 @@ async def read_users_me(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> users_schema.UserMe:
     """
     Retrieve authenticated user profile with integrations.
 
@@ -114,9 +114,6 @@ async def read_users_me(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user.is_strava_linked = 1 if user_integrations.strava_token else 0
-    user.is_garminconnect_linked = 1 if user_integrations.garminconnect_oauth1 else 0
-
     user_privacy_settings = (
         users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user.id, db)
     )
@@ -127,13 +124,38 @@ async def read_users_me(
             detail="Could not validate credentials (user privacy settings not found)",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    else:
-        for attr in vars(user_privacy_settings):
-            if not attr.startswith("_") and attr != "id" and attr != "user_id":
-                setattr(user, attr, getattr(user_privacy_settings, attr))
 
-    # Return the user
-    return user
+    # Build UserMe schema from model using model_validate
+    user_me = users_schema.UserMe.model_validate(user)
+
+    # Update with integration and privacy settings
+    return user_me.model_copy(
+        update={
+            "is_strava_linked": (1 if user_integrations.strava_token else 0),
+            "is_garminconnect_linked": (
+                1 if user_integrations.garminconnect_oauth1 else 0
+            ),
+            "default_activity_visibility": (
+                user_privacy_settings.default_activity_visibility
+            ),
+            "hide_activity_start_time": (
+                user_privacy_settings.hide_activity_start_time
+            ),
+            "hide_activity_location": (user_privacy_settings.hide_activity_location),
+            "hide_activity_map": (user_privacy_settings.hide_activity_map),
+            "hide_activity_hr": user_privacy_settings.hide_activity_hr,
+            "hide_activity_power": (user_privacy_settings.hide_activity_power),
+            "hide_activity_cadence": (user_privacy_settings.hide_activity_cadence),
+            "hide_activity_elevation": (user_privacy_settings.hide_activity_elevation),
+            "hide_activity_speed": (user_privacy_settings.hide_activity_speed),
+            "hide_activity_pace": (user_privacy_settings.hide_activity_pace),
+            "hide_activity_laps": (user_privacy_settings.hide_activity_laps),
+            "hide_activity_workout_sets_steps": (
+                user_privacy_settings.hide_activity_workout_sets_steps
+            ),
+            "hide_activity_gear": (user_privacy_settings.hide_activity_gear),
+        }
+    )
 
 
 @router.get("/sessions")
