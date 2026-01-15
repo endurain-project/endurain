@@ -906,7 +906,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 def get_activity_by_id_if_is_public(activity_id: int, db: Session):
     try:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links:

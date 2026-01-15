@@ -99,7 +99,7 @@ async def signup(
         callers and tests should account for these side effects (e.g., by using transactions, fakes, or mocks).
     """
     # Get server settings to check if signup is enabled
-    server_settings = server_settings_utils.get_server_settings(db)
+    server_settings = server_settings_utils.get_server_settings_or_404(db)
 
     # Check if signup is enabled
     if not server_settings.signup_enabled:
@@ -165,7 +165,7 @@ async def verify_email(
     ],
 ):
     # Get server settings
-    server_settings = server_settings_utils.get_server_settings(db)
+    server_settings = server_settings_utils.get_server_settings_or_404(db)
     if not server_settings.signup_require_email_verification:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,

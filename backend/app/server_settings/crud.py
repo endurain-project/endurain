@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 import server_settings.schema as server_settings_schema
 import server_settings.models as server_settings_models
+import server_settings.utils as server_settings_utils
 
 import core.cryptography as core_cryptography
 import core.decorators as core_decorators
@@ -48,13 +49,7 @@ def edit_server_settings(
         HTTPException: If settings not found or database error.
     """
     # Get the server_settings from the database
-    db_server_settings = get_server_settings(db)
-
-    if db_server_settings is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server settings not found",
-        ) from None
+    db_server_settings = server_settings_utils.get_server_settings_or_404(db)
 
     if server_settings.tileserver_api_key is not None:
         # Encrypt the tile server API key before storing
@@ -75,3 +70,16 @@ def edit_server_settings(
     db.refresh(db_server_settings)
 
     return db_server_settings
+
+
+@core_decorators.handle_db_errors
+def update_server_settings_login_photo_set(is_set: bool, db: Session) -> None:
+    # Get the server_settings from the database
+    db_server_settings = server_settings_utils.get_server_settings_or_404(db)
+
+    db_server_settings.login_photo_set = is_set
+
+    # Commit the transaction
+    db.commit()
+    # Refresh the object to ensure it reflects database state
+    db.refresh(db_server_settings)

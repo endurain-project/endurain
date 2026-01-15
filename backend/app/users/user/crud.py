@@ -171,7 +171,7 @@ def get_user_by_id(
     """
     if public_check:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Return None if public sharable links are disabled
         if (
@@ -228,7 +228,7 @@ def create_user(
         user.email = user.email.lower()
 
         # Get server settings to determine password policy
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Hash the password with configurable policy and length
         hashed_password = users_utils.check_password_and_hash(
@@ -354,7 +354,9 @@ def create_signup_user(
 
 
 @core_decorators.handle_db_errors
-def edit_user(user_id: int, user: users_schema.UserRead, db: Session) -> None:
+async def edit_user(
+    user_id: int, user: users_schema.UserRead, db: Session
+) -> users_models.User:
     """
     Update an existing user's information.
 
@@ -364,7 +366,7 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session) -> None:
         db: SQLAlchemy database session.
 
     Returns:
-        None
+        users_models.User
 
     Raises:
         HTTPException: 404 if user not found.
@@ -380,7 +382,7 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session) -> None:
         # Check if the photo_path is being updated
         if user.photo_path:
             # Delete the user photo in the filesystem
-            users_utils.delete_user_photo_filesystem(db_user.id)
+            await users_utils.delete_user_photo_filesystem(db_user.id)
 
         user.username = user.username.lower()
 
@@ -396,11 +398,13 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session) -> None:
 
         if height_before != db_user.height:
             # Update the user's health data
-            health_weight_utils.calculate_bmi_all_user_entries(user_id, db)
+            health_weight_utils.calculate_bmi_all_user_entries(db_user.id, db)
 
         if db_user.photo_path is None:
             # Delete the user photo in the filesystem
-            users_utils.delete_user_photo_filesystem(db_user.id)
+            await users_utils.delete_user_photo_filesystem(db_user.id)
+
+        return db_user
     except HTTPException:
         raise
     except IntegrityError as integrity_error:
@@ -515,7 +519,7 @@ def edit_user_password(
         db_user.password = password
     else:
         # Get server settings to determine password policy
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Hash the password with configurable policy and length
         db_user.password = users_utils.check_password_and_hash(
@@ -528,7 +532,7 @@ def edit_user_password(
 
 
 @core_decorators.handle_db_errors
-def update_user_photo(
+async def update_user_photo(
     user_id: int, db: Session, photo_path: str | None = None
 ) -> str | None:
     """
@@ -561,9 +565,7 @@ def update_user_photo(
         return photo_path
     else:
         # Delete the user photo in the filesystem
-        users_utils.delete_user_photo_filesystem(user_id)
-
-        return None
+        await users_utils.delete_user_photo_filesystem(user_id)
 
 
 @core_decorators.handle_db_errors
@@ -600,7 +602,7 @@ def update_user_mfa(
 
 
 @core_decorators.handle_db_errors
-def delete_user(user_id: int, db: Session) -> None:
+async def delete_user(user_id: int, db: Session) -> None:
     """
     Delete a user from the database.
 
@@ -625,4 +627,4 @@ def delete_user(user_id: int, db: Session) -> None:
     db.commit()
 
     # Delete the user photo in the filesystem
-    users_utils.delete_user_photo_filesystem(user_id)
+    await users_utils.delete_user_photo_filesystem(user_id)

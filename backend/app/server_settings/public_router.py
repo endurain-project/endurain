@@ -37,7 +37,7 @@ async def read_public_server_settings(
         Public subset of server configuration.
     """
     # Pydantic model_validate handles field filtering automatically
-    return server_settings_utils.get_server_settings(db)
+    return server_settings_utils.get_server_settings_or_404(db)
 
 
 @router.get(

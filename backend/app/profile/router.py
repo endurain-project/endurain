@@ -252,7 +252,7 @@ async def generate_link_token(
 @router.post(
     "/image",
     status_code=201,
-    response_model=str | None,
+    response_model=str,
 )
 async def upload_profile_image(
     file: UploadFile,
@@ -264,7 +264,7 @@ async def upload_profile_image(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> str:
     """
     Upload user profile image with security validation.
 
@@ -279,16 +279,7 @@ async def upload_profile_image(
     Raises:
         HTTPException: If validation or save fails.
     """
-    # Comprehensive security validation
-    try:
-        await file_validator.validate_image_file(file)
-    except FileValidationError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
-        ) from err
-
-    # If validation passes, proceed with saving
-    return await users_utils.save_user_image(token_user_id, file, db)
+    return await users_utils.save_user_image_file(token_user_id, file, db)
 
 
 @router.put("")
@@ -412,7 +403,7 @@ async def delete_profile_photo(
         Success message.
     """
     # Update the user photo_path in the database
-    users_crud.update_user_photo(token_user_id, db)
+    await users_crud.update_user_photo(token_user_id, db)
 
     # Return success message
     return f"User ID {token_user_id} photo deleted successfully"

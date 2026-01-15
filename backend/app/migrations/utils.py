@@ -11,7 +11,7 @@ import migrations.migration_6 as migrations_migration_6
 import core.logger as core_logger
 
 
-def check_migrations_not_executed(db: Session):
+async def check_migrations_not_executed(db: Session):
     migrations_not_executed = migrations_crud.get_migrations_not_executed(db)
 
     if migrations_not_executed:
@@ -35,11 +35,11 @@ def check_migrations_not_executed(db: Session):
 
             if migration.id == 4:
                 # Execute the migration
-                migrations_migration_4.process_migration_4(db)
+                await migrations_migration_4.process_migration_4(db)
 
             if migration.id == 5:
                 # Execute the migration
-                migrations_migration_5.process_migration_5(db)
+                await migrations_migration_5.process_migration_5(db)
 
             if migration.id == 6:
                 # Execute the migration

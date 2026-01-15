@@ -18,7 +18,7 @@ export const useAuthStore = defineStore('auth', {
       units: null,
       height: null,
       access_type: null,
-      photo_path: '',
+      photo_path: null,
       active: null,
       first_day_of_week: 0,
       currency: null,
@@ -86,6 +86,10 @@ export const useAuthStore = defineStore('auth', {
     setUserSessionId(session_id) {
       this.session_id = session_id
       localStorage.setItem('session_id', session_id)
+    },
+    setPhotoPath(photo_path) {
+      this.user.photo_path = photo_path
+      localStorage.setItem('user', JSON.stringify(this.user))
     },
     clearUser(locale) {
       this.isAuthenticated = false

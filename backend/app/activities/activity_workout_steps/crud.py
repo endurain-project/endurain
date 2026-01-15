@@ -15,9 +15,7 @@ import core.logger as core_logger
 
 def get_activity_workout_steps(activity_id: int, token_user_id: int, db: Session):
     try:
-        activity = activity_crud.get_activity_by_id(
-            activity_id, db
-        )
+        activity = activity_crud.get_activity_by_id(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
@@ -30,12 +28,13 @@ def get_activity_workout_steps(activity_id: int, token_user_id: int, db: Session
         if not user_is_owner and activity.hide_workout_sets_steps:
             # If the user is not the owner and sets/steps are hidden, return None
             return None
-        
+
         # Get the activity workout steps from the database
         activity_workout_steps = (
             db.query(activity_workout_steps_models.ActivityWorkoutSteps)
             .filter(
-                activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id,
+                activity_workout_steps_models.ActivityWorkoutSteps.activity_id
+                == activity_id,
             )
             .all()
         )
@@ -56,13 +55,13 @@ def get_activity_workout_steps(activity_id: int, token_user_id: int, db: Session
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_activities_workout_steps(
-    activity_ids: list[int], 
-    token_user_id: int, 
-    db: Session, 
-    activities: list[activities_schema.Activity] = None
+    activity_ids: list[int],
+    token_user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] = None,
 ):
     try:
         if not activity_ids:
@@ -83,7 +82,8 @@ def get_activities_workout_steps(
 
         # Determine which activity IDs the user is allowed to view steps for
         allowed_ids = [
-            activity.id for activity in activities
+            activity.id
+            for activity in activities
             if activity.user_id == token_user_id or not activity.hide_workout_sets_steps
         ]
 
@@ -93,7 +93,11 @@ def get_activities_workout_steps(
         # Fetch workout steps for allowed activities
         workout_steps = (
             db.query(activity_workout_steps_models.ActivityWorkoutSteps)
-            .filter(activity_workout_steps_models.ActivityWorkoutSteps.activity_id.in_(allowed_ids))
+            .filter(
+                activity_workout_steps_models.ActivityWorkoutSteps.activity_id.in_(
+                    allowed_ids
+                )
+            )
             .all()
         )
 
@@ -110,29 +114,27 @@ def get_activities_workout_steps(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_public_activity_workout_steps(activity_id: int, db: Session):
     try:
-        activity = activity_crud.get_activity_by_id(
-            activity_id, db
-        )
+        activity = activity_crud.get_activity_by_id(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
             return None
-        
+
         if activity.hide_workout_sets_steps:
             # If the sets/steps are hidden, return None
             return None
-        
+
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links:
             return None
-        
+
         # Get the activity workout steps from the database
         activity_workout_steps = (
             db.query(activity_workout_steps_models.ActivityWorkoutSteps)
@@ -142,10 +144,10 @@ def get_public_activity_workout_steps(activity_id: int, db: Session):
                 == activity_workout_steps_models.ActivityWorkoutSteps.activity_id,
             )
             .filter(
-                activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id,
-                activity_models.Activity.visibility == 0,
-                activity_models.Activity.id
+                activity_workout_steps_models.ActivityWorkoutSteps.activity_id
                 == activity_id,
+                activity_models.Activity.visibility == 0,
+                activity_models.Activity.id == activity_id,
             )
             .all()
         )

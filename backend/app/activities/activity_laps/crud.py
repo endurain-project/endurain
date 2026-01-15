@@ -85,9 +85,7 @@ def get_activities_laps(
 
         # Filter out hidden laps for activities the user doesn't own
         allowed_ids = [
-            activity.id
-            for activity in activities
-            if activity.user_id == token_user_id
+            activity.id for activity in activities if activity.user_id == token_user_id
         ]
 
         if not allowed_ids:
@@ -136,7 +134,7 @@ def get_public_activity_laps(activity_id: int, db: Session):
             return None
 
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links:

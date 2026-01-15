@@ -86,7 +86,7 @@ async def send_sign_up_admin_approval_email(
             detail="Email service is not configured",
         )
 
-    admins = users_utils.get_admin_users(db)
+    admins = users_utils.get_admin_users_or_404(db)
 
     # Send email to all admin users
     for admin in admins:

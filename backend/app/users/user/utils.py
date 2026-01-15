@@ -1,10 +1,7 @@
 import os
-import glob
 
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
-
-import shutil
 
 import auth.password_hasher as auth_password_hasher
 
@@ -19,7 +16,7 @@ import health.health_targets.crud as health_targets_crud
 import server_settings.models as server_settings_models
 import server_settings.schema as server_settings_schema
 
-import core.logger as core_logger
+import core.file_uploads as core_file_uploads
 import core.config as core_config
 
 
@@ -50,18 +47,28 @@ def get_user_by_id_or_404(user_id: int, db: Session) -> users_models.User:
     return db_user
 
 
-def create_user_default_data(user_id: int, db: Session) -> None:
-    # Create the user integrations in the database
-    user_integrations_crud.create_user_integrations(user_id, db)
+def get_admin_users_or_404(db: Session) -> list[users_models.User]:
+    """
+    Retrieve all admin users from database or raise 404 error.
 
-    # Create the user privacy settings
-    users_privacy_settings_crud.create_user_privacy_settings(user_id, db)
+    Args:
+        db: SQLAlchemy database session.
 
-    # Create the user health targets
-    health_targets_crud.create_health_targets(user_id, db)
+    Returns:
+        List of all admin User models.
 
-    # Create the user default gear
-    user_default_gear_crud.create_user_default_gear(user_id, db)
+    Raises:
+        HTTPException: 404 if no admin users found.
+    """
+    admins = users_crud.get_users_admin(db)
+
+    if not admins:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No admin users found",
+        )
+
+    return admins
 
 
 def check_password_and_hash(
@@ -112,16 +119,20 @@ def check_password_and_hash(
     return hashed_password
 
 
-def check_user_is_active(user: users_schema.UserRead) -> None:
+def check_user_is_active(
+    user: users_models.User | users_schema.UserRead,
+) -> None:
     """
-    Checks if the given user is active.
-
-    Raises:
-        HTTPException: If the user is not active, raises an HTTP 403 Forbidden exception
-        with a detail message "Inactive user" and a "WWW-Authenticate" header.
+    Check if user is active and raise 403 if inactive.
 
     Args:
-        user (users_schema.UserRead): The user object to check.
+        user: User object to check (User or UserRead schema).
+
+    Returns:
+        None
+
+    Raises:
+        HTTPException: 403 if user is not active.
     """
     if not user.active:
         raise HTTPException(
@@ -129,44 +140,6 @@ def check_user_is_active(user: users_schema.UserRead) -> None:
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-
-def get_admin_users(db: Session):
-    admins = users_crud.get_users_admin(db)
-
-    if not admins:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No admin users found",
-        )
-
-    return admins
-
-
-def delete_user_photo_filesystem(user_id: int):
-    """
-    Deletes all photo files associated with a user from the filesystem.
-
-    This function searches for files in the directory specified by `core_config.USER_IMAGES_DIR`
-    that match the given `user_id` with any file extension, and removes them.
-
-    Args:
-        user_id (int): The ID of the user whose photo files should be deleted.
-
-    Returns:
-        None
-    """
-    # Define the pattern to match files with the specified name regardless of the extension
-    folder = core_config.USER_IMAGES_DIR
-    file = f"{user_id}.*"
-
-    # Find all files matching the pattern
-    files_to_delete = glob.glob(os.path.join(folder, file))
-
-    # Remove each file found
-    for file_path in files_to_delete:
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
 
 def format_user_birthdate(user):
@@ -188,46 +161,80 @@ def format_user_birthdate(user):
     return user
 
 
-async def save_user_image(user_id: int, file: UploadFile, db: Session):
+def create_user_default_data(user_id: int, db: Session) -> None:
     """
-    Saves a user's image to the server and updates the user's photo path in the database.
+    Create default data for newly created user.
 
     Args:
-        user_id (int): The ID of the user whose image is being saved.
-        file (UploadFile): The uploaded image file.
-        db (Session): The database session.
+        user_id: ID of user to create default data for.
+        db: SQLAlchemy database session.
 
     Returns:
-        Any: The result of updating the user's photo path in the database.
+        None
+    """
+    # Create the user integrations in the database
+    user_integrations_crud.create_user_integrations(user_id, db)
+
+    # Create the user privacy settings
+    users_privacy_settings_crud.create_user_privacy_settings(user_id, db)
+
+    # Create the user health targets
+    health_targets_crud.create_health_targets(user_id, db)
+
+    # Create the user default gear
+    user_default_gear_crud.create_user_default_gear(user_id, db)
+
+
+async def save_user_image_file(user_id: int, file: UploadFile, db: Session) -> str:
+    """
+    Save user image file with security validation and update DB.
+
+    Uses centralized file upload handler for validation and async
+    I/O, then updates user photo path in database.
+
+    Args:
+        user_id: ID of user whose image is being saved.
+        file: Uploaded image file (UploadFile).
+        db: SQLAlchemy database session.
+
+    Returns:
+        Path to saved image file.
 
     Raises:
-        HTTPException: If an error occurs during the image saving process, raises a 500 Internal Server Error.
+        HTTPException: 400 if filename missing, 500 if upload
+            fails.
     """
-    try:
-        upload_dir = core_config.USER_IMAGES_DIR
-        os.makedirs(upload_dir, exist_ok=True)
-
-        # Get file extension
-        _, file_extension = os.path.splitext(file.filename)
-        filename = f"{user_id}{file_extension}"
-
-        file_path_to_save = os.path.join(upload_dir, filename)
-        url_path_to_save = os.path.join(core_config.USER_IMAGES_DIR, filename)
-
-        with open(file_path_to_save, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        return users_crud.update_user_photo(user_id, db, url_path_to_save)
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(f"Error in save_user_image: {err}", "error", exc=err)
-
-        # Remove the file after processing
-        if os.path.exists(file_path_to_save):
-            os.remove(file_path_to_save)
-
-        # Raise an HTTPException with a 500 Internal Server Error status code
+    if not file.filename:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required",
+        )
+
+    # Get file extension and build filename
+    _, file_extension = os.path.splitext(file.filename)
+    filename = f"{user_id}{file_extension}"
+
+    # Save file using centralized file upload handler
+    await core_file_uploads.save_image_file(file, core_config.USER_IMAGES_DIR, filename)
+
+    # Update user photo path in database
+    return str(
+        await users_crud.update_user_photo(
+            user_id, db, os.path.join(core_config.USER_IMAGES_DIR, filename)
+        )
+    )
+
+
+async def delete_user_photo_filesystem(user_id: int) -> None:
+    """
+    Delete user photo files from filesystem.
+
+    Args:
+        user_id: ID of user whose photo files to delete.
+
+    Returns:
+        None
+    """
+    await core_file_uploads.delete_files_by_pattern(
+        core_config.USER_IMAGES_DIR, f"{user_id}.*"
+    )

@@ -222,7 +222,7 @@ async def create_admin_new_sign_up_approval_request_notification(
     db: Session,
 ):
     try:
-        admins = users_utils.get_admin_users(db)
+        admins = users_utils.get_admin_users_or_404(db)
 
         # Send notification to all admin users
         for admin in admins:

@@ -86,9 +86,7 @@ def get_activities_sets(
 
         # Filter out hidden sets for activities the user doesn't own
         allowed_ids = [
-            activity.id
-            for activity in activities
-            if activity.user_id == token_user_id
+            activity.id for activity in activities if activity.user_id == token_user_id
         ]
 
         if not allowed_ids:
@@ -137,7 +135,7 @@ def get_public_activity_sets(activity_id: int, db: Session):
             return None
 
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links:
@@ -193,14 +191,18 @@ def create_activity_sets(
         # Iterate over the list of ActivitySets objects
         for activity_set in activity_sets:
             # Check if it's a Pydantic model (has attributes instead of being subscriptable)
-            if hasattr(activity_set, '__fields__'):
+            if hasattr(activity_set, "__fields__"):
                 duration = activity_set.duration
                 repetitions = activity_set.repetitions
                 weight = activity_set.weight
                 set_type = activity_set.set_type
                 start_time = activity_set.start_time
                 category = activity_set.category if activity_set.category else None
-                category_subtype = activity_set.category_subtype if activity_set.category_subtype else None
+                category_subtype = (
+                    activity_set.category_subtype
+                    if activity_set.category_subtype
+                    else None
+                )
             else:
                 duration = activity_set[0]
                 repetitions = activity_set[1]
@@ -210,7 +212,11 @@ def create_activity_sets(
                 # Handle category - check if it's a tuple
                 if activity_set[5] is not None:
                     if isinstance(activity_set[5], tuple):
-                        category = activity_set[5][0] if activity_set[5][0] is not None else None
+                        category = (
+                            activity_set[5][0]
+                            if activity_set[5][0] is not None
+                            else None
+                        )
                     else:
                         category = activity_set[5]
                 else:
@@ -218,7 +224,11 @@ def create_activity_sets(
                 # Handle category_subtype - check if it's a tuple
                 if activity_set[6] is not None:
                     if isinstance(activity_set[6], tuple):
-                        category_subtype = activity_set[6][0] if activity_set[6][0] is not None else None
+                        category_subtype = (
+                            activity_set[6][0]
+                            if activity_set[6][0] is not None
+                            else None
+                        )
                     else:
                         category_subtype = activity_set[6]
                 else:
@@ -247,7 +257,9 @@ def create_activity_sets(
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_activity_sets: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in create_activity_sets: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

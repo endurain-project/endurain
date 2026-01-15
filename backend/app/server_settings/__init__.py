@@ -9,7 +9,7 @@ Exports:
     - CRUD operations: get_server_settings, edit_server_settings
     - Schemas: ServerSettings, ServerSettingsEdit, ServerSettingsRead,
       ServerSettingsReadPublic
-    - Utilities: get_server_settings (wrapper)
+    - Utilities: get_server_settings_or_404 (wrapper), get_tile_maps_templates
     - Models: ServerSettings (ORM model)
     - Enums: Units, Currency, PasswordType
 """
@@ -28,7 +28,7 @@ from .schema import (
     Currency,
     PasswordType,
 )
-from .utils import get_server_settings, get_tile_maps_templates
+from .utils import get_server_settings_or_404, get_tile_maps_templates
 
 __all__ = [
     # CRUD operations
@@ -48,6 +48,6 @@ __all__ = [
     "Currency",
     "PasswordType",
     # Utility functions
-    "get_server_settings",
+    "get_server_settings_or_404",
     "get_tile_maps_templates",
 ]

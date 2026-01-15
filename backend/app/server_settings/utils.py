@@ -54,7 +54,7 @@ TILE_MAPS_TEMPLATES = {
 }
 
 
-def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
+def get_server_settings_or_404(db: Session) -> server_settings_models.ServerSettings:
     """
     Get server settings or raise 404.
 
@@ -96,7 +96,7 @@ def get_server_settings_for_admin(
     Raises:
         HTTPException: If server settings not found.
     """
-    server_settings = get_server_settings(db)
+    server_settings = get_server_settings_or_404(db)
 
     # Decrypt the API key if it exists
     decrypted_api_key = None
@@ -196,7 +196,7 @@ def get_allowed_tile_domains(db: Session) -> list[str]:
 
     # Add custom tile server domain if configured
     try:
-        server_settings = get_server_settings(db)
+        server_settings = get_server_settings_or_404(db)
         if server_settings and server_settings.tileserver_url:
             custom_domain = extract_domain_from_tile_url(server_settings.tileserver_url)
             if custom_domain and custom_domain not in allowed_domains:

@@ -652,12 +652,15 @@ async function handleFileChange(event) {
 
 async function submitDeleteUserPhoto() {
   try {
-    emit('userPhotoDeleted', props.user.id)
+    await users.deleteUserPhoto(props.user.id)
 
-    if (props.action === 'edit') {
-      await users.deleteUserPhoto(props.user.id)
-      push.success(t('usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto'))
+    if (props.user.id === authStore.user.id || props.action === 'profile') {
+      authStore.setPhotoPath(null)
     }
+
+    emit('editedUser', { ...props.user, photo_path: null })
+
+    push.success(t('usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto'))
   } catch (error) {
     push.error(
       `${t('usersAddEditUserModalComponent.addEditUserModalErrorDeleteUserPhoto')} - ${error}`

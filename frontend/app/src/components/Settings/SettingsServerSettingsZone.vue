@@ -543,8 +543,8 @@ const submitUploadFileForm = async (file) => {
       // Set the login photo set to true
       loginPhotoSet.value = true
 
-      // Update the server settings in the store and DB
-      await updateServerSettings()
+      // Update the server settings in the store
+      serverSettingsStore.serverSettings.login_photo_set = true
 
       // Set the success message
       notification.resolve(t('settingsServerSettingsZoneComponent.successPhotoUpload'))
@@ -565,8 +565,8 @@ const submitDeleteLoginPhoto = async () => {
     // Set the login photo set to false
     loginPhotoSet.value = false
 
-    // Update the server settings in the store and DB
-    await updateServerSettings()
+    // Update the server settings in the store
+    serverSettingsStore.serverSettings.login_photo_set = false
 
     // Set the success message
     notification.resolve(t('settingsServerSettingsZoneComponent.successPhotoDelete'))
