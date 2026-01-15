@@ -168,8 +168,8 @@ async def create_user(
     # Create default data for the user
     users_utils.create_user_default_data(created_user.id, db)
 
-    # Return the user with formatted birthdate
-    return users_utils.format_user_birthdate(created_user)
+    # Return the created user
+    return created_user
 
 
 @router.post(

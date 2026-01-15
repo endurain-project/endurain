@@ -142,25 +142,6 @@ def check_user_is_active(
         )
 
 
-def format_user_birthdate(user):
-    """
-    Formats the birthdate attribute of a user object to an ISO 8601 string if it is a date/datetime object.
-    If the birthdate is already a string or None, it remains unchanged.
-
-    Args:
-        user: An object with a 'birthdate' attribute, which can be a string, date/datetime object, or None.
-
-    Returns:
-        The user object with the 'birthdate' attribute formatted as an ISO 8601 string, string, or None.
-    """
-    user.birthdate = (
-        user.birthdate
-        if isinstance(user.birthdate, str)
-        else user.birthdate.isoformat() if user.birthdate else None
-    )
-    return user
-
-
 def create_user_default_data(user_id: int, db: Session) -> None:
     """
     Create default data for newly created user.
