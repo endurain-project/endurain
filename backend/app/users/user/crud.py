@@ -567,6 +567,8 @@ async def update_user_photo(
         # Delete the user photo in the filesystem
         await users_utils.delete_user_photo_filesystem(user_id)
 
+        return None
+
 
 @core_decorators.handle_db_errors
 def update_user_mfa(

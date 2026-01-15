@@ -1,3 +1,5 @@
+"""User management router for authenticated operations."""
+
 import os
 from typing import Annotated, Callable
 
@@ -45,8 +47,19 @@ async def read_users_all_pagination(
         Depends(core_database.get_db),
     ],
 ) -> users_schema.UserListResponse:
-    # Get the users from the database with pagination
+    """
+    Retrieve paginated list of all users.
 
+    Args:
+        page_number: Page number to retrieve.
+        num_records: Number of records per page.
+        _validate_pagination_values: Pagination validation.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        Paginated list of users with total count.
+    """
     total = users_crud.get_users_number(db)
     users = users_crud.get_users_with_pagination(db, page_number, num_records)
 
@@ -83,7 +96,17 @@ async def read_users_contain_username(
         Depends(core_database.get_db),
     ],
 ) -> list[users_schema.UserRead] | None:
-    # Get the users from the database by username
+    """
+    Search users by partial username match.
+
+    Args:
+        username: Partial username to search for.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        List of users matching the search.
+    """
     return users_crud.get_user_by_username(username=username, db=db, contains=True)
 
 
@@ -102,7 +125,17 @@ async def read_users_username(
         Depends(core_database.get_db),
     ],
 ) -> users_schema.UserRead | None:
-    # Get the user from the database by username
+    """
+    Get user by exact username.
+
+    Args:
+        username: Exact username to search for.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        User if found, None otherwise.
+    """
     return users_crud.get_user_by_username(username, db)
 
 
@@ -121,7 +154,17 @@ async def read_users_email(
         Depends(core_database.get_db),
     ],
 ) -> users_schema.UserRead | None:
-    # Get the users from the database by email
+    """
+    Get user by email address.
+
+    Args:
+        email: Email address to search for.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        User if found, None otherwise.
+    """
     return users_crud.get_user_by_email(email, db)
 
 
@@ -141,7 +184,18 @@ async def read_users_id(
         Depends(core_database.get_db),
     ],
 ) -> users_schema.UserRead | None:
-    # Get the users from the database by id
+    """
+    Get user by ID.
+
+    Args:
+        user_id: User ID to retrieve.
+        _validate_id: User ID validation dependency.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        User if found, None otherwise.
+    """
     return users_crud.get_user_by_id(user_id, db)
 
 
@@ -162,7 +216,18 @@ async def create_user(
         Depends(core_database.get_db),
     ],
 ) -> users_schema.UserRead:
-    # Create the user in the database
+    """
+    Create a new user (admin operation).
+
+    Args:
+        user: User creation data.
+        _check_scope: Authorization check.
+        password_hasher: Password hasher dependency.
+        db: Database session dependency.
+
+    Returns:
+        Created user data.
+    """
     created_user = users_crud.create_user(user, password_hasher, db)
 
     # Create default data for the user
@@ -189,9 +254,20 @@ async def upload_user_image(
         Depends(core_database.get_db),
     ],
 ) -> str:
-    await users_utils.save_user_image_file(user_id, file, db)
+    """
+    Upload user profile image.
 
-    # Return updated user object
+    Args:
+        user_id: ID of user to upload image for.
+        _validate_id: User ID validation dependency.
+        file: Uploaded image file.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        Path to uploaded image.
+    """
+    await users_utils.save_user_image_file(user_id, file, db)
     return users_crud.get_user_by_id(user_id, db).photo_path
 
 
@@ -210,7 +286,19 @@ async def edit_user(
         Depends(core_database.get_db),
     ],
 ) -> users_schema.UserRead:
-    # Update the user in the database
+    """
+    Update user information.
+
+    Args:
+        user_id: ID of user to update.
+        _validate_id: User ID validation dependency.
+        user_attributtes: User data to update.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        Updated user data.
+    """
     db_user = await users_crud.edit_user(user_id, user_attributtes, db)
 
     # Enrich with IDP count before serializing
@@ -241,7 +329,19 @@ async def approve_user(
         Depends(core_database.get_db),
     ],
 ) -> dict[str, str]:
-    # Approve the user in the database
+    """
+    Approve pending user account.
+
+    Args:
+        user_id: ID of user to approve.
+        _validate_id: User ID validation dependency.
+        _check_scopes: Authorization check.
+        email_service: Email service dependency.
+        db: Database session dependency.
+
+    Returns:
+        Success message.
+    """
     users_crud.approve_user(user_id, db)
 
     # Send approval email
@@ -270,7 +370,20 @@ async def edit_user_password(
         Depends(core_database.get_db),
     ],
 ) -> dict[str, str]:
-    # Update the user password in the database
+    """
+    Update user password.
+
+    Args:
+        user_id: ID of user to update password for.
+        _validate_id: User ID validation dependency.
+        user_attributes: New password data.
+        _check_scope: Authorization check.
+        password_hasher: Password hasher dependency.
+        db: Database session dependency.
+
+    Returns:
+        Success message.
+    """
     users_crud.edit_user_password(
         user_id, user_attributes.password, password_hasher, db
     )
@@ -279,31 +392,12 @@ async def edit_user_password(
     return {"message": f"User ID {user_id} password updated successfully"}
 
 
-@router.delete("/{user_id}/photo")
+@router.delete(
+    "/{user_id}/photo", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
 async def delete_user_photo(
     user_id: int,
-    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[
-        Callable, Security(auth_security.check_scopes, scopes=["users:write"])
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Update the user photo_path in the database
-    await users_crud.update_user_photo(user_id, db)
-
-    # Return success message
-    return {"detail": f"User ID {user_id} photo deleted successfully"}
-
-
-@router.delete(
-    "/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
-)
-async def delete_user(
-    user_id: int,
-    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["users:write"])
     ],
@@ -312,5 +406,49 @@ async def delete_user(
         Depends(core_database.get_db),
     ],
 ) -> None:
-    # Delete the user in the database
+    """
+    Delete user profile photo.
+
+    Args:
+        user_id: ID of user whose photo to delete.
+        _validate_id: User ID validation dependency.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        None
+    """
+    await users_crud.update_user_photo(user_id, db)
+
+    return None
+
+
+@router.delete(
+    "/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
+)
+async def delete_user(
+    user_id: int,
+    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["users:write"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> None:
+    """
+    Delete user account.
+
+    Args:
+        user_id: ID of user to delete.
+        _validate_id: User ID validation dependency.
+        _check_scopes: Authorization check.
+        db: Database session dependency.
+
+    Returns:
+        None
+    """
     await users_crud.delete_user(user_id, db)
+
+    return None
