@@ -45,6 +45,8 @@ import users.user_goals.schema as user_goals_schema
 import users.user_identity_providers.crud as user_identity_providers_crud
 import users.user_identity_providers.schema as user_identity_providers_schema
 
+import auth.identity_providers.crud as identity_providers_crud
+
 import users.user_integrations.crud as user_integrations_crud
 import users.user_integrations.schema as users_integrations_schema
 
@@ -638,12 +640,35 @@ class ImportService:
             )
             return
 
+        # Check if identity provider exists
+        idps = identity_providers_crud.get_all_identity_providers(self.db)
+        if not idps:
+            core_logger.print_to_log(
+                f"Skipping identity provider link: "
+                f"there are no identity providers configured in the system.",
+                "warning",
+            )
+            return
+
         for provider_data in user_identity_providers_data:
+            if not identity_providers_crud.get_identity_provider(
+                provider_data["idp_id"], self.db
+            ):
+                core_logger.print_to_log(
+                    f"Skipping identity provider link for idp_id={provider_data['idp_id']}: "
+                    f"identity provider not found in the system.",
+                    "warning",
+                )
+                continue
+
             provider_data.pop("id", None)
             provider_data.pop("user_id", None)
 
             user_identity_providers_crud.create_user_identity_provider(
-                self.user_id, provider_data.id, provider_data.idp_subject, self.db
+                self.user_id,
+                provider_data["idp_id"],
+                provider_data["idp_subject"],
+                self.db,
             )
             self.counts["user_identity_providers"] += 1
 
