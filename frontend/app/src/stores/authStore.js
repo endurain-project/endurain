@@ -91,6 +91,10 @@ export const useAuthStore = defineStore('auth', {
       this.user.photo_path = photo_path
       localStorage.setItem('user', JSON.stringify(this.user))
     },
+    setStravaState(is_linked) {
+      this.user.is_strava_linked = is_linked
+      localStorage.setItem('user', JSON.stringify(this.user))
+    },
     clearUser(locale) {
       this.isAuthenticated = false
       this.user = {

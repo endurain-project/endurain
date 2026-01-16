@@ -1,3 +1,16 @@
+"""Profile data import service for ZIP archive processing.
+
+This module provides the ImportService class for importing
+user profile data from ZIP archives.
+
+Key Features:
+- ZIP validation and security checks
+- Batched data processing
+- WebSocket progress updates
+- Automatic performance tier detection
+- Memory and timeout monitoring
+"""
+
 import os
 import json
 import zipfile
@@ -613,6 +626,12 @@ class ImportService:
     async def collect_and_import_user_identity_providers(
         self, user_identity_providers_data: list[Any]
     ) -> None:
+        """
+        Import user identity provider links.
+
+        Args:
+            user_identity_providers_data: Identity provider data.
+        """
         if not user_identity_providers_data:
             core_logger.print_to_log(
                 "No user identity providers data to import", "info"

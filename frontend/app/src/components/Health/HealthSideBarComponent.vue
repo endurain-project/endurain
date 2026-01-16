@@ -72,9 +72,9 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update-active-section'])
+const emit = defineEmits(['updateActiveSection'])
 
 function changeActive(section) {
-  emit('update-active-section', section)
+  emit('updateActiveSection', section)
 }
 </script>

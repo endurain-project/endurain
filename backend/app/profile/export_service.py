@@ -1,3 +1,16 @@
+"""Profile data export service for ZIP archive generation.
+
+This module provides the ExportService class for exporting
+user profile data including activities, health records, gear,
+and settings to a downloadable ZIP archive with streaming.
+
+Key Features:
+- Batched data collection for memory efficiency
+- Streaming ZIP generation
+- Automatic performance tier detection
+- Memory and timeout monitoring
+"""
+
 import os
 import tempfile
 import zipfile

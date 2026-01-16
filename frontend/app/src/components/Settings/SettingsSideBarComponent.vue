@@ -111,29 +111,33 @@
   </div>
 </template>
 
-<script>
-// Importing the store
+<script setup lang="ts">
 import { useAuthStore } from '@/stores/authStore'
 
-export default {
-  props: {
-    activeSection: {
-      type: String,
-      required: true
-    }
-  },
-  emits: ['update-active-section'],
-  setup(props, { emit }) {
-    const authStore = useAuthStore()
+/**
+ * Component props definition.
+ */
+defineProps<{
+  /** Currently active section identifier */
+  activeSection: string
+}>()
 
-    function changeActive(section) {
-      emit('update-active-section', section)
-    }
+/**
+ * Component emits definition.
+ */
+const emit = defineEmits<{
+  /** Emitted when active section should be updated */
+  updateActiveSection: [section: string]
+}>()
 
-    return {
-      authStore,
-      changeActive
-    }
-  }
+const authStore = useAuthStore()
+
+/**
+ * Changes the active sidebar section.
+ *
+ * @param section - The section identifier to activate.
+ */
+function changeActive(section: string): void {
+  emit('updateActiveSection', section)
 }
 </script>

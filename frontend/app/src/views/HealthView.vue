@@ -4,7 +4,7 @@
     <!-- Include the HealthSideBarComponent -->
     <HealthSideBarComponent
       :activeSection="activeSection"
-      @update-active-section="updateActiveSection"
+      @updateActiveSection="updateActiveSection"
     />
 
     <LoadingComponent v-if="isLoading" />
@@ -83,6 +83,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import HealthSideBarComponent from '../components/Health/HealthSideBarComponent.vue'
@@ -99,6 +100,8 @@ import { health_steps } from '@/services/health_stepsService'
 import { health_targets } from '@/services/health_targetsService'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 
+const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const serverSettingsStore = useServerSettingsStore()
 const activeSection = ref('dashboard')
@@ -133,6 +136,7 @@ const userHealthTargets = ref(null)
 
 function updateActiveSection(section) {
   activeSection.value = section
+  router.push({ query: { tab: section } })
   if (pageNumberWeight.value !== 1 || pageNumberSteps.value !== 1) {
     pageNumberWeight.value = 1
     pageNumberSteps.value = 1
@@ -416,6 +420,9 @@ watch(pageNumberSteps, updateHealthStepsPagination, { immediate: false })
 watch(pageNumberWeight, updateHealthWeightPagination, { immediate: false })
 
 onMounted(async () => {
+  if (route.query.tab && typeof route.query.tab === 'string') {
+    activeSection.value = route.query.tab
+  }
   await fetchHealthSleep()
   await fetchHealthSteps()
   await fetchHealthWeight()

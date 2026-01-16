@@ -25,9 +25,7 @@ class SessionNotFoundError(Exception):
     """
 
 
-def get_user_sessions(
-    user_id: int, db: Session
-) -> list[session_models.UsersSessions] | None:
+def get_user_sessions(user_id: int, db: Session) -> list[session_models.UsersSessions]:
     """
     Retrieve all session records for a given user, ordered by creation date descending.
 
@@ -43,19 +41,12 @@ def get_user_sessions(
         HTTPException: If an error occurs during retrieval, raises a 500 Internal Server Error.
     """
     try:
-        db_sessions = (
+        return (
             db.query(session_models.UsersSessions)
             .filter(session_models.UsersSessions.user_id == user_id)
             .order_by(session_models.UsersSessions.created_at.desc())
             .all()
         )
-
-        # If the no session was found, return None
-        if db_sessions is None:
-            return None
-
-        # Return the sessions
-        return db_sessions
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in get_user_sessions: {err}", "error", exc=err)
@@ -85,7 +76,7 @@ def get_session_by_id(
     """
     try:
         # Get the session from the database, ensure it's not expired
-        db_session = (
+        return (
             db.query(session_models.UsersSessions)
             .filter(session_models.UsersSessions.id == session_id)
             .filter(
@@ -93,9 +84,6 @@ def get_session_by_id(
             )
             .first()
         )
-
-        # Return the session
-        return db_session
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in get_session_by_id: {err}", "error", exc=err)
