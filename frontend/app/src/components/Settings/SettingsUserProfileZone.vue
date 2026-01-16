@@ -951,8 +951,8 @@ async function uploadImportFile(file) {
     // Store the user in the auth store
     authStore.setUser(userProfile, authStore.session_id, locale)
 
-    // Get default gear for the user
-    await getDefaultGear()
+    // Get gear information
+    await getGearsInfo()
 
     notification.resolve(t('settingsUserProfileZone.importSuccess'))
   } catch (error) {
@@ -1005,8 +1005,7 @@ async function getDefaultGear() {
   }
 }
 
-onMounted(async () => {
-  isLoading.value = true
+async function getGearsInfo() {
   try {
     allGears.value = await gears.getGears()
     runGear.value = allGears.value.filter((gear) => gear.gear_type === 2)
@@ -1023,6 +1022,13 @@ onMounted(async () => {
   } catch (error) {
     // If there is an error, set the error message and show the error alert.
     push.error(`${t('settingsUserProfileZone.errorUnableToGetGear')} - ${error}`)
+  }
+}
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    await getGearsInfo()
   } finally {
     isLoading.value = false
     await nextTick()

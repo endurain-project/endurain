@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
+import core.file_uploads as file_uploads
 
 from profile.exceptions import (
     FileFormatError,
@@ -503,7 +504,7 @@ class ImportService:
             user_profile["photo_path"] = f"data/user_images/{self.user_id}.{extension}"
 
         user = users_schema.UserRead(**user_profile)
-        users_crud.edit_user(self.user_id, user, self.db)
+        await users_crud.edit_user(self.user_id, user, self.db)
         self.counts["user"] += 1
 
         # Import user-related settings
@@ -592,6 +593,8 @@ class ImportService:
             return
 
         integrations_data = user_integrations_data[0]
+        integrations_data.pop("id", None)
+        integrations_data.pop("user_id", None)
 
         user_integrations = users_integrations_schema.UsersIntegrationsUpdate(
             **integrations_data
@@ -691,6 +694,8 @@ class ImportService:
             return
 
         privacy_data = user_privacy_settings_data[0]
+        privacy_data.pop("id", None)
+        privacy_data.pop("user_id", None)
 
         user_privacy_settings = (
             users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
@@ -1103,8 +1108,34 @@ class ImportService:
         # Import health data
         if health_weight_data:
             for health_weight in health_weight_data:
-                health_weight["user_id"] = self.user_id
                 health_weight.pop("id", None)
+                health_weight.pop("user_id", None)
+
+                # Convert string numeric values to floats
+                numeric_fields = [
+                    "weight",
+                    "bmi",
+                    "body_fat",
+                    "body_water",
+                    "bone_mass",
+                    "muscle_mass",
+                    "visceral_fat",
+                ]
+                for field in numeric_fields:
+                    if field in health_weight and isinstance(health_weight[field], str):
+                        try:
+                            health_weight[field] = float(health_weight[field])
+                        except (ValueError, TypeError):
+                            health_weight[field] = None
+
+                # Convert integer fields
+                int_fields = ["physique_rating", "metabolic_age"]
+                for field in int_fields:
+                    if field in health_weight and isinstance(health_weight[field], str):
+                        try:
+                            health_weight[field] = int(health_weight[field])
+                        except (ValueError, TypeError):
+                            health_weight[field] = None
 
                 data = health_weight_schema.HealthWeightCreate(**health_weight)
                 health_weight_crud.create_health_weight(self.user_id, data, self.db)
@@ -1123,6 +1154,21 @@ class ImportService:
                         self.user_id, self.db
                     )
                 )
+
+                # Convert string numeric values to floats/ints
+                if isinstance(target_data.get("weight"), str):
+                    try:
+                        target_data["weight"] = float(target_data["weight"])
+                    except (ValueError, TypeError):
+                        target_data["weight"] = None
+
+                int_fields = ["steps", "sleep"]
+                for field in int_fields:
+                    if isinstance(target_data.get(field), str):
+                        try:
+                            target_data[field] = int(target_data[field])
+                        except (ValueError, TypeError):
+                            target_data[field] = None
 
                 target_data["user_id"] = self.user_id
                 if current_health_target is not None:
@@ -1176,12 +1222,12 @@ class ImportService:
                         continue
 
                     new_file_name = f"{new_id}{ext}"
-                    activity_file_path = os.path.join(
-                        core_config.FILES_PROCESSED_DIR, new_file_name
-                    )
 
-                    with open(activity_file_path, "wb") as f:
-                        f.write(zipf.read(file_path))
+                    # Read bytes from ZIP and save using file_uploads
+                    file_bytes = zipf.read(file_path)
+                    await file_uploads.save_file(
+                        file_bytes, core_config.FILES_PROCESSED_DIR, new_file_name
+                    )
                     self.counts["activity_files"] += 1
                 except ValueError:
                     # Skip files that don't have numeric activity IDs
@@ -1227,12 +1273,12 @@ class ImportService:
                             continue
 
                         new_file_name = f"{new_id}_{suffix}{ext}"
-                        activity_media_path = os.path.join(
-                            core_config.ACTIVITY_MEDIA_DIR, new_file_name
-                        )
 
-                        with open(activity_media_path, "wb") as f:
-                            f.write(zipf.read(file_path))
+                        # Read bytes from ZIP and save using file_uploads
+                        file_bytes = zipf.read(file_path)
+                        await file_uploads.save_file(
+                            file_bytes, core_config.ACTIVITY_MEDIA_DIR, new_file_name
+                        )
                         self.counts["media"] += 1
                     except ValueError:
                         # Skip files that don't have numeric activity IDs
@@ -1263,10 +1309,15 @@ class ImportService:
             if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
                 "user_images/"
             ):
+                core_logger.print_to_log(
+                    f"Processing user image file: {file_path}", "debug"
+                )
                 ext = os.path.splitext(path)[1]
                 new_file_name = f"{self.user_id}{ext}"
-                user_img = os.path.join(core_config.USER_IMAGES_DIR, new_file_name)
 
-                with open(user_img, "wb") as f:
-                    f.write(zipf.read(file_path))
+                # Read bytes from ZIP and save using file_uploads
+                file_bytes = zipf.read(file_path)
+                await file_uploads.save_file(
+                    file_bytes, core_config.USER_IMAGES_DIR, new_file_name
+                )
                 self.counts["user_images"] += 1

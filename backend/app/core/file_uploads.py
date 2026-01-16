@@ -12,7 +12,45 @@ from safeuploads.exceptions import FileValidationError
 import core.logger as core_logger
 
 
-async def save_image_file(file: UploadFile, upload_dir: str, filename: str) -> str:
+async def save_file(file: UploadFile | bytes, upload_dir: str, filename: str) -> str:
+    file_path = None
+    try:
+
+        # Ensure upload directory exists
+        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
+
+        # Build full file path
+        file_path = os.path.join(upload_dir, filename)
+
+        # Save file asynchronously
+        if isinstance(file, bytes):
+            content = file
+        else:
+            content = await file.read()
+        async with aiofiles.open(file_path, "wb") as save_file:
+            await save_file.write(content)
+
+        core_logger.print_to_log(f"File saved successfully: {file_path}", "debug")
+
+        return file_path
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(f"Error in save_file: {err}", "error", exc=err)
+
+        # Remove the file if it was created
+        if file_path and await aiofiles.os.path.exists(file_path):
+            await aiofiles.os.remove(file_path)
+
+        # Raise an HTTPException with a 500 Internal Server Error
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save file",
+        ) from err
+
+
+async def save_image_file_and_validate_it(
+    file: UploadFile, upload_dir: str, filename: str
+) -> str:
     """
     Save an image file asynchronously with security validation.
 
@@ -37,43 +75,22 @@ async def save_image_file(file: UploadFile, upload_dir: str, filename: str) -> s
         HTTPException: 400 if file validation fails, 500 if
             write operation fails.
     """
-    file_path = None
     try:
         # Validate image file type and size
         file_validator = FileValidator()
         await file_validator.validate_image_file(file)
 
-        # Ensure upload directory exists
-        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
-
-        # Build full file path
-        file_path = os.path.join(upload_dir, filename)
-
-        # Save file asynchronously
-        content = await file.read()
-        async with aiofiles.open(file_path, "wb") as save_file:
-            await save_file.write(content)
-
-        core_logger.print_to_log(f"File saved successfully: {file_path}", "debug")
-
-        return file_path
+        # Save the validated image file
+        return await save_file(file, upload_dir, filename)
     except FileValidationError as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in save_image_file_and_validate_it: {err}", "error", exc=err
+        )
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err),
-        ) from err
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(f"Error in save_image_file: {err}", "error", exc=err)
-
-        # Remove the file if it was created
-        if file_path and await aiofiles.os.path.exists(file_path):
-            await aiofiles.os.remove(file_path)
-
-        # Raise an HTTPException with a 500 Internal Server Error
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save image file",
         ) from err
 
 

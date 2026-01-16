@@ -196,7 +196,9 @@ async def save_user_image_file(user_id: int, file: UploadFile, db: Session) -> s
     filename = f"{user_id}{file_extension}"
 
     # Save file using centralized file upload handler
-    await core_file_uploads.save_image_file(file, core_config.USER_IMAGES_DIR, filename)
+    await core_file_uploads.save_image_file_and_validate_it(
+        file, core_config.USER_IMAGES_DIR, filename
+    )
 
     # Update user photo path in database
     return str(
