@@ -5,9 +5,9 @@
   "modalLabelDeleteGearBody": "Är du säker på att du vill ta bort utrustningen från aktiviteten?",
   "modalLabelDeleteGearButton": "Ta bort utrustning",
   "successMessageGearAdded": "Utrustning tillagd till aktivitet",
-  "successMessageGearDeleted": "Gear deleted from activity",
-  "errorMessageDeleteGear": "Error deleting gear from activity",
-  "errorMessageActivityNotFound": "Activity not found",
-  "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot.",
+  "successMessageGearDeleted": "Utrustning borttagen från aktivitet",
+  "errorMessageDeleteGear": "Fel vid borttagning av utrustning från aktivitet",
+  "errorMessageActivityNotFound": "Aktivitet hittades inte",
+  "alertPrivacyMessage": "Du har dold information i den här aktiviteten. Du kan se den, men andra kan inte se den.",
   "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
 }
