@@ -4,7 +4,7 @@
       class="nav nav-pills flex-column mb-auto bg-body-tertiary rounded p-3 shadow-sm"
       id="sidebarNav"
     >
-      <li class="nav-item" v-if="authStore.user.access_type == 2">
+      <li class="nav-item" v-if="authStore.user.access_type === 'admin'">
         <a
           href="#"
           class="nav-link link-body-emphasis"
@@ -15,7 +15,7 @@
           <span class="ms-1">{{ $t('settingsSideBar.usersSection') }}</span>
         </a>
       </li>
-      <li class="nav-item" v-if="authStore.user.access_type == 2">
+      <li class="nav-item" v-if="authStore.user.access_type === 'admin'">
         <a
           href="#"
           class="nav-link link-body-emphasis"
@@ -26,7 +26,7 @@
           <span class="ms-1">{{ $t('settingsSideBar.serverSettingsSection') }}</span>
         </a>
       </li>
-      <li class="nav-item" v-if="authStore.user.access_type == 2">
+      <li class="nav-item" v-if="authStore.user.access_type === 'admin'">
         <a
           href="#"
           class="nav-link link-body-emphasis"
@@ -40,7 +40,7 @@
           >
         </a>
       </li>
-      <hr v-if="authStore.user.access_type == 2" />
+      <hr v-if="authStore.user.access_type === 'admin'" />
       <li class="nav-item">
         <a
           href="#"

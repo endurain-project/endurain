@@ -154,9 +154,9 @@
             <!-- Gender field -->
             <div class="form-floating mb-3">
               <select class="form-select" id="gender" v-model="signUpGender">
-                <option value="1">{{ $t('generalItems.genderMale') }}</option>
-                <option value="2">{{ $t('generalItems.genderFemale') }}</option>
-                <option value="3">{{ $t('generalItems.genderUnspecified') }}</option>
+                <option value="male">{{ $t('generalItems.genderMale') }}</option>
+                <option value="female">{{ $t('generalItems.genderFemale') }}</option>
+                <option value="unspecified">{{ $t('generalItems.genderUnspecified') }}</option>
               </select>
               <label for="gender">{{ $t('signupView.gender') }}</label>
             </div>
@@ -247,13 +247,13 @@
                 v-model="signUpFirstDayOfWeek"
                 required
               >
-                <option :value="0">{{ $t('generalItems.firstDayOfWeekOption0') }}</option>
-                <option :value="1">{{ $t('generalItems.firstDayOfWeekOption1') }}</option>
-                <option :value="2">{{ $t('generalItems.firstDayOfWeekOption2') }}</option>
-                <option :value="3">{{ $t('generalItems.firstDayOfWeekOption3') }}</option>
-                <option :value="4">{{ $t('generalItems.firstDayOfWeekOption4') }}</option>
-                <option :value="5">{{ $t('generalItems.firstDayOfWeekOption5') }}</option>
-                <option :value="6">{{ $t('generalItems.firstDayOfWeekOption6') }}</option>
+                <option value="sunday">{{ $t('generalItems.firstDayOfWeekOption0') }}</option>
+                <option value="monday">{{ $t('generalItems.firstDayOfWeekOption1') }}</option>
+                <option value="tuesday">{{ $t('generalItems.firstDayOfWeekOption2') }}</option>
+                <option value="wednesday">{{ $t('generalItems.firstDayOfWeekOption3') }}</option>
+                <option value="thursday">{{ $t('generalItems.firstDayOfWeekOption4') }}</option>
+                <option value="friday">{{ $t('generalItems.firstDayOfWeekOption5') }}</option>
+                <option value="saturday">{{ $t('generalItems.firstDayOfWeekOption6') }}</option>
               </select>
               <label for="firstDayOfWeek">{{ $t('signupView.firstDayOfWeek') }}</label>
             </div>
@@ -328,10 +328,10 @@ import defaultLoginImage from '@/assets/login.png'
  * @property preferred_language - Preferred language code (e.g., 'us', 'pt', 'es').
  * @property city - User's city of residence.
  * @property birthdate - User's birth date in ISO format.
- * @property gender - Gender identifier (1=male, 2=female, 3=unspecified).
+ * @property gender - Gender identifier (male, female, unspecified).
  * @property units - Unit system preference (1=metric, 2=imperial).
  * @property height - User's height in centimeters.
- * @property first_day_of_week - First day of week (0=Sunday, 1=Monday, etc.).
+ * @property first_day_of_week - First day of week (sunday, monday, etc.).
  * @property currency - Currency preference (1=Euro, 2=Dollar, 3=Pound).
  */
 interface SignUpRequestData {
@@ -342,10 +342,10 @@ interface SignUpRequestData {
   preferred_language: string
   city: string | null
   birthdate: string | null
-  gender: number
+  gender: string
   units: number
   height: number | null
-  first_day_of_week: number
+  first_day_of_week: string
   currency: number
 }
 
@@ -400,8 +400,8 @@ const signUpCity = ref('')
 /** User's birth date. */
 const signUpBirthdate = ref('')
 
-/** User's gender (1=male, 2=female, 3=unspecified). */
-const signUpGender = ref(1)
+/** User's gender (male, female, unspecified). */
+const signUpGender = ref('male')
 
 /** User's unit preference (1=metric, 2=imperial). */
 const signUpUnits = ref(Number(serverSettingsStore.serverSettings.units))
@@ -415,8 +415,8 @@ const signUpHeightFeet = ref<number | null>(null)
 /** User's height in inches (imperial). */
 const signUpHeightInches = ref<number | null>(null)
 
-/** First day of week preference (0=Sunday, 1=Monday, etc.). */
-const signUpFirstDayOfWeek = ref(1)
+/** First day of week preference (sunday, monday, etc.). */
+const signUpFirstDayOfWeek = ref('monday')
 
 /** Currency preference (1=Euro, 2=Dollar, 3=Pound). */
 const signUpCurrency = ref(Number(serverSettingsStore.serverSettings.currency))

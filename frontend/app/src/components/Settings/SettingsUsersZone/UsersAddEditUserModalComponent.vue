@@ -203,13 +203,13 @@
               v-model="newEditUserGender"
               required
             >
-              <option :value="1">
+              <option value="male">
                 {{ $t('generalItems.genderMale') }}
               </option>
-              <option :value="2">
+              <option value="female">
                 {{ $t('generalItems.genderFemale') }}
               </option>
-              <option :value="3">
+              <option value="unspecified">
                 {{ $t('generalItems.genderUnspecified') }}
               </option>
             </select>
@@ -375,13 +375,13 @@
               v-model="newEditUserFirstDayOfWeek"
               required
             >
-              <option :value="0">{{ $t('generalItems.firstDayOfWeekOption0') }}</option>
-              <option :value="1">{{ $t('generalItems.firstDayOfWeekOption1') }}</option>
-              <option :value="2">{{ $t('generalItems.firstDayOfWeekOption2') }}</option>
-              <option :value="3">{{ $t('generalItems.firstDayOfWeekOption3') }}</option>
-              <option :value="4">{{ $t('generalItems.firstDayOfWeekOption4') }}</option>
-              <option :value="5">{{ $t('generalItems.firstDayOfWeekOption5') }}</option>
-              <option :value="6">{{ $t('generalItems.firstDayOfWeekOption6') }}</option>
+              <option value="sunday">{{ $t('generalItems.firstDayOfWeekOption0') }}</option>
+              <option value="monday">{{ $t('generalItems.firstDayOfWeekOption1') }}</option>
+              <option value="tuesday">{{ $t('generalItems.firstDayOfWeekOption2') }}</option>
+              <option value="wednesday">{{ $t('generalItems.firstDayOfWeekOption3') }}</option>
+              <option value="thursday">{{ $t('generalItems.firstDayOfWeekOption4') }}</option>
+              <option value="friday">{{ $t('generalItems.firstDayOfWeekOption5') }}</option>
+              <option value="saturday">{{ $t('generalItems.firstDayOfWeekOption6') }}</option>
             </select>
             <!-- access type fields -->
             <div v-if="action != 'profile'">
@@ -396,10 +396,10 @@
                 v-model="newEditUserAccessType"
                 required
               >
-                <option :value="1">
+                <option value="regular">
                   {{ $t('usersAddEditUserModalComponent.addEditUserModalUserTypeOption1') }}
                 </option>
-                <option :value="2">
+                <option value="admin">
                   {{ $t('usersAddEditUserModalComponent.addEditUserModalUserTypeOption2') }}
                 </option>
               </select>

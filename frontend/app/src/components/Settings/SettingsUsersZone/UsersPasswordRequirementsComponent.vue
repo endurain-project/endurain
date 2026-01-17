@@ -59,7 +59,7 @@ const passwordType: ComputedRef<string> = computed(
  * @returns The minimum password length.
  */
 const minLength: ComputedRef<number> = computed(() =>
-  authStore.user.access_type == 1
+  authStore.user.access_type === 'regular'
     ? serverSettingsStore.serverSettings.password_length_regular_users
     : serverSettingsStore.serverSettings.password_length_admin_users
 )

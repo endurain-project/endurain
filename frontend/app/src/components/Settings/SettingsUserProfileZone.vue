@@ -86,19 +86,19 @@
             <font-awesome-icon
               :icon="['fas', 'mars']"
               class="me-2"
-              v-if="authStore.user.gender == 1"
+              v-if="authStore.user.gender === 'male'"
             />
             <font-awesome-icon
               :icon="['fas', 'venus']"
               class="me-2"
-              v-else-if="authStore.user.gender == 2"
+              v-else-if="authStore.user.gender === 'female'"
             />
             <font-awesome-icon :icon="['fas', 'genderless']" class="me-2" v-else />
             <b>{{ $t('settingsUserProfileZone.genderLabel') }}: </b>
-            <span v-if="authStore.user.gender == 1">{{
+            <span v-if="authStore.user.gender === 'male'">{{
               $t('settingsUserProfileZone.genderOption1')
             }}</span>
-            <span v-else-if="authStore.user.gender == 2">{{
+            <span v-else-if="authStore.user.gender === 'female'">{{
               $t('settingsUserProfileZone.genderOption2')
             }}</span>
             <span v-else>{{ $t('settingsUserProfileZone.genderOption3') }}</span>
@@ -199,25 +199,25 @@
           <p>
             <font-awesome-icon :icon="['fas', 'calendar-days']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.firstDayOfWeekLabel') }}: </b>
-            <span v-if="authStore.user.first_day_of_week == 0">{{
+            <span v-if="authStore.user.first_day_of_week === 'sunday'">{{
               $t('generalItems.firstDayOfWeekOption0')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 1">{{
+            <span v-if="authStore.user.first_day_of_week === 'monday'">{{
               $t('generalItems.firstDayOfWeekOption1')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 2">{{
+            <span v-if="authStore.user.first_day_of_week === 'tuesday'">{{
               $t('generalItems.firstDayOfWeekOption2')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 3">{{
+            <span v-if="authStore.user.first_day_of_week === 'wednesday'">{{
               $t('generalItems.firstDayOfWeekOption3')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 4">{{
+            <span v-if="authStore.user.first_day_of_week === 'thursday'">{{
               $t('generalItems.firstDayOfWeekOption4')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 5">{{
+            <span v-if="authStore.user.first_day_of_week === 'friday'">{{
               $t('generalItems.firstDayOfWeekOption5')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 6">{{
+            <span v-if="authStore.user.first_day_of_week === 'saturday'">{{
               $t('generalItems.firstDayOfWeekOption6')
             }}</span>
           </p>
@@ -225,7 +225,7 @@
           <p>
             <font-awesome-icon :icon="['fas', 'id-card']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.accessTypeLabel') }}: </b>
-            <span v-if="authStore.user.access_type == 1">{{
+            <span v-if="authStore.user.access_type === 'regular'">{{
               $t('settingsUserProfileZone.accessTypeOption1')
             }}</span>
             <span v-else>{{ $t('settingsUserProfileZone.accessTypeOption2') }}</span>

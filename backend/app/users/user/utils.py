@@ -78,7 +78,7 @@ def check_password_and_hash(
         server_settings_models.ServerSettings
         | server_settings_schema.ServerSettingsRead
     ),
-    user_access_type: int,
+    user_access_type: str,
 ) -> str:
     """
     Validates password against the configured policy and hashes it.
@@ -87,7 +87,7 @@ def check_password_and_hash(
         password (str): The password to validate and hash.
         password_hasher (PasswordHasher): The password hasher instance.
         server_settings (ServerSettings | ServerSettingsRead): The server settings containing password policies.
-        user_access_type (int): The access type of the user (e.g., 1 for regular, 2 for admin).
+        user_access_type (str): The access type of the user (e.g., "regular" or "admin").
 
     Returns:
         str: The hashed password.
@@ -98,7 +98,7 @@ def check_password_and_hash(
     # Determine minimum length based on user access type
     min_length = (
         server_settings.password_length_admin_users
-        if user_access_type == 2
+        if user_access_type == users_schema.UserAccessType.ADMIN
         else server_settings.password_length_regular_users
     )
     # Check if password meets requirements

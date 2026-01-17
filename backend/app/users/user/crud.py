@@ -193,12 +193,14 @@ def get_users_admin(db: Session) -> list[users_models.User]:
         db: SQLAlchemy database session.
 
     Returns:
-        List of User models with admin access (access_type == 2).
+        List of User models with admin access (access_type == users_schema.UserAccessType.ADMIN).
 
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    stmt = select(users_models.User).where(users_models.User.access_type == 2)
+    stmt = select(users_models.User).where(
+        users_models.User.access_type == users_schema.UserAccessType.ADMIN.value
+    )
     return db.execute(stmt).scalars().all()
 
 
@@ -232,7 +234,7 @@ def create_user(
 
         # Hash the password with configurable policy and length
         hashed_password = users_utils.check_password_and_hash(
-            user.password, password_hasher, server_settings, user.access_type
+            user.password, password_hasher, server_settings, user.access_type.value
         )
 
         # Create a new user
@@ -331,7 +333,7 @@ def create_signup_user(
                 user.password,
                 password_hasher,
                 server_settings,
-                users_schema.UserAccessType.REGULAR,
+                users_schema.UserAccessType.REGULAR.value,
             ),
         )
 

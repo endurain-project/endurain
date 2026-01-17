@@ -9,16 +9,16 @@
     />
 
     <!-- Include the SettingsUserZone -->
-    <SettingsUsersZone v-if="activeSection === 'users' && authStore.user.access_type == 2" />
+    <SettingsUsersZone v-if="activeSection === 'users' && authStore.user.access_type === 'admin'" />
 
     <!-- Include the SettingsUserZone -->
     <SettingsServerSettingsZone
-      v-if="activeSection === 'serverSettings' && authStore.user.access_type == 2"
+      v-if="activeSection === 'serverSettings' && authStore.user.access_type === 'admin'"
     />
 
     <!-- Include the SettingsIdentityProvidersZone -->
     <SettingsIdentityProvidersZone
-      v-if="activeSection === 'identityProviders' && authStore.user.access_type == 2"
+      v-if="activeSection === 'identityProviders' && authStore.user.access_type === 'admin'"
     />
 
     <!-- Include the SettingsGeneralZone -->
@@ -88,14 +88,14 @@ onMounted(async () => {
       (route.query.tab === 'users' ||
         route.query.tab === 'serverSettings' ||
         route.query.tab === 'identityProviders') &&
-      authStore.user.access_type === 2
+      authStore.user.access_type === 'admin'
     ) {
       activeSection.value = route.query.tab
     } else if (
       (route.query.tab === 'users' ||
         route.query.tab === 'serverSettings' ||
         route.query.tab === 'identityProviders') &&
-      authStore.user.access_type === 1
+      authStore.user.access_type === 'regular'
     ) {
       activeSection.value = 'general'
     } else {
@@ -103,7 +103,7 @@ onMounted(async () => {
     }
   }
 
-  if (authStore.user.access_type === 1) {
+  if (authStore.user.access_type === 'regular') {
     // If the user is not an admin, set the active section to general.
     activeSection.value = 'general'
   }

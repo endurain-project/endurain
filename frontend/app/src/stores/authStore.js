@@ -8,19 +8,19 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: {
       id: null,
-      name: '',
-      username: '',
-      email: '',
+      name: null,
+      username: null,
+      email: null,
       city: null,
       birthdate: null,
-      preferred_language: '',
+      preferred_language: null,
       gender: null,
       units: null,
       height: null,
       access_type: null,
       photo_path: null,
       active: null,
-      first_day_of_week: 0,
+      first_day_of_week: 'monday',
       currency: null,
       max_heart_rate: null,
       is_strava_linked: null,
@@ -41,7 +41,7 @@ export const useAuthStore = defineStore('auth', {
     },
     isAuthenticated: false,
     user_websocket: null,
-    session_id: '',
+    session_id: null,
     accessToken: null,
     csrfToken: null
   }),
@@ -99,19 +99,19 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.user = {
         id: null,
-        name: '',
-        username: '',
-        email: '',
+        name: null,
+        username: null,
+        email: null,
         city: null,
         birthdate: null,
-        preferred_language: '',
+        preferred_language: null,
         gender: null,
         units: null,
         height: null,
         access_type: null,
-        photo_path: '',
+        photo_path: null,
         active: null,
-        first_day_of_week: 0,
+        first_day_of_week: 'monday',
         currency: null,
         max_heart_rate: null,
         is_strava_linked: null,
@@ -134,7 +134,7 @@ export const useAuthStore = defineStore('auth', {
         this.user_websocket.close()
       }
       this.user_websocket = null
-      this.session_id = ''
+      this.session_id = null
       this.accessToken = null
       this.csrfToken = null
       localStorage.removeItem('user')

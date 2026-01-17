@@ -21,15 +21,15 @@ class User(Base):
         city: User's city.
         birthdate: User's birthdate.
         preferred_language: Preferred language code.
-        gender: User's gender (1=male, 2=female, 3=unspecified).
+        gender: User's gender (male, female, unspecified).
         units: Measurement units (1=metric, 2=imperial).
         height: User's height in centimeters.
         max_heart_rate: User maximum heart rate (bpm).
-        access_type: User type (1=user, 2=admin).
+        access_type: User type (regular, admin).
         photo_path: Path to user's photo.
         active: Whether the user is active.
         first_day_of_week: First day of the week
-            (0=Sunday, 1=Monday).
+            (sunday, monday, etc.).
         currency: Currency preference (1=euro, 2=dollar, 3=pound).
         mfa_enabled: Whether multi-factor authentication is
             enabled.
@@ -108,10 +108,11 @@ class User(Base):
         nullable=False,
         comment="User preferred language (en, pt, others)",
     )
-    gender: Mapped[int] = mapped_column(
-        default=1,
+    gender: Mapped[str] = mapped_column(
+        String(20),
+        default="male",
         nullable=False,
-        comment=("User gender (one digit)" "(1 - male, 2 - female, 3 - unspecified)"),
+        comment="User gender (male, female, unspecified)",
     )
     units: Mapped[int] = mapped_column(
         default=1,
@@ -126,9 +127,10 @@ class User(Base):
         nullable=True,
         comment="User maximum heart rate (bpm)",
     )
-    access_type: Mapped[int] = mapped_column(
+    access_type: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
-        comment="User type (one digit)(1 - user, 2 - admin)",
+        comment="User type (regular, admin)",
     )
     photo_path: Mapped[str | None] = mapped_column(
         String(250),
@@ -140,10 +142,11 @@ class User(Base):
         nullable=False,
         comment="Whether the user is active (true - yes, false - no)",
     )
-    first_day_of_week: Mapped[int] = mapped_column(
-        default=1,
+    first_day_of_week: Mapped[str] = mapped_column(
+        String(20),
+        default="monday",
         nullable=False,
-        comment=("User first day of week " "(0 - Sunday, 1 - Monday, etc.)"),
+        comment="User first day of week (sunday, monday, etc.)",
     )
     currency: Mapped[int] = mapped_column(
         default=1,

@@ -57,7 +57,7 @@ class UserIdentityProviderRead(UserIdentityProviderBase):
         linked_at: When this IdP was linked.
         last_login: Last login using this IdP.
         idp_access_token_expires_at: Access token expiry.
-        idp_refresh_token_updated_at: Refresh token update time.
+        idp_refresh_token_updated_at: Last refresh token update.
     """
 
     id: StrictInt = Field(..., description="Link ID")
@@ -72,7 +72,7 @@ class UserIdentityProviderRead(UserIdentityProviderBase):
     )
     idp_refresh_token_updated_at: datetime | None = Field(
         None,
-        description="Refresh token update time",
+        description="Last refresh token update",
     )
 
 
@@ -118,7 +118,7 @@ class UserIdentityProviderTokenUpdate(BaseModel):
     Attributes:
         idp_refresh_token: Encrypted refresh token.
         idp_access_token_expires_at: Access token expiry.
-        idp_refresh_token_updated_at: Refresh token update time.
+        idp_refresh_token_updated_at: Last refresh token update.
     """
 
     idp_refresh_token: StrictStr | None = Field(
@@ -131,7 +131,7 @@ class UserIdentityProviderTokenUpdate(BaseModel):
     )
     idp_refresh_token_updated_at: datetime | None = Field(
         None,
-        description="Refresh token update time",
+        description="Last refresh token update",
     )
 
     model_config = ConfigDict(

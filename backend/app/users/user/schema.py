@@ -1,6 +1,6 @@
 """User schema definitions for request and response models."""
 
-from enum import Enum, IntEnum
+from enum import Enum
 from datetime import date as datetime_date
 from pydantic import (
     BaseModel,
@@ -15,7 +15,7 @@ from pydantic import (
 import server_settings.schema as server_settings_schema
 
 
-class Gender(IntEnum):
+class Gender(Enum):
     """
     User gender enumeration.
 
@@ -25,9 +25,9 @@ class Gender(IntEnum):
         UNSPECIFIED: Unspecified or undisclosed gender.
     """
 
-    MALE = 1
-    FEMALE = 2
-    UNSPECIFIED = 3
+    MALE = "male"
+    FEMALE = "female"
+    UNSPECIFIED = "unspecified"
 
 
 class Language(Enum):
@@ -65,30 +65,30 @@ class Language(Enum):
     ENGLISH_USA = "us"
 
 
-class WeekDay(IntEnum):
+class WeekDay(Enum):
     """
     Days of the week enumeration.
 
     Attributes:
-        SUNDAY: Sunday (0).
-        MONDAY: Monday (1).
-        TUESDAY: Tuesday (2).
-        WEDNESDAY: Wednesday (3).
-        THURSDAY: Thursday (4).
-        FRIDAY: Friday (5).
-        SATURDAY: Saturday (6).
+        SUNDAY: Sunday.
+        MONDAY: Monday.
+        TUESDAY: Tuesday.
+        WEDNESDAY: Wednesday.
+        THURSDAY: Thursday.
+        FRIDAY: Friday.
+        SATURDAY: Saturday.
     """
 
-    SUNDAY = 0
-    MONDAY = 1
-    TUESDAY = 2
-    WEDNESDAY = 3
-    THURSDAY = 4
-    FRIDAY = 5
-    SATURDAY = 6
+    SUNDAY = "sunday"
+    MONDAY = "monday"
+    TUESDAY = "tuesday"
+    WEDNESDAY = "wednesday"
+    THURSDAY = "thursday"
+    FRIDAY = "friday"
+    SATURDAY = "saturday"
 
 
-class UserAccessType(IntEnum):
+class UserAccessType(Enum):
     """
     User access level enumeration.
 
@@ -97,8 +97,8 @@ class UserAccessType(IntEnum):
         ADMIN: Administrative access.
     """
 
-    REGULAR = 1
-    ADMIN = 2
+    REGULAR = "regular"
+    ADMIN = "admin"
 
 
 class UserBase(BaseModel):
@@ -153,7 +153,7 @@ class UserBase(BaseModel):
         description="Preferred language",
     )
     gender: Gender = Field(
-        Gender.MALE,
+        Gender.UNSPECIFIED,
         description="User's gender",
     )
     units: server_settings_schema.Units = Field(
