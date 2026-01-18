@@ -664,6 +664,12 @@ async def create_activity_with_bulk_import(
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
         os.makedirs(bulk_import_dir, exist_ok=True)
 
+        # Look for summarizedActivities.json to get proper activity names
+        # This is typically included in Garmin Connect exports
+        activity_names = activities_utils.parse_summarized_activities_json(
+            bulk_import_dir
+        )
+
         # Grab list of supported file formats
         supported_file_formats = core_config.SUPPORTED_FILE_FORMATS
 
@@ -697,6 +703,7 @@ async def create_activity_with_bulk_import(
                 token_user_id,
                 files_to_process,
                 websocket_manager,
+                activity_names,
             ),
         )
 

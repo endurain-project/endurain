@@ -21,6 +21,8 @@ import garmin.utils as garmin_utils
 
 import gears.gear.crud as gears_crud
 
+import computer_models.crud as computer_models_crud
+
 import users.user_privacy_settings.models as users_privacy_settings_models
 
 import core.logger as core_logger
@@ -60,6 +62,55 @@ def create_activity_objects(
                     gear_id = gear.id
 
         activities = []
+
+        # Extract device info from file_id (only need to do this once per file)
+        file_id = sessions_records[0]["file_id"] if sessions_records else {}
+        computer_model = None
+        watch_gear = None
+        tracker_model_name = None
+
+        if file_id and db:
+            manufacturer = file_id.get("manufacturer")
+            product = file_id.get("product")
+            serial_number = file_id.get("serial_number")
+            garmin_product = file_id.get("garmin_product")
+            product_name = file_id.get("product_name")
+
+            # Convert serial_number to string if it exists
+            serial_number_str = str(serial_number) if serial_number else None
+
+            # Try to find/create computer model from the database
+            if manufacturer:
+                computer_model = (
+                    computer_models_crud.get_or_create_computer_model_from_fit_data(
+                        manufacturer=str(manufacturer),
+                        product_code=str(garmin_product) if garmin_product else None,
+                        product_id=product if isinstance(product, int) else None,
+                        product_name=product_name,
+                        db=db,
+                    )
+                )
+
+                # Get the best model name for tracker_model field
+                if computer_model:
+                    tracker_model_name = computer_model.model_name
+                elif product_name:
+                    tracker_model_name = product_name
+                elif garmin_product:
+                    tracker_model_name = str(garmin_product)
+                elif product:
+                    tracker_model_name = str(product)
+
+                # Auto-create watch gear if we have a serial number
+                if serial_number_str:
+                    watch_gear = gears_crud.get_or_create_watch_gear_from_fit_data(
+                        user_id=user_id,
+                        serial_number=serial_number_str,
+                        computer_model_id=computer_model.id if computer_model else None,
+                        model_name=tracker_model_name,
+                        manufacturer=str(manufacturer),
+                        db=db,
+                    )
 
         for session_record in sessions_records:
             # Define default values
@@ -191,7 +242,9 @@ def create_activity_objects(
                     tracker_manufacturer=session_record["file_id"].get(
                         "manufacturer", None
                     ),
-                    tracker_model=str(session_record["file_id"].get("product", None)),
+                    tracker_model=tracker_model_name
+                    if tracker_model_name
+                    else str(session_record["file_id"].get("product", None)),
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],
@@ -578,8 +631,9 @@ def parse_fit_file(
 
                     # unknown_147 Sensor Accessories
 
-                    # Extract activity name
-                    if frame.name == "workout":
+                    # Extract activity name from FIT file only if not provided externally
+                    # (external name from summarizedActivities.json takes priority)
+                    if frame.name == "workout" and activity_name_input is None:
                         activity_name = parse_frame_workout(frame)
 
                     # Extract lap data
@@ -1091,6 +1145,10 @@ def parse_frame_file_id(frame):
         "product": get_value_from_frame(frame, "product"),
         "serial_number": get_value_from_frame(frame, "serial_number"),
         "time_created": get_value_from_frame(frame, "time_created"),
+        # Garmin-specific: product code like "fenix7x", "edge1040"
+        "garmin_product": get_value_from_frame(frame, "garmin_product"),
+        # Suunto/other: human-readable product name
+        "product_name": get_value_from_frame(frame, "product_name"),
     }
 
 

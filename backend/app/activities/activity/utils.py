@@ -1,4 +1,5 @@
 import gzip
+import json
 import os
 import shutil
 import asyncio
@@ -394,6 +395,7 @@ async def parse_and_store_activity_from_file(
     from_garmin: bool = False,
     garminconnect_gear: dict | None = None,
     activity_name: str | None = None,
+    activity_names_mapping: dict | None = None,
 ):
     try:
         core_logger.print_to_log_and_console(
@@ -434,6 +436,30 @@ async def parse_and_store_activity_from_file(
                 db,
                 activity_name,
             )
+
+            # If name wasn't matched by filename, try timestamp-based matching
+            if (
+                parsed_info is not None
+                and activity_names_mapping
+                and parsed_info.get("activity_name") in (None, "Workout")
+                and parsed_info.get("sessions")
+            ):
+                by_timestamp = activity_names_mapping.get("by_timestamp", {})
+                if by_timestamp and len(parsed_info["sessions"]) > 0:
+                    # Get the first session's start time
+                    first_session = parsed_info["sessions"][0]
+                    start_time = first_session.get("first_waypoint_time")
+                    if start_time:
+                        file_timestamp = int(start_time.timestamp())
+                        # Look for matching timestamp within 5 minute window
+                        for ts, name in by_timestamp.items():
+                            if abs(ts - file_timestamp) <= 300:
+                                parsed_info["activity_name"] = name
+                                core_logger.print_to_log(
+                                    f"Matched activity to '{name}' by timestamp "
+                                    f"(file: {file_timestamp}, activity: {ts})"
+                                )
+                                break
 
             if parsed_info is not None:
                 created_activities = []
@@ -1192,10 +1218,235 @@ def set_activity_name_based_on_activity_type(activity_type_id: int) -> str:
     return mapping + " workout" if mapping != "Workout" else mapping
 
 
+def parse_summarized_activities_json(directory: str) -> dict:
+    """
+    Parse Garmin's summarizedActivities.json file to extract activity names.
+
+    The file is typically found in Garmin export archives and contains
+    metadata about activities including their user-defined names.
+
+    Supports files with prefixes (e.g., "user@email.com_0_summarizedActivities.json")
+    as exported by some services.
+
+    Args:
+        directory: The directory to search for summarizedActivities.json
+
+    Returns:
+        A dictionary with two sub-dicts:
+        - "by_id": mapping activity IDs to names
+        - "by_timestamp": mapping Unix timestamps (seconds) to names
+    """
+    activity_names = {"by_id": {}, "by_timestamp": {}}
+    json_path = None
+
+    # Look for any file ending with summarizedActivities.json
+    for filename in os.listdir(directory):
+        if filename.endswith("summarizedActivities.json"):
+            json_path = os.path.join(directory, filename)
+            core_logger.print_to_log_and_console(
+                f"Found activity names file: {filename}"
+            )
+            break
+
+    # Also check common Garmin export subdirectories
+    if not json_path:
+        for subdir in ["Activities", "activities", "DI-Connect-Fitness"]:
+            subdir_path = os.path.join(directory, subdir)
+            if os.path.isdir(subdir_path):
+                for filename in os.listdir(subdir_path):
+                    if filename.endswith("summarizedActivities.json"):
+                        json_path = os.path.join(subdir_path, filename)
+                        core_logger.print_to_log_and_console(
+                            f"Found activity names file: {subdir}/{filename}"
+                        )
+                        break
+            if json_path:
+                break
+
+    if not json_path:
+        return activity_names
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Handle different JSON structures
+        activities_list = []
+
+        if isinstance(data, list):
+            # Check if it's wrapped in summarizedActivitiesExport
+            # Format: [{"summarizedActivitiesExport": [...activities...]}]
+            if (
+                len(data) > 0
+                and isinstance(data[0], dict)
+                and "summarizedActivitiesExport" in data[0]
+            ):
+                activities_list = data[0]["summarizedActivitiesExport"]
+                core_logger.print_to_log_and_console(
+                    f"Detected Garmin export format with summarizedActivitiesExport wrapper"
+                )
+            else:
+                # Direct list of activities
+                activities_list = data
+
+        for activity in activities_list:
+            if not isinstance(activity, dict):
+                continue
+
+            # Extract activity name (try multiple field names)
+            activity_name = (
+                activity.get("activityName")
+                or activity.get("name")
+                or activity.get("title")
+            )
+
+            if not activity_name:
+                continue
+
+            # Map by activity ID
+            activity_id = activity.get("activityId") or activity.get("id")
+            if activity_id:
+                activity_names["by_id"][str(activity_id)] = activity_name
+
+            # Map by timestamp (for matching with Intervals.icu files)
+            # beginTimestamp is in milliseconds, convert to seconds
+            begin_timestamp = activity.get("beginTimestamp")
+            if begin_timestamp:
+                # Convert milliseconds to seconds
+                timestamp_seconds = int(begin_timestamp / 1000)
+                activity_names["by_timestamp"][timestamp_seconds] = activity_name
+
+            # Also try startTimeGmt (also in milliseconds)
+            start_time_gmt = activity.get("startTimeGmt")
+            if start_time_gmt:
+                timestamp_seconds = int(start_time_gmt / 1000)
+                activity_names["by_timestamp"][timestamp_seconds] = activity_name
+
+            # Also try to map by fileName if present
+            file_name = activity.get("fileName")
+            if file_name and activity_name:
+                # Remove extension and path
+                stem = Path(file_name).stem
+                activity_names["by_id"][stem] = activity_name
+
+        total_names = len(activity_names["by_id"]) + len(activity_names["by_timestamp"])
+        core_logger.print_to_log_and_console(
+            f"Loaded {len(activity_names['by_id'])} activity names by ID and "
+            f"{len(activity_names['by_timestamp'])} by timestamp from summarizedActivities.json"
+        )
+
+    except json.JSONDecodeError as e:
+        core_logger.print_to_log(
+            f"Error parsing summarizedActivities.json: {e}", "warning"
+        )
+    except Exception as e:
+        core_logger.print_to_log(
+            f"Error reading summarizedActivities.json: {e}", "warning"
+        )
+
+    return activity_names
+
+
+def get_activity_name_from_mapping(
+    file_path: str, activity_names: dict
+) -> str | None:
+    """
+    Get the activity name for a file from the activity names mapping.
+
+    Args:
+        file_path: Path to the activity file
+        activity_names: Dict with "by_id" and "by_timestamp" sub-dicts
+
+    Returns:
+        The activity name if found, None otherwise
+    """
+    if not activity_names:
+        return None
+
+    # Support both old format (flat dict) and new format (with by_id/by_timestamp)
+    by_id = activity_names.get("by_id", activity_names)
+    by_timestamp = activity_names.get("by_timestamp", {})
+
+    filename = os.path.basename(file_path)
+    stem = Path(filename).stem
+
+    # Remove common extensions for matching
+    clean_stem = stem.replace(".fit", "").replace(".gz", "").replace(".json", "")
+
+    # Try exact match first
+    if clean_stem in by_id:
+        return by_id[clean_stem]
+
+    # Try to extract activity ID from filename
+    # Garmin export format: email@domain.com_{activityId}.fit
+    # Garmin format: {activityId}_ACTIVITY.fit or just {activityId}.fit
+    # Intervals.icu format: YYYY-MM-DD-HH_MM-{id}.fit
+    parts = clean_stem.split("_")
+    if parts:
+        # Try last part as ID (for Garmin export: email@domain_activityId)
+        last_part = parts[-1]
+
+        # Direct match on last part (for email@domain_activityId format)
+        if last_part in by_id:
+            return by_id[last_part]
+
+        # Handle case where ID is after a hyphen: 15_16-163067226 -> 163067226
+        if "-" in last_part:
+            potential_id = last_part.split("-")[-1]
+            if potential_id in by_id:
+                return by_id[potential_id]
+
+        # Try first part as ID (for Garmin format: activityId_ACTIVITY)
+        if parts[0] in by_id:
+            return by_id[parts[0]]
+
+    # Try timestamp-based matching if we have a date in the filename
+    # Intervals.icu format: YYYY-MM-DD-HH_MM-{id}
+    # e.g., 2024-12-26-10_17-12345
+    if by_timestamp and "-" in clean_stem:
+        try:
+            # Parse date from filename: YYYY-MM-DD-HH_MM
+            date_parts = clean_stem.split("-")
+            if len(date_parts) >= 4:
+                year = int(date_parts[0])
+                month = int(date_parts[1])
+                day = int(date_parts[2])
+                # Time part might be HH_MM or just HH
+                time_part = date_parts[3]
+                if "_" in time_part:
+                    hour, minute = time_part.split("_")[:2]
+                    hour = int(hour)
+                    minute = int(minute.split("-")[0]) if "-" in minute else int(minute)
+                else:
+                    hour = int(time_part)
+                    minute = 0
+
+                # Create datetime and convert to timestamp
+                from datetime import datetime as dt
+
+                file_dt = dt(year, month, day, hour, minute)
+                file_timestamp = int(file_dt.timestamp())
+
+                # Look for a matching timestamp (within 5 minute window)
+                for ts, name in by_timestamp.items():
+                    if abs(ts - file_timestamp) <= 300:  # 5 minutes tolerance
+                        core_logger.print_to_log(
+                            f"Matched {filename} to '{name}' by timestamp "
+                            f"(file: {file_timestamp}, activity: {ts}, diff: {abs(ts - file_timestamp)}s)"
+                        )
+                        return name
+        except (ValueError, IndexError) as e:
+            # Could not parse date from filename, continue
+            pass
+
+    return None
+
+
 def process_all_files_sync(
     user_id: int,
     file_paths: list[str],
     websocket_manager: websocket_manager.WebSocketManager,
+    activity_names: dict | None = None,
 ):
     """
     Process all files sequentially in single thread.
@@ -1204,20 +1455,32 @@ def process_all_files_sync(
         user_id: User ID.
         file_paths: List of file paths to process.
         websocket_manager: WebSocket manager instance.
+        activity_names: Optional dict with "by_id" and "by_timestamp" sub-dicts
+                        mapping activity identifiers to names.
     """
     db = next(core_database.get_db())
     try:
         total_files = len(file_paths)
         for idx, file_path in enumerate(file_paths, 1):
-            core_logger.print_to_log_and_console(
-                f"Processing file {idx}/{total_files}: " f"{file_path}"
-            )
+            # Get activity name from mapping if available
+            activity_name = get_activity_name_from_mapping(file_path, activity_names or {})
+            if activity_name:
+                core_logger.print_to_log_and_console(
+                    f"Processing file {idx}/{total_files}: {file_path} (name: {activity_name})"
+                )
+            else:
+                core_logger.print_to_log_and_console(
+                    f"Processing file {idx}/{total_files}: {file_path}"
+                )
+
             asyncio.run(
                 parse_and_store_activity_from_file(
                     user_id,
                     file_path,
                     websocket_manager,
                     db,
+                    activity_name=activity_name,
+                    activity_names_mapping=activity_names,
                 )
             )
             # Small delay between files
