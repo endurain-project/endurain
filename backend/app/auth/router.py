@@ -434,26 +434,38 @@ async def refresh_token(
     # Opportunistically refresh IdP tokens for all linked identity providers
     await idp_utils.refresh_idp_tokens_if_needed(user.id, db)
 
-    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
-    response.set_cookie(
-        key="endurain_refresh_token",
-        value=new_refresh_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="strict",
-    )
+    # Token delivery based on client type
+    if client_type == "web":
+        # Web: Refresh token as httpOnly cookie
+        secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
+        response.set_cookie(
+            key="endurain_refresh_token",
+            value=new_refresh_token,
+            expires=datetime.now(timezone.utc)
+            + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+            httponly=True,
+            path="/",
+            secure=secure,
+            samesite="strict",
+        )
 
-    # Return tokens in response body for in-memory storage
-    return {
-        "session_id": session_id,
-        "access_token": new_access_token,
-        "csrf_token": new_csrf_token,
-        "token_type": "bearer",
-        "expires_in": int(new_access_token_exp.timestamp()),
-    }
+        # Return access token and CSRF token in body
+        return {
+            "session_id": session_id,
+            "access_token": new_access_token,
+            "csrf_token": new_csrf_token,
+            "token_type": "bearer",
+            "expires_in": int(new_access_token_exp.timestamp()),
+        }
+    else:
+        # Mobile: All tokens in JSON response body
+        return {
+            "session_id": session_id,
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer",
+            "expires_in": int(new_access_token_exp.timestamp()),
+        }
 
 
 @router.post("/logout")

@@ -187,24 +187,35 @@ def complete_login(
         db,
     )
 
-    # Access token and CSRF token returned in body for in-memory storage
-    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
-    response.set_cookie(
-        key="endurain_refresh_token",
-        value=refresh_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="strict",  # OAuth 2.1: Strict for defense-in-depth
-    )
+    # Token delivery based on client type
+    if client_type == "web":
+        # Web: Refresh token as httpOnly cookie (XSS protection)
+        secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
+        response.set_cookie(
+            key="endurain_refresh_token",
+            value=refresh_token,
+            expires=datetime.now(timezone.utc)
+            + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+            httponly=True,
+            path="/",
+            secure=secure,
+            samesite="strict",  # OAuth 2.1: Strict for defense-in-depth
+        )
 
-    # Return tokens in response body for all clients (unified OAuth 2.1 model)
-    return {
-        "session_id": session_id,
-        "access_token": access_token,
-        "csrf_token": csrf_token,
-        "token_type": "bearer",
-        "expires_in": int(access_token_exp.timestamp()),
-    }
+        # Return access token and CSRF token in body for in-memory storage
+        return {
+            "session_id": session_id,
+            "access_token": access_token,
+            "csrf_token": csrf_token,
+            "token_type": "bearer",
+            "expires_in": int(access_token_exp.timestamp()),
+        }
+    else:
+        # Mobile: All tokens in JSON response body for secure platform storage
+        return {
+            "session_id": session_id,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": int(access_token_exp.timestamp()),
+        }
