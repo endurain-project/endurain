@@ -11,6 +11,7 @@ import auth.mfa_backup_codes.models
 import auth.oauth_state.models
 import auth.idp_link_tokens.models
 import activities.activity.models
+import computer_models.models
 import activities.activity_exercise_titles.models
 import activities.activity_laps.models
 import activities.activity_media.models

@@ -477,6 +477,10 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
             db_gear.strava_gear_id = gear.strava_gear_id
         if gear.garminconnect_gear_id is not None:
             db_gear.garminconnect_gear_id = gear.garminconnect_gear_id
+        if gear.serial_number is not None:
+            db_gear.serial_number = gear.serial_number
+        if gear.computer_model_id is not None:
+            db_gear.computer_model_id = gear.computer_model_id
 
         # Commit the transaction
         db.commit()
@@ -588,3 +592,121 @@ def delete_all_garminconnect_gear_for_user(user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def get_watch_gear_by_serial_number(
+    user_id: int, serial_number: str, db: Session
+) -> gears_schema.Gear | None:
+    """
+    Find watch/computer gear (type 9) for a user by serial number.
+
+    Args:
+        user_id: The user ID
+        serial_number: The device serial number
+        db: Database session
+
+    Returns:
+        The gear if found, None otherwise
+    """
+    try:
+        gear = (
+            db.query(gears_models.Gear)
+            .filter(
+                gears_models.Gear.user_id == user_id,
+                gears_models.Gear.gear_type == 9,
+                gears_models.Gear.serial_number == serial_number,
+            )
+            .first()
+        )
+
+        if gear is None:
+            return None
+
+        return gears_utils.serialize_gear(gear)
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_watch_gear_by_serial_number: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_or_create_watch_gear_from_fit_data(
+    user_id: int,
+    serial_number: str | None,
+    computer_model_id: int | None,
+    model_name: str | None,
+    manufacturer: str | None,
+    db: Session,
+) -> gears_schema.Gear | None:
+    """
+    Find or create watch/computer gear based on FIT file device info.
+
+    If a watch gear with the same serial number exists for the user, return it.
+    Otherwise, create a new watch gear entry.
+
+    Args:
+        user_id: The user ID
+        serial_number: Device serial number from FIT file
+        computer_model_id: ID from computer_models table (if matched)
+        model_name: Device model name
+        manufacturer: Device manufacturer
+        db: Database session
+
+    Returns:
+        The existing or newly created gear, or None if no serial number
+    """
+    try:
+        # Serial number is required to identify a unique device
+        if not serial_number:
+            return None
+
+        # Check if watch gear with this serial number already exists
+        existing_gear = get_watch_gear_by_serial_number(user_id, serial_number, db)
+        if existing_gear:
+            return existing_gear
+
+        # Create a nickname based on the model name or manufacturer
+        if model_name:
+            nickname = model_name
+        elif manufacturer:
+            nickname = f"{manufacturer} Watch"
+        else:
+            nickname = "Unknown Watch"
+
+        # Check if nickname already exists and make it unique
+        nickname_check = get_gear_user_by_nickname(user_id, nickname, db)
+        if nickname_check:
+            # Append serial number suffix to make nickname unique
+            nickname = f"{nickname} ({serial_number[-4:]})"
+
+        # Create new watch gear
+        new_gear = gears_schema.Gear(
+            nickname=nickname,
+            brand=manufacturer.title() if manufacturer else None,
+            model=model_name,
+            gear_type=9,  # Watch/Computer
+            active=True,
+            serial_number=serial_number,
+            computer_model_id=computer_model_id,
+        )
+
+        created_gear = gears_utils.transform_schema_gear_to_model_gear(new_gear, user_id)
+        db.add(created_gear)
+        db.commit()
+        db.refresh(created_gear)
+
+        core_logger.print_to_log_and_console(
+            f"Auto-created watch gear '{nickname}' for user {user_id} (serial: {serial_number})"
+        )
+
+        return gears_utils.serialize_gear(created_gear)
+    except Exception as err:
+        db.rollback()
+        core_logger.print_to_log(
+            f"Error in get_or_create_watch_gear_from_fit_data: {err}", "error", exc=err
+        )
+        # Don't raise - just return None to not block activity import
+        return None

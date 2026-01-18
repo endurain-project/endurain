@@ -105,6 +105,9 @@
               <option value="8">
                 {{ $t('gearsAddEditGearModalComponent.addEditGearModalAddTypeOption8') }}
               </option>
+              <option value="9">
+                {{ $t('gearsAddEditGearModalComponent.addEditGearModalAddTypeOption9') }}
+              </option>
             </select>
             <!-- date fields -->
             <label for="gearDateAddEdit"

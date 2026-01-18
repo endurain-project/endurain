@@ -32,7 +32,7 @@ class Gear(Base):
     gear_type = Column(
         Integer,
         nullable=False,
-        comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf, 8 - water sports board)",
+        comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf, 8 - water sports board, 9 - watch/computer)",
     )
     user_id = Column(
         Integer,
@@ -66,11 +66,26 @@ class Gear(Base):
     garminconnect_gear_id = Column(
         String(length=45), unique=True, nullable=True, comment="Garmin Connect gear ID"
     )
+    serial_number = Column(
+        String(length=100),
+        nullable=True,
+        index=True,
+        comment="Serial number (for watch/computer gear type)",
+    )
+    computer_model_id = Column(
+        Integer,
+        ForeignKey("computer_models.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Reference to computer_models table (for watch/computer gear type)",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="gear")
     # Establish a one-to-many relationship with 'activities'
     activities = relationship("Activity", back_populates="gear")
+    # Relationship to computer model (for watch/computer gear type)
+    computer_model = relationship("ComputerModel", back_populates="gear")
     # Establish a one-to-many relationship with 'gear_components'
     gear_components = relationship(
         "GearComponents",

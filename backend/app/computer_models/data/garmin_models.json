@@ -1,0 +1,2458 @@
+[
+  {
+    "product_id": 255,
+    "product_code": "OHR",
+    "manufacturer": "garmin",
+    "model_name": "OHR"
+  },
+  {
+    "product_id": 473,
+    "product_code": "fr301_china",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 301",
+    "region": "China"
+  },
+  {
+    "product_id": 474,
+    "product_code": "fr301_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 301",
+    "region": "Japan"
+  },
+  {
+    "product_id": 475,
+    "product_code": "fr301_korea",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 301",
+    "region": "Korea"
+  },
+  {
+    "product_id": 494,
+    "product_code": "fr301_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 301",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 717,
+    "product_code": "fr405",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 405"
+  },
+  {
+    "product_id": 782,
+    "product_code": "fr50",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 50"
+  },
+  {
+    "product_id": 987,
+    "product_code": "fr405_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 405",
+    "region": "Japan"
+  },
+  {
+    "product_id": 988,
+    "product_code": "fr60",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 60"
+  },
+  {
+    "product_id": 1018,
+    "product_code": "fr310xt",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 310XT"
+  },
+  {
+    "product_id": 1036,
+    "product_code": "edge500",
+    "manufacturer": "garmin",
+    "model_name": "Edge 500"
+  },
+  {
+    "product_id": 1124,
+    "product_code": "fr110",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 110"
+  },
+  {
+    "product_id": 1169,
+    "product_code": "edge800",
+    "manufacturer": "garmin",
+    "model_name": "Edge 800"
+  },
+  {
+    "product_id": 1199,
+    "product_code": "edge500_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 500",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 1213,
+    "product_code": "edge500_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 500",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1274,
+    "product_code": "fr110_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 110",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1325,
+    "product_code": "edge200",
+    "manufacturer": "garmin",
+    "model_name": "Edge 200"
+  },
+  {
+    "product_id": 1328,
+    "product_code": "fr910xt",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 910XT"
+  },
+  {
+    "product_id": 1333,
+    "product_code": "edge800_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 800",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 1334,
+    "product_code": "edge800_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 800",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1345,
+    "product_code": "fr610",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 610"
+  },
+  {
+    "product_id": 1360,
+    "product_code": "fr210_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 210",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1386,
+    "product_code": "edge800_china",
+    "manufacturer": "garmin",
+    "model_name": "Edge 800",
+    "region": "China"
+  },
+  {
+    "product_id": 1387,
+    "product_code": "edge500_china",
+    "manufacturer": "garmin",
+    "model_name": "Edge 500",
+    "region": "China"
+  },
+  {
+    "product_id": 1405,
+    "product_code": "approach_g10",
+    "manufacturer": "garmin",
+    "model_name": "Approach G10"
+  },
+  {
+    "product_id": 1410,
+    "product_code": "fr610_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 610",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1422,
+    "product_code": "edge500_korea",
+    "manufacturer": "garmin",
+    "model_name": "Edge 500",
+    "region": "Korea"
+  },
+  {
+    "product_id": 1436,
+    "product_code": "fr70",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 70"
+  },
+  {
+    "product_id": 1446,
+    "product_code": "fr310xt_4t",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 310XT 4T"
+  },
+  {
+    "product_id": 1482,
+    "product_code": "fr10",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 10"
+  },
+  {
+    "product_id": 1497,
+    "product_code": "edge800_korea",
+    "manufacturer": "garmin",
+    "model_name": "Edge 800",
+    "region": "Korea"
+  },
+  {
+    "product_id": 1499,
+    "product_code": "swim",
+    "manufacturer": "garmin",
+    "model_name": "Swim"
+  },
+  {
+    "product_id": 1537,
+    "product_code": "fr910xt_china",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 910XT",
+    "region": "China"
+  },
+  {
+    "product_id": 1551,
+    "product_code": "fenix",
+    "manufacturer": "garmin",
+    "model_name": "Fenix"
+  },
+  {
+    "product_id": 1555,
+    "product_code": "edge200_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 200",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 1561,
+    "product_code": "edge510",
+    "manufacturer": "garmin",
+    "model_name": "Edge 510"
+  },
+  {
+    "product_id": 1567,
+    "product_code": "edge810",
+    "manufacturer": "garmin",
+    "model_name": "Edge 810"
+  },
+  {
+    "product_id": 1600,
+    "product_code": "fr910xt_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 910XT",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1623,
+    "product_code": "fr620",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 620"
+  },
+  {
+    "product_id": 1632,
+    "product_code": "fr220",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 220"
+  },
+  {
+    "product_id": 1664,
+    "product_code": "fr910xt_korea",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 910XT",
+    "region": "Korea"
+  },
+  {
+    "product_id": 1688,
+    "product_code": "fr10_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 10",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1721,
+    "product_code": "edge810_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 810",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1735,
+    "product_code": "virb_elite",
+    "manufacturer": "garmin",
+    "model_name": "VIRB Elite"
+  },
+  {
+    "product_id": 1736,
+    "product_code": "edge_touring",
+    "manufacturer": "garmin",
+    "model_name": "Edge Touring"
+  },
+  {
+    "product_id": 1742,
+    "product_code": "edge510_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 510",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1765,
+    "product_code": "fr920xt",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 920XT"
+  },
+  {
+    "product_id": 1821,
+    "product_code": "edge510_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 510",
+    "region": "Asia"
+  },
+  {
+    "product_id": 1822,
+    "product_code": "edge810_china",
+    "manufacturer": "garmin",
+    "model_name": "Edge 810",
+    "region": "China"
+  },
+  {
+    "product_id": 1823,
+    "product_code": "edge810_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 810",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 1836,
+    "product_code": "edge1000",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1000"
+  },
+  {
+    "product_id": 1837,
+    "product_code": "vivo_fit",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Fit"
+  },
+  {
+    "product_id": 1885,
+    "product_code": "vivo_ki",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Ki"
+  },
+  {
+    "product_id": 1903,
+    "product_code": "fr15",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 15"
+  },
+  {
+    "product_id": 1907,
+    "product_code": "vivo_active",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active"
+  },
+  {
+    "product_id": 1918,
+    "product_code": "edge510_korea",
+    "manufacturer": "garmin",
+    "model_name": "Edge 510",
+    "region": "Korea"
+  },
+  {
+    "product_id": 1928,
+    "product_code": "fr620_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 620",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1929,
+    "product_code": "fr620_china",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 620",
+    "region": "China"
+  },
+  {
+    "product_id": 1930,
+    "product_code": "fr220_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 220",
+    "region": "Japan"
+  },
+  {
+    "product_id": 1931,
+    "product_code": "fr220_china",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 220",
+    "region": "China"
+  },
+  {
+    "product_id": 1936,
+    "product_code": "approach_s6",
+    "manufacturer": "garmin",
+    "model_name": "Approach S6"
+  },
+  {
+    "product_id": 1956,
+    "product_code": "vivo_smart",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart"
+  },
+  {
+    "product_id": 1967,
+    "product_code": "fenix2",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 2"
+  },
+  {
+    "product_id": 1988,
+    "product_code": "epix",
+    "manufacturer": "garmin",
+    "model_name": "Epix"
+  },
+  {
+    "product_id": 2050,
+    "product_code": "fenix3",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3"
+  },
+  {
+    "product_id": 2052,
+    "product_code": "edge1000_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1000",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2053,
+    "product_code": "edge1000_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1000",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2061,
+    "product_code": "fr15_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 15",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2067,
+    "product_code": "edge520",
+    "manufacturer": "garmin",
+    "model_name": "Edge 520"
+  },
+  {
+    "product_id": 2070,
+    "product_code": "edge1000_china",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1000",
+    "region": "China"
+  },
+  {
+    "product_id": 2072,
+    "product_code": "fr620_russia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 620",
+    "region": "Russia"
+  },
+  {
+    "product_id": 2073,
+    "product_code": "fr220_russia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 220",
+    "region": "Russia"
+  },
+  {
+    "product_id": 2100,
+    "product_code": "edge1000_korea",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1000",
+    "region": "Korea"
+  },
+  {
+    "product_id": 2130,
+    "product_code": "fr920xt_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 920XT",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2131,
+    "product_code": "fr920xt_china",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 920XT",
+    "region": "China"
+  },
+  {
+    "product_id": 2132,
+    "product_code": "fr920xt_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 920XT",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2134,
+    "product_code": "virbx",
+    "manufacturer": "garmin",
+    "model_name": "VIRB X"
+  },
+  {
+    "product_id": 2135,
+    "product_code": "vivo_smart_apac",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2140,
+    "product_code": "etrex_touch",
+    "manufacturer": "garmin",
+    "model_name": "Etrex Touch"
+  },
+  {
+    "product_id": 2147,
+    "product_code": "edge25",
+    "manufacturer": "garmin",
+    "model_name": "Edge 25"
+  },
+  {
+    "product_id": 2148,
+    "product_code": "fr25",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 25"
+  },
+  {
+    "product_id": 2150,
+    "product_code": "vivo_fit2",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Fit2"
+  },
+  {
+    "product_id": 2153,
+    "product_code": "fr225",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 225"
+  },
+  {
+    "product_id": 2156,
+    "product_code": "fr630",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 630"
+  },
+  {
+    "product_id": 2157,
+    "product_code": "fr230",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 230"
+  },
+  {
+    "product_id": 2158,
+    "product_code": "fr735xt",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 735XT"
+  },
+  {
+    "product_id": 2160,
+    "product_code": "vivo_active_apac",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2172,
+    "product_code": "virbxe",
+    "manufacturer": "garmin",
+    "model_name": "VIRB Xe"
+  },
+  {
+    "product_id": 2173,
+    "product_code": "fr620_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 620",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2174,
+    "product_code": "fr220_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 220",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2187,
+    "product_code": "d2airvenu",
+    "manufacturer": "garmin",
+    "model_name": "D2 Airvenu"
+  },
+  {
+    "product_id": 2188,
+    "product_code": "fenix3_china",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3",
+    "region": "China"
+  },
+  {
+    "product_id": 2189,
+    "product_code": "fenix3_twn",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2204,
+    "product_code": "edge_explore_1000",
+    "manufacturer": "garmin",
+    "model_name": "Edge Explore 1000"
+  },
+  {
+    "product_id": 2219,
+    "product_code": "fr225_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 225",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2238,
+    "product_code": "edge20",
+    "manufacturer": "garmin",
+    "model_name": "Edge 20"
+  },
+  {
+    "product_id": 2260,
+    "product_code": "edge520_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 520",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2261,
+    "product_code": "edge520_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 520",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2262,
+    "product_code": "d2_bravo",
+    "manufacturer": "garmin",
+    "model_name": "D2 Bravo"
+  },
+  {
+    "product_id": 2266,
+    "product_code": "approach_s20",
+    "manufacturer": "garmin",
+    "model_name": "Approach S20"
+  },
+  {
+    "product_id": 2271,
+    "product_code": "vivo_smart2",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart2"
+  },
+  {
+    "product_id": 2274,
+    "product_code": "edge1000_thai",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1000",
+    "region": "Thailand"
+  },
+  {
+    "product_id": 2288,
+    "product_code": "edge25_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 25",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2289,
+    "product_code": "edge25_jpn",
+    "manufacturer": "garmin",
+    "model_name": "Edge 25",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2290,
+    "product_code": "edge20_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 20",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2292,
+    "product_code": "approach_x40",
+    "manufacturer": "garmin",
+    "model_name": "Approach X40"
+  },
+  {
+    "product_id": 2293,
+    "product_code": "fenix3_japan",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2294,
+    "product_code": "vivo_smart_emea",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart",
+    "region": "EMEA"
+  },
+  {
+    "product_id": 2310,
+    "product_code": "fr630_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 630",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2311,
+    "product_code": "fr630_jpn",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 630",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2313,
+    "product_code": "fr230_jpn",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 230",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2332,
+    "product_code": "epix_japan",
+    "manufacturer": "garmin",
+    "model_name": "Epix",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2337,
+    "product_code": "vivo_active_hr",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active HR"
+  },
+  {
+    "product_id": 2347,
+    "product_code": "vivo_smart_gps_hr",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart Gps HR"
+  },
+  {
+    "product_id": 2348,
+    "product_code": "vivo_smart_hr",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart HR"
+  },
+  {
+    "product_id": 2361,
+    "product_code": "vivo_smart_hr_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart HR",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2362,
+    "product_code": "vivo_smart_gps_hr_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart Gps HR",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2368,
+    "product_code": "vivo_move",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move"
+  },
+  {
+    "product_id": 2396,
+    "product_code": "fr235_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 235",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2397,
+    "product_code": "fr235_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 235",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2406,
+    "product_code": "vivo_fit3",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Fit3"
+  },
+  {
+    "product_id": 2407,
+    "product_code": "fenix3_korea",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3",
+    "region": "Korea"
+  },
+  {
+    "product_id": 2408,
+    "product_code": "fenix3_sea",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3",
+    "region": "SEA"
+  },
+  {
+    "product_id": 2413,
+    "product_code": "fenix3_hr",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 HR"
+  },
+  {
+    "product_id": 2417,
+    "product_code": "virb_ultra_30",
+    "manufacturer": "garmin",
+    "model_name": "VIRB Ultra 30"
+  },
+  {
+    "product_id": 2431,
+    "product_code": "fr235",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 235"
+  },
+  {
+    "product_id": 2432,
+    "product_code": "fenix3_chronos",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 Chronos"
+  },
+  {
+    "product_id": 2441,
+    "product_code": "oregon7xx",
+    "manufacturer": "garmin",
+    "model_name": "Oregon 7xx"
+  },
+  {
+    "product_id": 2444,
+    "product_code": "rino7xx",
+    "manufacturer": "garmin",
+    "model_name": "Rino 7xx"
+  },
+  {
+    "product_id": 2457,
+    "product_code": "epix_korea",
+    "manufacturer": "garmin",
+    "model_name": "Epix",
+    "region": "Korea"
+  },
+  {
+    "product_id": 2473,
+    "product_code": "fenix3_hr_chn",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 HR",
+    "region": "China"
+  },
+  {
+    "product_id": 2474,
+    "product_code": "fenix3_hr_twn",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 HR",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2475,
+    "product_code": "fenix3_hr_jpn",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 HR",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2476,
+    "product_code": "fenix3_hr_sea",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 HR",
+    "region": "SEA"
+  },
+  {
+    "product_id": 2477,
+    "product_code": "fenix3_hr_kor",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 HR",
+    "region": "Korea"
+  },
+  {
+    "product_id": 2497,
+    "product_code": "vivo_active_hr_apac",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active HR",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2503,
+    "product_code": "fr35",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 35"
+  },
+  {
+    "product_id": 2512,
+    "product_code": "oregon7xx_ww",
+    "manufacturer": "garmin",
+    "model_name": "Oregon 7xx",
+    "region": "WW"
+  },
+  {
+    "product_id": 2530,
+    "product_code": "edge_820",
+    "manufacturer": "garmin",
+    "model_name": "Edge 820"
+  },
+  {
+    "product_id": 2531,
+    "product_code": "edge_explore_820",
+    "manufacturer": "garmin",
+    "model_name": "Edge Explore 820"
+  },
+  {
+    "product_id": 2533,
+    "product_code": "fr735xt_apac",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 735XT",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2534,
+    "product_code": "fr735xt_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 735XT",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2544,
+    "product_code": "fenix5s",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5S"
+  },
+  {
+    "product_id": 2547,
+    "product_code": "d2_bravo_titanium",
+    "manufacturer": "garmin",
+    "model_name": "D2 Bravo Titanium"
+  },
+  {
+    "product_id": 2599,
+    "product_code": "edge_820_china",
+    "manufacturer": "garmin",
+    "model_name": "Edge 820",
+    "region": "China"
+  },
+  {
+    "product_id": 2600,
+    "product_code": "edge_820_japan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 820",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2604,
+    "product_code": "fenix5x",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5X"
+  },
+  {
+    "product_id": 2606,
+    "product_code": "vivo_fit_jr",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Fit Jr"
+  },
+  {
+    "product_id": 2622,
+    "product_code": "vivo_smart3",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart3"
+  },
+  {
+    "product_id": 2623,
+    "product_code": "vivo_sport",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Sport"
+  },
+  {
+    "product_id": 2628,
+    "product_code": "edge_820_taiwan",
+    "manufacturer": "garmin",
+    "model_name": "Edge 820",
+    "region": "Taiwan"
+  },
+  {
+    "product_id": 2629,
+    "product_code": "edge_820_korea",
+    "manufacturer": "garmin",
+    "model_name": "Edge 820",
+    "region": "Korea"
+  },
+  {
+    "product_id": 2630,
+    "product_code": "edge_820_sea",
+    "manufacturer": "garmin",
+    "model_name": "Edge 820",
+    "region": "SEA"
+  },
+  {
+    "product_id": 2650,
+    "product_code": "fr35_hebrew",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 35",
+    "region": "Hebrew"
+  },
+  {
+    "product_id": 2656,
+    "product_code": "approach_s60",
+    "manufacturer": "garmin",
+    "model_name": "Approach S60"
+  },
+  {
+    "product_id": 2667,
+    "product_code": "fr35_apac",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 35",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2668,
+    "product_code": "fr35_japan",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 35",
+    "region": "Japan"
+  },
+  {
+    "product_id": 2675,
+    "product_code": "fenix3_chronos_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 3 Chronos",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2687,
+    "product_code": "virb_360",
+    "manufacturer": "garmin",
+    "model_name": "VIRB 360"
+  },
+  {
+    "product_id": 2691,
+    "product_code": "fr935",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 935"
+  },
+  {
+    "product_id": 2697,
+    "product_code": "fenix5",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5"
+  },
+  {
+    "product_id": 2700,
+    "product_code": "vivoactive3",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive3"
+  },
+  {
+    "product_id": 2713,
+    "product_code": "edge_1030",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1030"
+  },
+  {
+    "product_id": 2727,
+    "product_code": "fr35_sea",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 35",
+    "region": "SEA"
+  },
+  {
+    "product_id": 2733,
+    "product_code": "fr235_china_nfc",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 235 China NFC"
+  },
+  {
+    "product_id": 2769,
+    "product_code": "foretrex_601_701",
+    "manufacturer": "garmin",
+    "model_name": "Foretrex 601 701"
+  },
+  {
+    "product_id": 2772,
+    "product_code": "vivo_move_hr",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move HR"
+  },
+  {
+    "product_id": 2796,
+    "product_code": "fenix5_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2797,
+    "product_code": "fenix5s_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5S",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2798,
+    "product_code": "fenix5x_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5X",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2806,
+    "product_code": "approach_z80",
+    "manufacturer": "garmin",
+    "model_name": "Approach Z80"
+  },
+  {
+    "product_id": 2814,
+    "product_code": "fr35_korea",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 35",
+    "region": "Korea"
+  },
+  {
+    "product_id": 2819,
+    "product_code": "d2charlie",
+    "manufacturer": "garmin",
+    "model_name": "D2 Charlie"
+  },
+  {
+    "product_id": 2831,
+    "product_code": "vivo_smart3_apac",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart3",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2832,
+    "product_code": "vivo_sport_apac",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Sport",
+    "region": "APAC"
+  },
+  {
+    "product_id": 2833,
+    "product_code": "fr935_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 935",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2859,
+    "product_code": "descent",
+    "manufacturer": "garmin",
+    "model_name": "Descent"
+  },
+  {
+    "product_id": 2878,
+    "product_code": "vivo_fit4",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Fit4"
+  },
+  {
+    "product_id": 2886,
+    "product_code": "fr645",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 645"
+  },
+  {
+    "product_id": 2888,
+    "product_code": "fr645m",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 645m"
+  },
+  {
+    "product_id": 2891,
+    "product_code": "fr30",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 30"
+  },
+  {
+    "product_id": 2900,
+    "product_code": "fenix5s_plus",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5S Plus"
+  },
+  {
+    "product_id": 2909,
+    "product_code": "Edge_130",
+    "manufacturer": "garmin",
+    "model_name": "Edge 130"
+  },
+  {
+    "product_id": 2924,
+    "product_code": "edge_1030_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1030",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2927,
+    "product_code": "vivosmart_4",
+    "manufacturer": "garmin",
+    "model_name": "Vivosmart 4"
+  },
+  {
+    "product_id": 2945,
+    "product_code": "vivo_move_hr_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move HR",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2962,
+    "product_code": "approach_x10",
+    "manufacturer": "garmin",
+    "model_name": "Approach X10"
+  },
+  {
+    "product_id": 2977,
+    "product_code": "fr30_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 30",
+    "region": "Asia"
+  },
+  {
+    "product_id": 2988,
+    "product_code": "vivoactive3m_w",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive3m W"
+  },
+  {
+    "product_id": 3003,
+    "product_code": "fr645_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 645",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3004,
+    "product_code": "fr645m_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 645m",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3011,
+    "product_code": "edge_explore",
+    "manufacturer": "garmin",
+    "model_name": "Edge Explore"
+  },
+  {
+    "product_id": 3028,
+    "product_code": "gpsmap66",
+    "manufacturer": "garmin",
+    "model_name": "GPSMap 66"
+  },
+  {
+    "product_id": 3049,
+    "product_code": "approach_s10",
+    "manufacturer": "garmin",
+    "model_name": "Approach S10"
+  },
+  {
+    "product_id": 3066,
+    "product_code": "vivoactive3m_l",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive3m L"
+  },
+  {
+    "product_id": 3076,
+    "product_code": "fr245",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 245"
+  },
+  {
+    "product_id": 3077,
+    "product_code": "fr245_music",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 245 Music"
+  },
+  {
+    "product_id": 3085,
+    "product_code": "approach_g80",
+    "manufacturer": "garmin",
+    "model_name": "Approach G80"
+  },
+  {
+    "product_id": 3092,
+    "product_code": "edge_130_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 130",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3095,
+    "product_code": "edge_1030_bontrager",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1030 Bontrager"
+  },
+  {
+    "product_id": 3110,
+    "product_code": "fenix5_plus",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5 Plus"
+  },
+  {
+    "product_id": 3111,
+    "product_code": "fenix5x_plus",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5X Plus"
+  },
+  {
+    "product_id": 3112,
+    "product_code": "edge_520_plus",
+    "manufacturer": "garmin",
+    "model_name": "Edge 520 Plus"
+  },
+  {
+    "product_id": 3113,
+    "product_code": "fr945",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 945"
+  },
+  {
+    "product_id": 3121,
+    "product_code": "edge_530",
+    "manufacturer": "garmin",
+    "model_name": "Edge 530"
+  },
+  {
+    "product_id": 3122,
+    "product_code": "edge_830",
+    "manufacturer": "garmin",
+    "model_name": "Edge 830"
+  },
+  {
+    "product_id": 3126,
+    "product_code": "instinct_esports",
+    "manufacturer": "garmin",
+    "model_name": "Instinct Esports"
+  },
+  {
+    "product_id": 3134,
+    "product_code": "fenix5s_plus_apac",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5S Plus",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3135,
+    "product_code": "fenix5x_plus_apac",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 5X Plus",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3142,
+    "product_code": "edge_520_plus_apac",
+    "manufacturer": "garmin",
+    "model_name": "Edge 520 Plus",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3143,
+    "product_code": "descent_t1",
+    "manufacturer": "garmin",
+    "model_name": "Descent T1"
+  },
+  {
+    "product_id": 3144,
+    "product_code": "fr235l_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 235l",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3145,
+    "product_code": "fr245_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 245",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3163,
+    "product_code": "vivo_active3m_apac",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active3M",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3218,
+    "product_code": "vivo_smart4_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Smart4",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3224,
+    "product_code": "vivoactive4_small",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive4 Small"
+  },
+  {
+    "product_id": 3225,
+    "product_code": "vivoactive4_large",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive4 Large"
+  },
+  {
+    "product_id": 3226,
+    "product_code": "venu",
+    "manufacturer": "garmin",
+    "model_name": "Venu"
+  },
+  {
+    "product_id": 3246,
+    "product_code": "marq_driver",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Driver"
+  },
+  {
+    "product_id": 3247,
+    "product_code": "marq_aviator",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Aviator"
+  },
+  {
+    "product_id": 3248,
+    "product_code": "marq_captain",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Captain"
+  },
+  {
+    "product_id": 3249,
+    "product_code": "marq_commander",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Commander"
+  },
+  {
+    "product_id": 3250,
+    "product_code": "marq_expedition",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Expedition"
+  },
+  {
+    "product_id": 3251,
+    "product_code": "marq_athlete",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Athlete"
+  },
+  {
+    "product_id": 3258,
+    "product_code": "descent_mk2",
+    "manufacturer": "garmin",
+    "model_name": "Descent MK2"
+  },
+  {
+    "product_id": 3282,
+    "product_code": "fr45",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 45"
+  },
+  {
+    "product_id": 3284,
+    "product_code": "gpsmap66i",
+    "manufacturer": "garmin",
+    "model_name": "GPSMap 66i"
+  },
+  {
+    "product_id": 3287,
+    "product_code": "fenix6S_sport",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6S Sport"
+  },
+  {
+    "product_id": 3288,
+    "product_code": "fenix6S",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6S"
+  },
+  {
+    "product_id": 3289,
+    "product_code": "fenix6_sport",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6 Sport"
+  },
+  {
+    "product_id": 3290,
+    "product_code": "fenix6",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6"
+  },
+  {
+    "product_id": 3291,
+    "product_code": "fenix6x",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6X"
+  },
+  {
+    "product_id": 3308,
+    "product_code": "vivo_move3_premium",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move3 Premium"
+  },
+  {
+    "product_id": 3314,
+    "product_code": "approach_s40",
+    "manufacturer": "garmin",
+    "model_name": "Approach S40"
+  },
+  {
+    "product_id": 3321,
+    "product_code": "fr245m_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 245m",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3349,
+    "product_code": "edge_530_apac",
+    "manufacturer": "garmin",
+    "model_name": "Edge 530",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3350,
+    "product_code": "edge_830_apac",
+    "manufacturer": "garmin",
+    "model_name": "Edge 830",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3378,
+    "product_code": "vivo_move3",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move3"
+  },
+  {
+    "product_id": 3387,
+    "product_code": "vivo_active4_small_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active4 Small",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3388,
+    "product_code": "vivo_active4_large_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active4 Large",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3389,
+    "product_code": "vivo_active4_oled_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active4 Oled",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3405,
+    "product_code": "swim2",
+    "manufacturer": "garmin",
+    "model_name": "Swim 2"
+  },
+  {
+    "product_id": 3420,
+    "product_code": "marq_driver_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Driver",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3421,
+    "product_code": "marq_aviator_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Aviator",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3422,
+    "product_code": "vivo_move3_asia",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move3",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3441,
+    "product_code": "fr945_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 945",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3446,
+    "product_code": "vivo_active3t_chn",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Active3T",
+    "region": "China"
+  },
+  {
+    "product_id": 3448,
+    "product_code": "marq_captain_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Captain",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3449,
+    "product_code": "marq_commander_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Commander",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3450,
+    "product_code": "marq_expedition_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Expedition",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3451,
+    "product_code": "marq_athlete_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Athlete",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3466,
+    "product_code": "instinct_solar",
+    "manufacturer": "garmin",
+    "model_name": "Instinct Solar"
+  },
+  {
+    "product_id": 3469,
+    "product_code": "fr45_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 45",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3473,
+    "product_code": "vivoactive3_daimler",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive3 Daimler"
+  },
+  {
+    "product_id": 3498,
+    "product_code": "legacy_rey",
+    "manufacturer": "garmin",
+    "model_name": "Legacy Rey"
+  },
+  {
+    "product_id": 3499,
+    "product_code": "legacy_darth_vader",
+    "manufacturer": "garmin",
+    "model_name": "Legacy Darth Vader"
+  },
+  {
+    "product_id": 3500,
+    "product_code": "legacy_captain_marvel",
+    "manufacturer": "garmin",
+    "model_name": "Legacy Captain Marvel"
+  },
+  {
+    "product_id": 3501,
+    "product_code": "legacy_first_avenger",
+    "manufacturer": "garmin",
+    "model_name": "Legacy First Avenger"
+  },
+  {
+    "product_id": 3512,
+    "product_code": "fenix6s_sport_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6S Sport",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3513,
+    "product_code": "fenix6s_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6S",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3514,
+    "product_code": "fenix6_sport_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6 Sport",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3515,
+    "product_code": "fenix6_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3516,
+    "product_code": "fenix6x_asia",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 6X",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3535,
+    "product_code": "legacy_captain_marvel_asia",
+    "manufacturer": "garmin",
+    "model_name": "Legacy Captain Marvel",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3536,
+    "product_code": "legacy_first_avenger_asia",
+    "manufacturer": "garmin",
+    "model_name": "Legacy First Avenger",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3537,
+    "product_code": "legacy_rey_asia",
+    "manufacturer": "garmin",
+    "model_name": "Legacy Rey",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3538,
+    "product_code": "legacy_darth_vader_asia",
+    "manufacturer": "garmin",
+    "model_name": "Legacy Darth Vader",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3542,
+    "product_code": "descent_mk2s",
+    "manufacturer": "garmin",
+    "model_name": "Descent MK2S"
+  },
+  {
+    "product_id": 3558,
+    "product_code": "edge_130_plus",
+    "manufacturer": "garmin",
+    "model_name": "Edge 130 Plus"
+  },
+  {
+    "product_id": 3570,
+    "product_code": "edge_1030_plus",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1030 Plus"
+  },
+  {
+    "product_id": 3589,
+    "product_code": "fr745",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 745"
+  },
+  {
+    "product_id": 3596,
+    "product_code": "venusq_music",
+    "manufacturer": "garmin",
+    "model_name": "Venu Sq Music"
+  },
+  {
+    "product_id": 3599,
+    "product_code": "venusq_music_v2",
+    "manufacturer": "garmin",
+    "model_name": "Venu Sq Music V2"
+  },
+  {
+    "product_id": 3600,
+    "product_code": "venusq",
+    "manufacturer": "garmin",
+    "model_name": "Venu Sq"
+  },
+  {
+    "product_id": 3615,
+    "product_code": "lily",
+    "manufacturer": "garmin",
+    "model_name": "Lily"
+  },
+  {
+    "product_id": 3624,
+    "product_code": "marq_adventurer",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Adventurer"
+  },
+  {
+    "product_id": 3638,
+    "product_code": "enduro",
+    "manufacturer": "garmin",
+    "model_name": "Enduro"
+  },
+  {
+    "product_id": 3639,
+    "product_code": "swim2_apac",
+    "manufacturer": "garmin",
+    "model_name": "Swim 2",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3648,
+    "product_code": "marq_adventurer_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Adventurer",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3652,
+    "product_code": "fr945_lte",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 945 LTE"
+  },
+  {
+    "product_id": 3702,
+    "product_code": "descent_mk2_asia",
+    "manufacturer": "garmin",
+    "model_name": "Descent MK2",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3703,
+    "product_code": "venu2",
+    "manufacturer": "garmin",
+    "model_name": "Venu 2"
+  },
+  {
+    "product_id": 3704,
+    "product_code": "venu2s",
+    "manufacturer": "garmin",
+    "model_name": "Venu 2S"
+  },
+  {
+    "product_id": 3737,
+    "product_code": "venu_daimler_asia",
+    "manufacturer": "garmin",
+    "model_name": "Venu Daimler",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3739,
+    "product_code": "marq_golfer",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Golfer"
+  },
+  {
+    "product_id": 3740,
+    "product_code": "venu_daimler",
+    "manufacturer": "garmin",
+    "model_name": "Venu Daimler"
+  },
+  {
+    "product_id": 3794,
+    "product_code": "fr745_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 745",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3809,
+    "product_code": "lily_asia",
+    "manufacturer": "garmin",
+    "model_name": "Lily",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3812,
+    "product_code": "edge_1030_plus_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1030 Plus",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3813,
+    "product_code": "edge_130_plus_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 130 Plus",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3823,
+    "product_code": "approach_s12",
+    "manufacturer": "garmin",
+    "model_name": "Approach S12"
+  },
+  {
+    "product_id": 3837,
+    "product_code": "venusq_asia",
+    "manufacturer": "garmin",
+    "model_name": "Venu Sq",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3843,
+    "product_code": "edge_1040",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1040"
+  },
+  {
+    "product_id": 3850,
+    "product_code": "marq_golfer_asia",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Golfer",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3851,
+    "product_code": "venu2_plus",
+    "manufacturer": "garmin",
+    "model_name": "Venu 2 Plus"
+  },
+  {
+    "product_id": 3869,
+    "product_code": "fr55",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 55"
+  },
+  {
+    "product_id": 3872,
+    "product_code": "enduro_asia",
+    "manufacturer": "garmin",
+    "model_name": "Enduro",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3888,
+    "product_code": "instinct_2",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 2"
+  },
+  {
+    "product_id": 3889,
+    "product_code": "instinct_2s",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 2S"
+  },
+  {
+    "product_id": 3905,
+    "product_code": "fenix7s",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7S"
+  },
+  {
+    "product_id": 3906,
+    "product_code": "fenix7",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7"
+  },
+  {
+    "product_id": 3907,
+    "product_code": "fenix7x",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7X"
+  },
+  {
+    "product_id": 3908,
+    "product_code": "fenix7s_apac",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7S",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3909,
+    "product_code": "fenix7_apac",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3910,
+    "product_code": "fenix7x_apac",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7X",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3927,
+    "product_code": "approach_g12",
+    "manufacturer": "garmin",
+    "model_name": "Approach G12"
+  },
+  {
+    "product_id": 3930,
+    "product_code": "descent_mk2s_asia",
+    "manufacturer": "garmin",
+    "model_name": "Descent MK2S",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3934,
+    "product_code": "approach_s42",
+    "manufacturer": "garmin",
+    "model_name": "Approach S42"
+  },
+  {
+    "product_id": 3943,
+    "product_code": "epix_gen2",
+    "manufacturer": "garmin",
+    "model_name": "Epix Gen 2"
+  },
+  {
+    "product_id": 3944,
+    "product_code": "epix_gen2_apac",
+    "manufacturer": "garmin",
+    "model_name": "Epix Gen 2",
+    "region": "APAC"
+  },
+  {
+    "product_id": 3949,
+    "product_code": "venu2s_asia",
+    "manufacturer": "garmin",
+    "model_name": "Venu 2S",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3950,
+    "product_code": "venu2_asia",
+    "manufacturer": "garmin",
+    "model_name": "Venu 2",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3978,
+    "product_code": "fr945_lte_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 945 LTE",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3982,
+    "product_code": "vivo_move_sport",
+    "manufacturer": "garmin",
+    "model_name": "Vivo Move Sport"
+  },
+  {
+    "product_id": 3983,
+    "product_code": "vivomove_trend",
+    "manufacturer": "garmin",
+    "model_name": "Vivomove Trend"
+  },
+  {
+    "product_id": 3986,
+    "product_code": "approach_S12_asia",
+    "manufacturer": "garmin",
+    "model_name": "Approach S12",
+    "region": "Asia"
+  },
+  {
+    "product_id": 3990,
+    "product_code": "fr255_music",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 255 Music"
+  },
+  {
+    "product_id": 3991,
+    "product_code": "fr255_small_music",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 255 Small Music"
+  },
+  {
+    "product_id": 3992,
+    "product_code": "fr255",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 255"
+  },
+  {
+    "product_id": 3993,
+    "product_code": "fr255_small",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 255 Small"
+  },
+  {
+    "product_id": 4001,
+    "product_code": "approach_g12_asia",
+    "manufacturer": "garmin",
+    "model_name": "Approach G12",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4002,
+    "product_code": "approach_s42_asia",
+    "manufacturer": "garmin",
+    "model_name": "Approach S42",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4005,
+    "product_code": "descent_g1",
+    "manufacturer": "garmin",
+    "model_name": "Descent G1"
+  },
+  {
+    "product_id": 4017,
+    "product_code": "venu2_plus_asia",
+    "manufacturer": "garmin",
+    "model_name": "Venu 2 Plus",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4024,
+    "product_code": "fr955",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 955"
+  },
+  {
+    "product_id": 4033,
+    "product_code": "fr55_asia",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 55",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4061,
+    "product_code": "edge_540",
+    "manufacturer": "garmin",
+    "model_name": "Edge 540"
+  },
+  {
+    "product_id": 4062,
+    "product_code": "edge_840",
+    "manufacturer": "garmin",
+    "model_name": "Edge 840"
+  },
+  {
+    "product_id": 4063,
+    "product_code": "vivosmart_5",
+    "manufacturer": "garmin",
+    "model_name": "Vivosmart 5"
+  },
+  {
+    "product_id": 4071,
+    "product_code": "instinct_2_asia",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 2",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4105,
+    "product_code": "marq_gen2",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Gen 2"
+  },
+  {
+    "product_id": 4115,
+    "product_code": "venusq2",
+    "manufacturer": "garmin",
+    "model_name": "Venu Sq2"
+  },
+  {
+    "product_id": 4116,
+    "product_code": "venusq2music",
+    "manufacturer": "garmin",
+    "model_name": "Venu Sq2Music"
+  },
+  {
+    "product_id": 4124,
+    "product_code": "marq_gen2_aviator",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Gen 2 Aviator"
+  },
+  {
+    "product_id": 4125,
+    "product_code": "d2_air_x10",
+    "manufacturer": "garmin",
+    "model_name": "D2 Air X10"
+  },
+  {
+    "product_id": 4132,
+    "product_code": "descent_g1_asia",
+    "manufacturer": "garmin",
+    "model_name": "Descent G1",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4135,
+    "product_code": "tactix7",
+    "manufacturer": "garmin",
+    "model_name": "Tactix 7"
+  },
+  {
+    "product_id": 4155,
+    "product_code": "instinct_crossover",
+    "manufacturer": "garmin",
+    "model_name": "Instinct Crossover"
+  },
+  {
+    "product_id": 4169,
+    "product_code": "edge_explore2",
+    "manufacturer": "garmin",
+    "model_name": "Edge Explore2"
+  },
+  {
+    "product_id": 4222,
+    "product_code": "descent_mk3",
+    "manufacturer": "garmin",
+    "model_name": "Descent MK3"
+  },
+  {
+    "product_id": 4223,
+    "product_code": "descent_mk3i",
+    "manufacturer": "garmin",
+    "model_name": "Descent MK3i"
+  },
+  {
+    "product_id": 4233,
+    "product_code": "approach_s70",
+    "manufacturer": "garmin",
+    "model_name": "Approach S70"
+  },
+  {
+    "product_id": 4257,
+    "product_code": "fr265_large",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 265 Large"
+  },
+  {
+    "product_id": 4258,
+    "product_code": "fr265_small",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 265 Small"
+  },
+  {
+    "product_id": 4260,
+    "product_code": "venu3",
+    "manufacturer": "garmin",
+    "model_name": "Venu 3"
+  },
+  {
+    "product_id": 4261,
+    "product_code": "venu3s",
+    "manufacturer": "garmin",
+    "model_name": "Venu 3S"
+  },
+  {
+    "product_id": 4305,
+    "product_code": "edge_1040_asia",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1040",
+    "region": "Asia"
+  },
+  {
+    "product_id": 4312,
+    "product_code": "epix_gen2_pro_42",
+    "manufacturer": "garmin",
+    "model_name": "Epix Gen 2 Pro 42"
+  },
+  {
+    "product_id": 4313,
+    "product_code": "epix_gen2_pro_47",
+    "manufacturer": "garmin",
+    "model_name": "Epix Gen 2 Pro 47"
+  },
+  {
+    "product_id": 4314,
+    "product_code": "epix_gen2_pro_51",
+    "manufacturer": "garmin",
+    "model_name": "Epix Gen 2 Pro 51"
+  },
+  {
+    "product_id": 4315,
+    "product_code": "fr965",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 965"
+  },
+  {
+    "product_id": 4341,
+    "product_code": "enduro2",
+    "manufacturer": "garmin",
+    "model_name": "Enduro 2"
+  },
+  {
+    "product_id": 4374,
+    "product_code": "fenix7s_pro_solar",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7S Pro Solar"
+  },
+  {
+    "product_id": 4375,
+    "product_code": "fenix7_pro_solar",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7 Pro Solar"
+  },
+  {
+    "product_id": 4376,
+    "product_code": "fenix7x_pro_solar",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 7X Pro Solar"
+  },
+  {
+    "product_id": 4380,
+    "product_code": "lily2",
+    "manufacturer": "garmin",
+    "model_name": "Lily 2"
+  },
+  {
+    "product_id": 4394,
+    "product_code": "instinct_2x",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 2X"
+  },
+  {
+    "product_id": 4426,
+    "product_code": "vivoactive5",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive5"
+  },
+  {
+    "product_id": 4432,
+    "product_code": "fr165",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 165"
+  },
+  {
+    "product_id": 4433,
+    "product_code": "fr165_music",
+    "manufacturer": "garmin",
+    "model_name": "Forerunner 165 Music"
+  },
+  {
+    "product_id": 4440,
+    "product_code": "edge_1050",
+    "manufacturer": "garmin",
+    "model_name": "Edge 1050"
+  },
+  {
+    "product_id": 4442,
+    "product_code": "descent_t2",
+    "manufacturer": "garmin",
+    "model_name": "Descent T2"
+  },
+  {
+    "product_id": 4472,
+    "product_code": "marq_gen2_commander",
+    "manufacturer": "garmin",
+    "model_name": "MARQ Gen 2 Commander"
+  },
+  {
+    "product_id": 4477,
+    "product_code": "lily_athlete",
+    "manufacturer": "garmin",
+    "model_name": "Lily Athlete"
+  },
+  {
+    "product_id": 4532,
+    "product_code": "fenix8_solar",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 8 Solar"
+  },
+  {
+    "product_id": 4533,
+    "product_code": "fenix8_solar_large",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 8 Solar Large"
+  },
+  {
+    "product_id": 4534,
+    "product_code": "fenix8_small",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 8 Small"
+  },
+  {
+    "product_id": 4536,
+    "product_code": "fenix8",
+    "manufacturer": "garmin",
+    "model_name": "Fenix 8"
+  },
+  {
+    "product_id": 4556,
+    "product_code": "d2_mach1_pro",
+    "manufacturer": "garmin",
+    "model_name": "D2 Mach1 Pro"
+  },
+  {
+    "product_id": 4575,
+    "product_code": "enduro3",
+    "manufacturer": "garmin",
+    "model_name": "Enduro 3"
+  },
+  {
+    "product_id": 4583,
+    "product_code": "instinctE_40mm",
+    "manufacturer": "garmin",
+    "model_name": "Instinct E 40mm"
+  },
+  {
+    "product_id": 4584,
+    "product_code": "instinctE_45mm",
+    "manufacturer": "garmin",
+    "model_name": "Instinct E 45mm"
+  },
+  {
+    "product_id": 4585,
+    "product_code": "instinct3_solar_45mm",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 3 Solar 45mm"
+  },
+  {
+    "product_id": 4586,
+    "product_code": "instinct3_amoled_45mm",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 3 AMOLED 45mm"
+  },
+  {
+    "product_id": 4587,
+    "product_code": "instinct3_amoled_50mm",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 3 AMOLED 50mm"
+  },
+  {
+    "product_id": 4588,
+    "product_code": "descent_g2",
+    "manufacturer": "garmin",
+    "model_name": "Descent G2"
+  },
+  {
+    "product_id": 4625,
+    "product_code": "vivoactive6",
+    "manufacturer": "garmin",
+    "model_name": "Vivoactive6"
+  },
+  {
+    "product_id": 4647,
+    "product_code": "approachS44",
+    "manufacturer": "garmin",
+    "model_name": "Approach S44"
+  },
+  {
+    "product_id": 4656,
+    "product_code": "approachS50",
+    "manufacturer": "garmin",
+    "model_name": "Approach S50"
+  },
+  {
+    "product_id": 4666,
+    "product_code": "fenix_e",
+    "manufacturer": "garmin",
+    "model_name": "Fenix E"
+  },
+  {
+    "product_id": 4759,
+    "product_code": "instinct3_solar_50mm",
+    "manufacturer": "garmin",
+    "model_name": "Instinct 3 Solar 50mm"
+  },
+  {
+    "product_id": 4775,
+    "product_code": "tactix8_amoled",
+    "manufacturer": "garmin",
+    "model_name": "Tactix 8 AMOLED"
+  },
+  {
+    "product_id": 4776,
+    "product_code": "tactix8_solar",
+    "manufacturer": "garmin",
+    "model_name": "Tactix 8 Solar"
+  }
+]

@@ -21,6 +21,7 @@ import auth.identity_providers.public_router as identity_providers_public_router
 import auth.security as auth_security
 import core.config as core_config
 import core.router as core_router
+import computer_models.router as computer_models_router
 import followers.router as followers_router
 import garmin.router as garmin_router
 import gears.gear.router as gears_router
@@ -101,6 +102,12 @@ router.include_router(
     auth_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
+)
+router.include_router(
+    computer_models_router.router,
+    prefix=core_config.ROOT_PATH + "/computer_models",
+    tags=["computer_models"],
+    dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
     followers_router.router,

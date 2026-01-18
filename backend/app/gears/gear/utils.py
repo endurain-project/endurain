@@ -20,6 +20,7 @@ GEAR_ID_TO_NAME = {
     6: "snowboard",
     7: "windsurf",
     8: "water_sports_board",
+    9: "watch",
 }
 
 # Reverse gear type mapping, using the above-defined ID-to-name dictionary to create a name-to-ID dictionary
@@ -40,6 +41,8 @@ GEAR_NAME_TO_ID.update(
         "water_sports_board": 8,
         "surf_board": 8,
         "stand_up_paddling_board": 8,
+        "watch": 9,
+        "computer": 9,
     }
 )
 
@@ -75,6 +78,8 @@ def transform_schema_gear_to_model_gear(
         purchase_value=gear.purchase_value,
         strava_gear_id=gear.strava_gear_id,
         garminconnect_gear_id=gear.garminconnect_gear_id,
+        serial_number=gear.serial_number,
+        computer_model_id=gear.computer_model_id,
     )
 
     return new_gear
