@@ -112,6 +112,7 @@ memory-bank/
 
 # local postgres
 postgres/
+postgres-data/
 
 # local dev docs
 devdocs/
