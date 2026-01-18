@@ -164,8 +164,8 @@
             <!-- Units field -->
             <div class="form-floating mb-3">
               <select class="form-select" id="units" v-model="signUpUnits">
-                <option value="1">{{ $t('signupView.metric') }}</option>
-                <option value="2">{{ $t('signupView.imperial') }}</option>
+                <option value="metric">{{ $t('signupView.metric') }}</option>
+                <option value="imperial">{{ $t('signupView.imperial') }}</option>
               </select>
               <label for="units">{{ $t('signupView.units') }}</label>
             </div>
@@ -174,7 +174,7 @@
             <!-- metric -->
             <div
               class="input-group mb-3"
-              v-if="Number(serverSettingsStore.serverSettings.units) === 1"
+              v-if="serverSettingsStore.serverSettings.units === 'metric'"
             >
               <div class="form-floating flex-grow-1">
                 <input
@@ -260,9 +260,9 @@
             <!-- currency field -->
             <div class="form-floating mb-3">
               <select class="form-select" name="currency" v-model="signUpCurrency" required>
-                <option :value="1">{{ $t('generalItems.currencyEuro') }}</option>
-                <option :value="2">{{ $t('generalItems.currencyDollar') }}</option>
-                <option :value="3">{{ $t('generalItems.currencyPound') }}</option>
+                <option value="euro">{{ $t('generalItems.currencyEuro') }}</option>
+                <option value="dollar">{{ $t('generalItems.currencyDollar') }}</option>
+                <option value="pound">{{ $t('generalItems.currencyPound') }}</option>
               </select>
               <label for="currency">{{ $t('signupView.currency') }}</label>
             </div>
@@ -329,10 +329,10 @@ import defaultLoginImage from '@/assets/login.png'
  * @property city - User's city of residence.
  * @property birthdate - User's birth date in ISO format.
  * @property gender - Gender identifier (male, female, unspecified).
- * @property units - Unit system preference (1=metric, 2=imperial).
+ * @property units - Unit system preference (metric, imperial).
  * @property height - User's height in centimeters.
  * @property first_day_of_week - First day of week (sunday, monday, etc.).
- * @property currency - Currency preference (1=Euro, 2=Dollar, 3=Pound).
+ * @property currency - Currency preference (euro, dollar, pound).
  */
 interface SignUpRequestData {
   name: string
@@ -343,10 +343,10 @@ interface SignUpRequestData {
   city: string | null
   birthdate: string | null
   gender: string
-  units: number
+  units: string
   height: number | null
   first_day_of_week: string
-  currency: number
+  currency: string
 }
 
 /**
@@ -403,8 +403,8 @@ const signUpBirthdate = ref('')
 /** User's gender (male, female, unspecified). */
 const signUpGender = ref('male')
 
-/** User's unit preference (1=metric, 2=imperial). */
-const signUpUnits = ref(Number(serverSettingsStore.serverSettings.units))
+/** User's unit preference (metric, imperial). */
+const signUpUnits = ref(serverSettingsStore.serverSettings.units)
 
 /** User's height in centimeters. */
 const signUpHeightCms = ref<number | null>(null)
@@ -418,8 +418,8 @@ const signUpHeightInches = ref<number | null>(null)
 /** First day of week preference (sunday, monday, etc.). */
 const signUpFirstDayOfWeek = ref('monday')
 
-/** Currency preference (1=Euro, 2=Dollar, 3=Pound). */
-const signUpCurrency = ref(Number(serverSettingsStore.serverSettings.currency))
+/** Currency preference (euro, dollar, pound). */
+const signUpCurrency = ref(serverSettingsStore.serverSettings.currency)
 
 /** Password visibility toggle state. */
 const showPassword = ref(false)
@@ -506,7 +506,7 @@ const togglePasswordVisibility = (): void => {
  */
 const submitForm = async (): Promise<void> => {
   // Convert height units based on server settings
-  if (Number(serverSettingsStore.serverSettings.units) === 1) {
+  if (serverSettingsStore.serverSettings.units === 'metric') {
     // Metric system: convert cm to feet/inches for storage
     if (signUpHeightCms.value !== null) {
       const { feet, inches } = cmToFeetInches(signUpHeightCms.value)

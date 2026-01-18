@@ -8,15 +8,19 @@
         <!-- Units -->
         <label>{{ $t('settingsServerSettingsZoneComponent.unitsLabel') }}</label>
         <select class="form-select" name="serverSettingsUnits" v-model="units" required>
-          <option :value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
-          <option :value="2">{{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}</option>
+          <option value="metric">
+            {{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}
+          </option>
+          <option value="imperial">
+            {{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}
+          </option>
         </select>
         <!-- Currency -->
         <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.currencyLabel') }}</label>
         <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
-          <option :value="1">{{ $t('generalItems.currencyEuro') }}</option>
-          <option :value="2">{{ $t('generalItems.currencyDollar') }}</option>
-          <option :value="3">{{ $t('generalItems.currencyPound') }}</option>
+          <option value="euro">{{ $t('generalItems.currencyEuro') }}</option>
+          <option value="dollar">{{ $t('generalItems.currencyDollar') }}</option>
+          <option value="pound">{{ $t('generalItems.currencyPound') }}</option>
         </select>
         <!-- Num records per list -->
         <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.numRecordsLabel') }}</label>

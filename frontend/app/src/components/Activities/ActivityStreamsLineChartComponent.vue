@@ -38,7 +38,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const serverSettingsStore = useServerSettingsStore()
 const chartCanvas = ref<HTMLCanvasElement | null>(null)
-const units = ref(1)
+const units = ref('metric')
 let myChart: Chart | null = null
 
 /**
@@ -141,9 +141,9 @@ const computedChartData = computed(() => {
   const labels: string[] = []
 
   if (authStore.isAuthenticated && authStore.user) {
-    units.value = authStore.user.units ?? 1
+    units.value = authStore.user.units ?? 'metric'
   } else {
-    units.value = serverSettingsStore.serverSettings.units ?? 1
+    units.value = serverSettingsStore.serverSettings.units ?? 'metric'
   }
 
   for (const stream of props.activityStreams) {
@@ -178,7 +178,7 @@ const computedChartData = computed(() => {
       }
     } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
       for (const streamPoint of stream.stream_waypoints) {
-        if (Number(units.value) === 1) {
+        if (units.value === 'metric') {
           data.push(Number.parseFloat(streamPoint.ele || '0'))
           label = t('generalItems.labelElevationInMeters')
         } else {
@@ -187,7 +187,7 @@ const computedChartData = computed(() => {
         }
       }
     } else if (stream.stream_type === 5 && props.graphSelection === 'vel') {
-      if (Number(units.value) === 1) {
+      if (units.value === 'metric') {
         data.push(
           ...stream.stream_waypoints.map((velData: StreamWaypoint) =>
             Number.parseFloat(formatAverageSpeedMetric(velData.vel || 0))
@@ -213,24 +213,24 @@ const computedChartData = computed(() => {
             activityTypeIsWalking(props.activity) ||
             activityTypeIsRowing(props.activity)
           ) {
-            if (Number(units.value) === 1) {
+            if (units.value === 'metric') {
               converted = (paceData.pace! * 1000) / 60
             } else {
               converted = (paceData.pace! * 1609.34) / 60
             }
-            const threshold = Number(units.value) === 1 ? 20 : 20 * 1.60934
+            const threshold = units.value === 'metric' ? 20 : 20 * 1.60934
             if (converted > threshold || Number.isNaN(converted)) {
               data.push(null)
             } else {
               data.push(converted)
             }
           } else if (activityTypeIsSwimming(props.activity)) {
-            if (Number(units.value) === 1) {
+            if (units.value === 'metric') {
               converted = (paceData.pace! * 100) / 60
             } else {
               converted = (paceData.pace! * 100 * 0.9144) / 60
             }
-            const swimThreshold = Number(units.value) === 1 ? 10 : 10 * 1.0936
+            const swimThreshold = units.value === 'metric' ? 10 : 10 * 1.0936
             if (converted > swimThreshold || Number.isNaN(converted)) {
               data.push(null)
             } else {
@@ -244,13 +244,13 @@ const computedChartData = computed(() => {
         activityTypeIsWalking(props.activity) ||
         activityTypeIsRowing(props.activity)
       ) {
-        if (Number(units.value) === 1) {
+        if (units.value === 'metric') {
           label = t('generalItems.labelPaceInMinKm')
         } else {
           label = t('generalItems.labelPaceInMinMile')
         }
       } else if (activityTypeIsSwimming(props.activity)) {
-        if (Number(units.value) === 1) {
+        if (units.value === 'metric') {
           label = t('generalItems.labelPaceInMin100m')
         } else {
           label = t('generalItems.labelPaceInMin100yd')
@@ -264,7 +264,7 @@ const computedChartData = computed(() => {
   const distanceInterval = totalDistance / numberOfDataPoints
 
   for (let i = 0; i < numberOfDataPoints; i++) {
-    if (Number(units.value) === 1) {
+    if (units.value === 'metric') {
       if (activityTypeIsSwimming(props.activity)) {
         labels.push(`${(i * distanceInterval).toFixed(1)}km`)
       } else {

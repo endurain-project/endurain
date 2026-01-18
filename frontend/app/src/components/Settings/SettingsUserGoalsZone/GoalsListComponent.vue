@@ -70,7 +70,7 @@
           >
           <span v-if="goal.goal_type == 'distance'"
             >{{ $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel') }} -
-            <span v-if="authStore.user.units === 1"
+            <span v-if="authStore?.user?.units === 'metric'"
               >{{ metersToKm(goal.goal_distance) }} {{ $t('generalItems.unitsKm') }}</span
             ><span v-else
               >{{ metersToMiles(goal.goal_distance) }} {{ $t('generalItems.unitsMiles') }}</span
@@ -78,7 +78,7 @@
           </span>
           <span v-if="goal.goal_type == 'elevation'">
             {{ $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel') }} -
-            <span v-if="authStore.user.units === 1"
+            <span v-if="authStore?.user?.units === 'metric'"
               >{{ goal.goal_elevation }} {{ $t('generalItems.unitsM') }}</span
             ><span v-else
               >{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFeetShort') }}</span

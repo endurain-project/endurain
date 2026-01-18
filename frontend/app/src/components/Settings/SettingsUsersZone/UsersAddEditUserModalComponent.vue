@@ -218,10 +218,10 @@
               ><b>* {{ $t('usersAddEditUserModalComponent.addEditUserModalUnitsLabel') }}</b></label
             >
             <select class="form-select" name="userUnitsAddEdit" v-model="newEditUserUnits" required>
-              <option :value="1">
+              <option value="metric">
                 {{ $t('usersAddEditUserModalComponent.addEditUserModalUnitsOption1') }}
               </option>
-              <option :value="2">
+              <option value="imperial">
                 {{ $t('usersAddEditUserModalComponent.addEditUserModalUnitsOption2') }}
               </option>
             </select>
@@ -237,12 +237,12 @@
               v-model="newEditUserCurrency"
               required
             >
-              <option :value="1">{{ $t('generalItems.currencyEuro') }}</option>
-              <option :value="2">{{ $t('generalItems.currencyDollar') }}</option>
-              <option :value="3">{{ $t('generalItems.currencyPound') }}</option>
+              <option value="euro">{{ $t('generalItems.currencyEuro') }}</option>
+              <option value="dollar">{{ $t('generalItems.currencyDollar') }}</option>
+              <option value="pound">{{ $t('generalItems.currencyPound') }}</option>
             </select>
             <!-- height fields -->
-            <div v-if="Number(authStore?.user?.units) === 1">
+            <div v-if="authStore?.user?.units === 'metric'">
               <label for="userHeightAddEditCms"
                 ><b
                   >{{ $t('usersAddEditUserModalComponent.addEditUserModalHeightLabel') }} ({{
@@ -522,7 +522,7 @@ const newEditUserHeightCms = ref(null)
 const newEditUserHeightFeet = ref(null)
 const newEditUserHeightInches = ref(null)
 const newEditUserMaxHeartRate = ref(null)
-const newEditUserFirstDayOfWeek = ref(1)
+const newEditUserFirstDayOfWeek = ref('monday')
 const isFeetValid = computed(
   () => newEditUserHeightFeet.value >= 0 && newEditUserHeightFeet.value <= 10
 )
@@ -766,7 +766,7 @@ async function submitEditUserForm() {
 }
 
 function handleSubmit() {
-  if (Number(authStore?.user?.units) === 1) {
+  if (authStore?.user?.units === 'metric') {
     if (
       (props.user && newEditUserHeightCms.value !== props.user.height) ||
       props.action === 'add'

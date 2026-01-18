@@ -139,7 +139,7 @@
               </option>
             </select>
             <!-- initial kilometers fields -->
-            <div v-if="Number(authStore?.user?.units) === 1 && Number(newEditGearType) !== 4">
+            <div v-if="authStore?.user?.units === 'metric' && Number(newEditGearType) !== 4">
               <label for="gearInitialKmsAddEdit"
                 ><b
                   >*
@@ -156,7 +156,7 @@
               />
             </div>
             <!-- initial miles fields -->
-            <div v-else-if="Number(authStore?.user?.units) === 2 && Number(newEditGearType) !== 4">
+            <div v-else-if="authStore?.user?.units === 'imperial' && Number(newEditGearType) !== 4">
               <label for="gearInitialMilesAddEdit"
                 ><b
                   >*
@@ -194,10 +194,10 @@
                 step="0.01"
                 inputmode="decimal"
               />
-              <span class="input-group-text" v-if="authStore.user.currency === 1">{{
+              <span class="input-group-text" v-if="authStore.user.currency === 'euro'">{{
                 $t('generalItems.currencyEuroSymbol')
               }}</span>
-              <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{
+              <span class="input-group-text" v-else-if="authStore.user.currency === 'dollar'">{{
                 $t('generalItems.currencyDollarSymbol')
               }}</span>
               <span class="input-group-text" v-else>{{
@@ -388,7 +388,7 @@ async function submitEditGearForm() {
 }
 
 function handleSubmit() {
-  if (Number(authStore?.user?.units) === 1) {
+  if (authStore?.user?.units === 'metric') {
     if (
       (props.gear && newEditGearInitialKms.value !== props.gear.initial_kms) ||
       props.action === 'add'

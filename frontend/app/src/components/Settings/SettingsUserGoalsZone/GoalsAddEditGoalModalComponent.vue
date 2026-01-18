@@ -141,7 +141,7 @@
             </div>
             <!-- distance fields -->
             <div v-if="newEditGoalType === 'distance'">
-              <div v-if="Number(authStore?.user?.units) === 1">
+              <div v-if="authStore?.user?.units === 'metric'">
                 <label for="goalDistanceMetricAddEdit"
                   ><b>{{
                     $t('goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel')
@@ -182,7 +182,7 @@
             </div>
             <!-- elevation fields -->
             <div v-if="newEditGoalType === 'elevation'">
-              <div v-if="Number(authStore?.user?.units) === 1">
+              <div v-if="authStore?.user?.units === 'metric'">
                 <label for="goalElevationMetricAddEdit"
                   ><b>{{
                     $t('goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel')
@@ -358,22 +358,22 @@ function setGoalObject() {
   // Only set the field that matches the selected goal type
   if (newEditGoalType.value === 'distance') {
     // Distance goal
-    if (Number(authStore?.user?.units) === 2) {
+    if (authStore?.user?.units === 'imperial') {
       if (newEditGoalDistanceImperial.value) {
         distance = Math.round(milesToMeters(newEditGoalDistanceImperial.value))
       }
-    } else if (Number(authStore?.user?.units) === 1) {
+    } else if (authStore?.user?.units === 'metric') {
       if (newEditGoalDistanceMetric.value) {
         distance = Math.round(kmToMeters(newEditGoalDistanceMetric.value))
       }
     }
   } else if (newEditGoalType.value === 'elevation') {
     // Elevation goal
-    if (Number(authStore?.user?.units) === 2) {
+    if (authStore?.user?.units === 'imperial') {
       if (newEditGoalElevationImperial.value) {
         elevation = Math.round(feetToMeters(newEditGoalElevationImperial.value))
       }
-    } else if (Number(authStore?.user?.units) === 1) {
+    } else if (authStore?.user?.units === 'metric') {
       if (newEditGoalElevationMetric.value) {
         elevation = Math.round(newEditGoalElevationMetric.value)
       }

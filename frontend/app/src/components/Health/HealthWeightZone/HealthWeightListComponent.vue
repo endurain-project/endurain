@@ -4,7 +4,7 @@
       <div class="d-flex align-items-center">
         <div>
           <div class="fw-bold">
-            <span v-if="Number(authStore?.user?.units) === 1"
+            <span v-if="authStore?.user?.units === 'metric'"
               >{{ userHealthWeight.weight }} {{ $t('generalItems.unitsKg') }}</span
             >
             <span v-else
@@ -130,10 +130,10 @@
               <span class="fw-semibold">
                 {{ $t('healthWeightListComponent.boneMassLabel') }}:
               </span>
-              <span v-if="userHealthWeight.bone_mass && Number(authStore?.user?.units) === 1"
+              <span v-if="userHealthWeight.bone_mass && authStore?.user?.units === 'metric'"
                 >{{ userHealthWeight.bone_mass.toFixed(2) }} {{ $t('generalItems.unitsKg') }}</span
               >
-              <span v-else-if="userHealthWeight.bone_mass && Number(authStore?.user?.units) === 2"
+              <span v-else-if="userHealthWeight.bone_mass && authStore?.user?.units === 'imperial'"
                 >{{ kgToLbs(userHealthWeight.bone_mass) }} {{ $t('generalItems.unitsLbs') }}</span
               >
               <span v-else>{{ $t('generalItems.labelNoData') }}</span>
@@ -143,11 +143,12 @@
               <span class="fw-semibold">
                 {{ $t('healthWeightListComponent.muscleMassLabel') }}:
               </span>
-              <span v-if="userHealthWeight.muscle_mass && Number(authStore?.user?.units) === 1"
+              <span v-if="userHealthWeight.muscle_mass && authStore?.user?.units === 'metric'"
                 >{{ userHealthWeight.muscle_mass.toFixed(2) }}
                 {{ $t('generalItems.unitsKg') }}</span
               >
-              <span v-else-if="userHealthWeight.muscle_mass && Number(authStore?.user?.units) === 2"
+              <span
+                v-else-if="userHealthWeight.muscle_mass && authStore?.user?.units === 'imperial'"
                 >{{ kgToLbs(userHealthWeight.muscle_mass) }} {{ $t('generalItems.unitsLbs') }}</span
               >
               <span v-else>{{ $t('generalItems.labelNoData') }}</span>

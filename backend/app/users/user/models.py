@@ -22,7 +22,7 @@ class User(Base):
         birthdate: User's birthdate.
         preferred_language: Preferred language code.
         gender: User's gender (male, female, unspecified).
-        units: Measurement units (1=metric, 2=imperial).
+        units: Measurement units (metric, imperial).
         height: User's height in centimeters.
         max_heart_rate: User maximum heart rate (bpm).
         access_type: User type (regular, admin).
@@ -30,7 +30,7 @@ class User(Base):
         active: Whether the user is active.
         first_day_of_week: First day of the week
             (sunday, monday, etc.).
-        currency: Currency preference (1=euro, 2=dollar, 3=pound).
+        currency: Currency preference (euro, dollar, pound).
         mfa_enabled: Whether multi-factor authentication is
             enabled.
         mfa_secret: MFA secret for TOTP generation
@@ -114,10 +114,11 @@ class User(Base):
         nullable=False,
         comment="User gender (male, female, unspecified)",
     )
-    units: Mapped[int] = mapped_column(
-        default=1,
+    units: Mapped[str] = mapped_column(
+        String(20),
+        default="metric",
         nullable=False,
-        comment="User units (one digit)(1 - metric, 2 - imperial)",
+        comment="User units (metric, imperial)",
     )
     height: Mapped[int | None] = mapped_column(
         nullable=True,
@@ -148,10 +149,11 @@ class User(Base):
         nullable=False,
         comment="User first day of week (sunday, monday, etc.)",
     )
-    currency: Mapped[int] = mapped_column(
-        default=1,
+    currency: Mapped[str] = mapped_column(
+        String(20),
+        default="euro",
         nullable=False,
-        comment=("User currency (one digit)" "(1 - euro, 2 - dollar, 3 - pound)"),
+        comment="User currency (euro, dollar, pound)",
     )
     mfa_enabled: Mapped[bool] = mapped_column(
         default=False,

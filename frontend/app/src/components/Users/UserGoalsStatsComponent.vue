@@ -50,11 +50,11 @@
             }}{{ $t('generalItems.ofWithSpaces')
             }}{{ formatDistanceRaw(t, goal.goal_distance, authStore.user.units) }}</span
           >
-          <span v-if="goal.goal_type === 'elevation' && authStore.user.units === 1"
+          <span v-if="goal.goal_type === 'elevation' && authStore?.user?.units === 'metric'"
             >{{ goal.total_elevation }}{{ $t('generalItems.ofWithSpaces')
             }}{{ goal.goal_elevation }} {{ $t('generalItems.unitsM') }}</span
           >
-          <span v-if="goal.goal_type === 'elevation' && authStore.user.units === 2"
+          <span v-if="goal.goal_type === 'elevation' && authStore?.user?.units === 'imperial'"
             >{{ metersToFeet(goal.total_elevation) }}{{ $t('generalItems.ofWithSpaces')
             }}{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFt') }}</span
           >

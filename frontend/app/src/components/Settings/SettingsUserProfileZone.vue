@@ -107,7 +107,7 @@
           <p>
             <font-awesome-icon :icon="['fas', 'gear']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.unitsLabel') }}: </b>
-            <span v-if="Number(authStore?.user?.units) === 1">{{
+            <span v-if="authStore?.user?.units === 'metric'">{{
               $t('settingsUserProfileZone.unitsOption1')
             }}</span>
             <span v-else>{{ $t('settingsUserProfileZone.unitsOption2') }}</span>
@@ -116,10 +116,10 @@
           <p>
             <font-awesome-icon :icon="['fas', 'coins']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.currencyLabel') }}: </b>
-            <span v-if="Number(authStore?.user?.currency) === 1">{{
+            <span v-if="authStore?.user?.currency === 'euro'">{{
               $t('generalItems.currencyEuro')
             }}</span>
-            <span v-else-if="Number(authStore?.user?.currency) === 2">{{
+            <span v-else-if="authStore?.user?.currency === 'dollar'">{{
               $t('generalItems.currencyDollar')
             }}</span>
             <span v-else>{{ $t('generalItems.currencyPound') }}</span>
@@ -129,13 +129,13 @@
             <font-awesome-icon :icon="['fas', 'person-arrow-up-from-line']" class="me-2" />
             <b
               >{{ $t('settingsUserProfileZone.heightLabel') }}
-              <span v-if="Number(authStore?.user?.units) === 1"
+              <span v-if="authStore?.user?.units === 'metric'"
                 >({{ $t('generalItems.unitsCm') }}):
               </span>
               <span v-else>({{ $t('generalItems.unitsFeetInches') }}): </span>
             </b>
             <span v-if="authStore.user.height">
-              <span v-if="Number(authStore?.user?.units) === 1"
+              <span v-if="authStore?.user?.units === 'metric'"
                 >{{ authStore.user.height }}{{ $t('generalItems.unitsCm') }}</span
               >
               <span v-else>{{ feet }}’{{ inches }}’’</span>

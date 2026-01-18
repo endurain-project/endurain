@@ -1,4 +1,4 @@
-from enum import IntEnum, Enum
+from enum import Enum
 import re
 from pydantic import (
     BaseModel,
@@ -19,32 +19,32 @@ DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
 ]
 
 
-class Units(IntEnum):
+class Units(Enum):
     """
     An enumeration representing measurement units.
 
     Attributes:
-        METRIC (int): Metric system (e.g., meters, kilograms).
-        IMPERIAL (int): Imperial system (e.g., miles, pounds).
+        METRIC: Metric system (e.g., meters, kilograms).
+        IMPERIAL: Imperial system (e.g., miles, pounds).
     """
 
-    METRIC = 1
-    IMPERIAL = 2
+    METRIC = "metric"
+    IMPERIAL = "imperial"
 
 
-class Currency(IntEnum):
+class Currency(Enum):
     """
     An enumeration representing supported currencies.
 
     Attributes:
-        EURO (int): Represents the Euro currency.
-        DOLLAR (int): Represents the US Dollar currency.
-        POUND (int): Represents the British Pound currency.
+        EURO: Represents the Euro currency.
+        DOLLAR: Represents the US Dollar currency.
+        POUND: Represents the British Pound currency.
     """
 
-    EURO = 1
-    DOLLAR = 2
-    POUND = 3
+    EURO = "euro"
+    DOLLAR = "dollar"
+    POUND = "pound"
 
 
 class PasswordType(Enum):
@@ -96,9 +96,7 @@ class ServerSettingsBase(BaseModel):
         - Supports ORM attribute mapping.
     """
 
-    units: Units = Field(
-        Units.METRIC, description="Units (one digit)(1 - metric, 2 - imperial)"
-    )
+    units: Units = Field(Units.METRIC, description="Units (metric, imperial)")
     public_shareable_links: StrictBool = Field(
         ..., description="Allow public shareable links (true - yes, false - no)"
     )
@@ -109,9 +107,7 @@ class ServerSettingsBase(BaseModel):
     login_photo_set: StrictBool = Field(
         ..., description="Is login photo set (true - yes, false - no)"
     )
-    currency: Currency = Field(
-        ..., description="Currency (one digit)(1 - euro, 2 - dollar, 3 - pound)"
-    )
+    currency: Currency = Field(..., description="Currency (euro, dollar, pound)")
     num_records_per_page: StrictInt = Field(
         25,
         ge=1,

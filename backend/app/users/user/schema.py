@@ -114,11 +114,11 @@ class UserBase(BaseModel):
         birthdate: User's birthdate.
         preferred_language: Preferred language.
         gender: User's gender.
-        units: Measurement units preference.
+        units: User units (metric, imperial).
         height: User's height in centimeters (1-300).
         max_heart_rate: Maximum heart rate in bpm (30-250).
         first_day_of_week: First day of the week.
-        currency: Currency preference.
+        currency: User currency (euro, dollar, pound).
     """
 
     name: StrictStr = Field(
@@ -158,7 +158,7 @@ class UserBase(BaseModel):
     )
     units: server_settings_schema.Units = Field(
         server_settings_schema.Units.METRIC,
-        description="Measurement units",
+        description="User units (metric, imperial)",
     )
     height: StrictInt | None = Field(
         None,
@@ -178,7 +178,7 @@ class UserBase(BaseModel):
     )
     currency: server_settings_schema.Currency = Field(
         server_settings_schema.Currency.EURO,
-        description="Currency preference",
+        description="User currency (euro, dollar, pound)",
     )
 
     model_config = ConfigDict(use_enum_values=True)

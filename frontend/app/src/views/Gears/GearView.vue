@@ -130,7 +130,7 @@
           <div class="vstack align-items-center">
             <span class="mt-2" v-if="gear?.gear_type !== 4">
               <strong> {{ $t('gearView.labelDistance') }}: </strong>
-              <span v-if="Number(authStore?.user?.units) === 1">
+              <span v-if="authStore?.user?.units === 'metric'">
                 {{ gearDistance }} {{ $t('generalItems.unitsKm') }}</span
               >
               <span v-else> {{ kmToMiles(gearDistance) }} {{ $t('generalItems.unitsMiles') }}</span>
@@ -150,10 +150,10 @@
                 ><strong>{{ $t('gearView.labelPurchaseValue') }}:</strong>
                 {{ gear?.purchase_value }}</span
               >
-              <span v-if="authStore.user.currency === 1">{{
+              <span v-if="authStore.user.currency === 'euro'">{{
                 $t('generalItems.currencyEuroSymbol')
               }}</span>
-              <span v-else-if="authStore.user.currency === 2">{{
+              <span v-else-if="authStore.user.currency === 'dollar'">{{
                 $t('generalItems.currencyDollarSymbol')
               }}</span>
               <span v-else>{{ $t('generalItems.currencyPoundSymbol') }}</span>
@@ -162,10 +162,10 @@
               <span class="me-1"
                 ><strong>{{ $t('gearView.labelTotalCost') }}:</strong> {{ gearTotalValue }}</span
               >
-              <span v-if="authStore.user.currency === 1">{{
+              <span v-if="authStore.user.currency === 'euro'">{{
                 $t('generalItems.currencyEuroSymbol')
               }}</span>
-              <span v-else-if="authStore.user.currency === 2">{{
+              <span v-else-if="authStore.user.currency === 'dollar'">{{
                 $t('generalItems.currencyDollarSymbol')
               }}</span>
               <span v-else>{{ $t('generalItems.currencyPoundSymbol') }}</span>

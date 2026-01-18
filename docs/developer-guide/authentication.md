@@ -42,7 +42,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
     - On page reload, call `/auth/refresh` to restore in-memory tokens
 
 - **For mobile apps:** 
-    - All tokens (access, refresh, CSRF) returned in JSON response body
+    - All tokens (access, refresh) returned in JSON response body
     - Store tokens in secure platform storage (iOS Keychain, Android EncryptedSharedPreferences)
 
 ## Authentication Flows
@@ -55,7 +55,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 4. If MFA is disabled or verified, backend generates tokens
 5. Tokens are delivered based on client type:
     - **Web:** Access token + CSRF token in response body, refresh token as httpOnly cookie
-    - **Mobile:** All tokens in response body
+    - **Mobile:** All tokens in response body (CSRF not included, not needed for mobile logic)
 
 ### OAuth/SSO Flow
 
@@ -246,7 +246,6 @@ X-Client-Type: web|mobile
   "session_id": "unique_session_id",
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
-  "csrf_token": "abc123...",
   "token_type": "bearer",
   "expires_in": 1734567890
 }
