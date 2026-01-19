@@ -81,11 +81,19 @@ def create_activity_objects(
 
             # Try to find/create computer model from the database
             if manufacturer:
+                # For Garmin: garmin_product contains the numeric product ID
+                # For others: product contains the numeric product ID
+                numeric_product_id = (
+                    garmin_product
+                    if isinstance(garmin_product, int)
+                    else (product if isinstance(product, int) else None)
+                )
+
                 computer_model = (
                     computer_models_crud.get_or_create_computer_model_from_fit_data(
                         manufacturer=str(manufacturer),
-                        product_code=str(garmin_product) if garmin_product else None,
-                        product_id=product if isinstance(product, int) else None,
+                        product_code=None,  # We don't get string codes from FIT files
+                        product_id=numeric_product_id,
                         product_name=product_name,
                         db=db,
                     )
