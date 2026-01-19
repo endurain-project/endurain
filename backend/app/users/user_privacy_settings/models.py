@@ -1,6 +1,6 @@
 """User privacy settings database models."""
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
@@ -13,7 +13,7 @@ class UsersPrivacySettings(Base):
         id: Primary key.
         user_id: Foreign key to users table (unique).
         default_activity_visibility: Default visibility level
-            (0=public, 1=followers, 2=private).
+            (public, followers, private).
         hide_activity_start_time: Hide activity start time.
         hide_activity_location: Hide activity location.
         hide_activity_map: Hide activity map.
@@ -43,10 +43,11 @@ class UsersPrivacySettings(Base):
         index=True,
         comment="User ID that the privacy settings belongs",
     )
-    default_activity_visibility: Mapped[int] = mapped_column(
-        default=0,
+    default_activity_visibility: Mapped[str] = mapped_column(
+        String(20),
+        default="public",
         nullable=False,
-        comment="0 - public, 1 - followers, 2 - private",
+        comment="public, followers, private",
     )
     hide_activity_start_time: Mapped[bool] = mapped_column(
         default=False,

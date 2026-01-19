@@ -96,7 +96,7 @@ const props = defineProps({
     required: true
   },
   selectCurrentOption: {
-    type: Number,
+    type: String,
     required: true
   },
   actionButtonType: {

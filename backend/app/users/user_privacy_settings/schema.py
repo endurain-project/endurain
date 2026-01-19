@@ -1,6 +1,6 @@
 """User privacy settings Pydantic schemas and validators."""
 
-from enum import IntEnum
+from enum import Enum
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -10,7 +10,7 @@ from pydantic import (
 )
 
 
-class ActivityVisibility(IntEnum):
+class ActivityVisibility(Enum):
     """
     Activity visibility levels.
 
@@ -20,9 +20,9 @@ class ActivityVisibility(IntEnum):
         PRIVATE: Visible only to the user.
     """
 
-    PUBLIC = 0
-    FOLLOWERS = 1
-    PRIVATE = 2
+    PUBLIC = "public"
+    FOLLOWERS = "followers"
+    PRIVATE = "private"
 
 
 class UsersPrivacySettingsBase(BaseModel):
@@ -55,9 +55,7 @@ class UsersPrivacySettingsBase(BaseModel):
 
     default_activity_visibility: ActivityVisibility | None = Field(
         ActivityVisibility.PUBLIC,
-        description=(
-            "Default activity visibility (0=public, 1=followers, " "2=private)"
-        ),
+        description="Default activity visibility (public, followers, private)",
     )
     hide_activity_start_time: StrictBool | None = Field(
         False, description="Hide activity start time"

@@ -302,7 +302,7 @@ class UserMe(UserRead):
 
     is_strava_linked: StrictInt | None = None
     is_garminconnect_linked: StrictInt | None = None
-    default_activity_visibility: StrictInt | None = None
+    default_activity_visibility: StrictStr | None = None
     hide_activity_start_time: StrictBool | None = None
     hide_activity_location: StrictBool | None = None
     hide_activity_map: StrictBool | None = None

@@ -536,9 +536,11 @@
                 v-model="activityVisibility"
                 required
               >
-                <option :value="0">{{ $t('settingsUserProfileZone.privacyOption1') }}</option>
-                <option :value="1">{{ $t('settingsUserProfileZone.privacyOption2') }}</option>
-                <option :value="2">{{ $t('settingsUserProfileZone.privacyOption3') }}</option>
+                <option value="public">{{ $t('settingsUserProfileZone.privacyOption1') }}</option>
+                <option value="followers">
+                  {{ $t('settingsUserProfileZone.privacyOption2') }}
+                </option>
+                <option value="private">{{ $t('settingsUserProfileZone.privacyOption3') }}</option>
               </select>
             </form>
             <!-- user hide_activity_start_time -->
@@ -815,9 +817,9 @@ const defaultNordicSkiGear = ref(null)
 const defaultSnowboardGear = ref(null)
 const defaultWindsurfGear = ref(null)
 const visibilityOptionsForModal = ref([
-  { id: 0, name: t('settingsUserProfileZone.privacyOption1') },
-  { id: 1, name: t('settingsUserProfileZone.privacyOption2') },
-  { id: 2, name: t('settingsUserProfileZone.privacyOption3') }
+  { id: 'public', name: t('settingsUserProfileZone.privacyOption1') },
+  { id: 'private', name: t('settingsUserProfileZone.privacyOption2') },
+  { id: 'friends', name: t('settingsUserProfileZone.privacyOption3') }
 ])
 const activityVisibility = ref(authStore.user.default_activity_visibility)
 const activityStartTime = ref(authStore.user.hide_activity_start_time)
