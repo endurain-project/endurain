@@ -113,6 +113,14 @@
         </span>
         <span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
         <span class="ms-2" v-else>{{ $t('activityView.labelGearNotSet') }}</span>
+        <br v-if="activity.computer_gear_id && computerGear" />
+        <span class="fw-lighter" v-if="activity.computer_gear_id && computerGear">
+          {{ $t('activityView.labelRecordedWith') }}
+        </span>
+        <span v-if="activity.computer_gear_id && computerGear">
+          <font-awesome-icon :icon="['fas', 'fa-clock']" class="ms-0" />
+          <span class="ms-2">{{ computerGear.nickname }}</span>
+        </span>
       </p>
       <div class="justify-content-end">
         <!-- add gear button -->
@@ -288,6 +296,7 @@ const router = useRouter()
 const isLoading = ref(true)
 const activity = ref(null)
 const gear = ref(null)
+const computerGear = ref(null)
 const gearsByType = ref([])
 const gearId = ref(null)
 const activityActivityStreams = ref([])
@@ -485,6 +494,10 @@ onMounted(async () => {
       if (activity.value.gear_id) {
         gear.value = await gears.getGearById(activity.value.gear_id)
         gearId.value = activity.value.gear_id
+      }
+
+      if (activity.value.computer_gear_id) {
+        computerGear.value = await gears.getGearById(activity.value.computer_gear_id)
       }
 
       await getGearsByActivityType()

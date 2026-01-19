@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -15,6 +17,6 @@ class ComputerModelCreate(ComputerModelBase):
 
 class ComputerModelRead(ComputerModelBase):
     id: int
-    created_at: str | None = None
+    created_at: datetime | str | None = None
 
     model_config = {"from_attributes": True}

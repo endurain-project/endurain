@@ -93,7 +93,7 @@ class Gear(Base):
         foreign_keys="[Activity.computer_gear_id]",
     )
     # Relationship to computer model (for watch/computer gear type)
-    computer_model = relationship("ComputerModel", back_populates="gear")
+    computer_model = relationship("ComputerModel")
     # Establish a one-to-many relationship with 'gear_components'
     gear_components = relationship(
         "GearComponents",

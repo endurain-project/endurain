@@ -633,6 +633,47 @@ def get_watch_gear_by_serial_number(
         ) from err
 
 
+def get_watch_gear_by_model_name(
+    user_id: int, model_name: str, db: Session
+) -> gears_schema.Gear | None:
+    """
+    Find watch/computer gear (type 9) for a user by model name.
+    Used for devices without serial numbers (e.g., Suunto).
+
+    Args:
+        user_id: The user ID
+        model_name: The device model name
+        db: Database session
+
+    Returns:
+        The gear if found, None otherwise
+    """
+    try:
+        gear = (
+            db.query(gears_models.Gear)
+            .filter(
+                gears_models.Gear.user_id == user_id,
+                gears_models.Gear.gear_type == 9,
+                gears_models.Gear.model == model_name,
+                gears_models.Gear.serial_number.is_(None),
+            )
+            .first()
+        )
+
+        if gear is None:
+            return None
+
+        return gears_utils.serialize_gear(gear)
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_watch_gear_by_model_name: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_or_create_watch_gear_from_fit_data(
     user_id: int,
     serial_number: str | None,
@@ -645,6 +686,7 @@ def get_or_create_watch_gear_from_fit_data(
     Find or create watch/computer gear based on FIT file device info.
 
     If a watch gear with the same serial number exists for the user, return it.
+    For devices without serial numbers (e.g., Suunto), uses model_name as identifier.
     Otherwise, create a new watch gear entry.
 
     Args:
@@ -656,17 +698,23 @@ def get_or_create_watch_gear_from_fit_data(
         db: Database session
 
     Returns:
-        The existing or newly created gear, or None if no serial number
+        The existing or newly created gear, or None if no identifier available
     """
     try:
-        # Serial number is required to identify a unique device
-        if not serial_number:
-            return None
+        # Try to find existing gear by serial number first
+        if serial_number:
+            existing_gear = get_watch_gear_by_serial_number(user_id, serial_number, db)
+            if existing_gear:
+                return existing_gear
+        # For devices without serial numbers, try to find by model name
+        elif model_name:
+            existing_gear = get_watch_gear_by_model_name(user_id, model_name, db)
+            if existing_gear:
+                return existing_gear
 
-        # Check if watch gear with this serial number already exists
-        existing_gear = get_watch_gear_by_serial_number(user_id, serial_number, db)
-        if existing_gear:
-            return existing_gear
+        # Need at least serial_number or model_name to create gear
+        if not serial_number and not model_name:
+            return None
 
         # Create a nickname based on the model name or manufacturer
         if model_name:
@@ -678,7 +726,7 @@ def get_or_create_watch_gear_from_fit_data(
 
         # Check if nickname already exists and make it unique
         nickname_check = get_gear_user_by_nickname(user_id, nickname, db)
-        if nickname_check:
+        if nickname_check and serial_number:
             # Append serial number suffix to make nickname unique
             nickname = f"{nickname} ({serial_number[-4:]})"
 
@@ -698,8 +746,9 @@ def get_or_create_watch_gear_from_fit_data(
         db.commit()
         db.refresh(created_gear)
 
+        identifier = serial_number if serial_number else f"model: {model_name}"
         core_logger.print_to_log_and_console(
-            f"Auto-created watch gear '{nickname}' for user {user_id} (serial: {serial_number})"
+            f"Auto-created watch gear '{nickname}' for user {user_id} ({identifier})"
         )
 
         return gears_utils.serialize_gear(created_gear)

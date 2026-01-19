@@ -6,7 +6,7 @@
         :alt="
           $t(
             `gearsListComponent.gearListTypeOption${
-              gear.gear_type >= 1 && gear.gear_type <= 8 ? gear.gear_type : 8
+              gear.gear_type >= 1 && gear.gear_type <= 9 ? gear.gear_type : 1
             }`
           ) + ' avatar'
         "
@@ -43,7 +43,13 @@
         <span v-else-if="gear.gear_type == 7">{{
           $t('gearsListComponent.gearListTypeOption7')
         }}</span>
-        <span v-else>{{ $t('gearsListComponent.gearListTypeOption8') }}</span>
+        <span v-else-if="gear.gear_type == 8">{{
+          $t('gearsListComponent.gearListTypeOption8')
+        }}</span>
+        <span v-else-if="gear.gear_type == 9">{{
+          $t('gearsListComponent.gearListTypeOption9')
+        }}</span>
+        <span v-else>{{ $t('gearsListComponent.gearListTypeOption1') }}</span>
         <br />
       </div>
     </div>

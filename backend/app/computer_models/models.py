@@ -49,6 +49,3 @@ class ComputerModel(Base):
         default=func.now(),
         comment="Record creation timestamp",
     )
-
-    # Relationship to gear items using this computer model
-    gear = relationship("Gear", back_populates="computer_model")

@@ -1,6 +1,7 @@
 {
   "labelGear": "Gear",
   "labelGearNotSet": "Not set",
+  "labelRecordedWith": "Recorded with",
   "modalLabelDeleteGear": "Delete gear from activity",
   "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
   "modalLabelDeleteGearButton": "Delete gear",

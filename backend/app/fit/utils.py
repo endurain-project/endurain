@@ -71,24 +71,17 @@ def create_activity_objects(
 
         if file_id and db:
             manufacturer = file_id.get("manufacturer")
-            product = file_id.get("product")
             serial_number = file_id.get("serial_number")
             garmin_product = file_id.get("garmin_product")
             product_name = file_id.get("product_name")
+            # Use the raw numeric product_id for database lookup
+            numeric_product_id = file_id.get("product_id")
 
             # Convert serial_number to string if it exists
             serial_number_str = str(serial_number) if serial_number else None
 
             # Try to find/create computer model from the database
             if manufacturer:
-                # For Garmin: garmin_product contains the numeric product ID
-                # For others: product contains the numeric product ID
-                numeric_product_id = (
-                    garmin_product
-                    if isinstance(garmin_product, int)
-                    else (product if isinstance(product, int) else None)
-                )
-
                 computer_model = (
                     computer_models_crud.get_or_create_computer_model_from_fit_data(
                         manufacturer=str(manufacturer),
@@ -106,11 +99,11 @@ def create_activity_objects(
                     tracker_model_name = product_name
                 elif garmin_product:
                     tracker_model_name = str(garmin_product)
-                elif product:
-                    tracker_model_name = str(product)
+                elif numeric_product_id:
+                    tracker_model_name = str(numeric_product_id)
 
-                # Auto-create watch gear if we have a serial number
-                if serial_number_str:
+                # Auto-create watch gear if we have a serial number or model name
+                if serial_number_str or tracker_model_name:
                     watch_gear = gears_crud.get_or_create_watch_gear_from_fit_data(
                         user_id=user_id,
                         serial_number=serial_number_str,
@@ -1154,8 +1147,11 @@ def parse_frame_file_id(frame):
         "product": get_value_from_frame(frame, "product"),
         "serial_number": get_value_from_frame(frame, "serial_number"),
         "time_created": get_value_from_frame(frame, "time_created"),
-        # Garmin-specific: product code like "fenix7x", "edge1040"
+        # Garmin-specific: product code like "fenix7x", "edge1040" (decoded enum name)
         "garmin_product": get_value_from_frame(frame, "garmin_product"),
+        # Raw numeric product ID (needed for database lookup since fitdecode decodes to enum name)
+        "product_id": get_raw_value_from_frame(frame, "garmin_product")
+        or get_raw_value_from_frame(frame, "product"),
         # Suunto/other: human-readable product name
         "product_name": get_value_from_frame(frame, "product_name"),
     }
