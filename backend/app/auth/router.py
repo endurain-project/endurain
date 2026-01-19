@@ -411,10 +411,9 @@ async def refresh_token(
             )
 
     # Check for token reuse BEFORE validating token
-    # Hash the incoming token to compare with rotated tokens
-    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
+    # Uses HMAC-SHA256 internally for deterministic, secure lookup
     is_reused, in_grace = rotated_tokens_utils.check_token_reuse(
-        hashed_refresh_token, db
+        refresh_token_value, db
     )
 
     if is_reused and not in_grace:
@@ -450,8 +449,10 @@ async def refresh_token(
 
     # Store old refresh token BEFORE rotating
     # This enables detection if the old token is reused later
+    # Note: We store the raw token value; store_rotated_token
+    # hashes it with HMAC-SHA256 for secure, deterministic lookup
     rotated_tokens_utils.store_rotated_token(
-        session.refresh_token,
+        refresh_token_value,
         session.token_family_id,
         session.rotation_count,
         db,

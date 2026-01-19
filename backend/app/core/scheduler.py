@@ -95,7 +95,7 @@ def start_scheduler():
     add_scheduler_job(
         rotated_tokens_utils.cleanup_expired_rotated_tokens,
         "interval",
-        5,
+        1,
         [],
         "delete expired rotated tokens from the database",
     )
