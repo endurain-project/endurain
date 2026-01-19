@@ -4,8 +4,8 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import session.rotated_refresh_tokens.models as rotated_token_models
-import session.rotated_refresh_tokens.schema as rotated_token_schema
+import users.users_session.rotated_refresh_tokens.models as rotated_token_models
+import users.users_session.rotated_refresh_tokens.schema as rotated_token_schema
 import core.logger as core_logger
 
 

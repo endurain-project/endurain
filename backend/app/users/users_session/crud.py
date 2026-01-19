@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 import auth.oauth_state.models as oauth_state_models
 import auth.oauth_state.crud as oauth_state_crud
-import session.models as session_models
-import session.schema as session_schema
-import session.rotated_refresh_tokens.crud as rotated_tokens_crud
+
+import users.users_session.models as users_session_models
+import users.users_session.schema as users_session_schema
+
+import users.users_session.rotated_refresh_tokens.crud as users_session_rotated_tokens_crud
 
 import core.logger as core_logger
 
@@ -25,7 +27,9 @@ class SessionNotFoundError(Exception):
     """
 
 
-def get_user_sessions(user_id: int, db: Session) -> list[session_models.UsersSessions]:
+def get_user_sessions(
+    user_id: int, db: Session
+) -> list[users_session_models.UsersSessions]:
     """
     Retrieve all session records for a given user, ordered by creation date descending.
 
@@ -34,7 +38,7 @@ def get_user_sessions(user_id: int, db: Session) -> list[session_models.UsersSes
         db (Session): SQLAlchemy database session.
 
     Returns:
-        list[session_models.UsersSessions]: List of session objects for the user, ordered by most recent.
+        list[users_session_models.UsersSessions]: List of session objects for the user, ordered by most recent.
         None: If no sessions are found for the user.
 
     Raises:
@@ -42,9 +46,9 @@ def get_user_sessions(user_id: int, db: Session) -> list[session_models.UsersSes
     """
     try:
         return (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.user_id == user_id)
-            .order_by(session_models.UsersSessions.created_at.desc())
+            db.query(users_session_models.UsersSessions)
+            .filter(users_session_models.UsersSessions.user_id == user_id)
+            .order_by(users_session_models.UsersSessions.created_at.desc())
             .all()
         )
     except Exception as err:
@@ -60,7 +64,7 @@ def get_user_sessions(user_id: int, db: Session) -> list[session_models.UsersSes
 
 def get_session_by_id(
     session_id: str, db: Session
-) -> session_models.UsersSessions | None:
+) -> users_session_models.UsersSessions | None:
     """
     Retrieve a user session from the database using a refresh token, ensuring the session is not expired.
 
@@ -77,10 +81,11 @@ def get_session_by_id(
     try:
         # Get the session from the database, ensure it's not expired
         return (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.id == session_id)
+            db.query(users_session_models.UsersSessions)
+            .filter(users_session_models.UsersSessions.id == session_id)
             .filter(
-                session_models.UsersSessions.expires_at > datetime.now(timezone.utc)
+                users_session_models.UsersSessions.expires_at
+                > datetime.now(timezone.utc)
             )
             .first()
         )
@@ -97,7 +102,10 @@ def get_session_by_id(
 
 def get_session_with_oauth_state(
     session_id: str, db: Session
-) -> tuple[session_models.UsersSessions, oauth_state_models.OAuthState | None] | None:
+) -> (
+    tuple[users_session_models.UsersSessions, oauth_state_models.OAuthState | None]
+    | None
+):
     """
     Retrieve a session with its associated OAuthState for token exchange validation.
 
@@ -119,10 +127,11 @@ def get_session_with_oauth_state(
     try:
         # Query session
         db_session = (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.id == session_id)
+            db.query(users_session_models.UsersSessions)
+            .filter(users_session_models.UsersSessions.id == session_id)
             .filter(
-                session_models.UsersSessions.expires_at > datetime.now(timezone.utc)
+                users_session_models.UsersSessions.expires_at
+                > datetime.now(timezone.utc)
             )
             .first()
         )
@@ -154,24 +163,24 @@ def get_session_with_oauth_state(
 
 
 def create_session(
-    session: session_schema.UsersSessions, db: Session
-) -> session_models.UsersSessions:
+    session: users_session_schema.UsersSessions, db: Session
+) -> users_session_models.UsersSessions:
     """
     Creates a new user session in the database.
 
     Args:
-        session (session_schema.UsersSessions): The session data to be created.
+        session (users_session_schema.UsersSessions): The session data to be created.
         db (Session): The SQLAlchemy database session.
 
     Returns:
-        session_models.UsersSessions: The newly created session object.
+        users_session_models.UsersSessions: The newly created session object.
 
     Raises:
         HTTPException: If an error occurs during session creation, raises a 500 Internal Server Error.
     """
     try:
         # Create a new session using model_dump
-        db_session = session_models.UsersSessions(**session.model_dump())
+        db_session = users_session_models.UsersSessions(**session.model_dump())
 
         # Add the session to the database
         db.add(db_session)
@@ -218,8 +227,8 @@ def mark_tokens_exchanged(session_id: str, db: Session) -> None:
     try:
         # Get the session from the database
         db_session = (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.id == session_id)
+            db.query(users_session_models.UsersSessions)
+            .filter(users_session_models.UsersSessions.id == session_id)
             .first()
         )
 
@@ -274,7 +283,7 @@ def mark_tokens_exchanged(session_id: str, db: Session) -> None:
         ) from err
 
 
-def edit_session(session: session_schema.UsersSessions, db: Session) -> None:
+def edit_session(session: users_session_schema.UsersSessions, db: Session) -> None:
     """
     Edits an existing user session in the database.
 
@@ -283,7 +292,7 @@ def edit_session(session: session_schema.UsersSessions, db: Session) -> None:
     If any other exception occurs, it rolls back the transaction, logs the error, and raises a 500 error.
 
     Args:
-        session (session_schema.UsersSessions): The session data containing updated fields.
+        session (users_session_schema.UsersSessions): The session data containing updated fields.
         db (Session): The SQLAlchemy database session.
 
     Raises:
@@ -292,8 +301,8 @@ def edit_session(session: session_schema.UsersSessions, db: Session) -> None:
     try:
         # Get the session from the database
         db_session = (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.id == session.id)
+            db.query(users_session_models.UsersSessions)
+            .filter(users_session_models.UsersSessions.id == session.id)
             .first()
         )
 
@@ -347,10 +356,10 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
     try:
         # Get the session to retrieve token_family_id before deletion
         session = (
-            db.query(session_models.UsersSessions)
+            db.query(users_session_models.UsersSessions)
             .filter(
-                session_models.UsersSessions.id == session_id,
-                session_models.UsersSessions.user_id == user_id,
+                users_session_models.UsersSessions.id == session_id,
+                users_session_models.UsersSessions.user_id == user_id,
             )
             .first()
         )
@@ -365,14 +374,14 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
         oauth_state_id_to_delete = session.oauth_state_id
 
         # Delete rotated tokens for this session's family (foreign key constraint)
-        rotated_tokens_crud.delete_by_family(session.token_family_id, db)
+        users_session_rotated_tokens_crud.delete_by_family(session.token_family_id, db)
 
         # Delete the session
         num_deleted = (
-            db.query(session_models.UsersSessions)
+            db.query(users_session_models.UsersSessions)
             .filter(
-                session_models.UsersSessions.id == session_id,
-                session_models.UsersSessions.user_id == user_id,
+                users_session_models.UsersSessions.id == session_id,
+                users_session_models.UsersSessions.user_id == user_id,
             )
             .delete()
         )
@@ -422,8 +431,8 @@ def delete_idle_sessions(cutoff_time: datetime, db: Session) -> int:
     try:
         # Delete sessions with last_activity_at older than cutoff_time
         num_deleted = (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.last_activity_at < cutoff_time)
+            db.query(users_session_models.UsersSessions)
+            .filter(users_session_models.UsersSessions.last_activity_at < cutoff_time)
             .delete()
         )
 
@@ -463,8 +472,10 @@ def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
     """
     try:
         num_deleted = (
-            db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.token_family_id == token_family_id)
+            db.query(users_session_models.UsersSessions)
+            .filter(
+                users_session_models.UsersSessions.token_family_id == token_family_id
+            )
             .delete()
         )
 

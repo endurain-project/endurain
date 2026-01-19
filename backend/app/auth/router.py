@@ -14,11 +14,9 @@ from fastapi import (
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-import session.utils as session_utils
 import auth.security as auth_security
 import auth.utils as auth_utils
 import auth.constants as auth_constants
-import session.crud as session_crud
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.schema as auth_schema
@@ -27,12 +25,16 @@ import auth.identity_providers.utils as idp_utils
 
 import users.users.crud as users_crud
 import users.users.utils as users_utils
+
+import users.users_session.utils as users_session_utils
+import users.users_session.crud as users_session_crud
+
+import users.users_session.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
+
 import profile.utils as profile_utils
 
 import core.database as core_database
 import core.rate_limit as core_rate_limit
-
-import session.rotated_refresh_tokens.utils as rotated_tokens_utils
 
 # Define the API router
 router = APIRouter()
@@ -380,7 +382,7 @@ async def refresh_token(
                        user is inactive, or CSRF token is invalid (when provided).
     """
     # Get the session from the database
-    session = session_crud.get_session_by_id(token_session_id, db)
+    session = users_session_crud.get_session_by_id(token_session_id, db)
 
     # Check if the session was found
     if session is None:
@@ -391,7 +393,7 @@ async def refresh_token(
         )
 
     # Validate session hasn't exceeded idle or absolute timeout
-    session_utils.validate_session_timeout(session)
+    users_session_utils.validate_session_timeout(session)
 
     # Verify CSRF token for web clients only
     # Mobile clients don't use CSRF tokens
@@ -412,13 +414,15 @@ async def refresh_token(
 
     # Check for token reuse BEFORE validating token
     # Uses HMAC-SHA256 internally for deterministic, secure lookup
-    is_reused, in_grace = rotated_tokens_utils.check_token_reuse(
+    is_reused, in_grace = users_session_rotated_tokens_utils.check_token_reuse(
         refresh_token_value, db
     )
 
     if is_reused and not in_grace:
         # Token theft detected - invalidate entire family
-        rotated_tokens_utils.invalidate_token_family(session.token_family_id, db)
+        users_session_rotated_tokens_utils.invalidate_token_family(
+            session.token_family_id, db
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token reuse detected. All sessions invalidated.",
@@ -451,7 +455,7 @@ async def refresh_token(
     # This enables detection if the old token is reused later
     # Note: We store the raw token value; store_rotated_token
     # hashes it with HMAC-SHA256 for secure, deterministic lookup
-    rotated_tokens_utils.store_rotated_token(
+    users_session_rotated_tokens_utils.store_rotated_token(
         refresh_token_value,
         session.token_family_id,
         session.rotation_count,
@@ -471,7 +475,7 @@ async def refresh_token(
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
     # and updates last_rotation_at
-    session_utils.edit_session(
+    users_session_utils.edit_session(
         session,
         request,
         new_refresh_token,
@@ -563,7 +567,7 @@ async def logout(
         HTTPException: If the client type is invalid (403 Forbidden).
     """
     # Get the session from the database
-    session = session_crud.get_session_by_id(token_session_id, db)
+    session = users_session_crud.get_session_by_id(token_session_id, db)
 
     # Check if the session was found
     if session is not None:
@@ -579,7 +583,7 @@ async def logout(
             )
 
         # Delete the session from the database
-        session_crud.delete_session(session.id, token_user_id, db)
+        users_session_crud.delete_session(session.id, token_user_id, db)
 
         # Clear all IdP refresh tokens for security
         await idp_utils.clear_all_idp_tokens(token_user_id, db)

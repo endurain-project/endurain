@@ -29,8 +29,8 @@ import notifications.models
 import password_reset_tokens.models
 import sign_up_tokens.models
 import server_settings.models
-import session.models
-import session.rotated_refresh_tokens.models
+import users.users_session.models
+import users.users_session.rotated_refresh_tokens.models
 import users.users.models
 import users.users_goals.models
 import users.users_default_gear.models

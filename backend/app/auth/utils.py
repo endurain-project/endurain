@@ -13,15 +13,18 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 import auth.constants as auth_constants
-import session.utils as session_utils
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.schema as auth_schema
+
 import auth.oauth_state.crud as oauth_state_crud
+
 import auth.identity_providers.utils as idp_utils
 
 import users.users.crud as users_crud
 import users.users.schema as users_schema
+
+import users.users_session.utils as users_session_utils
 
 
 def authenticate_user(
@@ -181,7 +184,7 @@ def complete_login(
     # This enables the OAuth 2.1 bootstrap pattern where the first /refresh call
     # after page reload establishes the CSRF binding. The httpOnly cookie is
     # sufficient authentication for the bootstrap refresh.
-    session_utils.create_session(
+    users_session_utils.create_session(
         session_id,
         user,
         request,
@@ -297,7 +300,7 @@ def create_mobile_pkce_session_response(
     )
 
     # Create session linked to oauth_state (enables PKCE exchange)
-    session_utils.create_session(
+    users_session_utils.create_session(
         session_id,
         user,
         request,

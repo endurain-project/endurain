@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 import auth.oauth_state.models as oauth_state_models
-import session.models as session_models
+import users.users_session.models as users_session_models
 
 import core.logger as core_logger
 
@@ -66,8 +66,8 @@ def get_oauth_state_by_session_id(
         oauth_state_models.OAuthState if found and linked, else None.
     """
     session = (
-        db.query(session_models.UsersSessions)
-        .filter(session_models.UsersSessions.id == session_id)
+        db.query(users_session_models.UsersSessions)
+        .filter(users_session_models.UsersSessions.id == session_id)
         .first()
     )
 

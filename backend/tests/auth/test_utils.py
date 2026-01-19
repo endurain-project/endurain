@@ -211,7 +211,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -244,7 +244,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "mobile"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -272,7 +272,9 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session") as mock_create_session:
+        with patch(
+            "auth.utils.users_session_utils.create_session"
+        ) as mock_create_session:
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -325,7 +327,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             with patch.dict("os.environ", {"FRONTEND_PROTOCOL": "https"}):
                 # Act
                 auth_utils.complete_login(
@@ -350,7 +352,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             auth_utils.complete_login(
                 response,
@@ -378,7 +380,7 @@ class TestCompleteLogin:
         response2 = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             result1 = auth_utils.complete_login(
                 response1,

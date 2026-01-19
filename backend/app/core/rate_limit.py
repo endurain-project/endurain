@@ -29,8 +29,10 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+
+import users.users_session.utils as users_session_utils
+
 import core.logger as core_logger
-import session.utils as session_utils
 
 
 # Predefined rate limit decorators for common use cases
@@ -68,9 +70,9 @@ ADMIN_LIMIT = "10/minute"  # Administrative operations
 # For production with multiple backend instances, consider using Redis storage:
 # from slowapi.middleware import SlowAPIMiddleware
 # from slowapi import _rate_limit_exceeded_handler
-# limiter = Limiter(key_func=session_utils.get_ip_address, storage_uri="redis://localhost:6379")
+# limiter = Limiter(key_func=users_session_utils.get_ip_address, storage_uri="redis://localhost:6379")
 limiter = Limiter(
-    key_func=session_utils.get_ip_address,
+    key_func=users_session_utils.get_ip_address,
     default_limits=["100/minute"],  # Global default: 100 requests per minute per IP
     storage_uri="memory://",  # In-memory storage (single instance only)
     headers_enabled=True,  # Include rate limit headers in responses
@@ -99,7 +101,7 @@ async def rate_limit_exceeded_handler(
         for monitoring and security purposes. The default retry period is set to 60 seconds.
     """
     # Extract client identifier for logging
-    client_ip = session_utils.get_ip_address(request)
+    client_ip = users_session_utils.get_ip_address(request)
     path = request.url.path
 
     # Log the rate limit violation

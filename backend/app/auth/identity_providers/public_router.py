@@ -13,8 +13,8 @@ import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import auth.constants as auth_constants
-import session.utils as session_utils
-import session.crud as session_crud
+import users.users_session.utils as users_session_utils
+import users.users_session.crud as users_session_crud
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.service as idp_service
@@ -293,7 +293,7 @@ async def handle_callback(
                 detail="OAuth state required for token exchange",
             )
 
-        session_utils.create_session(
+        users_session_utils.create_session(
             session_id,
             user_read,
             request,
@@ -391,7 +391,9 @@ async def exchange_tokens_for_session(
     """
     try:
         # Retrieve session with OAuth state relationship
-        session_with_state = session_crud.get_session_with_oauth_state(session_id, db)
+        session_with_state = users_session_crud.get_session_with_oauth_state(
+            session_id, db
+        )
 
         if not session_with_state:
             core_logger.print_to_log(
@@ -488,7 +490,7 @@ async def exchange_tokens_for_session(
             )
 
         # Mark tokens as exchanged to prevent replay attacks
-        session_crud.mark_tokens_exchanged(session_id, db)
+        users_session_crud.mark_tokens_exchanged(session_id, db)
 
         core_logger.print_to_log(
             f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={client_type})",

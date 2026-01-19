@@ -8,7 +8,8 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import auth.security as auth_security
-import session.crud as session_crud
+
+import users.users_session.crud as users_session_crud
 
 import core.database as core_database
 import core.logger as core_logger
@@ -43,7 +44,7 @@ async def read_sessions_user(
     """
     # Get the sessions from the database
     if core_config.ENVIRONMENT != "demo":
-        return session_crud.get_user_sessions(user_id, db)
+        return users_session_crud.get_user_sessions(user_id, db)
     else:
         core_logger.print_to_log(
             "Session retrieval attempted in demo environment - returning empty list",
@@ -81,4 +82,4 @@ async def delete_session_user(
         HTTPException: If the session or user does not exist, or if access is unauthorized.
     """
     # Delete the session from the database
-    return session_crud.delete_session(session_id, user_id, db)
+    return users_session_crud.delete_session(session_id, user_id, db)

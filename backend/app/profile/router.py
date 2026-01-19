@@ -36,6 +36,8 @@ import users.users_identity_providers.crud as user_idp_crud
 import users.users_identity_providers.schema as user_idp_schema
 import users.users_identity_providers.utils as user_idp_utils
 
+import auth.password_hasher as auth_password_hasher
+
 import auth.identity_providers.crud as idp_crud
 import auth.idp_link_tokens.utils as idp_link_token_utils
 import auth.idp_link_tokens.schema as idp_link_token_schema
@@ -57,9 +59,8 @@ import auth.security as auth_security
 import auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 
-import session.crud as session_crud
-import session.schema as session_schema
-import auth.password_hasher as auth_password_hasher
+import users.users_session.crud as users_session_crud
+import users.users_session.schema as users_session_schema
 
 import core.database as core_database
 import core.logger as core_logger
@@ -175,7 +176,7 @@ async def read_users_me(
 @router.get(
     "/sessions",
     status_code=status.HTTP_200_OK,
-    response_model=list[session_schema.UsersSessions],
+    response_model=list[users_session_schema.UsersSessions],
 )
 async def read_sessions_me(
     token_user_id: Annotated[
@@ -186,7 +187,7 @@ async def read_sessions_me(
         Session,
         Depends(core_database.get_db),
     ],
-) -> list[session_schema.UsersSessions]:
+) -> list[users_session_schema.UsersSessions]:
     """
     Retrieve all sessions for authenticated user.
 
@@ -199,7 +200,7 @@ async def read_sessions_me(
     """
     # Get the sessions from the database
     if core_config.ENVIRONMENT != "demo":
-        return session_crud.get_user_sessions(token_user_id, db)
+        return users_session_crud.get_user_sessions(token_user_id, db)
     else:
         core_logger.print_to_log(
             "Session retrieval attempted in demo environment - returning empty list",
@@ -474,7 +475,7 @@ async def delete_profile_session(
         None.
     """
     # Delete the session from the database
-    session_crud.delete_session(session_id, token_user_id, db)
+    users_session_crud.delete_session(session_id, token_user_id, db)
 
 
 # Import/export logic

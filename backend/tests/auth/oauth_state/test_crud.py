@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 import auth.oauth_state.crud as oauth_state_crud
 import auth.oauth_state.models as oauth_state_models
-import session.models as session_models
+import users.users_session.models as users_session_models
 
 
 class TestGetOAuthStateById:
@@ -96,7 +96,7 @@ class TestGetOAuthStateBySessionId:
         session_id = "session_123"
         oauth_state_id = "state_456"
 
-        mock_session = MagicMock(spec=session_models.UsersSessions)
+        mock_session = MagicMock(spec=users_session_models.UsersSessions)
         mock_session.id = session_id
         mock_session.oauth_state_id = oauth_state_id
 
@@ -133,7 +133,7 @@ class TestGetOAuthStateBySessionId:
         # Arrange
         session_id = "session_without_oauth"
 
-        mock_session = MagicMock(spec=session_models.UsersSessions)
+        mock_session = MagicMock(spec=users_session_models.UsersSessions)
         mock_session.id = session_id
         mock_session.oauth_state_id = None
 

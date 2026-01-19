@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 import auth.constants as auth_constants
 import core.logger as core_logger
-import session.crud as session_crud
-import session.rotated_refresh_tokens.crud as rotated_token_crud
-import session.rotated_refresh_tokens.schema as rotated_token_schema
+import users.users_session.crud as users_session_crud
+import users.users_session.rotated_refresh_tokens.crud as rotated_token_crud
+import users.users_session.rotated_refresh_tokens.schema as rotated_token_schema
 from core.database import SessionLocal
 
 
@@ -150,7 +150,9 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
         HTTPException: If invalidation fails (500).
     """
     # Delete all sessions in the family
-    num_sessions_deleted = session_crud.delete_sessions_by_family(token_family_id, db)
+    num_sessions_deleted = users_session_crud.delete_sessions_by_family(
+        token_family_id, db
+    )
 
     # Delete all rotated tokens for this family
     num_tokens_deleted = rotated_token_crud.delete_by_family(token_family_id, db)

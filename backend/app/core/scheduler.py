@@ -11,9 +11,9 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 
-import session.utils as session_utils
+import users.users_session.utils as users_session_utils
 
-import session.rotated_refresh_tokens.utils as rotated_tokens_utils
+import users.users_session.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
 
 import auth.oauth_state.utils as oauth_state_utils
 
@@ -85,7 +85,7 @@ def start_scheduler():
     )
 
     add_scheduler_job(
-        session_utils.cleanup_idle_sessions,
+        users_session_utils.cleanup_idle_sessions,
         "interval",
         15,
         [],
@@ -93,7 +93,7 @@ def start_scheduler():
     )
 
     add_scheduler_job(
-        rotated_tokens_utils.cleanup_expired_rotated_tokens,
+        users_session_rotated_tokens_utils.cleanup_expired_rotated_tokens,
         "interval",
         1,
         [],

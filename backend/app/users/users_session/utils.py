@@ -13,9 +13,10 @@ from user_agents import parse
 from sqlalchemy.orm import Session
 
 import auth.constants as auth_constants
-import session.schema as session_schema
-import session.crud as session_crud
 import auth.password_hasher as auth_password_hasher
+
+import users.users_session.schema as users_session_schema
+import users.users_session.crud as users_session_crud
 
 import users.users.schema as users_schema
 
@@ -58,7 +59,7 @@ class DeviceInfo:
     browser_version: str
 
 
-def validate_session_timeout(session: session_schema.UsersSessions) -> None:
+def validate_session_timeout(session: users_session_schema.UsersSessions) -> None:
     """
     Validate session hasn't exceeded idle or absolute timeout.
     Only enforces timeout when SESSION_IDLE_TIMEOUT_ENABLED=true.
@@ -110,7 +111,7 @@ def create_session_object(
     refresh_token_exp: datetime,
     oauth_state_id: str | None = None,
     csrf_token_hash: str | None = None,
-) -> session_schema.UsersSessions:
+) -> users_session_schema.UsersSessions:
     """
     Creates a UsersSessions object with device and request metadata.
 
@@ -131,7 +132,7 @@ def create_session_object(
 
     now = datetime.now(timezone.utc)
 
-    return session_schema.UsersSessions(
+    return users_session_schema.UsersSessions(
         id=session_id,
         user_id=user.id,
         refresh_token=hashed_refresh_token,
@@ -159,7 +160,7 @@ def edit_session_object(
     refresh_token_exp: datetime,
     session: Session,
     csrf_token_hash: str | None = None,
-) -> session_schema.UsersSessions:
+) -> users_session_schema.UsersSessions:
     """
     Edits and returns a UsersSessions object with updated session info.
 
@@ -179,7 +180,7 @@ def edit_session_object(
     now = datetime.now(timezone.utc)
     new_rotation_count = session.rotation_count + 1
 
-    return session_schema.UsersSessions(
+    return users_session_schema.UsersSessions(
         id=session.id,
         user_id=session.user_id,
         refresh_token=hashed_refresh_token,
@@ -249,11 +250,11 @@ def create_session(
     )
 
     # Add the session to the database
-    session_crud.create_session(new_session, db)
+    users_session_crud.create_session(new_session, db)
 
 
 def edit_session(
-    session: session_schema.UsersSessions,
+    session: users_session_schema.UsersSessions,
     request: Request,
     new_refresh_token: str,
     password_hasher: auth_password_hasher.PasswordHasher,
@@ -294,7 +295,7 @@ def edit_session(
     )
 
     # Update the session in the database
-    session_crud.edit_session(updated_session, db)
+    users_session_crud.edit_session(updated_session, db)
 
 
 def get_user_agent(request: Request) -> str:
@@ -388,7 +389,7 @@ def cleanup_idle_sessions():
     Returns:
         None
     Raises:
-        Any database-related exceptions from session_crud.delete_idle_sessions
+        Any database-related exceptions from users_session_crud.delete_idle_sessions
         are propagated to the caller.
     Note:
         The database session is always properly closed in the finally block.
@@ -403,7 +404,7 @@ def cleanup_idle_sessions():
         )
 
         # Delete sessions with last_activity_at older than cutoff
-        deleted_count = session_crud.delete_idle_sessions(cutoff_time, db)
+        deleted_count = users_session_crud.delete_idle_sessions(cutoff_time, db)
 
         if deleted_count > 0:
             core_logger.print_to_log(
