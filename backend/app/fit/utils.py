@@ -218,6 +218,7 @@ def create_activity_objects(
                         else 0
                     ),
                     gear_id=gear_id,
+                    computer_gear_id=watch_gear.id if watch_gear else None,
                     strava_gear_id=None,
                     strava_activity_id=None,
                     garminconnect_activity_id=garmin_activity_id,

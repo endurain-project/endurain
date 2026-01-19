@@ -125,6 +125,13 @@ class Activity(Base):
         index=True,
         comment="Gear ID associated with this activity",
     )
+    computer_gear_id = Column(
+        Integer,
+        ForeignKey("gear.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Computer/watch gear ID that recorded this activity",
+    )
     strava_gear_id = Column(String(length=45), nullable=True, comment="Strava gear ID")
     strava_activity_id = Column(
         BigInteger, unique=True, nullable=True, comment="Strava activity ID"
@@ -220,8 +227,14 @@ class Activity(Base):
     # Define a relationship to the User model
     user = relationship("User", back_populates="activities")
 
-    # Define a relationship to the Gear model
-    gear = relationship("Gear", back_populates="activities")
+    # Define a relationship to the Gear model (equipment like shoes, bike)
+    gear = relationship(
+        "Gear", back_populates="activities", foreign_keys=[gear_id]
+    )
+    # Define a relationship to the Computer/Watch Gear model (recording device)
+    computer_gear = relationship(
+        "Gear", back_populates="recorded_activities", foreign_keys=[computer_gear_id]
+    )
 
     # Establish a one-to-many relationship with 'activity_laps'
     activity_laps = relationship(

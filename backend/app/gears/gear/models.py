@@ -82,8 +82,16 @@ class Gear(Base):
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="gear")
-    # Establish a one-to-many relationship with 'activities'
-    activities = relationship("Activity", back_populates="gear")
+    # Establish a one-to-many relationship with 'activities' (as equipment)
+    activities = relationship(
+        "Activity", back_populates="gear", foreign_keys="[Activity.gear_id]"
+    )
+    # Establish a one-to-many relationship with 'activities' (as recording device)
+    recorded_activities = relationship(
+        "Activity",
+        back_populates="computer_gear",
+        foreign_keys="[Activity.computer_gear_id]",
+    )
     # Relationship to computer model (for watch/computer gear type)
     computer_model = relationship("ComputerModel", back_populates="gear")
     # Establish a one-to-many relationship with 'gear_components'

@@ -294,6 +294,7 @@ def transform_schema_activity_to_model_activity(
         calories=activity.calories,
         visibility=activity.visibility,
         gear_id=activity.gear_id,
+        computer_gear_id=activity.computer_gear_id,
         strava_gear_id=activity.strava_gear_id,
         strava_activity_id=activity.strava_activity_id,
         garminconnect_activity_id=activity.garminconnect_activity_id,

@@ -38,6 +38,7 @@ class Activity(BaseModel):
     calories: int | None = None
     visibility: int | None = None
     gear_id: int | None = None
+    computer_gear_id: int | None = None
     strava_gear_id: str | None = None
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
@@ -89,6 +90,7 @@ class ActivityEdit(BaseModel):
     visibility: int | None = None
     is_hidden: bool | None = None
     gear_id: int | None = None
+    computer_gear_id: int | None = None
     hide_start_time: bool | None = None
     hide_location: bool | None = None
     hide_map: bool | None = None

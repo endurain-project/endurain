@@ -118,6 +118,31 @@ def upgrade() -> None:
         ondelete="SET NULL",
     )
 
+    # Add computer_gear_id column to activities table
+    op.add_column(
+        "activities",
+        sa.Column(
+            "computer_gear_id",
+            sa.Integer(),
+            nullable=True,
+            comment="Computer/watch gear ID that recorded this activity",
+        ),
+    )
+    op.create_index(
+        op.f("ix_activities_computer_gear_id"),
+        "activities",
+        ["computer_gear_id"],
+        unique=False,
+    )
+    op.create_foreign_key(
+        "fk_activities_computer_gear_id",
+        "activities",
+        "gear",
+        ["computer_gear_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+
     # Seed Garmin models from JSON file
     data_file = os.path.join(
         os.path.dirname(__file__),
@@ -157,6 +182,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Remove computer_gear_id from activities table
+    op.drop_constraint(
+        "fk_activities_computer_gear_id", "activities", type_="foreignkey"
+    )
+    op.drop_index(op.f("ix_activities_computer_gear_id"), table_name="activities")
+    op.drop_column("activities", "computer_gear_id")
+
     # Remove foreign key and columns from gear table
     op.drop_constraint("fk_gear_computer_model_id", "gear", type_="foreignkey")
     op.drop_index(op.f("ix_gear_computer_model_id"), table_name="gear")
