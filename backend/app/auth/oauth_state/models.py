@@ -43,9 +43,9 @@ class OAuthState(Base):
     idp_id = Column(
         Integer,
         ForeignKey("identity_providers.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
-        comment="Identity provider ID",
+        comment="Identity provider ID (may be null if mobile logic)",
     )
 
     user_id = Column(

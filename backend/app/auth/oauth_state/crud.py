@@ -89,10 +89,10 @@ def get_oauth_state_by_session_id(
 def create_oauth_state(
     db: Session,
     state_id: str,
-    idp_id: int,
     nonce: str,
     client_type: str,
     ip_address: str | None,
+    idp_id: int | None = None,
     redirect_path: str | None = None,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
@@ -104,7 +104,7 @@ def create_oauth_state(
     Args:
         db: Database session.
         state_id: The state parameter (secrets.token_urlsafe(32)).
-        idp_id: Identity provider ID.
+        idp_id: Identity provider ID (may be null if mobile logic).
         nonce: OIDC nonce for ID token validation.
         client_type: Client type (web or mobile).
         ip_address: Client IP address for validation.

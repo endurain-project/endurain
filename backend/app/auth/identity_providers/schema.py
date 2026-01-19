@@ -278,24 +278,29 @@ class TokenExchangeRequest(BaseModel):
 
 class TokenExchangeResponse(BaseModel):
     """
-    Response schema for successful mobile PKCE token exchange.
+    Response schema for successful PKCE token exchange.
 
-    Returns the actual JWT tokens that mobile clients need for API access.
-    After receiving these tokens, mobile apps should store them securely
-    and use them for authenticated requests.
+    Returns the actual JWT tokens that clients need for API access.
+    Response format varies by client type:
+    - Web clients: access_token, csrf_token (refresh_token in httpOnly cookie)
+    - Mobile clients: access_token, refresh_token (no CSRF token)
 
     Attributes:
         session_id (str): Session identifier.
         access_token (str): JWT access token (15-minute expiry).
-        refresh_token (str): JWT refresh token (7-day expiry).
-        csrf_token (str): CSRF protection token (required for mutation requests).
+        refresh_token (str | None): JWT refresh token (7-day expiry). Only for mobile clients.
+        csrf_token (str | None): CSRF protection token. Only for web clients.
         expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
         token_type (str): Token type, always "Bearer".
     """
 
     session_id: str = Field(..., description="Session identifier")
     access_token: str = Field(..., description="JWT access token")
-    refresh_token: str = Field(..., description="JWT refresh token")
-    csrf_token: str = Field(..., description="CSRF protection token")
+    refresh_token: str | None = Field(
+        default=None, description="JWT refresh token (mobile only)"
+    )
+    csrf_token: str | None = Field(
+        default=None, description="CSRF protection token (web only)"
+    )
     expires_in: int = Field(default=900, description="Access token lifetime in seconds")
     token_type: str = Field(default="Bearer", description="Token type")

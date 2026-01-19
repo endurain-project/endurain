@@ -12,11 +12,13 @@ class HealthTargetsBase(BaseModel):
     """
 
     weight: StrictFloat | None = Field(
-        None, gt=0, le=500, description="Target weight in kg"
+        default=None, gt=0, le=500, description="Target weight in kg"
     )
-    steps: StrictInt | None = Field(None, ge=0, description="Target daily steps count")
+    steps: StrictInt | None = Field(
+        default=None, ge=0, description="Target daily steps count"
+    )
     sleep: StrictInt | None = Field(
-        None, ge=0, le=86400, description="Target sleep duration in seconds"
+        default=None, ge=0, le=86400, description="Target sleep duration in seconds"
     )
 
     model_config = ConfigDict(

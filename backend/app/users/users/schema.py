@@ -140,44 +140,44 @@ class UsersBase(BaseModel):
         description="User's email address",
     )
     city: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=250,
         description="User's city",
     )
     birthdate: datetime_date | None = Field(
-        None,
+        default=None,
         description="User's birthdate",
     )
     preferred_language: Language = Field(
-        Language.ENGLISH_USA,
+        default=Language.ENGLISH_USA,
         description="Preferred language",
     )
     gender: Gender = Field(
-        Gender.UNSPECIFIED,
+        default=Gender.UNSPECIFIED,
         description="User's gender",
     )
     units: server_settings_schema.Units = Field(
-        server_settings_schema.Units.METRIC,
+        default=server_settings_schema.Units.METRIC,
         description="User units (metric, imperial)",
     )
     height: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         le=300,
         description="Height in centimeters",
     )
     max_heart_rate: StrictInt | None = Field(
-        None,
+        default=None,
         ge=30,
         le=250,
         description="Maximum heart rate in bpm",
     )
     first_day_of_week: WeekDay = Field(
-        WeekDay.MONDAY,
+        default=WeekDay.MONDAY,
         description="First day of the week",
     )
     currency: server_settings_schema.Currency = Field(
-        server_settings_schema.Currency.EURO,
+        default=server_settings_schema.Currency.EURO,
         description="User currency (euro, dollar, pound)",
     )
 
@@ -221,7 +221,7 @@ class Users(UsersBase):
         description="User access level",
     )
     photo_path: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=250,
         description="Path to user's photo",
     )
@@ -230,20 +230,20 @@ class Users(UsersBase):
         description="Whether the user is active",
     )
     mfa_enabled: StrictBool = Field(
-        False,
+        default=False,
         description="Whether MFA is enabled",
     )
     mfa_secret: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=512,
         description="MFA secret (encrypted at rest)",
     )
     email_verified: StrictBool = Field(
-        False,
+        default=False,
         description="Whether email is verified",
     )
     pending_admin_approval: StrictBool = Field(
-        False,
+        default=False,
         description="Whether pending admin approval",
     )
 
@@ -269,7 +269,7 @@ class UsersRead(Users):
         description="User ID",
     )
     external_auth_count: StrictInt = Field(
-        0,
+        default=0,
         ge=0,
         description="Number of external auth providers linked",
     )
@@ -300,21 +300,51 @@ class UsersMe(UsersRead):
         hide_activity_gear: Hide gear setting.
     """
 
-    is_strava_linked: StrictInt | None = None
-    is_garminconnect_linked: StrictInt | None = None
-    default_activity_visibility: StrictStr | None = None
-    hide_activity_start_time: StrictBool | None = None
-    hide_activity_location: StrictBool | None = None
-    hide_activity_map: StrictBool | None = None
-    hide_activity_hr: StrictBool | None = None
-    hide_activity_power: StrictBool | None = None
-    hide_activity_cadence: StrictBool | None = None
-    hide_activity_elevation: StrictBool | None = None
-    hide_activity_speed: StrictBool | None = None
-    hide_activity_pace: StrictBool | None = None
-    hide_activity_laps: StrictBool | None = None
-    hide_activity_workout_sets_steps: StrictBool | None = None
-    hide_activity_gear: StrictBool | None = None
+    is_strava_linked: StrictInt | None = Field(
+        default=None, description="Whether Strava is linked"
+    )
+    is_garminconnect_linked: StrictInt | None = Field(
+        default=None, description="Whether Garmin Connect is linked"
+    )
+    default_activity_visibility: StrictStr | None = Field(
+        default=None, description="Default activity visibility"
+    )
+    hide_activity_start_time: StrictBool | None = Field(
+        default=None, description="Hide activity start time"
+    )
+    hide_activity_location: StrictBool | None = Field(
+        default=None, description="Hide activity location"
+    )
+    hide_activity_map: StrictBool | None = Field(
+        default=None, description="Hide activity map"
+    )
+    hide_activity_hr: StrictBool | None = Field(
+        default=None, description="Hide activity heart rate"
+    )
+    hide_activity_power: StrictBool | None = Field(
+        default=None, description="Hide activity power"
+    )
+    hide_activity_cadence: StrictBool | None = Field(
+        default=None, description="Hide activity cadence"
+    )
+    hide_activity_elevation: StrictBool | None = Field(
+        default=None, description="Hide activity elevation"
+    )
+    hide_activity_speed: StrictBool | None = Field(
+        default=None, description="Hide activity speed"
+    )
+    hide_activity_pace: StrictBool | None = Field(
+        default=None, description="Hide activity pace"
+    )
+    hide_activity_laps: StrictBool | None = Field(
+        default=None, description="Hide activity laps"
+    )
+    hide_activity_workout_sets_steps: StrictBool | None = Field(
+        default=None, description="Hide activity workout sets and steps"
+    )
+    hide_activity_gear: StrictBool | None = Field(
+        default=None, description="Hide activity gear"
+    )
 
 
 class UsersSignup(UsersBase):
@@ -387,12 +417,12 @@ class UsersListResponse(BaseModel):
         description="Total number of user records",
     )
     num_records: StrictInt | None = Field(
-        None,
+        default=None,
         ge=0,
         description="Number of records in this response",
     )
     page_number: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Current page number",
     )

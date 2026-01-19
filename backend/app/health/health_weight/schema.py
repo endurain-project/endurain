@@ -48,31 +48,37 @@ class HealthWeightBase(BaseModel):
         - Uses enum values for serialization
     """
 
-    date: datetime_date | None = Field(None, description="Health weight date (date)")
-    weight: StrictFloat | None = Field(
-        None, ge=0, le=500, description="Weight in kilograms"
+    date: datetime_date | None = Field(
+        default=None, description="Health weight date (date)"
     )
-    bmi: StrictFloat | None = Field(None, ge=0, le=100, description="Body Mass Index")
+    weight: StrictFloat | None = Field(
+        default=None, ge=0, le=500, description="Weight in kilograms"
+    )
+    bmi: StrictFloat | None = Field(
+        default=None, ge=0, le=100, description="Body Mass Index"
+    )
     body_fat: StrictFloat | None = Field(
-        None, ge=0, le=100, description="Body fat percentage"
+        default=None, ge=0, le=100, description="Body fat percentage"
     )
     body_water: StrictFloat | None = Field(
-        None, ge=0, le=100, description="Body water percentage"
+        default=None, ge=0, le=100, description="Body water percentage"
     )
     bone_mass: StrictFloat | None = Field(
-        None, ge=0, le=500, description="Bone mass in kilograms"
+        default=None, ge=0, le=500, description="Bone mass in kilograms"
     )
     muscle_mass: StrictFloat | None = Field(
-        None, ge=0, le=500, description="Muscle mass in kilograms"
+        default=None, ge=0, le=500, description="Muscle mass in kilograms"
     )
-    physique_rating: StrictInt | None = Field(None, ge=0, description="Physique rating")
+    physique_rating: StrictInt | None = Field(
+        default=None, ge=0, description="Physique rating"
+    )
     visceral_fat: StrictFloat | None = Field(
-        None, ge=0, le=100, description="Visceral fat"
+        default=None, ge=0, le=100, description="Visceral fat"
     )
     metabolic_age: StrictInt | None = Field(
-        None, ge=0, le=120, description="Metabolic age"
+        default=None, ge=0, le=120, description="Metabolic age"
     )
-    source: Source | None = Field(None, description="Source of the weight data")
+    source: Source | None = Field(default=None, description="Source of the weight data")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -146,9 +152,11 @@ class HealthWeightListResponse(BaseModel):
         ..., description="Total number of weight records for the user"
     )
     num_records: StrictInt | None = Field(
-        None, description="Number of records in this response"
+        default=None, description="Number of records in this response"
     )
-    page_number: StrictInt | None = Field(None, description="Current page number")
+    page_number: StrictInt | None = Field(
+        default=None, description="Current page number"
+    )
     records: list[HealthWeightRead] = Field(
         ..., description="List of health weight records"
     )

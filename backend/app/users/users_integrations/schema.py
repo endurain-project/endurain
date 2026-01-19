@@ -33,29 +33,29 @@ class UsersIntegrationsBase(BaseModel):
     """
 
     strava_client_id: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=512,
         description=("Strava client ID encrypted at rest with Fernet key"),
     )
     strava_client_secret: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=512,
         description=("Strava client secret encrypted at rest with Fernet key"),
     )
     strava_state: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=45,
         description="Strava temporary state for link process",
     )
     strava_token: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=512,
         description=(
             "Strava token after link process encrypted at rest with Fernet key"
         ),
     )
     strava_refresh_token: StrictStr | None = Field(
-        None,
+        default=None,
         max_length=512,
         description=(
             "Strava refresh token after link process "
@@ -63,19 +63,19 @@ class UsersIntegrationsBase(BaseModel):
         ),
     )
     strava_token_expires_at: datetime | None = Field(
-        None, description="Strava token expiration date"
+        default=None, description="Strava token expiration date"
     )
     strava_sync_gear: StrictBool = Field(
-        False, description="Whether Strava gear is to be synced"
+        default=False, description="Whether Strava gear is to be synced"
     )
     garminconnect_oauth1: dict[str, Any] | None = Field(
-        None, description="Garmin OAuth1 token"
+        default=None, description="Garmin OAuth1 token"
     )
     garminconnect_oauth2: dict[str, Any] | None = Field(
-        None, description="Garmin OAuth2 token"
+        default=None, description="Garmin OAuth2 token"
     )
     garminconnect_sync_gear: StrictBool = Field(
-        False,
+        default=False,
         description="Whether Garmin Connect gear is to be synced",
     )
 

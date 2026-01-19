@@ -16,6 +16,9 @@ import auth.constants as auth_constants
 import session.utils as session_utils
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
+import auth.schema as auth_schema
+import auth.oauth_state.crud as oauth_state_crud
+import auth.identity_providers.utils as idp_utils
 
 import users.users.crud as users_crud
 import users.users.schema as users_schema
@@ -219,3 +222,94 @@ def complete_login(
             "token_type": "bearer",
             "expires_in": int(access_token_exp.timestamp()),
         }
+
+
+def create_mobile_pkce_session_response(
+    response: Response,
+    request: Request,
+    user: users_schema.UsersRead,
+    code_challenge: str,
+    code_challenge_method: str,
+    password_hasher: auth_password_hasher.PasswordHasher,
+    db: Session,
+) -> auth_schema.MobileSessionResponse:
+    """
+    Create a session for mobile password login with PKCE exchange flow.
+
+    This function is exclusively for mobile clients. Web clients should use
+    complete_login() which provides secure token delivery via httpOnly cookies.
+
+    Similar to SSO flow, but for password authentication.
+    Returns session_id instead of tokens—tokens obtained via
+    POST /session/{session_id}/tokens with code_verifier.
+
+    Args:
+        response: FastAPI response object
+        request: FastAPI request object
+        user: Authenticated user object
+        code_challenge: PKCE code challenge (base64url-encoded SHA256)
+        code_challenge_method: PKCE method (must be S256)
+        password_hasher: Password hasher instance
+        db: Database session
+
+    Returns:
+        auth_schema.MobileSessionResponse: Contains session_id and mfa_required flag
+
+    Raises:
+        HTTPException: If PKCE parameters are invalid
+
+    Notes:
+        - Mobile-only: Web clients use complete_login() with httpOnly cookies
+        - Session created without tokens (pending exchange)
+        - OAuth state record stores PKCE challenge
+        - Client must POST to /session/{session_id}/tokens with code_verifier
+        - Reuses existing token exchange endpoint from SSO flow
+    """
+    # Validate PKCE challenge format
+    if code_challenge_method != "S256":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only S256 PKCE method is supported",
+        )
+
+    idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
+
+    # Generate session ID
+    session_id = str(uuid4())
+
+    # Create temporary refresh token (will be replaced during exchange)
+    temp_refresh_token = "pending_exchange"
+
+    # Create OAuth state record for PKCE (reuse SSO infrastructure)
+    state_id = str(uuid4())
+    client_ip = request.client.host if request.client else None
+
+    oauth_state_crud.create_oauth_state(
+        db=db,
+        state_id=state_id,
+        idp_id=None,  # No IdP for password login (NULL in database)
+        nonce="password_auth",  # Not needed for password login, but required field
+        client_type="mobile",  # This function is mobile-only
+        ip_address=client_ip,
+        redirect_path=None,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+    )
+
+    # Create session linked to oauth_state (enables PKCE exchange)
+    session_utils.create_session(
+        session_id,
+        user,
+        request,
+        temp_refresh_token,
+        password_hasher,
+        db,
+        oauth_state_id=state_id,
+    )
+
+    # Return session_id for token exchange (no tokens yet)
+    return auth_schema.MobileSessionResponse(
+        session_id=session_id,
+        mfa_required=False,
+        message="Complete authentication by exchanging tokens at /session/{session_id}/tokens",
+    )

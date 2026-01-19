@@ -39,77 +39,77 @@ class UsersDefaultGearBase(BaseModel):
     """
 
     run_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for run activities",
     )
     trail_run_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for trail run activities",
     )
     virtual_run_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for virtual run activities",
     )
     ride_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for ride activities",
     )
     gravel_ride_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for gravel ride activities",
     )
     mtb_ride_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for MTB ride activities",
     )
     virtual_ride_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for virtual ride activities",
     )
     ows_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for OWS activities",
     )
     walk_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for walk activities",
     )
     hike_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for hike activities",
     )
     tennis_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for tennis activities",
     )
     alpine_ski_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for alpine ski activities",
     )
     nordic_ski_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for nordic ski activities",
     )
     snowboard_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for snowboard activities",
     )
     windsurf_gear_id: StrictInt | None = Field(
-        None,
+        default=None,
         ge=1,
         description="Default gear for windsurf activities",
     )

@@ -9,6 +9,7 @@ from fastapi import (
     status,
     Response,
     Request,
+    Query,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -63,6 +64,8 @@ async def login_for_access_token(
         Session,
         Depends(core_database.get_db),
     ],
+    code_challenge: Annotated[str | None, Query()] = None,
+    code_challenge_method: Annotated[str | None, Query()] = None,
 ):
     """
     Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
@@ -79,6 +82,11 @@ async def login_for_access_token(
     and returns an MFA-required response. Otherwise, it completes the login process and returns
     the required information.
 
+    PKCE Support (Mobile):
+    - Mobile clients can optionally provide code_challenge and code_challenge_method
+    - For mobile clients with PKCE parameters, tokens are not returned directly
+    - Instead, a session_id is returned for secure token exchange via /session/{session_id}/tokens
+
     Args:
         response: The HTTP response object
         request: The HTTP request object
@@ -89,11 +97,14 @@ async def login_for_access_token(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
+        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
+        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
         Union[auth_schema.MFARequiredResponse, dict, str]:
             - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
-            - If MFA is not required, proceeds with normal login via auth_utils.complete_login()
+            - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
+            - If MFA is not required and no PKCE, proceeds with normal login via auth_utils.complete_login()
 
     Raises:
         HTTPException: If authentication fails, user is inactive, or account is locked
@@ -151,7 +162,21 @@ async def login_for_access_token(
     # Reset failed login attempts counter
     failed_attempts.reset_attempts(form_data.username)
 
-    # If no MFA required, proceed with normal login
+    # Mobile clients with PKCE use secure token exchange flow
+    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
+    if client_type == "mobile" and code_challenge and code_challenge_method:
+        # Use PKCE exchange flow - tokens obtained via /session/{session_id}/tokens
+        return auth_utils.create_mobile_pkce_session_response(
+            response,
+            request,
+            user,
+            code_challenge,
+            code_challenge_method,
+            password_hasher,
+            db,
+        )
+
+    # Web clients and mobile without PKCE get tokens directly
     return auth_utils.complete_login(
         response, request, user, client_type, password_hasher, token_manager, db
     )
@@ -183,12 +208,19 @@ async def verify_mfa_and_login(
         Session,
         Depends(core_database.get_db),
     ],
+    code_challenge: Annotated[str | None, Query()] = None,
+    code_challenge_method: Annotated[str | None, Query()] = None,
 ):
     """
     Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
     the authentication process if the code is valid.
+
+    PKCE Support (Mobile):
+    - Mobile clients can optionally provide code_challenge and code_challenge_method
+    - For mobile clients with PKCE parameters, tokens are not returned directly
+    - Instead, a session_id is returned for secure token exchange via /session/{session_id}/tokens
 
     Args:
         response: The HTTP response object
@@ -200,9 +232,11 @@ async def verify_mfa_and_login(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
+        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
+        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Result from auth_utils.complete_login()
+        Result from auth_utils.complete_login() or PKCE session response
 
     Raises:
         HTTPException: If no pending login found, MFA code is invalid, or user not found
@@ -256,7 +290,21 @@ async def verify_mfa_and_login(
     # Clean up pending login
     pending_mfa_store.delete_pending_login(mfa_request.username)
 
-    # Complete the login
+    # Mobile clients with PKCE use secure token exchange flow
+    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
+    if client_type == "mobile" and code_challenge and code_challenge_method:
+        # Use PKCE exchange flow - tokens obtained via /session/{session_id}/tokens
+        return auth_utils.create_mobile_pkce_session_response(
+            response,
+            request,
+            user,
+            code_challenge,
+            code_challenge_method,
+            password_hasher,
+            db,
+        )
+
+    # Web clients and mobile without PKCE get tokens directly
     return auth_utils.complete_login(
         response, request, user, client_type, password_hasher, token_manager, db
     )

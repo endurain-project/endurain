@@ -102,19 +102,19 @@ class UsersGoalBase(BaseModel):
     )
     goal_type: GoalType = Field(..., description="Type of goal metric being tracked")
     goal_calories: StrictInt | None = Field(
-        None, ge=0, description="Target calories in kcal"
+        default=None, ge=0, description="Target calories in kcal"
     )
     goal_activities_number: StrictInt | None = Field(
-        None, ge=0, description="Target number of activities"
+        default=None, ge=0, description="Target number of activities"
     )
     goal_distance: StrictInt | None = Field(
-        None, ge=0, description="Target distance in meters"
+        default=None, ge=0, description="Target distance in meters"
     )
     goal_elevation: StrictInt | None = Field(
-        None, ge=0, description="Target elevation gain in meters"
+        default=None, ge=0, description="Target elevation gain in meters"
     )
     goal_duration: StrictInt | None = Field(
-        None, ge=0, description="Target duration in seconds"
+        default=None, ge=0, description="Target duration in seconds"
     )
 
     model_config = ConfigDict(
@@ -227,32 +227,40 @@ class UsersGoalProgress(BaseModel):
     start_date: StrictStr = Field(..., description="Period start date")
     end_date: StrictStr = Field(..., description="Period end date")
     percentage_completed: StrictInt | None = Field(
-        None, ge=0, le=100, description="Completion percentage"
+        default=None, ge=0, le=100, description="Completion percentage"
     )
     # total
     total_calories: StrictInt | None = Field(
-        None, ge=0, description="Total calories achieved"
+        default=None, ge=0, description="Total calories achieved"
     )
     total_activities_number: StrictInt | None = Field(
-        None, ge=0, description="Total activities completed"
+        default=None, ge=0, description="Total activities completed"
     )
     total_distance: StrictInt | None = Field(
-        None, ge=0, description="Total distance achieved"
+        default=None, ge=0, description="Total distance achieved"
     )
     total_elevation: StrictInt | None = Field(
-        None, ge=0, description="Total elevation gained"
+        default=None, ge=0, description="Total elevation gained"
     )
     total_duration: StrictInt | None = Field(
-        None, ge=0, description="Total duration achieved"
+        default=None, ge=0, description="Total duration achieved"
     )
     # goal
-    goal_calories: StrictInt | None = Field(None, ge=0, description="Target calories")
-    goal_activities_number: StrictInt | None = Field(
-        None, ge=0, description="Target activities count"
+    goal_calories: StrictInt | None = Field(
+        default=None, ge=0, description="Target calories"
     )
-    goal_distance: StrictInt | None = Field(None, ge=0, description="Target distance")
-    goal_elevation: StrictInt | None = Field(None, ge=0, description="Target elevation")
-    goal_duration: StrictInt | None = Field(None, ge=0, description="Target duration")
+    goal_activities_number: StrictInt | None = Field(
+        default=None, ge=0, description="Target activities count"
+    )
+    goal_distance: StrictInt | None = Field(
+        default=None, ge=0, description="Target distance"
+    )
+    goal_elevation: StrictInt | None = Field(
+        default=None, ge=0, description="Target elevation"
+    )
+    goal_duration: StrictInt | None = Field(
+        default=None, ge=0, description="Target duration"
+    )
 
     model_config = ConfigDict(
         from_attributes=True,

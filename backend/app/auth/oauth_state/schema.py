@@ -17,7 +17,9 @@ class OAuthStateCreate(BaseModel):
         max_length=64,
         description="State parameter (secrets.token_urlsafe(32))",
     )
-    idp_id: int = Field(..., description="Identity provider ID")
+    idp_id: int | None = Field(
+        None, description="Identity provider ID (may be null if mobile logic)"
+    )
     code_challenge: Optional[str] = Field(
         None,
         min_length=43,
@@ -49,7 +51,9 @@ class OAuthStateRead(BaseModel):
     """
 
     id: str = Field(..., description="State ID")
-    idp_id: int = Field(..., description="Identity provider ID")
+    idp_id: int | None = Field(
+        None, description="Identity provider ID (may be null if mobile logic)"
+    )
     code_challenge: Optional[str] = Field(None, description="PKCE challenge")
     code_challenge_method: Optional[str] = Field(None, description="PKCE method")
     nonce: str = Field(..., description="OIDC nonce")

@@ -488,18 +488,29 @@ async def exchange_tokens_for_session(
         session_crud.mark_tokens_exchanged(session_id, db)
 
         core_logger.print_to_log(
-            f"Token exchange successful for session {session_id[:8]}... (user={user.username})",
+            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={oauth_state.client_type})",
             "info",
         )
 
-        return idp_schema.TokenExchangeResponse(
-            session_id=session_id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            csrf_token=csrf_token,
-            expires_in=expires_in,
-            token_type="Bearer",
-        )
+        # Return response based on client type (matches complete_login behavior)
+        if oauth_state.client_type == "web":
+            # Web: access_token and csrf_token in body, refresh_token in cookie only
+            return idp_schema.TokenExchangeResponse(
+                session_id=session_id,
+                access_token=access_token,
+                csrf_token=csrf_token,
+                expires_in=expires_in,
+                token_type="Bearer",
+            )
+        else:
+            # Mobile: all tokens in body (no cookies)
+            return idp_schema.TokenExchangeResponse(
+                session_id=session_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=expires_in,
+                token_type="Bearer",
+            )
 
     except HTTPException:
         raise

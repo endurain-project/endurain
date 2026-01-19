@@ -33,9 +33,13 @@ class HealthStepsBase(BaseModel):
         - use_enum_values: Uses enum values instead of enum objects in serialization.
     """
 
-    date: datetime_date | None = Field(None, description="Calendar date of the steps")
-    steps: StrictInt | None = Field(None, ge=0, description="Number of steps taken")
-    source: Source | None = Field(None, description="Source of the steps data")
+    date: datetime_date | None = Field(
+        default=None, description="Calendar date of the steps"
+    )
+    steps: StrictInt | None = Field(
+        default=None, ge=0, description="Number of steps taken"
+    )
+    source: Source | None = Field(default=None, description="Source of the steps data")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -109,9 +113,11 @@ class HealthStepsListResponse(BaseModel):
         ..., description="Total number of steps records for the user"
     )
     num_records: StrictInt | None = Field(
-        None, description="Number of records in this response"
+        default=None, description="Number of records in this response"
     )
-    page_number: StrictInt | None = Field(None, description="Current page number")
+    page_number: StrictInt | None = Field(
+        default=None, description="Current page number"
+    )
     records: list[HealthStepsRead] = Field(
         ..., description="List of health steps records"
     )

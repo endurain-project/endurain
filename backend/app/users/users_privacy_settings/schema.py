@@ -54,42 +54,44 @@ class UsersPrivacySettingsBase(BaseModel):
     """
 
     default_activity_visibility: ActivityVisibility | None = Field(
-        ActivityVisibility.PUBLIC,
+        default=ActivityVisibility.PUBLIC,
         description="Default activity visibility (public, followers, private)",
     )
     hide_activity_start_time: StrictBool | None = Field(
-        False, description="Hide activity start time"
+        default=False, description="Hide activity start time"
     )
     hide_activity_location: StrictBool | None = Field(
-        False, description="Hide activity location"
+        default=False, description="Hide activity location"
     )
-    hide_activity_map: StrictBool | None = Field(False, description="Hide activity map")
+    hide_activity_map: StrictBool | None = Field(
+        default=False, description="Hide activity map"
+    )
     hide_activity_hr: StrictBool | None = Field(
-        False, description="Hide activity heart rate"
+        default=False, description="Hide activity heart rate"
     )
     hide_activity_power: StrictBool | None = Field(
-        False, description="Hide activity power"
+        default=False, description="Hide activity power"
     )
     hide_activity_cadence: StrictBool | None = Field(
-        False, description="Hide activity cadence"
+        default=False, description="Hide activity cadence"
     )
     hide_activity_elevation: StrictBool | None = Field(
-        False, description="Hide activity elevation"
+        default=False, description="Hide activity elevation"
     )
     hide_activity_speed: StrictBool | None = Field(
-        False, description="Hide activity speed"
+        default=False, description="Hide activity speed"
     )
     hide_activity_pace: StrictBool | None = Field(
-        False, description="Hide activity pace"
+        default=False, description="Hide activity pace"
     )
     hide_activity_laps: StrictBool | None = Field(
-        False, description="Hide activity laps"
+        default=False, description="Hide activity laps"
     )
     hide_activity_workout_sets_steps: StrictBool | None = Field(
-        False, description="Hide activity workout sets and steps"
+        default=False, description="Hide activity workout sets and steps"
     )
     hide_activity_gear: StrictBool | None = Field(
-        False, description="Hide activity gear"
+        default=False, description="Hide activity gear"
     )
 
     model_config = ConfigDict(

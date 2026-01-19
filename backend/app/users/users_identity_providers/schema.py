@@ -63,15 +63,15 @@ class UsersIdentityProviderRead(UsersIdentityProviderBase):
     id: StrictInt = Field(..., description="Link ID")
     linked_at: datetime = Field(..., description="When linked")
     last_login: datetime | None = Field(
-        None,
+        default=None,
         description="Last login using this IdP",
     )
     idp_access_token_expires_at: datetime | None = Field(
-        None,
+        default=None,
         description="Access token expiry",
     )
     idp_refresh_token_updated_at: datetime | None = Field(
-        None,
+        default=None,
         description="Last refresh token update",
     )
 
@@ -91,19 +91,19 @@ class UsersIdentityProviderResponse(UsersIdentityProviderRead):
     """
 
     idp_name: StrictStr | None = Field(
-        None,
+        default=None,
         description="Identity provider name",
     )
     idp_slug: StrictStr | None = Field(
-        None,
+        default=None,
         description="Identity provider slug",
     )
     idp_icon: StrictStr | None = Field(
-        None,
+        default=None,
         description="Identity provider icon",
     )
     idp_provider_type: StrictStr | None = Field(
-        None,
+        default=None,
         description="Provider type",
     )
 
@@ -122,15 +122,15 @@ class UsersIdentityProviderTokenUpdate(BaseModel):
     """
 
     idp_refresh_token: StrictStr | None = Field(
-        None,
+        default=None,
         description="Encrypted refresh token",
     )
     idp_access_token_expires_at: datetime | None = Field(
-        None,
+        default=None,
         description="Access token expiry",
     )
     idp_refresh_token_updated_at: datetime | None = Field(
-        None,
+        default=None,
         description="Last refresh token update",
     )
 
