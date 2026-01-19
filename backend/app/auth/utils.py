@@ -52,7 +52,7 @@ def authenticate_user(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username",
+            detail="Unable to authenticate with provided credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -63,7 +63,7 @@ def authenticate_user(
     if not is_password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid password",
+            detail="Unable to authenticate with provided credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

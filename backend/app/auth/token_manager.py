@@ -231,6 +231,11 @@ class TokenManager:
                 exc=insecure_err,
                 context={"token": "[REDACTED]"},
             )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has insecure claims.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from insecure_err
         except InvalidClaimError as claims_err:
             core_logger.print_to_log(
                 f"JWT claims validation error: {claims_err}",
