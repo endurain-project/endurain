@@ -34,25 +34,25 @@ from profile.exceptions import (
 
 import profile.utils as profile_utils
 
-import users.user.crud as users_crud
-import users.user.schema as users_schema
+import users.users.crud as users_crud
+import users.users.schema as users_schema
 
-import users.user_default_gear.crud as user_default_gear_crud
-import users.user_default_gear.schema as user_default_gear_schema
+import users.users_default_gear.crud as user_default_gear_crud
+import users.users_default_gear.schema as user_default_gear_schema
 
-import users.user_goals.crud as user_goals_crud
-import users.user_goals.schema as user_goals_schema
+import users.users_goals.crud as user_goals_crud
+import users.users_goals.schema as user_goals_schema
 
-import users.user_identity_providers.crud as user_identity_providers_crud
-import users.user_identity_providers.schema as user_identity_providers_schema
+import users.users_identity_providers.crud as user_identity_providers_crud
+import users.users_identity_providers.schema as user_identity_providers_schema
 
 import auth.identity_providers.crud as identity_providers_crud
 
-import users.user_integrations.crud as user_integrations_crud
-import users.user_integrations.schema as users_integrations_schema
+import users.users_integrations.crud as user_integrations_crud
+import users.users_integrations.schema as users_integrations_schema
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.users_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.schema as users_privacy_settings_schema
 
 import activities.activity.crud as activities_crud
 import activities.activity.schema as activity_schema
@@ -503,7 +503,7 @@ class ImportService:
             extension = photo_path.split(".")[-1]
             user_profile["photo_path"] = f"data/user_images/{self.user_id}.{extension}"
 
-        user = users_schema.UserRead(**user_profile)
+        user = users_schema.UsersRead(**user_profile)
         await users_crud.edit_user(self.user_id, user, self.db)
         self.counts["user"] += 1
 
@@ -572,7 +572,7 @@ class ImportService:
             else:
                 gear_data[field] = None
 
-        user_default_gear = user_default_gear_schema.UserDefaultGearUpdate(**gear_data)
+        user_default_gear = user_default_gear_schema.UsersDefaultGearUpdate(**gear_data)
         user_default_gear_crud.edit_user_default_gear(
             user_default_gear, self.user_id, self.db
         )
@@ -620,7 +620,7 @@ class ImportService:
             goal_data.pop("id", None)
             goal_data.pop("user_id", None)
 
-            goal = user_goals_schema.UserGoalCreate(**goal_data)
+            goal = user_goals_schema.UsersGoalCreate(**goal_data)
             user_goals_crud.create_user_goal(self.user_id, goal, self.db)
             self.counts["user_goals"] += 1
 

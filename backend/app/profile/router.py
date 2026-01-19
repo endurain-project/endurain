@@ -28,22 +28,22 @@ from sqlalchemy.orm import Session
 from safeuploads import FileValidator, FileSecurityConfig, SecurityLimits
 from safeuploads.exceptions import FileValidationError
 
-import users.user.schema as users_schema
-import users.user.crud as users_crud
-import users.user.utils as users_utils
+import users.users.schema as users_schema
+import users.users.crud as users_crud
+import users.users.utils as users_utils
 
-import users.user_identity_providers.crud as user_idp_crud
-import users.user_identity_providers.schema as user_idp_schema
-import users.user_identity_providers.utils as user_idp_utils
+import users.users_identity_providers.crud as user_idp_crud
+import users.users_identity_providers.schema as user_idp_schema
+import users.users_identity_providers.utils as user_idp_utils
 
 import auth.identity_providers.crud as idp_crud
 import auth.idp_link_tokens.utils as idp_link_token_utils
 import auth.idp_link_tokens.schema as idp_link_token_schema
 
-import users.user_integrations.crud as user_integrations_crud
+import users.users_integrations.crud as user_integrations_crud
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.users_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.schema as users_privacy_settings_schema
 
 import profile.utils as profile_utils
 import profile.schema as profile_schema
@@ -82,7 +82,7 @@ custom_config.limits = custom_limits
 file_validator = FileValidator(config=custom_config)
 
 
-@router.get("", status_code=status.HTTP_200_OK, response_model=users_schema.UserMe)
+@router.get("", status_code=status.HTTP_200_OK, response_model=users_schema.UsersMe)
 async def read_users_me(
     token_user_id: Annotated[
         int,
@@ -92,7 +92,7 @@ async def read_users_me(
         Session,
         Depends(core_database.get_db),
     ],
-) -> users_schema.UserMe:
+) -> users_schema.UsersMe:
     """
     Retrieve authenticated user profile with integrations.
 
@@ -139,8 +139,8 @@ async def read_users_me(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Build UserMe schema from model using model_validate
-    user_me = users_schema.UserMe.model_validate(user)
+    # Build UsersMe schema from model using model_validate
+    user_me = users_schema.UsersMe.model_validate(user)
 
     # Update with integration and privacy settings
     return user_me.model_copy(
@@ -324,7 +324,7 @@ async def upload_profile_image(
 
 @router.put("", status_code=status.HTTP_200_OK, response_model=dict)
 async def edit_user(
-    user_attributtes: users_schema.UserRead,
+    user_attributtes: users_schema.UsersRead,
     token_user_id: Annotated[
         int,
         Depends(auth_security.get_sub_from_access_token),
@@ -386,7 +386,7 @@ async def edit_profile_privacy_settings(
 
 @router.put("/password", status_code=status.HTTP_200_OK, response_model=dict)
 async def edit_profile_password(
-    user_attributtes: users_schema.UserEditPassword,
+    user_attributtes: users_schema.UsersEditPassword,
     token_user_id: Annotated[
         int,
         Depends(auth_security.get_sub_from_access_token),
@@ -404,7 +404,7 @@ async def edit_profile_password(
     Update user password after validation.
 
     Args:
-        user_attributtes (users_schema.UserEditPassword): Schema containing the new password.
+        user_attributtes (users_schema.UsersEditPassword): Schema containing the new password.
         token_user_id (int): ID of the user extracted from the access token.
         password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency.
         db (Session): Database session dependency.
@@ -1000,7 +1000,7 @@ async def generate_mfa_backup_codes(
 @router.get(
     "/idp",
     status_code=status.HTTP_200_OK,
-    response_model=list[user_idp_schema.UserIdentityProviderResponse],
+    response_model=list[user_idp_schema.UsersIdentityProviderResponse],
 )
 async def get_my_identity_providers(
     token_user_id: Annotated[
@@ -1011,7 +1011,7 @@ async def get_my_identity_providers(
         Session,
         Depends(core_database.get_db),
     ],
-) -> list[user_idp_schema.UserIdentityProviderResponse]:
+) -> list[user_idp_schema.UsersIdentityProviderResponse]:
     """
     Retrieve all identity provider links for the authenticated user.
     This endpoint fetches all external identity provider (IdP) connections associated

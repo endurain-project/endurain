@@ -17,7 +17,7 @@ import core.logger as core_logger
 import core.config as core_config
 import gears.gear.dependencies as gears_dependencies
 import auth.security as auth_security
-import users.user.dependencies as users_dependencies
+import users.users.dependencies as users_dependencies
 import garmin.activity_utils as garmin_activity_utils
 import strava.activity_utils as strava_activity_utils
 import websocket.manager as websocket_manager

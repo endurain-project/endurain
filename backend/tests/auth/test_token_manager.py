@@ -592,9 +592,9 @@ class TestTokenManagerSecurity:
         """
         Test that regular users get regular scope in their tokens.
         """
-        from users.user.schema import UserRead, UserAccessType
+        from users.users.schema import UsersRead, UserAccessType
 
-        regular_user = UserRead(
+        regular_user = UsersRead(
             id=2,
             name="Regular User",
             username="regular",

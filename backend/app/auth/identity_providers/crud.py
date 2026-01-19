@@ -8,7 +8,7 @@ import auth.identity_providers.models as idp_models
 import auth.identity_providers.schema as idp_schema
 import core.cryptography as core_cryptography
 import core.logger as core_logger
-import users.user_identity_providers.crud as user_identity_providers_crud
+import users.users_identity_providers.crud as user_identity_providers_crud
 
 
 def get_identity_provider(

@@ -17,14 +17,14 @@ import activities.activity_laps.crud as activity_laps_crud
 import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_streams.crud as activity_streams_crud
 
-import users.user_integrations.models as user_integrations_models
+import users.users_integrations.models as user_integrations_models
 
-import users.user_default_gear.utils as user_default_gear_utils
+import users.users_default_gear.utils as user_default_gear_utils
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.models as users_privacy_settings_models
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 import gears.gear.crud as gears_crud
 

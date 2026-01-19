@@ -1,1 +1,1 @@
-"""Tests for users.user_default_gear module."""
+"""Tests for users.users_default_gear module."""

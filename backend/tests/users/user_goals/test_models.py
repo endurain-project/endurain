@@ -2,27 +2,27 @@
 
 import pytest
 
-import users.user_goals.models as user_goals_models
+import users.users_goals.models as user_goals_models
 
 
 class TestUserGoalModel:
     """
-    Test suite for UserGoal SQLAlchemy model.
+    Test suite for UsersGoal SQLAlchemy model.
     """
 
     def test_user_goal_model_table_name(self):
         """
-        Test UserGoal model has correct table name.
+        Test UsersGoal model has correct table name.
         """
         # Assert
-        assert user_goals_models.UserGoal.__tablename__ == "users_goals"
+        assert user_goals_models.UsersGoal.__tablename__ == "users_goals"
 
     def test_user_goal_model_columns_exist(self):
         """
-        Test UserGoal model has all expected columns.
+        Test UsersGoal model has all expected columns.
         """
         # Assert
-        model = user_goals_models.UserGoal
+        model = user_goals_models.UsersGoal
         assert hasattr(model, "id")
         assert hasattr(model, "user_id")
         assert hasattr(model, "interval")
@@ -37,10 +37,10 @@ class TestUserGoalModel:
 
     def test_user_goal_model_primary_key(self):
         """
-        Test UserGoal model has correct primary key.
+        Test UsersGoal model has correct primary key.
         """
         # Arrange
-        id_column = user_goals_models.UserGoal.id
+        id_column = user_goals_models.UsersGoal.id
 
         # Assert
         assert id_column.primary_key is True
@@ -48,10 +48,10 @@ class TestUserGoalModel:
 
     def test_user_goal_model_foreign_key(self):
         """
-        Test UserGoal model has correct foreign key to users table.
+        Test UsersGoal model has correct foreign key to users table.
         """
         # Arrange
-        user_id_column = user_goals_models.UserGoal.user_id
+        user_id_column = user_goals_models.UsersGoal.user_id
 
         # Assert
         assert user_id_column.nullable is False
@@ -59,10 +59,10 @@ class TestUserGoalModel:
 
     def test_user_goal_model_required_fields(self):
         """
-        Test UserGoal model required fields are not nullable.
+        Test UsersGoal model required fields are not nullable.
         """
         # Arrange
-        model = user_goals_models.UserGoal
+        model = user_goals_models.UsersGoal
 
         # Assert - Required fields
         assert model.user_id.nullable is False
@@ -72,10 +72,10 @@ class TestUserGoalModel:
 
     def test_user_goal_model_optional_fields(self):
         """
-        Test UserGoal model optional fields are nullable.
+        Test UsersGoal model optional fields are nullable.
         """
         # Arrange
-        model = user_goals_models.UserGoal
+        model = user_goals_models.UsersGoal
 
         # Assert - Optional goal fields
         assert model.goal_calories.nullable is True
@@ -86,10 +86,10 @@ class TestUserGoalModel:
 
     def test_user_goal_model_column_types(self):
         """
-        Test UserGoal model column types are correct.
+        Test UsersGoal model column types are correct.
         """
         # Arrange
-        model = user_goals_models.UserGoal
+        model = user_goals_models.UsersGoal
 
         # Assert
         assert model.id.type.python_type == int

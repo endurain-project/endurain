@@ -172,7 +172,7 @@ export interface SSOProvider {
  * @remarks
  * Refresh tokens are NOT included in this interface and are handled securely on the backend.
  */
-export interface UserIdentityProvider {
+export interface UsersIdentityProvider {
   id: number
   user_id: number
   idp_id: number
@@ -195,7 +195,7 @@ export interface UserIdentityProvider {
  * The backend enriches responses with IDP information from the identity_providers table.
  * Used in UserIdentityProviderListComponent and UsersListComponent.
  */
-export interface UserIdentityProviderEnriched extends UserIdentityProvider {
+export interface UserIdentityProviderEnriched extends UsersIdentityProvider {
   idp_name: string
   idp_slug: string
   idp_icon?: string

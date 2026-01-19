@@ -9,9 +9,9 @@ from fastapi import HTTPException, status
 import activities.activity.utils as activities_utils
 import activities.activity.schema as activities_schema
 
-import users.user_default_gear.utils as user_default_gear_utils
+import users.users_default_gear.utils as user_default_gear_utils
 
-import users.user_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.models as users_privacy_settings_models
 
 import core.logger as core_logger
 import core.config as core_config

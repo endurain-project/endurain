@@ -27,7 +27,7 @@ class OAuthState(Base):
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
         identity_provider: Relationship to IdentityProvider model.
-        user: Relationship to User model (nullable).
+        user: Relationship to Users model (nullable).
         users_sessions: Relationship to UsersSessions model.
     """
 
@@ -104,5 +104,5 @@ class OAuthState(Base):
 
     # Relationships
     identity_provider = relationship("IdentityProvider", back_populates="oauth_states")
-    user = relationship("User", back_populates="oauth_states")
+    users = relationship("Users", back_populates="oauth_states")
     users_sessions = relationship("UsersSessions", back_populates="oauth_state")

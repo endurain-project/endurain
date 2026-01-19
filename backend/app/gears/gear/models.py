@@ -47,7 +47,9 @@ class Gear(Base):
         comment="Gear creation date (DateTime)",
     )
     active = Column(
-        Boolean, nullable=False, comment="Whether the gear is active (true - yes, false - no)"
+        Boolean,
+        nullable=False,
+        comment="Whether the gear is active (true - yes, false - no)",
     )
     initial_kms = Column(
         DECIMAL(precision=11, scale=2),
@@ -67,8 +69,8 @@ class Gear(Base):
         String(length=45), unique=True, nullable=True, comment="Garmin Connect gear ID"
     )
 
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="gear")
+    # Define a relationship to the Users model
+    users = relationship("Users", back_populates="gear")
     # Establish a one-to-many relationship with 'activities'
     activities = relationship("Activity", back_populates="gear")
     # Establish a one-to-many relationship with 'gear_components'

@@ -24,8 +24,8 @@ import auth.schema as auth_schema
 
 import auth.identity_providers.utils as idp_utils
 
-import users.user.crud as users_crud
-import users.user.utils as users_utils
+import users.users.crud as users_crud
+import users.users.utils as users_utils
 import profile.utils as profile_utils
 
 import core.database as core_database

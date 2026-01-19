@@ -2,7 +2,7 @@
 
 import pytest
 
-import users.user_default_gear.models as user_default_gear_models
+import users.users_default_gear.models as user_default_gear_models
 
 
 class TestUsersDefaultGearModel:

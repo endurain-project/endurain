@@ -4,29 +4,29 @@ import pytest
 from datetime import datetime, timezone
 from sqlalchemy import inspect
 
-from users.user_identity_providers.models import UserIdentityProvider
+from users.users_identity_providers.models import UsersIdentityProvider
 
 
 class TestUserIdentityProviderModel:
-    """Test suite for UserIdentityProvider ORM model."""
+    """Test suite for UsersIdentityProvider ORM model."""
 
     def test_user_identity_provider_model_tablename(self):
-        """Test UserIdentityProvider model table name.
+        """Test UsersIdentityProvider model table name.
 
         Asserts:
             - Model uses correct table name
         """
         # Act & Assert
-        assert UserIdentityProvider.__tablename__ == "users_identity_providers"
+        assert UsersIdentityProvider.__tablename__ == "users_identity_providers"
 
     def test_user_identity_provider_model_foreign_keys(self):
-        """Test UserIdentityProvider model foreign key configuration.
+        """Test UsersIdentityProvider model foreign key configuration.
 
         Asserts:
             - Model has foreign keys to users and identity_providers tables
         """
         # Arrange & Act
-        mapper = inspect(UserIdentityProvider)
+        mapper = inspect(UsersIdentityProvider)
 
         # Assert
         # Check for foreign key relationships
@@ -36,13 +36,13 @@ class TestUserIdentityProviderModel:
         assert "user_id" in fk_columns or "idp_id" in fk_columns
 
     def test_user_identity_provider_model_nullable_fields(self):
-        """Test UserIdentityProvider nullable field configuration.
+        """Test UsersIdentityProvider nullable field configuration.
 
         Asserts:
             - Optional fields are nullable
         """
         # Arrange & Act
-        mapper = inspect(UserIdentityProvider)
+        mapper = inspect(UsersIdentityProvider)
         columns = {col.name: col for col in mapper.columns}
 
         # Assert
@@ -58,23 +58,23 @@ class TestUserIdentityProviderModel:
         assert columns["idp_subject"].nullable is False
 
     def test_user_identity_provider_model_has_relationships(self):
-        """Test UserIdentityProvider model has relationship attributes.
+        """Test UsersIdentityProvider model has relationship attributes.
 
         Asserts:
             - Model class has relationship definitions
         """
         # Act & Assert
-        assert hasattr(UserIdentityProvider, "user")
-        assert hasattr(UserIdentityProvider, "identity_providers")
+        assert hasattr(UsersIdentityProvider, "user")
+        assert hasattr(UsersIdentityProvider, "identity_providers")
 
     def test_user_identity_provider_model_column_types(self):
-        """Test UserIdentityProvider column types.
+        """Test UsersIdentityProvider column types.
 
         Asserts:
             - Columns have correct types
         """
         # Arrange & Act
-        mapper = inspect(UserIdentityProvider)
+        mapper = inspect(UsersIdentityProvider)
         columns = {col.name: col for col in mapper.columns}
 
         # Assert
@@ -83,13 +83,13 @@ class TestUserIdentityProviderModel:
         assert str(columns["idp_subject"].type) == "VARCHAR(500)"
 
     def test_user_identity_provider_model_column_count(self):
-        """Test UserIdentityProvider has all expected columns.
+        """Test UsersIdentityProvider has all expected columns.
 
         Asserts:
             - Model has exactly 9 columns
         """
         # Arrange & Act
-        mapper = inspect(UserIdentityProvider)
+        mapper = inspect(UsersIdentityProvider)
 
         # Assert - Should have: id, user_id, idp_id, idp_subject, linked_at,
         # last_login, idp_refresh_token, idp_access_token_expires_at,
@@ -97,13 +97,13 @@ class TestUserIdentityProviderModel:
         assert len(list(mapper.columns)) == 9
 
     def test_user_identity_provider_model_has_indexes(self):
-        """Test UserIdentityProvider has database indexes.
+        """Test UsersIdentityProvider has database indexes.
 
         Asserts:
             - Model has indexes on key columns for performance
         """
         # Arrange & Act
-        mapper = inspect(UserIdentityProvider)
+        mapper = inspect(UsersIdentityProvider)
 
         # Assert
         # Model should have indexes (at minimum on user_id, idp_id)

@@ -38,11 +38,11 @@ import server_settings.router as server_settings_router
 import session.router as session_router
 import sign_up_tokens.router as sign_up_tokens_router
 import strava.router as strava_router
-import users.user.router as users_router
-import users.user_goals.router as user_goals_router
-import users.user_identity_providers.router as user_identity_providers_router
-import users.user.public_router as users_public_router
-import users.user_default_gear.router as user_default_gear_router
+import users.users.router as users_router
+import users.users_goals.router as user_goals_router
+import users.users_identity_providers.router as user_identity_providers_router
+import users.users.public_router as users_public_router
+import users.users_default_gear.router as user_default_gear_router
 import websocket.router as websocket_router
 
 

@@ -28,7 +28,7 @@ class UsersSessions(Base):
         created_at (datetime): Timestamp when the session was created.
         last_activity_at (datetime): Timestamp of last user activity.
         expires_at (datetime): Timestamp when the session expires.
-        user (User): Relationship to the User model.
+        user (User): Relationship to the Users model.
         rotated_refresh_tokens (list): Rotated tokens for this session.
     """
 
@@ -101,8 +101,8 @@ class UsersSessions(Base):
         comment="Hashed CSRF token for refresh validation",
     )
 
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="users_sessions")
+    # Define a relationship to the Users model
+    users = relationship("Users", back_populates="users_sessions")
 
     # Define a relationship to the OAuthState model
     oauth_state = relationship("OAuthState", back_populates="users_sessions")

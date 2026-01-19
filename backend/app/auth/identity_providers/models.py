@@ -28,7 +28,7 @@ class IdentityProvider(Base):
         user_mapping (dict, optional): JSON mapping of IdP claims to user fields.
         created_at (datetime): Timestamp when the provider was created.
         updated_at (datetime): Timestamp when the provider was last updated.
-        user_identity_providers (list[UserIdentityProvider]): Relationship to user identity providers (many-to-many).
+        user_identity_providers (list[UsersIdentityProvider]): Relationship to user identity providers (many-to-many).
         oauth_states (list[OAuthState]): Relationship to OAuth states.
     """
 
@@ -120,7 +120,7 @@ class IdentityProvider(Base):
 
     # Relationship to user identity providers (many-to-many through junction table)
     user_identity_providers = relationship(
-        "UserIdentityProvider",
+        "UsersIdentityProvider",
         back_populates="identity_providers",
         cascade="all, delete-orphan",
     )

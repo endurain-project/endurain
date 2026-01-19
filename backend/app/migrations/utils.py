@@ -43,4 +43,4 @@ async def check_migrations_not_executed(db: Session):
 
             if migration.id == 6:
                 # Execute the migration
-                migrations_migration_6.process_migration_6(db)
+                await migrations_migration_6.process_migration_6(db)

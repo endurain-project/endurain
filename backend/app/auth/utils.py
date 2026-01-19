@@ -17,8 +17,8 @@ import session.utils as session_utils
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 
-import users.user.crud as users_crud
-import users.user.schema as users_schema
+import users.users.crud as users_crud
+import users.users.schema as users_schema
 
 
 def authenticate_user(
@@ -26,7 +26,7 @@ def authenticate_user(
     password: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
-) -> users_schema.UserRead:
+) -> users_schema.UsersRead:
     """
     Authenticates a user by verifying the provided username and password.
 
@@ -37,7 +37,7 @@ def authenticate_user(
         db (Session): The database session used for querying and updating user data.
 
     Returns:
-        users_schema.UserRead: The authenticated user object if authentication is successful.
+        users_schema.UsersRead: The authenticated user object if authentication is successful.
 
     Raises:
         HTTPException: If the username does not exist or the password is invalid.
@@ -75,7 +75,7 @@ def authenticate_user(
 
 
 def create_tokens(
-    user: users_schema.UserRead,
+    user: users_schema.UsersRead,
     token_manager: auth_token_manager.TokenManager,
     session_id: str | None = None,
 ) -> Tuple[str, datetime, str, datetime, str, str]:
@@ -83,7 +83,7 @@ def create_tokens(
     Generates session tokens for a user, including access token, refresh token, and CSRF token.
 
     Args:
-        user (users_schema.UserRead): The user object for whom the tokens are being created.
+        user (users_schema.UsersRead): The user object for whom the tokens are being created.
         token_manager (auth_token_manager.TokenManager): The token manager responsible for token creation.
         session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
 
@@ -125,7 +125,7 @@ def create_tokens(
 def complete_login(
     response: Response,
     request: Request,
-    user: users_schema.UserRead,
+    user: users_schema.UsersRead,
     client_type: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     token_manager: auth_token_manager.TokenManager,
@@ -144,7 +144,7 @@ def complete_login(
     Args:
         response (Response): The HTTP response object to set refresh cookie.
         request (Request): The HTTP request object containing client information.
-        user (users_schema.UserRead): The authenticated user object.
+        user (users_schema.UsersRead): The authenticated user object.
         client_type (str): The type of client ("web" or "mobile").
         password_hasher (auth_password_hasher.PasswordHasher): Utility for password hashing.
         token_manager (auth_token_manager.TokenManager): Utility for token generation and management.

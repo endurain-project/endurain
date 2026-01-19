@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import users.user_goals.utils as user_goals_utils
-import users.user_goals.schema as user_goals_schema
-import users.user_goals.models as user_goals_models
+import users.users_goals.utils as user_goals_utils
+import users.users_goals.schema as user_goals_schema
+import users.users_goals.models as user_goals_models
 
 
 class TestCalculateUserGoals:
@@ -16,42 +16,32 @@ class TestCalculateUserGoals:
     Test suite for calculate_user_goals function.
     """
 
-    @patch("users.user_goals.utils.user_goals_crud.get_user_goals_by_user_id")
-    @patch(
-        "users.user_goals.utils.calculate_goal_progress_by_activity_type"
-    )
-    def test_calculate_user_goals_success(
-        self, mock_calc_progress, mock_get_goals
-    ):
+    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("users.users_goals.utils.calculate_goal_progress_by_activity_type")
+    def test_calculate_user_goals_success(self, mock_calc_progress, mock_get_goals):
         """Test successful calculation of user goals."""
         # Arrange
         user_id = 1
         date = "2024-01-15"
         mock_db = MagicMock(spec=Session)
 
-        mock_goal1 = MagicMock(spec=user_goals_models.UserGoal)
-        mock_goal2 = MagicMock(spec=user_goals_models.UserGoal)
+        mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
+        mock_goal2 = MagicMock(spec=user_goals_models.UsersGoal)
         mock_get_goals.return_value = [mock_goal1, mock_goal2]
 
-        mock_progress1 = MagicMock(
-            spec=user_goals_schema.UserGoalProgress
-        )
-        mock_progress2 = MagicMock(
-            spec=user_goals_schema.UserGoalProgress
-        )
+        mock_progress1 = MagicMock(spec=user_goals_schema.UsersGoalProgress)
+        mock_progress2 = MagicMock(spec=user_goals_schema.UsersGoalProgress)
         mock_calc_progress.side_effect = [mock_progress1, mock_progress2]
 
         # Act
-        result = user_goals_utils.calculate_user_goals(
-            user_id, date, mock_db
-        )
+        result = user_goals_utils.calculate_user_goals(user_id, date, mock_db)
 
         # Assert
         assert result == [mock_progress1, mock_progress2]
         mock_get_goals.assert_called_once_with(user_id, mock_db)
         assert mock_calc_progress.call_count == 2
 
-    @patch("users.user_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_no_goals(self, mock_get_goals):
         """Test calculation returns None when no goals exist."""
         # Arrange
@@ -61,14 +51,12 @@ class TestCalculateUserGoals:
         mock_get_goals.return_value = []
 
         # Act
-        result = user_goals_utils.calculate_user_goals(
-            user_id, date, mock_db
-        )
+        result = user_goals_utils.calculate_user_goals(user_id, date, mock_db)
 
         # Assert
         assert result is None
 
-    @patch("users.user_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_no_date(self, mock_get_goals):
         """Test calculation uses current date when None provided."""
         # Arrange
@@ -77,15 +65,13 @@ class TestCalculateUserGoals:
         mock_get_goals.return_value = []
 
         # Act
-        result = user_goals_utils.calculate_user_goals(
-            user_id, None, mock_db
-        )
+        result = user_goals_utils.calculate_user_goals(user_id, None, mock_db)
 
         # Assert
         assert result is None
         mock_get_goals.assert_called_once()
 
-    @patch("users.user_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_value_error(self, mock_get_goals):
         """Test ValueError handling."""
         # Arrange
@@ -96,9 +82,7 @@ class TestCalculateUserGoals:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_utils.calculate_user_goals(
-                user_id, date, mock_db
-            )
+            user_goals_utils.calculate_user_goals(user_id, date, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert exc_info.value.detail == "Invalid data provided"
@@ -109,15 +93,17 @@ class TestCalculateGoalProgressByActivityType:
     Test suite for calculate_goal_progress_by_activity_type.
     """
 
-    @patch("users.user_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.user_goals.utils.get_start_end_date_by_interval")
+    @patch(
+        "users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types"
+    )
+    @patch("users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_calories_goal(
         self, mock_get_dates, mock_get_activities
     ):
         """Test calculation for calories goal."""
         # Arrange
         mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UserGoal)
+        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
@@ -147,15 +133,17 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_calories == 1500
         assert result.percentage_completed == 30
 
-    @patch("users.user_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.user_goals.utils.get_start_end_date_by_interval")
+    @patch(
+        "users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types"
+    )
+    @patch("users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_distance_goal(
         self, mock_get_dates, mock_get_activities
     ):
         """Test calculation for distance goal."""
         # Arrange
         mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UserGoal)
+        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
@@ -185,15 +173,17 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_distance == 10000
         assert result.percentage_completed == 20
 
-    @patch("users.user_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.user_goals.utils.get_start_end_date_by_interval")
+    @patch(
+        "users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types"
+    )
+    @patch("users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_activities_goal(
         self, mock_get_dates, mock_get_activities
     ):
         """Test calculation for activities count goal."""
         # Arrange
         mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UserGoal)
+        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
@@ -220,15 +210,17 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_activities_number == 2
         assert result.percentage_completed == 40
 
-    @patch("users.user_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.user_goals.utils.get_start_end_date_by_interval")
+    @patch(
+        "users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types"
+    )
+    @patch("users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_caps_at_100_percent(
         self, mock_get_dates, mock_get_activities
     ):
         """Test percentage is capped at 100."""
         # Arrange
         mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UserGoal)
+        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
@@ -311,9 +303,7 @@ class TestGetStartEndDateByInterval:
         """Test invalid interval raises exception."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_utils.get_start_end_date_by_interval(
-                "invalid", "2024-01-15"
-            )
+            user_goals_utils.get_start_end_date_by_interval("invalid", "2024-01-15")
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "Invalid interval" in exc_info.value.detail

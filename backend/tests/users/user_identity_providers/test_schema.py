@@ -4,20 +4,20 @@ import pytest
 from datetime import datetime, timezone
 from pydantic import ValidationError
 
-from users.user_identity_providers.schema import (
-    UserIdentityProviderBase,
-    UserIdentityProviderCreate,
-    UserIdentityProviderRead,
-    UserIdentityProviderResponse,
-    UserIdentityProviderTokenUpdate,
+from users.users_identity_providers.schema import (
+    UsersIdentityProviderBase,
+    UsersIdentityProviderCreate,
+    UsersIdentityProviderRead,
+    UsersIdentityProviderResponse,
+    UsersIdentityProviderTokenUpdate,
 )
 
 
 class TestUserIdentityProviderBase:
-    """Test suite for UserIdentityProviderBase schema."""
+    """Test suite for UsersIdentityProviderBase schema."""
 
     def test_user_identity_provider_base_valid(self):
-        """Test creating valid UserIdentityProviderBase instance.
+        """Test creating valid UsersIdentityProviderBase instance.
 
         Asserts:
             - Valid data passes validation
@@ -31,7 +31,7 @@ class TestUserIdentityProviderBase:
         }
 
         # Act
-        obj = UserIdentityProviderBase(**data)
+        obj = UsersIdentityProviderBase(**data)
 
         # Assert
         assert obj.user_id == 1
@@ -52,7 +52,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderBase(**data)
+            UsersIdentityProviderBase(**data)
 
         assert "user_id" in str(exc_info.value)
 
@@ -72,7 +72,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderBase(**data)
+            UsersIdentityProviderBase(**data)
 
         assert "extra_field" in str(exc_info.value)
 
@@ -91,7 +91,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderBase(**data)
+            UsersIdentityProviderBase(**data)
 
         assert "idp_subject" in str(exc_info.value)
 
@@ -110,7 +110,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderBase(**data)
+            UsersIdentityProviderBase(**data)
 
         assert "idp_subject" in str(exc_info.value)
 
@@ -129,7 +129,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderBase(**data)
+            UsersIdentityProviderBase(**data)
 
         assert "user_id" in str(exc_info.value)
 
@@ -148,16 +148,16 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderBase(**data)
+            UsersIdentityProviderBase(**data)
 
         assert "idp_id" in str(exc_info.value)
 
 
 class TestUserIdentityProviderCreate:
-    """Test suite for UserIdentityProviderCreate schema."""
+    """Test suite for UsersIdentityProviderCreate schema."""
 
     def test_user_identity_provider_create_valid(self):
-        """Test creating valid UserIdentityProviderCreate instance.
+        """Test creating valid UsersIdentityProviderCreate instance.
 
         Asserts:
             - Valid data passes validation
@@ -171,7 +171,7 @@ class TestUserIdentityProviderCreate:
         }
 
         # Act
-        obj = UserIdentityProviderCreate(**data)
+        obj = UsersIdentityProviderCreate(**data)
 
         # Assert
         assert obj.user_id == 1
@@ -180,10 +180,10 @@ class TestUserIdentityProviderCreate:
 
 
 class TestUserIdentityProviderRead:
-    """Test suite for UserIdentityProviderRead schema."""
+    """Test suite for UsersIdentityProviderRead schema."""
 
     def test_user_identity_provider_read_valid_minimal(self):
-        """Test creating UserIdentityProviderRead with required fields.
+        """Test creating UsersIdentityProviderRead with required fields.
 
         Asserts:
             - Required fields are present
@@ -199,7 +199,7 @@ class TestUserIdentityProviderRead:
         }
 
         # Act
-        obj = UserIdentityProviderRead(**data)
+        obj = UsersIdentityProviderRead(**data)
 
         # Assert
         assert obj.id == 1
@@ -207,7 +207,7 @@ class TestUserIdentityProviderRead:
         assert obj.last_login is None
 
     def test_user_identity_provider_read_valid_all_fields(self):
-        """Test creating UserIdentityProviderRead with all fields.
+        """Test creating UsersIdentityProviderRead with all fields.
 
         Asserts:
             - All fields are properly stored
@@ -227,7 +227,7 @@ class TestUserIdentityProviderRead:
         }
 
         # Act
-        obj = UserIdentityProviderRead(**data)
+        obj = UsersIdentityProviderRead(**data)
 
         # Assert
         assert obj.id == 1
@@ -251,16 +251,16 @@ class TestUserIdentityProviderRead:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderRead(**data)
+            UsersIdentityProviderRead(**data)
 
         assert "linked_at" in str(exc_info.value)
 
 
 class TestUserIdentityProviderResponse:
-    """Test suite for UserIdentityProviderResponse schema."""
+    """Test suite for UsersIdentityProviderResponse schema."""
 
     def test_user_identity_provider_response_valid_minimal(self):
-        """Test creating UserIdentityProviderResponse with required fields.
+        """Test creating UsersIdentityProviderResponse with required fields.
 
         Asserts:
             - Required fields are present
@@ -277,7 +277,7 @@ class TestUserIdentityProviderResponse:
         }
 
         # Act
-        obj = UserIdentityProviderResponse(**data)
+        obj = UsersIdentityProviderResponse(**data)
 
         # Assert
         assert obj.id == 1
@@ -285,7 +285,7 @@ class TestUserIdentityProviderResponse:
         assert obj.idp_slug is None
 
     def test_user_identity_provider_response_valid_enriched(self):
-        """Test creating UserIdentityProviderResponse with enriched fields.
+        """Test creating UsersIdentityProviderResponse with enriched fields.
 
         Asserts:
             - Enriched fields are properly stored
@@ -306,7 +306,7 @@ class TestUserIdentityProviderResponse:
         }
 
         # Act
-        obj = UserIdentityProviderResponse(**data)
+        obj = UsersIdentityProviderResponse(**data)
 
         # Assert
         assert obj.idp_name == "Strava"
@@ -333,7 +333,7 @@ class TestUserIdentityProviderResponse:
             idp_refresh_token_updated_at = None
 
         # Act
-        obj = UserIdentityProviderResponse.model_validate(MockORM())
+        obj = UsersIdentityProviderResponse.model_validate(MockORM())
 
         # Assert
         assert obj.id == 1
@@ -341,10 +341,10 @@ class TestUserIdentityProviderResponse:
 
 
 class TestUserIdentityProviderTokenUpdate:
-    """Test suite for UserIdentityProviderTokenUpdate schema."""
+    """Test suite for UsersIdentityProviderTokenUpdate schema."""
 
     def test_user_identity_provider_token_update_valid_minimal(self):
-        """Test creating UserIdentityProviderTokenUpdate with no fields.
+        """Test creating UsersIdentityProviderTokenUpdate with no fields.
 
         Asserts:
             - All fields are optional
@@ -354,7 +354,7 @@ class TestUserIdentityProviderTokenUpdate:
         data = {}
 
         # Act
-        obj = UserIdentityProviderTokenUpdate(**data)
+        obj = UsersIdentityProviderTokenUpdate(**data)
 
         # Assert
         assert obj.idp_refresh_token is None
@@ -376,7 +376,7 @@ class TestUserIdentityProviderTokenUpdate:
         }
 
         # Act
-        obj = UserIdentityProviderTokenUpdate(**data)
+        obj = UsersIdentityProviderTokenUpdate(**data)
 
         # Assert
         assert obj.idp_refresh_token == "encrypted_token_xyz"
@@ -397,6 +397,6 @@ class TestUserIdentityProviderTokenUpdate:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UserIdentityProviderTokenUpdate(**data)
+            UsersIdentityProviderTokenUpdate(**data)
 
         assert "extra_field" in str(exc_info.value)

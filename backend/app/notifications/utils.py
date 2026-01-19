@@ -8,9 +8,9 @@ import notifications.constants as notifications_constants
 import notifications.crud as notifications_crud
 import notifications.schema as notifications_schema
 
-import users.user.crud as users_crud
-import users.user.models as users_models
-import users.user.utils as users_utils
+import users.users.crud as users_crud
+import users.users.models as users_models
+import users.users.utils as users_utils
 
 import websocket.utils as websocket_utils
 import websocket.manager as websocket_manager
@@ -217,7 +217,7 @@ async def create_accepted_follower_request_notification(
 
 
 async def create_admin_new_sign_up_approval_request_notification(
-    user: users_models.User,
+    user: users_models.Users,
     websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):

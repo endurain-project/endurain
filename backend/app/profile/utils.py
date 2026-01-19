@@ -25,7 +25,7 @@ from typing import Any, TypeVar
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import profile.schema as profile_schema
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 import auth.password_hasher as auth_password_hasher
 import auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 import auth.mfa_backup_codes.utils as mfa_backup_codes_utils

@@ -4,11 +4,11 @@ import core.logger as core_logger
 
 import migrations.crud as migrations_crud
 
-import users.user.crud as user_crud
-import users.user.schema as users_schema
+import users.users.crud as user_crud
+import users.users.schema as users_schema
 
 
-def process_migration_6(db: Session):
+async def process_migration_6(db: Session):
     core_logger.print_to_log_and_console("Started migration 6")
 
     users_processed_with_no_errors = True
@@ -29,9 +29,9 @@ def process_migration_6(db: Session):
                 user.username = user.username.lower()
                 if user.birthdate:
                     user.birthdate = user.birthdate.isoformat()
-                user_converted = users_schema.UserRead.model_validate(user)
+                user_converted = users_schema.UsersRead.model_validate(user)
 
-                user_crud.edit_user(user.id, user_converted, db)
+                await user_crud.edit_user(user.id, user_converted, db)
             except Exception as err:
                 core_logger.print_to_log_and_console(
                     f"Migration 6 - Error processing user {user.id}: {err}",

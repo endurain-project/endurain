@@ -33,11 +33,11 @@ class Follower(Base):
         comment="Whether the follow request is accepted or not",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     follower = relationship(
-        "User", foreign_keys=[follower_id], back_populates="followers"
+        "Users", foreign_keys=[follower_id], back_populates="followers"
     )
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     following = relationship(
-        "User", foreign_keys=[following_id], back_populates="following"
+        "Users", foreign_keys=[following_id], back_populates="following"
     )

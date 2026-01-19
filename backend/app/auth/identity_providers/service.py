@@ -23,13 +23,13 @@ import core.cryptography as core_cryptography
 import core.logger as core_logger
 import auth.identity_providers.models as idp_models
 import auth.identity_providers.crud as idp_crud
-import users.user.crud as users_crud
-import users.user.schema as users_schema
-import users.user.models as users_models
-import users.user.utils as users_utils
-import users.user_identity_providers.crud as user_idp_crud
-import users.user_identity_providers.models as user_idp_models
-import users.user_identity_providers.utils as user_idp_utils
+import users.users.crud as users_crud
+import users.users.schema as users_schema
+import users.users.models as users_models
+import users.users.utils as users_utils
+import users.users_identity_providers.crud as user_idp_crud
+import users.users_identity_providers.models as user_idp_models
+import users.users_identity_providers.utils as user_idp_utils
 import auth.password_hasher as auth_password_hasher
 import auth.oauth_state.models as oauth_state_models
 import auth.oauth_state.crud as oauth_state_crud
@@ -1429,7 +1429,7 @@ class IdentityProviderService:
         userinfo: Dict[str, Any],
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
-    ) -> users_models.User:
+    ) -> users_models.Users:
         """
         Finds an existing user linked to the given identity provider and subject, or creates a new user if allowed.
 
@@ -1446,7 +1446,7 @@ class IdentityProviderService:
             db (Session): Database session.
 
         Returns:
-            users_models.User: The found or newly created user instance.
+            users_models.Users: The found or newly created user instance.
 
         Raises:
             HTTPException: If user creation is disabled for the identity provider and no existing user is found.
@@ -1509,7 +1509,7 @@ class IdentityProviderService:
         mapped_data: Dict[str, Any],
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
-    ) -> users_models.User:
+    ) -> users_models.Users:
         """
         Creates a new user in the database based on identity provider (IdP) information.
 
@@ -1526,7 +1526,7 @@ class IdentityProviderService:
             db (Session): The database session.
 
         Returns:
-            users_models.User: The newly created user instance.
+            users_models.Users: The newly created user instance.
 
         Raises:
             HTTPException: If user creation fails (e.g., duplicate username/email).
@@ -1541,7 +1541,7 @@ class IdentityProviderService:
             username = f"{base_username}_{str(random.randint(100000, 999999))}"
 
         # Create user signup schema
-        user_signup = users_schema.UserSignup(
+        user_signup = users_schema.UsersSignup(
             username=username,
             email=mapped_data.get("email", f"{username}@sso.local"),
             city=mapped_data.get("city", None),
@@ -1579,11 +1579,11 @@ class IdentityProviderService:
 
     async def _update_user_from_idp(
         self,
-        user: users_models.User,
+        user: users_models.Users,
         idp: idp_models.IdentityProvider,
         userinfo: Dict[str, Any],
         db: Session,
-    ) -> users_models.User:
+    ) -> users_models.Users:
         """
         Updates the user's information based on claims received from an identity provider (IdP).
 
@@ -1596,13 +1596,13 @@ class IdentityProviderService:
         5. Applies updates and delegates persistence to the CRUD layer
 
         Args:
-            user (users_models.User): The user ORM instance to update.
+            user (users_models.Users): The user ORM instance to update.
             idp (idp_models.IdentityProvider): The identity provider instance with user_mapping config.
             userinfo (Dict[str, Any]): The user information claims received from the IdP.
             db (Session): The SQLAlchemy database session.
 
         Returns:
-            users_models.User: The updated user ORM instance from database.
+            users_models.Users: The updated user ORM instance from database.
         """
         mapped_data = self._map_user_claims(idp, userinfo)
 
@@ -1640,7 +1640,7 @@ class IdentityProviderService:
         # Only call CRUD if there are updates
         if updates:
             print("Applying updates to user:", updates)
-            user_read = users_schema.UserRead.model_validate(user)
+            user_read = users_schema.UsersRead.model_validate(user)
             for field, value in updates.items():
                 setattr(user_read, field, value)
 
@@ -1992,7 +1992,7 @@ class IdentityProviderService:
             return False
 
     def _is_token_expired_by_age(
-        self, link: user_idp_models.UserIdentityProvider
+        self, link: user_idp_models.UsersIdentityProvider
     ) -> bool:
         """
         Check if an IdP refresh token has exceeded the maximum age policy.
@@ -2002,7 +2002,7 @@ class IdentityProviderService:
         configured maximum age.
 
         Args:
-            link (user_idp_models.UserIdentityProvider): The user-IdP link containing token metadata.
+            link (user_idp_models.UsersIdentityProvider): The user-IdP link containing token metadata.
 
         Returns:
             bool: True if the token exceeds maximum age, False otherwise.
@@ -2046,7 +2046,7 @@ class IdentityProviderService:
         return token_age > max_age
 
     def _should_refresh_idp_token(
-        self, link: user_idp_models.UserIdentityProvider
+        self, link: user_idp_models.UsersIdentityProvider
     ) -> TokenAction:
         """
         Determine what action to take for an IdP token based on expiry and age policies.
@@ -2058,7 +2058,7 @@ class IdentityProviderService:
         4. Rate limiting - whether the token was refreshed very recently
 
         Args:
-            link (user_idp_models.UserIdentityProvider): The user-IdP link containing token metadata.
+            link (user_idp_models.UsersIdentityProvider): The user-IdP link containing token metadata.
 
         Returns:
             TokenAction: The action to take (SKIP, REFRESH, or CLEAR).

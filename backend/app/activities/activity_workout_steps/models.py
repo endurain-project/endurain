@@ -71,5 +71,5 @@ class ActivityWorkoutSteps(Base):
         comment="Workout step secondary target value",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     activity = relationship("Activity", back_populates="activity_workout_steps")

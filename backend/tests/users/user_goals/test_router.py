@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 
-import users.user_goals.schema as user_goals_schema
-import users.user_goals.models as user_goals_models
-import users.user_goals.dependencies as user_goals_dependencies
+import users.users_goals.schema as user_goals_schema
+import users.users_goals.models as user_goals_models
+import users.users_goals.dependencies as user_goals_dependencies
 
 
 class TestGetUserGoals:
@@ -14,13 +14,13 @@ class TestGetUserGoals:
     Test suite for get_user_goals endpoint.
     """
 
-    @patch("users.user_goals.router.user_goals_crud.get_user_goals_by_user_id")
+    @patch("users.users_goals.router.user_goals_crud.get_user_goals_by_user_id")
     def test_get_user_goals_success(
         self, mock_get_goals, fast_api_client, fast_api_app
     ):
         """Test successful retrieval of all user goals."""
         # Arrange
-        mock_goal1 = MagicMock(spec=user_goals_models.UserGoal)
+        mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
         mock_goal1.id = 1
         mock_goal1.user_id = 1
         mock_goal1.interval = "weekly"
@@ -46,7 +46,7 @@ class TestGetUserGoals:
         assert isinstance(data, list)
         assert len(data) == 1
 
-    @patch("users.user_goals.router.user_goals_crud.get_user_goals_by_user_id")
+    @patch("users.users_goals.router.user_goals_crud.get_user_goals_by_user_id")
     def test_get_user_goals_empty(self, mock_get_goals, fast_api_client, fast_api_app):
         """Test retrieval when user has no goals."""
         # Arrange
@@ -68,13 +68,13 @@ class TestGetUserGoalsResults:
     Test suite for get_user_goals_results endpoint.
     """
 
-    @patch("users.user_goals.router.user_goals_utils.calculate_user_goals")
+    @patch("users.users_goals.router.user_goals_utils.calculate_user_goals")
     def test_get_user_goals_results_success(
         self, mock_calculate, fast_api_client, fast_api_app
     ):
         """Test successful calculation of goal progress."""
         # Arrange
-        mock_progress = MagicMock(spec=user_goals_schema.UserGoalProgress)
+        mock_progress = MagicMock(spec=user_goals_schema.UsersGoalProgress)
         mock_progress.goal_id = 1
         mock_progress.interval = "weekly"
         mock_progress.activity_type = "run"
@@ -107,7 +107,7 @@ class TestGetUserGoalsResults:
         assert isinstance(data, list)
         assert len(data) == 1
 
-    @patch("users.user_goals.router.user_goals_utils.calculate_user_goals")
+    @patch("users.users_goals.router.user_goals_utils.calculate_user_goals")
     def test_get_user_goals_results_none(
         self, mock_calculate, fast_api_client, fast_api_app
     ):
@@ -131,11 +131,11 @@ class TestCreateUserGoal:
     Test suite for create_user_goal endpoint.
     """
 
-    @patch("users.user_goals.router.user_goals_crud.create_user_goal")
+    @patch("users.users_goals.router.user_goals_crud.create_user_goal")
     def test_create_user_goal_success(self, mock_create, fast_api_client, fast_api_app):
         """Test successful goal creation."""
         # Arrange
-        mock_created_goal = MagicMock(spec=user_goals_models.UserGoal)
+        mock_created_goal = MagicMock(spec=user_goals_models.UsersGoal)
         mock_created_goal.id = 1
         mock_created_goal.user_id = 1
         mock_created_goal.interval = "weekly"
@@ -195,7 +195,7 @@ class TestUpdateUserGoal:
     """
 
     @patch("core.dependencies.validate_id")
-    @patch("users.user_goals.router.user_goals_crud.update_user_goal")
+    @patch("users.users_goals.router.user_goals_crud.update_user_goal")
     def test_update_user_goal_success(
         self,
         mock_update,
@@ -206,7 +206,7 @@ class TestUpdateUserGoal:
         """Test successful goal update."""
         # Arrange
         mock_validate_id.return_value = None
-        mock_update.return_value = user_goals_schema.UserGoalRead(
+        mock_update.return_value = user_goals_schema.UsersGoalRead(
             id=1,
             user_id=1,
             interval=user_goals_schema.Interval.MONTHLY,
@@ -239,8 +239,8 @@ class TestUpdateUserGoal:
         assert data["id"] == 1
         assert data["goal_calories"] == 10000
 
-    @patch("users.user_goals.router.user_goals_crud.update_user_goal")
-    @patch("users.user_goals.router.user_goals_dependencies.validate_goal_id")
+    @patch("users.users_goals.router.user_goals_crud.update_user_goal")
+    @patch("users.users_goals.router.user_goals_dependencies.validate_goal_id")
     def test_update_user_goal_not_found(
         self,
         mock_validate,
@@ -284,7 +284,7 @@ class TestDeleteUserGoal:
     """
 
     @patch("core.dependencies.validate_id")
-    @patch("users.user_goals.router.user_goals_crud.delete_user_goal")
+    @patch("users.users_goals.router.user_goals_crud.delete_user_goal")
     def test_delete_user_goal_success(
         self,
         mock_delete,
@@ -307,8 +307,8 @@ class TestDeleteUserGoal:
         assert response.status_code == 204
         assert response.content == b""
 
-    @patch("users.user_goals.router.user_goals_crud.delete_user_goal")
-    @patch("users.user_goals.router.user_goals_dependencies.validate_goal_id")
+    @patch("users.users_goals.router.user_goals_crud.delete_user_goal")
+    @patch("users.users_goals.router.user_goals_dependencies.validate_goal_id")
     def test_delete_user_goal_not_found(
         self,
         mock_validate,

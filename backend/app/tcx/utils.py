@@ -6,7 +6,7 @@ import tcxreader
 import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
 
-import users.user_default_gear.utils as user_default_gear_utils
+import users.users_default_gear.utils as user_default_gear_utils
 
 import core.logger as core_logger
 import core.config as core_config

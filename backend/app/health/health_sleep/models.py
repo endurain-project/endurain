@@ -51,7 +51,7 @@ class HealthSleep(Base):
         light_percentage_score: Light percentage score.
         avg_sleep_stress: Average sleep stress.
         sleep_stress_score: Sleep stress score.
-        user: Relationship to User model.
+        user: Relationship to Users model.
     """
 
     __tablename__ = "health_sleep"
@@ -236,6 +236,6 @@ class HealthSleep(Base):
         comment="Sleep stress score",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_sleep")
+    users = relationship("Users", back_populates="health_sleep")

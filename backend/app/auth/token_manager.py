@@ -19,7 +19,7 @@ from joserfc.jwk import OctKey
 
 import auth.constants as auth_constants
 
-import users.user.schema as users_schema
+import users.users.schema as users_schema
 
 import core.logger as core_logger
 import core.config as core_config
@@ -51,7 +51,7 @@ class TokenManager:
 
         validate_token_expiration(token: str) -> None:
 
-        create_token(session_id: str, user: users_schema.UserRead, token_type: TokenType) -> tuple[datetime, str]:
+        create_token(session_id: str, user: users_schema.UsersRead, token_type: TokenType) -> tuple[datetime, str]:
 
         create_csrf_token() -> str:
             Generates a secure random CSRF (Cross-Site Request Forgery) token.
@@ -259,7 +259,7 @@ class TokenManager:
     def create_token(
         self,
         session_id: str,
-        user: users_schema.UserRead,
+        user: users_schema.UsersRead,
         token_type: TokenType,
     ) -> tuple[datetime, str]:
         """
@@ -267,7 +267,7 @@ class TokenManager:
 
         Args:
             session_id (str): The unique identifier for the session.
-            user (users_schema.UserRead): The user object containing user details.
+            user (users_schema.UsersRead): The user object containing user details.
             token_type (TokenType): The type of token to create (access or refresh).
 
         Returns:

@@ -14,7 +14,7 @@ import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
 import activities.activity.crud as activities_crud
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 import websocket.manager as websocket_manager
 

@@ -7,7 +7,7 @@ from fastapi import HTTPException, Response
 
 import auth.utils as auth_utils
 import auth.token_manager as auth_token_manager
-import users.user.schema as user_schema
+import users.users.schema as user_schema
 
 
 class TestAuthenticateUser:

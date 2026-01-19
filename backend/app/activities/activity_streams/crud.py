@@ -13,7 +13,7 @@ import activities.activity.schema as activities_schema
 
 import server_settings.utils as server_settings_utils
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 import core.logger as core_logger
 

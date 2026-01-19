@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-import users.user_identity_providers.crud as user_idp_crud
+import users.users_identity_providers.crud as user_idp_crud
 
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.service as idp_service

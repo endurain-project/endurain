@@ -8,9 +8,9 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-import users.user.crud as users_crud
-import users.user.utils as users_utils
-import users.user.schema as users_schema
+import users.users.crud as users_crud
+import users.users.utils as users_utils
+import users.users.schema as users_schema
 
 import notifications.utils as notifications_utils
 
@@ -32,7 +32,7 @@ router = APIRouter()
 
 @router.post("/sign-up/request", status_code=201)
 async def signup(
-    user: users_schema.UserSignup,
+    user: users_schema.UsersSignup,
     email_service: Annotated[
         core_apprise.AppriseService,
         Depends(core_apprise.get_email_service),
@@ -51,7 +51,7 @@ async def signup(
     and trigger ancillary actions such as sending verification/approval emails and notifying admins.
 
     Parameters
-    - user (users_schema.UserSignup): The payload containing the user's sign-up information.
+    - user (users_schema.UsersSignup): The payload containing the user's sign-up information.
     - email_service (core_apprise.AppriseService): Injected email service used to send
         verification and admin approval emails.
     - websocket_manager (websocket_manager.WebSocketManager): Injected manager used to send

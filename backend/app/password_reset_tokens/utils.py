@@ -12,7 +12,7 @@ import password_reset_tokens.email_messages as password_reset_tokens_email_messa
 import password_reset_tokens.schema as password_reset_tokens_schema
 import password_reset_tokens.crud as password_reset_tokens_crud
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 import auth.password_hasher as auth_password_hasher
 

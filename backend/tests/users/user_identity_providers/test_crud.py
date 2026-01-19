@@ -7,8 +7,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from users.user_identity_providers import crud as user_idp_crud
-from users.user_identity_providers.models import UserIdentityProvider
+from users.users_identity_providers import crud as user_idp_crud
+from users.users_identity_providers.models import UsersIdentityProvider
 
 
 class TestCheckUserIdentityProvidersByIdpId:
@@ -80,16 +80,16 @@ class TestGetUserIdentityProvidersByUserId:
             mock_db: Mocked database session
 
         Asserts:
-            - Returns list of UserIdentityProvider objects
+            - Returns list of UsersIdentityProvider objects
             - Database query is executed correctly
         """
         # Arrange
-        mock_link1 = MagicMock(spec=UserIdentityProvider)
+        mock_link1 = MagicMock(spec=UsersIdentityProvider)
         mock_link1.id = 1
         mock_link1.user_id = 1
         mock_link1.idp_id = 1
 
-        mock_link2 = MagicMock(spec=UserIdentityProvider)
+        mock_link2 = MagicMock(spec=UsersIdentityProvider)
         mock_link2.id = 2
         mock_link2.user_id = 1
         mock_link2.idp_id = 2
@@ -155,11 +155,11 @@ class TestGetUserIdentityProviderByUserIdAndIdpId:
             mock_db: Mocked database session
 
         Asserts:
-            - Returns UserIdentityProvider object when found
+            - Returns UsersIdentityProvider object when found
             - Database query uses correct filters
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.user_id = 1
         mock_link.idp_id = 1
@@ -227,11 +227,11 @@ class TestGetUserIdentityProviderBySubjectAndIdpId:
             mock_db: Mocked database session
 
         Asserts:
-            - Returns UserIdentityProvider object when found
+            - Returns UsersIdentityProvider object when found
             - Database query uses subject and IdP ID filters
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.user_id = 1
         mock_link.idp_id = 1
@@ -307,7 +307,7 @@ class TestCreateUserIdentityProvider:
         """
         # Arrange
         now = datetime.now(timezone.utc)
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.user_id = 1
         mock_link.idp_id = 1
@@ -319,9 +319,9 @@ class TestCreateUserIdentityProvider:
         mock_db.commit = MagicMock()
         mock_db.refresh = MagicMock()
 
-        # Patch the UserIdentityProvider constructor
+        # Patch the UsersIdentityProvider constructor
         with patch(
-            "users.user_identity_providers.crud.user_idp_models.UserIdentityProvider"
+            "users.users_identity_providers.crud.user_idp_models.UsersIdentityProvider"
         ) as mock_constructor:
             mock_constructor.return_value = mock_link
 
@@ -372,13 +372,13 @@ class TestUpdateUserIdentityProviderLastLogin:
             - Database commit and refresh are called
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.user_id = 1
         mock_link.idp_id = 1
 
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
@@ -408,7 +408,7 @@ class TestUpdateUserIdentityProviderLastLogin:
         """
         # Arrange
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
@@ -438,7 +438,7 @@ class TestStoreUserIdentityProviderTokens:
             - Database commit and refresh are called
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.user_id = 1
         mock_link.idp_id = 1
@@ -447,7 +447,7 @@ class TestStoreUserIdentityProviderTokens:
         encrypted_token = "encrypted_refresh_token_xyz"
 
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
@@ -480,7 +480,7 @@ class TestStoreUserIdentityProviderTokens:
         expires_at = datetime.now(timezone.utc)
 
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
@@ -510,14 +510,14 @@ class TestClearUserIdentityProviderRefreshToken:
             - Database commit is called
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.idp_refresh_token = "old_token"
         mock_link.idp_access_token_expires_at = datetime.now(timezone.utc)
         mock_link.idp_refresh_token_updated_at = datetime.now(timezone.utc)
 
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
@@ -547,7 +547,7 @@ class TestClearUserIdentityProviderRefreshToken:
         """
         # Arrange
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
@@ -578,12 +578,12 @@ class TestDeleteUserIdentityProvider:
             - Multiple commits are called
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
         mock_link.idp_refresh_token = "token"
 
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link
@@ -611,7 +611,7 @@ class TestDeleteUserIdentityProvider:
         """
         # Arrange
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = None
@@ -634,11 +634,11 @@ class TestDeleteUserIdentityProvider:
             - Rollback is called
         """
         # Arrange
-        mock_link = MagicMock(spec=UserIdentityProvider)
+        mock_link = MagicMock(spec=UsersIdentityProvider)
         mock_link.id = 1
 
         with patch(
-            "users.user_identity_providers.crud"
+            "users.users_identity_providers.crud"
             ".get_user_identity_provider_by_user_id_and_idp_id"
         ) as mock_get:
             mock_get.return_value = mock_link

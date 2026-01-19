@@ -1,6 +1,6 @@
 import pytest
 
-import users.user_privacy_settings.models as user_privacy_settings_models
+import users.users_privacy_settings.models as user_privacy_settings_models
 
 
 class TestUsersPrivacySettingsModel:

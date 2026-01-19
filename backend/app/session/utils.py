@@ -17,7 +17,7 @@ import session.schema as session_schema
 import session.crud as session_crud
 import auth.password_hasher as auth_password_hasher
 
-import users.user.schema as users_schema
+import users.users.schema as users_schema
 
 import core.logger as core_logger
 from core.database import SessionLocal
@@ -104,7 +104,7 @@ def validate_session_timeout(session: session_schema.UsersSessions) -> None:
 
 def create_session_object(
     session_id: str,
-    user: users_schema.UserRead,
+    user: users_schema.UsersRead,
     request: Request,
     hashed_refresh_token: str,
     refresh_token_exp: datetime,
@@ -203,7 +203,7 @@ def edit_session_object(
 
 def create_session(
     session_id: str,
-    user: users_schema.UserRead,
+    user: users_schema.UsersRead,
     request: Request,
     refresh_token: str,
     password_hasher: auth_password_hasher.PasswordHasher,

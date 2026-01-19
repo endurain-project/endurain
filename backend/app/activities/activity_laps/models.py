@@ -198,5 +198,5 @@ class ActivityLaps(Base):
         comment="Lap average step length",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     activity = relationship("Activity", back_populates="activity_laps")

@@ -31,12 +31,12 @@ import sign_up_tokens.models
 import server_settings.models
 import session.models
 import session.rotated_refresh_tokens.models
-import users.user.models
-import users.user_goals.models
-import users.user_default_gear.models
-import users.user_identity_providers.models
-import users.user_integrations.models
-import users.user_privacy_settings.models
+import users.users.models
+import users.users_goals.models
+import users.users_default_gear.models
+import users.users_identity_providers.models
+import users.users_integrations.models
+import users.users_privacy_settings.models
 
 # import Base and engine from database file
 from core.database import Base, engine

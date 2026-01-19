@@ -2,7 +2,7 @@
 
 import pytest
 
-from users.user_integrations.models import UsersIntegrations
+from users.users_integrations.models import UsersIntegrations
 
 
 class TestUsersIntegrationsModel:

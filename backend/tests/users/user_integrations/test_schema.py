@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime, timezone
 from pydantic import ValidationError
 
-from users.user_integrations.schema import (
+from users.users_integrations.schema import (
     UsersIntegrationsBase,
     UsersIntegrationsCreate,
     UsersIntegrationsRead,

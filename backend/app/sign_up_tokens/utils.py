@@ -12,9 +12,9 @@ import sign_up_tokens.email_messages as sign_up_tokens_email_messages
 import sign_up_tokens.schema as sign_up_tokens_schema
 import sign_up_tokens.crud as sign_up_tokens_crud
 
-import users.user.crud as users_crud
-import users.user.models as users_models
-import users.user.utils as users_utils
+import users.users.crud as users_crud
+import users.users.models as users_models
+import users.users.utils as users_utils
 
 import core.apprise as core_apprise
 import core.logger as core_logger
@@ -45,7 +45,7 @@ def create_sign_up_token(user_id: int, db: Session) -> str:
 
 
 async def send_sign_up_email(
-    user: users_models.User, email_service: core_apprise.AppriseService, db: Session
+    user: users_models.Users, email_service: core_apprise.AppriseService, db: Session
 ) -> bool:
     # Check if email service is configured
     if not email_service.is_configured():
@@ -77,7 +77,7 @@ async def send_sign_up_email(
 
 
 async def send_sign_up_admin_approval_email(
-    user: users_models.User, email_service: core_apprise.AppriseService, db: Session
+    user: users_models.Users, email_service: core_apprise.AppriseService, db: Session
 ) -> None:
     # Check if email service is configured
     if not email_service.is_configured():

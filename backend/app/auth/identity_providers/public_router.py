@@ -19,7 +19,7 @@ import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.service as idp_service
 import auth.identity_providers.utils as idp_utils
-import users.user.schema as users_schema
+import users.users.schema as users_schema
 import core.config as core_config
 import core.logger as core_logger
 import auth.oauth_state.crud as oauth_state_crud
@@ -276,8 +276,8 @@ async def handle_callback(
             )
 
         # LOGIN MODE: Create session WITHOUT tokens (tokens created during exchange)
-        # Convert to UserRead schema
-        user_read = users_schema.UserRead.model_validate(user)
+        # Convert to UsersRead schema
+        user_read = users_schema.UsersRead.model_validate(user)
 
         # Generate session ID
         session_id = str(uuid4())
@@ -447,7 +447,7 @@ async def exchange_tokens_for_session(
 
         # PKCE verification successful - retrieve user and create tokens
         user = session_obj.user
-        user_read = users_schema.UserRead.model_validate(user)
+        user_read = users_schema.UsersRead.model_validate(user)
 
         # Create JWT tokens (now that PKCE is verified)
         (

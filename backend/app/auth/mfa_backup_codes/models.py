@@ -21,7 +21,7 @@ class MFABackupCode(Base):
         expires_at (datetime): Optional expiration timestamp for code rotation.
 
     Relationships:
-        user: Many-to-one relationship with the User model.
+        user: Many-to-one relationship with the Users model.
 
     Indexes:
         - Primary index on user_id for foreign key constraint
@@ -65,8 +65,8 @@ class MFABackupCode(Base):
         DateTime, nullable=True, comment="Optional expiry for code rotation policy"
     )
 
-    # Establish relationship back to User model
-    user = relationship("User", back_populates="mfa_backup_codes")
+    # Establish relationship back to Users model
+    users = relationship("Users", back_populates="mfa_backup_codes")
 
     # Composite index for fast unused code lookups
     __table_args__ = (Index("idx_user_unused_codes", "user_id", "used"),)
