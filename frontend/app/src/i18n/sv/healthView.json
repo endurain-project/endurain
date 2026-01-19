@@ -1,5 +1,5 @@
 {
-  "title": "Health",
+  "title": "Hälsa",
   "errorFetchingHealthSteps": "Error fetching health steps",
   "errorFetchingHealthWeight": "Error fetching health data",
   "errorFetchingHealthSleep": "Error fetching health sleep",
