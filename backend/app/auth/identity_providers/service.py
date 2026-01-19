@@ -1090,6 +1090,10 @@ class IdentityProviderService:
                     user_id=link_user_id, idp_id=idp.id, idp_subject=subject, db=db
                 )
 
+                # Update user info if sync is enabled
+                if idp.sync_user_info:
+                    user = await self._update_user_from_idp(user, idp, userinfo, db)
+
                 # Store IdP tokens for future use
                 await self._store_idp_tokens(link_user_id, idp.id, token_response, db)
 
@@ -1105,7 +1109,6 @@ class IdentityProviderService:
                     "userinfo": userinfo,
                     "mode": "link",  # Indicate this was a link operation
                 }
-
             else:
                 # LOGIN MODE: Find or create user and establish session
                 user = await self._find_or_create_user(
@@ -1457,7 +1460,7 @@ class IdentityProviderService:
         )
 
         if link:
-            user = link.user
+            user = link.users
             # Update last login timestamp
             user_idp_crud.update_user_identity_provider_last_login(
                 link.user_id, idp.id, db
@@ -1608,8 +1611,6 @@ class IdentityProviderService:
 
         # Build updates
         updates = {}
-
-        print("Mapped data from IdP:", mapped_data)
 
         # Check email - verify not already in use
         if "email" in mapped_data and mapped_data["email"] != user.email:

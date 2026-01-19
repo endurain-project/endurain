@@ -446,7 +446,7 @@ async def exchange_tokens_for_session(
         )
 
         # PKCE verification successful - retrieve user and create tokens
-        user = session_obj.user
+        user = session_obj.users
         user_read = users_schema.UsersRead.model_validate(user)
 
         # Create JWT tokens (now that PKCE is verified)
@@ -470,8 +470,11 @@ async def exchange_tokens_for_session(
         session_obj.refresh_token = password_hasher.hash_password(refresh_token)
         db.commit()
 
+        # Store client_type before marking tokens as exchanged (which deletes oauth_state)
+        client_type = oauth_state.client_type
+
         # Set refresh token cookie for web clients (enables logout)
-        if oauth_state.client_type == "web":
+        if client_type == "web":
             secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
             response.set_cookie(
                 key="endurain_refresh_token",
@@ -488,12 +491,12 @@ async def exchange_tokens_for_session(
         session_crud.mark_tokens_exchanged(session_id, db)
 
         core_logger.print_to_log(
-            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={oauth_state.client_type})",
+            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={client_type})",
             "info",
         )
 
         # Return response based on client type (matches complete_login behavior)
-        if oauth_state.client_type == "web":
+        if client_type == "web":
             # Web: access_token and csrf_token in body, refresh_token in cookie only
             return idp_schema.TokenExchangeResponse(
                 session_id=session_id,

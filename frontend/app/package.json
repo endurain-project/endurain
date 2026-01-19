@@ -14,10 +14,10 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^6.7.1",
-    "@fortawesome/free-brands-svg-icons": "^6.7.1",
-    "@fortawesome/free-regular-svg-icons": "^6.7.1",
-    "@fortawesome/free-solid-svg-icons": "^6.7.1",
+    "@fortawesome/fontawesome-svg-core": "^7.1.0",
+    "@fortawesome/free-brands-svg-icons": "^7.1.0",
+    "@fortawesome/free-regular-svg-icons": "^7.1.0",
+    "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/vue-fontawesome": "^3.0.8",
     "@types/dompurify": "^3.0.5",
     "bootstrap": "^5.3.3",
@@ -41,7 +41,7 @@
     "@types/bootstrap": "^5.2.10",
     "@types/jsdom": "^27.0.0",
     "@types/leaflet": "^1.9.14",
-    "@types/node": "^24.6.1",
+    "@types/node": "^25.0.9",
     "@typescript-eslint/eslint-plugin": "^8.45.0",
     "@typescript-eslint/parser": "^8.45.0",
     "@vitejs/plugin-vue": "^6.0.1",

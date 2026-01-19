@@ -111,7 +111,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  optionToEmitAction: [value: number]
+  optionToEmitAction: [value: String]
 }>()
 
 const { initializeModal, disposeModal } = useBootstrapModal()

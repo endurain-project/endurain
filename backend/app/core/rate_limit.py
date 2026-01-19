@@ -49,6 +49,8 @@ SESSION_LOGIN_LIMIT = (
 SESSION_REFRESH_LIMIT = "20/minute"  # Token refresh (more frequent but still limited)
 SESSION_LOGOUT_LIMIT = "10/minute"  # Logout requests
 
+SIGNUP_LIMIT = "5/minute"  # Signup attempts (prevent account creation abuse)
+
 # MFA endpoints - very strict protection (high-value target for brute-force)
 MFA_VERIFY_LIMIT = (
     "3/minute"  # MFA code verification (AuthQuake-style attack prevention)

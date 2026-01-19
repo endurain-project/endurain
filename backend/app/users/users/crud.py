@@ -285,7 +285,8 @@ def create_signup_user(
         Created Users model.
 
     Raises:
-        HTTPException: 409 if email/username already exists.
+        HTTPException: 409 if email/username already exists. Abstract message
+            to reduce information leakage.
         HTTPException: 500 if database error occurs.
     """
     try:
@@ -351,7 +352,7 @@ def create_signup_user(
         # Raise an HTTPException with a 409 Conflict status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=("Duplicate entry error. Check if email and username are unique"),
+            detail=("Unable to create user."),
         ) from integrity_error
 
 

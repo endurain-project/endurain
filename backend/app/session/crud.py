@@ -241,6 +241,11 @@ def mark_tokens_exchanged(session_id: str, db: Session) -> None:
         if oauth_state_id_to_delete:
             try:
                 oauth_state_crud.delete_oauth_state(oauth_state_id_to_delete, db)
+                core_logger.print_to_log(
+                    f"Deleted OAuth state {oauth_state_id_to_delete[:8]}... "
+                    f"after token exchange",
+                    "debug",
+                )
             except Exception as err:
                 # Log but don't fail - cleanup job will handle orphaned states
                 core_logger.print_to_log(
