@@ -96,7 +96,7 @@ class TestUsersPrivacySettingsModel:
         # Assert
         assert model.id.type.python_type == int
         # user_id has ForeignKey, skip type check
-        assert model.default_activity_visibility.type.python_type == int
+        assert model.default_activity_visibility.type.python_type == str
         assert model.hide_activity_start_time.type.python_type == bool
         assert model.hide_activity_location.type.python_type == bool
         assert model.hide_activity_map.type.python_type == bool
@@ -115,7 +115,7 @@ class TestUsersPrivacySettingsModel:
         Test UsersPrivacySettings model has relationship to User.
         """
         # Assert
-        assert hasattr(user_privacy_settings_models.UsersPrivacySettings, "user")
+        assert hasattr(user_privacy_settings_models.UsersPrivacySettings, "users")
 
     def test_users_privacy_settings_model_default_visibility(self):
         """
@@ -127,7 +127,7 @@ class TestUsersPrivacySettingsModel:
         )
 
         # Assert
-        assert visibility_column.default.arg == 0
+        assert visibility_column.default.arg == "public"
 
     def test_users_privacy_settings_model_boolean_defaults(self):
         """

@@ -26,11 +26,11 @@ class TestReadPublicServerSettings:
         # Arrange
         mock_settings = MagicMock(spec=server_settings_models.ServerSettings)
         mock_settings.id = 1
-        mock_settings.units = 1
+        mock_settings.units = "metric"
         mock_settings.public_shareable_links = False
         mock_settings.public_shareable_links_user_info = False
         mock_settings.login_photo_set = False
-        mock_settings.currency = 1
+        mock_settings.currency = "euro"
         mock_settings.num_records_per_page = 25
         mock_settings.signup_enabled = False
         mock_settings.sso_enabled = False
@@ -53,7 +53,7 @@ class TestReadPublicServerSettings:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["units"] == 1
+        assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
         # Ensure sensitive fields are not exposed
         assert "signup_require_admin_approval" not in data

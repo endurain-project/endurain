@@ -81,7 +81,7 @@ class TestHealthStepsModel:
         Test HealthSteps model has relationship to User.
         """
         # Assert
-        assert hasattr(health_steps_models.HealthSteps, "user")
+        assert hasattr(health_steps_models.HealthSteps, "users")
 
     def test_health_steps_model_source_max_length(self):
         """

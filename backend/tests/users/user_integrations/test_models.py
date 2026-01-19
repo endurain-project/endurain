@@ -131,7 +131,7 @@ class TestUsersIntegrationsModel:
             - Relationship to Users model exists
         """
         # Assert
-        assert hasattr(UsersIntegrations, "user")
+        assert hasattr(UsersIntegrations, "users")
 
     def test_users_integrations_user_id_foreign_key(self):
         """Test that user_id has foreign key constraint.

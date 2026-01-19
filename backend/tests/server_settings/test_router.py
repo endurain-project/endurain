@@ -25,11 +25,11 @@ class TestReadServerSettings:
         # Arrange
         mock_settings = MagicMock(spec=server_settings_models.ServerSettings)
         mock_settings.id = 1
-        mock_settings.units = 1
+        mock_settings.units = "metric"
         mock_settings.public_shareable_links = False
         mock_settings.public_shareable_links_user_info = False
         mock_settings.login_photo_set = False
-        mock_settings.currency = 1
+        mock_settings.currency = "euro"
         mock_settings.num_records_per_page = 25
         mock_settings.signup_enabled = False
         mock_settings.signup_require_admin_approval = True
@@ -59,7 +59,7 @@ class TestReadServerSettings:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == 1
-        assert data["units"] == 1
+        assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
 
     @patch("server_settings.router.server_settings_utils.get_server_settings_or_404")
@@ -139,11 +139,11 @@ class TestEditServerSettings:
         # Arrange
         mock_updated_settings = MagicMock(spec=server_settings_models.ServerSettings)
         mock_updated_settings.id = 1
-        mock_updated_settings.units = 2
+        mock_updated_settings.units = "imperial"
         mock_updated_settings.public_shareable_links = True
         mock_updated_settings.public_shareable_links_user_info = True
         mock_updated_settings.login_photo_set = False
-        mock_updated_settings.currency = 2
+        mock_updated_settings.currency = "dollar"
         mock_updated_settings.num_records_per_page = 50
         mock_updated_settings.signup_enabled = True
         mock_updated_settings.signup_require_admin_approval = False
@@ -169,11 +169,11 @@ class TestEditServerSettings:
             headers={"Authorization": "Bearer mock_token"},
             json={
                 "id": 1,
-                "units": 2,
+                "units": "imperial",
                 "public_shareable_links": True,
                 "public_shareable_links_user_info": True,
                 "login_photo_set": False,
-                "currency": 2,
+                "currency": "dollar",
                 "num_records_per_page": 50,
                 "signup_enabled": True,
                 "signup_require_admin_approval": False,
@@ -193,7 +193,7 @@ class TestEditServerSettings:
         # Assert
         assert response.status_code == 201
         data = response.json()
-        assert data["units"] == 2
+        assert data["units"] == "imperial"
         assert data["num_records_per_page"] == 50
 
     @patch("server_settings.router.server_settings_crud.edit_server_settings")
@@ -213,11 +213,11 @@ class TestEditServerSettings:
             headers={"Authorization": "Bearer mock_token"},
             json={
                 "id": 1,
-                "units": 2,
+                "units": "imperial",
                 "public_shareable_links": True,
                 "public_shareable_links_user_info": True,
                 "login_photo_set": False,
-                "currency": 2,
+                "currency": "dollar",
                 "num_records_per_page": 50,
                 "signup_enabled": True,
                 "signup_require_admin_approval": False,

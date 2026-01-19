@@ -105,7 +105,7 @@ class TestUsersDefaultGearModel:
         """
         # Assert
         model = user_default_gear_models.UsersDefaultGear
-        assert hasattr(model, "user")
+        assert hasattr(model, "users")
         assert hasattr(model, "run_gear")
         assert hasattr(model, "trail_run_gear")
         assert hasattr(model, "virtual_run_gear")

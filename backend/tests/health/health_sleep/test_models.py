@@ -95,7 +95,7 @@ class TestHealthSleepModel:
         Test HealthSleep model has relationship to User.
         """
         # Assert
-        assert hasattr(health_sleep_models.HealthSleep, "user")
+        assert hasattr(health_sleep_models.HealthSleep, "users")
 
     def test_health_sleep_model_integer_fields(self):
         """

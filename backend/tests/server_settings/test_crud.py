@@ -81,11 +81,11 @@ class TestEditServerSettings:
 
         update_data = server_settings_schema.ServerSettingsEdit(
             id=1,
-            units=2,
+            units=server_settings_schema.Units.IMPERIAL,
             public_shareable_links=True,
             public_shareable_links_user_info=True,
             login_photo_set=False,
-            currency=2,
+            currency=server_settings_schema.Currency.DOLLAR,
             num_records_per_page=50,
             signup_enabled=True,
             signup_require_admin_approval=False,
@@ -117,11 +117,11 @@ class TestEditServerSettings:
 
         update_data = server_settings_schema.ServerSettingsEdit(
             id=1,
-            units=2,
+            units=server_settings_schema.Units.IMPERIAL,
             public_shareable_links=True,
             public_shareable_links_user_info=True,
             login_photo_set=False,
-            currency=2,
+            currency=server_settings_schema.Currency.DOLLAR,
             num_records_per_page=50,
             signup_enabled=True,
             signup_require_admin_approval=False,
@@ -158,11 +158,11 @@ class TestEditServerSettings:
         # Create update with only some fields
         update_data = server_settings_schema.ServerSettingsEdit(
             id=1,
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=50,  # Only this changes
             signup_enabled=False,
             signup_require_admin_approval=True,
@@ -195,11 +195,11 @@ class TestEditServerSettings:
 
         update_data = server_settings_schema.ServerSettingsEdit(
             id=1,
-            units=2,
+            units=server_settings_schema.Units.IMPERIAL,
             public_shareable_links=True,
             public_shareable_links_user_info=True,
             login_photo_set=False,
-            currency=2,
+            currency=server_settings_schema.Currency.DOLLAR,
             num_records_per_page=50,
             signup_enabled=True,
             signup_require_admin_approval=False,

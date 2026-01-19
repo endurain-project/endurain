@@ -239,7 +239,7 @@ class TestCompleteLogin:
     def test_complete_login_for_mobile_client(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
     ):
-        """Test complete_login for mobile client returns tokens."""
+        """Test complete_login for mobile client returns tokens without CSRF token."""
         # Arrange
         response = Response()
         client_type = "mobile"
@@ -259,8 +259,10 @@ class TestCompleteLogin:
         # Assert
         assert "session_id" in result
         assert "access_token" in result
-        assert "csrf_token" in result
+        assert "refresh_token" in result
         assert result["token_type"] == "bearer"
+        # Mobile clients don't need CSRF tokens
+        assert "csrf_token" not in result
 
     def test_complete_login_creates_session(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
