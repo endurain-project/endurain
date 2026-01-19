@@ -57,6 +57,7 @@ backend/app/data/activity_files/bulk_import/*.gz
 backend/app/data/activity_files/bulk_import/*.csv
 backend/app/data/activity_files/bulk_import/*.json
 backend/app/data/activity_files/bulk_import/health/
+backend/app/data/activity_files/bulk_import/unsupported_json_format/
 backend/app/data/activity_files/bulk_import/import_errors/*.gpx
 backend/app/data/activity_files/bulk_import/import_errors/*.fit
 backend/app/data/activity_files/bulk_import/import_errors/*.tcx

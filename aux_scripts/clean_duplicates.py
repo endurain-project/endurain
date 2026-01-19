@@ -3,9 +3,10 @@
 Clean Duplicate Activity Files
 
 This script scans the bulk_import folder and:
-1. Moves health/monitoring FIT files to a "health" subfolder
-2. Finds duplicate activity files by comparing start timestamps
-3. Deletes duplicates, keeping the preferred source
+1. Deletes JSON sidecar files that have matching FIT files (e.g., from Analyzer.com exports)
+2. Moves health/monitoring FIT files to a "health" subfolder
+3. Finds duplicate activity files by comparing start timestamps
+4. Deletes duplicates, keeping the preferred source
 
 Source preference order for duplicates:
 1. Garmin export files (email@domain_activityId.fit)
@@ -86,6 +87,88 @@ def classify_source(filename: str) -> tuple[str, int]:
 
     # Unknown source
     return ("Unknown", 3)
+
+
+def find_json_files(bulk_import_dir: Path) -> tuple[list[Path], list[Path]]:
+    """
+    Find JSON files and categorize them as sidecars or orphans.
+
+    Returns (sidecars, orphans) where:
+    - sidecars: JSON files that have matching FIT files (can be deleted)
+    - orphans: JSON files without matching FIT files (need conversion)
+    """
+    json_files = list(bulk_import_dir.glob("*.json")) + list(bulk_import_dir.glob("*.JSON"))
+    fit_files = set(f.stem.lower() for f in bulk_import_dir.glob("*.fit"))
+    fit_files.update(f.stem.lower() for f in bulk_import_dir.glob("*.FIT"))
+
+    sidecars = []
+    orphans = []
+    for json_file in json_files:
+        if json_file.stem.lower() in fit_files:
+            sidecars.append(json_file)
+        else:
+            orphans.append(json_file)
+
+    return sidecars, orphans
+
+
+ORPHAN_JSON_README = """Unsupported JSON Activity Files
+================================
+
+These JSON files are activity exports (likely from Suunto/Analyzer.com or
+Intervals.icu) that don't have corresponding FIT files. Endurain only supports
+importing FIT, GPX, and TCX formats, so these files cannot be imported directly.
+
+Why are these files here?
+-------------------------
+These orphan JSON files typically fall into two categories:
+
+1. Indoor/Non-GPS Activities: Activities like strength training, indoor cycling,
+   or treadmill runs that have heart rate, duration, and other metrics but no
+   GPS coordinates. Runalyzer/Analyzer.com often can't export these as FIT files
+   even though the FIT format fully supports non-GPS activities.
+
+2. Duplicate Exports: Some activities may already exist as FIT files but were
+   exported with different Runalyzer activity IDs. Check if you already have
+   activities on the same date/time that were successfully imported.
+
+Why can't these be converted?
+-----------------------------
+The FIT format does NOT require GPS data - Garmin displays indoor workouts,
+strength training, etc. without maps all the time. These JSON files contain
+valid activity data (heart rate, duration, cadence, calories, sport type, etc.)
+that could theoretically be converted to FIT format.
+
+The limitation is that Runalyzer/Analyzer.com's export doesn't generate FIT
+files for certain activity types, not that the data is unconvertible.
+
+How to import these activities
+------------------------------
+
+Option 1: Use the JSON-to-FIT converter script (Recommended)
+- Run: python aux_scripts/convert_json_to_fit.py
+- This converts the JSON files to valid FIT format with HR, cadence, power, GPS
+- The FIT files are created in the bulk_import folder ready for import
+- Use --dry-run first to preview what will be converted
+
+Option 2: Re-export from the original source
+- Log into Suunto App / Movescount / Analyzer.com or wherever these activities
+  originated
+- Export the activities again, selecting FIT or "Original format" if available
+- Some platforms allow bulk export of all activities
+
+Option 3: Re-export from Intervals.icu
+- If these activities are synced to Intervals.icu, you can download the original
+  files from there
+- Go to the activity page and look for a download/export option
+
+Option 4: Manual import of key data
+- If the above options fail, you could manually create activities in Endurain
+  using the data visible in the JSON files (date, distance, duration, etc.)
+
+Files in this folder
+--------------------
+"""
 
 
 def find_duplicates(bulk_import_dir: Path, tolerance_seconds: int, move_health: bool = True) -> tuple[list, list]:
@@ -200,8 +283,34 @@ def main():
         print("Mode: DRY RUN (no files will be deleted)")
     print()
 
+    # Find JSON files (sidecars with matching FIT, and orphans without)
+    json_sidecars, json_orphans = find_json_files(bulk_import_dir)
+
     # Find duplicates and health files
     groups, health_files = find_duplicates(bulk_import_dir, args.tolerance)
+
+    # Display JSON sidecar files that will be deleted
+    if json_sidecars:
+        print(f"\n{'='*70}")
+        print(f"JSON sidecar files to delete (matching FIT files exist):")
+        print(f"{'='*70}")
+        for f in json_sidecars[:10]:  # Show first 10
+            print(f"  {f.name}")
+        if len(json_sidecars) > 10:
+            print(f"  ... and {len(json_sidecars) - 10} more")
+        print()
+
+    # Display orphan JSON files that will be moved
+    if json_orphans:
+        orphan_dir = bulk_import_dir / "unsupported_json_format"
+        print(f"\n{'='*70}")
+        print(f"Orphan JSON files to move to {orphan_dir.name}/ (no matching FIT):")
+        print(f"{'='*70}")
+        for f in json_orphans[:10]:  # Show first 10
+            print(f"  {f.name}")
+        if len(json_orphans) > 10:
+            print(f"  ... and {len(json_orphans) - 10} more")
+        print()
 
     # Display health files that will be moved
     if health_files:
@@ -226,17 +335,19 @@ def main():
     # Summary
     print(f"{'='*70}")
     print(f"Summary:")
-    print(f"  Health files to move: {len(health_files)}")
+    print(f"  JSON sidecar files to delete:   {len(json_sidecars)}")
+    print(f"  Orphan JSON files to move:      {len(json_orphans)}")
+    print(f"  Health files to move:           {len(health_files)}")
     print(f"  Duplicate activities to keep:   {len(files_to_keep)}")
     print(f"  Duplicate activities to delete: {len(files_to_delete)}")
     print(f"{'='*70}\n")
 
     if args.dry_run:
         print("Dry run complete. No files were modified.")
-        print("Run without --dry-run to move health files and delete duplicates.")
+        print("Run without --dry-run to delete sidecars, move health files, and delete duplicates.")
         return
 
-    if not health_files and not files_to_delete:
+    if not json_sidecars and not json_orphans and not health_files and not files_to_delete:
         print("Nothing to do!")
         return
 
@@ -246,6 +357,43 @@ def main():
     if response != "yes":
         print("Aborted. No files were modified.")
         return
+
+    # Delete JSON sidecar files
+    json_deleted_count = 0
+    if json_sidecars:
+        print(f"\nDeleting JSON sidecar files...")
+        for filepath in json_sidecars:
+            try:
+                filepath.unlink()
+                json_deleted_count += 1
+            except Exception as e:
+                print(f"Error deleting {filepath.name}: {e}")
+        print(f"Deleted {json_deleted_count} JSON sidecar files.")
+
+    # Move orphan JSON files to subfolder with README
+    json_moved_count = 0
+    if json_orphans:
+        orphan_dir = bulk_import_dir / "unsupported_json_format"
+        orphan_dir.mkdir(exist_ok=True)
+        print(f"\nMoving orphan JSON files to {orphan_dir}/...")
+
+        # Create README with list of files
+        readme_content = ORPHAN_JSON_README
+        for f in sorted(json_orphans, key=lambda x: x.name):
+            readme_content += f"- {f.name}\n"
+
+        readme_path = orphan_dir / "README.txt"
+        readme_path.write_text(readme_content)
+        print(f"Created {readme_path.name} with conversion instructions.")
+
+        for filepath in json_orphans:
+            try:
+                dest = orphan_dir / filepath.name
+                filepath.rename(dest)
+                json_moved_count += 1
+            except Exception as e:
+                print(f"Error moving {filepath.name}: {e}")
+        print(f"Moved {json_moved_count} orphan JSON files.")
 
     # Move health files to subfolder
     moved_count = 0
@@ -274,7 +422,7 @@ def main():
             except Exception as e:
                 print(f"Error deleting {filepath.name}: {e}")
 
-    print(f"\nDone! Moved {moved_count} health files, deleted {deleted_count} duplicate activities.")
+    print(f"\nDone! Deleted {json_deleted_count} JSON sidecars, moved {json_moved_count} orphan JSONs, moved {moved_count} health files, deleted {deleted_count} duplicate activities.")
 
 
 if __name__ == "__main__":
