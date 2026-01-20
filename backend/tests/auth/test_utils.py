@@ -48,7 +48,7 @@ class TestAuthenticateUser:
                     "nonexistent", "password", password_hasher, mock_db
                 )
             assert exc_info.value.status_code == 401
-            assert "Invalid username" in exc_info.value.detail
+            assert "Unable to authenticate" in exc_info.value.detail
 
     def test_authenticate_user_invalid_password(self, password_hasher, mock_db):
         """Test authentication with invalid password raises 401."""
@@ -69,7 +69,7 @@ class TestAuthenticateUser:
                     username, wrong_password, password_hasher, mock_db
                 )
             assert exc_info.value.status_code == 401
-            assert "Invalid password" in exc_info.value.detail
+            assert "Unable to authenticate" in exc_info.value.detail
 
     def test_authenticate_user_updates_password_hash_if_needed(
         self, password_hasher, mock_db, sample_user_read

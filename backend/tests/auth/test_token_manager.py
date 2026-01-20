@@ -493,8 +493,11 @@ class TestTokenManagerSecurity:
             mock_instance.validate.side_effect = InsecureClaimError("Insecure")
             mock_registry.return_value = mock_instance
 
-            # Should not raise exception (error is logged but not re-raised)
-            token_manager.validate_token_expiration(token)
+            # Should raise HTTPException with 401 status
+            with pytest.raises(HTTPException) as exc_info:
+                token_manager.validate_token_expiration(token)
+            assert exc_info.value.status_code == 401
+            assert "insecure claims" in exc_info.value.detail.lower()
 
     def test_validate_token_expiration_generic_exception(
         self, token_manager, sample_user_read
