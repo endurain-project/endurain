@@ -232,15 +232,23 @@ def create_user(
         # Get server settings to determine password policy
         server_settings = server_settings_utils.get_server_settings_or_404(db)
 
+        # Normalize access_type to string value
+        access_type_value = (
+            user.access_type.value
+            if isinstance(user.access_type, users_schema.UserAccessType)
+            else user.access_type
+        )
+
         # Hash the password with configurable policy and length
         hashed_password = users_utils.check_password_and_hash(
-            user.password, password_hasher, server_settings, user.access_type.value
+            user.password, password_hasher, server_settings, access_type_value
         )
 
         # Create a new user
         db_user = users_models.Users(
-            **user.model_dump(exclude={"password"}),
+            **user.model_dump(exclude={"password", "access_type"}),
             password=hashed_password,
+            access_type=access_type_value,
         )
 
         # Add the user to the database
@@ -524,9 +532,16 @@ def edit_user_password(
         # Get server settings to determine password policy
         server_settings = server_settings_utils.get_server_settings_or_404(db)
 
+        # Normalize access_type to string value
+        access_type_value = (
+            db_user.access_type.value
+            if isinstance(db_user.access_type, users_schema.UserAccessType)
+            else db_user.access_type
+        )
+
         # Hash the password with configurable policy and length
         db_user.password = users_utils.check_password_and_hash(
-            password, password_hasher, server_settings, db_user.access_type
+            password, password_hasher, server_settings, access_type_value
         )
 
     # Commit the transaction

@@ -515,7 +515,7 @@ const newEditUserName = ref('')
 const newEditUserEmail = ref('')
 const newEditUserCity = ref(null)
 const newEditUserBirthDate = ref(null)
-const newEditUserGender = ref(1)
+const newEditUserGender = ref('male')
 const newEditUserUnits = ref(serverSettingsStore.serverSettings.units)
 const newEditUserCurrency = ref(serverSettingsStore.serverSettings.currency)
 const newEditUserHeightCms = ref(null)
@@ -530,7 +530,7 @@ const isInchesValid = computed(
   () => newEditUserHeightInches.value >= 0 && newEditUserHeightInches.value <= 11
 )
 const newEditUserPreferredLanguage = ref('us')
-const newEditUserAccessType = ref(1)
+const newEditUserAccessType = ref('regular')
 const newEditUserActive = ref(true)
 const newEditUserPhotoPath = ref(null)
 const isUsernameExists = ref(true)
@@ -546,7 +546,7 @@ const isPasswordValid = computed(() => {
 
   const passwordType = serverSettingsStore.serverSettings.password_type
   const minLength =
-    newEditUserAccessType.value === 2
+    newEditUserAccessType.value === 'admin'
       ? serverSettingsStore.serverSettings.password_length_admin_users
       : serverSettingsStore.serverSettings.password_length_regular_users
   const requirements = buildPasswordRequirements(passwordType, minLength)
