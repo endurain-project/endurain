@@ -16,7 +16,7 @@ from core.database import SessionLocal
 
 # Grace period for token reuse (60 seconds)
 # Allows for network retries/delays without false positives
-TOKEN_REUSE_GRACE_PERIOD_SECONDS = 60
+TOKEN_REUSE_GRACE_PERIOD_SECONDS: int = 60
 
 
 def hmac_hash_token(token: str) -> str:
@@ -32,12 +32,19 @@ def hmac_hash_token(token: str) -> str:
 
     Returns:
         Hex-encoded HMAC-SHA256 hash of the token.
+
+    Raises:
+        ValueError: If JWT_SECRET_KEY is not configured.
     """
     secret_key = auth_constants.JWT_SECRET_KEY
     if not secret_key:
         raise ValueError("JWT_SECRET_KEY is not configured")
 
-    return hmac.new(secret_key.encode(), token.encode(), hashlib.sha256).hexdigest()
+    return hmac.new(
+        secret_key.encode(),
+        token.encode(),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def store_rotated_token(
@@ -56,10 +63,10 @@ def store_rotated_token(
         raw_token: The raw refresh token being rotated out.
         token_family_id: UUID of the token family.
         rotation_count: Current rotation count for this token.
-        db: Database session.
+        db: SQLAlchemy database session.
 
     Raises:
-        HTTPException: If storage fails (500).
+        HTTPException: If storage fails.
     """
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(seconds=TOKEN_REUSE_GRACE_PERIOD_SECONDS)
@@ -87,16 +94,16 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
 
     Args:
         raw_token: The raw refresh token to check.
-        db: Database session.
+        db: SQLAlchemy database session.
 
     Returns:
         Tuple of (is_reused, in_grace_period):
-        - (False, False): Token is valid, not reused
-        - (True, True): Reused but within 60s grace period
-        - (True, False): Reused after grace period - THEFT!
+            - (False, False): Token is valid, not reused.
+            - (True, True): Reused but within 60s grace period.
+            - (True, False): Reused after grace period - THEFT!
 
     Raises:
-        HTTPException: If lookup fails (500).
+        HTTPException: If lookup fails.
     """
     # Use HMAC-SHA256 for deterministic lookup
     hashed_token = hmac_hash_token(raw_token)
@@ -141,13 +148,13 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
 
     Args:
         token_family_id: The family ID to invalidate.
-        db: Database session.
+        db: SQLAlchemy database session.
 
     Returns:
         Number of sessions invalidated.
 
     Raises:
-        HTTPException: If invalidation fails (500).
+        HTTPException: If invalidation fails.
     """
     # Delete all sessions in the family
     num_sessions_deleted = users_session_crud.delete_sessions_by_family(
@@ -175,29 +182,27 @@ def cleanup_expired_rotated_tokens() -> None:
     """
     Cleanup job to delete expired rotated tokens.
 
-    This function is called by the scheduler to periodically remove
-    tokens that have exceeded the grace period. Should run every 5
-    minutes.
+    Called by the scheduler to periodically remove tokens that
+    have exceeded the grace period. Should run every 1 minute.
+    Exceptions are caught and logged to avoid breaking the
+    scheduler.
 
-    Raises:
-        Any exceptions are caught, logged, and not propagated to avoid
-        breaking the scheduler.
+    Returns:
+        None.
     """
-    db = SessionLocal()
-    try:
-        cutoff_time = datetime.now(timezone.utc)
-        deleted_count = rotated_token_crud.delete_expired_tokens(cutoff_time, db)
+    with SessionLocal() as db:
+        try:
+            cutoff_time = datetime.now(timezone.utc)
+            deleted_count = rotated_token_crud.delete_expired_tokens(cutoff_time, db)
 
-        if deleted_count > 0:
+            if deleted_count > 0:
+                core_logger.print_to_log(
+                    f"Cleaned up {deleted_count} expired rotated tokens",
+                    "info",
+                )
+        except Exception as err:
             core_logger.print_to_log(
-                f"Cleaned up {deleted_count} expired rotated tokens",
-                "info",
+                f"Error in cleanup_expired_rotated_tokens: {err}",
+                "error",
+                exc=err,
             )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in cleanup_expired_rotated_tokens: {err}",
-            "error",
-            exc=err,
-        )
-    finally:
-        db.close()

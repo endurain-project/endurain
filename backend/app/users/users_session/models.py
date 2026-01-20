@@ -1,115 +1,151 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    DateTime,
-    ForeignKey,
-    Boolean,
-)
-from sqlalchemy.orm import relationship
+"""User session database models."""
+
+from datetime import datetime
+from sqlalchemy import ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 
 class UsersSessions(Base):
     """
-    Represents a user session in the system.
+    User authentication session for tracking active logins.
 
     Attributes:
-        id (str): Unique identifier for the session (UUID).
-        user_id (int): ID of the user to whom the session belongs.
-        refresh_token (str): Hashed refresh token for the session.
-        csrf_token_hash (str): Hashed CSRF token for refresh validation.
-        ip_address (str): IP address of the client initiating the session.
-        device_type (str): Type of device used for the session.
-        operating_system (str): Operating system of the device.
-        operating_system_version (str): Version of the operating system.
-        browser (str): Browser used for the session.
-        browser_version (str): Version of the browser.
-        created_at (datetime): Timestamp when the session was created.
-        last_activity_at (datetime): Timestamp of last user activity.
-        expires_at (datetime): Timestamp when the session expires.
-        user (User): Relationship to the Users model.
-        rotated_refresh_tokens (list): Rotated tokens for this session.
+        id: Unique session identifier (UUID).
+        user_id: Foreign key to users table.
+        refresh_token: Hashed refresh token for the session.
+        ip_address: Client IP address.
+        device_type: Type of device (Mobile, Tablet, PC).
+        operating_system: Operating system name.
+        operating_system_version: Operating system version.
+        browser: Browser name.
+        browser_version: Browser version.
+        created_at: Session creation timestamp.
+        last_activity_at: Last activity timestamp for idle
+            timeout.
+        expires_at: Session expiration timestamp.
+        oauth_state_id: Link to OAuth state for PKCE validation.
+        tokens_exchanged: Prevents duplicate token exchange for
+            mobile.
+        token_family_id: UUID identifying token family for reuse
+            detection.
+        rotation_count: Number of times refresh token has been
+            rotated.
+        last_rotation_at: Timestamp of last token rotation.
+        csrf_token_hash: Hashed CSRF token for refresh
+            validation.
+        users: Relationship to Users model.
+        oauth_state: Relationship to OAuthState model.
+        rotated_refresh_tokens: Relationship to
+            RotatedRefreshToken model.
     """
 
     __tablename__ = "users_sessions"
 
-    id = Column(String(length=36), nullable=False, primary_key=True)
-    user_id = Column(
-        Integer,
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        nullable=False,
+    )
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="User ID that the session belongs",
     )
-    refresh_token = Column(
-        String(length=255), nullable=False, comment="Session hashed refresh token"
+    refresh_token: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        comment="Session hashed refresh token",
     )
-    ip_address = Column(String(45), nullable=False, comment="Client IP address")
-    device_type = Column(String(length=45), nullable=False, comment="Device type")
-    operating_system = Column(
-        String(length=45), nullable=False, comment="Operating system"
+    ip_address: Mapped[str] = mapped_column(
+        String(45),
+        nullable=False,
+        comment="Client IP address",
     )
-    operating_system_version = Column(
-        String(length=45), nullable=False, comment="Operating system version"
+    device_type: Mapped[str] = mapped_column(
+        String(45),
+        nullable=False,
+        comment="Device type",
     )
-    browser = Column(String(length=45), nullable=False, comment="Browser")
-    browser_version = Column(
-        String(length=45), nullable=False, comment="Browser version"
+    operating_system: Mapped[str] = mapped_column(
+        String(45),
+        nullable=False,
+        comment="Operating system",
     )
-    created_at = Column(
-        DateTime, nullable=False, comment="Session creation date (datetime)"
+    operating_system_version: Mapped[str] = mapped_column(
+        String(45),
+        nullable=False,
+        comment="Operating system version",
     )
-    last_activity_at = Column(
-        DateTime, nullable=False, comment="Last activity timestamp for idle timeout"
+    browser: Mapped[str] = mapped_column(
+        String(45),
+        nullable=False,
+        comment="Browser",
     )
-    expires_at = Column(
-        DateTime, nullable=False, comment="Session expiration date (datetime)"
+    browser_version: Mapped[str] = mapped_column(
+        String(45),
+        nullable=False,
+        comment="Browser version",
     )
-    oauth_state_id = Column(
+    created_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        comment="Session creation date (datetime)",
+    )
+    last_activity_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        comment="Last activity timestamp for idle timeout",
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        nullable=False,
+        comment="Session expiration date (datetime)",
+    )
+    oauth_state_id: Mapped[str | None] = mapped_column(
         String(64),
         ForeignKey("oauth_states.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment="Link to OAuth state for PKCE validation",
     )
-    tokens_exchanged = Column(
-        Boolean,
+    tokens_exchanged: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,
         comment="Prevents duplicate token exchange for mobile",
     )
-    token_family_id = Column(
+    token_family_id: Mapped[str] = mapped_column(
         String(36),
         nullable=False,
         unique=True,
         index=True,
         comment="UUID identifying token family for reuse detection",
     )
-    rotation_count = Column(
-        Integer,
+    rotation_count: Mapped[int] = mapped_column(
         default=0,
         nullable=False,
         comment="Number of times refresh token has been rotated",
     )
-    last_rotation_at = Column(
-        DateTime, nullable=True, comment="Timestamp of last token rotation"
+    last_rotation_at: Mapped[datetime | None] = mapped_column(
+        nullable=True,
+        comment="Timestamp of last token rotation",
     )
-    csrf_token_hash = Column(
-        String(length=255),
+    csrf_token_hash: Mapped[str | None] = mapped_column(
+        String(255),
         nullable=True,
         comment="Hashed CSRF token for refresh validation",
     )
 
-    # Define a relationship to the Users model
+    # Relationship to Users model
+    # TODO: Change to Mapped["Users"] when all modules use mapped
     users = relationship("Users", back_populates="users_sessions")
 
-    # Define a relationship to the OAuthState model
+    # Relationship to OAuthState model
+    # TODO: Change to Mapped["OAuthState"] when all modules use mapped
     oauth_state = relationship("OAuthState", back_populates="users_sessions")
 
-    # Define a relationship to RotatedRefreshToken model
+    # Relationship to RotatedRefreshToken model
+    # TODO: Change to Mapped["RotatedRefreshToken"] when all modules use mapped
     rotated_refresh_tokens = relationship(
         "RotatedRefreshToken",
-        back_populates="user_session",
+        back_populates="users_session",
         cascade="all, delete-orphan",
     )

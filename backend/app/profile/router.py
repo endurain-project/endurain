@@ -176,7 +176,7 @@ async def read_users_me(
 @router.get(
     "/sessions",
     status_code=status.HTTP_200_OK,
-    response_model=list[users_session_schema.UsersSessions],
+    response_model=list[users_session_schema.UsersSessionsRead],
 )
 async def read_sessions_me(
     token_user_id: Annotated[
@@ -187,7 +187,7 @@ async def read_sessions_me(
         Session,
         Depends(core_database.get_db),
     ],
-) -> list[users_session_schema.UsersSessions]:
+) -> list[users_session_schema.UsersSessionsRead]:
     """
     Retrieve all sessions for authenticated user.
 

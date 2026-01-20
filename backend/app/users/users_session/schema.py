@@ -1,65 +1,118 @@
-from pydantic import BaseModel, Field, ConfigDict
+"""User session schemas."""
+
+from pydantic import (
+    BaseModel,
+    Field,
+    ConfigDict,
+    StrictStr,
+    StrictInt,
+    StrictBool,
+)
 from datetime import datetime
 
 
-class UsersSessions(BaseModel):
+class UsersSessionsBase(BaseModel):
     """
-    Represents a user session with metadata about the device, browser, and session timing.
+    Base user session schema with safe fields.
+
     Attributes:
-        id (str): Unique session identifier.
-        user_id (int): User ID that owns this session.
-        refresh_token (str): Session refresh token.
-        ip_address (str): Client IP address (max length: 45).
-        device_type (str): Device type (max length: 45).
-        operating_system (str): Operating system (max length: 45).
-        operating_system_version (str): OS version (max length: 45).
-        browser (str): Browser name (max length: 45).
-        browser_version (str): Browser version (max length: 45).
-        created_at (datetime): Session creation timestamp.
-        last_activity_at (datetime): Last activity timestamp for idle timeout.
-        expires_at (datetime): Session expiration timestamp.
-        csrf_token_hash (str | None): Hashed CSRF token for refresh validation (max length: 255).
-    Config:
-        from_attributes (bool): Allows model initialization from attributes.
-        extra (str): Forbids extra fields not defined in the model.
-        validate_assignment (bool): Enables validation on assignment.
+        id: Unique session identifier.
+        ip_address: Client IP address.
+        device_type: Device type.
+        operating_system: Operating system name.
+        operating_system_version: OS version string.
+        browser: Browser name.
+        browser_version: Browser version string.
+        created_at: Session creation timestamp.
+        last_activity_at: Last activity timestamp.
+        expires_at: Session expiration timestamp.
     """
 
-    id: str = Field(..., description="Unique session identifier")
-    user_id: int = Field(..., description="User ID that owns this session")
-    refresh_token: str = Field(..., description="Session refresh token")
-    ip_address: str = Field(..., max_length=45, description="Client IP address")
-    device_type: str = Field(..., max_length=45, description="Device type")
-    operating_system: str = Field(..., max_length=45, description="Operating system")
-    operating_system_version: str = Field(..., max_length=45, description="OS version")
-    browser: str = Field(..., max_length=45, description="Browser name")
-    browser_version: str = Field(..., max_length=45, description="Browser version")
+    id: StrictStr = Field(..., description="Unique session identifier")
+    ip_address: StrictStr = Field(..., max_length=45, description="Client IP address")
+    device_type: StrictStr = Field(..., max_length=45, description="Device type")
+    operating_system: StrictStr = Field(
+        ..., max_length=45, description="Operating system"
+    )
+    operating_system_version: StrictStr = Field(
+        ..., max_length=45, description="OS version"
+    )
+    browser: StrictStr = Field(..., max_length=45, description="Browser name")
+    browser_version: StrictStr = Field(
+        ..., max_length=45, description="Browser version"
+    )
     created_at: datetime = Field(..., description="Session creation timestamp")
-    last_activity_at: datetime = Field(
-        ..., description="Last activity timestamp for idle timeout"
-    )
+    last_activity_at: datetime = Field(..., description="Last activity timestamp")
     expires_at: datetime = Field(..., description="Session expiration timestamp")
-    oauth_state_id: str | None = Field(
-        None, max_length=64, description="Link to OAuth state for PKCE validation"
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UsersSessionsRead(UsersSessionsBase):
+    """
+    User session read schema for API responses.
+
+    Extends base with user_id. Excludes sensitive fields
+    like refresh_token and csrf_token_hash.
+    """
+
+    user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+
+
+class UsersSessionsInternal(UsersSessionsBase):
+    """
+    Internal user session schema with all fields.
+
+    Used for CRUD operations. Includes sensitive fields like
+    refresh_token and csrf_token_hash that should never be
+    exposed in API responses.
+
+    Attributes:
+        user_id: User ID that owns this session.
+        refresh_token: Hashed session refresh token.
+        oauth_state_id: Link to OAuth state for PKCE.
+        tokens_exchanged: Prevents duplicate mobile token
+            exchange.
+        token_family_id: UUID for token family reuse
+            detection.
+        rotation_count: Number of times refresh token
+            rotated.
+        last_rotation_at: Timestamp of last token rotation.
+        csrf_token_hash: Hashed CSRF token for refresh
+            validation.
+    """
+
+    user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+    refresh_token: StrictStr = Field(..., description="Hashed session refresh token")
+    oauth_state_id: StrictStr | None = Field(
+        None,
+        max_length=64,
+        description="Link to OAuth state for PKCE validation",
     )
-    tokens_exchanged: bool = Field(
-        default=False, description="Prevents duplicate token exchange for mobile"
+    tokens_exchanged: StrictBool = Field(
+        default=False,
+        description="Prevents duplicate token exchange for " "mobile",
     )
-    token_family_id: str = Field(
-        ..., description="UUID identifying token family for reuse detection"
+    token_family_id: StrictStr = Field(
+        ...,
+        description="UUID identifying token family for reuse " "detection",
     )
-    rotation_count: int = Field(
-        default=0, description="Number of times refresh token has been rotated"
+    rotation_count: StrictInt = Field(
+        default=0,
+        ge=0,
+        description="Number of times refresh token has been " "rotated",
     )
     last_rotation_at: datetime | None = Field(
         None, description="Timestamp of last token rotation"
     )
-    csrf_token_hash: str | None = Field(
+    csrf_token_hash: StrictStr | None = Field(
         None,
         max_length=255,
-        description="Hashed CSRF token for refresh validation",
+        description="Hashed CSRF token for refresh " "validation",
     )
 
     model_config = ConfigDict(
-        from_attributes=True, extra="forbid", validate_assignment=True
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
     )

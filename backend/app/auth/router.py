@@ -382,7 +382,7 @@ async def refresh_token(
                        user is inactive, or CSRF token is invalid (when provided).
     """
     # Get the session from the database
-    session = users_session_crud.get_session_by_id(token_session_id, db)
+    session = users_session_crud.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
     if session is None:
@@ -567,7 +567,7 @@ async def logout(
         HTTPException: If the client type is invalid (403 Forbidden).
     """
     # Get the session from the database
-    session = users_session_crud.get_session_by_id(token_session_id, db)
+    session = users_session_crud.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
     if session is not None:
