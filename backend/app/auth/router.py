@@ -264,7 +264,7 @@ async def verify_mfa_and_login(
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unable to authenticate",
+            detail="No pending MFA login found for this username",
         )
 
     # Verify the MFA code (TOTP or backup code)
