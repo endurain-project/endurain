@@ -284,7 +284,7 @@
         />
       </div>
       <div v-else>
-        <NoItemsFoundComponents />
+        <NoItemsFoundComponents :show-shadow="false" />
       </div>
     </div>
   </div>
