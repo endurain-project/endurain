@@ -59,7 +59,7 @@
 
         <!-- approve sign-up button -->
         <a
-          class="btn btn-link btn-lg link-body-emphasis"
+          class="btn btn-outline-success btn-lg"
           href="#"
           role="button"
           data-bs-toggle="modal"
@@ -81,7 +81,7 @@
 
         <!-- reject sign-up button -->
         <a
-          class="btn btn-link btn-lg link-body-emphasis"
+          class="btn btn-outline-danger btn-lg ms-2"
           href="#"
           role="button"
           data-bs-toggle="modal"
