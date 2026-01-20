@@ -87,7 +87,7 @@ def sample_user_read() -> user_schema.UsersRead:
         username="testuser",
         email="test@example.com",
         active=True,
-        access_type=user_schema.UserAccessType.REGULAR,
+        access_type=user_schema.UserAccessType.REGULAR.value,
     )
 
 
@@ -105,7 +105,7 @@ def sample_inactive_user():
         username="inactive",
         email="inactive@example.com",
         active=False,
-        access_type=user_schema.UserAccessType.REGULAR,
+        access_type=user_schema.UserAccessType.REGULAR.value,
     )
 
 

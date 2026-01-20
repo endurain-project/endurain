@@ -233,7 +233,7 @@ async def handle_callback(
             )
 
         # Lookup OAuth state from database (mandatory for all clients)
-        oauth_state = oauth_state_crud.get_oauth_state_by_id(state, db)
+        oauth_state = oauth_state_crud.get_oauth_state_by_id_and_not_used(state, db)
 
         if not oauth_state:
             core_logger.print_to_log(
@@ -282,10 +282,6 @@ async def handle_callback(
         # Generate session ID
         session_id = str(uuid4())
 
-        # Create placeholder session (tokens will be created during exchange)
-        # Use a temporary refresh token that will be replaced during exchange
-        temp_refresh_token = "pending_exchange"
-
         # Create the session and store it in the database
         if not oauth_state:
             raise HTTPException(
@@ -297,7 +293,7 @@ async def handle_callback(
             session_id,
             user_read,
             request,
-            temp_refresh_token,
+            None,
             password_hasher,
             db,
             oauth_state_id=oauth_state.id,

@@ -71,7 +71,7 @@ class TestUsersSessionsModel:
         # Assert
         assert model.id.nullable is False
         assert model.user_id.nullable is False
-        assert model.refresh_token.nullable is False
+        assert model.refresh_token.nullable is True
         assert model.ip_address.nullable is False
         assert model.device_type.nullable is False
         assert model.operating_system.nullable is False

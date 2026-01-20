@@ -193,7 +193,7 @@ def get_users_admin(db: Session) -> list[users_models.Users]:
         db: SQLAlchemy database session.
 
     Returns:
-        List of User models with admin access (access_type == users_schema.UserAccessType.ADMIN).
+        List of User models with admin access.
 
     Raises:
         HTTPException: 500 error if database query fails.
@@ -326,7 +326,7 @@ def create_signup_user(
             ),
             username=user.username.lower(),
             email=user.email.lower(),
-            access_type=users_schema.UserAccessType.REGULAR,
+            access_type=users_schema.UserAccessType.REGULAR.value,
             active=active,
             email_verified=email_verified,
             pending_admin_approval=pending_admin_approval,

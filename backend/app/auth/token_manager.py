@@ -282,7 +282,7 @@ class TokenManager:
             ValueError: If required parameters are missing or invalid.
         """
         # Check user access level and set scope accordingly
-        if user.access_type == users_schema.UserAccessType.REGULAR:
+        if user.access_type == users_schema.UserAccessType.REGULAR.value:
             scope = auth_constants.REGULAR_ACCESS_SCOPE
         else:
             scope = auth_constants.ADMIN_ACCESS_SCOPE

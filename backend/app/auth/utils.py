@@ -280,9 +280,6 @@ def create_mobile_pkce_session_response(
     # Generate session ID
     session_id = str(uuid4())
 
-    # Create temporary refresh token (will be replaced during exchange)
-    temp_refresh_token = "pending_exchange"
-
     # Create OAuth state record for PKCE (reuse SSO infrastructure)
     state_id = str(uuid4())
     client_ip = request.client.host if request.client else None
@@ -304,7 +301,7 @@ def create_mobile_pkce_session_response(
         session_id,
         user,
         request,
-        temp_refresh_token,
+        None,  # No refresh token yet
         password_hasher,
         db,
         oauth_state_id=state_id,

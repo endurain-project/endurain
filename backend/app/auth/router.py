@@ -34,6 +34,7 @@ import users.users_session.rotated_refresh_tokens.utils as users_session_rotated
 import profile.utils as profile_utils
 
 import core.database as core_database
+import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 
 # Define the API router
@@ -258,9 +259,12 @@ async def verify_mfa_and_login(
     # Check if there's a pending MFA login for this username
     user_id = pending_mfa_store.get_pending_login(mfa_request.username)
     if not user_id:
+        core_logger.print_to_log(
+            f"No pending MFA login found for username {mfa_request.username}", "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending MFA login found for this username",
+            detail="Unable to authenticate",
         )
 
     # Verify the MFA code (TOTP or backup code)
@@ -269,6 +273,10 @@ async def verify_mfa_and_login(
     ):
         # Record failed attempt and apply lockout if threshold exceeded
         failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
+        core_logger.print_to_log(
+            f"Invalid MFA code for {mfa_request.username}. Failed attempts: {failed_count}",
+            "warning",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid MFA code, backup code or backup code already used. Failed attempts: {failed_count}.",
@@ -278,8 +286,14 @@ async def verify_mfa_and_login(
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
         pending_mfa_store.delete_pending_login(mfa_request.username)
+
+        core_logger.print_to_log(
+            f"User ID {user_id} not found during MFA verification", "warning"
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to authenticate",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     # Check if the user is still active
@@ -412,6 +426,14 @@ async def refresh_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+    # Verify session has a refresh token (not pending PKCE exchange)
+    if not session.refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Check for token reuse BEFORE validating token
     # Uses HMAC-SHA256 internally for deterministic, secure lookup
     is_reused, in_grace = users_session_rotated_tokens_utils.check_token_reuse(
@@ -442,9 +464,12 @@ async def refresh_token(
     user = users_crud.get_user_by_id(token_user_id, db)
 
     if user is None:
+        core_logger.print_to_log(
+            f"User ID {token_user_id} not found during token refresh", "warning"
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to authenticate",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -571,6 +596,14 @@ async def logout(
 
     # Check if the session was found
     if session is not None:
+        # Verify session has a refresh token (not pending PKCE exchange)
+        if not session.refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tokens not yet exchanged via PKCE. Cannot logout incomplete session.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Verify the refresh token
         is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
 

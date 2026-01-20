@@ -251,6 +251,7 @@ class Users(UsersBase):
         from_attributes=True,
         extra="forbid",
         validate_assignment=True,
+        use_enum_values=True,
     )
 
 

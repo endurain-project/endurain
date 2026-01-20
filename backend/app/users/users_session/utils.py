@@ -109,7 +109,7 @@ def create_session_object(
     session_id: str,
     user: users_schema.UsersRead,
     request: Request,
-    hashed_refresh_token: str,
+    hashed_refresh_token: str | None,
     refresh_token_exp: datetime,
     oauth_state_id: str | None = None,
     csrf_token_hash: str | None = None,
@@ -208,7 +208,7 @@ def create_session(
     session_id: str,
     user: users_schema.UsersRead,
     request: Request,
-    refresh_token: str,
+    refresh_token: str | None,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
     oauth_state_id: str | None = None,
@@ -221,7 +221,7 @@ def create_session(
         session_id: Unique identifier for the session.
         user: User for whom session is being created.
         request: The incoming HTTP request object.
-        refresh_token: Refresh token to associate.
+        refresh_token: Refresh token to associate or None.
         password_hasher: Utility to hash tokens.
         db: Database session for storing.
         oauth_state_id: Optional OAuth state ID for PKCE.
@@ -236,16 +236,14 @@ def create_session(
     )
 
     # Hash the CSRF token if provided
-    csrf_hash = None
-    if csrf_token:
-        csrf_hash = password_hasher.hash_password(csrf_token)
+    csrf_hash = password_hasher.hash_password(csrf_token) if csrf_token else None
 
     # Create a new session
     new_session = create_session_object(
         session_id,
         user,
         request,
-        password_hasher.hash_password(refresh_token),
+        password_hasher.hash_password(refresh_token) if refresh_token else None,
         exp,
         oauth_state_id,
         csrf_hash,

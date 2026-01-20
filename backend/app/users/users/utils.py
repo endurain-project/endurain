@@ -98,7 +98,7 @@ def check_password_and_hash(
     # Determine minimum length based on user access type
     min_length = (
         server_settings.password_length_admin_users
-        if user_access_type == users_schema.UserAccessType.ADMIN
+        if user_access_type == users_schema.UserAccessType.ADMIN.value
         else server_settings.password_length_regular_users
     )
     # Check if password meets requirements

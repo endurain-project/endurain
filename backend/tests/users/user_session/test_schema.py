@@ -284,33 +284,33 @@ class TestUsersSessionsInternalSchema:
         assert session.last_rotation_at is None
         assert session.csrf_token_hash is None
 
-    def test_internal_schema_requires_refresh_token(self):
+    def test_internal_schema_allows_optional_refresh_token(self):
         """
-        Test UsersSessionsInternal schema requires refresh_token.
+        Test UsersSessionsInternal schema allows refresh_token to be optional.
         """
         # Arrange
         now = datetime.now(timezone.utc)
 
-        # Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsInternal(
-                id="test-session-id",
-                ip_address="192.168.1.1",
-                device_type="PC",
-                operating_system="Windows",
-                operating_system_version="10",
-                browser="Chrome",
-                browser_version="120.0",
-                created_at=now,
-                last_activity_at=now,
-                expires_at=now,
-                user_id=1,
-                tokens_exchanged=False,
-                token_family_id="family-id",
-                rotation_count=0,
-            )
+        # Act
+        session = users_session_schema.UsersSessionsInternal(
+            id="test-session-id",
+            ip_address="192.168.1.1",
+            device_type="PC",
+            operating_system="Windows",
+            operating_system_version="10",
+            browser="Chrome",
+            browser_version="120.0",
+            created_at=now,
+            last_activity_at=now,
+            expires_at=now,
+            user_id=1,
+            tokens_exchanged=False,
+            token_family_id="family-id",
+            rotation_count=0,
+        )
 
-        assert "refresh_token" in str(exc_info.value)
+        # Assert
+        assert session.refresh_token is None
 
     def test_internal_schema_tokens_exchanged_default(self):
         """

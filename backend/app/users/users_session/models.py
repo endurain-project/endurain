@@ -55,7 +55,7 @@ class UsersSessions(Base):
     )
     refresh_token: Mapped[str] = mapped_column(
         String(255),
-        nullable=False,
+        nullable=True,
         comment="Session hashed refresh token",
     )
     ip_address: Mapped[str] = mapped_column(

@@ -83,7 +83,9 @@ class UsersSessionsInternal(UsersSessionsBase):
     """
 
     user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
-    refresh_token: StrictStr = Field(..., description="Hashed session refresh token")
+    refresh_token: StrictStr | None = Field(
+        None, description="Hashed session refresh token"
+    )
     oauth_state_id: StrictStr | None = Field(
         None,
         max_length=64,

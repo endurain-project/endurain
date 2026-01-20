@@ -714,7 +714,9 @@ class IdentityProviderService:
                     detail="OAuth state ID is required (PKCE mandatory)",
                 )
 
-            oauth_state_obj = oauth_state_crud.get_oauth_state_by_id(oauth_state_id, db)
+            oauth_state_obj = oauth_state_crud.get_oauth_state_by_id_and_not_used(
+                oauth_state_id, db
+            )
             if not oauth_state_obj:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -813,7 +815,9 @@ class IdentityProviderService:
                     detail="OAuth state ID is required for secure linking",
                 )
 
-            oauth_state_obj = oauth_state_crud.get_oauth_state_by_id(oauth_state_id, db)
+            oauth_state_obj = oauth_state_crud.get_oauth_state_by_id_and_not_used(
+                oauth_state_id, db
+            )
             if not oauth_state_obj:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -7,9 +7,12 @@ from joserfc.errors import (
     InsecureClaimError,
     MissingClaimError,
     InvalidTokenError,
+    InvalidPayloadError,
 )
 
 import auth.token_manager as auth_token_manager
+
+from users.users.schema import UsersRead, UserAccessType
 
 
 class TestTokenManagerSecurity:
@@ -563,11 +566,10 @@ class TestTokenManagerSecurity:
             assert exc_info.value.status_code == 401
             assert "not valid yet" in exc_info.value.detail
 
-    def test_decode_token_invalid_payload_error(self, token_manager):
+    def test_decode_token_invalid_payload_error_mocked(self, token_manager):
         """
         Test that decode_token handles InvalidPayloadError correctly.
         """
-        from joserfc.errors import InvalidPayloadError
 
         with patch(
             "auth.token_manager.jwt.decode",
@@ -596,14 +598,12 @@ class TestTokenManagerSecurity:
         Test that regular users get appropriate scope in their tokens.
         Note: Backend now grants all users full scope regardless of access_type.
         """
-        from users.users.schema import UsersRead, UserAccessType
-
         regular_user = UsersRead(
             id=2,
             name="Regular User",
             username="regular",
             email="regular@test.com",
-            access_type=UserAccessType.REGULAR,
+            access_type=UserAccessType.REGULAR.value,
             active=True,
         )
 

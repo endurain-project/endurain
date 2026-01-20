@@ -9,7 +9,7 @@ import users.users_session.models as users_session_models
 import core.logger as core_logger
 
 
-def get_oauth_state_by_id(
+def get_oauth_state_by_id_and_not_used(
     state_id: str, db: Session
 ) -> oauth_state_models.OAuthState | None:
     """
@@ -48,6 +48,26 @@ def get_oauth_state_by_id(
     return oauth_state
 
 
+def get_oauth_state_by_id(
+    state_id: str, db: Session
+) -> oauth_state_models.OAuthState | None:
+    """
+    Get OAuth state by ID.
+
+    Args:
+        db: Database session.
+        state_id: The state parameter to lookup.
+
+    Returns:
+        oauth_state_models.OAuthState if found, else None.
+    """
+    return (
+        db.query(oauth_state_models.OAuthState)
+        .filter(oauth_state_models.OAuthState.id == state_id)
+        .first()
+    )
+
+
 def get_oauth_state_by_session_id(
     db: Session,
     session_id: str,
@@ -74,16 +94,11 @@ def get_oauth_state_by_session_id(
     if not session:
         return None
 
-    if not session.oauth_state_id:
-        return None
-
-    oauth_state = (
-        db.query(oauth_state_models.OAuthState)
-        .filter(oauth_state_models.OAuthState.id == session.oauth_state_id)
-        .first()
+    return (
+        get_oauth_state_by_id(session.oauth_state_id, db)
+        if session.oauth_state_id
+        else None
     )
-
-    return oauth_state
 
 
 def create_oauth_state(
