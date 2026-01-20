@@ -86,9 +86,7 @@
           />
         </div>
         <!-- Displaying a message or component when there are no weight measurements -->
-        <div v-else class="mt-3">
-          <NoItemsFoundComponent />
-        </div>
+        <NoItemsFoundComponent class="mt-3" :show-shadow="false" v-else />
       </div>
     </div>
   </div>
