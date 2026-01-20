@@ -425,6 +425,52 @@
                 </option>
               </select>
             </div>
+            <!-- user email verified fields -->
+            <div v-if="action != 'profile'">
+              <label for="userEmailVerifiedAddEdit"
+                ><b
+                  >*
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalIsEmailVerifiedLabel') }}</b
+                ></label
+              >
+              <select
+                class="form-select"
+                name="userEmailVerifiedAddEdit"
+                v-model="newEditUserEmailVerified"
+                required
+              >
+                <option :value="true">
+                  {{ $t('generalItems.yes') }}
+                </option>
+                <option :value="false">
+                  {{ $t('generalItems.no') }}
+                </option>
+              </select>
+            </div>
+            <!-- user pending admin approval fields -->
+            <div v-if="action != 'profile'">
+              <label for="userPendingAdminApprovalAddEdit"
+                ><b
+                  >*
+                  {{
+                    $t('usersAddEditUserModalComponent.addEditUserModalIsPendingAdminApprovalLabel')
+                  }}</b
+                ></label
+              >
+              <select
+                class="form-select"
+                name="userPendingAdminApprovalAddEdit"
+                v-model="newEditUserPendingAdminApproval"
+                required
+              >
+                <option :value="true">
+                  {{ $t('generalItems.yes') }}
+                </option>
+                <option :value="false">
+                  {{ $t('generalItems.no') }}
+                </option>
+              </select>
+            </div>
 
             <p>* {{ $t('generalItems.requiredField') }}</p>
           </div>
@@ -532,6 +578,8 @@ const isInchesValid = computed(
 const newEditUserPreferredLanguage = ref('us')
 const newEditUserAccessType = ref('regular')
 const newEditUserActive = ref(true)
+const newEditUserEmailVerified = ref(false)
+const newEditUserPendingAdminApproval = ref(true)
 const newEditUserPhotoPath = ref(null)
 const isUsernameExists = ref(true)
 const isEmailExists = ref(true)
@@ -576,6 +624,8 @@ if (props.user) {
   newEditUserFirstDayOfWeek.value = props.user.first_day_of_week
   newEditUserAccessType.value = props.user.access_type
   newEditUserActive.value = props.user.active
+  newEditUserEmailVerified.value = props.user.email_verified
+  newEditUserPendingAdminApproval.value = props.user.pending_admin_approval
   newEditUserPhotoPath.value = props.user.photo_path
   if (props.user.height) {
     const { feet, inches } = cmToFeetInches(props.user.height)
@@ -688,6 +738,8 @@ async function submitAddUserForm() {
         photo_path: null,
         first_day_of_week: newEditUserFirstDayOfWeek.value,
         active: newEditUserActive.value,
+        email_verified: newEditUserEmailVerified.value,
+        pending_admin_approval: newEditUserPendingAdminApproval.value,
         password: newUserPassword.value
       }
       const createdUser = await users.createUser(data)
@@ -732,7 +784,9 @@ async function submitEditUserForm() {
       first_day_of_week: newEditUserFirstDayOfWeek.value,
       access_type: newEditUserAccessType.value,
       photo_path: newEditUserPhotoPath.value,
-      active: newEditUserActive.value
+      active: newEditUserActive.value,
+      email_verified: newEditUserEmailVerified.value,
+      pending_admin_approval: newEditUserPendingAdminApproval.value
     }
     if (props.action === 'profile') {
       await profile.editProfile(data)
