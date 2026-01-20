@@ -674,12 +674,12 @@ export function formatDistance(t, activity, unitSystem, lap = null) {
  *
  * @param {Object} t - The translation function.
  * @param {number} distance - The distance in meters to format.
- * @param {number} unitSystem - The unit system to use (1 for kilometers, otherwise miles).
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @param {boolean} [round=true] - Whether to round the result to the nearest integer.
  * @returns {string} The formatted distance string with the appropriate unit.
  */
 export function formatDistanceRaw(t, distance, unitSystem, round = true, units = true) {
-  let value = Number(unitSystem) === 1 ? metersToKm(distance) : metersToMiles(distance)
+  let value = unitSystem === 'metric' ? metersToKm(distance) : metersToMiles(distance)
   if (round) {
     value = Math.round(value)
   }
@@ -687,7 +687,7 @@ export function formatDistanceRaw(t, distance, unitSystem, round = true, units =
   let formatted = value
     .toLocaleString('en-US', { useGrouping: true, maximumFractionDigits: 0 })
     .replace(/,/g, ' ')
-  const unit = Number(unitSystem) === 1 ? t('generalItems.unitsKm') : t('generalItems.unitsMiles')
+  const unit = unitSystem === 'metric' ? t('generalItems.unitsKm') : t('generalItems.unitsMiles')
   if (units) {
     return `${formatted} ${unit}`
   }
