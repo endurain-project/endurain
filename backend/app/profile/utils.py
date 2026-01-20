@@ -360,7 +360,7 @@ def verify_user_mfa(
 
             if verify_totp(secret, normalized_code):
                 core_logger.print_to_log(
-                    f"User {user_id} verified MFA with TOTP", "info"
+                    f"User {user_id} verified MFA with TOTP", "debug"
                 )
                 return True
         except (ValueError, pyotp.OTPError) as err:

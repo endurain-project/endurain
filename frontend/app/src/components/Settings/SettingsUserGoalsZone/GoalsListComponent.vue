@@ -2,7 +2,31 @@
   <li class="list-group-item bg-body-tertiary rounded px-0">
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
-        <div>
+        <font-awesome-icon
+          class="ms-2 me-1"
+          icon="fa-solid fa-person-running"
+          size="2x"
+          v-if="goal.activity_type == 'run'"
+        />
+        <font-awesome-icon
+          icon="fa-solid fa-person-biking"
+          size="2x"
+          v-else-if="goal.activity_type == 'bike'"
+        />
+        <font-awesome-icon
+          class="ms-1"
+          icon="fa-solid fa-person-swimming"
+          size="2x"
+          v-else-if="goal.activity_type == 'swim'"
+        />
+        <font-awesome-icon
+          class="ms-2 me-2"
+          icon="fa-solid fa-person-walking"
+          size="2x"
+          v-else-if="goal.activity_type == 'walk'"
+        />
+        <font-awesome-icon icon="fa-solid fa-dumbbell" size="2x" v-else />
+        <div class="ms-3">
           <div class="fw-bold">
             <span v-if="goal.activity_type == 'run'">{{
               $t('goalsAddEditGoalModalComponent.activityTypeRun')
