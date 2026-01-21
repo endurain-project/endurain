@@ -1,4 +1,4 @@
-"""v0.16.7 migration
+"""v0.17.0 migration
 
 Revision ID: 262ec21a6c15
 Revises: 215d794b3041
