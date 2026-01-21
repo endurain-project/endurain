@@ -1,13 +1,13 @@
 {
   "title": "Hälsa",
-  "errorFetchingHealthSteps": "Error fetching health steps",
-  "errorFetchingHealthWeight": "Error fetching health data",
-  "errorFetchingHealthSleep": "Error fetching health sleep",
-  "errorFetchingHealthTargets": "Error fetching health targets",
-  "successUpdatingWeightTarget": "Successfully updated weight target",
-  "errorUpdatingWeightTarget": "Error updating weight target",
-  "successUpdatingStepsTarget": "Successfully updated steps target",
-  "errorUpdatingStepsTarget": "Error updating steps target",
-  "successUpdatingSleepTarget": "Successfully updated sleep target",
-  "errorUpdatingSleepTarget": "Error updating sleep target"
+  "errorFetchingHealthSteps": "Fel vid hämtning av hälsosteg",
+  "errorFetchingHealthWeight": "Fel vid hämtning av hälsodata",
+  "errorFetchingHealthSleep": "Fel vid hämtning av sömndata",
+  "errorFetchingHealthTargets": "Fel vid hämtning av hälsomål",
+  "successUpdatingWeightTarget": "Viktmål uppdaterat",
+  "errorUpdatingWeightTarget": "Fel vid uppdatering av viktmål",
+  "successUpdatingStepsTarget": "Stegmål uppdaterat",
+  "errorUpdatingStepsTarget": "Fel vid uppdatering av stegmål",
+  "successUpdatingSleepTarget": "Sömnmål uppdaterat",
+  "errorUpdatingSleepTarget": "Fel vid uppdatering av sömnmål"
 }
