@@ -13,8 +13,8 @@ import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import auth.constants as auth_constants
-import users.users_session.utils as users_session_utils
-import users.users_session.crud as users_session_crud
+import users.users_sessions.utils as users_session_utils
+import users.users_sessions.crud as users_session_crud
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.service as idp_service

@@ -15,9 +15,9 @@ from sqlalchemy.orm import Session
 import auth.constants as auth_constants
 import auth.password_hasher as auth_password_hasher
 
-import users.users_session.models as users_session_models
-import users.users_session.schema as users_session_schema
-import users.users_session.crud as users_session_crud
+import users.users_sessions.models as users_session_models
+import users.users_sessions.schema as users_session_schema
+import users.users_sessions.crud as users_session_crud
 
 import users.users.schema as users_schema
 
@@ -373,7 +373,7 @@ def cleanup_idle_sessions() -> None:
     Logs count of cleaned sessions.
 
     Raises:
-        Database exceptions from delete_idle_sessions.
+        HTTPException: If database error occurs.
     """
     if not auth_constants.SESSION_IDLE_TIMEOUT_ENABLED:
         return

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 import auth.oauth_state.models as oauth_state_models
-import users.users_session.models as users_session_models
+import users.users_sessions.models as users_session_models
 
 import core.logger as core_logger
 

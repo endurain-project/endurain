@@ -11,9 +11,9 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 
-import users.users_session.utils as users_session_utils
+import users.users_sessions.utils as users_session_utils
 
-import users.users_session.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
+import users.users_sessions.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
 
 import auth.oauth_state.utils as oauth_state_utils
 

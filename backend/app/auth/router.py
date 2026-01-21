@@ -26,10 +26,10 @@ import auth.identity_providers.utils as idp_utils
 import users.users.crud as users_crud
 import users.users.utils as users_utils
 
-import users.users_session.utils as users_session_utils
-import users.users_session.crud as users_session_crud
+import users.users_sessions.utils as users_session_utils
+import users.users_sessions.crud as users_session_crud
 
-import users.users_session.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
+import users.users_sessions.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
 
 import profile.utils as profile_utils
 

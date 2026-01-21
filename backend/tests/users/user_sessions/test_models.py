@@ -1,6 +1,6 @@
 import pytest
 
-import users.users_session.models as users_session_models
+import users.users_sessions.models as users_session_models
 
 
 class TestUsersSessionsModel:

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-import users.users_session.rotated_refresh_tokens.crud as rotated_token_crud
-import users.users_session.rotated_refresh_tokens.schema as rotated_token_schema
-import users.users_session.rotated_refresh_tokens.models as rotated_token_models
+import users.users_sessions.rotated_refresh_tokens.crud as rotated_token_crud
+import users.users_sessions.rotated_refresh_tokens.schema as rotated_token_schema
+import users.users_sessions.rotated_refresh_tokens.models as rotated_token_models
 
 
 class TestGetRotatedTokenByHash:

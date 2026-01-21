@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timezone
 from pydantic import ValidationError
 
-import users.users_session.schema as users_session_schema
+import users.users_sessions.schema as users_session_schema
 
 
 class TestUsersSessionsBaseSchema:

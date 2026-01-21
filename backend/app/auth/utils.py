@@ -24,7 +24,7 @@ import auth.identity_providers.utils as idp_utils
 import users.users.crud as users_crud
 import users.users.schema as users_schema
 
-import users.users_session.utils as users_session_utils
+import users.users_sessions.utils as users_session_utils
 
 
 def authenticate_user(

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 import auth.constants as auth_constants
 import core.logger as core_logger
-import users.users_session.crud as users_session_crud
-import users.users_session.rotated_refresh_tokens.crud as rotated_token_crud
-import users.users_session.rotated_refresh_tokens.schema as rotated_token_schema
+import users.users_sessions.crud as users_session_crud
+import users.users_sessions.rotated_refresh_tokens.crud as rotated_token_crud
+import users.users_sessions.rotated_refresh_tokens.schema as rotated_token_schema
 from core.database import SessionLocal
 
 

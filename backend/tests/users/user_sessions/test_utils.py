@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch, PropertyMock
 from fastapi import HTTPException
 
-import users.users_session.utils as users_session_utils
-import users.users_session.schema as users_session_schema
-import users.users_session.models as users_session_models
+import users.users_sessions.utils as users_session_utils
+import users.users_sessions.schema as users_session_schema
+import users.users_sessions.models as users_session_models
 import users.users.schema as users_schema
 
 
@@ -68,11 +68,11 @@ class TestValidateSessionTimeout:
     """
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
     )
-    @patch("users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
+    @patch("users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24
+        "users.users_sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24
     )
     def test_validate_session_timeout_valid(self):
         """
@@ -88,11 +88,11 @@ class TestValidateSessionTimeout:
         users_session_utils.validate_session_timeout(mock_session)
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
     )
-    @patch("users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
+    @patch("users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24
+        "users.users_sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24
     )
     def test_validate_session_timeout_idle_expired(self):
         """
@@ -112,11 +112,11 @@ class TestValidateSessionTimeout:
         assert "inactivity" in exc_info.value.detail
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
     )
-    @patch("users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
+    @patch("users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24
+        "users.users_sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24
     )
     def test_validate_session_timeout_absolute_expired(self):
         """
@@ -136,7 +136,7 @@ class TestValidateSessionTimeout:
         assert "security" in exc_info.value.detail.lower()
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False
     )
     def test_validate_session_timeout_disabled(self):
         """
@@ -528,7 +528,7 @@ class TestCleanupIdleSessions:
     """
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False
     )
     def test_cleanup_idle_sessions_disabled(self):
         """
@@ -538,11 +538,11 @@ class TestCleanupIdleSessions:
         users_session_utils.cleanup_idle_sessions()
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
     )
-    @patch("users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
-    @patch("users.users_session.utils.SessionLocal")
-    @patch("users.users_session.utils.users_session_crud.delete_idle_sessions")
+    @patch("users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
+    @patch("users.users_sessions.utils.SessionLocal")
+    @patch("users.users_sessions.utils.users_session_crud.delete_idle_sessions")
     def test_cleanup_idle_sessions_success(self, mock_delete_idle, mock_session_local):
         """
         Test successful cleanup of idle sessions.
@@ -559,12 +559,12 @@ class TestCleanupIdleSessions:
         mock_delete_idle.assert_called_once()
 
     @patch(
-        "users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
+        "users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True
     )
-    @patch("users.users_session.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
-    @patch("users.users_session.utils.SessionLocal")
-    @patch("users.users_session.utils.users_session_crud.delete_idle_sessions")
-    @patch("users.users_session.utils.core_logger.print_to_log")
+    @patch("users.users_sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
+    @patch("users.users_sessions.utils.SessionLocal")
+    @patch("users.users_sessions.utils.users_session_crud.delete_idle_sessions")
+    @patch("users.users_sessions.utils.core_logger.print_to_log")
     def test_cleanup_idle_sessions_error_handling(
         self, mock_logger, mock_delete_idle, mock_session_local
     ):

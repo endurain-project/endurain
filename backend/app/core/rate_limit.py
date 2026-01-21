@@ -30,7 +30,7 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
-import users.users_session.utils as users_session_utils
+import users.users_sessions.utils as users_session_utils
 
 import core.logger as core_logger
 

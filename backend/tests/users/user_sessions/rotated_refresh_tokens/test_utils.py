@@ -2,8 +2,8 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
-import users.users_session.rotated_refresh_tokens.utils as rotated_token_utils
-import users.users_session.rotated_refresh_tokens.models as rotated_token_models
+import users.users_sessions.rotated_refresh_tokens.utils as rotated_token_utils
+import users.users_sessions.rotated_refresh_tokens.models as rotated_token_models
 
 
 class TestHmacHashToken:
@@ -11,7 +11,7 @@ class TestHmacHashToken:
     Test suite for hmac_hash_token function.
     """
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.auth_constants")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.auth_constants")
     def test_hmac_hash_token_success(self, mock_auth_constants):
         """
         Test successful HMAC hashing of token.
@@ -27,7 +27,7 @@ class TestHmacHashToken:
         assert isinstance(result, str)
         assert len(result) == 64  # SHA256 hex output
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.auth_constants")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.auth_constants")
     def test_hmac_hash_token_deterministic(self, mock_auth_constants):
         """
         Test HMAC hash is deterministic (same input = same output).
@@ -43,7 +43,7 @@ class TestHmacHashToken:
         # Assert
         assert result1 == result2
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.auth_constants")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.auth_constants")
     def test_hmac_hash_token_different_tokens(self, mock_auth_constants):
         """
         Test different tokens produce different hashes.
@@ -60,7 +60,7 @@ class TestHmacHashToken:
         # Assert
         assert hash1 != hash2
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.auth_constants")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.auth_constants")
     def test_hmac_hash_token_no_secret(self, mock_auth_constants):
         """
         Test error when JWT_SECRET_KEY not configured.
@@ -81,8 +81,8 @@ class TestStoreRotatedToken:
     Test suite for store_rotated_token function.
     """
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("users.users_session.rotated_refresh_tokens.utils.hmac_hash_token")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.hmac_hash_token")
     def test_store_rotated_token_success(self, mock_hash, mock_crud):
         """
         Test successful storage of rotated token.
@@ -104,8 +104,8 @@ class TestCheckTokenReuse:
     Test suite for check_token_reuse function.
     """
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("users.users_session.rotated_refresh_tokens.utils.hmac_hash_token")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.hmac_hash_token")
     def test_check_token_reuse_not_reused(self, mock_hash, mock_crud):
         """
         Test token that hasn't been rotated.
@@ -124,8 +124,8 @@ class TestCheckTokenReuse:
         assert is_reused is False
         assert in_grace is False
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("users.users_session.rotated_refresh_tokens.utils.hmac_hash_token")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.hmac_hash_token")
     def test_check_token_reuse_within_grace_period(self, mock_hash, mock_crud):
         """
         Test token reused within grace period.
@@ -149,8 +149,8 @@ class TestCheckTokenReuse:
         assert is_reused is True
         assert in_grace is True
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("users.users_session.rotated_refresh_tokens.utils.hmac_hash_token")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.hmac_hash_token")
     def test_check_token_reuse_after_grace_period(self, mock_hash, mock_crud):
         """
         Test token reused after grace period (theft detected).
@@ -181,8 +181,8 @@ class TestInvalidateTokenFamily:
     Test suite for invalidate_token_family function.
     """
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("users.users_session.rotated_refresh_tokens.utils.users_session_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.users_session_crud")
     def test_invalidate_token_family_success(self, mock_session_crud, mock_token_crud):
         """
         Test successful family invalidation.
@@ -208,8 +208,8 @@ class TestCleanupExpiredRotatedTokens:
     Test suite for cleanup_expired_rotated_tokens function.
     """
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.SessionLocal")
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.SessionLocal")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
     def test_cleanup_expired_rotated_tokens_success(
         self, mock_crud, mock_session_local
     ):
@@ -227,9 +227,9 @@ class TestCleanupExpiredRotatedTokens:
         # Assert
         mock_crud.delete_expired_tokens.assert_called_once()
 
-    @patch("users.users_session.rotated_refresh_tokens.utils.SessionLocal")
-    @patch("users.users_session.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("users.users_session.rotated_refresh_tokens.utils.core_logger")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.SessionLocal")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.rotated_token_crud")
+    @patch("users.users_sessions.rotated_refresh_tokens.utils.core_logger")
     def test_cleanup_expired_rotated_tokens_error_handling(
         self, mock_logger, mock_crud, mock_session_local
     ):

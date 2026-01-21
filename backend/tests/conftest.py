@@ -17,7 +17,7 @@ load_dotenv(dotenv_path=env_test_path)
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
-import users.users_session.router as users_session_router
+import users.users_sessions.router as users_session_router
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.security as auth_security

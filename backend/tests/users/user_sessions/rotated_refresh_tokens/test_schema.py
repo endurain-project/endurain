@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timezone
 from pydantic import ValidationError
 
-import users.users_session.rotated_refresh_tokens.schema as rotated_token_schema
+import users.users_sessions.rotated_refresh_tokens.schema as rotated_token_schema
 
 
 class TestRotatedRefreshTokenCreateSchema:

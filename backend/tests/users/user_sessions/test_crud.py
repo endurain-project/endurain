@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-import users.users_session.crud as users_session_crud
-import users.users_session.schema as users_session_schema
-import users.users_session.models as users_session_models
+import users.users_sessions.crud as users_session_crud
+import users.users_sessions.schema as users_session_schema
+import users.users_sessions.models as users_session_models
 
 
 class TestGetUserSessions:
@@ -215,7 +215,7 @@ class TestGetSessionWithOauthState:
         mock_db.execute.return_value = mock_result
 
         with patch(
-            "users.users_session.crud.oauth_state_crud.get_oauth_state_by_id",
+            "users.users_sessions.crud.oauth_state_crud.get_oauth_state_by_id",
             return_value=mock_oauth_state,
         ):
             # Act
@@ -456,7 +456,7 @@ class TestDeleteSession:
         mock_db.execute.return_value = mock_result
 
         with patch(
-            "users.users_session.crud.users_session_rotated_tokens_crud.delete_by_family",
+            "users.users_sessions.crud.users_session_rotated_tokens_crud.delete_by_family",
             return_value=0,
         ):
             # Act

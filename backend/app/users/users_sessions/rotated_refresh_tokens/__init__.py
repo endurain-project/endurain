@@ -1,19 +1,19 @@
 """Rotated refresh token reuse detection."""
 
-from users.users_session.rotated_refresh_tokens.models import (
+from .models import (
     RotatedRefreshToken,
 )
-from users.users_session.rotated_refresh_tokens.schema import (
+from .schema import (
     RotatedRefreshTokenCreate,
     RotatedRefreshTokenRead,
 )
-from users.users_session.rotated_refresh_tokens.crud import (
+from .crud import (
     get_rotated_token_by_hash,
     create_rotated_token,
     delete_expired_tokens,
     delete_by_family,
 )
-from users.users_session.rotated_refresh_tokens.utils import (
+from .utils import (
     hmac_hash_token,
     store_rotated_token,
     check_token_reuse,

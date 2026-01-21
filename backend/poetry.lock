@@ -2527,14 +2527,14 @@ testing = ["coverage", "pytest", "pytest-benchmark"]
 
 [[package]]
 name = "poetry"
-version = "2.3.0"
+version = "2.3.1"
 description = "Python dependency management and packaging made easy."
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "poetry-2.3.0-py3-none-any.whl", hash = "sha256:1f3c8912bac57c4e9a2a523dbed0271784fa696bbfb24d1b4d7931aa29b7906d"},
-    {file = "poetry-2.3.0.tar.gz", hash = "sha256:56ef2a8188bb5157ef9df7e3d968cd27bacad34710818f1cd0306a46ac0b4d41"},
+    {file = "poetry-2.3.1-py3-none-any.whl", hash = "sha256:1067f3a500b57b348a7b7a2ec0ee8e09dce65164a21926b1f6713481d94e8ee4"},
+    {file = "poetry-2.3.1.tar.gz", hash = "sha256:423cbccfe3533155ce9f49e929780a1386e564b2d97d2380664ea388cfe1191c"},
 ]
 
 [package.dependencies]

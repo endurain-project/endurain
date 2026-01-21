@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 import auth.oauth_state.models as oauth_state_models
 import auth.oauth_state.crud as oauth_state_crud
 
-import users.users_session.models as users_session_models
-import users.users_session.schema as users_session_schema
+import users.users_sessions.models as users_session_models
+import users.users_sessions.schema as users_session_schema
 
-import users.users_session.rotated_refresh_tokens.crud as users_session_rotated_tokens_crud
+import users.users_sessions.rotated_refresh_tokens.crud as users_session_rotated_tokens_crud
 
 import core.logger as core_logger
 import core.decorators as core_decorators

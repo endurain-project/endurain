@@ -1,7 +1,7 @@
 """WebSocket module for real-time notifications and communication."""
 
-from websocket.manager import WebSocketManager, get_websocket_manager
-from websocket.utils import notify_frontend
+from .manager import WebSocketManager, get_websocket_manager
+from .utils import notify_frontend
 
 __all__ = [
     "WebSocketManager",

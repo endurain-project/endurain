@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 
 import auth.oauth_state.crud as oauth_state_crud
 import auth.oauth_state.models as oauth_state_models
-import users.users_session.models as users_session_models
+import users.users_sessions.models as users_session_models
 
 
 class TestGetOAuthStateById:

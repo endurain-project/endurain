@@ -8,7 +8,8 @@ import activities.activity.utils as activities_utils
 
 import users.users_default_gear.utils as user_default_gear_utils
 
-import core.logger as core_logger
+import users.users_privacy_settings.utils as users_privacy_settings_utils
+
 import core.config as core_config
 
 
@@ -264,10 +265,8 @@ def parse_tcx_file(
         average_cad=round(tcx_file.cadence_avg) if tcx_file.cadence_avg else None,
         max_cad=round(tcx_file.cadence_max) if tcx_file.cadence_max else None,
         calories=tcx_file.calories if tcx_file.calories else None,
-        visibility=(
+        visibility=users_privacy_settings_utils.visibility_to_int(
             user_privacy_settings.default_activity_visibility
-            if user_privacy_settings.default_activity_visibility is not None
-            else 0
         ),
         gear_id=gear_id,
         hide_start_time=user_privacy_settings.hide_activity_start_time or False,

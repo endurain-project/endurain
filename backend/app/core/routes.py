@@ -35,7 +35,7 @@ import profile.browser_redirect_router as profile_browser_redirect_router
 import profile.router as profile_router
 import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router
-import users.users_session.router as users_session_router
+import users.users_sessions.router as users_session_router
 import sign_up_tokens.router as sign_up_tokens_router
 import strava.router as strava_router
 import users.users.router as users_router

@@ -4,8 +4,8 @@ from datetime import datetime
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
-import users.users_session.rotated_refresh_tokens.models as rotated_token_models
-import users.users_session.rotated_refresh_tokens.schema as rotated_token_schema
+import users.users_sessions.rotated_refresh_tokens.models as rotated_token_models
+import users.users_sessions.rotated_refresh_tokens.schema as rotated_token_schema
 
 import core.decorators as core_decorators
 

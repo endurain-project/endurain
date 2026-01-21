@@ -59,8 +59,8 @@ import auth.security as auth_security
 import auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 
-import users.users_session.crud as users_session_crud
-import users.users_session.schema as users_session_schema
+import users.users_sessions.crud as users_session_crud
+import users.users_sessions.schema as users_session_schema
 
 import core.database as core_database
 import core.logger as core_logger
