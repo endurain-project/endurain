@@ -1,8 +1,8 @@
 {
-  "buttonAddWeight": "Add weight",
-  "buttonWeightTarget": "Weight target",
-  "modalWeightTargetLabel": "Enter your weight target",
-  "labelNumberOfHealthWeightWeight1": "There is a total of ",
-  "labelNumberOfHealthWeightWeight2": " weight measure(s) inserted (",
-  "labelNumberOfHealthWeightWeight3": " loaded):"
+  "buttonAddWeight": "Registrera vikt",
+  "buttonWeightTarget": "Viktmål",
+  "modalWeightTargetLabel": "Ange ditt viktmål",
+  "labelNumberOfHealthWeightWeight1": "Det finns totalt ",
+  "labelNumberOfHealthWeightWeight2": " viktmätning(ar) inlästa (",
+  "labelNumberOfHealthWeightWeight3": " laddade):"
 }
