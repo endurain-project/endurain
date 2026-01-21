@@ -57,7 +57,7 @@
   "unlinkAccountLastMethodError": "Die Verknüpfung der letzten Authentifizierungsmethode kann nicht getrennt werden. Bitte setzen Sie zuerst ein Passwort.",
   "linkAccountSuccess": "{providerName} Konto erfolgreich verknüpft",
   "linkAccountError": "Fehler beim Verknüpfen des Kontos",
-  "linkAccountRateLimitError": "Zu viele Verknüpfungsversuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+  "linkAccountRateLimitError": "Too many link attempts. Please wait a moment and try again.",
   "linkAccountAlreadyLinked": "Dieses {providerName} Konto ist bereits verknüpft",
   "linkAccountInUse": "Dieses {providerName} Konto ist bereits mit einem anderen Benutzer verknüpft",
   "errorLoadingLinkedAccounts": "Fehler beim Laden der verknüpften Konten",
