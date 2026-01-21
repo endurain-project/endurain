@@ -1,5 +1,10 @@
 {
   "addNewGoal": "添加新的目标",
+  "filterByActivityType": "Filter by activity type",
+  "filterByGoalType": "Filter by goal type",
+  "filterAll": "All",
+  "filterByInterval": "Filter by interval",
+  "clearFilters": "Clear filters",
   "labelNumberOfGoals1": "你有 ",
   "labelNumberOfGoals2": "个目标设置：",
   "successGoalDeleted": "目标删除完成",
