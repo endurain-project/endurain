@@ -324,14 +324,16 @@ class HealthSleepCreate(HealthSleepBase):
 
     This validator runs after model initialization to ensure that if no date
     is provided, it defaults to today's date.
-
-    Returns:
-        HealthSleepCreate: The validated model instance with date set to today if it was None.
     """
 
     @model_validator(mode="after")
     def set_default_date(self) -> "HealthSleepCreate":
-        """Set date to today if not provided."""
+        """
+        Set date to today if not provided.
+
+        Returns:
+            The validated model instance with date set.
+        """
         if self.date is None:
             self.date = datetime_date.today()
         return self

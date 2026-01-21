@@ -90,20 +90,20 @@ class HealthWeightBase(BaseModel):
 
 class HealthWeightCreate(HealthWeightBase):
     """
-    Pydantic model for creating health weight records.
+    Validator for HealthWeightCreate model that automatically sets the date field.
 
-    Automatically sets the date to today if not provided during instance creation.
-
-    Attributes:
-        Inherits all attributes from HealthWeightBase.
-
-    Validators:
-        set_default_date: Ensures that if no date is provided, it defaults to today's date.
+    This validator runs after model initialization to ensure that if no date
+    is provided, it defaults to today's date.
     """
 
     @model_validator(mode="after")
     def set_default_date(self) -> "HealthWeightCreate":
-        """Set date to today if not provided."""
+        """
+        Set date to today if not provided.
+
+        Returns:
+            The validated model instance with date set.
+        """
         if self.date is None:
             self.date = datetime_date.today()
         return self
