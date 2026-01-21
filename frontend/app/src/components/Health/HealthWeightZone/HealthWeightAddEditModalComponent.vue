@@ -38,7 +38,7 @@
                 v-model="newEditWeightWeight"
                 required
               />
-              <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{
+              <span class="input-group-text" v-if="authStore?.user?.units === 'metric'">{{
                 $t('generalItems.unitsKg')
               }}</span>
               <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
@@ -130,7 +130,7 @@
                   name="weightBoneMassAddEdit"
                   v-model="newEditWeightBoneMass"
                 />
-                <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{
+                <span class="input-group-text" v-if="authStore?.user?.units === 'metric'">{{
                   $t('generalItems.unitsKg')
                 }}</span>
                 <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
@@ -150,7 +150,7 @@
                   name="weightMuscleMassAddEdit"
                   v-model="newEditWeightMuscleMass"
                 />
-                <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{
+                <span class="input-group-text" v-if="authStore?.user?.units === 'metric'">{{
                   $t('generalItems.unitsKg')
                 }}</span>
                 <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
@@ -220,7 +220,7 @@ const detailFields = ref(false)
 
 if (props.userHealthWeight) {
   newEditWeightWeight.value =
-    Number(authStore?.user?.units) === 1
+    authStore?.user?.units === 'metric'
       ? props.userHealthWeight.weight
       : kgToLbs(props.userHealthWeight.weight)
   newEditWeightDate.value = props.userHealthWeight.date
@@ -228,11 +228,11 @@ if (props.userHealthWeight) {
   newEditWeightBodyFat.value = props.userHealthWeight.body_fat
   newEditWeightBodyWater.value = props.userHealthWeight.body_water
   newEditWeightBoneMass.value =
-    Number(authStore?.user?.units) === 1
+    authStore?.user?.units === 'metric'
       ? props.userHealthWeight.bone_mass
       : kgToLbs(props.userHealthWeight.bone_mass)
   newEditWeightMuscleMass.value =
-    Number(authStore?.user?.units) === 1
+    authStore?.user?.units === 'metric'
       ? props.userHealthWeight.muscle_mass
       : kgToLbs(props.userHealthWeight.muscle_mass)
   editWeightId.value = `editWeightId${props.userHealthWeight.id}`
@@ -246,20 +246,20 @@ async function submitAddWeight() {
     let muscle_mass = null
     if (newEditWeightBoneMass.value !== null && newEditWeightBoneMass.value !== '') {
       bone_mass =
-        Number(authStore?.user?.units) === 1
+        authStore?.user?.units === 'metric'
           ? newEditWeightBoneMass.value
           : lbsToKg(newEditWeightBoneMass.value)
     }
     if (newEditWeightMuscleMass.value !== null && newEditWeightMuscleMass.value !== '') {
       muscle_mass =
-        Number(authStore?.user?.units) === 1
+        authStore?.user?.units === 'metric'
           ? newEditWeightMuscleMass.value
           : lbsToKg(newEditWeightMuscleMass.value)
     }
     // Create the weight data object.
     const data = {
       weight:
-        Number(authStore?.user?.units) === 1
+        authStore?.user?.units === 'metric'
           ? newEditWeightWeight.value
           : lbsToKg(newEditWeightWeight.value),
       date: newEditWeightDate.value,
@@ -302,13 +302,13 @@ function submitEditWeight() {
   let muscle_mass = null
   if (newEditWeightBoneMass.value !== null && newEditWeightBoneMass.value !== '') {
     bone_mass =
-      Number(authStore?.user?.units) === 1
+      authStore?.user?.units === 'metric'
         ? newEditWeightBoneMass.value
         : lbsToKg(newEditWeightBoneMass.value)
   }
   if (newEditWeightMuscleMass.value !== null && newEditWeightMuscleMass.value !== '') {
     muscle_mass =
-      Number(authStore?.user?.units) === 1
+      authStore?.user?.units === 'metric'
         ? newEditWeightMuscleMass.value
         : lbsToKg(newEditWeightMuscleMass.value)
   }
@@ -316,7 +316,7 @@ function submitEditWeight() {
     id: props.userHealthWeight.id,
     user_id: props.userHealthWeight.user_id,
     weight:
-      Number(authStore?.user?.units) === 1
+      authStore?.user?.units === 'metric'
         ? newEditWeightWeight.value
         : lbsToKg(newEditWeightWeight.value),
     date: newEditWeightDate.value,

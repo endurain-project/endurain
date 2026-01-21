@@ -48,6 +48,28 @@ class MFARequiredResponse(BaseModel):
     message: str = "MFA verification required"
 
 
+class MobileSessionResponse(BaseModel):
+    """
+    Response for mobile password login with PKCE exchange flow.
+
+    This response is returned when a mobile client authenticates using the PKCE
+    (Proof Key for Exchange) secure pattern. Instead of returning tokens directly,
+    a session_id is returned for secure token exchange via POST /session/{session_id}/tokens.
+
+    Attributes:
+        session_id (str): Session identifier for token exchange. Client must send this
+            with the code_verifier to obtain access and refresh tokens.
+        mfa_required (bool): Whether MFA is required. Defaults to False.
+        message (str): Instructions for the client on next steps.
+    """
+
+    session_id: str
+    mfa_required: bool = False
+    message: str = (
+        "Complete authentication by exchanging tokens at /session/{session_id}/tokens"
+    )
+
+
 class PendingMFALogin:
     """
     A class to manage pending Multi-Factor Authentication (MFA) login sessions.

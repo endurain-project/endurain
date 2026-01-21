@@ -542,7 +542,7 @@ export function activityTypeIsSurf(activity) {
  *
  * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing pace and activity_type.
- * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @param {Object|null} [lap=null] - Optional lap object to use its enhanced_avg_pace instead of activity pace.
  * @param {boolean} [units=true] - Whether to include units in the formatted output.
  * @param {boolean} [isRest=false] - Whether the lap is a rest lap.
@@ -561,12 +561,12 @@ export function formatPace(t, activity, unitSystem, lap = null, units = true, is
     activityTypeIsRowing(activity) ||
     activityTypeIsWindsurf(activity)
   ) {
-    if (Number(unitSystem) === 1) {
+    if (unitSystem === 'metric') {
       return formatPaceSwimMetric(pace, units)
     }
     return formatPaceSwimImperial(pace, units)
   }
-  if (Number(unitSystem) === 1) {
+  if (unitSystem === 'metric') {
     return formatPaceMetric(pace, units)
   }
   return formatPaceImperial(pace, units)
@@ -577,7 +577,7 @@ export function formatPace(t, activity, unitSystem, lap = null, units = true, is
  *
  * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing speed and type information.
- * @param {number|string} unitSystem - The unit system to use (1 for imperial, otherwise metric).
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @param {Object|null} [lap=null] - Optional lap object to use for speed calculation.
  * @param {boolean} [units=true] - Whether to include units in the formatted string.
  * @returns {string} The formatted average speed, including units if specified, or a "No Data" label if unavailable.
@@ -599,7 +599,7 @@ export function formatAverageSpeed(t, activity, unitSystem, lap = null, units = 
     activityTypeIsWindsurf(activity) ||
     activityTypeIsSailing(activity)
   ) {
-    if (Number(unitSystem) === 1) {
+    if (unitSystem === 'metric') {
       if (units) {
         return `${formatAverageSpeedMetric(speed)} ${t('generalItems.unitsKmH')}`
       }
@@ -645,7 +645,7 @@ export function formatDuration(t, seconds) {
  *
  * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing distance and activity_type.
- * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @param {Object|null} [lap=null] - Optional lap object containing total_distance.
  * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
  */
@@ -656,7 +656,7 @@ export function formatDistance(t, activity, unitSystem, lap = null) {
   }
   if (distance === null || distance === undefined || distance < 0)
     return t('generalItems.labelNoData')
-  if (Number(unitSystem) === 1) {
+  if (unitSystem === 'metric') {
     if (!activityTypeIsSwimming(activity)) {
       return `${metersToKm(distance)} ${t('generalItems.unitsKm')}`
     }
@@ -674,12 +674,12 @@ export function formatDistance(t, activity, unitSystem, lap = null) {
  *
  * @param {Object} t - The translation function.
  * @param {number} distance - The distance in meters to format.
- * @param {number} unitSystem - The unit system to use (1 for kilometers, otherwise miles).
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @param {boolean} [round=true] - Whether to round the result to the nearest integer.
  * @returns {string} The formatted distance string with the appropriate unit.
  */
 export function formatDistanceRaw(t, distance, unitSystem, round = true, units = true) {
-  let value = Number(unitSystem) === 1 ? metersToKm(distance) : metersToMiles(distance)
+  let value = unitSystem === 'metric' ? metersToKm(distance) : metersToMiles(distance)
   if (round) {
     value = Math.round(value)
   }
@@ -687,7 +687,7 @@ export function formatDistanceRaw(t, distance, unitSystem, round = true, units =
   let formatted = value
     .toLocaleString('en-US', { useGrouping: true, maximumFractionDigits: 0 })
     .replace(/,/g, ' ')
-  const unit = Number(unitSystem) === 1 ? t('generalItems.unitsKm') : t('generalItems.unitsMiles')
+  const unit = unitSystem === 'metric' ? t('generalItems.unitsKm') : t('generalItems.unitsMiles')
   if (units) {
     return `${formatted} ${unit}`
   }
@@ -733,7 +733,7 @@ export function formatPower(t, power) {
  *
  * @param {Object} t - The translation function.
  * @param {number|null|undefined} meters - The elevation value in meters. Can be null or undefined.
- * @param {number} unitSystem - The unit system to use. If `1`, the elevation is returned in meters; otherwise, it is converted to feet.
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @returns {string} The formatted elevation string with the appropriate unit, or a "not applicable" label if the input is null or undefined.
  */
 export function formatElevation(t, meters, unitSystem, units = true) {
@@ -741,15 +741,14 @@ export function formatElevation(t, meters, unitSystem, units = true) {
     return t('generalItems.labelNoData')
   }
   const numericValue =
-    Number(unitSystem) === 1 ? parseFloat(meters) : parseFloat(metersToFeet(meters))
+    unitSystem === 'metric' ? parseFloat(meters) : parseFloat(metersToFeet(meters))
   const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
 
   if (!units) {
     return formattedValue
   }
 
-  const unitLabel =
-    Number(unitSystem) === 1 ? t('generalItems.unitsM') : t('generalItems.unitsFeet')
+  const unitLabel = unitSystem === 'metric' ? t('generalItems.unitsM') : t('generalItems.unitsFeet')
   return `${formattedValue} ${unitLabel}`
 }
 
@@ -865,7 +864,7 @@ export function formatLocation(t, activity) {
  *
  * @param {Object} t - The translation function.
  * @param {number|null|undefined} meters - The distance in meters.
- * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
+ * @param {string} unitSystem - The unit system to use ('metric' or 'imperial').
  * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
  */
 export function formatRawDistance(t, meters, unitSystem) {
@@ -873,7 +872,7 @@ export function formatRawDistance(t, meters, unitSystem) {
     return t('generalItems.labelNoData')
   }
   const numericValue =
-    Number(unitSystem) === 1 ? parseFloat(metersToKm(meters)) : parseFloat(metersToMiles(meters))
+    unitSystem === 'metric' ? parseFloat(metersToKm(meters)) : parseFloat(metersToMiles(meters))
   // Assuming metersToKm and metersToMiles return numbers or strings that can be parsed to numbers
   // Use toLocaleString for formatting, allow for some decimal places for precision if needed
   const formattedValue = numericValue.toLocaleString(undefined, {
@@ -882,6 +881,6 @@ export function formatRawDistance(t, meters, unitSystem) {
   })
 
   const unitLabel =
-    Number(unitSystem) === 1 ? t('generalItems.unitsKm') : t('generalItems.unitsMiles')
+    unitSystem === 'metric' ? t('generalItems.unitsKm') : t('generalItems.unitsMiles')
   return `${formattedValue} ${unitLabel}`
 }

@@ -16,8 +16,8 @@ class TestUnitsEnum:
 
     def test_units_enum_values(self):
         """Test Units enum has correct values."""
-        assert server_settings_schema.Units.METRIC == 1
-        assert server_settings_schema.Units.IMPERIAL == 2
+        assert server_settings_schema.Units.METRIC.value == "metric"
+        assert server_settings_schema.Units.IMPERIAL.value == "imperial"
 
 
 class TestCurrencyEnum:
@@ -25,9 +25,9 @@ class TestCurrencyEnum:
 
     def test_currency_enum_values(self):
         """Test Currency enum has correct values."""
-        assert server_settings_schema.Currency.EURO == 1
-        assert server_settings_schema.Currency.DOLLAR == 2
-        assert server_settings_schema.Currency.POUND == 3
+        assert server_settings_schema.Currency.EURO.value == "euro"
+        assert server_settings_schema.Currency.DOLLAR.value == "dollar"
+        assert server_settings_schema.Currency.POUND.value == "pound"
 
 
 class TestPasswordTypeEnum:
@@ -45,11 +45,11 @@ class TestServerSettingsBase:
     def test_server_settings_base_valid(self):
         """Test valid ServerSettingsBase creation."""
         settings = server_settings_schema.ServerSettingsBase(
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
             sso_enabled=False,
@@ -62,7 +62,7 @@ class TestServerSettingsBase:
             password_length_regular_users=8,
             password_length_admin_users=12,
         )
-        assert settings.units == 1
+        assert settings.units == server_settings_schema.Units.METRIC.value
         assert settings.public_shareable_links is False
         assert settings.tileserver_url.startswith("https://")
 
@@ -70,11 +70,11 @@ class TestServerSettingsBase:
         """Test validation fails when URL missing protocol."""
         with pytest.raises(ValidationError) as exc_info:
             server_settings_schema.ServerSettingsBase(
-                units=1,
+                units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
                 login_photo_set=False,
-                currency=1,
+                currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
                 sso_enabled=False,
@@ -93,11 +93,11 @@ class TestServerSettingsBase:
         """Test validation fails for http:// on non-localhost."""
         with pytest.raises(ValidationError) as exc_info:
             server_settings_schema.ServerSettingsBase(
-                units=1,
+                units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
                 login_photo_set=False,
-                currency=1,
+                currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
                 sso_enabled=False,
@@ -115,11 +115,11 @@ class TestServerSettingsBase:
     def test_tileserver_url_http_localhost_allowed(self):
         """Test http:// is allowed for localhost."""
         settings = server_settings_schema.ServerSettingsBase(
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
             sso_enabled=False,
@@ -138,11 +138,11 @@ class TestServerSettingsBase:
         """Test validation fails when required placeholders missing."""
         with pytest.raises(ValidationError) as exc_info:
             server_settings_schema.ServerSettingsBase(
-                units=1,
+                units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
                 login_photo_set=False,
-                currency=1,
+                currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
                 sso_enabled=False,
@@ -161,11 +161,11 @@ class TestServerSettingsBase:
         """Test validation fails for dangerous javascript: pattern."""
         with pytest.raises(ValidationError) as exc_info:
             server_settings_schema.ServerSettingsBase(
-                units=1,
+                units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
                 login_photo_set=False,
-                currency=1,
+                currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
                 sso_enabled=False,
@@ -187,11 +187,11 @@ class TestServerSettingsBase:
         """Test validation fails for dangerous data: pattern."""
         with pytest.raises(ValidationError) as exc_info:
             server_settings_schema.ServerSettingsBase(
-                units=1,
+                units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
                 login_photo_set=False,
-                currency=1,
+                currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
                 sso_enabled=False,
@@ -209,11 +209,11 @@ class TestServerSettingsBase:
     def test_map_background_color_valid(self):
         """Test valid hex color for map background."""
         settings = server_settings_schema.ServerSettingsBase(
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
             sso_enabled=False,
@@ -232,11 +232,11 @@ class TestServerSettingsBase:
         """Test invalid hex color format."""
         with pytest.raises(ValidationError) as exc_info:
             server_settings_schema.ServerSettingsBase(
-                units=1,
+                units=server_settings_schema.Units.METRIC,
                 public_shareable_links=False,
                 public_shareable_links_user_info=False,
                 login_photo_set=False,
-                currency=1,
+                currency=server_settings_schema.Currency.EURO,
                 num_records_per_page=25,
                 signup_enabled=False,
                 sso_enabled=False,
@@ -254,11 +254,11 @@ class TestServerSettingsBase:
     def test_tileserver_attribution_sanitized(self):
         """Test that tileserver attribution is sanitized."""
         settings = server_settings_schema.ServerSettingsBase(
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
             sso_enabled=False,
@@ -282,11 +282,11 @@ class TestServerSettings:
         """Test ServerSettings schema with id field."""
         settings = server_settings_schema.ServerSettings(
             id=1,
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=False,
             sso_enabled=False,
@@ -309,11 +309,11 @@ class TestServerSettingsEdit:
         """Test ServerSettingsEdit includes signup requirement fields."""
         settings = server_settings_schema.ServerSettingsEdit(
             id=1,
-            units=1,
+            units=server_settings_schema.Units.METRIC,
             public_shareable_links=False,
             public_shareable_links_user_info=False,
             login_photo_set=False,
-            currency=1,
+            currency=server_settings_schema.Currency.EURO,
             num_records_per_page=25,
             signup_enabled=True,
             signup_require_admin_approval=True,

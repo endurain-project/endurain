@@ -10,7 +10,7 @@ class HealthSteps(Base):
 
     This model stores health and fitness tracking data related to the number of steps
     taken by a user on a specific date. It includes information about the data source
-    and maintains a relationship with the User model.
+    and maintains a relationship with the Users model.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.
@@ -18,13 +18,13 @@ class HealthSteps(Base):
         date: Calendar date for which the step count is recorded.
         steps: Total number of steps taken on the date.
         source: Source of the step data (e.g., fitness device, app).
-        user: Relationship to the User model.
+        user: Relationship to the Users model.
 
     Table:
         health_steps
 
     Relationships:
-        - Many-to-One with User model through user_id
+        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_steps"
@@ -54,6 +54,6 @@ class HealthSteps(Base):
         comment="Source of the health steps data",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_steps")
+    users = relationship("Users", back_populates="health_steps")

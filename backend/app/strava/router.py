@@ -8,7 +8,7 @@ from stravalib.exc import AccessUnauthorized
 
 import auth.security as auth_security
 
-import users.user_integrations.crud as user_integrations_crud
+import users.users_integrations.crud as user_integrations_crud
 
 import gears.gear.crud as gears_crud
 

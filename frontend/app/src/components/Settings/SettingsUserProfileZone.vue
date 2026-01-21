@@ -86,19 +86,19 @@
             <font-awesome-icon
               :icon="['fas', 'mars']"
               class="me-2"
-              v-if="authStore.user.gender == 1"
+              v-if="authStore.user.gender === 'male'"
             />
             <font-awesome-icon
               :icon="['fas', 'venus']"
               class="me-2"
-              v-else-if="authStore.user.gender == 2"
+              v-else-if="authStore.user.gender === 'female'"
             />
             <font-awesome-icon :icon="['fas', 'genderless']" class="me-2" v-else />
             <b>{{ $t('settingsUserProfileZone.genderLabel') }}: </b>
-            <span v-if="authStore.user.gender == 1">{{
+            <span v-if="authStore.user.gender === 'male'">{{
               $t('settingsUserProfileZone.genderOption1')
             }}</span>
-            <span v-else-if="authStore.user.gender == 2">{{
+            <span v-else-if="authStore.user.gender === 'female'">{{
               $t('settingsUserProfileZone.genderOption2')
             }}</span>
             <span v-else>{{ $t('settingsUserProfileZone.genderOption3') }}</span>
@@ -107,7 +107,7 @@
           <p>
             <font-awesome-icon :icon="['fas', 'gear']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.unitsLabel') }}: </b>
-            <span v-if="Number(authStore?.user?.units) === 1">{{
+            <span v-if="authStore?.user?.units === 'metric'">{{
               $t('settingsUserProfileZone.unitsOption1')
             }}</span>
             <span v-else>{{ $t('settingsUserProfileZone.unitsOption2') }}</span>
@@ -116,10 +116,10 @@
           <p>
             <font-awesome-icon :icon="['fas', 'coins']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.currencyLabel') }}: </b>
-            <span v-if="Number(authStore?.user?.currency) === 1">{{
+            <span v-if="authStore?.user?.currency === 'euro'">{{
               $t('generalItems.currencyEuro')
             }}</span>
-            <span v-else-if="Number(authStore?.user?.currency) === 2">{{
+            <span v-else-if="authStore?.user?.currency === 'dollar'">{{
               $t('generalItems.currencyDollar')
             }}</span>
             <span v-else>{{ $t('generalItems.currencyPound') }}</span>
@@ -129,13 +129,13 @@
             <font-awesome-icon :icon="['fas', 'person-arrow-up-from-line']" class="me-2" />
             <b
               >{{ $t('settingsUserProfileZone.heightLabel') }}
-              <span v-if="Number(authStore?.user?.units) === 1"
+              <span v-if="authStore?.user?.units === 'metric'"
                 >({{ $t('generalItems.unitsCm') }}):
               </span>
               <span v-else>({{ $t('generalItems.unitsFeetInches') }}): </span>
             </b>
             <span v-if="authStore.user.height">
-              <span v-if="Number(authStore?.user?.units) === 1"
+              <span v-if="authStore?.user?.units === 'metric'"
                 >{{ authStore.user.height }}{{ $t('generalItems.unitsCm') }}</span
               >
               <span v-else>{{ feet }}’{{ inches }}’’</span>
@@ -185,6 +185,9 @@
             <span v-if="authStore.user.preferred_language == 'sl'">{{
               $t('generalItems.languageOption12')
             }}</span>
+            <span v-if="authStore.user.preferred_language == 'sv'">{{
+              $t('generalItems.languageOption13')
+            }}</span>
             <span v-if="authStore.user.preferred_language == 'es'">{{
               $t('generalItems.languageOption7')
             }}</span>
@@ -196,25 +199,25 @@
           <p>
             <font-awesome-icon :icon="['fas', 'calendar-days']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.firstDayOfWeekLabel') }}: </b>
-            <span v-if="authStore.user.first_day_of_week == 0">{{
+            <span v-if="authStore.user.first_day_of_week === 'sunday'">{{
               $t('generalItems.firstDayOfWeekOption0')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 1">{{
+            <span v-if="authStore.user.first_day_of_week === 'monday'">{{
               $t('generalItems.firstDayOfWeekOption1')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 2">{{
+            <span v-if="authStore.user.first_day_of_week === 'tuesday'">{{
               $t('generalItems.firstDayOfWeekOption2')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 3">{{
+            <span v-if="authStore.user.first_day_of_week === 'wednesday'">{{
               $t('generalItems.firstDayOfWeekOption3')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 4">{{
+            <span v-if="authStore.user.first_day_of_week === 'thursday'">{{
               $t('generalItems.firstDayOfWeekOption4')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 5">{{
+            <span v-if="authStore.user.first_day_of_week === 'friday'">{{
               $t('generalItems.firstDayOfWeekOption5')
             }}</span>
-            <span v-if="authStore.user.first_day_of_week == 6">{{
+            <span v-if="authStore.user.first_day_of_week === 'saturday'">{{
               $t('generalItems.firstDayOfWeekOption6')
             }}</span>
           </p>
@@ -222,7 +225,7 @@
           <p>
             <font-awesome-icon :icon="['fas', 'id-card']" class="me-2" />
             <b>{{ $t('settingsUserProfileZone.accessTypeLabel') }}: </b>
-            <span v-if="authStore.user.access_type == 1">{{
+            <span v-if="authStore.user.access_type === 'regular'">{{
               $t('settingsUserProfileZone.accessTypeOption1')
             }}</span>
             <span v-else>{{ $t('settingsUserProfileZone.accessTypeOption2') }}</span>
@@ -533,9 +536,11 @@
                 v-model="activityVisibility"
                 required
               >
-                <option :value="0">{{ $t('settingsUserProfileZone.privacyOption1') }}</option>
-                <option :value="1">{{ $t('settingsUserProfileZone.privacyOption2') }}</option>
-                <option :value="2">{{ $t('settingsUserProfileZone.privacyOption3') }}</option>
+                <option value="public">{{ $t('settingsUserProfileZone.privacyOption1') }}</option>
+                <option value="followers">
+                  {{ $t('settingsUserProfileZone.privacyOption2') }}
+                </option>
+                <option value="private">{{ $t('settingsUserProfileZone.privacyOption3') }}</option>
               </select>
             </form>
             <!-- user hide_activity_start_time -->
@@ -812,9 +817,9 @@ const defaultNordicSkiGear = ref(null)
 const defaultSnowboardGear = ref(null)
 const defaultWindsurfGear = ref(null)
 const visibilityOptionsForModal = ref([
-  { id: 0, name: t('settingsUserProfileZone.privacyOption1') },
-  { id: 1, name: t('settingsUserProfileZone.privacyOption2') },
-  { id: 2, name: t('settingsUserProfileZone.privacyOption3') }
+  { id: 'public', name: t('settingsUserProfileZone.privacyOption1') },
+  { id: 'private', name: t('settingsUserProfileZone.privacyOption2') },
+  { id: 'friends', name: t('settingsUserProfileZone.privacyOption3') }
 ])
 const activityVisibility = ref(authStore.user.default_activity_visibility)
 const activityStartTime = ref(authStore.user.hide_activity_start_time)
@@ -948,8 +953,8 @@ async function uploadImportFile(file) {
     // Store the user in the auth store
     authStore.setUser(userProfile, authStore.session_id, locale)
 
-    // Get default gear for the user
-    await getDefaultGear()
+    // Get gear information
+    await getGearsInfo()
 
     notification.resolve(t('settingsUserProfileZone.importSuccess'))
   } catch (error) {
@@ -1002,8 +1007,7 @@ async function getDefaultGear() {
   }
 }
 
-onMounted(async () => {
-  isLoading.value = true
+async function getGearsInfo() {
   try {
     allGears.value = await gears.getGears()
     runGear.value = allGears.value.filter((gear) => gear.gear_type === 2)
@@ -1020,6 +1024,13 @@ onMounted(async () => {
   } catch (error) {
     // If there is an error, set the error message and show the error alert.
     push.error(`${t('settingsUserProfileZone.errorUnableToGetGear')} - ${error}`)
+  }
+}
+
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    await getGearsInfo()
   } finally {
     isLoading.value = false
     await nextTick()

@@ -38,12 +38,12 @@ def get_activity_exercise_titles(db: Session):
 def get_public_activity_exercise_titles(db: Session):
     try:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings_or_404(db)
 
         # Return None if public sharable links are disabled
         if not server_settings.public_shareable_links:
             return None
-        
+
         # Get the activity exercise titles from the database
         return get_activity_exercise_titles(db)
     except Exception as err:

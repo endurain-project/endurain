@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.service as idp_service
 
-import users.user_identity_providers.crud as user_idp_crud
+import users.users_identity_providers.crud as user_idp_crud
 
 import core.logger as core_logger
 

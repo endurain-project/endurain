@@ -63,7 +63,7 @@ class TestGetHealthWeightNumber:
         # Arrange
         user_id = 1
         expected_count = 5
-        mock_db.execute.return_value.scalar.return_value = expected_count
+        mock_db.execute.return_value.scalar_one.return_value = expected_count
 
         # Act
         result = health_weight_crud.get_health_weight_number(user_id, mock_db)
@@ -74,11 +74,11 @@ class TestGetHealthWeightNumber:
 
     def test_get_health_weight_number_none_returns_zero(self, mock_db):
         """
-        Test count when result is None returns zero.
+        Test count when result is zero.
         """
         # Arrange
         user_id = 1
-        mock_db.execute.return_value.scalar.return_value = None
+        mock_db.execute.return_value.scalar_one.return_value = 0
 
         # Act
         result = health_weight_crud.get_health_weight_number(user_id, mock_db)

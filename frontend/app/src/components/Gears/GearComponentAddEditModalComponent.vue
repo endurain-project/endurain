@@ -169,7 +169,7 @@
                   max="100000"
                   step="1"
                 />
-                <span class="input-group-text" v-if="authStore.user.units === 1">{{
+                <span class="input-group-text" v-if="authStore.user.units === 'metric'">{{
                   $t('generalItems.unitsKm')
                 }}</span>
                 <span class="input-group-text" v-else>{{ $t('generalItems.unitsMiles') }}</span>
@@ -226,10 +226,10 @@
                 step="0.01"
                 inputmode="decimal"
               />
-              <span class="input-group-text" v-if="authStore.user.currency === 1">{{
+              <span class="input-group-text" v-if="authStore.user.currency === 'euro'">{{
                 $t('generalItems.currencyEuroSymbol')
               }}</span>
-              <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{
+              <span class="input-group-text" v-else-if="authStore.user.currency === 'dollar'">{{
                 $t('generalItems.currencyDollarSymbol')
               }}</span>
               <span class="input-group-text" v-else>{{
@@ -508,7 +508,7 @@ function handleSubmit() {
     return
   }
 
-  if (Number(authStore?.user?.units) === 1) {
+  if (authStore?.user?.units === 'metric') {
     newEditGearComponentExpectedDistanceMiles.value = kmToMiles(
       newEditGearComponentExpectedDistanceKms.value
     )

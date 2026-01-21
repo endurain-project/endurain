@@ -8,6 +8,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from core.database import Base
 
+
 class ActivityStreams(Base):
     __tablename__ = "activities_streams"
 
@@ -29,5 +30,5 @@ class ActivityStreams(Base):
         BigInteger, nullable=True, comment="Strava activity stream ID"
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     activity = relationship("Activity", back_populates="activities_streams")

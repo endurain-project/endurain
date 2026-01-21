@@ -217,8 +217,8 @@ class Activity(Base):
         comment="Tracker model (e.g., Forerunner 245, Ambit3 Peak, Vantage V2)",
     )
 
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="activities")
+    # Define a relationship to the Users model
+    users = relationship("Users", back_populates="activities")
 
     # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="activities")

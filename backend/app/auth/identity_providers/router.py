@@ -12,7 +12,7 @@ import auth.security as auth_security
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.utils as idp_utils
-import users.user.schema as users_schema
+import users.users.schema as users_schema
 
 
 # Define the API router
@@ -27,7 +27,7 @@ router = APIRouter()
 async def list_identity_providers(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
-        users_schema.UserRead,
+        users_schema.UsersRead,
         Security(auth_security.check_scopes, scopes=["identity_providers:read"]),
     ],
 ):
@@ -36,7 +36,7 @@ async def list_identity_providers(
 
     Args:
         db (Session): SQLAlchemy database session dependency.
-        _check_scopes (users_schema.UserRead): The current authenticated user, validated with the required 'server_settings:read' scope.
+        _check_scopes (users_schema.UsersRead): The current authenticated user, validated with the required 'server_settings:read' scope.
 
     Returns:
         List[IdentityProvider]: A list of all identity providers retrieved from the database.
@@ -51,7 +51,7 @@ async def list_identity_providers(
 )
 async def list_idp_templates(
     _check_scopes: Annotated[
-        users_schema.UserRead,
+        users_schema.UsersRead,
         Security(auth_security.check_scopes, scopes=["identity_providers:read"]),
     ],
 ):
@@ -70,7 +70,7 @@ async def create_identity_provider(
     idp_data: idp_schema.IdentityProviderCreate,
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
-        users_schema.UserRead,
+        users_schema.UsersRead,
         Security(auth_security.check_scopes, scopes=["identity_providers:write"]),
     ],
 ):
@@ -80,7 +80,7 @@ async def create_identity_provider(
     Args:
         idp_data (idp_schema.IdentityProviderCreate): The data required to create a new identity provider.
         db (Session): The database session dependency.
-        _check_scopes (users_schema.UserRead): The authenticated user, validated for the required scopes.
+        _check_scopes (users_schema.UsersRead): The authenticated user, validated for the required scopes.
 
     Returns:
         idp_schema.IdentityProvider: The newly created identity provider object.
@@ -101,7 +101,7 @@ async def update_identity_provider(
     idp_data: idp_schema.IdentityProviderUpdate,
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
-        users_schema.UserRead,
+        users_schema.UsersRead,
         Security(auth_security.check_scopes, scopes=["identity_providers:write"]),
     ],
 ):
@@ -112,7 +112,7 @@ async def update_identity_provider(
         idp_id (int): The unique identifier of the identity provider to update.
         idp_data (idp_schema.IdentityProviderUpdate): The data to update the identity provider with.
         db (Session): SQLAlchemy database session dependency.
-        _check_scopes (users_schema.UserRead): Dependency to ensure the user has the required "server_settings:write" scope.
+        _check_scopes (users_schema.UsersRead): Dependency to ensure the user has the required "server_settings:write" scope.
 
     Returns:
         The updated identity provider object.
@@ -127,7 +127,7 @@ async def update_identity_provider(
 async def delete_identity_provider(
     idp_id: int,
     _check_scopes: Annotated[
-        users_schema.UserRead,
+        users_schema.UsersRead,
         Security(auth_security.check_scopes, scopes=["identity_providers:write"]),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
@@ -137,7 +137,7 @@ async def delete_identity_provider(
 
     Args:
         idp_id (int): The unique identifier of the identity provider to delete.
-        _check_scopes (UserRead): Dependency to ensure the user has the required "server_settings:write" scope.
+        _check_scopes (UsersRead): Dependency to ensure the user has the required "server_settings:write" scope.
         db (Session): SQLAlchemy database session dependency.
 
     Raises:

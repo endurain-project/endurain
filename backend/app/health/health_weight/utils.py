@@ -2,7 +2,7 @@ from typing import cast
 
 from sqlalchemy.orm import Session
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 import health.health_weight.schema as health_weight_schema
 import health.health_weight.crud as health_weight_crud

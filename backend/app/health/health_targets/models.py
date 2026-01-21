@@ -14,7 +14,7 @@ class HealthTargets(Base):
         weight: Target weight in kg.
         steps: Target daily steps count.
         sleep: Target sleep duration in seconds.
-        user: Relationship to User model.
+        user: Relationship to Users model.
     """
 
     __tablename__ = "health_targets"
@@ -44,6 +44,6 @@ class HealthTargets(Base):
         comment="Number of hours slept in seconds",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_targets")
+    users = relationship("Users", back_populates="health_targets")

@@ -9,29 +9,33 @@ from fastapi import (
     status,
     Response,
     Request,
+    Query,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-import session.utils as session_utils
 import auth.security as auth_security
 import auth.utils as auth_utils
 import auth.constants as auth_constants
-import session.crud as session_crud
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.schema as auth_schema
 
 import auth.identity_providers.utils as idp_utils
 
-import users.user.crud as users_crud
-import users.user.utils as users_utils
+import users.users.crud as users_crud
+import users.users.utils as users_utils
+
+import users.users_sessions.utils as users_session_utils
+import users.users_sessions.crud as users_session_crud
+
+import users.users_sessions.rotated_refresh_tokens.utils as users_session_rotated_tokens_utils
+
 import profile.utils as profile_utils
 
 import core.database as core_database
+import core.logger as core_logger
 import core.rate_limit as core_rate_limit
-
-import session.rotated_refresh_tokens.utils as rotated_tokens_utils
 
 # Define the API router
 router = APIRouter()
@@ -63,6 +67,8 @@ async def login_for_access_token(
         Session,
         Depends(core_database.get_db),
     ],
+    code_challenge: Annotated[str | None, Query()] = None,
+    code_challenge_method: Annotated[str | None, Query()] = None,
 ):
     """
     Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
@@ -79,6 +85,11 @@ async def login_for_access_token(
     and returns an MFA-required response. Otherwise, it completes the login process and returns
     the required information.
 
+    PKCE Support (Mobile):
+    - Mobile clients can optionally provide code_challenge and code_challenge_method
+    - For mobile clients with PKCE parameters, tokens are not returned directly
+    - Instead, a session_id is returned for secure token exchange via /session/{session_id}/tokens
+
     Args:
         response: The HTTP response object
         request: The HTTP request object
@@ -89,11 +100,14 @@ async def login_for_access_token(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
+        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
+        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
         Union[auth_schema.MFARequiredResponse, dict, str]:
             - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
-            - If MFA is not required, proceeds with normal login via auth_utils.complete_login()
+            - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
+            - If MFA is not required and no PKCE, proceeds with normal login via auth_utils.complete_login()
 
     Raises:
         HTTPException: If authentication fails, user is inactive, or account is locked
@@ -151,7 +165,21 @@ async def login_for_access_token(
     # Reset failed login attempts counter
     failed_attempts.reset_attempts(form_data.username)
 
-    # If no MFA required, proceed with normal login
+    # Mobile clients with PKCE use secure token exchange flow
+    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
+    if client_type == "mobile" and code_challenge and code_challenge_method:
+        # Use PKCE exchange flow - tokens obtained via /session/{session_id}/tokens
+        return auth_utils.create_mobile_pkce_session_response(
+            response,
+            request,
+            user,
+            code_challenge,
+            code_challenge_method,
+            password_hasher,
+            db,
+        )
+
+    # Web clients and mobile without PKCE get tokens directly
     return auth_utils.complete_login(
         response, request, user, client_type, password_hasher, token_manager, db
     )
@@ -183,12 +211,19 @@ async def verify_mfa_and_login(
         Session,
         Depends(core_database.get_db),
     ],
+    code_challenge: Annotated[str | None, Query()] = None,
+    code_challenge_method: Annotated[str | None, Query()] = None,
 ):
     """
     Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
     the authentication process if the code is valid.
+
+    PKCE Support (Mobile):
+    - Mobile clients can optionally provide code_challenge and code_challenge_method
+    - For mobile clients with PKCE parameters, tokens are not returned directly
+    - Instead, a session_id is returned for secure token exchange via /session/{session_id}/tokens
 
     Args:
         response: The HTTP response object
@@ -200,9 +235,11 @@ async def verify_mfa_and_login(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
+        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
+        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Result from auth_utils.complete_login()
+        Result from auth_utils.complete_login() or PKCE session response
 
     Raises:
         HTTPException: If no pending login found, MFA code is invalid, or user not found
@@ -222,6 +259,9 @@ async def verify_mfa_and_login(
     # Check if there's a pending MFA login for this username
     user_id = pending_mfa_store.get_pending_login(mfa_request.username)
     if not user_id:
+        core_logger.print_to_log(
+            f"No pending MFA login found for username {mfa_request.username}", "warning"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No pending MFA login found for this username",
@@ -233,6 +273,10 @@ async def verify_mfa_and_login(
     ):
         # Record failed attempt and apply lockout if threshold exceeded
         failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
+        core_logger.print_to_log(
+            f"Invalid MFA code for {mfa_request.username}. Failed attempts: {failed_count}",
+            "warning",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid MFA code, backup code or backup code already used. Failed attempts: {failed_count}.",
@@ -242,8 +286,14 @@ async def verify_mfa_and_login(
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
         pending_mfa_store.delete_pending_login(mfa_request.username)
+
+        core_logger.print_to_log(
+            f"User ID {user_id} not found during MFA verification", "warning"
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to authenticate",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     # Check if the user is still active
@@ -256,7 +306,21 @@ async def verify_mfa_and_login(
     # Clean up pending login
     pending_mfa_store.delete_pending_login(mfa_request.username)
 
-    # Complete the login
+    # Mobile clients with PKCE use secure token exchange flow
+    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
+    if client_type == "mobile" and code_challenge and code_challenge_method:
+        # Use PKCE exchange flow - tokens obtained via /session/{session_id}/tokens
+        return auth_utils.create_mobile_pkce_session_response(
+            response,
+            request,
+            user,
+            code_challenge,
+            code_challenge_method,
+            password_hasher,
+            db,
+        )
+
+    # Web clients and mobile without PKCE get tokens directly
     return auth_utils.complete_login(
         response, request, user, client_type, password_hasher, token_manager, db
     )
@@ -332,7 +396,7 @@ async def refresh_token(
                        user is inactive, or CSRF token is invalid (when provided).
     """
     # Get the session from the database
-    session = session_crud.get_session_by_id(token_session_id, db)
+    session = users_session_crud.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
     if session is None:
@@ -343,7 +407,7 @@ async def refresh_token(
         )
 
     # Validate session hasn't exceeded idle or absolute timeout
-    session_utils.validate_session_timeout(session)
+    users_session_utils.validate_session_timeout(session)
 
     # Verify CSRF token for web clients only
     # Mobile clients don't use CSRF tokens
@@ -362,16 +426,25 @@ async def refresh_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+    # Verify session has a refresh token (not pending PKCE exchange)
+    if not session.refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Check for token reuse BEFORE validating token
-    # Hash the incoming token to compare with rotated tokens
-    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
-    is_reused, in_grace = rotated_tokens_utils.check_token_reuse(
-        hashed_refresh_token, db
+    # Uses HMAC-SHA256 internally for deterministic, secure lookup
+    is_reused, in_grace = users_session_rotated_tokens_utils.check_token_reuse(
+        refresh_token_value, db
     )
 
     if is_reused and not in_grace:
         # Token theft detected - invalidate entire family
-        rotated_tokens_utils.invalidate_token_family(session.token_family_id, db)
+        users_session_rotated_tokens_utils.invalidate_token_family(
+            session.token_family_id, db
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token reuse detected. All sessions invalidated.",
@@ -391,9 +464,12 @@ async def refresh_token(
     user = users_crud.get_user_by_id(token_user_id, db)
 
     if user is None:
+        core_logger.print_to_log(
+            f"User ID {token_user_id} not found during token refresh", "warning"
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to authenticate",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -402,8 +478,10 @@ async def refresh_token(
 
     # Store old refresh token BEFORE rotating
     # This enables detection if the old token is reused later
-    rotated_tokens_utils.store_rotated_token(
-        session.refresh_token,
+    # Note: We store the raw token value; store_rotated_token
+    # hashes it with HMAC-SHA256 for secure, deterministic lookup
+    users_session_rotated_tokens_utils.store_rotated_token(
+        refresh_token_value,
         session.token_family_id,
         session.rotation_count,
         db,
@@ -422,7 +500,7 @@ async def refresh_token(
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
     # and updates last_rotation_at
-    session_utils.edit_session(
+    users_session_utils.edit_session(
         session,
         request,
         new_refresh_token,
@@ -434,26 +512,38 @@ async def refresh_token(
     # Opportunistically refresh IdP tokens for all linked identity providers
     await idp_utils.refresh_idp_tokens_if_needed(user.id, db)
 
-    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
-    response.set_cookie(
-        key="endurain_refresh_token",
-        value=new_refresh_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="strict",
-    )
+    # Token delivery based on client type
+    if client_type == "web":
+        # Web: Refresh token as httpOnly cookie
+        secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
+        response.set_cookie(
+            key="endurain_refresh_token",
+            value=new_refresh_token,
+            expires=datetime.now(timezone.utc)
+            + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+            httponly=True,
+            path="/",
+            secure=secure,
+            samesite="strict",
+        )
 
-    # Return tokens in response body for in-memory storage
-    return {
-        "session_id": session_id,
-        "access_token": new_access_token,
-        "csrf_token": new_csrf_token,
-        "token_type": "bearer",
-        "expires_in": int(new_access_token_exp.timestamp()),
-    }
+        # Return access token and CSRF token in body
+        return {
+            "session_id": session_id,
+            "access_token": new_access_token,
+            "csrf_token": new_csrf_token,
+            "token_type": "bearer",
+            "expires_in": int(new_access_token_exp.timestamp()),
+        }
+    else:
+        # Mobile: All tokens in JSON response body
+        return {
+            "session_id": session_id,
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer",
+            "expires_in": int(new_access_token_exp.timestamp()),
+        }
 
 
 @router.post("/logout")
@@ -502,10 +592,18 @@ async def logout(
         HTTPException: If the client type is invalid (403 Forbidden).
     """
     # Get the session from the database
-    session = session_crud.get_session_by_id(token_session_id, db)
+    session = users_session_crud.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
     if session is not None:
+        # Verify session has a refresh token (not pending PKCE exchange)
+        if not session.refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Tokens not yet exchanged via PKCE. Cannot logout incomplete session.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Verify the refresh token
         is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
 
@@ -518,7 +616,7 @@ async def logout(
             )
 
         # Delete the session from the database
-        session_crud.delete_session(session.id, token_user_id, db)
+        users_session_crud.delete_session(session.id, token_user_id, db)
 
         # Clear all IdP refresh tokens for security
         await idp_utils.clear_all_idp_tokens(token_user_id, db)

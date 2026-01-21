@@ -90,7 +90,7 @@ const chartData = computed(() => {
   const labels = []
 
   for (const HealthWeight of sortedWeight) {
-    if (Number(authStore?.user?.units) === 1) {
+    if (authStore?.user?.units === 'metric') {
       data.push(HealthWeight.weight)
     } else {
       data.push(kgToLbs(HealthWeight.weight))
@@ -101,7 +101,7 @@ const chartData = computed(() => {
   }
 
   let label = ''
-  if (Number(authStore?.user?.units) === 1) {
+  if (authStore?.user?.units === 'metric') {
     label = t('generalItems.labelWeightInKg')
   } else {
     label = t('generalItems.labelWeightInLbs')
@@ -129,12 +129,12 @@ const chartData = computed(() => {
   // Add target line if weight target exists
   if (props.userHealthTargets?.weight != null) {
     const targetWeight =
-      Number(authStore?.user?.units) === 1
+      authStore?.user?.units === 'metric'
         ? props.userHealthTargets.weight
         : kgToLbs(props.userHealthTargets.weight)
 
     const targetLabel =
-      Number(authStore?.user?.units) === 1
+      authStore?.user?.units === 'metric'
         ? t('generalItems.labelWeightTargetInKg')
         : t('generalItems.labelWeightTargetInLbs')
 

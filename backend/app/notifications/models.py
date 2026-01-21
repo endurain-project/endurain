@@ -37,5 +37,5 @@ class Notification(Base):
         comment="Notification creation date (DateTime)",
     )
 
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="notifications")
+    # Define a relationship to the Users model
+    users = relationship("Users", back_populates="notifications")

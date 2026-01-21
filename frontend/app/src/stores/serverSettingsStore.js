@@ -5,11 +5,11 @@ export const useServerSettingsStore = defineStore('serverSettings', {
   state: () => ({
     serverSettings: {
       id: 1,
-      units: 1,
+      units: 'metric',
       public_shareable_links: false,
       public_shareable_links_user_info: false,
       login_photo_set: false,
-      currency: 1,
+      currency: 'euro',
       num_records_per_page: 5,
       signup_enabled: false,
       signup_require_admin_approval: null,

@@ -8,15 +8,19 @@
         <!-- Units -->
         <label>{{ $t('settingsServerSettingsZoneComponent.unitsLabel') }}</label>
         <select class="form-select" name="serverSettingsUnits" v-model="units" required>
-          <option :value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
-          <option :value="2">{{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}</option>
+          <option value="metric">
+            {{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}
+          </option>
+          <option value="imperial">
+            {{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}
+          </option>
         </select>
         <!-- Currency -->
         <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.currencyLabel') }}</label>
         <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
-          <option :value="1">{{ $t('generalItems.currencyEuro') }}</option>
-          <option :value="2">{{ $t('generalItems.currencyDollar') }}</option>
-          <option :value="3">{{ $t('generalItems.currencyPound') }}</option>
+          <option value="euro">{{ $t('generalItems.currencyEuro') }}</option>
+          <option value="dollar">{{ $t('generalItems.currencyDollar') }}</option>
+          <option value="pound">{{ $t('generalItems.currencyPound') }}</option>
         </select>
         <!-- Num records per list -->
         <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.numRecordsLabel') }}</label>
@@ -348,6 +352,26 @@
           required
           @blur="updateServerSettings"
         />
+        <!-- Tile server Attribution -->
+        <label class="form-label mt-1" for="serverSettingsTileserverApiKey">{{
+          $t('settingsServerSettingsZoneComponent.tileserverApiKeyLabel')
+        }}</label>
+        <input
+          type="text"
+          class="form-control"
+          name="serverSettingsTileserverApiKey"
+          :placeholder="$t('settingsServerSettingsZoneComponent.tileserverApiKeyLabel')"
+          v-model="tileserverApiKey"
+          required
+          @blur="updateServerSettings"
+        />
+        <!-- API key warnings -->
+        <div class="alert alert-warning mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.tileApiKeyWarning')
+          }}</span>
+        </div>
         <!-- Map Background Color -->
         <label class="form-label mt-1" for="serverSettingsMapBackgroundColor">{{
           $t('settingsServerSettingsZoneComponent.mapBackgroundColorLabel')
@@ -455,6 +479,7 @@ const localLoginEnabled = ref(serverSettingsStore.serverSettings.local_login_ena
 const ssoAutoRedirect = ref(serverSettingsStore.serverSettings.sso_auto_redirect)
 const tileserverUrl = ref(serverSettingsStore.serverSettings.tileserver_url)
 const tileserverAttribution = ref(serverSettingsStore.serverSettings.tileserver_attribution)
+const tileserverApiKey = ref(serverSettingsStore.serverSettings.tileserver_api_key)
 const mapBackgroundColor = ref(serverSettingsStore.serverSettings.map_background_color)
 const passwordType = ref(serverSettingsStore.serverSettings.password_type)
 const passwordLengthRegularUsers = ref(
@@ -491,6 +516,7 @@ async function updateServerSettings() {
     sso_auto_redirect: ssoAutoRedirect.value,
     tileserver_url: tileserverUrl.value,
     tileserver_attribution: tileserverAttribution.value,
+    tileserver_api_key: tileserverApiKey.value,
     map_background_color: mapBackgroundColor.value,
     password_type: passwordType.value,
     password_length_regular_users: passwordLengthRegularUsers.value,
@@ -521,8 +547,8 @@ const submitUploadFileForm = async (file) => {
       // Set the login photo set to true
       loginPhotoSet.value = true
 
-      // Update the server settings in the store and DB
-      await updateServerSettings()
+      // Update the server settings in the store
+      serverSettingsStore.serverSettings.login_photo_set = true
 
       // Set the success message
       notification.resolve(t('settingsServerSettingsZoneComponent.successPhotoUpload'))
@@ -543,8 +569,8 @@ const submitDeleteLoginPhoto = async () => {
     // Set the login photo set to false
     loginPhotoSet.value = false
 
-    // Update the server settings in the store and DB
-    await updateServerSettings()
+    // Update the server settings in the store
+    serverSettingsStore.serverSettings.login_photo_set = false
 
     // Set the success message
     notification.resolve(t('settingsServerSettingsZoneComponent.successPhotoDelete'))
@@ -578,6 +604,7 @@ onMounted(async () => {
     ssoAutoRedirect.value = serverSettingsStore.serverSettings.sso_auto_redirect
     tileserverUrl.value = serverSettingsStore.serverSettings.tileserver_url
     tileserverAttribution.value = serverSettingsStore.serverSettings.tileserver_attribution
+    tileserverApiKey.value = serverSettingsStore.serverSettings.tileserver_api_key
     mapBackgroundColor.value = serverSettingsStore.serverSettings.map_background_color
     passwordType.value = serverSettingsStore.serverSettings.password_type
     passwordLengthRegularUsers.value =
@@ -610,6 +637,7 @@ watch(
     ssoAutoRedirect,
     tileserverUrl,
     tileserverAttribution,
+    tileserverApiKey,
     mapBackgroundColor,
     passwordType,
     passwordLengthRegularUsers,
@@ -631,6 +659,7 @@ watch(selectedTileTemplate, async (newTemplate) => {
     if (templateData) {
       tileserverUrl.value = templateData.url_template
       tileserverAttribution.value = templateData.attribution
+      tileserverApiKey.value = null
       mapBackgroundColor.value = templateData.map_background_color
       await updateServerSettings()
     }

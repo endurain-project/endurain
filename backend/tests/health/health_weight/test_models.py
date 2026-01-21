@@ -111,7 +111,7 @@ class TestHealthWeightModel:
         Test HealthWeight model has user relationship.
         """
         # Assert
-        assert hasattr(health_weight_models.HealthWeight, "user")
+        assert hasattr(health_weight_models.HealthWeight, "users")
 
     def test_health_weight_model_docstring(self):
         """

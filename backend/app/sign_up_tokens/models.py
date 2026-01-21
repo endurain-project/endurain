@@ -37,5 +37,5 @@ class SignUpToken(Base):
         comment="Token usage status (False - unused, True - used)",
     )
 
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="sign_up_tokens")
+    # Define a relationship to the Users model
+    users = relationship("Users", back_populates="sign_up_tokens")

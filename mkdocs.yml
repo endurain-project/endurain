@@ -25,6 +25,14 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            separate_signature: true
 nav:
   - Home: index.md
   - Hosting Guide:
@@ -44,3 +52,21 @@ nav:
     - Authentication: developer-guide/authentication.md
     - Supported types: developer-guide/supported-types.md
   - Gallery: gallery.md
+  - Reference:
+    - Health:
+      - Health sleep: reference/health/health_sleep.md
+      - Health steps: reference/health/health_steps.md
+      - Health targets: reference/health/health_targets.md
+      - Health weight: reference/health/health_weight.md
+    - Profile: reference/profile.md
+    - Users:
+      - Users: reference/users/users.md
+      - Users default gear: reference/users/users_default_gear.md
+      - Users goals: reference/users/users_goals.md
+      - Users identity providers: reference/users/users_identity_providers.md
+      - Users integrations: reference/users/users_integrations.md
+      - Users privacy settings: reference/users/users_privacy_settings.md
+      - Users sessions:
+        - Users sessions: reference/users/users_sessions/users_sessions.md
+        - Users sessions rotated refresh tokens: reference/users/users_sessions/rotated_refresh_tokens.md
+    - WebSocket: reference/websocket.md

@@ -284,7 +284,7 @@
         />
       </div>
       <div v-else>
-        <NoItemsFoundComponents />
+        <NoItemsFoundComponents :show-shadow="false" />
       </div>
     </div>
   </div>
@@ -323,7 +323,7 @@ const newPassword = ref('')
 const newPasswordRepeat = ref('')
 const passwordType = serverSettingsStore.serverSettings.password_type
 const passMinLength =
-  authStore.user.access_type === 2
+  authStore.user.access_type === 'admin'
     ? serverSettingsStore.serverSettings.password_length_admin_users
     : serverSettingsStore.serverSettings.password_length_regular_users
 const passRequirements = buildPasswordRequirements(passwordType, passMinLength)

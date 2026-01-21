@@ -203,13 +203,13 @@
               v-model="newEditUserGender"
               required
             >
-              <option :value="1">
+              <option value="male">
                 {{ $t('generalItems.genderMale') }}
               </option>
-              <option :value="2">
+              <option value="female">
                 {{ $t('generalItems.genderFemale') }}
               </option>
-              <option :value="3">
+              <option value="unspecified">
                 {{ $t('generalItems.genderUnspecified') }}
               </option>
             </select>
@@ -218,10 +218,10 @@
               ><b>* {{ $t('usersAddEditUserModalComponent.addEditUserModalUnitsLabel') }}</b></label
             >
             <select class="form-select" name="userUnitsAddEdit" v-model="newEditUserUnits" required>
-              <option :value="1">
+              <option value="metric">
                 {{ $t('usersAddEditUserModalComponent.addEditUserModalUnitsOption1') }}
               </option>
-              <option :value="2">
+              <option value="imperial">
                 {{ $t('usersAddEditUserModalComponent.addEditUserModalUnitsOption2') }}
               </option>
             </select>
@@ -237,12 +237,12 @@
               v-model="newEditUserCurrency"
               required
             >
-              <option :value="1">{{ $t('generalItems.currencyEuro') }}</option>
-              <option :value="2">{{ $t('generalItems.currencyDollar') }}</option>
-              <option :value="3">{{ $t('generalItems.currencyPound') }}</option>
+              <option value="euro">{{ $t('generalItems.currencyEuro') }}</option>
+              <option value="dollar">{{ $t('generalItems.currencyDollar') }}</option>
+              <option value="pound">{{ $t('generalItems.currencyPound') }}</option>
             </select>
             <!-- height fields -->
-            <div v-if="Number(authStore?.user?.units) === 1">
+            <div v-if="authStore?.user?.units === 'metric'">
               <label for="userHeightAddEditCms"
                 ><b
                   >{{ $t('usersAddEditUserModalComponent.addEditUserModalHeightLabel') }} ({{
@@ -356,6 +356,7 @@
               <option value="nl">{{ $t('generalItems.languageOption6') }}</option>
               <option value="pt">{{ $t('generalItems.languageOption3') }}</option>
               <option value="sl">{{ $t('generalItems.languageOption12') }}</option>
+              <option value="sv">{{ $t('generalItems.languageOption13') }}</option>
               <option value="es">{{ $t('generalItems.languageOption7') }}</option>
               <option value="us">{{ $t('generalItems.languageOption1') }}</option>
             </select>
@@ -374,13 +375,13 @@
               v-model="newEditUserFirstDayOfWeek"
               required
             >
-              <option :value="0">{{ $t('generalItems.firstDayOfWeekOption0') }}</option>
-              <option :value="1">{{ $t('generalItems.firstDayOfWeekOption1') }}</option>
-              <option :value="2">{{ $t('generalItems.firstDayOfWeekOption2') }}</option>
-              <option :value="3">{{ $t('generalItems.firstDayOfWeekOption3') }}</option>
-              <option :value="4">{{ $t('generalItems.firstDayOfWeekOption4') }}</option>
-              <option :value="5">{{ $t('generalItems.firstDayOfWeekOption5') }}</option>
-              <option :value="6">{{ $t('generalItems.firstDayOfWeekOption6') }}</option>
+              <option value="sunday">{{ $t('generalItems.firstDayOfWeekOption0') }}</option>
+              <option value="monday">{{ $t('generalItems.firstDayOfWeekOption1') }}</option>
+              <option value="tuesday">{{ $t('generalItems.firstDayOfWeekOption2') }}</option>
+              <option value="wednesday">{{ $t('generalItems.firstDayOfWeekOption3') }}</option>
+              <option value="thursday">{{ $t('generalItems.firstDayOfWeekOption4') }}</option>
+              <option value="friday">{{ $t('generalItems.firstDayOfWeekOption5') }}</option>
+              <option value="saturday">{{ $t('generalItems.firstDayOfWeekOption6') }}</option>
             </select>
             <!-- access type fields -->
             <div v-if="action != 'profile'">
@@ -395,10 +396,10 @@
                 v-model="newEditUserAccessType"
                 required
               >
-                <option :value="1">
+                <option value="regular">
                   {{ $t('usersAddEditUserModalComponent.addEditUserModalUserTypeOption1') }}
                 </option>
-                <option :value="2">
+                <option value="admin">
                   {{ $t('usersAddEditUserModalComponent.addEditUserModalUserTypeOption2') }}
                 </option>
               </select>
@@ -414,6 +415,52 @@
                 class="form-select"
                 name="userActiveAddEdit"
                 v-model="newEditUserActive"
+                required
+              >
+                <option :value="true">
+                  {{ $t('generalItems.yes') }}
+                </option>
+                <option :value="false">
+                  {{ $t('generalItems.no') }}
+                </option>
+              </select>
+            </div>
+            <!-- user email verified fields -->
+            <div v-if="action != 'profile'">
+              <label for="userEmailVerifiedAddEdit"
+                ><b
+                  >*
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalIsEmailVerifiedLabel') }}</b
+                ></label
+              >
+              <select
+                class="form-select"
+                name="userEmailVerifiedAddEdit"
+                v-model="newEditUserEmailVerified"
+                required
+              >
+                <option :value="true">
+                  {{ $t('generalItems.yes') }}
+                </option>
+                <option :value="false">
+                  {{ $t('generalItems.no') }}
+                </option>
+              </select>
+            </div>
+            <!-- user pending admin approval fields -->
+            <div v-if="action != 'profile'">
+              <label for="userPendingAdminApprovalAddEdit"
+                ><b
+                  >*
+                  {{
+                    $t('usersAddEditUserModalComponent.addEditUserModalIsPendingAdminApprovalLabel')
+                  }}</b
+                ></label
+              >
+              <select
+                class="form-select"
+                name="userPendingAdminApprovalAddEdit"
+                v-model="newEditUserPendingAdminApproval"
                 required
               >
                 <option :value="true">
@@ -514,14 +561,14 @@ const newEditUserName = ref('')
 const newEditUserEmail = ref('')
 const newEditUserCity = ref(null)
 const newEditUserBirthDate = ref(null)
-const newEditUserGender = ref(1)
+const newEditUserGender = ref('male')
 const newEditUserUnits = ref(serverSettingsStore.serverSettings.units)
 const newEditUserCurrency = ref(serverSettingsStore.serverSettings.currency)
 const newEditUserHeightCms = ref(null)
 const newEditUserHeightFeet = ref(null)
 const newEditUserHeightInches = ref(null)
 const newEditUserMaxHeartRate = ref(null)
-const newEditUserFirstDayOfWeek = ref(1)
+const newEditUserFirstDayOfWeek = ref('monday')
 const isFeetValid = computed(
   () => newEditUserHeightFeet.value >= 0 && newEditUserHeightFeet.value <= 10
 )
@@ -529,8 +576,10 @@ const isInchesValid = computed(
   () => newEditUserHeightInches.value >= 0 && newEditUserHeightInches.value <= 11
 )
 const newEditUserPreferredLanguage = ref('us')
-const newEditUserAccessType = ref(1)
+const newEditUserAccessType = ref('regular')
 const newEditUserActive = ref(true)
+const newEditUserEmailVerified = ref(false)
+const newEditUserPendingAdminApproval = ref(true)
 const newEditUserPhotoPath = ref(null)
 const isUsernameExists = ref(true)
 const isEmailExists = ref(true)
@@ -545,7 +594,7 @@ const isPasswordValid = computed(() => {
 
   const passwordType = serverSettingsStore.serverSettings.password_type
   const minLength =
-    newEditUserAccessType.value === 2
+    newEditUserAccessType.value === 'admin'
       ? serverSettingsStore.serverSettings.password_length_admin_users
       : serverSettingsStore.serverSettings.password_length_regular_users
   const requirements = buildPasswordRequirements(passwordType, minLength)
@@ -575,6 +624,8 @@ if (props.user) {
   newEditUserFirstDayOfWeek.value = props.user.first_day_of_week
   newEditUserAccessType.value = props.user.access_type
   newEditUserActive.value = props.user.active
+  newEditUserEmailVerified.value = props.user.email_verified
+  newEditUserPendingAdminApproval.value = props.user.pending_admin_approval
   newEditUserPhotoPath.value = props.user.photo_path
   if (props.user.height) {
     const { feet, inches } = cmToFeetInches(props.user.height)
@@ -651,12 +702,15 @@ async function handleFileChange(event) {
 
 async function submitDeleteUserPhoto() {
   try {
-    emit('userPhotoDeleted', props.user.id)
+    await users.deleteUserPhoto(props.user.id)
 
-    if (props.action === 'edit') {
-      await users.deleteUserPhoto(props.user.id)
-      push.success(t('usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto'))
+    if (props.user.id === authStore.user.id || props.action === 'profile') {
+      authStore.setPhotoPath(null)
     }
+
+    emit('editedUser', { ...props.user, photo_path: null })
+
+    push.success(t('usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto'))
   } catch (error) {
     push.error(
       `${t('usersAddEditUserModalComponent.addEditUserModalErrorDeleteUserPhoto')} - ${error}`
@@ -684,6 +738,8 @@ async function submitAddUserForm() {
         photo_path: null,
         first_day_of_week: newEditUserFirstDayOfWeek.value,
         active: newEditUserActive.value,
+        email_verified: newEditUserEmailVerified.value,
+        pending_admin_approval: newEditUserPendingAdminApproval.value,
         password: newUserPassword.value
       }
       const createdUser = await users.createUser(data)
@@ -728,12 +784,15 @@ async function submitEditUserForm() {
       first_day_of_week: newEditUserFirstDayOfWeek.value,
       access_type: newEditUserAccessType.value,
       photo_path: newEditUserPhotoPath.value,
-      active: newEditUserActive.value
+      active: newEditUserActive.value,
+      email_verified: newEditUserEmailVerified.value,
+      pending_admin_approval: newEditUserPendingAdminApproval.value
     }
     if (props.action === 'profile') {
       await profile.editProfile(data)
     } else {
-      await users.editUser(data.id, data)
+      const editedUser = await users.editUser(data.id, data)
+      data.external_auth_count = editedUser.external_auth_count
     }
     if (newEditUserPhotoFile.value) {
       try {
@@ -761,7 +820,7 @@ async function submitEditUserForm() {
 }
 
 function handleSubmit() {
-  if (Number(authStore?.user?.units) === 1) {
+  if (authStore?.user?.units === 'metric') {
     if (
       (props.user && newEditUserHeightCms.value !== props.user.height) ||
       props.action === 'add'

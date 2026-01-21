@@ -80,7 +80,7 @@ class TestHealthTargetsModel:
         Test HealthTargets model has relationship to User.
         """
         # Assert
-        assert hasattr(health_targets_models.HealthTargets, "user")
+        assert hasattr(health_targets_models.HealthTargets, "users")
 
     def test_health_targets_model_weight_precision(self):
         """

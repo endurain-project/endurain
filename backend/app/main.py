@@ -48,7 +48,7 @@ async def startup_event():
     command.upgrade(alembic_cfg, "head")
 
     # Migration check
-    core_migrations.check_migrations()
+    await core_migrations.check_migrations()
 
     # Create a scheduler to run background jobs
     core_scheduler.start_scheduler()

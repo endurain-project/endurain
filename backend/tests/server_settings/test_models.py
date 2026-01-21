@@ -54,7 +54,7 @@ class TestServerSettingsModel:
         """Test default values for ServerSettings fields."""
         # Test defaults by inspecting column definitions
         assert server_settings_models.ServerSettings.id.default.arg == 1
-        assert server_settings_models.ServerSettings.units.default.arg == 1
+        assert server_settings_models.ServerSettings.units.default.arg == "metric"
         assert (
             server_settings_models.ServerSettings.public_shareable_links.default.arg
             is False
@@ -66,7 +66,7 @@ class TestServerSettingsModel:
         assert (
             server_settings_models.ServerSettings.login_photo_set.default.arg is False
         )
-        assert server_settings_models.ServerSettings.currency.default.arg == 1
+        assert server_settings_models.ServerSettings.currency.default.arg == "euro"
         assert (
             server_settings_models.ServerSettings.num_records_per_page.default.arg == 25
         )

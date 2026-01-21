@@ -1,3 +1,15 @@
+"""Profile utility functions for MFA and data operations.
+
+This module provides helper functions for:
+- TOTP secret generation and verification
+- QR code generation for MFA setup
+- MFA enable/disable/verify workflows
+- SQLAlchemy to dict conversion
+- Memory and timeout monitoring
+- ZIP file operations
+- Performance configuration management
+"""
+
 import json
 import pyotp
 import qrcode
@@ -8,12 +20,12 @@ import psutil
 from io import BytesIO
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Type, Any, Dict, TypeVar
+from typing import Any, TypeVar
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import profile.schema as profile_schema
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 import auth.password_hasher as auth_password_hasher
 import auth.mfa_backup_codes.crud as mfa_backup_codes_crud
 import auth.mfa_backup_codes.utils as mfa_backup_codes_utils
@@ -52,7 +64,7 @@ class BasePerformanceConfig:
         self.enable_memory_monitoring = enable_memory_monitoring
 
     @classmethod
-    def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
+    def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
         """
         Get configuration tiers for different memory levels.
 
@@ -65,7 +77,7 @@ class BasePerformanceConfig:
         raise NotImplementedError("Subclasses must implement _get_tier_configs")
 
     @classmethod
-    def get_auto_config(cls: Type[T_PerformanceConfig]) -> T_PerformanceConfig:
+    def get_auto_config(cls: type[T_PerformanceConfig]) -> T_PerformanceConfig:
         """
         Create config automatically based on system memory.
 
@@ -243,7 +255,7 @@ def enable_user_mfa(
         )
 
     # Update user with MFA enabled and secret
-    users_crud.enable_user_mfa(user_id, encrypted_secret, db)
+    users_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
 
     backup_codes = mfa_backup_codes_crud.create_backup_codes(
         user_id, password_hasher, db
@@ -294,7 +306,7 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session) -> None:
         )
 
     # Disable MFA for user
-    users_crud.disable_user_mfa(user_id, db)
+    users_crud.update_user_mfa(user_id, db)
 
     # Delete all backup codes for user
     mfa_backup_codes_crud.delete_user_backup_codes(user_id, db)
@@ -348,12 +360,17 @@ def verify_user_mfa(
 
             if verify_totp(secret, normalized_code):
                 core_logger.print_to_log(
-                    f"User {user_id} verified MFA with TOTP", "info"
+                    f"User {user_id} verified MFA with TOTP", "debug"
                 )
                 return True
-        except Exception as err:
+        except (ValueError, pyotp.OTPError) as err:
             core_logger.print_to_log(
                 f"Error in TOTP verification: {err}", "error", exc=err
+            )
+            return False
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Unknown error in TOTP verification: {err}", "error", exc=err
             )
             return False
 
@@ -392,7 +409,7 @@ def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
 
 
 # Export utility functions
-def sqlalchemy_obj_to_dict(obj):
+def sqlalchemy_obj_to_dict(obj: Any) -> dict[str, Any]:
     """
     Convert SQLAlchemy object to dictionary.
 
@@ -408,8 +425,12 @@ def sqlalchemy_obj_to_dict(obj):
 
 
 def write_json_to_zip(
-    zipf: zipfile.ZipFile, filename: str, data, counts: dict, ensure_ascii: bool = False
-):
+    zipf: zipfile.ZipFile,
+    filename: str,
+    data: dict,
+    counts: dict,
+    ensure_ascii: bool = False,
+) -> None:
     """
     Write JSON data to ZIP file and update counts.
 
@@ -433,7 +454,7 @@ def write_json_to_zip(
 def check_timeout(
     timeout_seconds: int | None,
     start_time: float,
-    exception_class: Type[Exception],
+    exception_class: type[Exception],
     operation_type: str,
 ) -> None:
     """
@@ -534,7 +555,7 @@ def check_memory_usage(
         )
 
 
-def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, int]:
+def initialize_operation_counts(include_user_count: bool = False) -> dict[str, int]:
     """
     Initialize dictionary for tracking operation counts.
 

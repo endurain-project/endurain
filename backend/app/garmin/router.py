@@ -5,7 +5,7 @@ from datetime import datetime, timezone, date
 
 import auth.security as auth_security
 
-import users.user_integrations.crud as user_integrations_crud
+import users.users_integrations.crud as user_integrations_crud
 
 import garmin.utils as garmin_utils
 import garmin.schema as garmin_schema

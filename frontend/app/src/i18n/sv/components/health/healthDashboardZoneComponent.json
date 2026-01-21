@@ -1,0 +1,20 @@
+{
+  "sleep": "Today's sleep",
+  "noSleepTarget": "No sleep target",
+  "restingHeartRate": "Resting heart rate",
+  "avgSkinTemperatureDeviation": "Skin temp. dev.",
+  "weight": "Weight",
+  "noWeightData": "No weight data",
+  "noWeightTarget": "No weight target",
+  "noHeightDefined": "No height defined for user",
+  "bmi": "BMI",
+  "bmiUnderweight": "Underweight",
+  "bmiNormalWeight": "Normal weight",
+  "bmiOverweight": "Overweight",
+  "bmiObesityClass1": "Obesity (Class 1)",
+  "bmiObesityClass2": "Obesity (Class 2)",
+  "bmiObesityClass3": "Extreme Obesity (Class 3)",
+  "steps": "Today's steps",
+  "stepsTargetLabel": "steps",
+  "noStepsTarget": "No steps target"
+}

@@ -23,7 +23,7 @@ class HealthWeight(Base):
         visceral_fat: Visceral fat rating.
         metabolic_age: Calculated metabolic age.
         source: Data source.
-        user: Relationship to User model.
+        user: Relationship to Users model.
     """
 
     __tablename__ = "health_weight"
@@ -92,6 +92,6 @@ class HealthWeight(Base):
         comment="Source of the health weight data",
     )
 
-    # Define a relationship to the User model
+    # Define a relationship to the Users model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_weight")
+    users = relationship("Users", back_populates="health_weight")

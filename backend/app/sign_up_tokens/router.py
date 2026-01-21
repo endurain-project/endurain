@@ -5,12 +5,13 @@ from fastapi import (
     Depends,
     HTTPException,
     status,
+    Request,
 )
 from sqlalchemy.orm import Session
 
-import users.user.crud as users_crud
-import users.user.utils as users_utils
-import users.user.schema as users_schema
+import users.users.crud as users_crud
+import users.users.utils as users_utils
+import users.users.schema as users_schema
 
 import notifications.utils as notifications_utils
 
@@ -21,8 +22,9 @@ import auth.password_hasher as auth_password_hasher
 
 import server_settings.utils as server_settings_utils
 
-import core.database as core_database
 import core.apprise as core_apprise
+import core.database as core_database
+import core.rate_limit as core_rate_limit
 
 import websocket.manager as websocket_manager
 
@@ -31,8 +33,10 @@ router = APIRouter()
 
 
 @router.post("/sign-up/request", status_code=201)
+@core_rate_limit.limiter.limit(core_rate_limit.SIGNUP_LIMIT)
 async def signup(
-    user: users_schema.UserSignup,
+    request: Request,
+    user: users_schema.UsersSignup,
     email_service: Annotated[
         core_apprise.AppriseService,
         Depends(core_apprise.get_email_service),
@@ -51,7 +55,7 @@ async def signup(
     and trigger ancillary actions such as sending verification/approval emails and notifying admins.
 
     Parameters
-    - user (users_schema.UserSignup): The payload containing the user's sign-up information.
+    - user (users_schema.UsersSignup): The payload containing the user's sign-up information.
     - email_service (core_apprise.AppriseService): Injected email service used to send
         verification and admin approval emails.
     - websocket_manager (websocket_manager.WebSocketManager): Injected manager used to send
@@ -99,7 +103,7 @@ async def signup(
         callers and tests should account for these side effects (e.g., by using transactions, fakes, or mocks).
     """
     # Get server settings to check if signup is enabled
-    server_settings = server_settings_utils.get_server_settings(db)
+    server_settings = server_settings_utils.get_server_settings_or_404(db)
 
     # Check if signup is enabled
     if not server_settings.signup_enabled:
@@ -165,7 +169,7 @@ async def verify_email(
     ],
 ):
     # Get server settings
-    server_settings = server_settings_utils.get_server_settings(db)
+    server_settings = server_settings_utils.get_server_settings_or_404(db)
     if not server_settings.signup_require_email_verification:
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,

@@ -22,7 +22,7 @@ class TestGetHealthSleepNumber:
         # Arrange
         user_id = 1
         expected_count = 5
-        mock_db.execute.return_value.scalar.return_value = expected_count
+        mock_db.execute.return_value.scalar_one.return_value = expected_count
 
         # Act
         result = health_sleep_crud.get_health_sleep_number(user_id, mock_db)
@@ -37,7 +37,7 @@ class TestGetHealthSleepNumber:
         """
         # Arrange
         user_id = 1
-        mock_db.execute.return_value.scalar.return_value = 0
+        mock_db.execute.return_value.scalar_one.return_value = 0
 
         # Act
         result = health_sleep_crud.get_health_sleep_number(user_id, mock_db)

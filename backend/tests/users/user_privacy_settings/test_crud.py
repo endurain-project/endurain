@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
-import users.user_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.schema as users_privacy_settings_schema
+import users.users_privacy_settings.models as users_privacy_settings_models
 
 
 class TestGetUserPrivacySettingsByUserId:
@@ -163,7 +163,7 @@ class TestEditUserPrivacySettings:
         # Arrange
         user_id = 1
         update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
-            default_activity_visibility=2,
+            default_activity_visibility=users_privacy_settings_schema.ActivityVisibility.PRIVATE,
             hide_activity_map=True,
         )
 
@@ -239,7 +239,7 @@ class TestEditUserPrivacySettings:
         # Arrange
         user_id = 1
         update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
-            default_activity_visibility=1,
+            default_activity_visibility=users_privacy_settings_schema.ActivityVisibility.FOLLOWERS,
             hide_activity_start_time=True,
             hide_activity_location=True,
             hide_activity_map=True,
@@ -305,7 +305,7 @@ class TestEditUserPrivacySettings:
         # Arrange
         user_id = 1
         update_data = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
-            default_activity_visibility=2
+            default_activity_visibility=users_privacy_settings_schema.ActivityVisibility.PRIVATE
         )
 
         mock_db_settings = MagicMock(

@@ -118,7 +118,7 @@ const searchUsername = ref('')
 const performSearch = debounce(async () => {
   if (!searchUsername.value) {
     pageNumber.value = 1
-    await fetchUsers()
+    await updateUsers()
     return
   }
   try {
@@ -139,18 +139,11 @@ function setPageNumber(page) {
 async function updateUsers() {
   try {
     isUsersUpdatingLoading.value = true
-    usersArray.value = await users.getUsersWithPagination(pageNumber.value, numRecords)
-    isUsersUpdatingLoading.value = false
-  } catch (error) {
-    push.error(`${t('settingsUsersZone.errorFetchingUsers')} - ${error}`)
-  }
-}
-
-async function fetchUsers() {
-  try {
-    updateUsers()
-    usersNumber.value = await users.getUsersNumber()
+    const usersDataPagination = await users.getUsersWithPagination(pageNumber.value, numRecords)
+    usersArray.value = usersDataPagination.records
+    usersNumber.value = usersDataPagination.total
     totalPages.value = Math.ceil(usersNumber.value / numRecords)
+    isUsersUpdatingLoading.value = false
   } catch (error) {
     push.error(`${t('settingsUsersZone.errorFetchingUsers')} - ${error}`)
   }
@@ -188,7 +181,7 @@ onMounted(async () => {
   if (route.query.username) {
     searchUsername.value = route.query.username
   } else {
-    await fetchUsers()
+    await updateUsers()
     isLoading.value = false
   }
 })

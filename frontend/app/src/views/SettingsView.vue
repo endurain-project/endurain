@@ -5,20 +5,20 @@
     <!-- Include the SettingsSideBarComponent -->
     <SettingsSideBarComponent
       :activeSection="activeSection"
-      @update-active-section="updateActiveSection"
+      @updateActiveSection="updateActiveSection"
     />
 
     <!-- Include the SettingsUserZone -->
-    <SettingsUsersZone v-if="activeSection === 'users' && authStore.user.access_type == 2" />
+    <SettingsUsersZone v-if="activeSection === 'users' && authStore.user.access_type === 'admin'" />
 
     <!-- Include the SettingsUserZone -->
     <SettingsServerSettingsZone
-      v-if="activeSection === 'serverSettings' && authStore.user.access_type == 2"
+      v-if="activeSection === 'serverSettings' && authStore.user.access_type === 'admin'"
     />
 
     <!-- Include the SettingsIdentityProvidersZone -->
     <SettingsIdentityProvidersZone
-      v-if="activeSection === 'identityProviders' && authStore.user.access_type == 2"
+      v-if="activeSection === 'identityProviders' && authStore.user.access_type === 'admin'"
     />
 
     <!-- Include the SettingsGeneralZone -->
@@ -43,9 +43,9 @@
   <BackButtonComponent />
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 // Importing the store
 import { useAuthStore } from '@/stores/authStore'
@@ -68,28 +68,34 @@ import SettingsUserGoals from '../components/Settings/SettingsUserGoals.vue'
 
 const authStore = useAuthStore()
 const route = useRoute()
-const { locale, t } = useI18n()
+const router = useRouter()
+const { t } = useI18n()
 const activeSection = ref('users')
 
-function updateActiveSection(section) {
-  // Update the active section.
+/**
+ * Updates the active section and updates the route query parameter.
+ *
+ * @param section - The section identifier to activate.
+ */
+function updateActiveSection(section: string): void {
   activeSection.value = section
+  router.push({ query: { tab: section } })
 }
 
 onMounted(async () => {
-  if (route.query.tab) {
+  if (route.query.tab && typeof route.query.tab === 'string') {
     if (
       (route.query.tab === 'users' ||
         route.query.tab === 'serverSettings' ||
         route.query.tab === 'identityProviders') &&
-      authStore.user.access_type === 2
+      authStore.user.access_type === 'admin'
     ) {
       activeSection.value = route.query.tab
     } else if (
       (route.query.tab === 'users' ||
         route.query.tab === 'serverSettings' ||
         route.query.tab === 'identityProviders') &&
-      authStore.user.access_type === 1
+      authStore.user.access_type === 'regular'
     ) {
       activeSection.value = 'general'
     } else {
@@ -97,7 +103,7 @@ onMounted(async () => {
     }
   }
 
-  if (authStore.user.access_type === 1) {
+  if (authStore.user.access_type === 'regular') {
     // If the user is not an admin, set the active section to general.
     activeSection.value = 'general'
   }
@@ -107,9 +113,7 @@ onMounted(async () => {
     activeSection.value = 'integrations'
 
     // Set the user object with the strava_linked property set to 1.
-    const user = authStore.user
-    user.is_strava_linked = 1
-    authStore.setUser(user, locale)
+    authStore.setStravaState(1)
 
     // Set the success message and show the success alert.
     push.success(t('settingsIntegrationsZone.successMessageStravaAccountLinked'))
@@ -128,6 +132,9 @@ onMounted(async () => {
 
     try {
       await strava.setUniqueUserStateStravaLink(null)
+
+      // Set the user object with the strava_linked property set to 0.
+      authStore.setStravaState(0)
     } catch (error) {
       // If there is an error, set the error message and show the error alert.
       push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)

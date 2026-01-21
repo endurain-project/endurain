@@ -1,0 +1,13 @@
+{
+  "labelGear": "Utrustning",
+  "labelGearNotSet": "Inte inställt",
+  "modalLabelDeleteGear": "Ta bort utrustning från aktivitet",
+  "modalLabelDeleteGearBody": "Är du säker på att du vill ta bort utrustningen från aktiviteten?",
+  "modalLabelDeleteGearButton": "Ta bort utrustning",
+  "successMessageGearAdded": "Utrustning tillagd till aktivitet",
+  "successMessageGearDeleted": "Utrustning borttagen från aktivitet",
+  "errorMessageDeleteGear": "Fel vid borttagning av utrustning från aktivitet",
+  "errorMessageActivityNotFound": "Aktivitet hittades inte",
+  "alertPrivacyMessage": "Du har dold information i den här aktiviteten. Du kan se den, men andra kan inte se den.",
+  "isHiddenMessage": "Den här aktiviteten är dold. Förmodligen för att det är en dubblett, eller dolts av användaren."
+}

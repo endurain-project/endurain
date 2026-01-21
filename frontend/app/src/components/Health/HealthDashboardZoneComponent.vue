@@ -67,10 +67,10 @@
             <h4>{{ $t('healthDashboardZoneComponent.weight') }}</h4>
           </div>
           <div class="card-body">
-            <h1 v-if="currentWeight && Number(authStore?.user?.units) === 1">
+            <h1 v-if="currentWeight && authStore?.user?.units === 'metric'">
               {{ currentWeight }} {{ $t('generalItems.unitsKg') }}
             </h1>
-            <h1 v-else-if="currentWeight && authStore.user.units == 2">
+            <h1 v-else-if="currentWeight && authStore.user.units === 'imperial'">
               {{ kgToLbs(currentWeight) }} {{ $t('generalItems.unitsLbs') }}
             </h1>
             <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
@@ -86,7 +86,7 @@
               v-if="
                 userHealthTargets &&
                 userHealthTargets['weight'] &&
-                Number(authStore?.user?.units) === 1
+                authStore?.user?.units === 'metric'
               "
             >
               {{ userHealthTargets.weight }} {{ $t('generalItems.unitsKg') }}
@@ -95,7 +95,7 @@
               v-else-if="
                 userHealthTargets &&
                 userHealthTargets['weight'] &&
-                Number(authStore?.user?.units) === 2
+                authStore?.user?.units === 'imperial'
               "
             >
               {{ kgToLbs(userHealthTargets.weight) }} {{ $t('generalItems.unitsLbs') }}

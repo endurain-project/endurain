@@ -1,3 +1,16 @@
+"""Profile data import service for ZIP archive processing.
+
+This module provides the ImportService class for importing
+user profile data from ZIP archives.
+
+Key Features:
+- ZIP validation and security checks
+- Batched data processing
+- WebSocket progress updates
+- Automatic performance tier detection
+- Memory and timeout monitoring
+"""
+
 import os
 import json
 import zipfile
@@ -8,6 +21,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
+import core.file_uploads as file_uploads
 
 from profile.exceptions import (
     FileFormatError,
@@ -20,23 +34,25 @@ from profile.exceptions import (
 
 import profile.utils as profile_utils
 
-import users.user.crud as users_crud
-import users.user.schema as users_schema
+import users.users.crud as users_crud
+import users.users.schema as users_schema
 
-import users.user_default_gear.crud as user_default_gear_crud
-import users.user_default_gear.schema as user_default_gear_schema
+import users.users_default_gear.crud as user_default_gear_crud
+import users.users_default_gear.schema as user_default_gear_schema
 
-import users.user_goals.crud as user_goals_crud
-import users.user_goals.schema as user_goals_schema
+import users.users_goals.crud as user_goals_crud
+import users.users_goals.schema as user_goals_schema
 
-import users.user_identity_providers.crud as user_identity_providers_crud
-import users.user_identity_providers.schema as user_identity_providers_schema
+import users.users_identity_providers.crud as user_identity_providers_crud
+import users.users_identity_providers.schema as user_identity_providers_schema
 
-import users.user_integrations.crud as user_integrations_crud
-import users.user_integrations.schema as users_integrations_schema
+import auth.identity_providers.crud as identity_providers_crud
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
+import users.users_integrations.crud as user_integrations_crud
+import users.users_integrations.schema as users_integrations_schema
+
+import users.users_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.schema as users_privacy_settings_schema
 
 import activities.activity.crud as activities_crud
 import activities.activity.schema as activity_schema
@@ -487,8 +503,8 @@ class ImportService:
             extension = photo_path.split(".")[-1]
             user_profile["photo_path"] = f"data/user_images/{self.user_id}.{extension}"
 
-        user = users_schema.UserRead(**user_profile)
-        users_crud.edit_user(self.user_id, user, self.db)
+        user = users_schema.UsersRead(**user_profile)
+        await users_crud.edit_user(self.user_id, user, self.db)
         self.counts["user"] += 1
 
         # Import user-related settings
@@ -522,6 +538,10 @@ class ImportService:
             )
         )
 
+        if current_user_default_gear is None:
+            core_logger.print_to_log("No existing user default gear to update", "info")
+            return
+
         gear_data = user_default_gear_data[0]
         gear_data["id"] = current_user_default_gear.id
         gear_data["user_id"] = self.user_id
@@ -542,6 +562,7 @@ class ImportService:
             "alpine_ski_gear_id",
             "nordic_ski_gear_id",
             "snowboard_gear_id",
+            "windsurf_gear_id",
         ]
 
         for field in gear_fields:
@@ -551,7 +572,7 @@ class ImportService:
             else:
                 gear_data[field] = None
 
-        user_default_gear = user_default_gear_schema.UserDefaultGear(**gear_data)
+        user_default_gear = user_default_gear_schema.UsersDefaultGearUpdate(**gear_data)
         user_default_gear_crud.edit_user_default_gear(
             user_default_gear, self.user_id, self.db
         )
@@ -571,13 +592,9 @@ class ImportService:
             core_logger.print_to_log("No user integrations data to import", "info")
             return
 
-        current_user_integrations = (
-            user_integrations_crud.get_user_integrations_by_user_id(
-                self.user_id, self.db
-            )
-        )
-
         integrations_data = user_integrations_data[0]
+        integrations_data.pop("id", None)
+        integrations_data.pop("user_id", None)
 
         user_integrations = users_integrations_schema.UsersIntegrationsUpdate(
             **integrations_data
@@ -603,7 +620,7 @@ class ImportService:
             goal_data.pop("id", None)
             goal_data.pop("user_id", None)
 
-            goal = user_goals_schema.UserGoalCreate(**goal_data)
+            goal = user_goals_schema.UsersGoalCreate(**goal_data)
             user_goals_crud.create_user_goal(self.user_id, goal, self.db)
             self.counts["user_goals"] += 1
 
@@ -614,18 +631,47 @@ class ImportService:
     async def collect_and_import_user_identity_providers(
         self, user_identity_providers_data: list[Any]
     ) -> None:
+        """
+        Import user identity provider links.
+
+        Args:
+            user_identity_providers_data: Identity provider data.
+        """
         if not user_identity_providers_data:
             core_logger.print_to_log(
                 "No user identity providers data to import", "info"
             )
             return
 
+        # Check if identity provider exists
+        idps = identity_providers_crud.get_all_identity_providers(self.db)
+        if not idps:
+            core_logger.print_to_log(
+                f"Skipping identity provider link: "
+                f"there are no identity providers configured in the system.",
+                "warning",
+            )
+            return
+
         for provider_data in user_identity_providers_data:
+            if not identity_providers_crud.get_identity_provider(
+                provider_data["idp_id"], self.db
+            ):
+                core_logger.print_to_log(
+                    f"Skipping identity provider link for idp_id={provider_data['idp_id']}: "
+                    f"identity provider not found in the system.",
+                    "warning",
+                )
+                continue
+
             provider_data.pop("id", None)
             provider_data.pop("user_id", None)
 
             user_identity_providers_crud.create_user_identity_provider(
-                self.user_id, provider_data.id, provider_data.idp_subject, self.db
+                self.user_id,
+                provider_data["idp_id"],
+                provider_data["idp_subject"],
+                self.db,
             )
             self.counts["user_identity_providers"] += 1
 
@@ -647,13 +693,9 @@ class ImportService:
             core_logger.print_to_log("No user privacy settings data to import", "info")
             return
 
-        current_user_privacy_settings = (
-            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
-                self.user_id, self.db
-            )
-        )
-
         privacy_data = user_privacy_settings_data[0]
+        privacy_data.pop("id", None)
+        privacy_data.pop("user_id", None)
 
         user_privacy_settings = (
             users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
@@ -1066,10 +1108,36 @@ class ImportService:
         # Import health data
         if health_weight_data:
             for health_weight in health_weight_data:
-                health_weight["user_id"] = self.user_id
                 health_weight.pop("id", None)
+                health_weight.pop("user_id", None)
 
-                data = health_weight_schema.HealthWeight(**health_weight)
+                # Convert string numeric values to floats
+                numeric_fields = [
+                    "weight",
+                    "bmi",
+                    "body_fat",
+                    "body_water",
+                    "bone_mass",
+                    "muscle_mass",
+                    "visceral_fat",
+                ]
+                for field in numeric_fields:
+                    if field in health_weight and isinstance(health_weight[field], str):
+                        try:
+                            health_weight[field] = float(health_weight[field])
+                        except (ValueError, TypeError):
+                            health_weight[field] = None
+
+                # Convert integer fields
+                int_fields = ["physique_rating", "metabolic_age"]
+                for field in int_fields:
+                    if field in health_weight and isinstance(health_weight[field], str):
+                        try:
+                            health_weight[field] = int(health_weight[field])
+                        except (ValueError, TypeError):
+                            health_weight[field] = None
+
+                data = health_weight_schema.HealthWeightCreate(**health_weight)
                 health_weight_crud.create_health_weight(self.user_id, data, self.db)
                 self.counts["health_weight"] += 1
             core_logger.print_to_log(
@@ -1087,13 +1155,28 @@ class ImportService:
                     )
                 )
 
+                # Convert string numeric values to floats/ints
+                if isinstance(target_data.get("weight"), str):
+                    try:
+                        target_data["weight"] = float(target_data["weight"])
+                    except (ValueError, TypeError):
+                        target_data["weight"] = None
+
+                int_fields = ["steps", "sleep"]
+                for field in int_fields:
+                    if isinstance(target_data.get(field), str):
+                        try:
+                            target_data[field] = int(target_data[field])
+                        except (ValueError, TypeError):
+                            target_data[field] = None
+
                 target_data["user_id"] = self.user_id
                 if current_health_target is not None:
                     target_data["id"] = current_health_target.id
                 else:
                     target_data.pop("id", None)
 
-                target = health_targets_schema.HealthTargets(**target_data)
+                target = health_targets_schema.HealthTargetsUpdate(**target_data)
                 health_targets_crud.edit_health_target(target, self.user_id, self.db)
                 self.counts["health_targets"] += 1
             core_logger.print_to_log(
@@ -1139,12 +1222,12 @@ class ImportService:
                         continue
 
                     new_file_name = f"{new_id}{ext}"
-                    activity_file_path = os.path.join(
-                        core_config.FILES_PROCESSED_DIR, new_file_name
-                    )
 
-                    with open(activity_file_path, "wb") as f:
-                        f.write(zipf.read(file_path))
+                    # Read bytes from ZIP and save using file_uploads
+                    file_bytes = zipf.read(file_path)
+                    await file_uploads.save_file(
+                        file_bytes, core_config.FILES_PROCESSED_DIR, new_file_name
+                    )
                     self.counts["activity_files"] += 1
                 except ValueError:
                     # Skip files that don't have numeric activity IDs
@@ -1190,12 +1273,12 @@ class ImportService:
                             continue
 
                         new_file_name = f"{new_id}_{suffix}{ext}"
-                        activity_media_path = os.path.join(
-                            core_config.ACTIVITY_MEDIA_DIR, new_file_name
-                        )
 
-                        with open(activity_media_path, "wb") as f:
-                            f.write(zipf.read(file_path))
+                        # Read bytes from ZIP and save using file_uploads
+                        file_bytes = zipf.read(file_path)
+                        await file_uploads.save_file(
+                            file_bytes, core_config.ACTIVITY_MEDIA_DIR, new_file_name
+                        )
                         self.counts["media"] += 1
                     except ValueError:
                         # Skip files that don't have numeric activity IDs
@@ -1226,10 +1309,15 @@ class ImportService:
             if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
                 "user_images/"
             ):
+                core_logger.print_to_log(
+                    f"Processing user image file: {file_path}", "debug"
+                )
                 ext = os.path.splitext(path)[1]
                 new_file_name = f"{self.user_id}{ext}"
-                user_img = os.path.join(core_config.USER_IMAGES_DIR, new_file_name)
 
-                with open(user_img, "wb") as f:
-                    f.write(zipf.read(file_path))
+                # Read bytes from ZIP and save using file_uploads
+                file_bytes = zipf.read(file_path)
+                await file_uploads.save_file(
+                    file_bytes, core_config.USER_IMAGES_DIR, new_file_name
+                )
                 self.counts["user_images"] += 1

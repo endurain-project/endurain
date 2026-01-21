@@ -11,13 +11,13 @@
       {{
         thisWeek && thisWeek[0].distance
           ? Math.floor(
-              thisWeek[0].useMeters && Number(authStore?.user?.units) === 1
+              thisWeek[0].useMeters && authStore?.user?.units === 'metric'
                 ? kmToMeters(thisWeek[0].distance)
                 : thisWeek[0].distance
             ) + ' '
           : '0'
       }}
-      <span v-if="Number(authStore?.user?.units) === 1">
+      <span v-if="authStore?.user?.units === 'metric'">
         <span v-if="thisWeek[0].useMeters">
           {{ $t('generalItems.unitsM') }}
         </span>
@@ -41,13 +41,13 @@
       {{
         thisWeek && thisWeek[1].distance
           ? Math.floor(
-              thisWeek[1].useMeters && Number(authStore?.user?.units) === 1
+              thisWeek[1].useMeters && authStore?.user?.units === 'metric'
                 ? kmToMeters(thisWeek[1].distance)
                 : thisWeek[1].distance
             ) + ' '
           : '0'
       }}
-      <span v-if="Number(authStore?.user?.units) === 1">
+      <span v-if="authStore?.user?.units === 'metric'">
         <span v-if="thisWeek[1].useMeters">
           {{ $t('generalItems.unitsM') }}
         </span>
@@ -71,13 +71,13 @@
       {{
         thisWeek && thisWeek[2].distance
           ? Math.floor(
-              thisWeek[2].useMeters && Number(authStore?.user?.units) === 1
+              thisWeek[2].useMeters && authStore?.user?.units === 'metric'
                 ? kmToMeters(thisWeek[2].distance)
                 : thisWeek[2].distance
             ) + ' '
           : '0'
       }}
-      <span v-if="Number(authStore?.user?.units) === 1">
+      <span v-if="authStore?.user?.units === 'metric'">
         <span v-if="thisWeek[2].useMeters">
           {{ $t('generalItems.unitsM') }}
         </span>
@@ -110,13 +110,13 @@
       {{
         thisMonth && thisMonth[0].distance
           ? Math.floor(
-              thisMonth[0].useMeters && Number(authStore?.user?.units) === 1
+              thisMonth[0].useMeters && authStore?.user?.units === 'metric'
                 ? kmToMeters(thisMonth[0].distance)
                 : thisMonth[0].distance
             ) + ' '
           : '0'
       }}
-      <span v-if="Number(authStore?.user?.units) === 1">
+      <span v-if="authStore?.user?.units === 'metric'">
         <span v-if="thisMonth[0].useMeters">
           {{ $t('generalItems.unitsM') }}
         </span>
@@ -140,13 +140,13 @@
       {{
         thisMonth && thisMonth[1].distance
           ? Math.floor(
-              thisMonth[1].useMeters && Number(authStore?.user?.units) === 1
+              thisMonth[1].useMeters && authStore?.user?.units === 'metric'
                 ? kmToMeters(thisMonth[1].distance)
                 : thisMonth[1].distance
             ) + ' '
           : '0'
       }}
-      <span v-if="Number(authStore?.user?.units) === 1">
+      <span v-if="authStore?.user?.units === 'metric'">
         <span v-if="thisMonth[1].useMeters">
           {{ $t('generalItems.unitsM') }}
         </span>
@@ -170,13 +170,13 @@
       {{
         thisMonth && thisMonth[2].distance
           ? Math.floor(
-              thisMonth[2].useMeters && Number(authStore?.user?.units) === 1
+              thisMonth[2].useMeters && authStore?.user?.units === 'metric'
                 ? kmToMeters(thisMonth[2].distance)
                 : thisMonth[2].distance
             ) + ' '
           : '0'
       }}
-      <span v-if="Number(authStore?.user?.units) === 1">
+      <span v-if="authStore?.user?.units === 'metric'">
         <span v-if="thisMonth[2].useMeters">
           {{ $t('generalItems.unitsM') }}
         </span>
@@ -217,9 +217,9 @@ const authStore = useAuthStore()
 
 const getTopThreeActivities = (distances) => {
   const convertDistanceMetersToKmsOrMiles = (distance) =>
-    Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance)
+    authStore?.user?.units === 'metric' ? metersToKm(distance) : metersToMiles(distance)
   const convertDistanceMetersToYards = (distance) =>
-    Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance)
+    authStore?.user?.units === 'metric' ? metersToKm(distance) : metersToYards(distance)
 
   const activities = [
     {

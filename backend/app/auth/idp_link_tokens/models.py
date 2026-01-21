@@ -21,7 +21,7 @@ class IdpLinkToken(Base):
         expires_at: Hard expiry at 60 seconds from creation.
         used: Single-use flag to prevent replay attacks.
         ip_address: Client IP address for optional validation.
-        user: Relationship to User model.
+        user: Relationship to Users model.
         identity_provider: Relationship to IdentityProvider model.
     """
 
@@ -78,5 +78,5 @@ class IdpLinkToken(Base):
     )
 
     # Relationships
-    user = relationship("User", foreign_keys=[user_id])
+    users = relationship("Users", foreign_keys=[user_id])
     identity_provider = relationship("IdentityProvider", foreign_keys=[idp_id])

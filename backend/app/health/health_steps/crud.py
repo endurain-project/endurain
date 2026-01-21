@@ -1,14 +1,15 @@
 from fastapi import HTTPException, status
 from sqlalchemy import func, desc, select
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 import health.health_steps.schema as health_steps_schema
 import health.health_steps.models as health_steps_models
 
-import core.logger as core_logger
+import core.decorators as core_decorators
 
 
+@core_decorators.handle_db_errors
 def get_health_steps_number(user_id: int, db: Session) -> int:
     """
     Retrieve total count of health steps records for a user.
@@ -23,29 +24,16 @@ def get_health_steps_number(user_id: int, db: Session) -> int:
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the number of health_steps from the database
-        stmt = (
-            select(func.count())
-            .select_from(health_steps_models.HealthSteps)
-            .where(health_steps_models.HealthSteps.user_id == user_id)
-        )
-        result = db.execute(stmt).scalar()
-        return result if result is not None else 0
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_steps_number: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the number of health_steps from the database
+    stmt = (
+        select(func.count())
+        .select_from(health_steps_models.HealthSteps)
+        .where(health_steps_models.HealthSteps.user_id == user_id)
+    )
+    return db.execute(stmt).scalar_one()
 
 
+@core_decorators.handle_db_errors
 def get_all_health_steps_by_user_id(
     user_id: int, db: Session
 ) -> list[health_steps_models.HealthSteps]:
@@ -62,28 +50,16 @@ def get_all_health_steps_by_user_id(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_steps from the database
-        stmt = (
-            select(health_steps_models.HealthSteps)
-            .where(health_steps_models.HealthSteps.user_id == user_id)
-            .order_by(desc(health_steps_models.HealthSteps.date))
-        )
-        return db.execute(stmt).scalars().all()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_all_health_steps_by_user_id: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_steps from the database
+    stmt = (
+        select(health_steps_models.HealthSteps)
+        .where(health_steps_models.HealthSteps.user_id == user_id)
+        .order_by(desc(health_steps_models.HealthSteps.date))
+    )
+    return db.execute(stmt).scalars().all()
 
 
+@core_decorators.handle_db_errors
 def get_health_steps_by_id_and_user_id(
     health_steps_id: int, user_id: int, db: Session
 ) -> health_steps_models.HealthSteps | None:
@@ -99,27 +75,15 @@ def get_health_steps_by_id_and_user_id(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_steps from the database
-        stmt = select(health_steps_models.HealthSteps).where(
-            health_steps_models.HealthSteps.id == health_steps_id,
-            health_steps_models.HealthSteps.user_id == user_id,
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_steps_by_id_and_user_id: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_steps from the database
+    stmt = select(health_steps_models.HealthSteps).where(
+        health_steps_models.HealthSteps.id == health_steps_id,
+        health_steps_models.HealthSteps.user_id == user_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def get_health_steps_with_pagination(
     user_id: int,
     db: Session,
@@ -141,30 +105,18 @@ def get_health_steps_with_pagination(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_steps from the database
-        stmt = (
-            select(health_steps_models.HealthSteps)
-            .where(health_steps_models.HealthSteps.user_id == user_id)
-            .order_by(desc(health_steps_models.HealthSteps.date))
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
-        )
-        return db.execute(stmt).scalars().all()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_steps_with_pagination: " f"{db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_steps from the database
+    stmt = (
+        select(health_steps_models.HealthSteps)
+        .where(health_steps_models.HealthSteps.user_id == user_id)
+        .order_by(desc(health_steps_models.HealthSteps.date))
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    return db.execute(stmt).scalars().all()
 
 
+@core_decorators.handle_db_errors
 def get_health_steps_by_date(
     user_id: int, date: str, db: Session
 ) -> health_steps_models.HealthSteps | None:
@@ -182,27 +134,15 @@ def get_health_steps_by_date(
     Raises:
         HTTPException: If database error occurs.
     """
-    try:
-        # Get the health_steps from the database
-        stmt = select(health_steps_models.HealthSteps).where(
-            health_steps_models.HealthSteps.date == func.date(date),
-            health_steps_models.HealthSteps.user_id == user_id,
-        )
-        return db.execute(stmt).scalar_one_or_none()
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_steps_by_date: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+    # Get the health_steps from the database
+    stmt = select(health_steps_models.HealthSteps).where(
+        health_steps_models.HealthSteps.date == func.date(date),
+        health_steps_models.HealthSteps.user_id == user_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
+@core_decorators.handle_db_errors
 def create_health_steps(
     user_id: int,
     health_steps: health_steps_schema.HealthStepsCreate,
@@ -248,23 +188,9 @@ def create_health_steps(
                 f"a entry created for {health_steps.date}"
             ),
         ) from integrity_error
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in create_health_steps: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
 
 
+@core_decorators.handle_db_errors
 def edit_health_steps(
     user_id: int,
     health_steps: health_steps_schema.HealthStepsUpdate,
@@ -285,57 +211,37 @@ def edit_health_steps(
         HTTPException: 403 if trying to edit other user record, 404 if not
             found, 500 if database error.
     """
-    try:
-        # Ensure the health_steps belongs to the user
-        if health_steps.user_id != user_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Cannot edit health steps for another user.",
-            )
-
-        # Get the health_steps from the database
-        db_health_steps = get_health_steps_by_id_and_user_id(
-            health_steps.id, user_id, db
-        )
-
-        if db_health_steps is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Health steps not found",
-            ) from None
-
-        # Dictionary of the fields to update if they are not None
-        health_steps_data = health_steps.model_dump(exclude_unset=True)
-        # Iterate over the fields and update the db_health_steps dynamically
-        for key, value in health_steps_data.items():
-            setattr(db_health_steps, key, value)
-
-        # Commit the transaction
-        db.commit()
-        # Refresh the object to ensure it reflects database state
-        db.refresh(db_health_steps)
-
-        return db_health_steps
-    except HTTPException as http_err:
-        raise http_err
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in edit_health_steps: {db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        # Raise an HTTPException with a 500 status code
+    # Ensure the health_steps belongs to the user
+    if health_steps.user_id != user_id:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot edit health steps for another user.",
+        )
+
+    # Get the health_steps from the database
+    db_health_steps = get_health_steps_by_id_and_user_id(health_steps.id, user_id, db)
+
+    if db_health_steps is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Health steps not found",
+        ) from None
+
+    # Dictionary of the fields to update if they are not None
+    health_steps_data = health_steps.model_dump(exclude_unset=True)
+    # Iterate over the fields and update the db_health_steps dynamically
+    for key, value in health_steps_data.items():
+        setattr(db_health_steps, key, value)
+
+    # Commit the transaction
+    db.commit()
+    # Refresh the object to ensure it reflects database state
+    db.refresh(db_health_steps)
+
+    return db_health_steps
 
 
+@core_decorators.handle_db_errors
 def delete_health_steps(user_id: int, health_steps_id: int, db: Session) -> None:
     """
     Delete a health steps record for a user.
@@ -351,38 +257,17 @@ def delete_health_steps(user_id: int, health_steps_id: int, db: Session) -> None
     Raises:
         HTTPException: If record not found or database error.
     """
-    try:
-        # Get the record first to ensure it exists
-        db_health_steps = get_health_steps_by_id_and_user_id(
-            health_steps_id, user_id, db
-        )
+    # Get the record first to ensure it exists
+    db_health_steps = get_health_steps_by_id_and_user_id(health_steps_id, user_id, db)
 
-        # Check if the health_steps was found
-        if db_health_steps is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Health steps not found",
-            ) from None
-
-        # Delete the health_steps
-        db.delete(db_health_steps)
-        # Commit the transaction
-        db.commit()
-    except HTTPException as http_err:
-        raise http_err
-    except SQLAlchemyError as db_err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in delete_health_steps: {db_err}",
-            "error",
-            exc=db_err,
-        )
-
-        # Raise an HTTPException with a 500 status code
+    # Check if the health_steps was found
+    if db_health_steps is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Health steps not found",
+        ) from None
+
+    # Delete the health_steps
+    db.delete(db_health_steps)
+    # Commit the transaction
+    db.commit()

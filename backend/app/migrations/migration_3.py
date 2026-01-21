@@ -2,9 +2,7 @@ import os
 import glob
 import fitdecode
 import zipfile
-from datetime import datetime, timedelta
 from pytz import UTC
-from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 

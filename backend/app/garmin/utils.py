@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 
-import users.user_integrations.crud as user_integrations_crud
-import users.user_integrations.models as user_integrations_models
+import users.users_integrations.crud as user_integrations_crud
+import users.users_integrations.models as user_integrations_models
 
 import websocket.manager as websocket_manager
 import websocket.utils as websocket_utils

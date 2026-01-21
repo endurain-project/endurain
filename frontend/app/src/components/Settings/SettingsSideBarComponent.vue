@@ -4,7 +4,7 @@
       class="nav nav-pills flex-column mb-auto bg-body-tertiary rounded p-3 shadow-sm"
       id="sidebarNav"
     >
-      <li class="nav-item" v-if="authStore.user.access_type == 2">
+      <li class="nav-item" v-if="authStore.user.access_type === 'admin'">
         <a
           href="#"
           class="nav-link link-body-emphasis"
@@ -15,7 +15,7 @@
           <span class="ms-1">{{ $t('settingsSideBar.usersSection') }}</span>
         </a>
       </li>
-      <li class="nav-item" v-if="authStore.user.access_type == 2">
+      <li class="nav-item" v-if="authStore.user.access_type === 'admin'">
         <a
           href="#"
           class="nav-link link-body-emphasis"
@@ -26,7 +26,7 @@
           <span class="ms-1">{{ $t('settingsSideBar.serverSettingsSection') }}</span>
         </a>
       </li>
-      <li class="nav-item" v-if="authStore.user.access_type == 2">
+      <li class="nav-item" v-if="authStore.user.access_type === 'admin'">
         <a
           href="#"
           class="nav-link link-body-emphasis"
@@ -40,7 +40,7 @@
           >
         </a>
       </li>
-      <hr v-if="authStore.user.access_type == 2" />
+      <hr v-if="authStore.user.access_type === 'admin'" />
       <li class="nav-item">
         <a
           href="#"
@@ -111,29 +111,33 @@
   </div>
 </template>
 
-<script>
-// Importing the store
+<script setup lang="ts">
 import { useAuthStore } from '@/stores/authStore'
 
-export default {
-  props: {
-    activeSection: {
-      type: String,
-      required: true
-    }
-  },
-  emits: ['update-active-section'],
-  setup(props, { emit }) {
-    const authStore = useAuthStore()
+/**
+ * Component props definition.
+ */
+defineProps<{
+  /** Currently active section identifier */
+  activeSection: string
+}>()
 
-    function changeActive(section) {
-      emit('update-active-section', section)
-    }
+/**
+ * Component emits definition.
+ */
+const emit = defineEmits<{
+  /** Emitted when active section should be updated */
+  updateActiveSection: [section: string]
+}>()
 
-    return {
-      authStore,
-      changeActive
-    }
-  }
+const authStore = useAuthStore()
+
+/**
+ * Changes the active sidebar section.
+ *
+ * @param section - The section identifier to activate.
+ */
+function changeActive(section: string): void {
+  emit('updateActiveSection', section)
 }
 </script>

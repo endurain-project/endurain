@@ -6,10 +6,10 @@ import core.logger as core_logger
 
 import migrations.crud as migrations_crud
 
-import users.user.crud as user_crud
+import users.users.crud as user_crud
 
 
-def process_migration_5(db: Session):
+async def process_migration_5(db: Session):
     core_logger.print_to_log_and_console("Started migration 5")
 
     users_processed_with_no_errors = True
@@ -25,7 +25,7 @@ def process_migration_5(db: Session):
                 if photo_old_path:
                     user.photo_path = "/app/backend/" + photo_old_path
 
-                user_crud.edit_user_photo_path(user.id, user.photo_path, db)
+                await user_crud.update_user_photo(user.id, db, user.photo_path)
             except Exception as err:
                 core_logger.print_to_log_and_console(
                     f"Migration 5 - Error processing user {user.id}: {err}",

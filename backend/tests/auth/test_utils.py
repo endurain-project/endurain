@@ -7,7 +7,7 @@ from fastapi import HTTPException, Response
 
 import auth.utils as auth_utils
 import auth.token_manager as auth_token_manager
-import users.user.schema as user_schema
+import users.users.schema as user_schema
 
 
 class TestAuthenticateUser:
@@ -29,7 +29,9 @@ class TestAuthenticateUser:
         mock_user.username = username
 
         # Mock the CRUD function to return our user
-        with patch("auth.utils.users_crud.authenticate_user", return_value=mock_user):
+        with patch(
+            "auth.utils.users_crud.get_user_by_username", return_value=mock_user
+        ):
             # Act
             result = auth_utils.authenticate_user(
                 username, password, password_hasher, mock_db
@@ -40,13 +42,13 @@ class TestAuthenticateUser:
 
     def test_authenticate_user_invalid_username(self, password_hasher, mock_db):
         """Test authentication with invalid username raises 401."""
-        with patch("auth.utils.users_crud.authenticate_user", return_value=None):
+        with patch("auth.utils.users_crud.get_user_by_username", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user(
                     "nonexistent", "password", password_hasher, mock_db
                 )
             assert exc_info.value.status_code == 401
-            assert "Invalid username" in exc_info.value.detail
+            assert "Unable to authenticate" in exc_info.value.detail
 
     def test_authenticate_user_invalid_password(self, password_hasher, mock_db):
         """Test authentication with invalid password raises 401."""
@@ -59,13 +61,15 @@ class TestAuthenticateUser:
         mock_user = MagicMock()
         mock_user.password = hashed_password
 
-        with patch("auth.utils.users_crud.authenticate_user", return_value=mock_user):
+        with patch(
+            "auth.utils.users_crud.get_user_by_username", return_value=mock_user
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user(
                     username, wrong_password, password_hasher, mock_db
                 )
             assert exc_info.value.status_code == 401
-            assert "Invalid password" in exc_info.value.detail
+            assert "Unable to authenticate" in exc_info.value.detail
 
     def test_authenticate_user_updates_password_hash_if_needed(
         self, password_hasher, mock_db, sample_user_read
@@ -86,7 +90,9 @@ class TestAuthenticateUser:
         mock_user.password = old_hash
         mock_user.username = username
 
-        with patch("auth.utils.users_crud.authenticate_user", return_value=mock_user):
+        with patch(
+            "auth.utils.users_crud.get_user_by_username", return_value=mock_user
+        ):
             with patch("auth.utils.users_crud.edit_user_password") as mock_edit:
                 # Act
                 result = auth_utils.authenticate_user(
@@ -205,7 +211,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -233,12 +239,12 @@ class TestCompleteLogin:
     def test_complete_login_for_mobile_client(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
     ):
-        """Test complete_login for mobile client returns tokens."""
+        """Test complete_login for mobile client returns tokens without CSRF token."""
         # Arrange
         response = Response()
         client_type = "mobile"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -253,8 +259,10 @@ class TestCompleteLogin:
         # Assert
         assert "session_id" in result
         assert "access_token" in result
-        assert "csrf_token" in result
+        assert "refresh_token" in result
         assert result["token_type"] == "bearer"
+        # Mobile clients don't need CSRF tokens
+        assert "csrf_token" not in result
 
     def test_complete_login_creates_session(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
@@ -264,7 +272,9 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session") as mock_create_session:
+        with patch(
+            "auth.utils.users_session_utils.create_session"
+        ) as mock_create_session:
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -317,7 +327,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             with patch.dict("os.environ", {"FRONTEND_PROTOCOL": "https"}):
                 # Act
                 auth_utils.complete_login(
@@ -342,7 +352,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             auth_utils.complete_login(
                 response,
@@ -370,7 +380,7 @@ class TestCompleteLogin:
         response2 = Response()
         client_type = "web"
 
-        with patch("auth.utils.session_utils.create_session"):
+        with patch("auth.utils.users_session_utils.create_session"):
             # Act
             result1 = auth_utils.complete_login(
                 response1,

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-import users.user_privacy_settings.schema as user_privacy_settings_schema
+import users.users_privacy_settings.schema as user_privacy_settings_schema
 
 
 class TestActivityVisibilityEnum:
@@ -14,21 +14,26 @@ class TestActivityVisibilityEnum:
         Test ActivityVisibility.PUBLIC has correct value.
         """
         # Assert
-        assert user_privacy_settings_schema.ActivityVisibility.PUBLIC == 0
+        assert user_privacy_settings_schema.ActivityVisibility.PUBLIC.value == "public"
 
     def test_activity_visibility_followers_value(self):
         """
         Test ActivityVisibility.FOLLOWERS has correct value.
         """
         # Assert
-        assert user_privacy_settings_schema.ActivityVisibility.FOLLOWERS == 1
+        assert (
+            user_privacy_settings_schema.ActivityVisibility.FOLLOWERS.value
+            == "followers"
+        )
 
     def test_activity_visibility_private_value(self):
         """
         Test ActivityVisibility.PRIVATE has correct value.
         """
         # Assert
-        assert user_privacy_settings_schema.ActivityVisibility.PRIVATE == 2
+        assert (
+            user_privacy_settings_schema.ActivityVisibility.PRIVATE.value == "private"
+        )
 
 
 class TestUsersPrivacySettingsBaseSchema:
@@ -43,8 +48,11 @@ class TestUsersPrivacySettingsBaseSchema:
         # Arrange & Act
         settings = user_privacy_settings_schema.UsersPrivacySettingsBase()
 
-        # Assert
-        assert settings.default_activity_visibility == 0
+        # Assert - defaults remain as enum objects (not converted due to Pydantic behavior)
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PUBLIC
+        )
         assert settings.hide_activity_start_time is False
         assert settings.hide_activity_location is False
         assert settings.hide_activity_map is False
@@ -64,7 +72,7 @@ class TestUsersPrivacySettingsBaseSchema:
         """
         # Arrange & Act
         settings = user_privacy_settings_schema.UsersPrivacySettingsBase(
-            default_activity_visibility=2,
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.PRIVATE,
             hide_activity_start_time=True,
             hide_activity_location=True,
             hide_activity_map=True,
@@ -80,7 +88,10 @@ class TestUsersPrivacySettingsBaseSchema:
         )
 
         # Assert
-        assert settings.default_activity_visibility == 2
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PRIVATE.value
+        )
         assert settings.hide_activity_start_time is True
         assert settings.hide_activity_location is True
         assert settings.hide_activity_map is True
@@ -115,11 +126,16 @@ class TestUsersPrivacySettingsBaseSchema:
 
         # Act
         settings.hide_activity_map = True
-        settings.default_activity_visibility = 1
+        settings.default_activity_visibility = (
+            user_privacy_settings_schema.ActivityVisibility.FOLLOWERS
+        )
 
         # Assert
         assert settings.hide_activity_map is True
-        assert settings.default_activity_visibility == 1
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.FOLLOWERS.value
+        )
 
     def test_base_schema_from_attributes(self):
         """
@@ -130,7 +146,7 @@ class TestUsersPrivacySettingsBaseSchema:
         class MockORMModel:
             """Mock ORM model for testing."""
 
-            default_activity_visibility = 1
+            default_activity_visibility = "followers"
             hide_activity_start_time = True
             hide_activity_location = False
             hide_activity_map = True
@@ -150,7 +166,10 @@ class TestUsersPrivacySettingsBaseSchema:
         )
 
         # Assert
-        assert settings.default_activity_visibility == 1
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.FOLLOWERS.value
+        )
         assert settings.hide_activity_start_time is True
         assert settings.hide_activity_map is True
 
@@ -160,19 +179,28 @@ class TestUsersPrivacySettingsBaseSchema:
         """
         # Arrange & Act
         public = user_privacy_settings_schema.UsersPrivacySettingsBase(
-            default_activity_visibility=0
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.PUBLIC
         )
         followers = user_privacy_settings_schema.UsersPrivacySettingsBase(
-            default_activity_visibility=1
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.FOLLOWERS
         )
         private = user_privacy_settings_schema.UsersPrivacySettingsBase(
-            default_activity_visibility=2
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.PRIVATE
         )
 
         # Assert
-        assert public.default_activity_visibility == 0
-        assert followers.default_activity_visibility == 1
-        assert private.default_activity_visibility == 2
+        assert (
+            public.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PUBLIC.value
+        )
+        assert (
+            followers.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.FOLLOWERS.value
+        )
+        assert (
+            private.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PRIVATE.value
+        )
 
     def test_base_schema_invalid_visibility_value(self):
         """
@@ -208,7 +236,7 @@ class TestUsersPrivacySettingsReadSchema:
         settings = user_privacy_settings_schema.UsersPrivacySettingsRead(
             id=1,
             user_id=1,
-            default_activity_visibility=0,
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.PUBLIC,
             hide_activity_start_time=False,
             hide_activity_location=False,
             hide_activity_map=False,
@@ -226,7 +254,10 @@ class TestUsersPrivacySettingsReadSchema:
         # Assert
         assert settings.id == 1
         assert settings.user_id == 1
-        assert settings.default_activity_visibility == 0
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PUBLIC.value
+        )
 
     def test_read_schema_requires_id(self):
         """
@@ -259,7 +290,7 @@ class TestUsersPrivacySettingsReadSchema:
 
             id = 1
             user_id = 1
-            default_activity_visibility = 2
+            default_activity_visibility = "private"
             hide_activity_start_time = True
             hide_activity_location = True
             hide_activity_map = False
@@ -281,7 +312,10 @@ class TestUsersPrivacySettingsReadSchema:
         # Assert
         assert settings.id == 1
         assert settings.user_id == 1
-        assert settings.default_activity_visibility == 2
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PRIVATE.value
+        )
         assert settings.hide_activity_start_time is True
 
 
@@ -309,11 +343,14 @@ class TestUsersPrivacySettingsUpdateSchema:
         """
         # Arrange & Act
         settings = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
-            default_activity_visibility=2
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.PRIVATE
         )
 
         # Assert
-        assert settings.default_activity_visibility == 2
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PRIVATE.value
+        )
 
     def test_update_schema_all_fields(self):
         """
@@ -321,7 +358,7 @@ class TestUsersPrivacySettingsUpdateSchema:
         """
         # Arrange & Act
         settings = user_privacy_settings_schema.UsersPrivacySettingsUpdate(
-            default_activity_visibility=1,
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.FOLLOWERS,
             hide_activity_start_time=True,
             hide_activity_location=True,
             hide_activity_map=True,
@@ -337,7 +374,10 @@ class TestUsersPrivacySettingsUpdateSchema:
         )
 
         # Assert
-        assert settings.default_activity_visibility == 1
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.FOLLOWERS.value
+        )
         assert settings.hide_activity_start_time is True
         assert settings.hide_activity_gear is True
 
@@ -354,8 +394,11 @@ class TestUsersPrivacySettingsCreateSchema:
         # Arrange & Act
         settings = user_privacy_settings_schema.UsersPrivacySettingsCreate()
 
-        # Assert
-        assert settings.default_activity_visibility == 0
+        # Assert - defaults remain as enum objects (not converted due to Pydantic behavior)
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PUBLIC
+        )
         assert settings.hide_activity_start_time is False
 
     def test_create_schema_custom_values(self):
@@ -364,10 +407,13 @@ class TestUsersPrivacySettingsCreateSchema:
         """
         # Arrange & Act
         settings = user_privacy_settings_schema.UsersPrivacySettingsCreate(
-            default_activity_visibility=2,
+            default_activity_visibility=user_privacy_settings_schema.ActivityVisibility.PRIVATE,
             hide_activity_map=True,
         )
 
         # Assert
-        assert settings.default_activity_visibility == 2
+        assert (
+            settings.default_activity_visibility
+            == user_privacy_settings_schema.ActivityVisibility.PRIVATE.value
+        )
         assert settings.hide_activity_map is True

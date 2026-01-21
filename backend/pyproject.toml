@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "endurain"
-version = "0.16.6"
+version = "0.17.0"
 description = "Endurain API for the Endurain app"
 authors = ["João Vitória Silva <8648976+joaovitoriasilva@users.noreply.github.com>"]
 readme = "README.md"
@@ -23,7 +23,7 @@ gpxpy = "^1.6.2"
 tcxreader = "^0.4.11"
 alembic = "^1.14.0"
 joserfc = "^1.4.3"
-fitdecode = "^0.10.0"
+fitdecode = "^0.11.0"
 numpy = "^2.2.1"
 geopy = "^2.4.1"
 flexparser = "^0.4"

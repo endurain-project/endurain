@@ -1,10 +1,23 @@
+"""Browser redirect router for OAuth identity provider linking.
+
+This module handles browser-based OAuth flows for linking
+external identity providers to user accounts using one-time
+link tokens.
+
+Key Features:
+- One-time link token validation
+- OAuth state management
+- Security checks (IP validation, token expiry)
+- Browser redirect handling
+"""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-import users.user_identity_providers.crud as user_idp_crud
+import users.users_identity_providers.crud as user_idp_crud
 
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.service as idp_service
@@ -22,6 +35,7 @@ router = APIRouter()
 @router.get(
     "/idp/{idp_id}/link",
     status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    response_class=RedirectResponse,
 )
 async def link_identity_provider(
     idp_id: int,
@@ -31,7 +45,7 @@ async def link_identity_provider(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> RedirectResponse:
     """
     Initiate linking an identity provider using a one-time link token.
 

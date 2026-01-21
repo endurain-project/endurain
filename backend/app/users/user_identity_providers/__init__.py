@@ -1,1 +1,0 @@
-"""User Identity Providers module"""

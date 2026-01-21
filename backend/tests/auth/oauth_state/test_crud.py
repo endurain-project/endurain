@@ -7,13 +7,13 @@ from fastapi import HTTPException, status
 
 import auth.oauth_state.crud as oauth_state_crud
 import auth.oauth_state.models as oauth_state_models
-import session.models as session_models
+import users.users_sessions.models as users_session_models
 
 
 class TestGetOAuthStateById:
-    """Test suite for get_oauth_state_by_id function."""
+    """Test suite for get_oauth_state_by_id_and_not_used function."""
 
-    def test_get_oauth_state_by_id_success(self, mock_db):
+    def test_get_oauth_state_by_id_and_not_used_success(self, mock_db):
         """Test successful retrieval of valid OAuth state."""
         # Arrange
         state_id = "test_state_12345678"
@@ -27,7 +27,7 @@ class TestGetOAuthStateById:
         mock_filter.first.return_value = mock_oauth_state
 
         # Act
-        result = oauth_state_crud.get_oauth_state_by_id(state_id, mock_db)
+        result = oauth_state_crud.get_oauth_state_by_id_and_not_used(state_id, mock_db)
 
         # Assert
         assert result == mock_oauth_state
@@ -43,7 +43,7 @@ class TestGetOAuthStateById:
         mock_filter.first.return_value = None
 
         # Act
-        result = oauth_state_crud.get_oauth_state_by_id(state_id, mock_db)
+        result = oauth_state_crud.get_oauth_state_by_id_and_not_used(state_id, mock_db)
 
         # Assert
         assert result is None
@@ -62,7 +62,7 @@ class TestGetOAuthStateById:
         mock_filter.first.return_value = mock_oauth_state
 
         # Act
-        result = oauth_state_crud.get_oauth_state_by_id(state_id, mock_db)
+        result = oauth_state_crud.get_oauth_state_by_id_and_not_used(state_id, mock_db)
 
         # Assert
         assert result is None
@@ -81,7 +81,7 @@ class TestGetOAuthStateById:
         mock_filter.first.return_value = mock_oauth_state
 
         # Act
-        result = oauth_state_crud.get_oauth_state_by_id(state_id, mock_db)
+        result = oauth_state_crud.get_oauth_state_by_id_and_not_used(state_id, mock_db)
 
         # Assert
         assert result is None
@@ -96,7 +96,7 @@ class TestGetOAuthStateBySessionId:
         session_id = "session_123"
         oauth_state_id = "state_456"
 
-        mock_session = MagicMock(spec=session_models.UsersSessions)
+        mock_session = MagicMock(spec=users_session_models.UsersSessions)
         mock_session.id = session_id
         mock_session.oauth_state_id = oauth_state_id
 
@@ -133,7 +133,7 @@ class TestGetOAuthStateBySessionId:
         # Arrange
         session_id = "session_without_oauth"
 
-        mock_session = MagicMock(spec=session_models.UsersSessions)
+        mock_session = MagicMock(spec=users_session_models.UsersSessions)
         mock_session.id = session_id
         mock_session.oauth_state_id = None
 

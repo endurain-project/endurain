@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 import health.health_weight.utils as health_weight_utils
 import health.health_weight.schema as health_weight_schema
-import users.user.schema as user_schema
+import users.users.schema as user_schema
 
 
 class TestCalculateBMI:

@@ -6,7 +6,12 @@ import {
   formatDateISO
 } from '@/utils/dateTimeUtils'
 
-export function buildSummaryParams(viewType, selectedDate, selectedYear, firstDayOfWeek = 0) {
+export function buildSummaryParams(
+  viewType,
+  selectedDate,
+  selectedYear,
+  firstDayOfWeek = 'monday'
+) {
   const params = {}
 
   if (viewType === 'year') {
@@ -28,7 +33,7 @@ export function buildActivityFilters(
   selectedDate,
   selectedYear,
   selectedActivityType,
-  firstDayOfWeek = 0
+  firstDayOfWeek = 'monday'
 ) {
   const filters = {
     type: selectedActivityType || null

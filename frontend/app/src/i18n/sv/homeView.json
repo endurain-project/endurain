@@ -1,0 +1,18 @@
+{
+  "title": "Endurain",
+  "buttonAddActivity": "Add Activity",
+  "fieldLabelUploadFileType": "Upload .gpx, .fit, .tcx or .gz file",
+  "radioUserActivities": "Mina aktiviteter",
+  "radioFollowerActivities": "Followers activities",
+  "pillIsHidden": "Dold",
+  "successActivityAdded": "Activity added successfully",
+  "errorActivityAdded": "Error adding activity",
+  "refreshingActivities": "Refreshing activities from linked services",
+  "successActivitiesRefreshed": "Activities refreshed successfully",
+  "errorActivityNotFound": "Activity not found",
+  "processingActivity": "Processing activity",
+  "successActivityDeleted": "Activity deleted successfully",
+  "errorFetchingUserStats": "Error fetching user stats",
+  "errorFetchingUserActivities": "Error fetching user activities",
+  "errorFetchingMedia": "Error fetching media for activity"
+}

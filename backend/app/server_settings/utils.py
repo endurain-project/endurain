@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import core.cryptography as core_cryptography
 import core.logger as core_logger
 
 import server_settings.crud as server_settings_crud
@@ -53,7 +54,7 @@ TILE_MAPS_TEMPLATES = {
 }
 
 
-def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
+def get_server_settings_or_404(db: Session) -> server_settings_models.ServerSettings:
     """
     Get server settings or raise 404.
 
@@ -75,6 +76,40 @@ def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
         ) from None
 
     return server_settings
+
+
+def get_server_settings_for_admin(
+    db: Session,
+) -> server_settings_schema.ServerSettingsRead:
+    """
+    Get server settings with decrypted API key for admin access.
+
+    This function retrieves server settings and decrypts the tileserver
+    API key for admin users who need to view the actual key value.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        ServerSettingsRead schema with decrypted API key.
+
+    Raises:
+        HTTPException: If server settings not found.
+    """
+    server_settings = get_server_settings_or_404(db)
+
+    # Decrypt the API key if it exists
+    decrypted_api_key = None
+    if server_settings.tileserver_api_key:
+        decrypted_api_key = core_cryptography.decrypt_token_fernet(
+            server_settings.tileserver_api_key
+        )
+
+    # Convert ORM model to schema and override the decrypted API key
+    settings_schema = server_settings_schema.ServerSettingsRead.model_validate(
+        server_settings
+    )
+    return settings_schema.model_copy(update={"tileserver_api_key": decrypted_api_key})
 
 
 def get_tile_maps_templates() -> list[server_settings_schema.TileMapsTemplate]:
@@ -161,7 +196,7 @@ def get_allowed_tile_domains(db: Session) -> list[str]:
 
     # Add custom tile server domain if configured
     try:
-        server_settings = get_server_settings(db)
+        server_settings = get_server_settings_or_404(db)
         if server_settings and server_settings.tileserver_url:
             custom_domain = extract_domain_from_tile_url(server_settings.tileserver_url)
             if custom_domain and custom_domain not in allowed_domains:

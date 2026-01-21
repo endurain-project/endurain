@@ -19,7 +19,7 @@ from joserfc.jwk import OctKey
 
 import auth.constants as auth_constants
 
-import users.user.schema as users_schema
+import users.users.schema as users_schema
 
 import core.logger as core_logger
 import core.config as core_config
@@ -51,7 +51,7 @@ class TokenManager:
 
         validate_token_expiration(token: str) -> None:
 
-        create_token(session_id: str, user: users_schema.UserRead, token_type: TokenType) -> tuple[datetime, str]:
+        create_token(session_id: str, user: users_schema.UsersRead, token_type: TokenType) -> tuple[datetime, str]:
 
         create_csrf_token() -> str:
             Generates a secure random CSRF (Cross-Site Request Forgery) token.
@@ -231,6 +231,11 @@ class TokenManager:
                 exc=insecure_err,
                 context={"token": "[REDACTED]"},
             )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has insecure claims.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from insecure_err
         except InvalidClaimError as claims_err:
             core_logger.print_to_log(
                 f"JWT claims validation error: {claims_err}",
@@ -259,7 +264,7 @@ class TokenManager:
     def create_token(
         self,
         session_id: str,
-        user: users_schema.UserRead,
+        user: users_schema.UsersRead,
         token_type: TokenType,
     ) -> tuple[datetime, str]:
         """
@@ -267,7 +272,7 @@ class TokenManager:
 
         Args:
             session_id (str): The unique identifier for the session.
-            user (users_schema.UserRead): The user object containing user details.
+            user (users_schema.UsersRead): The user object containing user details.
             token_type (TokenType): The type of token to create (access or refresh).
 
         Returns:
@@ -277,7 +282,7 @@ class TokenManager:
             ValueError: If required parameters are missing or invalid.
         """
         # Check user access level and set scope accordingly
-        if user.access_type == users_schema.UserAccessType.REGULAR:
+        if user.access_type == users_schema.UserAccessType.REGULAR.value:
             scope = auth_constants.REGULAR_ACCESS_SCOPE
         else:
             scope = auth_constants.ADMIN_ACCESS_SCOPE

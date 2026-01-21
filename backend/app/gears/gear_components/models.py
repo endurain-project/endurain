@@ -76,7 +76,7 @@ class GearComponents(Base):
         comment="Purchase value of the gear component",
     )
 
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="gear_components")
+    # Define a relationship to the Users model
+    users = relationship("Users", back_populates="gear_components")
     # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="gear_components")

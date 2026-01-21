@@ -35,14 +35,14 @@ import profile.browser_redirect_router as profile_browser_redirect_router
 import profile.router as profile_router
 import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router
-import session.router as session_router
+import users.users_sessions.router as users_session_router
 import sign_up_tokens.router as sign_up_tokens_router
 import strava.router as strava_router
-import users.user.router as users_router
-import users.user_goals.router as user_goals_router
-import users.user_identity_providers.router as user_identity_providers_router
-import users.user.public_router as users_public_router
-import users.user_default_gear.router as user_default_gear_router
+import users.users.router as users_router
+import users.users_goals.router as user_goals_router
+import users.users_identity_providers.router as user_identity_providers_router
+import users.users.public_router as users_public_router
+import users.users_default_gear.router as user_default_gear_router
 import websocket.router as websocket_router
 
 
@@ -195,7 +195,7 @@ router.include_router(
     dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
-    session_router.router,
+    users_session_router.router,
     prefix=core_config.ROOT_PATH + "/sessions",
     tags=["sessions"],
     dependencies=[Depends(auth_security.validate_access_token)],

@@ -47,5 +47,5 @@
   "ssoAutoCreateDisabled": "Auto creació de comptes deshabilitat. Contacta amn l'admin",
   "ssoErrorUndefined": "Error durant autenticació SSO",
   "forceLocalLogin": "Usa usuari i contrasenya per accedir.",
-  "ssoTokenExchangeFailed": "SSO token exchange failed."
+  "ssoTokenExchangeFailed": "Intercanvi de tokens SSO fallit."
 }

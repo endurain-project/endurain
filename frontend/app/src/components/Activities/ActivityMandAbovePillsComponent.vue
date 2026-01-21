@@ -211,8 +211,8 @@ const props = defineProps({
     required: true
   },
   units: {
-    type: Number,
-    default: 1
+    type: String,
+    default: 'metric'
   },
   activityActivityExerciseTitles: {
     type: [Object, null],

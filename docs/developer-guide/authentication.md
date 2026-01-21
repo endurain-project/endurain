@@ -42,7 +42,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
     - On page reload, call `/auth/refresh` to restore in-memory tokens
 
 - **For mobile apps:** 
-    - All tokens (access, refresh, CSRF) returned in JSON response body
+    - All tokens (access, refresh) returned in JSON response body
     - Store tokens in secure platform storage (iOS Keychain, Android EncryptedSharedPreferences)
 
 ## Authentication Flows
@@ -55,7 +55,8 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 4. If MFA is disabled or verified, backend generates tokens
 5. Tokens are delivered based on client type:
     - **Web:** Access token + CSRF token in response body, refresh token as httpOnly cookie
-    - **Mobile:** All tokens in response body
+    - **Mobile:** All tokens in response body (CSRF not included, not needed for mobile logic)
+    - **Mobile with PKCE:** Session ID for secure token exchange (see [Mobile Password Login with PKCE](#mobile-password-login-with-pkce) below)
 
 ### OAuth/SSO Flow
 
@@ -123,9 +124,9 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Authorize** | `/auth/login` | `FORM` with the fields `username` and `password`. HTTPS highly recommended | 3 requests/min per IP |
+| **Authorize** | `/auth/login` | `FORM` with fields: `username`, `password`, optional PKCE: `code_challenge`, `code_challenge_method` (mobile only). HTTPS highly recommended | 3 requests/min per IP |
 | **Refresh Token** | `/auth/refresh` | Cookie: `endurain_refresh_token`, Header: `X-CSRF-Token` (web only) | - |
-| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}` | 5 requests/min per IP |
+| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}`, optional PKCE: `code_challenge`, `code_challenge_method` (mobile only) | 5 requests/min per IP |
 | **Logout** | `/auth/logout` | Header: `Authorization: Bearer <Access Token>` | - |
 
 ### OAuth/SSO Endpoints
@@ -135,7 +136,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Get Enabled Providers** | `/public/idp` | None (public endpoint) | - |
 | **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Query params: `redirect`, `code_challenge`, `code_challenge_method` | 10 requests/min per IP |
 | **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | 10 requests/min per IP |
-| **Token Exchange (PKCE)** | `/public/idp/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` | 10 requests/min per IP |
+| **Token Exchange (PKCE)** | `/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` (mobile PKCE: password or SSO) | 10 requests/min per IP |
 | **Link IdP to Account** | `/profile/idp/{idp_id}/link` | Requires authenticated session | 10 requests/min per IP |
 
 ### Session Management Endpoints
@@ -246,7 +247,6 @@ X-Client-Type: web|mobile
   "session_id": "unique_session_id",
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
-  "csrf_token": "abc123...",
   "token_type": "bearer",
   "expires_in": 1734567890
 }
@@ -396,6 +396,184 @@ When authenticating via OAuth, the response format matches the standard authenti
 
 !!! info "Mobile OAuth/SSO"
     Mobile apps must use the PKCE flow for OAuth/SSO authentication. This provides enhanced security and a cleaner separation between the WebView and native app.
+
+## Mobile Password Login with PKCE
+
+### Overview
+
+Mobile apps can use PKCE (Proof Key for Code Exchange, RFC 7636) for password authentication, providing enhanced security by preventing token interception in WebViews. This flow mirrors the OAuth/SSO PKCE flow but for local password authentication.
+
+### Why Use PKCE for Password Login?
+
+| Traditional Mobile Password Login | PKCE Password Login |
+| --------------------------------- | ------------------- |
+| Tokens returned in response | Tokens exchanged via secure API |
+| Tokens visible in WebView context | Only session_id visible |
+| Potential token interception | No token in response body |
+| Simple but less secure | Secure, requires verifier |
+
+### Step-by-Step PKCE Password Implementation
+
+#### Step 1: Generate PKCE Code Verifier and Challenge
+
+Before sending credentials, generate a cryptographically random code verifier and compute its SHA256 challenge (same as [Mobile SSO with PKCE](#step-1-generate-pkce-code-verifier-and-challenge)):
+
+```
+code_challenge = BASE64URL(SHA256(code_verifier))
+```
+
+#### Step 2: Send Login Request with PKCE Parameters
+
+Include the code challenge in the login request:
+
+**Login Request with PKCE:**
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/x-www-form-urlencoded
+X-Client-Type: mobile
+
+username=user@example.com&password=userpassword&code_challenge={challenge}&code_challenge_method=S256
+```
+
+**Form Parameters:**
+
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `username` | Yes | Username or email |
+| `password` | Yes | User's password |
+| `code_challenge` | Yes (PKCE) | Base64url-encoded SHA256 hash of code_verifier |
+| `code_challenge_method` | Yes (PKCE) | Must be `S256` |
+
+**Successful Response (HTTP 200):**
+
+Instead of tokens, receive a session_id for token exchange:
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "mfa_required": false,
+  "message": "Complete authentication by exchanging tokens at /session/{session_id}/tokens"
+}
+```
+
+#### Step 3: Exchange Session for Tokens (PKCE Verification)
+
+Use the code verifier to securely exchange the session for tokens:
+
+**Token Exchange Request:**
+
+```http
+POST /api/v1/session/{session_id}/tokens
+Content-Type: application/json
+X-Client-Type: mobile
+
+{
+  "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+}
+```
+
+**Successful Response (HTTP 200):**
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_in": 900,
+  "token_type": "Bearer"
+}
+```
+
+**Error Responses:**
+
+| Status | Error | Description |
+| ------ | ----- | ----------- |
+| 400 | Invalid code_verifier | Verifier doesn't match the challenge |
+| 404 | Session not found | Invalid session_id |
+| 409 | Tokens already exchanged | Replay attack prevention |
+| 429 | Rate limit exceeded | Max 10 requests/minute per IP |
+
+#### Step 4: Store Tokens Securely
+
+Store the received tokens in secure platform storage:
+
+- **iOS**: Keychain Services
+- **Android**: EncryptedSharedPreferences or Android Keystore
+
+#### Step 5: Use Tokens for API Requests
+
+Use the tokens for authenticated API calls (same as [Mobile SSO with PKCE](#step-6-use-tokens-for-api-requests)).
+
+### Backward Compatibility
+
+Mobile clients that don't provide PKCE parameters will receive tokens directly (legacy behavior):
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/x-www-form-urlencoded
+X-Client-Type: mobile
+
+username=user@example.com&password=userpassword
+```
+
+Responds with tokens directly (no PKCE):
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 900
+}
+```
+
+### With MFA Enabled
+
+If the user has MFA enabled, the flow includes an additional MFA verification step:
+
+1. Client sends login with PKCE parameters
+2. Backend returns `"mfa_required": true` with message
+3. Client collects MFA code from user
+4. Client sends MFA code to `/auth/mfa/verify` with PKCE parameters
+5. Backend verifies MFA and returns session_id (for PKCE) or tokens directly
+6. Client exchanges session_id for tokens using code_verifier
+
+**MFA Verification with PKCE:**
+
+```http
+POST /api/v1/auth/mfa/verify?code_challenge={challenge}&code_challenge_method=S256
+Content-Type: application/json
+X-Client-Type: mobile
+
+{
+  "username": "user@example.com",
+  "mfa_code": "123456"
+}
+```
+
+**Response (Session ID for Exchange):**
+
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "mfa_required": false,
+  "message": "Complete authentication by exchanging tokens at /session/{session_id}/tokens"
+}
+```
+
+Then exchange for tokens as in Step 3 above.
+
+### Security Features
+
+| Feature | Description |
+| ------- | ----------- |
+| **PKCE S256** | SHA256 challenge prevents code interception |
+| **One-time exchange** | Tokens can only be exchanged once per session |
+| **10-minute expiry** | Session expires after 10 minutes |
+| **Rate limiting** | 10 token exchange requests per minute |
+| **Session binding** | Session is cryptographically bound to PKCE challenge |
 
 ## Mobile SSO with PKCE
 

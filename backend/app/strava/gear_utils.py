@@ -17,7 +17,7 @@ import gears.gear.utils as gears_utils
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
 
-import users.user_integrations.crud as user_integrations_crud
+import users.users_integrations.crud as user_integrations_crud
 
 from core.database import SessionLocal
 

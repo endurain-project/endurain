@@ -10,10 +10,10 @@ import core.logger as core_logger
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
 
-import users.user_integrations.crud as user_integrations_crud
-import users.user_integrations.models as user_integrations_models
+import users.users_integrations.crud as user_integrations_crud
+import users.users_integrations.models as user_integrations_models
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 from core.database import SessionLocal
 

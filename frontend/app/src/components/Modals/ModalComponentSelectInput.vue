@@ -96,7 +96,7 @@ const props = defineProps({
     required: true
   },
   selectCurrentOption: {
-    type: Number,
+    type: String,
     required: true
   },
   actionButtonType: {
@@ -111,7 +111,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  optionToEmitAction: [value: number]
+  optionToEmitAction: [value: String]
 }>()
 
 const { initializeModal, disposeModal } = useBootstrapModal()

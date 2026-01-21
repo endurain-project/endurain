@@ -113,15 +113,25 @@ export function formatDurationHHmm(seconds) {
   return `${formattedHours}:${formattedMinutes}`
 }
 
-export function getWeekStartDate(date, firstDayOfWeek = 0) {
+export function getWeekStartDate(date, firstDayOfWeek = 'monday') {
   const dt = DateTime.fromJSDate(date, { zone: 'utc' })
 
   // Get the current day of the week (1 = Monday, 7 = Sunday in Luxon)
   const currentDayOfWeek = dt.weekday
 
-  // Convert firstDayOfWeek parameter to Luxon format
-  // 0 (Sunday) -> 7, 1 (Monday) -> 1, 2 (Tuesday) -> 2, etc.
-  const luxonFirstDayOfWeek = firstDayOfWeek === 0 ? 7 : firstDayOfWeek
+  // Map string day names to Luxon weekday numbers (1 = Monday, 7 = Sunday)
+  const dayMap = {
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+    sunday: 7
+  }
+
+  // Convert firstDayOfWeek string to Luxon format
+  const luxonFirstDayOfWeek = dayMap[firstDayOfWeek.toLowerCase()] || 1
 
   // Calculate days to subtract to get to the start of the week
   let daysToSubtract = (currentDayOfWeek - luxonFirstDayOfWeek + 7) % 7
@@ -129,12 +139,12 @@ export function getWeekStartDate(date, firstDayOfWeek = 0) {
   return dt.minus({ days: daysToSubtract }).toJSDate()
 }
 
-export function getWeekEndDate(jsDate, firstDayOfWeek = 0) {
+export function getWeekEndDate(jsDate, firstDayOfWeek = 'monday') {
   const weekStart = getWeekStartDate(jsDate, firstDayOfWeek)
   return DateTime.fromJSDate(weekStart, { zone: 'utc' }).plus({ days: 7 }).toJSDate()
 }
 
-export function navigateWeek(currentDate, direction, firstDayOfWeek = 0) {
+export function navigateWeek(currentDate, direction, firstDayOfWeek = 'monday') {
   return DateTime.fromJSDate(currentDate, { zone: 'utc' })
     .plus({ days: 7 * direction })
     .toJSDate()

@@ -18,7 +18,7 @@ import health.health_steps.schema as health_steps_schema
 import health.health_sleep.crud as health_sleep_crud
 import health.health_sleep.schema as health_sleep_schema
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 from core.database import SessionLocal
 

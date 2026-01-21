@@ -1,3 +1,12 @@
+"""Profile exception classes for import/export operations.
+
+This module defines custom exceptions for profile operations:
+- Export errors: database, filesystem, ZIP, memory, data
+- Import errors: validation, format, integrity, timeout, size
+- Shared errors: filesystem, memory allocation
+- Exception to HTTPException conversion utilities
+"""
+
 from fastapi import HTTPException, status
 
 
@@ -18,7 +27,7 @@ class ExportError(ProfileOperationError):
     pass
 
 
-class ImportError(ProfileOperationError):
+class ProfileImportError(ProfileOperationError):
     """
     Base exception for import operations.
     """
@@ -76,7 +85,7 @@ class ExportTimeoutError(ExportError):
 
 
 # Import-specific exceptions
-class ImportValidationError(ImportError):
+class ImportValidationError(ProfileImportError):
     """
     Raised when import data fails validation checks.
     """
@@ -84,7 +93,7 @@ class ImportValidationError(ImportError):
     pass
 
 
-class FileFormatError(ImportError):
+class FileFormatError(ProfileImportError):
     """
     Raised when imported file format is invalid or corrupted.
     """
@@ -92,7 +101,7 @@ class FileFormatError(ImportError):
     pass
 
 
-class DataIntegrityError(ImportError):
+class DataIntegrityError(ProfileImportError):
     """
     Raised when imported data has integrity issues.
     """
@@ -100,7 +109,7 @@ class DataIntegrityError(ImportError):
     pass
 
 
-class ImportTimeoutError(ImportError):
+class ImportTimeoutError(ProfileImportError):
     """
     Raised when import operation exceeds time limit.
     """
@@ -108,7 +117,7 @@ class ImportTimeoutError(ImportError):
     pass
 
 
-class DiskSpaceError(ImportError):
+class DiskSpaceError(ProfileImportError):
     """
     Raised when insufficient disk space is available.
     """
@@ -116,7 +125,7 @@ class DiskSpaceError(ImportError):
     pass
 
 
-class FileSizeError(ImportError):
+class FileSizeError(ProfileImportError):
     """
     Raised when imported file exceeds size limits.
     """
@@ -124,7 +133,7 @@ class FileSizeError(ImportError):
     pass
 
 
-class ActivityLimitError(ImportError):
+class ActivityLimitError(ProfileImportError):
     """
     Raised when import contains too many activities.
     """
@@ -132,7 +141,7 @@ class ActivityLimitError(ImportError):
     pass
 
 
-class ZipStructureError(ImportError):
+class ZipStructureError(ProfileImportError):
     """
     Raised when ZIP file structure is invalid.
     """
@@ -140,7 +149,7 @@ class ZipStructureError(ImportError):
     pass
 
 
-class JSONParseError(ImportError):
+class JSONParseError(ProfileImportError):
     """
     Raised when JSON data cannot be parsed.
     """
@@ -148,7 +157,7 @@ class JSONParseError(ImportError):
     pass
 
 
-class SchemaValidationError(ImportError):
+class SchemaValidationError(ProfileImportError):
     """
     Raised when imported data doesn't match expected schema.
     """

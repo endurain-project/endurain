@@ -9,12 +9,12 @@ class ServerSettings(Base):
 
     Attributes:
         id: Primary key (always 1, singleton pattern).
-        units: Measurement units (1=metric, 2=imperial).
+        units: Measurement units (metric, imperial).
         public_shareable_links: Allow public shareable links.
         public_shareable_links_user_info: Show user info on
             public links.
         login_photo_set: Login photo has been configured.
-        currency: Currency type (1=euro, 2=dollar, 3=pound).
+        currency: Currency type (euro, dollar, pound).
         num_records_per_page: Default pagination size.
         signup_enabled: Allow user registration.
         signup_require_admin_approval: Require approval for
@@ -41,10 +41,11 @@ class ServerSettings(Base):
         default=1,
         nullable=False,
     )
-    units: Mapped[int] = mapped_column(
-        default=1,
+    units: Mapped[str] = mapped_column(
+        String(20),
+        default="metric",
         nullable=False,
-        comment="Units (one digit)(1 - metric, 2 - imperial)",
+        comment="Units (metric, imperial)",
     )
     public_shareable_links: Mapped[bool] = mapped_column(
         default=False,
@@ -61,10 +62,11 @@ class ServerSettings(Base):
         nullable=False,
         comment="Is login photo set (true - yes, false - no)",
     )
-    currency: Mapped[int] = mapped_column(
-        default=1,
+    currency: Mapped[str] = mapped_column(
+        String(20),
+        default="euro",
         nullable=False,
-        comment="Currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
+        comment="Currency (euro, dollar, pound)",
     )
     num_records_per_page: Mapped[int] = mapped_column(
         default=25,
@@ -113,6 +115,12 @@ class ServerSettings(Base):
         ),
         nullable=False,
         comment="Attribution string for the map tileserver",
+    )
+    tileserver_api_key: Mapped[str | None] = mapped_column(
+        String(length=512),
+        default=None,
+        nullable=True,
+        comment=("API key encrypted for the tile server"),
     )
     map_background_color: Mapped[str] = mapped_column(
         default="#dddddd",

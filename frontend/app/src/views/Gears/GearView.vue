@@ -49,9 +49,7 @@
               >
                 {{
                   $t(
-                    `gearView.gearTypeOption${
-                      gear?.gear_type >= 1 && gear?.gear_type <= 8 ? gear?.gear_type : 8
-                    }`
+                    `gearView.gearTypeOption${gear?.gear_type >= 1 && gear?.gear_type <= 8 ? gear?.gear_type : 8}`
                   )
                 }}
               </span>
@@ -132,7 +130,7 @@
           <div class="vstack align-items-center">
             <span class="mt-2" v-if="gear?.gear_type !== 4">
               <strong> {{ $t('gearView.labelDistance') }}: </strong>
-              <span v-if="Number(authStore?.user?.units) === 1">
+              <span v-if="authStore?.user?.units === 'metric'">
                 {{ gearDistance }} {{ $t('generalItems.unitsKm') }}</span
               >
               <span v-else> {{ kmToMiles(gearDistance) }} {{ $t('generalItems.unitsMiles') }}</span>
@@ -152,10 +150,10 @@
                 ><strong>{{ $t('gearView.labelPurchaseValue') }}:</strong>
                 {{ gear?.purchase_value }}</span
               >
-              <span v-if="authStore.user.currency === 1">{{
+              <span v-if="authStore.user.currency === 'euro'">{{
                 $t('generalItems.currencyEuroSymbol')
               }}</span>
-              <span v-else-if="authStore.user.currency === 2">{{
+              <span v-else-if="authStore.user.currency === 'dollar'">{{
                 $t('generalItems.currencyDollarSymbol')
               }}</span>
               <span v-else>{{ $t('generalItems.currencyPoundSymbol') }}</span>
@@ -164,10 +162,10 @@
               <span class="me-1"
                 ><strong>{{ $t('gearView.labelTotalCost') }}:</strong> {{ gearTotalValue }}</span
               >
-              <span v-if="authStore.user.currency === 1">{{
+              <span v-if="authStore.user.currency === 'euro'">{{
                 $t('generalItems.currencyEuroSymbol')
               }}</span>
-              <span v-else-if="authStore.user.currency === 2">{{
+              <span v-else-if="authStore.user.currency === 'dollar'">{{
                 $t('generalItems.currencyDollarSymbol')
               }}</span>
               <span v-else>{{ $t('generalItems.currencyPoundSymbol') }}</span>
@@ -184,37 +182,16 @@
         <div class="hstack align-items-baseline justify-content-between">
           <div class="d-flex align-items-baseline">
             <h5>{{ $t('gearView.titleComponents') }}</h5>
-            <span class="mb-1 ms-1" v-if="gearComponentsShowInactive"
+            <span class="mb-1 ms-1" v-if="filterValues.showInactive"
               >({{ gearComponents.length }})</span
             >
             <span class="mb-1 ms-1" v-else>({{ gearComponentsActive.length }})</span>
           </div>
-          <div class="dropdown">
-            <button
-              class="btn btn-sm btn-link link-body-emphasis dropdown-toggle"
-              type="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              <font-awesome-icon :icon="['fas', 'filter']" />
-            </button>
-            <ul class="dropdown-menu ps-3">
-              <li>
-                <div class="form-check">
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    value=""
-                    id="checkShowInactive"
-                    v-model="gearComponentsShowInactive"
-                  />
-                  <label class="form-check-label" for="checkShowInactive">
-                    {{ $t('gearView.showInactiveComponents') }}
-                  </label>
-                </div>
-              </li>
-            </ul>
-          </div>
+          <FilterDropdownComponent
+            :options="filterOptions"
+            v-model="filterValues"
+            :aria-label="$t('generalItems.filterOptions')"
+          />
         </div>
 
         <NoItemsFoundComponent
@@ -231,7 +208,7 @@
           <!-- List gear components-->
           <ul
             class="list-group list-group-flush"
-            v-for="gearComponent in gearComponentsShowInactive
+            v-for="gearComponent in filterValues.showInactive
               ? gearComponents
               : gearComponentsActive"
             :key="gearComponent.id"
@@ -315,7 +292,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
@@ -325,6 +302,7 @@ import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundCo
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
+import FilterDropdownComponent from '@/components/GeneralComponents/FilterDropdownComponent.vue'
 import GearsAddEditGearModalComponent from '@/components/Gears/GearsAddEditGearModalComponent.vue'
 import GearComponentListComponent from '@/components/Gears/GearComponentListComponent.vue'
 import GearComponentAddEditModalComponent from '@/components/Gears/GearComponentAddEditModalComponent.vue'
@@ -356,7 +334,12 @@ const gearDistance = ref(0)
 const gearTime = ref(0)
 const gearComponents = ref(null)
 const gearComponentsActive = ref(null)
-const gearComponentsShowInactive = ref(false)
+const filterValues = ref({
+  showInactive: false
+})
+const filterOptions = computed(() => [
+  { id: 'showInactive', label: t('gearView.showInactiveComponents') }
+])
 const gearComponentsTotalValue = ref(0)
 const gearTotalValue = ref(0)
 

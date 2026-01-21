@@ -10,7 +10,7 @@
           <div class="fw-bold">
             {{ user.username }}
           </div>
-          <span v-if="user.access_type == 1">{{
+          <span v-if="user.access_type === 'regular'">{{
             $t('usersListComponent.userListAccessTypeOption1')
           }}</span>
           <span v-else>{{ $t('usersListComponent.userListAccessTypeOption2') }}</span>
@@ -24,7 +24,7 @@
         >
         <span
           class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis me-2 d-none d-sm-inline"
-          v-if="user.access_type == 2"
+          v-if="user.access_type === 'admin'"
           >{{ $t('usersListComponent.userListUserIsAdminBadge') }}</span
         >
         <span
@@ -59,7 +59,7 @@
 
         <!-- approve sign-up button -->
         <a
-          class="btn btn-link btn-lg link-body-emphasis"
+          class="btn btn-outline-success btn-lg"
           href="#"
           role="button"
           data-bs-toggle="modal"
@@ -81,7 +81,7 @@
 
         <!-- reject sign-up button -->
         <a
-          class="btn btn-link btn-lg link-body-emphasis"
+          class="btn btn-outline-danger btn-lg ms-2"
           href="#"
           role="button"
           data-bs-toggle="modal"
@@ -254,7 +254,7 @@ const props = defineProps<{
   user: {
     id: number
     username: string
-    access_type: number
+    access_type: string
     active: boolean
     email_verified: boolean
     pending_admin_approval?: boolean

@@ -18,7 +18,7 @@
   "labelMaxCadence": "Cadència màx",
   "subTitleElevation": "Elevació",
   "labelElevationGain": "Desnivell +",
-  "labelElevationLoss": "Pèrdua elevació",
+  "labelElevationLoss": "Desnivell -",
   "subTitleStrokeRate": "Freqüència batecs",
   "labelAvgStrokeRate": "Freqüència mitjana de batecs",
   "labelMaxStrokeRate": "Freqüència de batecs Max"

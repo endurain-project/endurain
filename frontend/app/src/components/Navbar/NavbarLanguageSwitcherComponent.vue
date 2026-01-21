@@ -9,11 +9,12 @@
     >
       <span
         :class="'fi fi-' + currentLanguage"
-        v-if="currentLanguage !== 'ca' && currentLanguage !== 'gl' && currentLanguage !== 'sl'"
+        v-if="!['ca', 'gl', 'sl', 'sv'].includes(currentLanguage)"
       ></span>
       <span class="fi fi-es-ct" v-else-if="currentLanguage === 'ca'"></span>
       <span class="fi fi-es-ga" v-else-if="currentLanguage === 'gl'"></span>
       <span class="fi fi-si" v-else-if="currentLanguage === 'sl'"></span>
+      <span class="fi fi-se" v-else-if="currentLanguage === 'sv'"></span>
     </a>
 
     <!-- dropdown menu -->
@@ -27,11 +28,12 @@
           <span class="me-2">{{ language.label }}</span>
           <span
             :class="'fi fi-' + language.value"
-            v-if="language.value !== 'ca' && language.value !== 'gl' && language.value !== 'sl'"
+            v-if="!['ca', 'gl', 'sl', 'sv'].includes(language.value)"
           ></span>
           <span class="fi fi-es-ct" v-else-if="language.value === 'ca'"></span>
           <span class="fi fi-es-ga" v-else-if="language.value === 'gl'"></span>
           <span class="fi fi-si" v-else-if="language.value === 'sl'"></span>
+          <span class="fi fi-se" v-else-if="language.value === 'sv'"></span>
           <span v-if="currentLanguage === language.value" class="ms-3"
             ><font-awesome-icon :icon="['fas', 'check']"
           /></span>
@@ -83,6 +85,7 @@ const languages = computed<Language[]>(() => [
   { value: 'nl', label: t('generalItems.languageOption6') },
   { value: 'pt', label: t('generalItems.languageOption3') },
   { value: 'sl', label: t('generalItems.languageOption12') },
+  { value: 'sv', label: t('generalItems.languageOption13') },
   { value: 'es', label: t('generalItems.languageOption7') },
   { value: 'us', label: t('generalItems.languageOption1') }
 ])

@@ -13,13 +13,13 @@ import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import auth.constants as auth_constants
-import session.utils as session_utils
-import session.crud as session_crud
+import users.users_sessions.utils as users_session_utils
+import users.users_sessions.crud as users_session_crud
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.service as idp_service
 import auth.identity_providers.utils as idp_utils
-import users.user.schema as users_schema
+import users.users.schema as users_schema
 import core.config as core_config
 import core.logger as core_logger
 import auth.oauth_state.crud as oauth_state_crud
@@ -233,7 +233,7 @@ async def handle_callback(
             )
 
         # Lookup OAuth state from database (mandatory for all clients)
-        oauth_state = oauth_state_crud.get_oauth_state_by_id(state, db)
+        oauth_state = oauth_state_crud.get_oauth_state_by_id_and_not_used(state, db)
 
         if not oauth_state:
             core_logger.print_to_log(
@@ -276,15 +276,11 @@ async def handle_callback(
             )
 
         # LOGIN MODE: Create session WITHOUT tokens (tokens created during exchange)
-        # Convert to UserRead schema
-        user_read = users_schema.UserRead.model_validate(user)
+        # Convert to UsersRead schema
+        user_read = users_schema.UsersRead.model_validate(user)
 
         # Generate session ID
         session_id = str(uuid4())
-
-        # Create placeholder session (tokens will be created during exchange)
-        # Use a temporary refresh token that will be replaced during exchange
-        temp_refresh_token = "pending_exchange"
 
         # Create the session and store it in the database
         if not oauth_state:
@@ -293,11 +289,11 @@ async def handle_callback(
                 detail="OAuth state required for token exchange",
             )
 
-        session_utils.create_session(
+        users_session_utils.create_session(
             session_id,
             user_read,
             request,
-            temp_refresh_token,
+            None,
             password_hasher,
             db,
             oauth_state_id=oauth_state.id,
@@ -391,7 +387,9 @@ async def exchange_tokens_for_session(
     """
     try:
         # Retrieve session with OAuth state relationship
-        session_with_state = session_crud.get_session_with_oauth_state(session_id, db)
+        session_with_state = users_session_crud.get_session_with_oauth_state(
+            session_id, db
+        )
 
         if not session_with_state:
             core_logger.print_to_log(
@@ -446,8 +444,8 @@ async def exchange_tokens_for_session(
         )
 
         # PKCE verification successful - retrieve user and create tokens
-        user = session_obj.user
-        user_read = users_schema.UserRead.model_validate(user)
+        user = session_obj.users
+        user_read = users_schema.UsersRead.model_validate(user)
 
         # Create JWT tokens (now that PKCE is verified)
         (
@@ -470,8 +468,11 @@ async def exchange_tokens_for_session(
         session_obj.refresh_token = password_hasher.hash_password(refresh_token)
         db.commit()
 
+        # Store client_type before marking tokens as exchanged (which deletes oauth_state)
+        client_type = oauth_state.client_type
+
         # Set refresh token cookie for web clients (enables logout)
-        if oauth_state.client_type == "web":
+        if client_type == "web":
             secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
             response.set_cookie(
                 key="endurain_refresh_token",
@@ -485,21 +486,32 @@ async def exchange_tokens_for_session(
             )
 
         # Mark tokens as exchanged to prevent replay attacks
-        session_crud.mark_tokens_exchanged(session_id, db)
+        users_session_crud.mark_tokens_exchanged(session_id, db)
 
         core_logger.print_to_log(
-            f"Token exchange successful for session {session_id[:8]}... (user={user.username})",
+            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={client_type})",
             "info",
         )
 
-        return idp_schema.TokenExchangeResponse(
-            session_id=session_id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            csrf_token=csrf_token,
-            expires_in=expires_in,
-            token_type="Bearer",
-        )
+        # Return response based on client type (matches complete_login behavior)
+        if client_type == "web":
+            # Web: access_token and csrf_token in body, refresh_token in cookie only
+            return idp_schema.TokenExchangeResponse(
+                session_id=session_id,
+                access_token=access_token,
+                csrf_token=csrf_token,
+                expires_in=expires_in,
+                token_type="Bearer",
+            )
+        else:
+            # Mobile: all tokens in body (no cookies)
+            return idp_schema.TokenExchangeResponse(
+                session_id=session_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=expires_in,
+                token_type="Bearer",
+            )
 
     except HTTPException:
         raise

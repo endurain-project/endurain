@@ -9,9 +9,10 @@ from fastapi import HTTPException, status
 import activities.activity.utils as activities_utils
 import activities.activity.schema as activities_schema
 
-import users.user_default_gear.utils as user_default_gear_utils
+import users.users_default_gear.utils as user_default_gear_utils
 
-import users.user_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.utils as users_privacy_settings_utils
 
 import core.logger as core_logger
 import core.config as core_config
@@ -354,10 +355,8 @@ def parse_gpx_file(
             average_cad=round(avg_cadence) if avg_cadence else None,
             max_cad=round(max_cadence) if max_cadence else None,
             calories=calories,
-            visibility=(
+            visibility=users_privacy_settings_utils.visibility_to_int(
                 user_privacy_settings.default_activity_visibility
-                if user_privacy_settings.default_activity_visibility is not None
-                else 0
             ),
             gear_id=gear_id,
             strava_gear_id=None,

@@ -17,14 +17,15 @@ import activities.activity_laps.crud as activity_laps_crud
 import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_streams.crud as activity_streams_crud
 
-import users.user_integrations.models as user_integrations_models
+import users.users_integrations.models as user_integrations_models
 
-import users.user_default_gear.utils as user_default_gear_utils
+import users.users_default_gear.utils as user_default_gear_utils
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.models as users_privacy_settings_models
+import users.users_privacy_settings.utils as users_privacy_settings_utils
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
 import gears.gear.crud as gears_crud
 
@@ -329,10 +330,8 @@ def parse_activity(
         gear_id=gear_id,
         strava_gear_id=detailedActivity.gear_id,
         strava_activity_id=int(activity.id),
-        visibility=(
+        visibility=users_privacy_settings_utils.visibility_to_int(
             user_privacy_settings.default_activity_visibility
-            if user_privacy_settings.default_activity_visibility is not None
-            else 0
         ),
         hide_start_time=user_privacy_settings.hide_activity_start_time or False,
         hide_location=user_privacy_settings.hide_activity_location or False,
@@ -767,7 +766,7 @@ async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    ws_manager: websocket_manager.WebSocketManager = None,
+    ws_manager: websocket_manager.WebSocketManager | None = None,
     db: Session = None,
     is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:

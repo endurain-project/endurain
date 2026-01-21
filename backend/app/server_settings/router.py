@@ -26,12 +26,10 @@ import auth.security as auth_security
 import core.database as core_database
 import core.logger as core_logger
 import core.config as core_config
+import core.file_uploads as core_file_uploads
 
 # Define the API router
 router = APIRouter()
-
-# Initialize the file validator
-file_validator = FileValidator()
 
 
 @router.get(
@@ -55,9 +53,9 @@ async def read_server_settings(
     Requires admin authentication with server_settings:read scope.
 
     Returns:
-        Current server settings configuration.
+        Current server settings configuration with decrypted API key.
     """
-    return server_settings_utils.get_server_settings(db)
+    return server_settings_utils.get_server_settings_for_admin(db)
 
 
 @router.get(
@@ -137,8 +135,8 @@ async def edit_server_settings(
 
 @router.post(
     "/upload/login",
-    response_model=dict,
-    status_code=status.HTTP_200_OK,
+    response_model=dict[str, str],
+    status_code=status.HTTP_201_CREATED,
 )
 async def upload_login_photo(
     file: UploadFile,
@@ -146,56 +144,30 @@ async def upload_login_photo(
         Callable,
         Security(auth_security.check_scopes, scopes=["server_settings:write"]),
     ],
-) -> dict:
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> dict[str, str]:
     """
-    Upload custom login page photo with security validation.
+    Upload custom login page photo.
 
     Requires admin authentication with server_settings:write scope.
-
-    Security measures:
-    - SafeUploads validates file type via magic number (not extension)
-    - File size limit enforced (max configured image size)
-    - Filename hardcoded to 'login.png' (path traversal prevention)
-    - Uploaded to isolated directory (core_config.SERVER_IMAGES_DIR)
 
     Args:
         file: Image file to upload.
 
     Returns:
-        Success confirmation message.
-
-    Raises:
-        HTTPException: If file validation or upload fails.
+        Full file path where file was saved.
     """
-    try:
-        await file_validator.validate_image_file(file)
-        # Ensure the 'server_images' directory exists
-        upload_dir = core_config.SERVER_IMAGES_DIR
-        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
+    # Save file using centralized file upload handler
+    await core_file_uploads.save_image_file_and_validate_it(
+        file, core_config.SERVER_IMAGES_DIR, "login.png"
+    )
 
-        # Build the full path with the name "login.png"
-        file_path = os.path.join(upload_dir, "login.png")
+    server_settings_crud.update_server_settings_login_photo_set(True, db)
 
-        # Save the uploaded file with the name "login.png"
-        content = await file.read()
-        async with aiofiles.open(file_path, "wb") as save_file:
-            await save_file.write(content)
-
-        return {"detail": "Login photo uploaded successfully"}
-    except FileValidationError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
-        ) from err
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in upload_login_photo: {err}", "error", exc=err
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to upload login photo",
-        ) from err
+    return {"message": "Login photo uploaded successfully."}
 
 
 @router.delete(
@@ -207,6 +179,10 @@ async def delete_login_photo(
     _check_scopes: Annotated[
         Callable,
         Security(auth_security.check_scopes, scopes=["server_settings:write"]),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
     ],
 ) -> None:
     """
@@ -220,23 +196,8 @@ async def delete_login_photo(
     Raises:
         HTTPException: If deletion fails.
     """
-    try:
-        # Build the full path to the file
-        file_path = os.path.join(
-            core_config.SERVER_IMAGES_DIR,
-            "login.png",
-        )
+    await core_file_uploads.delete_files_by_pattern(
+        core_config.SERVER_IMAGES_DIR, "login.png"
+    )
 
-        # Check if the file exists and delete it asynchronously
-        if await aiofiles.os.path.exists(file_path):
-            await aiofiles.os.remove(file_path)
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in delete_login_photo: {err}", "error", exc=err
-        )
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete login photo",
-        ) from err
+    server_settings_crud.update_server_settings_login_photo_set(False, db)

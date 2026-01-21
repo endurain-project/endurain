@@ -148,7 +148,7 @@ const props = defineProps({
     required: true
   },
   units: {
-    type: Number,
+    type: String,
     required: true
   }
 })

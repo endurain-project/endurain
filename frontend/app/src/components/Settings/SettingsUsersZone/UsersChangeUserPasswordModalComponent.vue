@@ -188,7 +188,7 @@ const newPassword = ref('')
 const newPasswordRepeat = ref('')
 const passwordType = serverSettingsStore.serverSettings.password_type
 const passMinLength =
-  props.user.access_type === 2
+  props.user.access_type === 'admin'
     ? serverSettingsStore.serverSettings.password_length_admin_users
     : serverSettingsStore.serverSettings.password_length_regular_users
 const passRequirements = buildPasswordRequirements(passwordType, passMinLength)
