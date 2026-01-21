@@ -8,13 +8,13 @@
   "noWeightTarget": "No weight target",
   "noHeightDefined": "No height defined for user",
   "bmi": "BMI",
-  "bmiUnderweight": "Underweight",
-  "bmiNormalWeight": "Normal weight",
-  "bmiOverweight": "Overweight",
-  "bmiObesityClass1": "Obesity (Class 1)",
-  "bmiObesityClass2": "Obesity (Class 2)",
-  "bmiObesityClass3": "Extreme Obesity (Class 3)",
-  "steps": "Today's steps",
-  "stepsTargetLabel": "steps",
-  "noStepsTarget": "No steps target"
+  "bmiUnderweight": "Underviktig",
+  "bmiNormalWeight": "Normalviktig",
+  "bmiOverweight": "Överviktig",
+  "bmiObesityClass1": "Obesitas (Klass 1)",
+  "bmiObesityClass2": "Obesitas (Klass 2)",
+  "bmiObesityClass3": "Kraftig obesitas (Klass 3)",
+  "steps": "Dagens steg",
+  "stepsTargetLabel": "steg",
+  "noStepsTarget": "Inga stegmål"
 }
