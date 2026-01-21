@@ -41,11 +41,9 @@
   "mapsTitle": "Maps",
   "tileTemplateLabel": "Tile server template",
   "tileTemplateCustom": "Custom",
-  "tileTemplateApiKeyWarning": "This template requires an API key configured in the backend",
-  "tileTemplateFrontendApiKeyWarning": "This template may require an API key configured in the frontend",
+  "tileTemplateApiKeyWarning": "This template requires an API key configured in the backend.",
+  "tileTemplateFrontendApiKeyWarning": "This template may require an API key configured in the frontend.",
   "tileserverUrlLabel": "Tile server URL",
   "tileserverAttributionLabel": "Tile server attribution",
-  "tileserverApiKeyLabel": "Tile server API key",
-  "tileApiKeyWarning": "Changing the template will reset the API key",
   "mapBackgroundColorLabel": "Map background color"
 }
