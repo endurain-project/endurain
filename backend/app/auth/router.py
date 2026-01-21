@@ -549,12 +549,12 @@ async def refresh_token(
 @router.post("/logout")
 async def logout(
     response: Response,
-    _validate_access_token: Annotated[
-        Callable, Depends(auth_security.validate_access_token)
+    _validate_refresh_token: Annotated[
+        Callable, Depends(auth_security.validate_refresh_token)
     ],
     token_session_id: Annotated[
         str,
-        Depends(auth_security.get_sid_from_access_token),
+        Depends(auth_security.get_sid_from_refresh_token),
     ],
     refresh_token_value: Annotated[
         str,
@@ -575,21 +575,24 @@ async def logout(
     ],
 ):
     """
-    Logs out a user by validating and deleting their session, and clearing the refresh token cookie.
-    Parameters:
-        response (Response): The response object to modify cookies.
-        _validate_access_token (Callable): Dependency to validate the access token.
-        token_session_id (str): The session ID extracted from the access token.
-        refresh_token_value (str): The refresh token value from the request.
-        client_type (str): The type of client ("web" or "mobile").
-        token_user_id (int): The user ID extracted from the refresh token.
-        password_hasher (PasswordHasher): Utility for verifying the refresh token.
-        db (Session): Database session for CRUD operations.
+    Log out a user by validating and deleting their session.
+
+    Args:
+        response: The HTTP response object to modify cookies.
+        _validate_refresh_token: Dependency to validate the refresh token.
+        token_session_id: The session ID extracted from the refresh token.
+        refresh_token_value: The refresh token value from the request.
+        client_type: The type of client ("web" or "mobile").
+        token_user_id: The user ID extracted from the refresh token.
+        password_hasher: Utility for verifying the refresh token.
+        db: Database session for CRUD operations.
+
     Returns:
         dict: A message indicating successful logout.
+
     Raises:
-        HTTPException: If the refresh token is invalid (401 Unauthorized).
-        HTTPException: If the client type is invalid (403 Forbidden).
+        HTTPException: If refresh token is invalid (401 Unauthorized).
+        HTTPException: If client type is invalid (403 Forbidden).
     """
     # Get the session from the database
     session = users_session_crud.get_session_by_id_not_expired(token_session_id, db)
