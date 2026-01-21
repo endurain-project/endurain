@@ -8,6 +8,7 @@ from fastapi import (
     Response,
     Request,
 )
+import secrets
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -281,14 +282,14 @@ def create_mobile_pkce_session_response(
     session_id = str(uuid4())
 
     # Create OAuth state record for PKCE (reuse SSO infrastructure)
-    state_id = str(uuid4())
+    state_id = secrets.token_urlsafe(32)
+    nonce = secrets.token_urlsafe(32)
     client_ip = request.client.host if request.client else None
 
     oauth_state_crud.create_oauth_state(
         db=db,
         state_id=state_id,
-        idp_id=None,  # No IdP for password login (NULL in database)
-        nonce="password_auth",  # Not needed for password login, but required field
+        nonce=nonce,
         client_type="mobile",  # This function is mobile-only
         ip_address=client_ip,
         redirect_path=None,
