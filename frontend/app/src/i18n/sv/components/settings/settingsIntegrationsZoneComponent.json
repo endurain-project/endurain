@@ -1,7 +1,7 @@
 {
   "stravaIntegrationTitle": "Strava",
-  "stravaIntegrationBody": "Strava is an American internet service for tracking physical exercise which incorporates social network features.",
-  "buttonConnect": "Connect",
+  "stravaIntegrationBody": "Strava är en amerikansk onlinebaserad fitnesstjänst, med inslag av sociala medier, för att registrera fysisk träning.",
+  "buttonConnect": "Anslut",
   "buttonDropdownOptions": "Options",
   "modalRetrieveActivitiesByDaysTitle": "Retrieve activities by days",
   "modalRetrieveActivitiesByDateRangeTitle": "Retrieve activities by date range",
