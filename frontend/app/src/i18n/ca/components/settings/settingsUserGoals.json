@@ -1,5 +1,10 @@
 {
   "addNewGoal": "Afegir nou objectiu",
+  "filterByActivityType": "Filter by activity type",
+  "filterByGoalType": "Filter by goal type",
+  "filterAll": "All",
+  "filterByInterval": "Filter by interval",
+  "clearFilters": "Clear filters",
   "labelNumberOfGoals1": "Tens ",
   "labelNumberOfGoals2": " objectiu(s) definit(s):",
   "successGoalDeleted": "Objectiu esborrat correctament",
