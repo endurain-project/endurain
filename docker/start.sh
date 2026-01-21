@@ -24,8 +24,36 @@ validate_id "$GID"
 
 echo_info_log "UID=$UID, GID=$GID"
 
+# Create required directories with correct ownership
+# These directories are created as root before switching to the non-root user
+# to ensure proper permissions on fresh volume mounts
+DATA_FOLDER="${DATA_DIR:-$BACKEND_DIR/data}"
+LOGS_FOLDER="${LOGS_DIR:-$BACKEND_DIR/logs}"
+
+REQUIRED_DIRS="
+$DATA_FOLDER
+$DATA_FOLDER/user_images
+$DATA_FOLDER/server_images
+$DATA_FOLDER/activity_media
+$DATA_FOLDER/activity_files
+$DATA_FOLDER/activity_files/processed
+$DATA_FOLDER/activity_files/bulk_import
+$DATA_FOLDER/activity_files/bulk_import/import_errors
+$LOGS_FOLDER
+"
+
+for dir in $REQUIRED_DIRS; do
+    if [ ! -d "$dir" ]; then
+        echo_info_log "Creating directory: $dir"
+        mkdir -p "$dir"
+    fi
+    echo_info_log "Setting ownership recursively of $dir to $UID:$GID"
+    chown -R "$UID:$GID" "$dir"
+done
+
 if [ -n "$ENDURAIN_HOST" ]; then
-    echo "window.env = { ENDURAIN_HOST: \"$ENDURAIN_HOST\" };" > /app/frontend/dist/env.js
+    FRONTEND_FOLDER="${FRONTEND_DIR:-/app/frontend/dist}"
+    echo "window.env = { ENDURAIN_HOST: \"$ENDURAIN_HOST\" };" > "$FRONTEND_FOLDER/env.js"
     echo_info_log "Runtime env.js written with ENDURAIN_HOST=$ENDURAIN_HOST"
 fi
 
