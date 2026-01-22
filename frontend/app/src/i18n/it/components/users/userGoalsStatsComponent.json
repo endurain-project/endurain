@@ -6,9 +6,9 @@
   "activityTypeWalk": "Camminata",
   "activityTypeStrength": "Forza",
   "activityTypeCardio": "Cardio",
-  "intervalOption1": "Giornaliero",
-  "intervalOption2": "Settimanale",
-  "intervalOption3": "Mensile",
-  "intervalOption4": "Annuale",
+  "intervalDaily": "Daily",
+  "intervalWeekly": "Weekly",
+  "intervalMonthly": "Monthly",
+  "intervalYearly": "Yearly",
   "activities": "attività"
 }
