@@ -19,6 +19,7 @@
   "languageOption10": "Galicisch (GL)",
   "languageOption11": "Italiaans (IT)",
   "languageOption12": "Sloveens (SL)",
+  "languageOption13": "Swedish (SV)",
   "firstDayOfWeekOption0": "Zondag",
   "firstDayOfWeekOption1": "Maandag",
   "firstDayOfWeekOption2": "Dinsdag",
@@ -103,5 +104,6 @@
     "hidePreview": "Edit",
     "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
     "noContentToPreview": "No content to preview"
-  }
+  },
+  "filterOptionsLabel": "Filter options"
 }
