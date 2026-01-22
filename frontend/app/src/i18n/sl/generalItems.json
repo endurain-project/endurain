@@ -19,6 +19,7 @@
   "languageOption10": "Galicijščina (GL)",
   "languageOption11": "Italijanščina (IT)",
   "languageOption12": "Slovenščina (SL)",
+  "languageOption13": "Swedish (SV)",
   "firstDayOfWeekOption0": "Nedelja",
   "firstDayOfWeekOption1": "Ponedeljek",
   "firstDayOfWeekOption2": "Torek",
@@ -103,5 +104,6 @@
     "hidePreview": "Edit",
     "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
     "noContentToPreview": "No content to preview"
-  }
+  },
+  "filterOptionsLabel": "Filter options"
 }
