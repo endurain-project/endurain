@@ -19,6 +19,7 @@
   "languageOption10": "Galego (GL)",
   "languageOption11": "Italiano (IT)",
   "languageOption12": "Esloveno (SL)",
+  "languageOption13": "Swedish (SV)",
   "firstDayOfWeekOption0": "Domingo",
   "firstDayOfWeekOption1": "Luns",
   "firstDayOfWeekOption2": "Martes",
@@ -103,5 +104,6 @@
     "hidePreview": "Edit",
     "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
     "noContentToPreview": "No content to preview"
-  }
+  },
+  "filterOptionsLabel": "Filter options"
 }
