@@ -104,5 +104,6 @@
     "hidePreview": "Edita",
     "markdownSupported": "S'admet el format de Markdown (negreta, cursiva, enllaços, llistes, etc.)",
     "noContentToPreview": "Sense contingut a previsualitzar"
-  }
+  },
+  "filterOptionsLabel": "Filter options"
 }
