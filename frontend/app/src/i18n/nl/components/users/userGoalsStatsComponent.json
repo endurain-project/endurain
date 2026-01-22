@@ -6,9 +6,9 @@
   "activityTypeWalk": "Wandelen",
   "activityTypeStrength": "Kracht",
   "activityTypeCardio": "Cardio",
-  "intervalOption1": "Dagelijks",
-  "intervalOption2": "Wekelijks",
-  "intervalOption3": "Maandelijks",
-  "intervalOption4": "Jaarlijks",
+  "intervalDaily": "Daily",
+  "intervalWeekly": "Weekly",
+  "intervalMonthly": "Monthly",
+  "intervalYearly": "Yearly",
   "activities": "activiteiten"
 }
