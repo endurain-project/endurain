@@ -1,5 +1,10 @@
 {
   "addNewGoal": "Engadir novo obxectivo",
+  "filterByActivityType": "Filter by activity type",
+  "filterByGoalType": "Filter by goal type",
+  "filterAll": "All",
+  "filterByInterval": "Filter by interval",
+  "clearFilters": "Clear filters",
   "labelNumberOfGoals1": "Tes ",
   "labelNumberOfGoals2": " obxectivo(s):",
   "successGoalDeleted": "Obxectivo eliminado correctamente",
