@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "endurain"
-version = "0.17.0"
+version = "0.17.1"
 description = "Endurain API for the Endurain app"
 authors = ["João Vitória Silva <8648976+joaovitoriasilva@users.noreply.github.com>"]
 readme = "README.md"
