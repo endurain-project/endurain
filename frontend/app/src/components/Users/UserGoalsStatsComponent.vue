@@ -56,7 +56,7 @@
           >
           <span v-if="goal.goal_type === 'elevation' && authStore?.user?.units === 'imperial'"
             >{{ metersToFeet(goal.total_elevation) }}{{ $t('generalItems.ofWithSpaces')
-            }}{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFt') }}</span
+            }}{{ metersToFeet(goal.goal_elevation) }} {{ $t('generalItems.unitsFeetShort') }}</span
           >
           <span v-if="goal.goal_type === 'duration'"
             >{{ formatDuration(goal.total_duration) }}{{ $t('generalItems.ofWithSpaces')
