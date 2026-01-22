@@ -41,9 +41,11 @@
   "mapsTitle": "地图",
   "tileTemplateLabel": "Tile server template",
   "tileTemplateCustom": "Custom",
-  "tileTemplateApiKeyWarning": "This template requires an API key configured in the backend.",
-  "tileTemplateFrontendApiKeyWarning": "This template may require an API key configured in the frontend.",
+  "tileTemplateApiKeyWarning": "This template requires an API key configured in the backend",
+  "tileTemplateFrontendApiKeyWarning": "This template may require an API key configured in the frontend",
   "tileserverUrlLabel": "瓦片服务器 URL",
   "tileserverAttributionLabel": "瓦片服务器归属",
+  "tileserverApiKeyLabel": "Tile server API key",
+  "tileApiKeyWarning": "Changing the template will reset the API key",
   "mapBackgroundColorLabel": "地图背景颜色"
 }
