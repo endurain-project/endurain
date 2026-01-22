@@ -6,9 +6,9 @@
   "activityTypeWalk": "Hoja",
   "activityTypeStrength": "Vadba za moč",
   "activityTypeCardio": "Kardio",
-  "intervalOption1": "Dnevno",
-  "intervalOption2": "Tedensko",
-  "intervalOption3": "Mesečno",
-  "intervalOption4": "Letno",
+  "intervalDaily": "Daily",
+  "intervalWeekly": "Weekly",
+  "intervalMonthly": "Monthly",
+  "intervalYearly": "Yearly",
   "activities": "aktivnosti"
 }
