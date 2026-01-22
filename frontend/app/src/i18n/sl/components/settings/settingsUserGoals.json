@@ -1,5 +1,10 @@
 {
   "addNewGoal": "Dodaj nov cilj",
+  "filterByActivityType": "Filter by activity type",
+  "filterByGoalType": "Filter by goal type",
+  "filterAll": "All",
+  "filterByInterval": "Filter by interval",
+  "clearFilters": "Clear filters",
   "labelNumberOfGoals1": "Nastavili ste ",
   "labelNumberOfGoals2": " cilj(ev):",
   "successGoalDeleted": "Cilj uspešno izbrisan",
