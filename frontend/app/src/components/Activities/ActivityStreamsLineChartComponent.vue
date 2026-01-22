@@ -182,7 +182,7 @@ const computedChartData = computed(() => {
           data.push(Number.parseFloat(streamPoint.ele || '0'))
           label = t('generalItems.labelElevationInMeters')
         } else {
-          data.push(Number.parseFloat(metersToFeet(streamPoint.ele || '0')))
+          data.push(metersToFeet(streamPoint.ele || '0'))
           label = t('generalItems.labelElevationInFeet')
         }
       }
