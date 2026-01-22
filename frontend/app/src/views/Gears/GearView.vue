@@ -190,7 +190,7 @@
           <FilterDropdownComponent
             :options="filterOptions"
             v-model="filterValues"
-            :aria-label="$t('generalItems.filterOptions')"
+            :aria-label="$t('generalItems.filterOptionsLabel')"
           />
         </div>
 

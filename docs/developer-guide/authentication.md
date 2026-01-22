@@ -120,14 +120,23 @@ Endurain implements automatic refresh token rotation with reuse detection to pre
 
 The API is reachable under `/api/v1`. Below are the authentication-related endpoints. Complete API documentation is available on the backend docs (`http://localhost:98/api/v1/docs` or `http://ip_address:98/api/v1/docs` or `https://domain/api/v1/docs`):
 
-### Core Authentication Endpoints
+### Core Authentication Endpoints (Web)
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Authorize** | `/auth/login` | `FORM` with fields: `username`, `password`, optional PKCE: `code_challenge`, `code_challenge_method` (mobile only). HTTPS highly recommended | 3 requests/min per IP |
-| **Refresh Token** | `/auth/refresh` | Cookie: `endurain_refresh_token`, Header: `X-CSRF-Token` (web only) | - |
-| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}`, optional PKCE: `code_challenge`, `code_challenge_method` (mobile only) | 5 requests/min per IP |
-| **Logout** | `/auth/logout` | Header: `Authorization: Bearer <Access Token>` | - |
+| **Authorize** | `/auth/login` | `FORM` with fields: `username`, `password`. HTTPS highly recommended | 3 requests/min per IP |
+| **Refresh Token** | `/auth/refresh` | Cookie: `endurain_refresh_token`, Header: `X-CSRF-Token` (optional because of bootstrap logic) | - |
+| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}` | 3 requests/min per IP |
+| **Logout** | `/auth/logout` | Cookie: `endurain_refresh_token`, Header: `X-CSRF-Token` | - |
+
+### Core Authentication Endpoints (Mobile)
+
+| What | Url | Expected Information | Rate Limit |
+| ---- | --- | -------------------- | ---------- |
+| **Authorize** | `/auth/login` | `FORM` with fields: `username`, `password`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE). HTTPS highly recommended | 3 requests/min per IP |
+| **Refresh Token** | `/auth/refresh` | Header: `Authorization: Bearer <Refresh Token>` | - |
+| **Verify MFA** | `/auth/mfa/verify` | JSON body: `{'username': <username>, 'mfa_code': '123456'}`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE) | 3 requests/min per IP |
+| **Logout** | `/auth/logout` | Header: `Authorization: Bearer <Refresh Token>` | - |
 
 ### OAuth/SSO Endpoints
 
