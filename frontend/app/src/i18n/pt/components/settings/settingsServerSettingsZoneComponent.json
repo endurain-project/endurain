@@ -41,9 +41,11 @@
   "mapsTitle": "Mapas",
   "tileTemplateLabel": "Modelo padrão para servidor de fundo de mapas",
   "tileTemplateCustom": "Personalizado",
-  "tileTemplateApiKeyWarning": "Este modelo requer uma chave de API configurada no backend.",
-  "tileTemplateFrontendApiKeyWarning": "Este modelo pode exigir uma chave de API configurada no frontend.",
+  "tileTemplateApiKeyWarning": "Este modelo requer uma chave de API configurada no backend",
+  "tileTemplateFrontendApiKeyWarning": "Este modelo pode exigir uma chave de API configurada no frontend",
   "tileserverUrlLabel": "URL do servidor de tile",
   "tileserverAttributionLabel": "Atribuição do servidor de tile",
+  "tileserverApiKeyLabel": "Chave API do servidor de mapas",
+  "tileApiKeyWarning": "Alterar o modelo irá redefinir a chave da API",
   "mapBackgroundColorLabel": "Cor de fundo do mapa"
 }

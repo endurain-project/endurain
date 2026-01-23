@@ -1,14 +1,14 @@
 {
-  "addWeightModalTitle": "Add weight",
-  "editWeightModalTitle": "Edit weight",
-  "addWeightWeightLabel": "Weight",
-  "addWeightDateLabel": "Date",
-  "addWeightHiddenItemsLabel": "Details",
+  "addWeightModalTitle": "Registrera vikt",
+  "editWeightModalTitle": "Ändra vikt",
+  "addWeightWeightLabel": "Vikt",
+  "addWeightDateLabel": "Datum",
+  "addWeightHiddenItemsLabel": "Detaljer",
   "addWeightBMILabel": "BMI",
-  "addWeightBodyFatLabel": "Body fat",
-  "addWeightBodyWaterLabel": "Body water",
-  "addWeightBoneMassLabel": "Bone mass",
-  "addWeightMuscleMassLabel": "Muscle mass",
-  "successAddWeight": "Weight added",
-  "errorAddWeight": "Error adding weight"
+  "addWeightBodyFatLabel": "Kroppsfett",
+  "addWeightBodyWaterLabel": "Kroppsvatten",
+  "addWeightBoneMassLabel": "Benmassa",
+  "addWeightMuscleMassLabel": "Muskelmassa",
+  "successAddWeight": "Vikt tillagd",
+  "errorAddWeight": "Fel vid registrering av vikt"
 }

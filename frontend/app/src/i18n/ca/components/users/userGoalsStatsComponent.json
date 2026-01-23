@@ -6,9 +6,9 @@
   "activityTypeWalk": "Caminar",
   "activityTypeStrength": "Força",
   "activityTypeCardio": "Cardio",
-  "intervalOption1": "Diari",
-  "intervalOption2": "Setmanal",
-  "intervalOption3": "Mensual",
-  "intervalOption4": "Anual",
+  "intervalDaily": "Diari",
+  "intervalWeekly": "Setmanal",
+  "intervalMonthly": "Mensual",
+  "intervalYearly": "Anual",
   "activities": "activitats"
 }

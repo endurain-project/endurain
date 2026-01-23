@@ -1,5 +1,10 @@
 {
   "addNewGoal": "Añadir nuevo objetivo",
+  "filterByActivityType": "Filter by activity type",
+  "filterByGoalType": "Filter by goal type",
+  "filterAll": "All",
+  "filterByInterval": "Filter by interval",
+  "clearFilters": "Clear filters",
   "labelNumberOfGoals1": "Tienes ",
   "labelNumberOfGoals2": " objetivo(s) establecidos:",
   "successGoalDeleted": "Objetivo eliminado correctamente",

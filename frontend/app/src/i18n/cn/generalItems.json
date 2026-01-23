@@ -19,6 +19,7 @@
   "languageOption10": "加利西亚语",
   "languageOption11": "意大利语",
   "languageOption12": "斯洛文尼亚语",
+  "languageOption13": "Swedish (SV)",
   "firstDayOfWeekOption0": "星期日",
   "firstDayOfWeekOption1": "星期一",
   "firstDayOfWeekOption2": "星期二",
@@ -103,5 +104,6 @@
     "hidePreview": "Edit",
     "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
     "noContentToPreview": "No content to preview"
-  }
+  },
+  "filterOptionsLabel": "Filter options"
 }

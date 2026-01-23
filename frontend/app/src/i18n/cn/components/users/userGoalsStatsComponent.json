@@ -6,9 +6,9 @@
   "activityTypeWalk": "步行",
   "activityTypeStrength": "力量",
   "activityTypeCardio": "有氧",
-  "intervalOption1": "每天",
-  "intervalOption2": "每周",
-  "intervalOption3": "每月",
-  "intervalOption4": "每年",
+  "intervalDaily": "Daily",
+  "intervalWeekly": "Weekly",
+  "intervalMonthly": "Monthly",
+  "intervalYearly": "Yearly",
   "activities": "活动"
 }

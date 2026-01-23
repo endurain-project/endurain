@@ -1,7 +1,7 @@
 {
-  "dashboardSection": "Dashboard",
-  "sleepSection": "Sleep",
-  "RHRSection": "Resting heart rate",
-  "stepsSection": "Steps",
-  "weightSection": "Weight"
+  "dashboardSection": "Kontrollpanel",
+  "sleepSection": "Sömn",
+  "RHRSection": "Vilopuls",
+  "stepsSection": "Steg",
+  "weightSection": "Vikt"
 }

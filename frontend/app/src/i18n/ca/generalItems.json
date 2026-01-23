@@ -19,6 +19,7 @@
   "languageOption10": "Gallec (GL)",
   "languageOption11": "Italià (IT)",
   "languageOption12": "Eslovac (SL)",
+  "languageOption13": "Suec (SV)",
   "firstDayOfWeekOption0": "Diumenge",
   "firstDayOfWeekOption1": "Dilluns",
   "firstDayOfWeekOption2": "Dimarts",
@@ -103,5 +104,6 @@
     "hidePreview": "Edita",
     "markdownSupported": "S'admet el format de Markdown (negreta, cursiva, enllaços, llistes, etc.)",
     "noContentToPreview": "Sense contingut a previsualitzar"
-  }
+  },
+  "filterOptionsLabel": "Opcions de filtre"
 }

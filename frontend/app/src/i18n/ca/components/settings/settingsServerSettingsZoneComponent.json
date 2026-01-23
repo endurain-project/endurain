@@ -41,9 +41,11 @@
   "mapsTitle": "Mapes",
   "tileTemplateLabel": "Servidor de plantilles",
   "tileTemplateCustom": "Personalitzat",
-  "tileTemplateApiKeyWarning": "La plantilla requereix una clau API configurada al backend.",
-  "tileTemplateFrontendApiKeyWarning": "La plantilla requereix una clau API configurada al frontend.",
+  "tileTemplateApiKeyWarning": "La plantilla requereix una clau API configurada al backend",
+  "tileTemplateFrontendApiKeyWarning": "La plantilla requereix una clau API configurada al frontend",
   "tileserverUrlLabel": "URL del servidor de teseles",
   "tileserverAttributionLabel": "Atribució del servidor de teseles",
+  "tileserverApiKeyLabel": "Tile server API key",
+  "tileApiKeyWarning": "Canviant la plantilla resetejarà la clau API",
   "mapBackgroundColorLabel": "Color de fons del mapa"
 }
