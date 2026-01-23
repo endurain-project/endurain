@@ -1,6 +1,7 @@
 import os, secrets, hashlib
 import apprise
 from typing import List
+from urllib.parse import quote
 
 import core.logger as core_logger
 import core.config as core_config
@@ -61,8 +62,8 @@ class AppriseService:
             params.append(f"mode={self.smtp_secure_type}")
 
         # Add query parameters
-        params.append(f"user={self.smtp_username}")
-        params.append(f"pass={self.smtp_password}")
+        params.append(f"user={quote(self.smtp_username)}")
+        params.append(f"pass={quote(self.smtp_password)}")
         params.append(f"smtp={self.smtp_host}")
         params.append(f"port={self.smtp_port}")
         params.append("name=Endurain")
