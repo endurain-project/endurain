@@ -3,7 +3,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     model_validator,
-    field_validator,
     StrictInt,
     StrictStr,
     StrictFloat,
@@ -317,24 +316,6 @@ class HealthSleepBase(BaseModel):
                 )
 
         return self
-
-    @field_validator("avg_sleep_stress", mode="before")
-    @classmethod
-    def convert_decimal_to_int(cls, value: float | int | None) -> int | None:
-        """
-        Convert Decimal values to int.
-
-        Args:
-            value: The input value (Decimal, int, or None).
-
-        Returns:
-            The value as an int or None.
-        """
-        if value is None:
-            return None
-        if isinstance(value, float):
-            return int(value)
-        return value
 
 
 class HealthSleepCreate(HealthSleepBase):
