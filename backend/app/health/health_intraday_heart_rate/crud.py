@@ -134,7 +134,7 @@ def get_health_intraday_heart_rate_with_pagination(
         ) from db_err
 
 
-def get_health_intraday_heart_rate_number_by_date(
+def get_health_intraday_heart_rate_records_by_date(
         user_id: int, 
         date: str, 
         db: Session
@@ -257,7 +257,7 @@ def create_health_intraday_heart_rate(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Duplicate entry error. Check if there is already "
-                f"a entry created for {health_intraday_heart_rate.timestamp}"
+                f"a entry created for {heart_rate.timestamp}"
             ),
         ) from integrity_error
     except SQLAlchemyError as db_err:
