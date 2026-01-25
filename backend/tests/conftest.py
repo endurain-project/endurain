@@ -28,6 +28,8 @@ DEFAULT_ROUTER_MODULES = [
     "session.router",
     "health.health_sleep.router",
     "health.health_steps.router",
+    "health.health_intraday_steps.router",
+    "health.health_intraday_heart_rate.router",
     "health.health_targets.router",
     "health.health_weight.router",
     "users.users_goals.router",
@@ -148,6 +150,10 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
                 app.include_router(router, prefix="/health_sleep")
             elif dotted == "health.health_steps.router":
                 app.include_router(router, prefix="/health_steps")
+            elif dotted == "health.health_intraday_steps.router":
+                app.include_router(router, prefix="/health_intraday_steps")
+            elif dotted == "health.health_intraday_heart_rate.router":
+                app.include_router(router, prefix="/health_intraday_heart_rate")
             elif dotted == "health.health_targets.router":
                 app.include_router(router, prefix="/health_targets")
             elif dotted == "health.health_weight.router":

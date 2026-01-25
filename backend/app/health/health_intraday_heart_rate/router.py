@@ -45,21 +45,19 @@ async def read_health_intraday_heart_rate_all(
         db (Session): Database session dependency for querying the database.
 
     Returns:
-        HealthStepsListResponse: A response object containing:
-            - total (int): The total number of health intraday heart rate records for the user.
+        HealthIntradayHeartrateListResponse: A response object containing:
             - records (List): A list of all health intraday heart rate records for the user.
 
     Raises:
         HTTPException: May raise authentication or authorization related exceptions
             if the token is invalid or the user lacks required permissions.
     """
-    # Get the total count and records from the database
-    total = health_intraday_heart_rate_crud.get_health_intraday_heart_rate_number(token_user_id, db)
+    # Get records from the database
     records = health_intraday_heart_rate_crud.get_all_health_intraday_heart_rate_by_user_id(token_user_id, db)
 
-    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
+    # Pydantic will convert ORM models to HealthIntradayRead via from_attributes=True
     return health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse(
-        total=total, records=records  # type: ignore[arg-type]
+        num_records=len(records), records=records  # type: ignore[arg-type]
     )
 
 
@@ -103,7 +101,7 @@ async def read_health_intraday_heart_rate_by_date(
             if the token is invalid or the user lacks required permissions.
     """
     # Get all records from the database
-    records = health_intraday_heart_rate_crud.get_health_intraday_heart_rate_number_by_date(token_user_id, date_str, db)
+    records = health_intraday_heart_rate_crud.get_health_intraday_heart_rate_records_by_date(token_user_id, date_str, db)
     
     # Pydantic will convert ORM models to HealthIntradayHeartrateRead via from_attributes=True
     return health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse(
@@ -150,8 +148,7 @@ async def read_health_intraday_heart_rate_all_pagination(
         db (Session): Database session dependency.
 
     Returns:
-        HealthStepsListResponse: A response object containing:
-            - total (int): The total number of health intraday heart rate records for the user.
+        HealthIntradayHeartrateListResponse: A response object containing:
             - num_records (int): Number of records returned in this response.
             - page_number (int): Page number of the current response.
             - records (list): A list of paginated health intraday heart rate records.
@@ -160,16 +157,14 @@ async def read_health_intraday_heart_rate_all_pagination(
         HTTPException: If authentication fails, authorization is denied, or pagination
                        parameters are invalid.
     """
-    # Get the total count and paginated records from the database
-    total = health_intraday_heart_rate_crud.get_health_intraday_heart_rate_number(token_user_id, db)
+    # Get paginated records from the database
     records = health_intraday_heart_rate_crud.get_health_intraday_heart_rate_with_pagination(
         token_user_id, db, page_number, num_records
     )
 
-    # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
+    # Pydantic will convert ORM models to HealthIntradayRead via from_attributes=True
     return health_intraday_heart_rate_schema.HealthIntradayHeartrateListResponse(
-        total=total,
-        num_records=num_records,
+        num_records=len(records),
         page_number=page_number,
         records=records,  # type: ignore[arg-type]
     )
