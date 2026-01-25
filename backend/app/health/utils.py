@@ -16,9 +16,9 @@ import health.health_intraday_heart_rate.crud as health_intraday_heart_rate_crud
 import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_schema
 import health.health_intraday_heart_rate.models as health_intraday_heart_rate_models
 
-import users.user.crud as users_crud
+import users.users.crud as users_crud
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
+import users.users_privacy_settings.crud as users_privacy_settings_crud
 
 import websocket.manager as websocket_manager
 
@@ -138,7 +138,7 @@ async def parse_and_store_health_from_uploaded_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(err)}",
         ) from err
-    
+
 
 def create_health_import_response(
     created_intraday_steps: list[health_intraday_steps_models.HealthIntradaySteps], 
@@ -277,43 +277,3 @@ def serialize_intraday_heart_rate(heart_rate: health_intraday_heart_rate_models.
     timestamp_dt = activity_utils.convert_to_datetime_if_string(heart_rate.timestamp)
     heart_rate.timestamp = timestamp_dt.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
     return heart_rate
-
-
-# TODO: Implement
-#def process_all_files_sync(
-#    user_id: int,
-#    file_paths: list[str],
-#    websocket_manager: websocket_manager.WebSocketManager,
-#):
-#    """
-#    Process all files sequentially in single thread.
-#
-#    Args:
-#        user_id: User ID.
-#        file_paths: List of file paths to process.
-#        websocket_manager: WebSocket manager instance.
-#    """
-#    db = next(core_database.get_db())
-#    try:
-#        total_files = len(file_paths)
-#        for idx, file_path in enumerate(file_paths, 1):
-#            core_logger.print_to_log_and_console(
-#                f"Processing file {idx}/{total_files}: " f"{file_path}"
-#            )
-#            asyncio.run(
-#                parse_and_store_health_from_file(
-#                    user_id,
-#                    file_path,
-#                    websocket_manager,
-#                    db,
-#                )
-#            )
-#            # Small delay between files
-#            time.sleep(0.1)
-#
-#        core_logger.print_to_log_and_console(
-#            f"Bulk import completed: {total_files} files "
-#            f"processed for user {user_id}"
-#        )
-#    finally:
-#        db.close()
