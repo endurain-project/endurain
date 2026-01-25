@@ -56,6 +56,8 @@ class Users(Base):
         health_weight: List of health weight records.
         health_steps: List of health steps records.
         health_targets: List of health targets.
+        health_intraday_steps: List of health intrday step records.
+        health_intraday_steps: List of health heart rate steps records.
         notifications: List of notifications.
         goals: List of user goals.
         user_identity_providers: List of identity providers
