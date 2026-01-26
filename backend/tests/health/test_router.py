@@ -9,6 +9,7 @@ import health.router as health_router
 import health.schema as health_schema
 import health.health_intraday_steps.schema as health_intraday_steps_schema
 import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_schema
+import health.health_sleep.schema as health_sleep_schema
 
 
 class TestCreateHealthWithUploadedFile:
@@ -38,9 +39,17 @@ class TestCreateHealthWithUploadedFile:
             heart_rate=75,
             source="garmin",
         )
+        mock_sleep = health_sleep_schema.HealthSleepRead(
+            id=1,
+            user_id=1,
+            date=datetime(2024, 1, 15).date(),
+            resting_heart_rate=60,
+            source="garmin",
+        )
         mock_response = health_schema.HealthImportResponse(
             created_intraday_step_records=[mock_steps],
             created_intraday_heart_rate_records=[mock_heart_rate],
+            updated_sleep=mock_sleep,
         )
         mock_parse_and_store.return_value = mock_response
 
@@ -60,6 +69,7 @@ class TestCreateHealthWithUploadedFile:
         data = response.json()
         assert "created_intraday_step_records" in data
         assert "created_intraday_heart_rate_records" in data
+        assert "updated_sleep" in data
         mock_parse_and_store.assert_called_once()
 
     @patch("health.router.health_utils.parse_and_store_health_from_uploaded_file")

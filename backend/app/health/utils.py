@@ -15,6 +15,9 @@ import health.health_intraday_steps.models as health_intraday_steps_models
 import health.health_intraday_heart_rate.crud as health_intraday_heart_rate_crud
 import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_schema
 import health.health_intraday_heart_rate.models as health_intraday_heart_rate_models
+import health.health_sleep.crud as health_sleep_crud
+import health.health_sleep.schema as health_sleep_schema
+import health.health_sleep.models as health_sleep_models
 
 import users.users.crud as users_crud
 
@@ -74,6 +77,7 @@ async def parse_and_store_health_from_uploaded_file(
 
         created_intraday_steps = []
         created_intraday_heart_rate = []
+        updated_sleep = None
         if file_extension.lower() == ".fit":
             # Parse the file
             parsed_info = activity_utils.parse_file(
@@ -84,14 +88,15 @@ async def parse_and_store_health_from_uploaded_file(
                 db,
             )
 
-            intraday_steps, intraday_heart_rate, resting_heart_rate = process_info(parsed_info)
+            intraday_steps, intraday_heart_rate, sleep = process_info(parsed_info)
 
             # Set the source
             for step in intraday_steps:
                 step.source = health_intraday_steps_schema.Source.GARMIN
             for heart_rate in intraday_heart_rate:
                 heart_rate.source = health_intraday_heart_rate_schema.Source.GARMIN
-
+            sleep.source = health_sleep_schema.Source.GARMIN
+            
             # Store step data in the database
             if intraday_steps:
                 created_intraday_steps = await store_intraday_steps(
@@ -103,6 +108,12 @@ async def parse_and_store_health_from_uploaded_file(
                 created_intraday_heart_rate = await store_intraday_heart_rate(
                     intraday_heart_rate, db, user.id
                 )
+
+            # Update resting heart rate data in the database
+            if sleep:
+                updated_sleep = await update_sleep(
+                    sleep, db, user.id
+                )
         else:
             core_logger.print_to_log_and_console(
                 f"File extension not supported: {file_extension}", "error"
@@ -111,10 +122,8 @@ async def parse_and_store_health_from_uploaded_file(
         # Define the directory where the processed files will be stored
         processed_dir = core_config.FILES_PROCESSED_DIR
 
-        # TODO: Add random uploaded time to this file to deduplicate
-        new_file_name = os.path.basename(file_path)
-
         # Move the file to the processed directory
+        new_file_name = f"{parsed_info.get("file_id")}_{os.path.basename(file_path)}"
         activity_utils.move_file(processed_dir, new_file_name, file_path)
 
         # Serialize results.
@@ -122,8 +131,13 @@ async def parse_and_store_health_from_uploaded_file(
             created_intraday_steps[i] = serialize_intraday_steps(steps)
         for i, heart_rate in enumerate(created_intraday_heart_rate):
             created_intraday_heart_rate[i] = serialize_intraday_heart_rate(heart_rate)
+        updated_sleep = serialize_updated_resting_heart_rate(updated_sleep)
 
-        return create_health_import_response(created_intraday_steps, created_intraday_heart_rate)
+        return create_health_import_response(
+            created_intraday_steps, 
+            created_intraday_heart_rate, 
+            updated_sleep,
+        )
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
@@ -142,7 +156,8 @@ async def parse_and_store_health_from_uploaded_file(
 
 def create_health_import_response(
     created_intraday_steps: list[health_intraday_steps_models.HealthIntradaySteps], 
-    created_intraday_heart_rate: list[health_intraday_heart_rate_models.HealthIntradayHeartrate]
+    created_intraday_heart_rate: list[health_intraday_heart_rate_models.HealthIntradayHeartrate],
+    updated_sleep: health_sleep_models.HealthSleep | None
 ):
     created_intraday_steps = [
         health_intraday_steps_schema.HealthIntradayStepsRead.model_validate(step, from_attributes=True)
@@ -154,9 +169,12 @@ def create_health_import_response(
         for hr in created_intraday_heart_rate
     ]   
 
+    updated_sleep = health_sleep_schema.HealthSleepRead.model_validate(updated_sleep, from_attributes=True) if updated_sleep else None
+
     return health_schema.HealthImportResponse(
         created_intraday_step_records=created_intraday_steps,
         created_intraday_heart_rate_records=created_intraday_heart_rate,
+        updated_sleep=updated_sleep,
     )
 
 
@@ -165,27 +183,16 @@ def process_info(parsed_info: dict) -> tuple[
     list[health_intraday_heart_rate_schema.HealthIntradayHeartrateCreate],
     dict,
 ]: 
-    # Convert steps from cumulative step counts to delta step counts
-    # Assumes steps are in message frame order as produced in the .fit file, 
-    # meaning the steps should be monotonically increasing regardless of the timestamp.
     steps = parsed_info.get("intraday_steps") or []
-    last_step_count = 0
-    for info in steps:
-        delta_count = info["steps"] - last_step_count
-        last_step_count = info["steps"]
-        info["steps"] = delta_count
-
     intraday_steps = [
         health_intraday_steps_schema.HealthIntradayStepsCreate(
             timestamp=info["timestamp"],
             steps=info["steps"],
             intensity=info.get("intensity"),
+            distance=info.get("distance"),
             activity_type=activity_utils.define_activity_type(info.get("activity_type")),
         )
         for info in steps
-        # Remove any entries without an increase in steps (e.g, the final record 
-        # which is typically a summary that we don't need)
-        if info["steps"] > 0
     ]
 
     heart_rates = parsed_info.get("intraday_heart_rate") or []
@@ -197,10 +204,14 @@ def process_info(parsed_info: dict) -> tuple[
         for info in heart_rates
     ]
 
-    # TODO: Convert this to the schema object for resting heart rate
-    resting_heart_rate = parsed_info["resting_heart_rate"]
+    # Update the resting heart rate in sleep stats
+    rhr_info = parsed_info.get("resting_heart_rate", {})
+    sleep = health_sleep_schema.HealthSleepUpdate(
+        date=rhr_info["timestamp"].date(),
+        resting_heart_rate=rhr_info["current_day_resting_heart_rate"]
+    )
 
-    return intraday_steps, intraday_heart_rate, resting_heart_rate
+    return intraday_steps, intraday_heart_rate, sleep
 
 
 async def store_intraday_steps(
@@ -255,6 +266,30 @@ async def store_intraday_heart_rate(
     
     # Return the created heart_rate
     return created_heart_rate
+
+
+async def update_sleep(
+    sleep: health_sleep_schema.HealthSleepUpdate,
+    db: Session,
+    user_id: int,
+):
+    updated_sleep = health_sleep_crud.edit_health_sleep(user_id, sleep, db)
+
+    # Check if updated_resting_heart_rate is None
+    if updated_sleep is None or updated_sleep.id is None:
+        # Log the error
+        core_logger.print_to_log(
+            "Error in update_sleep - intraday heart_rate is None, error creating intraday heart_rate",
+            "error",
+        )
+        # raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error updating reasting heart rate",
+        )
+    
+    # Return the created heart_rate
+    return updated_sleep
 
 
 def serialize_intraday_steps(steps: health_intraday_steps_models.HealthIntradaySteps):
