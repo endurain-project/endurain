@@ -1,7 +1,5 @@
 import os
-import asyncio
-
-import time
+from datetime import datetime, time as datetime_time
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status, UploadFile
@@ -95,7 +93,8 @@ async def parse_and_store_health_from_uploaded_file(
                 step.source = health_intraday_steps_schema.Source.GARMIN
             for heart_rate in intraday_heart_rate:
                 heart_rate.source = health_intraday_heart_rate_schema.Source.GARMIN
-            sleep.source = health_sleep_schema.Source.GARMIN
+            if sleep:
+                sleep.source = health_sleep_schema.Source.GARMIN
             
             # Store step data in the database
             if intraday_steps:
@@ -138,8 +137,6 @@ async def parse_and_store_health_from_uploaded_file(
             created_intraday_heart_rate, 
             updated_sleep,
         )
-    except HTTPException as http_err:
-        raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -272,14 +269,14 @@ async def update_sleep(
     user_id: int,
 ):
     # Check if a sleep entry for this date already exists for this date
-    existing_sleep = health_sleep_crud.get_sleep_by_date_and_user(user_id, sleep.date, db)
+    existing_sleep = health_sleep_crud.get_health_sleep_by_date(user_id, str(sleep.date), db)
     if existing_sleep:
         sleep_update = health_sleep_schema.HealthSleepUpdate(
             id=existing_sleep.id,
             user_id=existing_sleep.user_id,
             resting_heart_rate=sleep.resting_heart_rate,
         )
-        updated_sleep = health_sleep_crud.edit_health_sleep(user_id, sleep, db)
+        updated_sleep = health_sleep_crud.edit_health_sleep(user_id, sleep_update, db)
     else:
         updated_sleep = health_sleep_crud.create_health_sleep(user_id, sleep, db)
 
@@ -324,10 +321,10 @@ def serialize_intraday_heart_rate(heart_rate: health_intraday_heart_rate_models.
 
 def serialize_updated_resting_heart_rate(sleep: health_sleep_models.HealthSleep):
     timezone =  ZoneInfo(os.environ.get("TZ", "UTC"))
-    sleep.date = activity_utils.make_aware_and_format(
-        sleep.date, timezone
+    timestamp_dt = activity_utils.make_aware_and_format(
+        datetime.combine(sleep.date, datetime_time.min), timezone
     )
     # Convert to datetime objects if they are strings before calling astimezone
-    timestamp_dt = activity_utils.convert_to_datetime_if_string(sleep.date)
+    timestamp_dt = activity_utils.convert_to_datetime_if_string(timestamp_dt)
     sleep.date = timestamp_dt.astimezone(None).strftime("%Y-%m-%d")
     return sleep

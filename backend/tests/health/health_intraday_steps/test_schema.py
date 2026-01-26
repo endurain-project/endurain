@@ -258,11 +258,10 @@ class TestHealthIntradayStepsListResponse:
         )
 
         response = health_intraday_steps_schema.HealthIntradayStepsListResponse(
-            total=2, records=[health_intraday_steps1, health_intraday_steps2]
+            records=[health_intraday_steps1, health_intraday_steps2]
         )
 
         # Assert
-        assert response.total == 2
         assert len(response.records) == 2
         assert response.records[0].steps == 1000
         assert response.records[1].steps == 1200
@@ -272,10 +271,9 @@ class TestHealthIntradayStepsListResponse:
         Test HealthIntradayStepsListResponse with empty records.
         """
         # Arrange & Act
-        response = health_intraday_steps_schema.HealthIntradayStepsListResponse(total=0, records=[])
+        response = health_intraday_steps_schema.HealthIntradayStepsListResponse(records=[])
 
         # Assert
-        assert response.total == 0
         assert response.records == []
 
     def test_health_intraday_steps_list_response_forbid_extra(self):

@@ -11,15 +11,14 @@ class TestReadHealthIntradayStepsAll:
     Test suite for read_health_intraday_steps_all endpoint.
     """
 
-    @patch("health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_number")
     @patch(
         "health.health_intraday_steps.router.health_intraday_steps_crud.get_all_health_intraday_steps_by_user_id"
     )
     def test_read_health_intraday_steps_all_success(
-        self, mock_get_all, mock_get_number, fast_api_client, fast_api_app
+        self, mock_get_all, fast_api_client, fast_api_app
     ):
         """
-        Test successful retrieval of all health intraday steps records with total count.
+        Test successful retrieval of all health intraday steps record.
         """
         # Arrange
         test_timestamp1 = datetime(2024, 1, 15, 10, 30, 0)
@@ -43,7 +42,6 @@ class TestReadHealthIntradayStepsAll:
         mock_steps2.intensity = None
 
         mock_get_all.return_value = [mock_steps1, mock_steps2]
-        mock_get_number.return_value = 2
 
         # Act
         response = fast_api_client.get(
@@ -54,22 +52,19 @@ class TestReadHealthIntradayStepsAll:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 2
         assert len(data["records"]) == 2
 
-    @patch("health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_number")
     @patch(
         "health.health_intraday_steps.router.health_intraday_steps_crud.get_all_health_intraday_steps_by_user_id"
     )
     def test_read_health_intraday_steps_all_empty(
-        self, mock_get_all, mock_get_number, fast_api_client, fast_api_app
+        self, mock_get_all, fast_api_client, fast_api_app
     ):
         """
         Test retrieval when user has no health intraday steps records.
         """
         # Arrange
         mock_get_all.return_value = []
-        mock_get_number.return_value = 0
 
         # Act
         response = fast_api_client.get(
@@ -80,7 +75,6 @@ class TestReadHealthIntradayStepsAll:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 0
         assert data["records"] == []
 
 
@@ -90,7 +84,7 @@ class TestReadHealthIntradayStepsByDate:
     """
 
     @patch(
-        "health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_number_by_date"
+        "health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_records_by_date"
     )
     def test_read_health_intraday_steps_by_date_success(
         self, mock_get_by_date, fast_api_client, fast_api_app
@@ -128,7 +122,6 @@ class TestReadHealthIntradayStepsByDate:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 2200
         assert data["num_records"] == 2
         assert len(data["records"]) == 2
 
@@ -138,15 +131,14 @@ class TestReadHealthIntradayStepsAllPagination:
     Test suite for read_health_intraday_steps_all_pagination endpoint.
     """
 
-    @patch("health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_number")
     @patch(
         "health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_with_pagination"
     )
     def test_read_health_intraday_steps_all_pagination_success(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
+        self, mock_get_paginated, fast_api_client, fast_api_app
     ):
         """
-        Test successful retrieval of paginated health intraday steps records with total count.
+        Test successful retrieval of paginated health intraday steps record.
         """
         # Arrange
         test_timestamp = datetime(2024, 1, 15, 10, 30, 0)
@@ -160,7 +152,6 @@ class TestReadHealthIntradayStepsAllPagination:
         mock_steps1.intensity = None
 
         mock_get_paginated.return_value = [mock_steps1]
-        mock_get_number.return_value = 10
 
         # Act
         response = fast_api_client.get(
@@ -171,24 +162,21 @@ class TestReadHealthIntradayStepsAllPagination:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 10
         assert data["num_records"] == 5
         assert data["page_number"] == 1
         assert len(data["records"]) == 1
 
-    @patch("health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_number")
     @patch(
         "health.health_intraday_steps.router.health_intraday_steps_crud.get_health_intraday_steps_with_pagination"
     )
     def test_read_health_intraday_steps_all_pagination_different_page(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
+        self, mock_get_paginated, fast_api_client, fast_api_app
     ):
         """
         Test paginated retrieval with different page numbers.
         """
         # Arrange
         mock_get_paginated.return_value = []
-        mock_get_number.return_value = 20
 
         # Act
         response = fast_api_client.get(
@@ -199,7 +187,6 @@ class TestReadHealthIntradayStepsAllPagination:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 20
         assert data["num_records"] == 10
         assert data["page_number"] == 2
         assert data["records"] == []
