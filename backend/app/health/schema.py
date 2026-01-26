@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from health.health_intraday_steps.schema import HealthIntradayStepsRead
 from health.health_intraday_heart_rate.schema import HealthIntradayHeartrateRead
 from health.health_sleep.schema import HealthSleepRead
+from health.health_steps.schema import HealthStepsRead
 
 
 class HealthImportResponse(BaseModel):
@@ -11,6 +12,7 @@ class HealthImportResponse(BaseModel):
     Attributes:
         created_intraday_step_records (list[HealthIntradayStepsRead]): List of health intraday steps records created.
         created_intraday_heart_rate_records (list[HealthIntradayHeartrateRead]): List of health intraday heart rate measurements created.
+        updated_sleep (HealthSleepRead): Updates daily sleep record.
     """
 
     created_intraday_step_records:  list[HealthIntradayStepsRead] = Field(
@@ -20,7 +22,7 @@ class HealthImportResponse(BaseModel):
         ..., description="Intraday heart rate measurements created from the upload"
     )
     updated_sleep:  HealthSleepRead  | None = Field(
-        ..., description="Health sleep mestats updated from the upload"
+        ..., description="Health sleep stats updated from the upload"
     )
 
     model_config = ConfigDict(

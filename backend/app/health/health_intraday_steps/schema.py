@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, ConfigDict, StrictInt, Field, model_validator
+from pydantic import BaseModel, ConfigDict, StrictInt, Field, model_validator, StrictFloat
 from datetime import datetime
 
 
@@ -23,7 +23,9 @@ class HealthIntradayStepsBase(BaseModel):
 
     Attributes:
         timestamp (datetime | None): Timestamp of the steps record. Optional field.
-        steps (StrictInt | None): Number of steps taken. Must be a non-negative integer. Optional field.
+        steps (StrictInt | None): Cumulative number of steps taken. Must be a non-negative integer. Optional field.
+        distance (StrictFloat | None): Total distance traveled. Must be a non-negative integer. Optional field.
+        activity_type (StrictInt | None): Activity type associated with these steps. Optional field.
         source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
 
     Configuration:
@@ -35,7 +37,8 @@ class HealthIntradayStepsBase(BaseModel):
 
     timestamp: datetime | None = Field(None, description="Timestamp of the steps")
     steps: StrictInt | None = Field(None, ge=0, description="Number of steps taken")
-    activity_type: StrictInt | None = Field(None, ge=0, description="Activity type")
+    distance: StrictFloat | None = Field(None, ge=0, description="Total distance traveled taken")
+    activity_type: StrictInt | None = Field(None, ge=0, description="Activity type associated with these steps")
     intensity: StrictInt | None = Field(None, ge=0, description="Intensity")
     source: Source | None = Field(None, description="Source of the steps data")
 

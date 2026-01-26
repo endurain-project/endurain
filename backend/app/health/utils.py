@@ -205,11 +205,11 @@ def process_info(parsed_info: dict) -> tuple[
     ]
 
     # Update the resting heart rate in sleep stats
-    rhr_info = parsed_info.get("resting_heart_rate", {})
-    sleep = health_sleep_schema.HealthSleepUpdate(
+    rhr_info = parsed_info.get("resting_heart_rate")
+    sleep = health_sleep_schema.HealthSleepCreate(
         date=rhr_info["timestamp"].date(),
         resting_heart_rate=rhr_info["current_day_resting_heart_rate"]
-    )
+    ) if rhr_info else None
 
     return intraday_steps, intraday_heart_rate, sleep
 
@@ -236,8 +236,6 @@ async def store_intraday_steps(
             detail="Error creating intraday steps",
         )
     
-    # TODO: Also add regular steps entry for relevant day
-
     # Return the created steps
     return created_steps
 
@@ -269,11 +267,21 @@ async def store_intraday_heart_rate(
 
 
 async def update_sleep(
-    sleep: health_sleep_schema.HealthSleepUpdate,
+    sleep: health_sleep_schema.HealthSleepCreate,
     db: Session,
     user_id: int,
 ):
-    updated_sleep = health_sleep_crud.edit_health_sleep(user_id, sleep, db)
+    # Check if a sleep entry for this date already exists for this date
+    existing_sleep = health_sleep_crud.get_sleep_by_date_and_user(user_id, sleep.date, db)
+    if existing_sleep:
+        sleep_update = health_sleep_schema.HealthSleepUpdate(
+            id=existing_sleep.id,
+            user_id=existing_sleep.user_id,
+            resting_heart_rate=sleep.resting_heart_rate,
+        )
+        updated_sleep = health_sleep_crud.edit_health_sleep(user_id, sleep, db)
+    else:
+        updated_sleep = health_sleep_crud.create_health_sleep(user_id, sleep, db)
 
     # Check if updated_resting_heart_rate is None
     if updated_sleep is None or updated_sleep.id is None:
@@ -285,7 +293,7 @@ async def update_sleep(
         # raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error updating reasting heart rate",
+            detail="Error updating resting heart rate",
         )
     
     # Return the created heart_rate
@@ -312,3 +320,14 @@ def serialize_intraday_heart_rate(heart_rate: health_intraday_heart_rate_models.
     timestamp_dt = activity_utils.convert_to_datetime_if_string(heart_rate.timestamp)
     heart_rate.timestamp = timestamp_dt.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
     return heart_rate
+
+
+def serialize_updated_resting_heart_rate(sleep: health_sleep_models.HealthSleep):
+    timezone =  ZoneInfo(os.environ.get("TZ", "UTC"))
+    sleep.date = activity_utils.make_aware_and_format(
+        sleep.date, timezone
+    )
+    # Convert to datetime objects if they are strings before calling astimezone
+    timestamp_dt = activity_utils.convert_to_datetime_if_string(sleep.date)
+    sleep.date = timestamp_dt.astimezone(None).strftime("%Y-%m-%d")
+    return sleep

@@ -8,18 +8,20 @@ class HealthIntradaySteps(Base):
     """
     SQLAlchemy model representing intraday step counts data for users.
 
-    This model stores health and fitness tracking data related to the number of steps
+    This model stores health and fitness tracking data related to the cumulative number of steps
     taken by a user at a specific time. It includes information about the data source
-    and maintains a relationship with the User model.
+    and maintains a relationship with the User model. Steps are typically tracked separately
+    per activity type.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.
         user_id: Foreign key referencing users.id.
         timestamp: Timestamp for which the step count is recorded.
-        steps: Total number of steps taken on the date.
+        steps: Cumulative number of steps at that time for a given day.
+        distance: Cumulative distance traveled at that time for a given day.
         source: Source of the step data (e.g., fitness device, app).
         user: Relationship to the User model.
-        activity_type: Activity type.
+        activity_type: Activity type associated with these steps.
         intensity: Intensity.
 
     Table:
@@ -30,10 +32,6 @@ class HealthIntradaySteps(Base):
     """
 
     __tablename__ = "health_intraday_steps"
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "timestamp", name="uq_user_timestamp_health_intraday_steps"),
-    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -52,7 +50,11 @@ class HealthIntradaySteps(Base):
     )
     steps: Mapped[int] = mapped_column(
         nullable=False,
-        comment="Number of steps taken",
+        comment="Cumulative number of steps taken",
+    )
+    distance: Mapped[float] = mapped_column(
+        nullable=True,
+        comment="Cumulative distance traveled",
     )
     source: Mapped[str | None] = mapped_column(
         String(250),
