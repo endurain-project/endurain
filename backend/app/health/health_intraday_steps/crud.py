@@ -14,50 +14,13 @@ import core.logger as core_logger
 from zoneinfo import ZoneInfo
 
 
-def get_health_intraday_steps_number(user_id: int, db: Session) -> int:
-    """
-    Retrieve total count of health intraday steps records for a user.
-
-    Args:
-        user_id: User ID to count records for.
-        db: Database session.
-
-    Returns:
-        Total number of health intraday steps records.
-
-    Raises:
-        HTTPException: If database error occurs.
-    """
-    try:
-        # Get the number of health_intraday_steps from the database
-        stmt = (
-            select(func.count())
-            .select_from(health_intraday_steps_models.HealthIntradaySteps)
-            .where(health_intraday_steps_models.HealthIntradaySteps.user_id == user_id)
-        )
-        result = db.execute(stmt).scalar()
-        return result if result is not None else 0
-    except SQLAlchemyError as db_err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Database error in get_health_intraday_steps_number: {db_err}",
-            "error",
-            exc=db_err,
-        )
-        # Raise an HTTPException with a 500 status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from db_err
-    
-
-def get_health_intraday_steps_number_by_date(
+def get_health_intraday_steps_records_by_date(
         user_id: int, 
         date: str, 
         db: Session
 ) -> list[health_intraday_steps_models.HealthIntradaySteps]:
     """
-    Retrieve total count of health intraday steps records for a user and given date.
+    Retrieve health intraday steps records for a user and given date.
 
     Args:
         user_id: User ID to count records for.
@@ -291,10 +254,7 @@ def create_health_intraday_steps(
         # Raise an HTTPException with a 409 Conflict status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"Duplicate entry error. Check if there is already "
-                f"a entry created for {step.timestamp}"
-            ),
+            detail="Duplicate entry error.",
         ) from integrity_error
     except SQLAlchemyError as db_err:
         # Rollback the transaction

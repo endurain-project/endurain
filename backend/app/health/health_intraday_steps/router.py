@@ -46,20 +46,18 @@ async def read_health_intraday_steps_all(
 
     Returns:
         HealthStepsListResponse: A response object containing:
-            - total (int): The total number of health intraday step records for the user.
             - records (List): A list of all health intraday step records for the user.
 
     Raises:
         HTTPException: May raise authentication or authorization related exceptions
             if the token is invalid or the user lacks required permissions.
     """
-    # Get the total count and records from the database
-    total = health_intraday_steps_crud.get_health_intraday_steps_number(token_user_id, db)
+    # Get records from the database
     records = health_intraday_steps_crud.get_all_health_intraday_steps_by_user_id(token_user_id, db)
 
     # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
     return health_intraday_steps_schema.HealthIntradayStepsListResponse(
-        total=total, records=records  # type: ignore[arg-type]
+        records=records  # type: ignore[arg-type]
     )
 
 
@@ -96,7 +94,6 @@ async def read_health_intraday_steps_by_date(
 
     Returns:
         HealthIntradayStepsListResponse: A response object containing:
-            - total (int): The total number of health intraday step records for the user.
             - records (List): A list of all health intraday step records for the user.
 
     Raises:
@@ -104,12 +101,11 @@ async def read_health_intraday_steps_by_date(
             if the token is invalid or the user lacks required permissions.
     """
     # Get all records from the database
-    records = health_intraday_steps_crud.get_health_intraday_steps_number_by_date(token_user_id, date_str, db)
-    total = sum(s.steps for s in records)
+    records = health_intraday_steps_crud.get_health_intraday_steps_records_by_date(token_user_id, date_str, db)
     
     # Pydantic will convert ORM models to HealthIntradayStepsRead via from_attributes=True
     return health_intraday_steps_schema.HealthIntradayStepsListResponse(
-        total=total, records=records, num_records=len(records)  # type: ignore[arg-type]
+        records=records, num_records=len(records)  # type: ignore[arg-type]
     )
 
 
@@ -153,7 +149,6 @@ async def read_health_intraday_steps_all_pagination(
 
     Returns:
         HealthStepsListResponse: A response object containing:
-            - total (int): The total number of health intraday step records for the user.
             - num_records (int): Number of records returned in this response.
             - page_number (int): Page number of the current response.
             - records (list): A list of paginated health intraday step records.
@@ -162,15 +157,13 @@ async def read_health_intraday_steps_all_pagination(
         HTTPException: If authentication fails, authorization is denied, or pagination
                        parameters are invalid.
     """
-    # Get the total count and paginated records from the database
-    total = health_intraday_steps_crud.get_health_intraday_steps_number(token_user_id, db)
+    # Get the paginated records from the database
     records = health_intraday_steps_crud.get_health_intraday_steps_with_pagination(
         token_user_id, db, page_number, num_records
     )
 
     # Pydantic will convert ORM models to HealthStepsRead via from_attributes=True
     return health_intraday_steps_schema.HealthIntradayStepsListResponse(
-        total=total,
         num_records=num_records,
         page_number=page_number,
         records=records,  # type: ignore[arg-type]

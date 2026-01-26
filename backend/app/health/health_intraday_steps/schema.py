@@ -104,15 +104,10 @@ class HealthIntradayStepsListResponse(BaseModel):
     Response model for listing health steps records.
 
     Attributes:
-        total (StrictInt): Total number of steps records for the user.
         num_records (StrictInt | None): Number of records in this response.
         page_number (StrictInt | None): Current page number.
         records (list[HealthIntradayStepsRead]): List of health steps records.
     """
-
-    total: StrictInt = Field(
-        ..., description="Total number of steps records for the user"
-    )
     num_records: StrictInt | None = Field(
         None, description="Number of records in this response"
     )

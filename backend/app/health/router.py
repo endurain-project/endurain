@@ -55,6 +55,8 @@ async def create_health_with_uploaded_file(
         return await health_utils.parse_and_store_health_from_uploaded_file(
             token_user_id, file, db
         )
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -63,5 +65,5 @@ async def create_health_with_uploaded_file(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail=f"Internal Server Error",
         ) from err

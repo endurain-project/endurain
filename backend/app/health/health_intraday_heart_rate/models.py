@@ -29,10 +29,6 @@ class HealthIntradayHeartrate(Base):
 
     __tablename__ = "health_intraday_heart_rate"
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "timestamp", name="uq_user_timestamp_health_intraday_heart_rate"),
-    )
-
     id: Mapped[int] = mapped_column(
         primary_key=True,
         autoincrement=True,
@@ -60,4 +56,4 @@ class HealthIntradayHeartrate(Base):
 
     # Define a relationship to the User model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_intraday_heart_rate")
+    user = relationship("Users", back_populates="health_intraday_heart_rate")

@@ -255,10 +255,7 @@ def create_health_intraday_heart_rate(
         # Raise an HTTPException with a 409 Conflict status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"Duplicate entry error. Check if there is already "
-                f"a entry created for {heart_rate.timestamp}"
-            ),
+            detail="Duplicate entry error.",
         ) from integrity_error
     except SQLAlchemyError as db_err:
         # Rollback the transaction

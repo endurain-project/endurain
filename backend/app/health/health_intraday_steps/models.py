@@ -71,4 +71,4 @@ class HealthIntradaySteps(Base):
     )
     # Define a relationship to the User model
     # TODO: Change to Mapped["User"] when all modules use mapped
-    user = relationship("User", back_populates="health_intraday_steps")
+    user = relationship("Users", back_populates="health_intraday_steps")

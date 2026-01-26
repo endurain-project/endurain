@@ -92,14 +92,3 @@ class TestHealthIntradayHeartrateModel:
 
         # Assert
         assert source_column.type.length == 250
-
-    def test_health_intraday_heart_rate_model_unique_constraint(self):
-        """
-        Test HealthIntradayHeartrate model has unique constraint on user_id and timestamp.
-        """
-        # Arrange
-        table_args = health_intraday_heart_rate_models.HealthIntradayHeartrate.__table_args__
-
-        # Assert
-        assert table_args is not None
-        assert len(table_args) > 0
