@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from health.health_intraday_steps.schema import HealthIntradayStepsRead
 from health.health_intraday_heart_rate.schema import HealthIntradayHeartrateRead
+from health.health_sleep.schema import HealthSleepRead
 
 
 class HealthImportResponse(BaseModel):
@@ -17,6 +18,9 @@ class HealthImportResponse(BaseModel):
     )
     created_intraday_heart_rate_records:  list[HealthIntradayHeartrateRead] = Field(
         ..., description="Intraday heart rate measurements created from the upload"
+    )
+    updated_sleep:  HealthSleepRead  | None = Field(
+        ..., description="Health sleep mestats updated from the upload"
     )
 
     model_config = ConfigDict(

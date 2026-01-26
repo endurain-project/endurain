@@ -13,6 +13,7 @@ import health.health_intraday_steps.schema as health_intraday_steps_schema
 import health.health_intraday_steps.models as health_intraday_steps_models
 import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_schema
 import health.health_intraday_heart_rate.models as health_intraday_heart_rate_models
+import health.health_sleep.models as health_sleep_models
 
 
 class TestCreateHealthImportResponse:
@@ -41,8 +42,49 @@ class TestCreateHealthImportResponse:
         mock_heart_rate.heart_rate = 75
         mock_heart_rate.source = "garmin"
 
+        mock_sleep = MagicMock(spec=health_sleep_models.HealthSleep)
+        mock_sleep.id = 1
+        mock_sleep.user_id = 2
+        mock_sleep.date = datetime(2024, 1, 15).date()
+        mock_sleep.sleep_start_time_gmt = datetime(2024, 1, 15, 10, 30, 0)
+        mock_sleep.sleep_end_time_gmt = datetime(2024, 1, 16, 10, 30, 0)
+        mock_sleep.sleep_start_time_local = datetime(2024, 1, 15, 10, 30, 0)
+        mock_sleep.sleep_end_time_local = datetime(2024, 1, 16, 10, 30, 0)
+        mock_sleep.resting_heart_rate = 50
+        mock_sleep.total_sleep_seconds = 0
+        mock_sleep.nap_time_seconds = 0
+        mock_sleep.unmeasurable_sleep_seconds = 0
+        mock_sleep.deep_sleep_seconds = 0
+        mock_sleep.light_sleep_seconds = 0
+        mock_sleep.rem_sleep_seconds = 0
+        mock_sleep.awake_sleep_seconds = 0
+        mock_sleep.avg_heart_rate = 65
+        mock_sleep.min_heart_rate = 60
+        mock_sleep.max_heart_rate = 70
+        mock_sleep.avg_spo2 = 80
+        mock_sleep.lowest_spo2 = 70
+        mock_sleep.highest_spo2 = 90
+        mock_sleep.avg_respiration = 0
+        mock_sleep.lowest_respiration = 0
+        mock_sleep.highest_respiration = 0
+        mock_sleep.avg_stress_level = 0
+        mock_sleep.awake_count = 0
+        mock_sleep.restless_moments_count = 0
+        mock_sleep.sleep_score_overall = 0
+        mock_sleep.sleep_score_duration = "GOOD"
+        mock_sleep.sleep_score_quality = "GOOD"
+        mock_sleep.garminconnect_sleep_id = "garmin_123"
+        mock_sleep.source = "garmin"
+        mock_sleep.hrv_status = "BALANCED"
+        mock_sleep.awake_count_score = "GOOD"
+        mock_sleep.rem_percentage_score = "GOOD"
+        mock_sleep.deep_percentage_score = "GOOD"
+        mock_sleep.light_percentage_score = "GOOD"
+        mock_sleep.avg_sleep_stress = 0
+        mock_sleep.sleep_stress_score = "GOOD"
+
         # Act
-        result = health_utils.create_health_import_response([mock_step], [mock_heart_rate])
+        result = health_utils.create_health_import_response([mock_step], [mock_heart_rate], mock_sleep)
 
         # Assert
         assert isinstance(result, health_schema.HealthImportResponse)
@@ -54,13 +96,12 @@ class TestCreateHealthImportResponse:
         Test creation of health import response with empty lists.
         """
         # Act
-        result = health_utils.create_health_import_response([], [])
+        result = health_utils.create_health_import_response([], [], None)
 
         # Assert
-        assert isinstance(result, health_schema.HealthImportResponse)
         assert len(result.created_intraday_step_records) == 0
         assert len(result.created_intraday_heart_rate_records) == 0
-
+        assert result.updated_sleep is None
 
 class TestProcessInfo:
     """
@@ -74,14 +115,18 @@ class TestProcessInfo:
         # Arrange
         parsed_info = {
             "intraday_steps": [
-                {"timestamp": datetime(2024, 1, 15, 10, 30, 0), "steps": 1000, "intensity": 5, "activity_type": "running"},
-                {"timestamp": datetime(2024, 1, 15, 10, 31, 0), "steps": 1200, "intensity": 6, "activity_type": "running"},
+                {"timestamp": datetime(2024, 1, 15, 10, 30, 0), "steps": 1000, "distance": 1,   "intensity": 5, "activity_type": "running"},
+                {"timestamp": datetime(2024, 1, 15, 10, 31, 0), "steps": 1200, "distance": 1.2, "intensity": 6, "activity_type": "running"},
             ],
             "intraday_heart_rate": [
                 {"timestamp": datetime(2024, 1, 15, 10, 30, 0), "heart_rate": 75},
                 {"timestamp": datetime(2024, 1, 15, 10, 31, 0), "heart_rate": 80},
             ],
-            "resting_heart_rate": 60,
+            "resting_heart_rate": {
+                "timestamp": datetime(2024, 1, 15, 10, 30, 0),
+                "resting_heart_rate": 60, 
+                "current_day_resting_heart_rate": 65
+            },
         }
 
         # Act

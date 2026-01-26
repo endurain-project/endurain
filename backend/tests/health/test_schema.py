@@ -5,6 +5,7 @@ from pydantic import ValidationError
 import health.schema as health_schema
 import health.health_intraday_steps.schema as health_intraday_steps_schema
 import health.health_intraday_heart_rate.schema as health_intraday_heart_rate_schema
+import health.health_sleep.schema as health_sleep_schema
 
 
 class TestHealthImportResponse:
@@ -32,18 +33,27 @@ class TestHealthImportResponse:
             heart_rate=75,
             source="garmin",
         )
-
+        mock_sleep = health_sleep_schema.HealthSleepRead(
+            id=1,
+            user_id=1,
+            date=datetime(2024, 1, 15).date(),
+            resting_heart_rate=60,
+            source="garmin",
+        )
         # Act
         response = health_schema.HealthImportResponse(
             created_intraday_step_records=[mock_steps],
             created_intraday_heart_rate_records=[mock_heart_rate],
+            updated_sleep=mock_sleep,
         )
 
         # Assert
         assert len(response.created_intraday_step_records) == 1
         assert len(response.created_intraday_heart_rate_records) == 1
+        assert response.updated_sleep is not None
         assert response.created_intraday_step_records[0].id == 1
         assert response.created_intraday_heart_rate_records[0].id == 1
+        assert response.updated_sleep.id == 1
 
     def test_health_import_response_empty_lists(self):
         """
@@ -53,11 +63,13 @@ class TestHealthImportResponse:
         response = health_schema.HealthImportResponse(
             created_intraday_step_records=[],
             created_intraday_heart_rate_records=[],
+            updated_sleep=None,
         )
 
         # Assert
         assert len(response.created_intraday_step_records) == 0
         assert len(response.created_intraday_heart_rate_records) == 0
+        assert response.updated_sleep is None
 
     def test_health_import_response_multiple_records(self):
         """
@@ -94,16 +106,24 @@ class TestHealthImportResponse:
             heart_rate=80,
             source="garmin",
         )
-
+        mock_sleep = health_sleep_schema.HealthSleepRead(
+            id=1,
+            user_id=1,
+            date=datetime(2024, 1, 15).date(),
+            resting_heart_rate=60,
+            source="garmin",
+        )
         # Act
         response = health_schema.HealthImportResponse(
             created_intraday_step_records=[mock_steps1, mock_steps2],
             created_intraday_heart_rate_records=[mock_heart_rate1, mock_heart_rate2],
+            updated_sleep=mock_sleep,
         )
 
         # Assert
         assert len(response.created_intraday_step_records) == 2
         assert len(response.created_intraday_heart_rate_records) == 2
+        assert response.updated_sleep is not None
 
     def test_health_import_response_forbid_extra_fields(self):
         """
@@ -125,12 +145,20 @@ class TestHealthImportResponse:
             heart_rate=75,
             source="garmin",
         )
+        mock_sleep = health_sleep_schema.HealthSleepRead(
+            id=1,
+            user_id=1,
+            date=datetime(2024, 1, 15).date(),
+            resting_heart_rate=60,
+            source="garmin",
+        )
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
             health_schema.HealthImportResponse(
                 created_intraday_step_records=[mock_steps],
                 created_intraday_heart_rate_records=[mock_heart_rate],
+                updated_sleep=mock_sleep,
                 extra_field="not allowed",
             )
 
@@ -162,12 +190,35 @@ class TestHealthImportResponse:
         """
         Test HealthImportResponse schema can be created from ORM model.
         """
+        ts = datetime(2026, 1, 1, 12, 1, 1)
         # Arrange
         class MockORMModel:
             """Mock ORM model for testing."""
+            class Step:
+                id = 1
+                user_id = 2
+                timestamp = ts
+                steps = 100
+                source = "garmin"
+                activity_type = 1
+                intensity = 10
+            
+            class HeartRate:
+                id = 1
+                user_id = 2
+                timestamp = ts
+                heart_rate = 75
+                source = "garmin"
 
-            created_intraday_step_records = []
-            created_intraday_heart_rate_records = []
+            class Sleep:
+                id = 1
+                user_id = 2
+                date = ts.date()
+                resting_heart_rate = 50
+
+            created_intraday_step_records = [Step()]
+            created_intraday_heart_rate_records = [HeartRate()]
+            updated_sleep = Sleep()
 
         # Act
         response = health_schema.HealthImportResponse.model_validate(
@@ -176,8 +227,34 @@ class TestHealthImportResponse:
 
         # Assert
         assert isinstance(response, health_schema.HealthImportResponse)
-        assert response.created_intraday_step_records == []
-        assert response.created_intraday_heart_rate_records == []
+        assert len(response.created_intraday_step_records) == 1
+        assert len(response.created_intraday_heart_rate_records) == 1
+
+        step = response.created_intraday_step_records[0]
+        hr = response.created_intraday_heart_rate_records[0]
+        sleep = response.updated_sleep
+
+        # Check steps
+        assert step.id == 1
+        assert step.user_id == 2
+        assert step.timestamp == ts
+        assert step.steps == 100
+        assert step.source == "garmin"
+        assert step.activity_type == 1
+        assert step.intensity == 10
+
+        # Check heart rate
+        assert hr.id == 1
+        assert hr.user_id == 2
+        assert hr.timestamp == ts
+        assert hr.heart_rate == 75
+        assert hr.source == "garmin"
+
+        # Check sleep
+        assert sleep.id == 1
+        assert sleep.user_id == 2
+        assert sleep.date == ts.date()
+        assert sleep.resting_heart_rate == 50
 
     def test_health_import_response_validate_assignment(self):
         """
@@ -206,10 +283,18 @@ class TestHealthImportResponse:
             heart_rate=75,
             source="garmin",
         )
+        mock_sleep = health_sleep_schema.HealthSleepRead(
+            id=1,
+            user_id=1,
+            date=datetime(2024, 1, 15).date(),
+            resting_heart_rate=60,
+            source="garmin",
+        )
 
         response = health_schema.HealthImportResponse(
             created_intraday_step_records=[mock_steps1],
             created_intraday_heart_rate_records=[mock_heart_rate],
+            updated_sleep=mock_sleep,
         )
 
         # Act
@@ -218,3 +303,4 @@ class TestHealthImportResponse:
         # Assert
         assert len(response.created_intraday_step_records) == 2
         assert len(response.created_intraday_heart_rate_records) == 1
+        assert response.updated_sleep is not None
