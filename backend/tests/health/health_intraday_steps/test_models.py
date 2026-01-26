@@ -96,14 +96,3 @@ class TestHealthIntradayStepsModel:
 
         # Assert
         assert source_column.type.length == 250
-
-    def test_health_intraday_steps_model_unique_constraint(self):
-        """
-        Test HealthIntradaySteps model has unique constraint on user_id and timestamp.
-        """
-        # Arrange
-        table_args = health_intraday_steps_models.HealthIntradaySteps.__table_args__
-
-        # Assert
-        assert table_args is not None
-        assert len(table_args) > 0

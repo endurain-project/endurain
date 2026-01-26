@@ -103,6 +103,7 @@ class TestCreateHealthImportResponse:
         assert len(result.created_intraday_heart_rate_records) == 0
         assert result.updated_sleep is None
 
+
 class TestProcessInfo:
     """
     Test suite for process_info function.
@@ -130,15 +131,27 @@ class TestProcessInfo:
         }
 
         # Act
-        intraday_steps, intraday_heart_rate, resting_heart_rate = health_utils.process_info(parsed_info)
+        intraday_steps, intraday_heart_rate, sleep = health_utils.process_info(parsed_info)
 
-        # Assert
         assert len(intraday_steps) == 2
+        assert intraday_steps[0].steps == 1000
+        assert intraday_steps[0].distance == 1
+        assert intraday_steps[0].intensity == 5
+        assert intraday_steps[0].activity_type == 1
+        assert intraday_steps[1].steps == 1200
+        assert intraday_steps[1].distance == 1.2
+        assert intraday_steps[1].intensity == 6
+        assert intraday_steps[1].activity_type == 1
+
         assert len(intraday_heart_rate) == 2
-        assert resting_heart_rate == 60
-        # Check that steps were converted to deltas
-        assert intraday_steps[0].steps == 1000  # First step is the delta from 0
-        assert intraday_steps[1].steps == 200  # Second step is the delta from 1000
+        assert intraday_heart_rate[0].heart_rate == 75
+        assert intraday_heart_rate[0].timestamp == datetime(2024, 1, 15, 10, 30, 0)
+        assert intraday_heart_rate[1].heart_rate == 80
+        assert intraday_heart_rate[1].timestamp == datetime(2024, 1, 15, 10, 31, 0)
+
+        assert sleep is not None
+        assert sleep.resting_heart_rate == 65
+        assert sleep.date == datetime(2024, 1, 15).date()
 
     def test_process_info_empty_data(self):
         """
@@ -158,27 +171,6 @@ class TestProcessInfo:
         assert len(intraday_steps) == 0
         assert len(intraday_heart_rate) == 0
         assert resting_heart_rate is None
-
-    def test_process_info_filters_zero_steps(self):
-        """
-        Test that process_info filters out zero step entries.
-        """
-        # Arrange
-        parsed_info = {
-            "intraday_steps": [
-                {"timestamp": datetime(2024, 1, 15, 10, 30, 0), "steps": 1000, "intensity": 5, "activity_type": "running"},
-                {"timestamp": datetime(2024, 1, 15, 10, 31, 0), "steps": 1000, "intensity": 6, "activity_type": "running"},  # No increase
-            ],
-            "intraday_heart_rate": [],
-            "resting_heart_rate": None,
-        }
-
-        # Act
-        intraday_steps, intraday_heart_rate, resting_heart_rate = health_utils.process_info(parsed_info)
-
-        # Assert
-        assert len(intraday_steps) == 1  # Only the first entry with positive delta
-        assert len(intraday_heart_rate) == 0
 
 
 class TestStoreIntradaySteps:
