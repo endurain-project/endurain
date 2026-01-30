@@ -20,6 +20,15 @@
         </router-link>
       </li>
       <li class="nav-item">
+        <router-link
+          :to="{ name: 'activities-map' }"
+          class="nav-link link-body-emphasis w-100 py-3 fs-5"
+        >
+          <font-awesome-icon :icon="['fas', 'fa-map']" />
+          <span class="ms-1">{{ $t('navbarComponent.activitiesMap') }}</span>
+        </router-link>
+      </li>
+      <li class="nav-item">
         <router-link :to="{ name: 'summary' }" class="nav-link link-body-emphasis w-100 py-3 fs-5">
           <font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
           <span class="ms-1">{{ $t('navbarComponent.summary') }}</span>
