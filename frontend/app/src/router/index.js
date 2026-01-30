@@ -58,6 +58,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/activities/map',
+    name: 'activities-map',
+    component: () => import('../views/ActivitiesMapView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/summary',
     name: 'summary',
     component: () => import('../views/SummaryView.vue'),
