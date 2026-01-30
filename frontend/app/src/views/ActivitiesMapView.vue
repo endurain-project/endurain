@@ -3,7 +3,7 @@
     <h1>{{ $t('activitiesMapView.title') }}</h1>
     <!-- Activities map component -->
     <div class="map-container mt-4">
-      <ActivitiesMapComponent :activities="[]" height="600px" />
+      <ActivitiesMapComponent :activities="[]" source="activity" />
     </div>
   </div>
 </template>
