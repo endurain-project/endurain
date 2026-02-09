@@ -740,9 +740,9 @@ export function formatElevation(t, meters, unitSystem, units = true) {
   if (meters === null || meters === undefined) {
     return t('generalItems.labelNoData')
   }
-  const numericValue =
-    unitSystem === 'metric' ? parseFloat(meters) : parseFloat(metersToFeet(meters))
-  const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  const numericValue = Math.round(
+    unitSystem === 'metric' ? parseFloat(meters) : parseFloat(metersToFeet(meters)))
+  const formattedValue = numericValue.toLocaleString(undefined)
 
   if (!units) {
     return formattedValue
