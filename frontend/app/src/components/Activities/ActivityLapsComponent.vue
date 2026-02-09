@@ -17,7 +17,10 @@
           <th v-else>{{ $t('activityLapsComponent.labelLapPace') }}</th>
           <!-- Do not show elevation for swimming activities -->
           <th v-if="!activityTypeIsSwimming(activity)">
-            {{ $t('activityLapsComponent.labelLapElevation') }}
+            {{ $t('activityLapsComponent.labelLapAscent') }}
+          </th>
+          <th v-if="!activityTypeIsSwimming(activity)">
+            {{ $t('activityLapsComponent.labelLapDescent') }}
           </th>
           <!-- Show Stroke Rate for swimming activities -->
           <th v-if="activityTypeIsSwimming(activity)">
@@ -47,6 +50,7 @@
           <td v-if="activityTypeIsCycling(activity)">{{ lap.formattedSpeedFull }}</td>
           <td v-else>{{ lap.formattedPaceFull }}</td>
           <td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedElevationFull }}</td>
+          <td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedDescentFull }}</td>
           <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
           <td>
             <span v-if="lap.avg_heart_rate">
@@ -192,6 +196,7 @@ const normalizedLaps = computed(() => {
     const formattedDistance = formatDistance(t, props.activity, props.units, lap)
     const formattedElevation = formatElevation(t, lap.total_ascent, props.units, false)
     const formattedElevationFull = formatElevation(t, lap.total_ascent, props.units)
+    const formattedDescentFull = formatElevation(t, lap.total_descent, props.units)
     const formattedSpeed = formatAverageSpeed(t, props.activity, props.units, lap, false)
     const formattedSpeedFull = formatAverageSpeed(t, props.activity, props.units, lap)
 
@@ -204,6 +209,7 @@ const normalizedLaps = computed(() => {
       formattedDistance: formattedDistance,
       formattedElevation: formattedElevation,
       formattedElevationFull: formattedElevationFull,
+      formattedDescentFull: formattedDescentFull,
       formattedSpeedFull: formattedSpeedFull,
       formattedSpeed: formattedSpeed
     }
