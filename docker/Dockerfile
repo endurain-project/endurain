@@ -61,7 +61,8 @@ RUN set -eux; \
 # Define environment variables
 ENV UID=1000 \
     GID=1000 \
-    BEHIND_PROXY=false
+    BEHIND_PROXY=false \
+    BACKEND_DIR=/app/backend
 
 # Set the working directory to /app/frontend
 WORKDIR /app/frontend
