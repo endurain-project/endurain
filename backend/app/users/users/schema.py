@@ -131,8 +131,8 @@ class UsersBase(BaseModel):
         ...,
         min_length=1,
         max_length=250,
-        pattern=r"^[a-zA-Z0-9.]+$",
-        description="Unique username (alphanumeric and dots)",
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        description="Unique username (alphanumeric, dots, hyphen, underscore)",
     )
     email: EmailStr = Field(
         ...,
