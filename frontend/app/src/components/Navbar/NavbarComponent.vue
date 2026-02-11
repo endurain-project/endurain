@@ -47,6 +47,15 @@
                 </router-link>
               </li>
               <li>
+                <!-- Activities map link -->
+                <router-link :to="{ name: 'activities-map' }" class="dropdown-item link-body-emphasis">
+                  <font-awesome-icon :icon="['fas', 'fa-map']" />
+                  <span class="ms-2">
+                    {{ $t('navbarComponent.activitiesMap') }}
+                  </span>
+                </router-link>
+              </li>
+              <li>
                 <!-- Summary link -->
                 <router-link :to="{ name: 'summary' }" class="dropdown-item link-body-emphasis">
                   <font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />

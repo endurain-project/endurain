@@ -111,6 +111,7 @@ const componentPaths = {
   activityView: 'activityView.json',
   activityItems: 'activityItems.json',
   activitiesView: 'activitiesView.json',
+  activitiesMapView: 'activitiesMapView.json',
   healthView: 'healthView.json',
   notFound: 'notFoundView.json',
   searchView: 'searchView.json',
