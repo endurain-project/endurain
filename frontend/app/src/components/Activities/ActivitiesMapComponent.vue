@@ -16,7 +16,6 @@ import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vu
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
-import { activities } from '@/services/activitiesService'
 import { activityStreams } from '@/services/activityStreams'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -51,20 +50,16 @@ const mapStyle = computed(() => ({
 // Fetch activities and their streams if not provided
 const fetchActivities = async () => {
   if (props.activities.length > 0) {
-    activityTracks.value = props.activities
-    await fetchActivityStreams()
+    // If activities are provided, use the optimized endpoint to get all map streams at once
+    await fetchAllMapStreams()
     return
   }
 
   try {
     isLoading.value = true
     if (authStore.isAuthenticated && authStore.user.id) {
-      // Fetch activities for the current week (week 0)
-      const response = await activities.getUserWeekActivities(authStore.user.id, 0)
-      if (response) {
-        activityTracks.value = response
-        await fetchActivityStreams()
-      }
+      // Use the optimized endpoint to get all map streams for the user at once
+      await fetchAllMapStreams()
     }
   } catch (error) {
     console.error('Error fetching activities:', error)
@@ -73,45 +68,36 @@ const fetchActivities = async () => {
   }
 }
 
-// Fetch stream data for all activities
-const fetchActivityStreams = async () => {
-  if (!activityTracks.value || activityTracks.value.length === 0) return
-
+// Fetch all map streams for user using the optimized endpoint
+const fetchAllMapStreams = async () => {
   try {
-    const streamPromises = activityTracks.value.map(async (activity) => {
-      try {
-        let streamData = null
-        if (authStore.isAuthenticated) {
-          const response = await activityStreams.getActivitySteamByStreamTypeByActivityId(
-            activity.id, 7
-          )
-          console.log("response")
-          console.log(response)
-          streamData = response
+    if (authStore.isAuthenticated && authStore.user.id) {
+      // Use the new optimized endpoint to get all map streams at once
+      const mapStreams = await activityStreams.getMapStreamsForUser(authStore.user.id)
+      
+      if (mapStreams && mapStreams.length > 0) {
+        // If we have activities provided, merge the stream data with activity data
+        if (props.activities.length > 0) {
+          activityTracks.value = props.activities.map(activity => {
+            const stream = mapStreams.find(s => s.activity_id === activity.id)
+            return stream ? { ...activity, activity_streams: [stream] } : null
+          }).filter(result => result !== null)
         } else {
-          const response = await activityStreams.getPublicActivitySteamByStreamTypeByActivityId(
-            activity.id, 7
-          )
-          streamData = response?.data || null
+          // If no activities provided, create activity objects from the streams
+          // Note: This might need adjustment based on your actual data structure
+          activityTracks.value = mapStreams.map(stream => ({
+            id: stream.activity_id,
+            activity_streams: [stream]
+          }))
         }
-        
-        // Only include activities with valid stream data
-        if (streamData) {
-          return { ...activity, activity_streams: [streamData] }
-        } else {
-          return null
-        }
-      } catch (error) {
-        console.error(`Error fetching stream for activity ${activity.id}:`, error)
-        return null
       }
-    })
-
-    const results = await Promise.all(streamPromises)
-    // Filter out null results (activities without valid stream data)
-    activityTracks.value = results.filter(result => result !== null)
+    } else {
+      // Fallback for public/non-authenticated users
+      // This would need to be implemented if public access is needed
+      console.warn('Public access to map streams not implemented yet')
+    }
   } catch (error) {
-    console.error('Error fetching activity streams:', error)
+    console.error('Error fetching map streams:', error)
   }
 }
 
@@ -222,7 +208,8 @@ watch(
   () => props.activities,
   async (newActivities) => {
     if (newActivities && newActivities.length > 0) {
-      activityTracks.value = newActivities
+      // Use the optimized approach when activities change
+      await fetchAllMapStreams()
       if (leafletMap.value) {
         // Clear existing layers
         leafletMap.value.eachLayer(layer => {
