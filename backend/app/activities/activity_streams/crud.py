@@ -105,6 +105,59 @@ def get_activity_streams(
         ) from err
 
 
+def get_map_streams_for_user(user_id: int, token_user_id: int, db: Session):
+    """
+    Get map streams (stream_type 7) for activities belonging to a specific user.
+    
+    Args:
+        user_id: The ID of the user whose activities' map streams to retrieve
+        token_user_id: The ID of the user making the request (for permission checking)
+        db: Database session
+        
+    Returns:
+        List of map streams for activities, or None if no streams found
+    """
+    try:
+        # Check if the requesting user has permission to access these activities
+        # Only allow access if token_user_id matches user_id (user is requesting their own data)
+        if token_user_id != user_id:
+            return None
+
+        map_streams = (
+            db.query(activity_streams_models.ActivityStreams, activity_models.Activity)
+            .join(
+                activity_models.Activity,
+                activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id
+            )
+            .filter(
+                activity_models.Activity.user_id == user_id,
+                activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_MAP,
+            )
+            .all()
+        )
+
+        if not map_streams:
+            return None
+
+        # Transform the streams using the activities from the joined query
+        result = []
+        for stream, activity in map_streams:
+            result.append(transform_activity_streams(stream, activity, db))
+
+        return result
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_map_streams_for_user: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_activities_streams(
     activity_ids: list[int],
     token_user_id: int,

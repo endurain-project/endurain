@@ -71,3 +71,25 @@ async def read_activities_streams_for_activity_stream_type(
     return activity_streams_crud.get_activity_stream_by_type(
         activity_id, stream_type, token_user_id, db
     )
+
+
+@router.get(
+    "/user_id/{user_id}/stream_type/7",
+    response_model=list[activity_streams_schema.ActivityStreams] | None,
+)
+async def read_map_streams_for_user(
+    user_id: int,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get all map streams (stream_type 7) for all activities for the specified user
+    return activity_streams_crud.get_map_streams_for_user(user_id, token_user_id, db)
