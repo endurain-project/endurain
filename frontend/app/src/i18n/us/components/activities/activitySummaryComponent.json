@@ -28,5 +28,16 @@
   "activityCalories": "Calories",
   "activityNoData": "No data",
   "errorFetchingUserById": "Error fetching user by id",
-  "errorDeletingActivity": "Error deleting activity"
+  "errorDeletingActivity": "Error deleting activity",
+  "activityIntensityFactor": "Intensity Factor",
+  "activityTrainingStressScore": "Training Stress Score",
+  "activityVariabilityIndex": "Variability Index",
+  "activityEfficiencyFactor": "Efficiency Factor",
+  "activityAerobicDecoupling": "Aerobic Decoupling",
+  "activityVAM": "VAM",
+  "activityClimbingEfficiency": "Climbing Efficiency",
+  "activityGradientDistribution": "Gradient Distribution",
+  "activityWPrimeBalance": "W' Balance",
+  "activityQuadrantAnalysis": "Quadrant Analysis",
+  "activityPowerDurationCurve": "Power Duration Curve"
 }

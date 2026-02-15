@@ -11,6 +11,7 @@ import core.config as core_config
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
 import activities.activity.utils as activities_utils
+import activities.activity.performance_metrics as performance_metrics
 
 import activities.activity_laps.crud as activity_laps_crud
 
@@ -259,6 +260,10 @@ def parse_activity(
     if power_waypoints:
         np = activities_utils.calculate_np(power_waypoints)
 
+    # Get user FTP for metrics calculations
+    user = users_crud.get_user_by_id(user_id, db)
+    user_ftp = user.functional_threshold_power if user else None
+
     # List of conditions, stream types, and corresponding waypoints
     stream_data = [
         (is_heart_rate_set, 1, hr_waypoints),
@@ -298,6 +303,19 @@ def parse_activity(
                 lat=lat_lon_waypoints[0]["lat"],
                 lng=lat_lon_waypoints[0]["lon"],
             )
+
+    # Calculate advanced performance metrics
+    all_metrics = performance_metrics.calculate_all_performance_metrics(
+        power_waypoints=power_waypoints if is_power_set else None,
+        hr_waypoints=hr_waypoints if is_heart_rate_set else None,
+        elevation_waypoints=ele_waypoints if is_elevation_set else None,
+        distance_waypoints=vel_waypoints if is_velocity_set else None,  # Using vel_waypoints which contain distance
+        cadence_waypoints=cad_waypoints if is_cadence_set else None,
+        duration_seconds=total_elapsed_time,
+        average_power=avg_power,
+        average_heart_rate=avg_hr,
+        ftp=user_ftp,
+    )
 
     # Create the activity object
     activity_to_store = activities_schema.Activity(
@@ -346,6 +364,18 @@ def parse_activity(
         hide_workout_sets_steps=user_privacy_settings.hide_activity_workout_sets_steps
         or False,
         hide_gear=user_privacy_settings.hide_activity_gear or False,
+        # Advanced Performance Metrics
+        intensity_factor=all_metrics.get("intensity_factor"),
+        training_stress_score=all_metrics.get("training_stress_score"),
+        variability_index=all_metrics.get("variability_index"),
+        efficiency_factor=all_metrics.get("efficiency_factor"),
+        aerobic_decoupling=all_metrics.get("aerobic_decoupling"),
+        vam=all_metrics.get("vam"),
+        climbing_efficiency=all_metrics.get("climbing_efficiency"),
+        gradient_distribution=all_metrics.get("gradient_distribution"),
+        w_prime_balance=all_metrics.get("w_prime_balance"),
+        quadrant_analysis=all_metrics.get("quadrant_analysis"),
+        power_duration_curve=all_metrics.get("power_duration_curve"),
     )
 
     # Fetch and process activity laps

@@ -58,6 +58,18 @@ class Activity(BaseModel):
     hide_gear: bool | None = None
     tracker_manufacturer: str | None = None
     tracker_model: str | None = None
+    # Advanced Performance Metrics
+    intensity_factor: float | None = None
+    training_stress_score: float | None = None
+    variability_index: float | None = None
+    efficiency_factor: float | None = None
+    aerobic_decoupling: float | None = None
+    vam: float | None = None
+    climbing_efficiency: float | None = None
+    gradient_distribution: dict | None = None
+    w_prime_balance: dict | None = None
+    quadrant_analysis: dict | None = None
+    power_duration_curve: dict | None = None
 
     model_config = {"from_attributes": True}
 
