@@ -151,6 +151,15 @@
             >
             <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
           </p>
+          <!-- user functional threshold power (FTP) -->
+          <p>
+            <font-awesome-icon :icon="['fas', 'bolt']" class="me-2" />
+            <b>{{ $t('settingsUserProfileZone.ftpLabel') }}: </b>
+            <span v-if="authStore.user.functional_threshold_power"
+              >{{ authStore.user.functional_threshold_power }} {{ $t('generalItems.unitsWattsShort') }}</span
+            >
+            <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
+          </p>
           <!-- user preferred language -->
           <p>
             <font-awesome-icon :icon="['fas', 'language']" class="me-2" />

@@ -331,6 +331,27 @@
               />
               <span class="input-group-text">{{ $t('generalItems.unitsBpm') }}</span>
             </div>
+            <!-- functional threshold power (FTP) fields -->
+            <label for="userFtpAddEdit"
+              ><b>{{
+                $t('usersAddEditUserModalComponent.addEditUserModalFtpLabel')
+              }}</b></label
+            >
+            <div class="input-group">
+              <input
+                class="form-control"
+                type="number"
+                name="userFtpAddEdit"
+                :placeholder="
+                  $t('usersAddEditUserModalComponent.addEditUserModalFtpPlaceholder')
+                "
+                v-model="newEditUserFtp"
+                min="50"
+                max="2000"
+                step="1"
+              />
+              <span class="input-group-text">{{ $t('generalItems.unitsWattsShort') }}</span>
+            </div>
             <!-- preferred language fields -->
             <label for="userPreferredLanguageAddEdit"
               ><b
@@ -568,6 +589,7 @@ const newEditUserHeightCms = ref(null)
 const newEditUserHeightFeet = ref(null)
 const newEditUserHeightInches = ref(null)
 const newEditUserMaxHeartRate = ref(null)
+const newEditUserFtp = ref(null)
 const newEditUserFirstDayOfWeek = ref('monday')
 const isFeetValid = computed(
   () => newEditUserHeightFeet.value >= 0 && newEditUserHeightFeet.value <= 10
@@ -620,6 +642,7 @@ if (props.user) {
   newEditUserCurrency.value = props.user.currency
   newEditUserHeightCms.value = props.user.height
   newEditUserMaxHeartRate.value = props.user.max_heart_rate
+  newEditUserFtp.value = props.user.functional_threshold_power
   newEditUserPreferredLanguage.value = props.user.preferred_language
   newEditUserFirstDayOfWeek.value = props.user.first_day_of_week
   newEditUserAccessType.value = props.user.access_type
@@ -734,6 +757,7 @@ async function submitAddUserForm() {
         currency: newEditUserCurrency.value,
         height: newEditUserHeightCms.value,
         max_heart_rate: newEditUserMaxHeartRate.value,
+        functional_threshold_power: newEditUserFtp.value,
         access_type: newEditUserAccessType.value,
         photo_path: null,
         first_day_of_week: newEditUserFirstDayOfWeek.value,
@@ -780,6 +804,7 @@ async function submitEditUserForm() {
       currency: newEditUserCurrency.value,
       height: newEditUserHeightCms.value,
       max_heart_rate: newEditUserMaxHeartRate.value,
+      functional_threshold_power: newEditUserFtp.value,
       preferred_language: newEditUserPreferredLanguage.value,
       first_day_of_week: newEditUserFirstDayOfWeek.value,
       access_type: newEditUserAccessType.value,

@@ -117,6 +117,7 @@ class UsersBase(BaseModel):
         units: User units (metric, imperial).
         height: User's height in centimeters (1-300).
         max_heart_rate: Maximum heart rate in bpm (30-250).
+        functional_threshold_power: Functional Threshold Power (FTP) in watts (50-2000).
         first_day_of_week: First day of the week.
         currency: User currency (euro, dollar, pound).
     """
@@ -171,6 +172,12 @@ class UsersBase(BaseModel):
         ge=30,
         le=250,
         description="Maximum heart rate in bpm",
+    )
+    functional_threshold_power: StrictInt | None = Field(
+        default=None,
+        ge=50,
+        le=2000,
+        description="Functional Threshold Power (FTP) in watts for advanced performance metrics",
     )
     first_day_of_week: WeekDay = Field(
         default=WeekDay.MONDAY,
