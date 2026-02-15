@@ -338,6 +338,126 @@
         <span>{{ formatCalories(t, activity.calories) }}</span>
       </div>
     </div>
+
+    <!-- Advanced Performance Metrics -->
+    <div
+      class="row d-flex mt-3"
+      v-if="
+        source === 'activity' &&
+        (activity.intensity_factor ||
+          activity.training_stress_score ||
+          activity.variability_index ||
+          activity.efficiency_factor ||
+          activity.aerobic_decoupling ||
+          activity.vam ||
+          activity.climbing_efficiency ||
+          activity.gradient_distribution ||
+          activity.w_prime_balance ||
+          activity.quadrant_analysis ||
+          activity.power_duration_curve)
+      "
+    >
+      <!-- Intensity Factor -->
+      <div class="col">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityIntensityFactor') }}
+        </span>
+        <br />
+        <span>{{ activity.intensity_factor || 'None' }}</span>
+      </div>
+      <!-- Training Stress Score -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityTrainingStressScore') }}
+        </span>
+        <br />
+        <span>{{ activity.training_stress_score || 'None' }}</span>
+      </div>
+      <!-- Variability Index -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityVariabilityIndex') }}
+        </span>
+        <br />
+        <span>{{ activity.variability_index || 'None' }}</span>
+      </div>
+      <!-- Efficiency Factor -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityEfficiencyFactor') }}
+        </span>
+        <br />
+        <span>{{ activity.efficiency_factor || 'None' }}</span>
+      </div>
+      <!-- Aerobic Decoupling -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityAerobicDecoupling') }}
+        </span>
+        <br />
+        <span>{{ activity.aerobic_decoupling || 'None' }}</span>
+      </div>
+      <!-- VAM -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityVAM') }}
+        </span>
+        <br />
+        <span>{{ activity.vam || 'None' }}</span>
+      </div>
+    </div>
+    <div
+      class="row d-flex mt-3"
+      v-if="
+        source === 'activity' &&
+        (activity.climbing_efficiency ||
+          activity.gradient_distribution ||
+          activity.w_prime_balance ||
+          activity.quadrant_analysis ||
+          activity.power_duration_curve)
+      "
+    >
+      <!-- Climbing Efficiency -->
+      <div class="col">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityClimbingEfficiency') }}
+        </span>
+        <br />
+        <span>{{ activity.climbing_efficiency || 'None' }}</span>
+      </div>
+      <!-- Gradient Distribution -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityGradientDistribution') }}
+        </span>
+        <br />
+        <span>{{ activity.gradient_distribution ? JSON.stringify(activity.gradient_distribution) : 'None' }}</span>
+      </div>
+      <!-- W' Balance -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityWPrimeBalance') }}
+        </span>
+        <br />
+        <span>{{ activity.w_prime_balance ? JSON.stringify(activity.w_prime_balance) : 'None' }}</span>
+      </div>
+      <!-- Quadrant Analysis -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityQuadrantAnalysis') }}
+        </span>
+        <br />
+        <span>{{ activity.quadrant_analysis ? JSON.stringify(activity.quadrant_analysis) : 'None' }}</span>
+      </div>
+      <!-- Power Duration Curve -->
+      <div class="col border-start border-opacity-50">
+        <span class="fw-lighter">
+          {{ $t('activitySummaryComponent.activityPowerDurationCurve') }}
+        </span>
+        <br />
+        <span>{{ activity.power_duration_curve ? JSON.stringify(activity.power_duration_curve) : 'None' }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -426,6 +546,38 @@ onMounted(async () => {
         userActivity.value = await users.getPublicUserById(props.activity.user_id)
       }
     }
+    
+    // Debug logs
+    console.log('Activity data:', props.activity)
+    console.log('Activity source:', props.source)
+    console.log('Activity intensity_factor:', props.activity.intensity_factor)
+    console.log('Activity training_stress_score:', props.activity.training_stress_score)
+    console.log('Activity variability_index:', props.activity.variability_index)
+    console.log('Activity efficiency_factor:', props.activity.efficiency_factor)
+    console.log('Activity aerobic_decoupling:', props.activity.aerobic_decoupling)
+    console.log('Activity vam:', props.activity.vam)
+    console.log('Activity climbing_efficiency:', props.activity.climbing_efficiency)
+    console.log('Activity gradient_distribution:', props.activity.gradient_distribution)
+    console.log('Activity w_prime_balance:', props.activity.w_prime_balance)
+    console.log('Activity quadrant_analysis:', props.activity.quadrant_analysis)
+    console.log('Activity power_duration_curve:', props.activity.power_duration_curve)
+    
+    // Check if any advanced metrics have values
+    const hasAdvancedMetrics = props.activity.intensity_factor ||
+                              props.activity.training_stress_score ||
+                              props.activity.variability_index ||
+                              props.activity.efficiency_factor ||
+                              props.activity.aerobic_decoupling ||
+                              props.activity.vam ||
+                              props.activity.climbing_efficiency ||
+                              props.activity.gradient_distribution ||
+                              props.activity.w_prime_balance ||
+                              props.activity.quadrant_analysis ||
+                              props.activity.power_duration_curve
+    
+    console.log('Has advanced metrics:', hasAdvancedMetrics)
+    console.log('Source is activity:', props.source === 'activity')
+    
   } catch (error) {
     push.error(`${t('activitySummaryComponent.errorFetchingUserById')} - ${error}`)
   } finally {

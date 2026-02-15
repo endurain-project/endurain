@@ -11,6 +11,7 @@ import activities.activity.crud as activities_crud
 import activities.activity.dependencies as activities_dependencies
 import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
+import activities.activity.performance_metrics as performance_metrics
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.logger as core_logger
@@ -18,9 +19,11 @@ import core.config as core_config
 import gears.gear.dependencies as gears_dependencies
 import auth.security as auth_security
 import users.users.dependencies as users_dependencies
+import users.users.crud as users_crud
 import garmin.activity_utils as garmin_activity_utils
 import strava.activity_utils as strava_activity_utils
 import websocket.manager as websocket_manager
+import activities.activity_streams.crud as activity_streams_crud
 from fastapi import (
     APIRouter,
     Depends,
@@ -828,3 +831,98 @@ async def delete_activity(
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}
+
+
+@router.post(
+    "/{activity_id}/recalculate-metrics",
+)
+async def recalculate_activity_metrics(
+    activity_id: int,
+    _validate_activity_id: Annotated[
+        Callable, Depends(activities_dependencies.validate_activity_id)
+    ],
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the activity by id from user id
+    activity = activities_crud.get_activity_by_id_from_user_id(
+        activity_id, token_user_id, db
+    )
+
+    # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
+    if activity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Activity ID {activity_id} for user {token_user_id} not found",
+        )
+
+    # Get the activity streams for the activity
+    activity_streams = activity_streams_crud.get_activity_streams_by_activity_id(
+        activity_id, db
+    )
+
+    # Parse the streams into waypoints
+    power_waypoints = []
+    hr_waypoints = []
+    ele_waypoints = []
+    vel_waypoints = []
+    cad_waypoints = []
+
+    if activity_streams:
+        for stream in activity_streams:
+            if stream.stream_type == 2:  # Power
+                power_waypoints = stream.stream_waypoints
+            elif stream.stream_type == 1:  # Heart Rate
+                hr_waypoints = stream.stream_waypoints
+            elif stream.stream_type == 4:  # Elevation
+                ele_waypoints = stream.stream_waypoints
+            elif stream.stream_type == 5:  # Velocity
+                vel_waypoints = stream.stream_waypoints
+            elif stream.stream_type == 3:  # Cadence
+                cad_waypoints = stream.stream_waypoints
+
+    # Get user FTP for metrics calculations
+    user = users_crud.get_user_by_id(token_user_id, db)
+    user_ftp = user.functional_threshold_power if user else None
+
+    # Calculate advanced performance metrics
+    all_metrics = performance_metrics.calculate_all_performance_metrics(
+        power_waypoints=power_waypoints if power_waypoints else None,
+        hr_waypoints=hr_waypoints if hr_waypoints else None,
+        elevation_waypoints=ele_waypoints if ele_waypoints else None,
+        distance_waypoints=vel_waypoints if vel_waypoints else None,
+        cadence_waypoints=cad_waypoints if cad_waypoints else None,
+        duration_seconds=activity.total_elapsed_time,
+        average_power=activity.average_power,
+        average_heart_rate=activity.average_hr,
+        ftp=user_ftp,
+    )
+
+    # Update the activity with the calculated metrics
+    activity.intensity_factor = all_metrics.get("intensity_factor")
+    activity.training_stress_score = all_metrics.get("training_stress_score")
+    activity.variability_index = all_metrics.get("variability_index")
+    activity.efficiency_factor = all_metrics.get("efficiency_factor")
+    activity.aerobic_decoupling = all_metrics.get("aerobic_decoupling")
+    activity.vam = all_metrics.get("vam")
+    activity.climbing_efficiency = all_metrics.get("climbing_efficiency")
+    activity.gradient_distribution = all_metrics.get("gradient_distribution")
+    activity.w_prime_balance = all_metrics.get("w_prime_balance")
+    activity.quadrant_analysis = all_metrics.get("quadrant_analysis")
+    activity.power_duration_curve = all_metrics.get("power_duration_curve")
+
+    # Update the activity in the database
+    db.commit()
+    db.refresh(activity)
+
+    # Return success message
+    return {"detail": f"Advanced metrics recalculated for activity {activity_id}"}

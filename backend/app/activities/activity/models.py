@@ -216,6 +216,62 @@ class Activity(Base):
         nullable=True,
         comment="Tracker model (e.g., Forerunner 245, Ambit3 Peak, Vantage V2)",
     )
+    # Advanced Performance Metrics
+    intensity_factor = Column(
+        DECIMAL(precision=10, scale=4),
+        nullable=True,
+        comment="Intensity Factor (IF) = NP / FTP",
+    )
+    training_stress_score = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Training Stress Score (TSS)",
+    )
+    variability_index = Column(
+        DECIMAL(precision=10, scale=4),
+        nullable=True,
+        comment="Variability Index (VI) = NP / Average Power",
+    )
+    efficiency_factor = Column(
+        DECIMAL(precision=10, scale=4),
+        nullable=True,
+        comment="Efficiency Factor (EF) = NP / Average Heart Rate",
+    )
+    aerobic_decoupling = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Aerobic Decoupling (%) = percentage difference in EF between ride halves",
+    )
+    vam = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="VAM (Velocità Ascensionale Media) in meters per hour",
+    )
+    climbing_efficiency = Column(
+        DECIMAL(precision=10, scale=4),
+        nullable=True,
+        comment="Climbing Efficiency = VAM / Power-to-weight ratio",
+    )
+    gradient_distribution = Column(
+        JSON,
+        nullable=True,
+        comment="Gradient distribution histogram as percentage time spent at each grade",
+    )
+    w_prime_balance = Column(
+        JSON,
+        nullable=True,
+        comment="W' Balance data including min balance and percent depleted",
+    )
+    quadrant_analysis = Column(
+        JSON,
+        nullable=True,
+        comment="Quadrant analysis distribution of pedaling force vs. cadence",
+    )
+    power_duration_curve = Column(
+        JSON,
+        nullable=True,
+        comment="Power duration curve with max power at various time windows",
+    )
 
     # Define a relationship to the Users model
     users = relationship("Users", back_populates="activities")

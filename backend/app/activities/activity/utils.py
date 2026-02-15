@@ -37,6 +37,8 @@ import activities.activity_streams.schema as activity_streams_schema
 
 import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
+import activities.activity.performance_metrics as performance_metrics
+
 import websocket.manager as websocket_manager
 
 import gpx.utils as gpx_utils
@@ -313,6 +315,18 @@ def transform_schema_activity_to_model_activity(
         hide_gear=activity.hide_gear,
         tracker_manufacturer=activity.tracker_manufacturer,
         tracker_model=activity.tracker_model,
+        # Advanced Performance Metrics
+        intensity_factor=activity.intensity_factor,
+        training_stress_score=activity.training_stress_score,
+        variability_index=activity.variability_index,
+        efficiency_factor=activity.efficiency_factor,
+        aerobic_decoupling=activity.aerobic_decoupling,
+        vam=activity.vam,
+        climbing_efficiency=activity.climbing_efficiency,
+        gradient_distribution=activity.gradient_distribution,
+        w_prime_balance=activity.w_prime_balance,
+        quadrant_analysis=activity.quadrant_analysis,
+        power_duration_curve=activity.power_duration_curve,
     )
 
     return new_activity
@@ -789,6 +803,127 @@ async def store_activity(
         # Create activity sets in the database
         activity_sets_crud.create_activity_sets(
             parsed_info["sets"], created_activity.id, db
+        )
+
+    # Calculate and save advanced performance metrics
+    try:
+        # Get user FTP for metrics calculations
+        user = users_crud.get_user_by_id(created_activity.user_id, db)
+        user_ftp = user.functional_threshold_power if user else None
+
+        # Parse streams for metrics calculation
+        power_waypoints = []
+        hr_waypoints = []
+        ele_waypoints = []
+        vel_waypoints = []
+        cad_waypoints = []
+
+        if activity_streams:
+            for stream in activity_streams:
+                if stream.stream_type == 2:  # Power
+                    power_waypoints = stream.stream_waypoints
+                elif stream.stream_type == 1:  # Heart Rate
+                    hr_waypoints = stream.stream_waypoints
+                elif stream.stream_type == 4:  # Elevation
+                    ele_waypoints = stream.stream_waypoints
+                elif stream.stream_type == 5:  # Velocity
+                    vel_waypoints = stream.stream_waypoints
+                elif stream.stream_type == 3:  # Cadence
+                    cad_waypoints = stream.stream_waypoints
+
+        # Calculate advanced performance metrics
+        all_metrics = performance_metrics.calculate_all_performance_metrics(
+            power_waypoints=power_waypoints if power_waypoints else None,
+            hr_waypoints=hr_waypoints if hr_waypoints else None,
+            elevation_waypoints=ele_waypoints if ele_waypoints else None,
+            distance_waypoints=vel_waypoints if vel_waypoints else None,
+            cadence_waypoints=cad_waypoints if cad_waypoints else None,
+            duration_seconds=created_activity.total_elapsed_time,
+            average_power=created_activity.average_power,
+            average_heart_rate=created_activity.average_hr,
+            ftp=user_ftp,
+        )
+
+        # Update the activity with the calculated metrics
+        created_activity.intensity_factor = all_metrics.get("intensity_factor")
+        created_activity.training_stress_score = all_metrics.get("training_stress_score")
+        created_activity.variability_index = all_metrics.get("variability_index")
+        created_activity.efficiency_factor = all_metrics.get("efficiency_factor")
+        created_activity.aerobic_decoupling = all_metrics.get("aerobic_decoupling")
+        created_activity.vam = all_metrics.get("vam")
+        created_activity.climbing_efficiency = all_metrics.get("climbing_efficiency")
+        created_activity.gradient_distribution = all_metrics.get("gradient_distribution")
+        created_activity.w_prime_balance = all_metrics.get("w_prime_balance")
+        created_activity.quadrant_analysis = all_metrics.get("quadrant_analysis")
+        created_activity.power_duration_curve = all_metrics.get("power_duration_curve")
+
+        # Commit the changes to the database
+        db.commit()
+        db.refresh(created_activity)
+
+        # Print detailed information about the stored metrics
+        core_logger.print_to_log_and_console(
+            f"✅ Advanced performance metrics successfully stored for activity {created_activity.id}"
+        )
+        core_logger.print_to_log_and_console(
+            f"📊 Metrics summary for activity {created_activity.id}:"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • Intensity Factor (IF): {all_metrics.get('intensity_factor', 'N/A')}"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • Training Stress Score (TSS): {all_metrics.get('training_stress_score', 'N/A')}"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • Variability Index (VI): {all_metrics.get('variability_index', 'N/A')}"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • Efficiency Factor (EF): {all_metrics.get('efficiency_factor', 'N/A')}"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • Aerobic Decoupling: {all_metrics.get('aerobic_decoupling', 'N/A')}%"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • VAM: {all_metrics.get('vam', 'N/A')} m/h"
+        )
+        core_logger.print_to_log_and_console(
+            f"   • Climbing Efficiency: {all_metrics.get('climbing_efficiency', 'N/A')}"
+        )
+        
+        # Print JSON fields separately for better readability
+        gradient_dist = all_metrics.get('gradient_distribution')
+        if gradient_dist:
+            core_logger.print_to_log_and_console(
+                f"   • Gradient Distribution: {gradient_dist}"
+            )
+        
+        w_prime = all_metrics.get('w_prime_balance')
+        if w_prime:
+            core_logger.print_to_log_and_console(
+                f"   • W' Balance: {w_prime}"
+            )
+        
+        quadrant = all_metrics.get('quadrant_analysis')
+        if quadrant:
+            core_logger.print_to_log_and_console(
+                f"   • Quadrant Analysis: {quadrant}"
+            )
+        
+        power_curve = all_metrics.get('power_duration_curve')
+        if power_curve:
+            core_logger.print_to_log_and_console(
+                f"   • Power Duration Curve: {power_curve}"
+            )
+        
+        core_logger.print_to_log_and_console(
+            f"💾 All metrics have been committed to the database successfully!"
+        )
+    except Exception as err:
+        # Log the error but don't fail the activity creation
+        core_logger.print_to_log(
+            f"Error calculating advanced metrics for activity {created_activity.id}: {err}",
+            "error",
+            exc=err,
         )
 
     # Return the created activity
