@@ -28,6 +28,8 @@
   "addEditUserModalHeightPlaceholder": "Height",
   "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
   "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
+  "addEditUserModalFtpLabel": "FTP (optional)",
+  "addEditUserModalFtpPlaceholder": "Functional Threshold Power",
   "addEditUserModalFeetValidationLabel": "Invalid height. Please enter a valid height in feet.",
   "addEditUserModalInchesValidationLabel": "Invalid height. Please enter a valid height in inches.",
   "addEditUserModalUserPreferredLanguageLabel": "Preferred language",

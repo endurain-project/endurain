@@ -128,6 +128,10 @@ class Users(Base):
         nullable=True,
         comment="User maximum heart rate (bpm)",
     )
+    functional_threshold_power: Mapped[int | None] = mapped_column(
+        nullable=True,
+        comment="User Functional Threshold Power (FTP) in watts for advanced performance metrics",
+    )
     access_type: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
