@@ -5,7 +5,7 @@
   "unitsImperial": "Imperiale Einheiten",
   "currencyLabel": "Standardwährung",
   "numRecordsLabel": "Anzahl der Datensätze pro Seite",
-  "passwordTitle": "Password policy",
+  "passwordTitle": "Passwort-Richtlinie",
   "passwordTypeLabel": "Password type policy",
   "passwordTypeStrict": "Strict (must include uppercase, lowercase, number, and special character)",
   "passwordTypeLengthOnly": "Length only (minimum length requirement)",
