@@ -8,7 +8,7 @@
   "passwordTitle": "Passwort-Richtlinie",
   "passwordTypeLabel": "Password type policy",
   "passwordTypeStrict": "Strict (must include uppercase, lowercase, number, and special character)",
-  "passwordTypeLengthOnly": "Length only (minimum length requirement)",
+  "passwordTypeLengthOnly": "",
   "passwordLengthRegularUsersLabel": "Password minimum length for regular users",
   "passwordLengthAdminsUsersLabel": "Password minimum length for admin users",
   "signupTitle": "Registrieren",
