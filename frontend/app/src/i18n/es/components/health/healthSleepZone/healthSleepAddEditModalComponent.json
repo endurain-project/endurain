@@ -33,5 +33,5 @@
   "stageDurationLabel": "Duration",
   "noStagesMessage": "No sleep stages added yet. Click 'Add stage' to add a sleep stage.",
   "successAddSleep": "Sleep added successfully",
-  "errorAddSleep": "Error adding sleep"
+  "errorAddSleep": "Error añadiendo sueño"
 }
