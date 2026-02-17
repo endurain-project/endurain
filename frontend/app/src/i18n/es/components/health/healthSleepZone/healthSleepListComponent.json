@@ -5,6 +5,6 @@
   "modalDeleteSleepBody": "Are you sure you want to delete sleep entry for ",
   "successDeleteSleep": "Sleep deleted",
   "errorDeleteSleep": "It was not possible to delete sleep entry",
-  "successEditSleep": "Sleep edited",
+  "successEditSleep": "Sueño editado",
   "errorEditSleep": "It was not possible to edit sleep entry"
 }
