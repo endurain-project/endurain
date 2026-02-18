@@ -47,5 +47,5 @@
   "ssoAutoCreateDisabled": "Die automatische Kontoerstellung ist deaktiviert. Bitte kontaktieren Sie Ihren Administrator",
   "ssoErrorUndefined": "Während der SSO-Authentifizierung ist ein unerwarteter Fehler aufgetreten",
   "forceLocalLogin": "Lokales Login-Flag aktiviert. Bitte verwenden Sie Ihren Benutzernamen und Ihr Passwort um sich anzumelden.",
-  "ssoTokenExchangeFailed": "SSO token exchange failed."
+  "ssoTokenExchangeFailed": "SSO-Token-Austausch fehlgeschlagen."
 }
