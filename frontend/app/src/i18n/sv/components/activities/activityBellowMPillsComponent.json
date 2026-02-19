@@ -1,8 +1,8 @@
 {
-  "subTitlePace": "Pace",
-  "labelAvgPace": "Avg pace",
-  "labelMovingTime": "Moving time",
-  "labelElapsedTime": "Elapsed time",
+  "subTitlePace": "Tempo",
+  "labelAvgPace": "Snittempo",
+  "labelMovingTime": "Tid i rörelse",
+  "labelElapsedTime": "Förfluten tid",
   "subTitleSpeed": "Speed",
   "labelAvgSpeed": "Avg speed",
   "labelMaxSpeed": "Max speed",
