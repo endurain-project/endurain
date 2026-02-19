@@ -1,16 +1,16 @@
 {
   "requestAccepted": "Accepterad",
   "requestPending": "Väntande förfrågan",
-  "followingModalTitle": "Ta bort följande",
+  "followingModalTitle": "Ta bort följare",
   "followingModalBody": "Är du säker på att du vill ta bort följande användare ",
   "followerModalTitle": "Ta bort följare",
   "followerModalBody": "Är du säker på att du vill ta bort följaren ",
   "followerAcceptModalTitle": "Godkänn användarförfrågan",
-  "followerAcceptModalBody": "Är du säker på att du vill godkänna följförfrågan från användaren ",
+  "followerAcceptModalBody": "Är du säker på att du vill godkänna följarförfrågan från användaren ",
   "followerDeclineModalTitle": "Avböj användarförfrågan ",
   "followerDeclineModalBody": "Är du säker på att du vill avböja följförfrågan från användaren ",
   "errorDeleteFollowing": "Fel vid borttagning av följare",
   "errorDeleteFollower": "Fel vid borttagning av följare",
   "errorUpdateFollower": "Fel vid uppdatering av följare",
-  "errorFetchingFollowersDetails": "Error fetching followers details"
+  "errorFetchingFollowersDetails": "Fel vid hämtning av följardetaljer"
 }
