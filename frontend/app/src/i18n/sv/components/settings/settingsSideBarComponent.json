@@ -1,11 +1,11 @@
 {
-  "usersSection": "Users",
-  "serverSettingsSection": "Server settings",
-  "identityProvidersSection": "Identity providers",
+  "usersSection": "Användare",
+  "serverSettingsSection": "Serverinställningar",
+  "identityProvidersSection": "Identitetsleverantörer",
   "generalSection": "General",
-  "myProfileSection": "My profile",
-  "myGoals": "My goals",
-  "securitySection": "Security",
-  "integrationsSection": "Integrations",
-  "importSection": "Import"
+  "myProfileSection": "Min profil",
+  "myGoals": "Mina mål",
+  "securitySection": "Säkerhet",
+  "integrationsSection": "Integrationer",
+  "importSection": "Importera"
 }
