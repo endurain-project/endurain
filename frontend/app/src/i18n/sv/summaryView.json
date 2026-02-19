@@ -32,13 +32,13 @@
   "colActivities": "Activities",
   "metricTotalDistance": "Total distance",
   "metricTotalDuration": "Total duration",
-  "metricTotalElevation": "Total elevation",
-  "metricTotalCalories": "Total calories",
-  "metricTotalActivities": "Total activities",
-  "invalidYearSelected": "Invalid year selected",
+  "metricTotalElevation": "Total höjd",
+  "metricTotalCalories": "Totalt antal kalorier",
+  "metricTotalActivities": "Totalt antal aktiviteter",
+  "invalidYearSelected": "Ogiltigt år valt",
   "headerTypeBreakdown": "Breakdown by type",
-  "colActivityType": "Type",
-  "headerYear": "Year {year}",
-  "headerWeekStarting": "Week of {date}",
-  "colYear": "Year"
+  "colActivityType": "Typ",
+  "headerYear": "År {year}",
+  "headerWeekStarting": "Vecka av {date}",
+  "colYear": "År"
 }
