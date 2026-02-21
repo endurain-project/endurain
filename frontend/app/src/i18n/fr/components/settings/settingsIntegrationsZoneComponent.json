@@ -15,7 +15,7 @@
   "modalRetrieveClientIdLabel": "Identifiant client",
   "modalRetrieveClientSecretLabel": "Secret client",
   "errorMessageUnableToLinkStrava": "Impossible de lier le compte Strava",
-  "errorMessageUnableToUnsetStravaClientSettings": "Unable to unset Strava client and state settings after linking error",
+  "errorMessageUnableToUnsetStravaClientSettings": "Impossible de supprimer les paramètres du client Strava et de l'état après l'erreur de liaison",
   "successMessageStravaAccountLinked": "Compte Strava associé",
   "errorMessageUnableToUnSetStravaState": "Impossible d'annuler l'état de Strava",
   "errorMessageUnableToGetStravaActivities": "Impossible d'obtenir les activités de Strava",
