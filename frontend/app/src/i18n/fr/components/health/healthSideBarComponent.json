@@ -1,7 +1,7 @@
 {
   "dashboardSection": "Tableau de Bord",
-  "sleepSection": "Sleep",
-  "RHRSection": "Resting heart rate",
-  "stepsSection": "Steps",
+  "sleepSection": "Sommeil",
+  "RHRSection": "Fréquence cardiaque au repos",
+  "stepsSection": "Pas",
   "weightSection": "Poids"
 }
