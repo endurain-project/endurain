@@ -46,5 +46,5 @@
   "errorCreating": "Fel vid skapande av identitetsleverantör",
   "errorUpdating": "Fel vid uppdatering av identitetsleverantör",
   "errorSlugExists": "En leverantör med den här unika identifieraren (\"slug\") finns redan",
-  "errorForbidden": "You don't have permission to perform this action"
+  "errorForbidden": "Du har inte behörighet att utföra den här åtgärden"
 }
