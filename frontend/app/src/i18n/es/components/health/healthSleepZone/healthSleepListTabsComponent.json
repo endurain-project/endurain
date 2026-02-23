@@ -20,7 +20,7 @@
   "fairLabel": "Fair",
   "heartRateTitle": "Heart Rate",
   "restingHeartRateLabel": "Resting HR",
-  "avgLabel": "Avg.",
+  "avgLabel": "",
   "maxLabel": "Max.",
   "minLabel": "Min.",
   "respiratoryTitle": "Respiratory Rate",

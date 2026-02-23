@@ -19,7 +19,7 @@
   "languageOption10": "Galicisch (GL)",
   "languageOption11": "Italienisch (IT)",
   "languageOption12": "Slowenisch (SL)",
-  "languageOption13": "Swedish (SV)",
+  "languageOption13": "Schwedisch (SV)",
   "firstDayOfWeekOption0": "Sonntag",
   "firstDayOfWeekOption1": "Montag",
   "firstDayOfWeekOption2": "Dienstag",
@@ -50,14 +50,14 @@
   "labelWeightInLbs": "Gewicht in lbs",
   "labelWeightTargetInLbs": "Gewichtsziel in lbs",
   "labelSteps": "Schritte",
-  "labelStepsTarget": "Schritte-Ziel",
+  "labelStepsTarget": "Schrittziel",
   "labelSleep": "Schlaf",
   "labelSleepTarget": "Schlafziel",
   "labelDeep": "Tief",
   "labelLight": "Leicht",
   "labelREM": "REM",
   "labelAwake": "Wach",
-  "unitsCalories": "kCal",
+  "unitsCalories": "kcal",
   "unitsBpm": "bpm",
   "labelHRinBpm": "Herzfrequenz in bpm",
   "unitsWattsShort": "W",
@@ -100,10 +100,10 @@
   "labelHoursShort": "std",
   "labelMinutesShort": "min",
   "markdownEditor": {
-    "showPreview": "Preview",
-    "hidePreview": "Edit",
-    "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
-    "noContentToPreview": "No content to preview"
+    "showPreview": "Vorschau",
+    "hidePreview": "Bearbeiten",
+    "markdownSupported": "Markdown-Formatierung wird unterstützt (fett, kursiv, Links, Listen, etc.)",
+    "noContentToPreview": "Kein Inhalt zur Vorschau"
   },
-  "filterOptionsLabel": "Filter options"
+  "filterOptionsLabel": "Filteroptionen"
 }

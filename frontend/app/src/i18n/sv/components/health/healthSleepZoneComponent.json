@@ -1,9 +1,9 @@
 {
-  "buttonAddSleep": "Add sleep",
-  "buttonSleepTarget": "Sleep target",
-  "modalSleepTargetHoursLabel": "hours",
-  "modalSleepTargetMinutesLabel": "minutes",
-  "labelNumberOfHealthSleep1": "There is a total of ",
-  "labelNumberOfHealthSleep2": " sleep entries inserted (",
-  "labelNumberOfHealthSleep3": " loaded):"
+  "buttonAddSleep": "Lägg till sömn",
+  "buttonSleepTarget": "Sömnmål",
+  "modalSleepTargetHoursLabel": "timmar",
+  "modalSleepTargetMinutesLabel": "minuter",
+  "labelNumberOfHealthSleep1": "Det finns totalt ",
+  "labelNumberOfHealthSleep2": " stegposter inlagda (",
+  "labelNumberOfHealthSleep3": " laddad):"
 }

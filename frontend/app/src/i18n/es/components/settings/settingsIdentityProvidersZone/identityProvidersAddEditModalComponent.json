@@ -38,7 +38,7 @@
   "syncUserInfoHelp": "Update user profile information from the identity provider on each sign-in.",
   "configurationNotes": "Configuration notes:",
   "addButton": "Add provider",
-  "saveButton": "Save changes",
+  "saveButton": "Guardar cambios",
   "creatingProvider": "Creating identity provider...",
   "updatingProvider": "Updating identity provider...",
   "providerCreated": "Identity provider created successfully",

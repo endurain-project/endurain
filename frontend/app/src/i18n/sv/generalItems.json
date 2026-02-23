@@ -39,7 +39,7 @@
   "unitsKg": "kg",
   "labelWeightInKg": "Vikt i kg",
   "labelWeightTargetInKg": "Viktmål i kg",
-  "unitsInches": "",
+  "unitsInches": "tum",
   "unitsFeet": "fot",
   "unitsFeetShort": "ft",
   "unitsFeetInches": "fot, tum",
@@ -105,5 +105,5 @@
     "markdownSupported": "Markdown-formatering stöds (fetstil, kursiv, länkar, listor, etc.)",
     "noContentToPreview": "Inget innehåll att förhandsgranska"
   },
-  "filterOptionsLabel": "Filter options"
+  "filterOptionsLabel": "Filteralternativ"
 }

@@ -1,14 +1,14 @@
 {
-  "title": "Goals",
-  "activityTypeRun": "Run",
-  "activityTypeBike": "Bike",
-  "activityTypeSwim": "Swim",
-  "activityTypeWalk": "Walk",
-  "activityTypeStrength": "Strength",
-  "activityTypeCardio": "Cardio",
-  "intervalDaily": "Daily",
-  "intervalWeekly": "Weekly",
-  "intervalMonthly": "Monthly",
-  "intervalYearly": "Yearly",
-  "activities": "activities"
+  "title": "Mål",
+  "activityTypeRun": "Löpning",
+  "activityTypeBike": "Cykel",
+  "activityTypeSwim": "Simning",
+  "activityTypeWalk": "Promenad",
+  "activityTypeStrength": "Styrka",
+  "activityTypeCardio": "Konditionsträning",
+  "intervalDaily": "Daglig",
+  "intervalWeekly": "Veckovis",
+  "intervalMonthly": "Månatligen",
+  "intervalYearly": "Årligen",
+  "activities": "aktiviteter"
 }
