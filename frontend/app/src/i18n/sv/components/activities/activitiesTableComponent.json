@@ -7,6 +7,6 @@
   "headerDistance": "Distans",
   "headerPace": "Takt/Hastighet",
   "headerCalories": "Kalorier",
-  "headerElevation": "Elevation",
-  "headerAvgHr": "Avg HR"
+  "headerElevation": "Höjd",
+  "headerAvgHr": "Snittpuls"
 }
