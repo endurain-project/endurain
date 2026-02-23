@@ -69,11 +69,11 @@
   "gearComponentWing": "Wing",
   "gearComponentFrontFoil": "Front foil",
   "gearComponentStabilizer": "Stabilizer",
-  "gearComponentFuselage": "Fuselage",
-  "gearComponentOf": " of ",
-  "gearComponentListGearComponentIsInactiveBadge": "Inactive",
-  "gearComponentListModalDeleteGearComponentTitle": "Delete gear component",
-  "gearComponentListModalDeleteGearComponentBody": "Are you sure you want to delete gear component ",
-  "gearComponentListGearDeleteSuccessMessage": "Gear component deleted successfully",
-  "gearComponentListGearDeleteErrorMessage": "Error deleting gear component"
+  "gearComponentFuselage": "Chassi",
+  "gearComponentOf": " av ",
+  "gearComponentListGearComponentIsInactiveBadge": "Inaktiv",
+  "gearComponentListModalDeleteGearComponentTitle": "Ta bort komponent",
+  "gearComponentListModalDeleteGearComponentBody": "Är du säker på att du vill ta bort komponenten ",
+  "gearComponentListGearDeleteSuccessMessage": "Komponenten borttagen",
+  "gearComponentListGearDeleteErrorMessage": "Fel vid borttagning av komponent"
 }
