@@ -7,8 +7,8 @@
   "labelLapSpeed": "Hastighet",
   "labelLapElevation": "Höjd",
   "labelLapElev": "Höjd",
-  "labelLapAvgHr": "Genomsnittlig puls",
+  "labelLapAvgHr": "Snittpuls",
   "labelLapHR": "Puls",
-  "labelLapStrokeRate": "Stroke rate",
+  "labelLapStrokeRate": "Slagfrekvens",
   "labelLapSR": "SR"
 }
