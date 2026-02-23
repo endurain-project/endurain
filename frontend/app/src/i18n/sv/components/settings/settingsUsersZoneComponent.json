@@ -1,10 +1,10 @@
 {
-  "buttonAddUser": "Add user",
-  "labelSearchUsersByUsername": "Search users by username",
-  "labelNumberOfUsers1": "There is a total of ",
-  "labelNumberOfUsers2": " user(s) (",
-  "labelNumberOfUsers3": " loaded):",
-  "successUserAdded": "User added successfully",
-  "successUserDeleted": "User deleted successfully",
-  "errorFetchingUsers": "Error fetching users"
+  "buttonAddUser": "Lägg till användare",
+  "labelSearchUsersByUsername": "Sök användare efter användarnamn",
+  "labelNumberOfUsers1": "Det finns totalt ",
+  "labelNumberOfUsers2": " användare (",
+  "labelNumberOfUsers3": " laddade):",
+  "successUserAdded": "Användaren har lagts till",
+  "successUserDeleted": "Användaren har tagits bort",
+  "errorFetchingUsers": "Fel vid hämtning av användare"
 }
