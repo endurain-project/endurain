@@ -280,6 +280,9 @@ def split_records_by_activity(parsed_data: dict) -> dict:
 
         if parsed_data["laps"]:
             for lap in parsed_data["laps"]:
+                # Skip laps with no start time
+                if lap["start_time"] is None:
+                    continue
                 # Check if the lap's start time is within the session's start and end times
                 if start_time <= lap["start_time"] <= end_time:
                     # Append the lap to the session's laps
@@ -739,7 +742,9 @@ def parse_fit_file(
                         file_id = parse_frame_file_id(frame)
 
                     if frame.name == "monitoring":
-                        steps, heart_rate = parse_frame_monitoring(frame, fit_data.last_timestamp)
+                        steps, heart_rate = parse_frame_monitoring(
+                            frame, fit_data.last_timestamp
+                        )
                         intraday_steps.extend(steps)
                         intraday_heart_rate.extend(heart_rate)
 
@@ -1124,36 +1129,42 @@ def parse_frame_monitoring(frame, last_timestamp):
     # Reconstruct timestamp with timestamp_16.
     current_timestamp = None
     if data.get("timestamp_16") is not None:
-        current_timestamp = (last_timestamp & 0xffff0000) | data["timestamp_16"]
+        current_timestamp = (last_timestamp & 0xFFFF0000) | data["timestamp_16"]
         if current_timestamp < last_timestamp:
             current_timestamp += 0x10000
     else:
         current_timestamp = last_timestamp
-        
+
     timestamp = datetime.fromtimestamp(
-        current_timestamp + fitdecode.FIT_UTC_REFERENCE, 
+        current_timestamp + fitdecode.FIT_UTC_REFERENCE,
         tz=timezone.utc,
     )
 
     if data.get("steps"):
-        steps.append({
-            "steps": data.get("steps"),
-            "active_time": data.get("active_time"),
-            "active_calories": data.get("active_calories"),
-            "current_activity_type_intensity": data.get("current_activity_type_intensity"),
-            "activity_type": data.get("activity_type"),
-            "intensity": data.get("intensity"),
-            "distance": data.get("distance"),
-            "duration_min": data.get("duration_min"),
-            "timestamp": timestamp,
-        })
+        steps.append(
+            {
+                "steps": data.get("steps"),
+                "active_time": data.get("active_time"),
+                "active_calories": data.get("active_calories"),
+                "current_activity_type_intensity": data.get(
+                    "current_activity_type_intensity"
+                ),
+                "activity_type": data.get("activity_type"),
+                "intensity": data.get("intensity"),
+                "distance": data.get("distance"),
+                "duration_min": data.get("duration_min"),
+                "timestamp": timestamp,
+            }
+        )
 
     if data.get("heart_rate"):
-        heart_rate.append({
-            "heart_rate": data.get("heart_rate"),
-            "timestamp": timestamp,
-        })
-    
+        heart_rate.append(
+            {
+                "heart_rate": data.get("heart_rate"),
+                "timestamp": timestamp,
+            }
+        )
+
     return steps, heart_rate
 
 
@@ -1161,7 +1172,9 @@ def parse_frame_monitoring_hr_data(frame):
     return {
         "timestamp": get_value_from_frame(frame, "timestamp"),
         "resting_heart_rate": get_value_from_frame(frame, "resting_heart_rate"),
-        "current_day_resting_heart_rate": get_value_from_frame(frame, "current_day_resting_heart_rate"),
+        "current_day_resting_heart_rate": get_value_from_frame(
+            frame, "current_day_resting_heart_rate"
+        ),
     }
 
 
