@@ -23,7 +23,7 @@
   "publicShareableLinksLabel": "Offentliga delningsbara länkar",
   "enabledLabel": "Aktiverad",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Aktivering av det här kommer att göra alla publika aktiviteter synliga utan autentisering.",
-  "publicShareableLinksShowUserInfoLabel": "Show user info",
+  "publicShareableLinksShowUserInfoLabel": "Visa användarinformation",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Enabling this will display user information on all public links",
   "photosLabel": "Photos",
   "loginPhotoLabel": "Login photo",
