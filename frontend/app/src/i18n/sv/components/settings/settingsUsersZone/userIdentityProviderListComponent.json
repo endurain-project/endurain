@@ -1,6 +1,6 @@
 {
-  "unknownProviderIcon": "Unknown provider icon",
-  "providerTypeBadgeLabel": "Authentication provider type",
+  "unknownProviderIcon": "Okänd leverantörsikon",
+  "providerTypeBadgeLabel": "Typ av autentiseringsleverantör",
   "linkedAtLabel": "Datum och tid när leverantören kopplades ihop",
   "linkedAt": "Kopplad",
   "lastLoginLabel": "Datum och tid för den senaste inloggningen med den här leverantören",
