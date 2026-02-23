@@ -9,6 +9,6 @@
   "buttonClear": "Rensa",
   "buttonApply": "Verkställ",
   "errorFailedFetchActivityTypes": "Kunde inte hämta aktivitetstyper",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "errorUpdatingActivities": "Misslyckades med att uppdatera aktiviteter",
+  "errorFetchingActivities": "Misslyckades med att hämta användaraktiviteter"
 }
