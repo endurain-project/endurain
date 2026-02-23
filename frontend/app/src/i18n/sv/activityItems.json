@@ -33,16 +33,16 @@
   "standUpPaddling": "SUP-paddling",
   "surf": "Surfing",
   "trackRun": "Löpbana",
-  "ebikeRide": "E-Bike ride",
-  "ebikeMountainRide": "E-Bike mountain ride",
+  "ebikeRide": "El-cykeltur",
+  "ebikeMountainRide": "El-mountainbike-tur",
   "iceSkate": "Skridskor",
   "soccer": "Fotboll",
   "padel": "Padel",
-  "treadmillRun": "Treadmill run",
+  "treadmillRun": "Löpning på löpband",
   "cardioTraining": "Konditionsträning",
   "kayaking": "Kajakpaddling",
-  "sailing": "Sailing",
-  "snowShoeing": "Snow shoeing",
-  "inlineSkating": "Inline skating",
-  "labelWorkout": " workout"
+  "sailing": "Segling",
+  "snowShoeing": "Snöskovandring",
+  "inlineSkating": "Inlinesåkning",
+  "labelWorkout": " träningspass"
 }
