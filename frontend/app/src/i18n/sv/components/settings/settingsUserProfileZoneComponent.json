@@ -55,7 +55,7 @@
   "defaultActivityLocation": "Dölj aktivitetens plats",
   "defaultActivityMap": "Dölj aktivitetskarta",
   "defaultActivityHeartRate": "Dölj pulsdata för aktivitet",
-  "defaultActivityPower": "Dölj kraftdata för aktivitet",
+  "defaultActivityPower": "Dölj effektdata för aktivitet",
   "defaultActivityCadence": "Dölj kadensdata för aktivitet",
   "defaultActivityElevation": "Dölj höjddata för aktivitet",
   "defaultActivitySpeed": "Dölj hastighetsdata för aktivitet",
