@@ -29,5 +29,5 @@
   "errorSignupDisabled": "Registrering är inte aktiverad på denna server",
   "errorValidation": "Kontrollera din inmatning och försök igen",
   "errorGeneral": "Ett fel inträffade under registreringen",
-  "signupDisabled": "User sign-up is not enabled on this server"
+  "signupDisabled": "Användarregistrering är inte aktiverat på den här servern"
 }
