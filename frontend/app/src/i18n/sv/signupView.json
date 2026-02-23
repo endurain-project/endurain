@@ -25,8 +25,8 @@
   "errorEmailInvalid": "Vänligen ange en giltig e-postadress",
   "errorPasswordRequired": "Ett lösenord är obligatoriskt",
   "errorPasswordTooShort": "Lösenordet måste vara minst 8 tecken långt",
-  "errorUserExists": "En användare med denna e-postadress och/eller användarnamn finns redan",
-  "errorSignupDisabled": "Registrering är inte aktiverad på denna server",
+  "errorUserExists": "En användare med den här e-postadressen och/eller användarnamnet finns redan",
+  "errorSignupDisabled": "Registrering är inte aktiverad på den här servern",
   "errorValidation": "Kontrollera din inmatning och försök igen",
   "errorGeneral": "Ett fel inträffade under registreringen",
   "signupDisabled": "Användarregistrering är inte aktiverat på den här servern"
