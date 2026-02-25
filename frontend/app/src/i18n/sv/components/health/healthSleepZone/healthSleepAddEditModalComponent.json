@@ -31,7 +31,7 @@
   "stageStartTimeLabel": "Starttid",
   "stageEndTimeLabel": "Sluttid",
   "stageDurationLabel": "Varaktighet",
-  "noStagesMessage": "No sleep stages added yet. Click 'Add stage' to add a sleep stage.",
-  "successAddSleep": "Sleep added successfully",
-  "errorAddSleep": "Error adding sleep"
+  "noStagesMessage": "Ingen sömnfaser tillagda ännu. Klicka på \"Lägg till fas\" för att lägga till en sömnfas.",
+  "successAddSleep": "Sömndata har lagts till",
+  "errorAddSleep": "Fel vid tillägg av sömndata"
 }
