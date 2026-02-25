@@ -23,9 +23,9 @@
   "addEditGoalModalElevationLabel": "Höjd",
   "addEditGoalModalElevationPlaceholder": "Målhöjd",
   "addEditGoalModalDurationLabel": "Varaktighet",
-  "addEditGoalModalDurationPlaceholder": "Target duration (ex: 1.5 equals 1h30m)",
-  "addEditGoalModalSuccessAddGoal": "Goal added successfully",
-  "addEditGoalModalErrorAddGoal": "Error adding goal",
-  "addEditGoalModalSuccessEditGoal": "Goal edited successfully",
-  "addEditGoalModalErrorEditGoal": "Error editing goal"
+  "addEditGoalModalDurationPlaceholder": "Måltid (t.ex: 1.5 är lika med 1tim 30min)",
+  "addEditGoalModalSuccessAddGoal": "Mål har lagts till",
+  "addEditGoalModalErrorAddGoal": "Fel vid tillägg av mål",
+  "addEditGoalModalSuccessEditGoal": "Målet har ändrats",
+  "addEditGoalModalErrorEditGoal": "Fel vid ändring av mål"
 }
