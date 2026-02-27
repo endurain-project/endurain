@@ -29,9 +29,9 @@ run_as_context:
   user_name: endurain
 - description: Container [postgres] runs as non-root user and group.
   gid: 999
-  group_name: Host group is [docker]
+  group_name: Host group is [postgres]
   uid: 999
-  user_name: Host user is [netdata]
+  user_name: Host user is [postgres]
 screenshots: []
 sources:
 - https://docs.endurain.com

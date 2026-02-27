@@ -34,7 +34,7 @@ questions:
           description: |
             If you are changing this after the postgres directory has been initialized,</br>
             STOP! and make sure you have a backup of your data.</br>
-            Changing this will trigger an one way database upgrade.</br>
+            Changing this will trigger a one-way database upgrade.</br>
             You can only select newer versions of postgres.</br>
             Selecting an older version will refuse to start.</br>
             If something goes wrong, you will have to restore from backup.
