@@ -158,7 +158,7 @@ def complete_login(
         db (Session): Database session for storing session information.
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, and expires_in.
+        dict: Contains session_id, access_token, csrf_token, token_type, expires_in, and refresh_token_expires_in.
 
     Raises:
         HTTPException: If the client type is invalid, raises a 403 Forbidden error.
@@ -175,7 +175,7 @@ def complete_login(
         session_id,
         access_token_exp,
         access_token,
-        _refresh_token_exp,
+        refresh_token_exp,
         refresh_token,
         csrf_token,
     ) = create_tokens(user, token_manager)
@@ -216,6 +216,7 @@ def complete_login(
             "csrf_token": csrf_token,
             "token_type": "bearer",
             "expires_in": int(access_token_exp.timestamp()),
+            "refresh_token_expires_in": int(refresh_token_exp.timestamp()),
         }
     else:
         # Mobile: All tokens in JSON response body for secure platform storage
@@ -225,6 +226,7 @@ def complete_login(
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "expires_in": int(access_token_exp.timestamp()),
+            "refresh_token_expires_in": int(refresh_token_exp.timestamp()),
         }
 
 

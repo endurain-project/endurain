@@ -91,7 +91,7 @@ X-CSRF-Token: {current_csrf_token}
 Cookie: endurain_refresh_token={refresh_token}
 ```
 
-**Token Refresh Response:**
+**Token Refresh Response (Web):**
 
 ```json
 {
@@ -99,7 +99,21 @@ Cookie: endurain_refresh_token={refresh_token}
   "access_token": "eyJ...",
   "csrf_token": "new_csrf_token",
   "token_type": "bearer",
-  "expires_in": 1734567890
+  "expires_in": 1734567890,
+  "refresh_token_expires_in": 1735172690
+}
+```
+
+**Token Refresh Response (Mobile):**
+
+```json
+{
+  "session_id": "uuid",
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer",
+  "expires_in": 1734567890,
+  "refresh_token_expires_in": 1735172690
 }
 ```
 
@@ -245,7 +259,8 @@ X-Client-Type: web|mobile
   "access_token": "eyJ...",
   "csrf_token": "abc123...",
   "token_type": "bearer",
-  "expires_in": 1734567890
+  "expires_in": 1734567890,
+  "refresh_token_expires_in": 1735172690
 }
 ```
 
@@ -257,7 +272,8 @@ X-Client-Type: web|mobile
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
   "token_type": "bearer",
-  "expires_in": 1734567890
+  "expires_in": 1734567890,
+  "refresh_token_expires_in": 1735172690
 }
 ```
 
@@ -490,6 +506,7 @@ X-Client-Type: mobile
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "expires_in": 900,
+  "refresh_token_expires_in": 604800,
   "token_type": "Bearer"
 }
 ```
@@ -534,7 +551,8 @@ Responds with tokens directly (no PKCE):
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "bearer",
-  "expires_in": 900
+  "expires_in": 900,
+  "refresh_token_expires_in": 604800
 }
 ```
 
@@ -704,6 +722,7 @@ X-Client-Type: mobile
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "csrf_token": "abc123def456...",
   "expires_in": 900,
+  "refresh_token_expires_in": 604800,
   "token_type": "Bearer"
 }
 ```

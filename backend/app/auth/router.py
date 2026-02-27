@@ -389,7 +389,7 @@ async def refresh_token(
         x_csrf_token: CSRF token header (web clients only, optional on page reload).
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, expires_in.
+        dict: Contains session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in.
 
     Raises:
         HTTPException: If session not found, refresh token invalid,
@@ -492,7 +492,7 @@ async def refresh_token(
         session_id,
         new_access_token_exp,
         new_access_token,
-        _,
+        new_refresh_token_exp,
         new_refresh_token,
         new_csrf_token,
     ) = auth_utils.create_tokens(user, token_manager, session.id)
@@ -534,6 +534,7 @@ async def refresh_token(
             "csrf_token": new_csrf_token,
             "token_type": "bearer",
             "expires_in": int(new_access_token_exp.timestamp()),
+            "refresh_token_expires_in": int(new_refresh_token_exp.timestamp()),
         }
     else:
         # Mobile: All tokens in JSON response body
@@ -543,6 +544,7 @@ async def refresh_token(
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
             "expires_in": int(new_access_token_exp.timestamp()),
+            "refresh_token_expires_in": int(new_refresh_token_exp.timestamp()),
         }
 
 

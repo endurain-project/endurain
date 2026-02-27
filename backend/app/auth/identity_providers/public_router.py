@@ -463,7 +463,7 @@ async def exchange_tokens_for_session(
             _,
             access_token_exp,
             access_token,
-            _,
+            refresh_token_exp,
             refresh_token,
             csrf_token,
         ) = auth_utils.create_tokens(user_read, token_manager, session_id)
@@ -471,6 +471,11 @@ async def exchange_tokens_for_session(
         # Calculate expires_in from access token expiration
         expires_in = int(
             (access_token_exp - datetime.now(timezone.utc)).total_seconds()
+        )
+
+        # Calculate refresh_token_expires_in from refresh token expiration
+        refresh_token_expires_in = int(
+            (refresh_token_exp - datetime.now(timezone.utc)).total_seconds()
         )
 
         # Update session with the actual hashed refresh token
@@ -512,6 +517,7 @@ async def exchange_tokens_for_session(
                 access_token=access_token,
                 csrf_token=csrf_token,
                 expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
                 token_type="Bearer",
             )
         else:
@@ -521,6 +527,7 @@ async def exchange_tokens_for_session(
                 access_token=access_token,
                 refresh_token=refresh_token,
                 expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
                 token_type="Bearer",
             )
 
