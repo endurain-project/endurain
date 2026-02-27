@@ -64,6 +64,7 @@
   "labelPowerInWatts": "Power in watts",
   "labelCadenceInRpm": "Cadence in rpm",
   "unitsSpm": "spm",
+  "unitsRpm": "rpm",
   "labelElevationInMeters": "Elevation in meters",
   "labelElevationInFeet": "Elevation in feet",
   "labelVelocityInKmH": "Speed in km/h",
