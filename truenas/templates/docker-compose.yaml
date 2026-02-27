@@ -1,0 +1,64 @@
+{% set tpl = ix_lib.base.render.Render(values) %}
+
+{% set endurain_net = tpl.networks.create_internal("endurain-net") %}
+
+{% set perm_container = tpl.deps.perms(values.consts.perms_container_name) %}
+{% set perms_config = {"uid": values.run_as.user, "gid": values.run_as.group, "mode": "check"} %}
+
+{# PostgreSQL dependency #}
+{% set pg_config = {
+  "user": values.consts.db_user,
+  "password": values.endurain.db_password,
+  "database": values.consts.db_name,
+  "volume": values.storage.postgres_data,
+} %}
+{% set postgres = tpl.deps.postgres(values.consts.postgres_container_name, values.endurain.postgres_image_selector, pg_config, perm_container) %}
+{% do postgres.container.add_network(endurain_net) %}
+
+{# Main Endurain container #}
+{% set c = tpl.add_container(values.consts.endurain_container_name, "image") %}
+{% do c.add_network(endurain_net) %}
+{% do c.set_user(values.run_as.user, values.run_as.group) %}
+{% do c.healthcheck.set_test("curl", {"port": values.network.web_port.port_number, "path": "/api/v1/about"}) %}
+{% do c.depends.add_dependency(values.consts.postgres_container_name, "service_healthy") %}
+
+{# Environment variables #}
+{% do c.environment.add_env("DB_HOST", values.consts.postgres_container_name) %}
+{% do c.environment.add_env("DB_PORT", "5432") %}
+{% do c.environment.add_env("DB_USER", values.consts.db_user) %}
+{% do c.environment.add_env("DB_PASSWORD", values.endurain.db_password) %}
+{% do c.environment.add_env("DB_DATABASE", values.consts.db_name) %}
+{% do c.environment.add_env("SECRET_KEY", values.endurain.secret_key) %}
+{% do c.environment.add_env("FERNET_KEY", values.endurain.fernet_key) %}
+{% do c.environment.add_env("ENDURAIN_HOST", values.endurain.endurain_host) %}
+{% if values.endurain.behind_proxy %}
+  {% do c.environment.add_env("BEHIND_PROXY", "true") %}
+{% endif %}
+{% do c.environment.add_user_envs(values.endurain.additional_envs) %}
+
+{# Port mapping #}
+{% do c.add_port(values.network.web_port) %}
+
+{# Storage mounts #}
+{% do c.add_storage("/app/backend/data", values.storage.data) %}
+{% do perm_container.add_or_skip_action("data", values.storage.data, perms_config) %}
+
+{% do c.add_storage("/app/backend/logs", values.storage.logs) %}
+{% do perm_container.add_or_skip_action("logs", values.storage.logs, perms_config) %}
+
+{% for store in values.storage.additional_storage %}
+  {% do c.add_storage(store.mount_path, store) %}
+  {% do perm_container.add_or_skip_action(store.mount_path, store, perms_config) %}
+{% endfor %}
+
+{# Permissions container activation #}
+{% if perm_container.has_actions() %}
+  {% do perm_container.activate() %}
+  {% do postgres.add_dependency(values.consts.perms_container_name, "service_completed_successfully") %}
+  {% do c.depends.add_dependency(values.consts.perms_container_name, "service_completed_successfully") %}
+{% endif %}
+
+{# Portal for TrueNAS UI #}
+{% do tpl.portals.add(values.network.web_port) %}
+
+{{ tpl.render() | tojson }}

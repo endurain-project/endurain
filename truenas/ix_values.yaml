@@ -1,0 +1,20 @@
+images:
+  image:
+    repository: ghcr.io/endurain-project/endurain
+    tag: v0.17.5
+  postgres_17_image:
+    repository: postgres
+    tag: 17.5-bookworm
+  postgres_18_image:
+    repository: postgres
+    tag: 18.2-trixie
+  postgres_upgrade_image:
+    repository: ixsystems/postgres-upgrade
+    tag: 1.1.9
+
+consts:
+  endurain_container_name: endurain
+  postgres_container_name: postgres
+  perms_container_name: permissions
+  db_user: endurain
+  db_name: endurain

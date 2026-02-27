@@ -1,0 +1,41 @@
+app_version: v0.17.5
+capabilities: []
+categories:
+- media
+date_added: '2026-02-27'
+description: Endurain is a self-hosted fitness tracking application for managing and
+  analyzing your workouts, with support for .gpx, .tcx, .fit, and .gz file imports,
+  and integrations with Strava and Garmin Connect.
+home: https://docs.endurain.com
+host_mounts: []
+icon: https://media.sys.truenas.net/apps/endurain/icons/icon.png
+keywords:
+- fitness
+- tracking
+- health
+- sports
+lib_version: 2.2.2
+lib_version_hash: ''
+maintainers:
+- email: dev@truenas.com
+  name: truenas
+  url: https://www.truenas.com/
+name: endurain
+run_as_context:
+- description: Container [endurain] runs as non-root user and group.
+  gid: 1000
+  group_name: endurain
+  uid: 1000
+  user_name: endurain
+- description: Container [postgres] runs as non-root user and group.
+  gid: 999
+  group_name: Host group is [docker]
+  uid: 999
+  user_name: Host user is [netdata]
+screenshots: []
+sources:
+- https://docs.endurain.com
+- https://github.com/endurain-project/endurain
+title: Endurain
+train: community
+version: 1.0.0
