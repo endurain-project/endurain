@@ -1,3 +1,4 @@
+import asyncio
 import os
 import zipfile
 
@@ -31,8 +32,12 @@ async def fetch_and_process_activities_by_dates(
 ) -> list[activities_schema.Activity] | None:
     try:
         # Fetch Garmin Connect activities for the specified date range
-        garmin_activities = garminconnect_client.get_activities_by_date(
-            str(start_date.date()), str(end_date.date())
+        # Run in a thread pool to avoid blocking the asyncio event loop with
+        # the synchronous requests-based garminconnect library.
+        garmin_activities = await asyncio.to_thread(
+            garminconnect_client.get_activities_by_date,
+            str(start_date.date()),
+            str(end_date.date()),
         )
     except Exception as err:
         core_logger.print_to_log(
@@ -72,12 +77,16 @@ async def fetch_and_process_activities_by_dates(
 
         core_logger.print_to_log(f"User {user_id}: Processing activity {activity_id}")
 
-        # Get activity gear
-        activity_gear = garminconnect_client.get_activity_gear(activity_id)
+        # Get activity gear — offload to thread pool to avoid blocking event loop
+        activity_gear = await asyncio.to_thread(
+            garminconnect_client.get_activity_gear, activity_id
+        )
 
-        # Download the activity in original format (.zip file)
-        zip_data = garminconnect_client.download_activity(
-            activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL
+        # Download the activity in original format (.zip file) — offload to thread pool
+        zip_data = await asyncio.to_thread(
+            garminconnect_client.download_activity,
+            activity_id,
+            dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,
         )
         # Save the zip file
         output_file = f"{core_config.FILES_DIR}/{str(activity_id)}.zip"
