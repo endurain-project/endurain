@@ -484,8 +484,17 @@ async def exchange_tokens_for_session(
         session_obj.refresh_token = password_hasher.hash_password(refresh_token)
         db.commit()
 
-        # Store client_type before marking tokens as exchanged (which deletes oauth_state)
-        client_type = oauth_state.client_type
+        # Determine client_type from the exchange request headers.
+        # The stored oauth_state.client_type is unreliable for system
+        # browser flows (no X-Client-Type header when the browser
+        # opened the initiate_login URL), so we trust the header on
+        # the actual token-exchange call — which *is* made by the
+        # native app and will carry X-Client-Type: mobile.
+        client_type = request.headers.get(
+            "X-Client-Type", oauth_state.client_type or "web"
+        )
+        if client_type not in ("web", "mobile"):
+            client_type = "web"
 
         # Set refresh token cookie for web clients (enables logout)
         if client_type == "web":

@@ -99,8 +99,8 @@ Cookie: endurain_refresh_token={refresh_token}
   "access_token": "eyJ...",
   "csrf_token": "new_csrf_token",
   "token_type": "bearer",
-  "expires_in": 1734567890,
-  "refresh_token_expires_in": 1735172690
+  "expires_in": 900,
+  "refresh_token_expires_in": 604800
 }
 ```
 
@@ -112,8 +112,8 @@ Cookie: endurain_refresh_token={refresh_token}
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
   "token_type": "bearer",
-  "expires_in": 1734567890,
-  "refresh_token_expires_in": 1735172690
+  "expires_in": 900,
+  "refresh_token_expires_in": 604800
 }
 ```
 
@@ -259,8 +259,8 @@ X-Client-Type: web|mobile
   "access_token": "eyJ...",
   "csrf_token": "abc123...",
   "token_type": "bearer",
-  "expires_in": 1734567890,
-  "refresh_token_expires_in": 1735172690
+  "expires_in": 900,
+  "refresh_token_expires_in": 604800
 }
 ```
 
@@ -272,8 +272,8 @@ X-Client-Type: web|mobile
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
   "token_type": "bearer",
-  "expires_in": 1734567890,
-  "refresh_token_expires_in": 1735172690
+  "expires_in": 900,
+  "refresh_token_expires_in": 604800
 }
 ```
 

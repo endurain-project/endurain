@@ -528,23 +528,33 @@ async def refresh_token(
         )
 
         # Return access token and CSRF token in body
+        # expires_in / refresh_token_expires_in are seconds-until-expiry
+        # per RFC 6749 §5.1
+        now = datetime.now(timezone.utc)
         return {
             "session_id": session_id,
             "access_token": new_access_token,
             "csrf_token": new_csrf_token,
             "token_type": "bearer",
-            "expires_in": int(new_access_token_exp.timestamp()),
-            "refresh_token_expires_in": int(new_refresh_token_exp.timestamp()),
+            "expires_in": int((new_access_token_exp - now).total_seconds()),
+            "refresh_token_expires_in": int(
+                (new_refresh_token_exp - now).total_seconds()
+            ),
         }
     else:
         # Mobile: All tokens in JSON response body
+        # expires_in / refresh_token_expires_in are seconds-until-expiry
+        # per RFC 6749 §5.1
+        now = datetime.now(timezone.utc)
         return {
             "session_id": session_id,
             "access_token": new_access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
-            "expires_in": int(new_access_token_exp.timestamp()),
-            "refresh_token_expires_in": int(new_refresh_token_exp.timestamp()),
+            "expires_in": int((new_access_token_exp - now).total_seconds()),
+            "refresh_token_expires_in": int(
+                (new_refresh_token_exp - now).total_seconds()
+            ),
         }
 
 

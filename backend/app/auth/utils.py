@@ -210,23 +210,29 @@ def complete_login(
         )
 
         # Return access token and CSRF token in body for in-memory storage
+        # expires_in / refresh_token_expires_in are seconds-until-expiry
+        # per RFC 6749 §5.1
+        now = datetime.now(timezone.utc)
         return {
             "session_id": session_id,
             "access_token": access_token,
             "csrf_token": csrf_token,
             "token_type": "bearer",
-            "expires_in": int(access_token_exp.timestamp()),
-            "refresh_token_expires_in": int(refresh_token_exp.timestamp()),
+            "expires_in": int((access_token_exp - now).total_seconds()),
+            "refresh_token_expires_in": int((refresh_token_exp - now).total_seconds()),
         }
     else:
         # Mobile: All tokens in JSON response body for secure platform storage
+        # expires_in / refresh_token_expires_in are seconds-until-expiry
+        # per RFC 6749 §5.1
+        now = datetime.now(timezone.utc)
         return {
             "session_id": session_id,
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "expires_in": int(access_token_exp.timestamp()),
-            "refresh_token_expires_in": int(refresh_token_exp.timestamp()),
+            "expires_in": int((access_token_exp - now).total_seconds()),
+            "refresh_token_expires_in": int((refresh_token_exp - now).total_seconds()),
         }
 
 
