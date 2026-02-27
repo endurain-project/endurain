@@ -1,0 +1,41 @@
+name: Deploy documentation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'backend/app/**/*.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install documentation dependencies
+        run: pip install --no-cache-dir mkdocs-material mkdocstrings[python]
+
+      - name: Deploy documentation to GitHub Pages
+        run: mkdocs gh-deploy --force
