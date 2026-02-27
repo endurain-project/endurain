@@ -35,7 +35,7 @@ jobs:
           cache: pip
 
       - name: Install documentation dependencies
-        run: pip install --no-cache-dir mkdocs-material mkdocstrings[python]
+        run: pip install mkdocs-material mkdocstrings[python]
 
       - name: Deploy documentation to GitHub Pages
         run: mkdocs gh-deploy --force
