@@ -2,9 +2,14 @@
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
-**Note:** Language-specific coding standards are in separate instruction files:
+**Note:** Specialized coding standards and guidelines are in separate instruction files:
 - **Python/Backend:** `.github/instructions/python.instructions.md`
-- **TypeScript/JavaScript/Vue/Frontend:** `.github/instructions/javatsscript.instructions.md`
+- **TypeScript/JavaScript/Vue/Frontend:** `.github/instructions/javascript.instructions.md`
+- **Security (all files):** `.github/instructions/security-and-owasp.instructions.md`
+- **GitHub Actions / CI-CD:** `.github/instructions/github-actions-ci-cd-best-practices.instructions.md`
+- **Copilot Agents:** `.github/instructions/agents.instructions.md`
+- **Instruction files:** `.github/instructions/instructions.instructions.md`
+- **Prompt files:** `.github/instructions/prompt.instructions.md`
 
 ---
 

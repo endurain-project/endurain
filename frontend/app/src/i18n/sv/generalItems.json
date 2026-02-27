@@ -64,6 +64,7 @@
   "labelPowerInWatts": "Effekt i watt",
   "labelCadenceInRpm": "Kadens i RPM",
   "unitsSpm": "SPM",
+  "unitsRpm": "rpm",
   "labelElevationInMeters": "Höjdskillnad i meter",
   "labelElevationInFeet": "Höjdskillnad i fot",
   "labelVelocityInKmH": "Hastighet i km/tim",

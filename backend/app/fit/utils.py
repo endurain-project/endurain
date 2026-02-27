@@ -815,6 +815,8 @@ def parse_frame_session(frame):
             activity_type = "commuting_ride"
         elif activity_type == "cycling" and sub_sport == "mixed_surface":
             activity_type = "mixed_surface_ride"
+        elif activity_type == "cycling":
+            activity_type = "cycling"
         elif (
             activity_type == "generic" and sub_sport == "breathing"
         ) or activity_type == 62:

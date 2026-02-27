@@ -1,4 +1,5 @@
 ---
+description: 'Vue.js 3 + TypeScript + Bootstrap 5 coding standards, architecture patterns, and pre-commit requirements for the Endurain frontend'
 applyTo: '**/*.ts,**/*.js,**/*.vue'
 ---
 # Project Context
@@ -180,6 +181,47 @@ const MAX_USERS = 100;
 - Clear validation feedback
 - Appropriate use of notifications
 
+# Composition API Patterns
+
+- Create reusable composables for shared logic (e.g., `useBootstrapModal`, `useFetch`)
+- Use `watch` and `watchEffect` with precise dependency lists
+- Clean up side effects in `onUnmounted` or inside `watch` cleanup callbacks
+- Use `provide`/`inject` sparingly — only for deep dependency injection where prop drilling is impractical
+- Prefer `computed` over `watch` for derived state
+
+# Performance
+
+- Lazy-load components with dynamic imports and `defineAsyncComponent`
+- Use `<Suspense>` for async component loading fallbacks
+- Apply `v-once` for fully static content and `v-memo` for infrequently changing list items
+- Avoid unnecessary watchers; prefer `computed` where possible
+
+# Data Fetching
+
+- Handle loading, error, and success states explicitly in every async operation
+- Cancel or ignore stale requests on component unmount or when parameters change
+- Use composables to encapsulate fetch logic and keep components clean
+
+# Routing
+
+- Use `useRoute` and `useRouter` inside `<script setup>` for programmatic navigation
+- Protect routes with navigation guards (`beforeEnter`, `beforeEach`)
+- Use route meta fields for breadcrumbs, auth requirements, and similar cross-cutting data
+
+# Error Handling
+
+- Use the global error handler (`app.config.errorHandler`) for uncaught errors
+- Use `errorCaptured` lifecycle hook in components to handle errors from child components locally
+- Wrap risky async logic in `try/catch`; always display user-friendly messages
+- Never expose raw error objects or stack traces in the UI
+
+# Security (Frontend)
+
+- **Never use `v-html`** with user-controlled data — sanitize with DOMPurify if unavoidable
+- Store sensitive tokens in HTTP-only cookies, not `localStorage` or `sessionStorage`
+- Use HTTPS for all API requests
+- Validate and escape data before rendering in templates or directives
+
 # Reference Implementations (10/10 Quality)
 
 Study these files as templates for new components:
@@ -197,7 +239,6 @@ Study these files as templates for new components:
 - ✅ Ensure `npm run dev` runs without warnings/errors
 - ✅ TypeScript types correct (no implicit any)
 - ✅ Accessibility attributes verified
-- ✅ Component follows 10-section structure
 - ✅ Uses centralized utilities/constants/types
 - ✅ Bootstrap 5 classes applied correctly
 - ✅ Manual browser validation complete

@@ -7,13 +7,19 @@ from cryptography.fernet import Fernet
 import core.logger as core_logger
 
 # Constant related to version
-API_VERSION = "v0.17.5"
+API_VERSION = "v0.17.6"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").lower()
 ENDURAIN_HOST = os.getenv("ENDURAIN_HOST", "http://localhost:8080")
+_allowed_schemes_raw = os.getenv("ALLOWED_REDIRECT_SCHEMES", "")
+ALLOWED_REDIRECT_SCHEMES: set[str] = (
+    {s.strip() for s in _allowed_schemes_raw.split(",") if s.strip()}
+    if _allowed_schemes_raw.strip()
+    else set()
+)
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "/app/frontend/dist")
 BACKEND_DIR = os.getenv("BACKEND_DIR", "/app/backend")
 DATA_DIR = os.getenv("DATA_DIR", f"{BACKEND_DIR}/data")

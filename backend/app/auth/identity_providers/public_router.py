@@ -127,6 +127,9 @@ async def initiate_login(
         # Validate PKCE challenge format
         idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
 
+        # Validate redirect URL to prevent open redirect vulnerability
+        idp_utils.validate_redirect_url(redirect)
+
         # Detect client type from X-Client-Type header
         client_type = request.headers.get("X-Client-Type", "web")
         if client_type not in ["web", "mobile"]:
@@ -306,6 +309,14 @@ async def handle_callback(
         redirect_path = result.get("redirect_path")
         if redirect_path:
             redirect_url += f"&redirect={redirect_path}"
+            # Signal the frontend that this is a custom-scheme redirect.
+            # The frontend will skip its own token exchange and instead
+            # pass the session_id to the mobile app via the custom scheme.
+            is_custom_scheme = "://" in redirect_path and not redirect_path.startswith(
+                "http"
+            )
+            if is_custom_scheme:
+                redirect_url += "&external_redirect=true"
 
         core_logger.print_to_log(
             f"SSO login successful for user {user.username} via {idp.name} (session_id={session_id})",

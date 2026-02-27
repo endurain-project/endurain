@@ -735,6 +735,115 @@ X-Client-Type: mobile
 X-CSRF-Token: {csrf_token}
 ```
 
+### System Browser Alternative (RFC 8252 Recommended)
+
+For maximum security, mobile apps should use the **system browser** instead of an
+embedded WebView. This follows [RFC 8252 - OAuth 2.0 for Native Apps](https://tools.ietf.org/html/rfc8252).
+
+#### Advantages over WebView
+
+| WebView | System Browser |
+| ------- | -------------- |
+| Full page rendered in-app | OS-managed, isolated process |
+| Cannot verify address bar URL | Address bar visible to user (phishing resistance) |
+| Cookies shared with app | No app access to browser storage |
+| App must extract session_id from URL | App receives session_id via deep-link |
+
+#### System Browser Flow
+
+```
+┌─────────────┐     ┌─────────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Mobile App │     │ Endurain Backend│     │System Browser│    │     IdP     │
+└──────┬──────┘     └────────┬────────┘     └──────┬──────┘     └──────┬──────┘
+       │                     │                     │                   │
+       │ 1. Generate PKCE    │                     │                   │
+       │    verifier+challenge                     │                   │
+       │                     │                     │                   │
+       │ 2. Open system browser to:                │                   │
+       │    /public/idp/login/{slug}               │                   │
+       │    ?code_challenge=X                      │                   │
+       │    &redirect={custom_scheme}://callback   │                   │
+       │────────────────────────────────────────────────────────────────────>
+       │                     │                     │                   │
+       │                     │ 3. Validate redirect │                  │
+       │                     │    Store in DB       │                  │
+       │                     │──────────────────────>                  │
+       │                     │     Redirect to IdP                     │
+       │                     │────────────────────────────────────────>│
+       │                     │                     │                   │
+       │                     │                     │  User logs in     │
+       │                     │                     │<─────────────────>│
+       │                     │  code + state       │                   │
+       │                     │<────────────────────────────────────────│
+       │                     │                     │                   │
+       │                     │ 4. Redirect to frontend:                │
+       │                     │    /login?sso=success&session_id=UUID   │
+       │                     │    &redirect={custom_scheme}://callback │
+       │                     │    &external_redirect=true              │
+       │                     │────────────────────────────────────────>│
+       │                     │                     │                   │
+       │                     │  5. Frontend detects external_redirect  │
+       │                     │     Forwards to custom scheme:          │
+       │                     │     {custom_scheme}://callback          │
+       │                     │     ?session_id=UUID                    │
+       │ Deep-link received  │                     │                   │
+       │<────────────────────────────────────────────                  │
+       │                     │                     │                   │
+       │ 6. POST token exchange with own verifier  │                   │
+       │────────────────────>│                     │                   │
+       │    JWT tokens       │                     │                   │
+       │<────────────────────│                     │                   │
+```
+
+#### Step-by-Step: System Browser Flow
+
+**Step 1:** Mobile app generates PKCE pair (same as WebView — see [Step 1](#step-1-generate-pkce-code-verifier-and-challenge)).
+
+**Step 2:** Open system browser with a **custom URI scheme** as the redirect:
+
+```http
+https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
+```
+
+The `{custom_scheme}` (e.g., `gadgetbridge`) must be configured by the Endurain
+administrator via `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](#configuration)).
+
+**Step 3:** User completes SSO. The system browser is redirected to:
+
+```
+{custom_scheme}://callback?session_id={uuid}
+```
+
+**Step 4:** The OS invokes the app's deep-link/intent handler with the above URL.
+Extract the `session_id`.
+
+**Step 5:** Perform token exchange using the app's **own** `code_verifier`:
+
+```http
+POST /api/v1/public/idp/session/{session_id}/tokens
+Content-Type: application/json
+X-Client-Type: mobile
+
+{
+  "code_verifier": "<the verifier generated in step 1>"
+}
+```
+
+**Step 6:** Store and use tokens (see [Step 5](#step-5-store-tokens-securely) and [Step 6](#step-6-use-tokens-for-api-requests)).
+
+#### Redirect URL Validation Rules
+
+| Redirect value | Allowed | Notes |
+| -------------- | ------- | ----- |
+| `/dashboard` | ✅ | Relative paths always allowed |
+| `/settings?tab=devices` | ✅ | Query strings OK in relative paths |
+| `gadgetbridge://callback` | ✅ | If `gadgetbridge` in `ALLOWED_REDIRECT_SCHEMES` |
+| `myapp://callback` | ❌ | If `myapp` not configured — 400 returned |
+| `https://evil.com` | ❌ | External HTTP URLs always rejected |
+| `http://localhost` | ❌ | External HTTP URLs always rejected |
+| `/../etc/passwd` | ❌ | Path traversal rejected |
+| `//evil.com` | ❌ | Protocol-relative URLs rejected |
+
 ### Security Features
 
 | Feature | Description |
@@ -772,8 +881,8 @@ The following environment variables control authentication behavior:
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
-| `BACKEND_CORS_ORIGINS` | Allowed CORS origins (JSON array) | `[]` | No |
 | `FRONTEND_PROTOCOL` | Protocol for cookie security (`http` or `https`) | `http` | No |
+| `ALLOWED_REDIRECT_SCHEMES` | Comma-separated custom URI schemes allowed as SSO redirect targets (e.g., `gadgetbridge,myapp`). Empty by default — only relative paths accepted. External `http`/`https` redirects are always rejected. | `` | No |
 
 ### Cookie Configuration
 

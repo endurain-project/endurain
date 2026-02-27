@@ -365,7 +365,17 @@ const completeLogin = async (response: LoginResponse): Promise<void> => {
 
   // Redirect to the home page
   if (isNotEmpty(redirectTo.value)) {
-    await router.push(redirectTo.value)
+    // Custom URI schemes (e.g., gadgetbridge://) cannot be handled by
+    // Vue Router's push() — it would treat them as relative paths.
+    // Use window.location.href as a safety net for any custom scheme
+    // that reaches this point (system browser flows are handled earlier
+    // in processSSOCallback before completeLogin is ever called).
+    const isCustomScheme = redirectTo.value.includes('://') && !redirectTo.value.startsWith('http')
+    if (isCustomScheme) {
+      window.location.href = redirectTo.value
+    } else {
+      await router.push(redirectTo.value)
+    }
   } else {
     await router.push('/')
   }
@@ -520,7 +530,9 @@ const checkSSOAutoRedirect = (): void => {
 
 /**
  * Processes SSO callback query parameters and handles success or error states.
- * For successful SSO, exchanges the session_id and PKCE code_verifier for JWT tokens.
+ * For web/webview SSO flows, exchanges the session_id and PKCE code_verifier
+ * for JWT tokens. For system browser flows (external_redirect=true), passes
+ * the session_id to the mobile app via the custom URI scheme instead.
  *
  * @returns A promise that resolves when callback processing is complete.
  */
@@ -536,9 +548,26 @@ const processSSOCallback = async (): Promise<void> => {
         throw new Error('Invalid session_id format')
       }
 
-      // Extract IdP slug from URL to retrieve correct PKCE verifier
-      // The IdP slug should be stored when initiating login, or we can try to find any stored verifier
-      // For now, we'll search for any pkce_verifier_* key in sessionStorage
+      // SYSTEM BROWSER FLOW: mobile app opened the system browser directly.
+      // The frontend never ran handleSSOLogin() so there is no code_verifier
+      // in sessionStorage. Instead, pass the session_id back to the mobile
+      // app via the custom URI scheme — the app will perform the token
+      // exchange itself using its own code_verifier.
+      if (route.query.external_redirect === 'true') {
+        const externalRedirectUrl =
+          typeof redirectTo.value === 'string' && isNotEmpty(redirectTo.value)
+            ? redirectTo.value
+            : '/'
+        console.info(`SSO system browser flow: forwarding session_id to ${externalRedirectUrl}`)
+        // Append session_id so the mobile deep-link handler can retrieve it
+        const separator = externalRedirectUrl.includes('?') ? '&' : '?'
+        window.location.href = `${externalRedirectUrl}${separator}session_id=${sessionId}`
+        return
+      }
+
+      // WEB / WEBVIEW FLOW: the frontend itself ran handleSSOLogin() and
+      // stored the code_verifier in sessionStorage before redirecting to
+      // the IdP. Retrieve it and exchange for tokens now.
       let codeVerifier: string | null = null
       let verifierKey: string | null = null
 

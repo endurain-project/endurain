@@ -1,6 +1,6 @@
 {
   "name": "endurain",
-  "version": "0.17.5",
+  "version": "0.17.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -34,12 +34,12 @@
     "pinia": "^3.0.1",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.0",
-    "vue-router": "^4.5.0"
+    "vue-router": "^5.0.3"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.10.4",
     "@types/bootstrap": "^5.2.10",
-    "@types/jsdom": "^27.0.0",
+    "@types/jsdom": "^28.0.0",
     "@types/leaflet": "^1.9.14",
     "@types/node": "^25.0.9",
     "@typescript-eslint/eslint-plugin": "^8.45.0",
@@ -47,11 +47,11 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.6.0",
-    "@vue/test-utils": "^2.4.6",
+    "@vue/test-utils": "^2.4.0",
     "@vue/tsconfig": "^0.8.1",
-    "eslint": "^9.15.0",
+    "eslint": "^10.0.2",
     "eslint-plugin-vue": "^10.3.0",
-    "jsdom": "^27.0.0",
+    "jsdom": "^28.1.0",
     "npm-run-all2": "^8.0.4",
     "typescript": "^5.9.3",
     "vite": "^7.1.12",

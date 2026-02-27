@@ -64,6 +64,7 @@
   "labelPowerInWatts": "Moč v vatih",
   "labelCadenceInRpm": "Kadenca v rpm",
   "unitsSpm": "spm",
+  "unitsRpm": "rpm",
   "labelElevationInMeters": "Nadmorska višina v metrih",
   "labelElevationInFeet": "Nadmorska višina v čevljih",
   "labelVelocityInKmH": "Hitrost v km/h",

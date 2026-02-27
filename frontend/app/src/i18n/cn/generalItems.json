@@ -64,6 +64,7 @@
   "labelPowerInWatts": "功率（瓦）",
   "labelCadenceInRpm": "踏频（转/分）",
   "unitsSpm": "步/分",
+  "unitsRpm": "转/分",
   "labelElevationInMeters": "海拔（米）",
   "labelElevationInFeet": "海拔（英尺）",
   "labelVelocityInKmH": "速度（千米/小时）",
