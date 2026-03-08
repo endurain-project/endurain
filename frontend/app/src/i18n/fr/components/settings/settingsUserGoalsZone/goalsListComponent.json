@@ -1,5 +1,5 @@
 {
-  "modalDeleteGoalTitle": "Delete goal",
-  "modalDeleteGoalBody": "Are you sure you want to delete the goal with ID ",
-  "goalDeleteErrorMessage": "Error deleting goal"
+  "modalDeleteGoalTitle": "Supprimer l'objectif",
+  "modalDeleteGoalBody": "Êtes-vous sûr de vouloir supprimer l'objectif avec ID ",
+  "goalDeleteErrorMessage": "Erreur lors de la suppression de l'objectif"
 }

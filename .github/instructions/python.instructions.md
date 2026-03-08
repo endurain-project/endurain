@@ -1,4 +1,5 @@
 ---
+description: 'Python 3.13 + FastAPI + SQLAlchemy + Alembic coding standards, docstring format, testing patterns, and module organization for the Endurain backend'
 applyTo: '**/*.py'
 ---
 # Project Context

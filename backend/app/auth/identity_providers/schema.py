@@ -291,6 +291,7 @@ class TokenExchangeResponse(BaseModel):
         refresh_token (str | None): JWT refresh token (7-day expiry). Only for mobile clients.
         csrf_token (str | None): CSRF protection token. Only for web clients.
         expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
+        refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
         token_type (str): Token type, always "Bearer".
     """
 
@@ -303,4 +304,7 @@ class TokenExchangeResponse(BaseModel):
         default=None, description="CSRF protection token (web only)"
     )
     expires_in: int = Field(default=900, description="Access token lifetime in seconds")
+    refresh_token_expires_in: int = Field(
+        default=604800, description="Refresh token lifetime in seconds"
+    )
     token_type: str = Field(default="Bearer", description="Token type")

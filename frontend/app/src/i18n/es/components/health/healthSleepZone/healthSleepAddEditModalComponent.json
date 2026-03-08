@@ -4,9 +4,9 @@
   "dateLabel": "Date",
   "sleepStartTimeLabel": "Sleep start time",
   "sleepEndTimeLabel": "Sleep end time",
-  "totalSleepLabel": "Total sleep",
+  "totalSleepLabel": "Sueño total",
   "deepSleepLabel": "Deep sleep",
-  "lightSleepLabel": "Light sleep",
+  "lightSleepLabel": "Sueño ligero",
   "remSleepLabel": "REM sleep",
   "awakeSleepLabel": "Awake sleep",
   "avgHeartRateLabel": "Avg HR",
@@ -33,5 +33,5 @@
   "stageDurationLabel": "Duration",
   "noStagesMessage": "No sleep stages added yet. Click 'Add stage' to add a sleep stage.",
   "successAddSleep": "Sleep added successfully",
-  "errorAddSleep": "Error adding sleep"
+  "errorAddSleep": "Error añadiendo sueño"
 }

@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -50,9 +52,13 @@ async def fetch_and_process_activities(
     strava_activities = None
 
     # Fetch Strava activities after the specified start date
+    # Run in a thread pool to avoid blocking the asyncio event loop with
+    # the synchronous requests-based stravalib library.
     try:
-        strava_activities = list(
-            strava_client.get_activities(after=start_date, before=end_date)
+        strava_activities = await asyncio.to_thread(
+            lambda: list(
+                strava_client.get_activities(after=start_date, before=end_date)
+            )
         )
     except AccessUnauthorized as auth_err:
         # Log a more specific error message for authentication issues
@@ -423,8 +429,11 @@ async def process_activity(
         f"User {user_id}: Strava activity {activity.id} will be processed"
     )
 
-    # Parse the activity and streams
-    parsed_activity = parse_activity(
+    # Parse the activity and streams — run in a thread pool because parse_activity
+    # makes multiple blocking synchronous HTTP calls (get_activity, get_activity_streams,
+    # get_activity_laps) via stravalib/requests that would otherwise block the event loop.
+    parsed_activity = await asyncio.to_thread(
+        parse_activity,
         activity,
         user_id,
         user_privacy_settings,

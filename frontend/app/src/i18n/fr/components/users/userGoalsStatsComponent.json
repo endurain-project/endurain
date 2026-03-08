@@ -1,14 +1,14 @@
 {
-  "title": "Goals",
-  "activityTypeRun": "Run",
-  "activityTypeBike": "Bike",
-  "activityTypeSwim": "Swim",
-  "activityTypeWalk": "Walk",
-  "activityTypeStrength": "Strength",
+  "title": "Objectifs",
+  "activityTypeRun": "Course",
+  "activityTypeBike": "Vélo",
+  "activityTypeSwim": "Natation",
+  "activityTypeWalk": "Marche",
+  "activityTypeStrength": "Musculation",
   "activityTypeCardio": "Cardio",
-  "intervalDaily": "Daily",
-  "intervalWeekly": "Weekly",
-  "intervalMonthly": "Monthly",
-  "intervalYearly": "Yearly",
-  "activities": "activities"
+  "intervalDaily": "Quotidien",
+  "intervalWeekly": "Hebdomadaire",
+  "intervalMonthly": "Mensuel",
+  "intervalYearly": "Annuel",
+  "activities": "activités"
 }

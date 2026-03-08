@@ -1,12 +1,12 @@
 {
-  "addNewGoal": "Add new goal",
-  "filterByActivityType": "Filter by activity type",
-  "filterByGoalType": "Filter by goal type",
-  "filterAll": "All",
-  "filterByInterval": "Filter by interval",
-  "clearFilters": "Clear filters",
-  "labelNumberOfGoals1": "You have ",
-  "labelNumberOfGoals2": " goal(s) set:",
-  "successGoalDeleted": "Goal deleted successfully",
-  "errorFetchingGoals": "Error fetching goals"
+  "addNewGoal": "Ajouter un nouvel objectif",
+  "filterByActivityType": "Filtrer par type d'activité",
+  "filterByGoalType": "Filtrer par type d'objectif",
+  "filterAll": "Tout",
+  "filterByInterval": "Filtrer par intervalle",
+  "clearFilters": "Effacer les filtres",
+  "labelNumberOfGoals1": "Vous avez ",
+  "labelNumberOfGoals2": " objectif(s) défini(s) :",
+  "successGoalDeleted": "Objectif supprimé avec succès",
+  "errorFetchingGoals": "Erreur lors de la récupération des objectifs"
 }

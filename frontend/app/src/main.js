@@ -70,7 +70,12 @@ async function initApp() {
   // OAuth 2.1: Restore tokens on app initialization
   // Access and CSRF tokens are stored in-memory only, so they're lost on page refresh.
   // If user is authenticated but has no access token, refresh to get new tokens.
-  if (authStore.isAuthenticated && !authStore.getAccessToken()) {
+  // Skip refresh if we're returning from an SSO callback — the LoginView will handle
+  // the PKCE token exchange via processSSOCallback() using the query parameters.
+  const urlParams = new URLSearchParams(window.location.search)
+  const isSSOCallback = urlParams.get('sso') === 'success' && urlParams.has('session_id')
+
+  if (authStore.isAuthenticated && !authStore.getAccessToken() && !isSSOCallback) {
     try {
       await authStore.refreshAccessToken()
       // Set up WebSocket after token is available

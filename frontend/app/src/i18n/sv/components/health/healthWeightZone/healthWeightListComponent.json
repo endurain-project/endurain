@@ -10,7 +10,7 @@
   "modalDeleteWeightTitle": "Ta bort vikt",
   "modalDeleteWeightBody": "Är du säker på att du vill ta bort viktregistreringen för ",
   "successDeleteWeight": "Vikt borttagen",
-  "errorDeleteWeight": "Det gick inte att ta bort viktregistreringen",
+  "errorDeleteWeight": "Kunde inte att ta bort viktregistreringen",
   "successEditWeight": "Vikt ändrad",
-  "errorEditWeight": "Det gick inte att redigera viktregistreringen"
+  "errorEditWeight": "Kunde inte att redigera viktregistreringen"
 }

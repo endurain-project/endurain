@@ -263,91 +263,91 @@ const fetchGearResults = debounce(async (query) => {
 
 function updateSearchResultsBasedOnActivityType() {
   if (searchSelectActivityType.value === '1') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [1, 2, 3, 34, 40].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '2') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [4, 5, 6, 7, 27, 28, 29, 35, 36].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '3') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [8, 9].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '4') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [10, 19, 20].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '5') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [11, 31].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '6') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [12].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '7') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [13, 42].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '8') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [14].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '9') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [15].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '10') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [16].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '11') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [21, 22, 23, 24, 25, 26, 39].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '12') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [30].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '13') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [32].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '14') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [33].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '15') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [37].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '16') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [39].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '17') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [41].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '18') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [42].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '19') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [43].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '20') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [44].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '21') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [45].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '22') {
-    searchResults.value = searchResultsOriginal.value.filter((user) =>
+    searchResults.value = searchResultsOriginal.value?.filter((user) =>
       [46].includes(user.activity_type)
     )
   } else {

@@ -37,7 +37,7 @@
   "emailVerificationSent": "Comprueba tu correo electrónico para ver las instrucciones de verificación",
   "adminApprovalRequired": "Tu cuenta está pendiente de aprobación por parte del administrador",
   "verifyEmailInvalidLink": "Enlace de verificación de correo electrónico no válido",
-  "ssoSection": "Or sign in with",
+  "ssoSection": "",
   "ssoButton": "Sign in with {provider}",
   "ssoSuccess": "Successfully authenticated via SSO",
   "ssoFailed": "SSO authentication failed. Please try again",

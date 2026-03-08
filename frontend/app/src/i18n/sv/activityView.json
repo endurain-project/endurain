@@ -9,5 +9,5 @@
   "errorMessageDeleteGear": "Fel vid borttagning av utrustning från aktivitet",
   "errorMessageActivityNotFound": "Aktivitet hittades inte",
   "alertPrivacyMessage": "Du har dold information i den här aktiviteten. Du kan se den, men andra kan inte se den.",
-  "isHiddenMessage": "Den här aktiviteten är dold. Förmodligen för att det är en dubblett, eller dolts av användaren."
+  "isHiddenMessage": "Aktiviteten är dold. Förmodligen för att det är en dubblett, eller har dolts av användaren."
 }

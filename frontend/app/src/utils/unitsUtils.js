@@ -24,7 +24,7 @@ export function metersToYards(meters) {
 }
 
 export function kgToLbs(kg) {
-  return Number((kg * 2.20462).toFixed(0))
+  return Number((kg * 2.20462).toFixed(1))
 }
 
 // Imperial to Metric conversions

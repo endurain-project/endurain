@@ -57,6 +57,8 @@ Table below shows supported environment variables. Variables marked with optiona
 | SMTP_SECURE | true | Yes | By default it uses secure communications. Accepted values are `true` and `false` |
 | SMTP_SECURE_TYPE | starttls | Yes | If SMTP_SECURE is set you can set the communication type. Accepted values are `starttls` and `ssl` |
 | LOG_LEVEL | info | Yes | Supported levels: critical, error, warning, info, debug, trace |
+| FRONTEND_PROTOCOL | http | Yes | Protocol used for cookie security. Set to `https` when running behind HTTPS to enable the `Secure` flag on authentication cookies |
+| ALLOWED_REDIRECT_SCHEMES | *(empty)* | Yes | Comma-separated list of custom URI schemes allowed as SSO redirect targets for mobile apps using the system browser (e.g., `gadgetbridge,myapp`). Defaults to empty — only relative paths (e.g., `/dashboard`) are accepted. External `http`/`https` URLs are always rejected regardless of this setting. See [Mobile SSO with PKCE](../developer-guide/authentication.md#mobile-sso-with-pkce) |
 
 Table below shows the obligatory environment variables for postgres container. You should set them based on what was also set for the Endurain container.
 

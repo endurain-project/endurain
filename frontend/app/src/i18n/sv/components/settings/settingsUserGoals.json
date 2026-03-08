@@ -1,12 +1,12 @@
 {
-  "addNewGoal": "Add new goal",
-  "filterByActivityType": "Filter by activity type",
-  "filterByGoalType": "Filter by goal type",
-  "filterAll": "All",
-  "filterByInterval": "Filter by interval",
-  "clearFilters": "Clear filters",
-  "labelNumberOfGoals1": "You have ",
-  "labelNumberOfGoals2": " goal(s) set:",
-  "successGoalDeleted": "Goal deleted successfully",
-  "errorFetchingGoals": "Error fetching goals"
+  "addNewGoal": "Lägg till ett nytt mål",
+  "filterByActivityType": "Filtrera efter aktivitetstyp",
+  "filterByGoalType": "Filtrera efter måltyp",
+  "filterAll": "Alla",
+  "filterByInterval": "Filtrera efter intervall",
+  "clearFilters": "Rensa alla filter",
+  "labelNumberOfGoals1": "Du har ",
+  "labelNumberOfGoals2": " mål satt:",
+  "successGoalDeleted": "Mål borttaget",
+  "errorFetchingGoals": "Fel vid hämtning av mål"
 }

@@ -1,14 +1,14 @@
 {
-  "title": "Activities",
-  "filterLabelType": "Type",
-  "filterOptionAllTypes": "All types",
-  "filterLabelFromDate": "From date",
-  "filterLabelToDate": "To date",
-  "filterLabelNameLocation": "Name or location",
-  "filterPlaceholderNameLocation": "e.g., Morning run",
-  "buttonClear": "Clear",
-  "buttonApply": "Apply",
-  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "title": "Aktiviteter",
+  "filterLabelType": "Typ",
+  "filterOptionAllTypes": "Alla typer",
+  "filterLabelFromDate": "Från datum",
+  "filterLabelToDate": "Till datum",
+  "filterLabelNameLocation": "Namn eller plats",
+  "filterPlaceholderNameLocation": "t.ex. Morgonlöpning",
+  "buttonClear": "Rensa",
+  "buttonApply": "Verkställ",
+  "errorFailedFetchActivityTypes": "Kunde inte hämta aktivitetstyper",
+  "errorUpdatingActivities": "Misslyckades med att uppdatera aktiviteter",
+  "errorFetchingActivities": "Misslyckades med att hämta användaraktiviteter"
 }

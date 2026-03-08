@@ -1,8 +1,8 @@
 {
-  "modalMediaDeleteTitle": "Delete media",
-  "modalMediaDeleteBody1": "Are you sure you want to delete media with ID ",
-  "modalMediaDeleteBody2": " and name ",
-  "errorFetchingActivityStream": "Error fetching activity stream data",
-  "mediaDeletedSuccessfully": "Media deleted successfully",
-  "errorDeletingMedia": "Error deleting media"
+  "modalMediaDeleteTitle": "Ta bort media",
+  "modalMediaDeleteBody1": "Är du säker på att du vill ta bort media med ID ",
+  "modalMediaDeleteBody2": " och namn ",
+  "errorFetchingActivityStream": "Fel vid hämtning av aktivitetsströmsdata",
+  "mediaDeletedSuccessfully": "Media har tagits bort",
+  "errorDeletingMedia": "Fel vid borttagning av media"
 }

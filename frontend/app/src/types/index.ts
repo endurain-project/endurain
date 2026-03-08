@@ -53,7 +53,7 @@ export interface RouteQueryHandlers {
  * @property access_token - The JWT access token (OAuth 2.1).
  * @property csrf_token - The CSRF token for request validation (OAuth 2.1).
  * @property token_type - The token type (always "bearer").
- * @property expires_in - Token expiration timestamp.
+ * @property expires_in - Seconds until access token expiry (RFC 6749 §5.1).
  */
 export interface LoginResponse {
   mfa_required?: boolean
@@ -72,7 +72,7 @@ export interface LoginResponse {
  * @property access_token - The JWT access token.
  * @property csrf_token - The CSRF token.
  * @property token_type - The token type (always "bearer").
- * @property expires_in - Token expiration timestamp.
+ * @property expires_in - Seconds until access token expiry (RFC 6749 §5.1).
  */
 export interface TokenExchangeResponse {
   session_id: string

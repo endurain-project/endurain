@@ -5,7 +5,7 @@
   "changeUserPasswordPasswordConfirmationLabel": "Confirmer le nouveau mot de passe",
   "changeUserPasswordFeedbackLabel": "Le mot de passe ne répond pas aux exigences",
   "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Les mots de passe ne correspondent pas",
-  "subtitleMFA": "Multi-Factor Authentication (MFA)",
+  "subtitleMFA": "Authentification multi-facteurs (MFA)",
   "mfaDisabledDescription": "MFA is currently disabled. Enable it to add an extra layer of security to your account.",
   "mfaEnabledDescription": "MFA is currently enabled. Your account is protected with two-factor authentication.",
   "enableMFAButton": "Enable MFA",

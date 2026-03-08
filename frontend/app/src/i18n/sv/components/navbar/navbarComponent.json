@@ -1,13 +1,13 @@
 {
-  "search": "Search",
-  "activities": "Activities",
-  "activitiesList": "List",
-  "summary": "Summary",
-  "gear": "Gear",
-  "health": "Health",
-  "profile": "Profile",
-  "settings": "Settings",
-  "login": "Login",
-  "logout": "Logout",
-  "errorLogout": "Error logging out"
+  "search": "Sök",
+  "activities": "Aktiviteter",
+  "activitiesList": "Lista",
+  "summary": "Summering",
+  "gear": "Utrustning",
+  "health": "Hälsa",
+  "profile": "Profil",
+  "settings": "Inställningar",
+  "login": "Logga in",
+  "logout": "Logga ut",
+  "errorLogout": "Fel vid utloggning"
 }

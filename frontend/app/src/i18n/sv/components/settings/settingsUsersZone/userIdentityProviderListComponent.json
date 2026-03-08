@@ -1,15 +1,15 @@
 {
-  "unknownProviderIcon": "Unknown provider icon",
-  "providerTypeBadgeLabel": "Authentication provider type",
-  "linkedAtLabel": "Date and time when provider was linked",
-  "linkedAt": "Linked",
-  "lastLoginLabel": "Date and time of last login with this provider",
-  "lastLogin": "Last used",
-  "neverUsedLabel": "This provider has never been used for login",
-  "neverUsed": "Never used",
-  "deleteButtonAriaLabel": "Delete {provider} identity provider link",
-  "modalDeleteTitle": "Delete identity provider",
-  "modalDeleteBody1": "Are you sure you want to unlink",
-  "modalDeleteBody2": "? The user will no longer be able to log in using this provider.",
-  "modalDeleteButton": "Delete provider link"
+  "unknownProviderIcon": "Okänd leverantörsikon",
+  "providerTypeBadgeLabel": "Typ av autentiseringsleverantör",
+  "linkedAtLabel": "Datum och tid när leverantören kopplades ihop",
+  "linkedAt": "Kopplad",
+  "lastLoginLabel": "Datum och tid för den senaste inloggningen med den här leverantören",
+  "lastLogin": "Senast använd",
+  "neverUsedLabel": "Den här leverantören har aldrig använts för inloggning",
+  "neverUsed": "Aldrig använd",
+  "deleteButtonAriaLabel": "Ta bort koppling till identitetsleverantören {provider}",
+  "modalDeleteTitle": "Ta bort identitetsleverantör",
+  "modalDeleteBody1": "Är du säker på att du vill ta bort kopplingen",
+  "modalDeleteBody2": "? Användaren kommer inte längre att kunna logga in med den här leverantören.",
+  "modalDeleteButton": "Ta bort leverantörskoppling"
 }

@@ -158,7 +158,7 @@ def complete_login(
         db (Session): Database session for storing session information.
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, and expires_in.
+        dict: Contains session_id, access_token, csrf_token, token_type, expires_in, and refresh_token_expires_in.
 
     Raises:
         HTTPException: If the client type is invalid, raises a 403 Forbidden error.
@@ -175,7 +175,7 @@ def complete_login(
         session_id,
         access_token_exp,
         access_token,
-        _refresh_token_exp,
+        refresh_token_exp,
         refresh_token,
         csrf_token,
     ) = create_tokens(user, token_manager)
@@ -210,21 +210,29 @@ def complete_login(
         )
 
         # Return access token and CSRF token in body for in-memory storage
+        # expires_in / refresh_token_expires_in are seconds-until-expiry
+        # per RFC 6749 §5.1
+        now = datetime.now(timezone.utc)
         return {
             "session_id": session_id,
             "access_token": access_token,
             "csrf_token": csrf_token,
             "token_type": "bearer",
-            "expires_in": int(access_token_exp.timestamp()),
+            "expires_in": int((access_token_exp - now).total_seconds()),
+            "refresh_token_expires_in": int((refresh_token_exp - now).total_seconds()),
         }
     else:
         # Mobile: All tokens in JSON response body for secure platform storage
+        # expires_in / refresh_token_expires_in are seconds-until-expiry
+        # per RFC 6749 §5.1
+        now = datetime.now(timezone.utc)
         return {
             "session_id": session_id,
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "expires_in": int(access_token_exp.timestamp()),
+            "expires_in": int((access_token_exp - now).total_seconds()),
+            "refresh_token_expires_in": int((refresh_token_exp - now).total_seconds()),
         }
 
 
