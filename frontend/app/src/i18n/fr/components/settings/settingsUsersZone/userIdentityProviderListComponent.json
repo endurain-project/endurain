@@ -10,6 +10,6 @@
   "deleteButtonAriaLabel": "Delete {provider} identity provider link",
   "modalDeleteTitle": "Delete identity provider",
   "modalDeleteBody1": "Are you sure you want to unlink",
-  "modalDeleteBody2": "? The user will no longer be able to log in using this provider.",
+  "modalDeleteBody2": "? L’utilisateur ne pourra plus se connecter en utilisant ce fournisseur.",
   "modalDeleteButton": "Delete provider link"
 }
