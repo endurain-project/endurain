@@ -88,11 +88,18 @@
             <!-- icon for user -->
             <font-awesome-icon :icon="['fas', 'user']" v-if="searchSelectValue == 1" />
             <!-- icons for activities -->
-            <font-awesome-icon
-              class="ms-1"
-              :icon="getIcon(result.activity_type)"
+            <span
+              role="img"
+              :title="activityTypeName(result.activity_type, t)"
+              :aria-label="activityTypeName(result.activity_type, t)"
               v-if="searchSelectValue == 2"
-            />
+            >
+              <font-awesome-icon
+                class="ms-1"
+                :icon="getIcon(result.activity_type)"
+                aria-hidden="true"
+              />
+            </span>
             <!-- icons for gears -->
             <font-awesome-icon
               :icon="['fas', 'bicycle']"
@@ -191,7 +198,7 @@ import { users } from '@/services/usersService'
 import { gears } from '@/services/gearsService'
 import { activities } from '@/services/activitiesService'
 import { formatDateMed } from '@/utils/dateTimeUtils'
-import { getIcon } from '@/utils/activityUtils'
+import { getIcon, activityTypeName } from '@/utils/activityUtils'
 // import components
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'

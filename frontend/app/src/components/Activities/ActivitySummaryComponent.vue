@@ -39,7 +39,13 @@
 
             <!-- Display the activity type -->
             <span>
-              <font-awesome-icon class="me-1" :icon="getIcon(activity.activity_type)" />
+              <span
+                role="img"
+                :title="activityTypeName(activity.activity_type, t)"
+                :aria-label="activityTypeName(activity.activity_type, t)"
+              >
+                <font-awesome-icon class="me-1" :icon="getIcon(activity.activity_type)" aria-hidden="true" />
+              </span>
               <span v-if="activity.activity_type === 3 || activity.activity_type === 7">{{
                 $t('activitySummaryComponent.labelVirtual')
               }}</span>
@@ -371,6 +377,7 @@ import {
   formatHr,
   formatCalories,
   getIcon,
+  activityTypeName,
   formatLocation,
   formatAverageSpeed,
   formatPower,

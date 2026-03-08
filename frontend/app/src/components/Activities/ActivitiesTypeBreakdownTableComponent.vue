@@ -16,7 +16,15 @@
       </thead>
       <tbody>
         <tr v-for="item in typeBreakdownData" :key="item.activity_type_id">
-          <td><font-awesome-icon :icon="getIcon(item.activity_type_id)" /></td>
+          <td>
+            <span
+              role="img"
+              :title="activityTypeName(item.activity_type_id, t)"
+              :aria-label="activityTypeName(item.activity_type_id, t)"
+            >
+              <font-awesome-icon :icon="getIcon(item.activity_type_id)" aria-hidden="true" />
+            </span>
+          </td>
           <td>{{ formatRawDistance(t, item.total_distance, authStore.user.units) }}</td>
           <td>{{ formatDuration(t, item.total_duration) }}</td>
           <td class="d-none d-sm-table-cell">
@@ -37,6 +45,7 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import {
   getIcon,
+  activityTypeName,
   formatRawDistance,
   formatDuration,
   formatElevation,
