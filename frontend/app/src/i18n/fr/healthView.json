@@ -1,13 +1,13 @@
 {
   "title": "Santé",
-  "errorFetchingHealthSteps": "Error fetching health steps",
-  "errorFetchingHealthWeight": "Error fetching health data",
-  "errorFetchingHealthSleep": "Error fetching health sleep",
+  "errorFetchingHealthSteps": "Erreur lors de la récupération des pas de santé",
+  "errorFetchingHealthWeight": "Erreur lors de la récupération des données de santé",
+  "errorFetchingHealthSleep": "Erreur lors de la récupération des données de sommeil",
   "errorFetchingHealthTargets": "Erreur lors de la récupération des objectifs de santé",
-  "successUpdatingWeightTarget": "Successfully updated weight target",
-  "errorUpdatingWeightTarget": "Error updating weight target",
-  "successUpdatingStepsTarget": "Successfully updated steps target",
-  "errorUpdatingStepsTarget": "Error updating steps target",
-  "successUpdatingSleepTarget": "Successfully updated sleep target",
-  "errorUpdatingSleepTarget": "Error updating sleep target"
+  "successUpdatingWeightTarget": "Objectif de poids mis à jour avec succès",
+  "errorUpdatingWeightTarget": "Erreur lors de la mise à jour de l’objectif de poids",
+  "successUpdatingStepsTarget": "Objectif de pas mis à jour avec succès",
+  "errorUpdatingStepsTarget": "Erreur lors de la mise à jour de l’objectif de pas",
+  "successUpdatingSleepTarget": "Objectif de sommeil mis à jour avec succès",
+  "errorUpdatingSleepTarget": "Erreur lors de la mise à jour de l’objectif de sommeil"
 }
