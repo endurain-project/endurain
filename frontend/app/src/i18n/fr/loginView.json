@@ -14,7 +14,7 @@
   "mfaCodeHint": "Entrez le code à 6 chiffres de votre application d'authentification, ou utilisez un code de secours",
   "mfaRequired": "Authentification multi-facteurs requise. Veuillez saisir votre code à 6 chiffres.",
   "verifyMFAButton": "Vérifier MFA",
-  "invalidMFACode": "Invalid MFA code. Please try again.",
+  "invalidMFACode": "Code MFA, code de secours invalide ou déjà utilisé. Veuillez réessayer.",
   "neverExpires": "Se souvenir de moi (ne cochez pas cette case si vous utilisez un ordinateur partagé)",
   "signInButton": "S'inscrire",
   "signUpText": "Vous cherchez à vous inscrire ?",
