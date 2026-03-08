@@ -49,7 +49,7 @@
           <td>{{ lap.lapSecondsToMinutes }}</td>
           <td v-if="activityTypeIsCycling(activity)">{{ lap.formattedSpeedFull }}</td>
           <td v-else>{{ lap.formattedPaceFull }}</td>
-          <td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedElevationFull }}</td>
+          <td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedAscentFull }}</td>
           <td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedDescentFull }}</td>
           <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
           <td>
@@ -82,7 +82,14 @@
             style="width: 10%"
             v-if="!activityTypeIsSwimming(activity) && activityTypeNotRowing(activity)"
           >
-            {{ $t('activityLapsComponent.labelLapElev') }}
+            {{ $t('activityLapsComponent.labelLapAscent') }}
+          </th>
+          <th
+            scope="col"
+            style="width: 10%"
+            v-if="!activityTypeIsSwimming(activity) && activityTypeNotRowing(activity)"
+          >
+            {{ $t('activityLapsComponent.labelLapDescent') }}
           </th>
           <th scope="col" style="width: 10%" v-if="activityTypeIsSwimming(activity)">
             {{ $t('activityLapsComponent.labelLapSR') }}
@@ -108,7 +115,10 @@
             </div>
           </td>
           <td v-if="!activityTypeIsSwimming(activity) && activityTypeNotRowing(activity)">
-            {{ lap.formattedElevation }}
+            {{ lap.formattedAscent }}
+          </td>
+          <td v-if="!activityTypeIsSwimming(activity) && activityTypeNotRowing(activity)">
+            {{ lap.formattedDescent }}
           </td>
           <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
           <td>
@@ -194,8 +204,9 @@ const normalizedLaps = computed(() => {
     const formattedPace = formatPace(t, props.activity, props.units, lap, false, lap.swimIsRest)
     const formattedPaceFull = formatPace(t, props.activity, props.units, lap, true, lap.swimIsRest)
     const formattedDistance = formatDistance(t, props.activity, props.units, lap)
-    const formattedElevation = formatElevation(t, lap.total_ascent, props.units, false)
-    const formattedElevationFull = formatElevation(t, lap.total_ascent, props.units)
+    const formattedAscent = formatElevation(t, lap.total_ascent, props.units, false)
+    const formattedAscentFull = formatElevation(t, lap.total_ascent, props.units)
+    const formattedDescent = formatElevation(t, lap.total_descent, props.units, false)
     const formattedDescentFull = formatElevation(t, lap.total_descent, props.units)
     const formattedSpeed = formatAverageSpeed(t, props.activity, props.units, lap, false)
     const formattedSpeedFull = formatAverageSpeed(t, props.activity, props.units, lap)
@@ -207,8 +218,9 @@ const normalizedLaps = computed(() => {
       formattedPaceFull: formattedPaceFull,
       lapSecondsToMinutes: formatSecondsToMinutes(lap.total_elapsed_time),
       formattedDistance: formattedDistance,
-      formattedElevation: formattedElevation,
-      formattedElevationFull: formattedElevationFull,
+      formattedAscent: formattedAscent,
+      formattedAscentFull: formattedAscentFull,
+      formattedDescent: formattedDescent,
       formattedDescentFull: formattedDescentFull,
       formattedSpeedFull: formattedSpeedFull,
       formattedSpeed: formattedSpeed

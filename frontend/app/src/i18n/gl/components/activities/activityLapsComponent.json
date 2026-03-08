@@ -6,6 +6,7 @@
   "labelLapPace": "Ritmo",
   "labelLapSpeed": "Velocidade",
   "labelLapAscent": "Elevación",
+  "labelLapDescent": "Descenso",  
   "labelLapElev": "Elev",
   "labelLapAvgHr": "Valor medio do pulso",
   "labelLapHR": "PC",
