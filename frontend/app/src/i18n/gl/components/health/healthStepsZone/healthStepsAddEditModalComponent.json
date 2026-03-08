@@ -1,8 +1,8 @@
 {
-  "addStepsModalTitle": "Add steps",
-  "editStepsModalTitle": "Edit steps",
-  "addStepsLabel": "Steps",
-  "addStepsDateLabel": "Date",
-  "successAddSteps": "Steps added",
-  "errorAddSteps": "Error adding steps"
+  "addStepsModalTitle": "Engadir pasos",
+  "editStepsModalTitle": "Editar os pasos",
+  "addStepsLabel": "Pasos",
+  "addStepsDateLabel": "Data",
+  "successAddSteps": "Engadíronse os pasos",
+  "errorAddSteps": "Erro ao engadir os pasos"
 }

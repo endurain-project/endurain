@@ -28,9 +28,9 @@
   "stageTypeLight": "Light",
   "stageTypeRem": "REM",
   "stageTypeAwake": "Awake",
-  "stageStartTimeLabel": "Start time",
-  "stageEndTimeLabel": "End time",
-  "stageDurationLabel": "Duration",
+  "stageStartTimeLabel": "Starttid",
+  "stageEndTimeLabel": "Sluttid",
+  "stageDurationLabel": "Varaktighet",
   "noStagesMessage": "No sleep stages added yet. Click 'Add stage' to add a sleep stage.",
   "successAddSleep": "Sleep added successfully",
   "errorAddSleep": "Error adding sleep"

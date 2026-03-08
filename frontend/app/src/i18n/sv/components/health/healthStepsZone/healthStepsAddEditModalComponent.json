@@ -1,8 +1,8 @@
 {
-  "addStepsModalTitle": "Add steps",
-  "editStepsModalTitle": "Edit steps",
-  "addStepsLabel": "Steps",
-  "addStepsDateLabel": "Date",
-  "successAddSteps": "Steps added",
-  "errorAddSteps": "Error adding steps"
+  "addStepsModalTitle": "Lägg till steg",
+  "editStepsModalTitle": "Redigera steg",
+  "addStepsLabel": "Steg",
+  "addStepsDateLabel": "Datum",
+  "successAddSteps": "Steg tillagda",
+  "errorAddSteps": "Fel vid tillägg av steg"
 }

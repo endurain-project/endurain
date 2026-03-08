@@ -206,7 +206,15 @@
           {{ $t('activityBellowMPillsComponent.labelAvgStrokeRate') }}
         </span>
         <span>
-          <b>{{ activity.average_cad }}{{ ' ' + $t('generalItems.unitsSpm') }}</b>
+          <b
+            >{{ activity.average_cad
+            }}{{
+              ' ' +
+              (activityTypeIsCycling(activity)
+                ? $t('generalItems.unitsRpm')
+                : $t('generalItems.unitsSpm'))
+            }}</b
+          >
         </span>
       </div>
       <div class="d-flex justify-content-between mt-3" v-if="activity.max_cad">
@@ -217,7 +225,15 @@
           {{ $t('activityBellowMPillsComponent.labelMaxStrokeRate') }}
         </span>
         <span>
-          <b>{{ activity.max_cad }}{{ ' ' + $t('generalItems.unitsSpm') }}</b>
+          <b
+            >{{ activity.max_cad
+            }}{{
+              ' ' +
+              (activityTypeIsCycling(activity)
+                ? $t('generalItems.unitsRpm')
+                : $t('generalItems.unitsSpm'))
+            }}</b
+          >
         </span>
       </div>
       <hr />

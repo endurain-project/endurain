@@ -6,9 +6,9 @@
   "activityTypeWalk": "Gehen",
   "activityTypeStrength": "Kraftsport",
   "activityTypeCardio": "Cardio",
-  "intervalDaily": "Daily",
-  "intervalWeekly": "Weekly",
-  "intervalMonthly": "Monthly",
-  "intervalYearly": "Yearly",
+  "intervalDaily": "Täglich",
+  "intervalWeekly": "Wöchentlich",
+  "intervalMonthly": "Monatlich",
+  "intervalYearly": "Jährlich",
   "activities": "Aktivitäten"
 }

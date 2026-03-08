@@ -27,8 +27,10 @@ echo_info_log "UID=$UID, GID=$GID"
 # Create required directories with correct ownership
 # These directories are created as root before switching to the non-root user
 # to ensure proper permissions on fresh volume mounts
-DATA_FOLDER="${DATA_DIR:-$BACKEND_DIR/data}"
-LOGS_FOLDER="${LOGS_DIR:-$BACKEND_DIR/logs}"
+BACKEND_FOLDER="${BACKEND_DIR:-/app/backend}"
+DATA_FOLDER="${DATA_DIR:-$BACKEND_FOLDER/data}"
+LOGS_FOLDER="${LOGS_DIR:-$BACKEND_FOLDER/logs}"
+FRONTEND_FOLDER="${FRONTEND_DIR:-/app/frontend/dist}"
 
 REQUIRED_DIRS="
 $DATA_FOLDER
@@ -52,7 +54,6 @@ for dir in $REQUIRED_DIRS; do
 done
 
 if [ -n "$ENDURAIN_HOST" ]; then
-    FRONTEND_FOLDER="${FRONTEND_DIR:-/app/frontend/dist}"
     echo "window.env = { ENDURAIN_HOST: \"$ENDURAIN_HOST\" };" > "$FRONTEND_FOLDER/env.js"
     echo_info_log "Runtime env.js written with ENDURAIN_HOST=$ENDURAIN_HOST"
 fi

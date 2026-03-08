@@ -12,7 +12,73 @@ import auth.identity_providers.service as idp_service
 
 import users.users_identity_providers.crud as user_idp_crud
 
+import core.config as core_config
 import core.logger as core_logger
+
+
+def validate_redirect_url(redirect: str | None) -> None:
+    """
+    Validate the redirect URL to prevent open redirect vulnerabilities.
+
+    Allows only relative paths (starting with '/') and custom URI
+    schemes explicitly configured via ALLOWED_REDIRECT_SCHEMES.
+    External HTTP/HTTPS URLs are always rejected.
+
+    Args:
+        redirect: The redirect URL string to validate, or None.
+
+    Raises:
+        HTTPException: 400 Bad Request if the redirect URL is
+            invalid, uses a disallowed scheme, is an external
+            HTTP/HTTPS URL, or contains path traversal sequences.
+    """
+    if not redirect or not redirect.strip():
+        return
+
+    value = redirect.strip()
+
+    # Reject external HTTP/HTTPS URLs (open redirect prevention)
+    if value.startswith("http://") or value.startswith("https://"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "External HTTP redirects are not allowed. "
+                "Use a relative path or a configured custom scheme."
+            ),
+        )
+
+    # Handle custom URI schemes (e.g., gadgetbridge://callback)
+    if "://" in value:
+        scheme = value.split("://", 1)[0].lower()
+        allowed = core_config.ALLOWED_REDIRECT_SCHEMES
+        if scheme not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Redirect scheme '{scheme}' is not allowed. "
+                    "Configure ALLOWED_REDIRECT_SCHEMES to permit "
+                    "custom URI schemes."
+                ),
+            )
+        # Custom scheme is allowed — no further checks needed
+        return
+
+    # Relative paths must start with '/'
+    if not value.startswith("/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Redirect must be a relative path starting with '/' "
+                "or a configured custom URI scheme."
+            ),
+        )
+
+    # Reject path traversal sequences
+    if ".." in value or "\\" in value or value.startswith("//"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Redirect path contains disallowed sequences.",
+        )
 
 
 def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> None:

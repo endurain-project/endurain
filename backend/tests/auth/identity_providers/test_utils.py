@@ -1,11 +1,13 @@
 """Tests for identity_providers.utils module."""
 
 import pytest
+from unittest.mock import patch
 from fastapi import HTTPException
 
 from auth.identity_providers.utils import (
     validate_pkce_challenge,
     validate_pkce_verifier,
+    validate_redirect_url,
     _secure_compare,
     get_idp_template,
     get_idp_templates,
@@ -491,3 +493,224 @@ class TestGetIdpTemplates:
             assert template.user_mapping is not None
             assert "username" in template.user_mapping
             assert "email" in template.user_mapping
+
+
+class TestValidateRedirectUrl:
+    """Test suite for validate_redirect_url function.
+
+    Validates the open-redirect prevention logic. Only relative paths
+    and explicitly allowed custom URI schemes must be accepted.
+    """
+
+    # ------------------------------------------------------------------
+    # Safe inputs that must NOT raise
+    # ------------------------------------------------------------------
+
+    def test_none_is_allowed(self):
+        """None (optional redirect) must pass silently.
+
+        Asserts:
+            - No exception raised for None input
+        """
+        validate_redirect_url(None)
+
+    def test_empty_string_is_allowed(self):
+        """Empty string must pass silently.
+
+        Asserts:
+            - No exception raised for empty string
+        """
+        validate_redirect_url("")
+
+    def test_whitespace_only_is_allowed(self):
+        """Whitespace-only string must pass silently.
+
+        Asserts:
+            - No exception raised for whitespace-only input
+        """
+        validate_redirect_url("   ")
+
+    def test_relative_path_root_is_allowed(self):
+        """Root relative path '/' must be allowed.
+
+        Asserts:
+            - No exception raised for '/'
+        """
+        validate_redirect_url("/")
+
+    def test_relative_path_dashboard_is_allowed(self):
+        """Typical relative path must be allowed.
+
+        Asserts:
+            - No exception raised for '/dashboard'
+        """
+        validate_redirect_url("/dashboard")
+
+    def test_relative_path_with_query_string_is_allowed(self):
+        """Relative path with query string must be allowed.
+
+        Asserts:
+            - No exception raised for '/settings?tab=security'
+        """
+        validate_redirect_url("/settings?tab=security")
+
+    def test_custom_scheme_allowed_when_configured(self):
+        """Custom URI scheme in ALLOWED_REDIRECT_SCHEMES must pass.
+
+        Asserts:
+            - No exception when scheme is in allowed set
+        """
+        with patch(
+            "auth.identity_providers.utils.core_config.ALLOWED_REDIRECT_SCHEMES",
+            {"gadgetbridge"},
+        ):
+            validate_redirect_url("gadgetbridge://endurain/oauth/callback")
+
+    def test_custom_scheme_case_insensitive(self):
+        """Scheme comparison must be case-insensitive.
+
+        Asserts:
+            - GADGETBRIDGE:// is allowed when 'gadgetbridge' configured
+        """
+        with patch(
+            "auth.identity_providers.utils.core_config.ALLOWED_REDIRECT_SCHEMES",
+            {"gadgetbridge"},
+        ):
+            validate_redirect_url("GADGETBRIDGE://endurain/callback")
+
+    def test_multiple_custom_schemes_allowed(self):
+        """Multiple schemes can be configured simultaneously.
+
+        Asserts:
+            - Both schemes accepted independently
+        """
+        schemes = {"gadgetbridge", "myapp"}
+        with patch(
+            "auth.identity_providers.utils.core_config.ALLOWED_REDIRECT_SCHEMES",
+            schemes,
+        ):
+            validate_redirect_url("gadgetbridge://callback")
+            validate_redirect_url("myapp://callback")
+
+    # ------------------------------------------------------------------
+    # Inputs that MUST raise HTTPException(400)
+    # ------------------------------------------------------------------
+
+    def test_http_url_is_rejected(self):
+        """External http:// URL must be rejected.
+
+        Asserts:
+            - HTTPException 400 for http://evil.com
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("http://evil.com")
+        assert exc_info.value.status_code == 400
+
+    def test_https_url_is_rejected(self):
+        """External https:// URL must be rejected.
+
+        Asserts:
+            - HTTPException 400 for https://evil.com
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("https://evil.com")
+        assert exc_info.value.status_code == 400
+
+    def test_https_localhost_is_rejected(self):
+        """Localhost https URL must also be rejected.
+
+        Asserts:
+            - HTTPException 400 for https://localhost:8080
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("https://localhost:8080")
+        assert exc_info.value.status_code == 400
+
+    def test_custom_scheme_not_in_allowlist_is_rejected(self):
+        """Custom scheme not in ALLOWED_REDIRECT_SCHEMES must be rejected.
+
+        Asserts:
+            - HTTPException 400 when scheme not configured
+        """
+        with patch(
+            "auth.identity_providers.utils.core_config.ALLOWED_REDIRECT_SCHEMES",
+            set(),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                validate_redirect_url("gadgetbridge://callback")
+        assert exc_info.value.status_code == 400
+        assert "not allowed" in exc_info.value.detail.lower()
+
+    def test_wrong_custom_scheme_is_rejected(self):
+        """Scheme not in the allow-list must be rejected even if others are.
+
+        Asserts:
+            - HTTPException 400 when only a different scheme is configured
+        """
+        with patch(
+            "auth.identity_providers.utils.core_config.ALLOWED_REDIRECT_SCHEMES",
+            {"gadgetbridge"},
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                validate_redirect_url("myapp://callback")
+        assert exc_info.value.status_code == 400
+
+    def test_path_traversal_double_dot_is_rejected(self):
+        """Path traversal via '..' must be rejected.
+
+        Asserts:
+            - HTTPException 400 for /../etc/passwd
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("/../etc/passwd")
+        assert exc_info.value.status_code == 400
+
+    def test_path_traversal_double_dot_mid_path_is_rejected(self):
+        """Path traversal via '..' in middle of path must be rejected.
+
+        Asserts:
+            - HTTPException 400 for /valid/../etc/passwd
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("/valid/../etc/passwd")
+        assert exc_info.value.status_code == 400
+
+    def test_path_traversal_backslash_is_rejected(self):
+        """Backslash in path (Windows-style traversal) must be rejected.
+
+        Asserts:
+            - HTTPException 400 for /path\\to\\file
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("/path\\to\\file")
+        assert exc_info.value.status_code == 400
+
+    def test_double_slash_protocol_relative_is_rejected(self):
+        """Protocol-relative URLs (//) must be rejected.
+
+        Asserts:
+            - HTTPException 400 for //evil.com
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("//evil.com")
+        assert exc_info.value.status_code == 400
+
+    def test_no_leading_slash_relative_path_is_rejected(self):
+        """Relative path not starting with '/' must be rejected.
+
+        Asserts:
+            - HTTPException 400 for 'dashboard' (no leading slash)
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("dashboard")
+        assert exc_info.value.status_code == 400
+
+    def test_javascript_scheme_is_rejected(self):
+        """javascript: URI scheme must be rejected (XSS vector).
+
+        Asserts:
+            - HTTPException 400 for javascript:alert(1)
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url("javascript:alert(1)")
+        assert exc_info.value.status_code == 400

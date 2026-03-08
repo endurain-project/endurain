@@ -239,7 +239,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 // Importing the stores
@@ -396,7 +396,7 @@ async function getGearsByActivityType() {
   }
 }
 
-onMounted(async () => {
+async function loadActivity() {
   try {
     // Get the activity by id
     if (authStore.isAuthenticated) {
@@ -505,5 +505,30 @@ onMounted(async () => {
     alertPrivacyMessage.value = t('activityView.alertPrivacyMessage')
     isHiddenMessage.value = t('activityView.isHiddenMessage')
   }
-})
+}
+
+onMounted(loadActivity)
+
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      // Reset state before loading the new activity
+      isLoading.value = true
+      activity.value = null
+      gear.value = null
+      gearsByType.value = []
+      gearId.value = null
+      activityActivityStreams.value = []
+      activityActivityLaps.value = []
+      activityActivityWorkoutSteps.value = []
+      activityActivityMedia.value = []
+      activityActivityExerciseTitles.value = []
+      activityActivitySets.value = []
+      alertPrivacyMessage.value = null
+      isHiddenMessage.value = null
+      loadActivity()
+    }
+  }
+)
 </script>

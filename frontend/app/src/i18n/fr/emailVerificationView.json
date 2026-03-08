@@ -1,8 +1,8 @@
 {
-  "title1": "Handling verify email",
-  "title2": "Please wait while your email is being verified. Do not refresh this page.",
-  "emailVerified": "Email verified successfully!",
-  "tokenNotFound": "Token not found",
-  "tokenExpired": "Token expired",
-  "verificationFailed": "Email verification failed"
+  "title1": "Traitement de l'e-mail de vérification",
+  "title2": "Veuillez patienter pendant que votre e-mail est vérifié. Ne rafraîchissez pas cette page.",
+  "emailVerified": "Email vérifié avec succès !",
+  "tokenNotFound": "Token non trouvé",
+  "tokenExpired": "Jeton expiré",
+  "verificationFailed": "La vérification de l'e-mail a échoué"
 }

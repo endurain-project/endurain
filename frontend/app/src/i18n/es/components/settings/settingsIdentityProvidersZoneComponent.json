@@ -9,7 +9,7 @@
   "oidcType": "OpenID Connect",
   "oauth2Type": "OAuth 2.0",
   "editButton": "Edit",
-  "deleteButton": "Delete",
+  "deleteButton": "Borrar",
   "infoAlert": "Identity providers allow users to authenticate using external services like Keycloak, or Authentik.",
   "deleteModalTitle": "Delete identity provider",
   "deleteModalBody": "Are you sure you want to delete the identity provider '{name}'? Users linked to this provider will no longer be able to authenticate through it.",

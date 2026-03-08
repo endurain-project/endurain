@@ -1,5 +1,5 @@
 {
-  "bulkImportIntegrationTitle": "Bulk import",
+  "bulkImportIntegrationTitle": "Massimportera",
   "bulkImportIntegrationBody": "Bulk import activities from files (in the data/activity_files/bulk_import folder)",
   "buttonBulkImport": "Import activities",
   "loadingMessageBulkImport": "Importing activities from files...",

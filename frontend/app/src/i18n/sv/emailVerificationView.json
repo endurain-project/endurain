@@ -1,8 +1,8 @@
 {
-  "title1": "Handling verify email",
-  "title2": "Please wait while your email is being verified. Do not refresh this page.",
-  "emailVerified": "Email verified successfully!",
-  "tokenNotFound": "Token not found",
-  "tokenExpired": "Token expired",
-  "verificationFailed": "Email verification failed"
+  "title1": "Hantera e-postverifiering",
+  "title2": "Vänligen vänta medan din e-post verifieras. Uppdatera inte den här sidan.",
+  "emailVerified": "E-postadressen har verifierats!",
+  "tokenNotFound": "Token hittades inte",
+  "tokenExpired": "Token ej längre giltigt",
+  "verificationFailed": "Verifiering av e-post misslyckades"
 }

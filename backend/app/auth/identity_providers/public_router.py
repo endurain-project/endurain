@@ -127,6 +127,9 @@ async def initiate_login(
         # Validate PKCE challenge format
         idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
 
+        # Validate redirect URL to prevent open redirect vulnerability
+        idp_utils.validate_redirect_url(redirect)
+
         # Detect client type from X-Client-Type header
         client_type = request.headers.get("X-Client-Type", "web")
         if client_type not in ["web", "mobile"]:
@@ -306,6 +309,14 @@ async def handle_callback(
         redirect_path = result.get("redirect_path")
         if redirect_path:
             redirect_url += f"&redirect={redirect_path}"
+            # Signal the frontend that this is a custom-scheme redirect.
+            # The frontend will skip its own token exchange and instead
+            # pass the session_id to the mobile app via the custom scheme.
+            is_custom_scheme = "://" in redirect_path and not redirect_path.startswith(
+                "http"
+            )
+            if is_custom_scheme:
+                redirect_url += "&external_redirect=true"
 
         core_logger.print_to_log(
             f"SSO login successful for user {user.username} via {idp.name} (session_id={session_id})",
@@ -452,7 +463,7 @@ async def exchange_tokens_for_session(
             _,
             access_token_exp,
             access_token,
-            _,
+            refresh_token_exp,
             refresh_token,
             csrf_token,
         ) = auth_utils.create_tokens(user_read, token_manager, session_id)
@@ -462,14 +473,28 @@ async def exchange_tokens_for_session(
             (access_token_exp - datetime.now(timezone.utc)).total_seconds()
         )
 
+        # Calculate refresh_token_expires_in from refresh token expiration
+        refresh_token_expires_in = int(
+            (refresh_token_exp - datetime.now(timezone.utc)).total_seconds()
+        )
+
         # Update session with the actual hashed refresh token
         # Note: csrf_token_hash is NOT stored here (OAuth 2.1 bootstrap pattern).
         # The first /refresh call after page reload establishes the CSRF binding.
         session_obj.refresh_token = password_hasher.hash_password(refresh_token)
         db.commit()
 
-        # Store client_type before marking tokens as exchanged (which deletes oauth_state)
-        client_type = oauth_state.client_type
+        # Determine client_type from the exchange request headers.
+        # The stored oauth_state.client_type is unreliable for system
+        # browser flows (no X-Client-Type header when the browser
+        # opened the initiate_login URL), so we trust the header on
+        # the actual token-exchange call — which *is* made by the
+        # native app and will carry X-Client-Type: mobile.
+        client_type = request.headers.get(
+            "X-Client-Type", oauth_state.client_type or "web"
+        )
+        if client_type not in ("web", "mobile"):
+            client_type = "web"
 
         # Set refresh token cookie for web clients (enables logout)
         if client_type == "web":
@@ -501,6 +526,7 @@ async def exchange_tokens_for_session(
                 access_token=access_token,
                 csrf_token=csrf_token,
                 expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
                 token_type="Bearer",
             )
         else:
@@ -510,6 +536,7 @@ async def exchange_tokens_for_session(
                 access_token=access_token,
                 refresh_token=refresh_token,
                 expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
                 token_type="Bearer",
             )
 
