@@ -29,7 +29,7 @@
   "customIconUrlPlaceholder": "https://example.com/my-icon.png",
   "customIconUrlHelp": "URL to a custom icon for the SSO button and list.",
   "iconPlaceholder": "authelia, authentik, casdore, keycloak, ou URL",
-  "iconHelp": "Icon name for SSO button. Supported values are authelia, authentik, casdoor or keycloak. For custom icons, provide the icon URL.",
+  "iconHelp": "Nom de l’icône pour le bouton SSO. Les valeurs acceptées sont authelia, authentik, casdoor ou keycloak. Pour une icône personnalisée, fournissez l’URL de l’icône.",
   "optionsSection": "Options",
   "enabledLabel": "Activé",
   "autoCreateUsersLabel": "Création automatique des utilisateurs",
@@ -45,6 +45,6 @@
   "providerUpdated": "Fournisseur d'identité mis à jour avec succès",
   "errorCreating": "Erreur lors de la création du fournisseur d'identité",
   "errorUpdating": "Erreur lors de la mise à jour du fournisseur d'identité",
-  "errorSlugExists": "A provider with this slug already exists",
+  "errorSlugExists": "Un fournisseur avec ce slug existe déjà",
   "errorForbidden": "You don't have permission to perform this action"
 }
