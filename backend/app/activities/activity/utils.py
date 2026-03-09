@@ -805,6 +805,7 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
         5: ("is_velocity_set", "vel_waypoints"),
         6: ("is_velocity_set", "pace_waypoints"),
         7: ("is_lat_lon_set", "lat_lon_waypoints"),
+        8: ("is_temperature_set", "temp_waypoints"),
     }
 
     # Create a list of tuples containing stream type, is_set, and waypoints
@@ -814,13 +815,15 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
             (
                 is_set_key(parsed_info)
                 if callable(is_set_key)
-                else parsed_info[is_set_key]
+                else parsed_info.get(is_set_key, False)
             ),
-            parsed_info[waypoints_key],
+            parsed_info.get(waypoints_key, []),
         )
         for stream_type, (is_set_key, waypoints_key) in stream_mapping.items()
         if (
-            is_set_key(parsed_info) if callable(is_set_key) else parsed_info[is_set_key]
+            is_set_key(parsed_info)
+            if callable(is_set_key)
+            else parsed_info.get(is_set_key, False)
         )
     ]
 
@@ -996,10 +999,12 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         core_logger.print_to_log_and_console(
             f"Error in location_based_on_coordinates - {str(err)}", "error"
         )
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail=f"Error in location_based_on_coordinates: {str(err)}",
-        ) from err
+        # Return empty data instead of failing the entire operation
+        return {
+            "city": None,
+            "town": None,
+            "country": None,
+        }
 
 
 def append_if_not_none(waypoint_list, waypoint_time, value, key):

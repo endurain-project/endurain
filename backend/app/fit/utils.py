@@ -203,6 +203,8 @@ def create_activity_objects(
                 "pace_waypoints": session_record["pace_waypoints"],
                 "is_cadence_set": session_record["is_cadence_set"],
                 "cad_waypoints": session_record["cad_waypoints"],
+                "is_temperature_set": session_record.get("is_temperature_set", False),
+                "temp_waypoints": session_record.get("temp_waypoints", []),
                 "is_lat_lon_set": session_record["is_lat_lon_set"],
                 "lat_lon_waypoints": session_record["lat_lon_waypoints"],
                 "laps": session_record["laps"],
@@ -236,6 +238,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
     power_waypoints = parsed_data.get("power_waypoints", [])
     vel_waypoints = parsed_data.get("vel_waypoints", [])
     pace_waypoints = parsed_data.get("pace_waypoints", [])
+    temp_waypoints = parsed_data.get("temp_waypoints", [])
 
     # Check for each auxiliary flag
     is_lat_lon_set = parsed_data.get("is_lat_lon_set", False)
@@ -244,6 +247,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
     is_cadence_set = parsed_data.get("is_cadence_set", False)
     is_power_set = parsed_data.get("is_power_set", False)
     is_velocity_set = parsed_data.get("is_velocity_set", False)
+    is_temperature_set = parsed_data.get("is_temperature_set", False)
 
     # Dictionary to hold split waypoints per activity
     activity_waypoints = {
@@ -255,6 +259,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
             "power_waypoints": [] if is_power_set else None,
             "vel_waypoints": [] if is_velocity_set else None,
             "pace_waypoints": [] if is_velocity_set else None,
+            "temp_waypoints": [] if is_temperature_set else None,
         }
         for i in range(len(sessions))
     }
@@ -306,6 +311,8 @@ def split_records_by_activity(parsed_data: dict) -> dict:
             "vel_waypoints": [],
             "pace_waypoints": [],
             "is_velocity_set": False,
+            "temp_waypoints": [],
+            "is_temperature_set": False,
             "laps": laps_records,
             "split_summary": parsed_data["split_summary"],
             "workout_steps": parsed_data["workout_steps"],
@@ -429,6 +436,20 @@ def split_records_by_activity(parsed_data: dict) -> dict:
                     "pace_waypoints"
                 ]
                 parsed_session["is_velocity_set"] = True
+        
+        if is_temperature_set:
+            activity_waypoints[i]["temp_waypoints"] = [
+                wp
+                for wp in temp_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            if activity_waypoints[i]["temp_waypoints"]:
+                parsed_session["temp_waypoints"] = activity_waypoints[i][
+                    "temp_waypoints"
+                ]
+                parsed_session["is_temperature_set"] = True
 
         # Append the parsed session to the sessions list
         sessions_records.append(parsed_session)
@@ -456,6 +477,7 @@ def parse_fit_file(
         power_waypoints = []
         vel_waypoints = []
         pace_waypoints = []
+        temp_waypoints = []
 
         # Array to store laps
         laps = []
@@ -497,6 +519,7 @@ def parse_fit_file(
         is_heart_rate_set = False
         is_cadence_set = False
         is_velocity_set = False
+        is_temperature_set = False
 
         # Open the FIT file
         with open(file, "rb") as fit_file:
@@ -653,13 +676,14 @@ def parse_fit_file(
                             heart_rate,
                             cadence,
                             power,
+                            temperature,
                         ) = parse_frame_record(frame)
 
                         # Check elevation
                         if elevation is not None:
                             is_elevation_set = True
 
-                        # Check if heart rate, cadence, power are set
+                        # Check if heart rate, cadence, power, temperature are set
                         if heart_rate is not None:
                             is_heart_rate_set = True
 
@@ -668,6 +692,9 @@ def parse_fit_file(
 
                         if power is not None:
                             is_power_set = True
+
+                        if temperature is not None:
+                            is_temperature_set = True
 
                         instant_speed = None
                         # Calculate instant speed, pace, and update waypoint arrays
@@ -723,6 +750,9 @@ def parse_fit_file(
                         activities_utils.append_if_not_none(
                             pace_waypoints, timestamp, instant_pace, "pace"
                         )
+                        activities_utils.append_if_not_none(
+                            temp_waypoints, timestamp, temperature, "temp"
+                        )
 
                         # Update previous latitude, longitude, and last waypoint time
                         prev_latitude, prev_longitude, last_waypoint_time = (
@@ -773,6 +803,8 @@ def parse_fit_file(
             "pace_waypoints": pace_waypoints,
             "is_cadence_set": is_cadence_set,
             "cad_waypoints": cad_waypoints,
+            "is_temperature_set": is_temperature_set,
+            "temp_waypoints": temp_waypoints,
             "is_lat_lon_set": is_lat_lon_set,
             "lat_lon_waypoints": lat_lon_waypoints,
             "laps": laps,
@@ -873,11 +905,12 @@ def parse_frame_record(frame):
     heart_rate = get_value_from_frame(frame, "heart_rate")
     cadence = get_value_from_frame(frame, "cadence")
     power = get_value_from_frame(frame, "power")
+    temperature = get_value_from_frame(frame, "temperature")
 
     latitude, longitude = convert_coordinates_to_degrees(latitude, longitude)
 
     # Return all extracted values
-    return latitude, longitude, elevation, time, heart_rate, cadence, power
+    return latitude, longitude, elevation, time, heart_rate, cadence, power, temperature
 
 
 def parse_frame_lap(frame):

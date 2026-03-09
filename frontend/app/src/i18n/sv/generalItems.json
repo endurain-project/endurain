@@ -106,5 +106,6 @@
     "markdownSupported": "Markdown-formatering stöds (fetstil, kursiv, länkar, listor, etc.)",
     "noContentToPreview": "Inget innehåll att förhandsgranska"
   },
-  "filterOptionsLabel": "Filteralternativ"
+  "filterOptionsLabel": "Filteralternativ",
+  "labelTemperature": "Temperatur"
 }

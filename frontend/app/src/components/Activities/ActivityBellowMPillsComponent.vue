@@ -137,7 +137,7 @@
         </span>
       </div>
       <BarChartComponent
-        v-if="Object.values(hrZones).length > 0 && hrPresent"
+        v-if="hrZones && Object.keys(hrZones).length > 0 && hrPresent"
         :labels="hrChartData.labels"
         :values="hrChartData.values"
         :barColors="hrChartData.barColors"
@@ -279,6 +279,17 @@
       <hr />
     </div>
 
+    <!-- Temperature values -->
+    <div v-if="tempPresent">
+      <span class="fw-normal">{{ $t('generalItems.labelTemperature') }}</span>
+      <ActivityStreamsLineChartComponent
+        :activity="activity"
+        :graphSelection="'temp'"
+        :activityStreams="activityActivityStreams"
+      />
+      <hr />
+    </div>
+
     <!-- sets -->
     <ActivityWorkoutStepsComponent
       :activity="activity"
@@ -294,6 +305,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+  import { useAuthStore } from '@/stores/authStore'
 // Importing the components
 import ActivityLapsComponent from '@/components/Activities/ActivityLapsComponent.vue'
 import ActivityStreamsLineChartComponent from '@/components/Activities/ActivityStreamsLineChartComponent.vue'
@@ -356,12 +368,15 @@ const props = defineProps({
 
 // Setup composables and reactive data
 const { t } = useI18n()
+  const authStore = useAuthStore()
+  const units = computed(() => authStore.user?.units ?? 'metric')
 const hrPresent = ref(false)
 const powerPresent = ref(false)
 const elePresent = ref(false)
 const cadPresent = ref(false)
 const velPresent = ref(false)
 const pacePresent = ref(false)
+  const tempPresent = ref(false)
 const formattedPace = ref(null)
 const hrZones = ref({})
 
@@ -408,6 +423,9 @@ onMounted(async () => {
           ) {
             pacePresent.value = true
           }
+        }
+        if (props.activityActivityStreams[i].stream_type === 8) {
+          tempPresent.value = true
         }
       }
     }

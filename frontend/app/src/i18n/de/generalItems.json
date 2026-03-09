@@ -106,5 +106,6 @@
     "markdownSupported": "Markdown-Formatierung wird unterstützt (fett, kursiv, Links, Listen, etc.)",
     "noContentToPreview": "Kein Inhalt zur Vorschau"
   },
-  "filterOptionsLabel": "Filteroptionen"
+  "filterOptionsLabel": "Filteroptionen",
+  "labelTemperature": "Temperatur"
 }

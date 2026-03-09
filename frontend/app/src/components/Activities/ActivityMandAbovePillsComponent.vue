@@ -118,8 +118,14 @@
               :activityStreams="activityActivityStreams"
               v-if="graphSelection === 'pace' && pacePresent"
             />
+            <ActivityStreamsLineChartComponent
+              :activity="activity"
+              :graphSelection="graphSelection"
+              :activityStreams="activityActivityStreams"
+              v-if="graphSelection === 'temp' && tempPresent"
+            />
             <BarChartComponent
-              v-if="Object.values(hrZones).length > 0 && graphSelection === 'hrZones' && hrPresent"
+              v-if="hrZones && Object.keys(hrZones).length > 0 && graphSelection === 'hrZones' && hrPresent"
               :labels="hrChartData.labels"
               :values="hrChartData.values"
               :barColors="hrChartData.barColors"
@@ -173,7 +179,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-// Importing the components
+  import { useAuthStore } from '@/stores/authStore'// Importing the components
 import ActivityLapsComponent from '@/components/Activities/ActivityLapsComponent.vue'
 import ActivityStreamsLineChartComponent from '@/components/Activities/ActivityStreamsLineChartComponent.vue'
 import ActivityWorkoutStepsComponent from '@/components/Activities/ActivityWorkoutStepsComponent.vue'
@@ -236,6 +242,7 @@ const elePresent = ref(false)
 const cadPresent = ref(false)
 const velPresent = ref(false)
 const pacePresent = ref(false)
+const tempPresent = ref(false)
 const hrZones = ref({})
 
 // Computed properties
@@ -264,7 +271,7 @@ onMounted(async () => {
           )
           hrZones.value =
             hrStream && hrStream.hr_zone_percentages ? hrStream.hr_zone_percentages : {}
-          if (Object.keys(hrZones.value).length > 0) {
+          if (hrZones.value && Object.keys(hrZones.value).length > 0) {
             hrPresent.value = true
             graphItems.value.push({
               type: 'hrZones',
@@ -329,6 +336,13 @@ onMounted(async () => {
               label: `${t('activityMandAbovePillsComponent.labelGraphPace')}`
             })
           }
+        }
+        if (element.stream_type === 8) {
+          tempPresent.value = true
+          graphItems.value.push({
+            type: 'temp',
+            label: t('generalItems.labelTemperature')
+          })
         }
       }
     }

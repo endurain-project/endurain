@@ -106,5 +106,6 @@
     "markdownSupported": "Formatação markdown suportada (negrito, itálico, links, listas, etc.)",
     "noContentToPreview": "Nenhum conteúdo para pré-visualizar"
   },
-  "filterOptionsLabel": "Opções de filtro"
+  "filterOptionsLabel": "Opções de filtro",
+  "labelTemperature": "Temperatura"
 }

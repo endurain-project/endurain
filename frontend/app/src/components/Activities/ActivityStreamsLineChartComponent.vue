@@ -17,8 +17,7 @@ import {
   activityTypeIsRowing,
   activityTypeIsWalking
 } from '@/utils/activityUtils'
-import { metersToFeet, kmToMiles } from '@/utils/unitsUtils'
-import type { Activity, ActivityStream, StreamWaypoint } from '@/types'
+  import { metersToFeet, kmToMiles, celsiusToFahrenheit } from '@/utils/unitsUtils'
 
 Chart.register(...registerables, zoomPlugin)
 
@@ -29,9 +28,9 @@ interface GraphColors {
 }
 
 const props = defineProps<{
-  activity: Activity
+  activity: any
   graphSelection: string
-  activityStreams: ActivityStream[]
+  activityStreams: any[]
 }>()
 
 const { t } = useI18n()
@@ -86,7 +85,7 @@ function formatPaceForTooltip(value: number | null | undefined): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
-type GraphType = 'hr' | 'power' | 'cad' | 'ele' | 'vel' | 'pace'
+type GraphType = 'hr' | 'power' | 'cad' | 'ele' | 'vel' | 'pace' | 'temp'
 
 const graphColors: Record<GraphType, GraphColors> = {
   hr: {
@@ -118,6 +117,11 @@ const graphColors: Record<GraphType, GraphColors> = {
     border: 'rgba(236, 72, 153, 0.8)',
     gradientStart: 'rgba(236, 72, 153, 0.4)',
     gradientEnd: 'rgba(236, 72, 153, 0.0)'
+  },
+  temp: {
+    border: 'rgba(253, 126, 20, 0.8)',
+    gradientStart: 'rgba(253, 126, 20, 0.4)',
+    gradientEnd: 'rgba(253, 126, 20, 0.0)'
   }
 }
 
@@ -189,14 +193,14 @@ const computedChartData = computed(() => {
     } else if (stream.stream_type === 5 && props.graphSelection === 'vel') {
       if (units.value === 'metric') {
         data.push(
-          ...stream.stream_waypoints.map((velData: StreamWaypoint) =>
+          ...stream.stream_waypoints.map((velData: any) =>
             Number.parseFloat(formatAverageSpeedMetric(velData.vel || 0))
           )
         )
         label = t('generalItems.labelVelocityInKmH')
       } else {
         data.push(
-          ...stream.stream_waypoints.map((velData: StreamWaypoint) =>
+          ...stream.stream_waypoints.map((velData: any) =>
             Number.parseFloat(formatAverageSpeedImperial(velData.vel || 0))
           )
         )
@@ -256,6 +260,21 @@ const computedChartData = computed(() => {
           label = t('generalItems.labelPaceInMin100yd')
         }
       }
+    } else if (stream.stream_type === 8 && props.graphSelection === 'temp') {
+      for (const streamPoint of stream.stream_waypoints) {
+        let rawTemp = (streamPoint.temp !== undefined && streamPoint.temp !== null) ? Number(streamPoint.temp) : null
+        
+        if (rawTemp !== null) {
+          if (units.value === 'metric') {
+            data.push(rawTemp)
+          } else {
+            data.push(celsiusToFahrenheit(rawTemp))
+          }
+        } else {
+          data.push(data.length > 0 ? (data[data.length - 1] as number) : 0)
+        }
+      }
+      label = t('generalItems.labelTemperature')
     }
   }
 
@@ -492,6 +511,9 @@ onMounted(() => {
                 return `${label}: ${value.toFixed(1)}`
               } else if (props.graphSelection === 'vel') {
                 return `${label}: ${value.toFixed(1)}`
+              } else if (props.graphSelection === 'temp') {
+                const tempUnit = units.value === 'metric' ? '°C' : '°F'
+                return `${label}: ${value.toFixed(1)} ${tempUnit}`
               }
 
               return `${label}: ${value}`

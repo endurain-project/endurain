@@ -106,5 +106,6 @@
     "markdownSupported": "Options de filtrage",
     "noContentToPreview": "Aucun contenu à prévisualiser"
   },
-  "filterOptionsLabel": "Options de filtrage"
+  "filterOptionsLabel": "Options de filtrage",
+  "labelTemperature": "Température"
 }
