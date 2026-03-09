@@ -102,8 +102,9 @@
   "labelMinutesShort": "min",
   "markdownEditor": {
     "showPreview": "Aperçu",
-    "hidePreview": "Modifier",
-    "markdownSupported": "Options de filtrage",
+    "hidePreview": "Modifier",    
+    "markdownSupported": "Options de formattage",
+
     "noContentToPreview": "Aucun contenu à prévisualiser"
   },
   "filterOptionsLabel": "Options de filtrage",

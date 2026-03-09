@@ -902,11 +902,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
     # Check if latitude and longitude are provided
     if latitude is None or longitude is None:
-        return {
-            "city": None,
-            "town": None,
-            "country": None,
-        }
+        return None
 
     # Create a dictionary with the parameters for the request
     if core_config.REVERSE_GEO_PROVIDER == "nominatim":
@@ -933,11 +929,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
     elif core_config.REVERSE_GEO_PROVIDER == "geocode":
         # Check if the API key is set
         if core_config.GEOCODES_MAPS_API == "changeme":
-            return {
-                "city": None,
-                "town": None,
-                "country": None,
-            }
+            return None
         # Create the URL for the request
         url_params = {
             "lat": latitude,
@@ -947,11 +939,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
     else:
         # If no provider is set, return None
-        return {
-            "city": None,
-            "town": None,
-            "country": None,
-        }
+        return None
 
     # Throttle requests according to configured rate limit
     if core_config.REVERSE_GEO_MIN_INTERVAL > 0:
@@ -978,33 +966,38 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             data = response.json().get("address", {})
             # Return the location based on the coordinates
             # Note: 'town' is used for district in Geocode API
-            return {
-                "city": data.get("city"),
-                "town": data.get("town"),
-                "country": data.get("country"),
-            }
+            city = data.get("city")
+            town = data.get("town")
+            country = data.get("country")
+            if any([city, town, country]):
+                return {
+                    "city": city,
+                    "town": town,
+                    "country": country,
+                }
+            return None
 
         # Get the data from the response
         data_root = response.json().get("features", [])
         data = data_root[0].get("properties", {}) if data_root else {}
         # Return the location based on the coordinates
         # Note: 'district' is used for city and 'city' is used for town in Photon API
-        return {
-            "city": data.get("district"),
-            "town": data.get("city"),
-            "country": data.get("country"),
-        }
+        city = data.get("district")
+        town = data.get("city")
+        country = data.get("country")
+        if any([city, town, country]):
+            return {
+                "city": city,
+                "town": town,
+                "country": country,
+            }
+        return None
     except Exception as err:
         # Log the error
         core_logger.print_to_log_and_console(
             f"Error in location_based_on_coordinates - {str(err)}", "error"
         )
-        # Return empty data instead of failing the entire operation
-        return {
-            "city": None,
-            "town": None,
-            "country": None,
-        }
+        return None
 
 
 def append_if_not_none(waypoint_list, waypoint_time, value, key):

@@ -683,7 +683,6 @@ def parse_fit_file(
                         if elevation is not None:
                             is_elevation_set = True
 
-                        # Check if heart rate, cadence, power, temperature are set
                         if heart_rate is not None:
                             is_heart_rate_set = True
 

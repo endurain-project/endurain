@@ -58,7 +58,6 @@ export function kmToMeters(km) {
   return Number((km * 1000).toFixed(0))
 }
 
-// Temperature conversions
 export function celsiusToFahrenheit(celsius) {
   return Number(((celsius * 9) / 5 + 32).toFixed(1))
 }

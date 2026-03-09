@@ -179,7 +179,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-  import { useAuthStore } from '@/stores/authStore'// Importing the components
+
+// Importing the components
 import ActivityLapsComponent from '@/components/Activities/ActivityLapsComponent.vue'
 import ActivityStreamsLineChartComponent from '@/components/Activities/ActivityStreamsLineChartComponent.vue'
 import ActivityWorkoutStepsComponent from '@/components/Activities/ActivityWorkoutStepsComponent.vue'

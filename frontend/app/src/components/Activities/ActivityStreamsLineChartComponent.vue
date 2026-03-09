@@ -18,6 +18,7 @@ import {
   activityTypeIsWalking
 } from '@/utils/activityUtils'
   import { metersToFeet, kmToMiles, celsiusToFahrenheit } from '@/utils/unitsUtils'
+import type { Activity, ActivityStream, StreamWaypoint } from '@/types'
 
 Chart.register(...registerables, zoomPlugin)
 
@@ -28,9 +29,9 @@ interface GraphColors {
 }
 
 const props = defineProps<{
-  activity: any
+  activity: Activity
   graphSelection: string
-  activityStreams: any[]
+  activityStreams: ActivityStream[]
 }>()
 
 const { t } = useI18n()
@@ -193,14 +194,14 @@ const computedChartData = computed(() => {
     } else if (stream.stream_type === 5 && props.graphSelection === 'vel') {
       if (units.value === 'metric') {
         data.push(
-          ...stream.stream_waypoints.map((velData: any) =>
+          ...stream.stream_waypoints.map((velData: StreamWaypoint) =>
             Number.parseFloat(formatAverageSpeedMetric(velData.vel || 0))
           )
         )
         label = t('generalItems.labelVelocityInKmH')
       } else {
         data.push(
-          ...stream.stream_waypoints.map((velData: any) =>
+          ...stream.stream_waypoints.map((velData: StreamWaypoint) =>
             Number.parseFloat(formatAverageSpeedImperial(velData.vel || 0))
           )
         )
