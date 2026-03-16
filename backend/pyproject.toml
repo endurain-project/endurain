@@ -43,7 +43,7 @@ qrcode = {extras = ["pil"], version = "^8.2"}
 psutil = "^7.2.2"
 python-magic = "^0.4.27"
 pwdlib = {version = "^0.3.0", extras = ["argon2", "bcrypt"]}
-authlib = "^1.6.8"
+authlib = "^1.6.9"
 httpx = "^0.28.1"
 itsdangerous = "^2.2.0"
 slowapi = "^0.1.9"
