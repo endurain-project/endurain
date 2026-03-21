@@ -19,7 +19,7 @@
   "languageOption10": "Galego (GL)",
   "languageOption11": "Italiano (IT)",
   "languageOption12": "Esloveno (SL)",
-  "languageOption13": "Swedish (SV)",
+  "languageOption13": "Sueco (SV)",
   "firstDayOfWeekOption0": "Domingo",
   "firstDayOfWeekOption1": "Luns",
   "firstDayOfWeekOption2": "Martes",
@@ -101,10 +101,10 @@
   "labelHoursShort": "h",
   "labelMinutesShort": "min",
   "markdownEditor": {
-    "showPreview": "Preview",
-    "hidePreview": "Edit",
-    "markdownSupported": "Markdown formatting is supported (bold, italic, links, lists, etc.)",
-    "noContentToPreview": "No content to preview"
+    "showPreview": "Vista previa",
+    "hidePreview": "Editar",
+    "markdownSupported": "Admite formato markdown (resaltado, cursiva, ligazóns, listas, etc.)",
+    "noContentToPreview": "Sen vista previa do contido"
   },
-  "filterOptionsLabel": "Filter options"
+  "filterOptionsLabel": "Opcións de filtro"
 }
