@@ -9,5 +9,8 @@
   "settings": "Paramètres",
   "login": "Connexion",
   "logout": "Déconnexion",
-  "errorLogout": "Erreur de déconnexion"
+  "errorLogout": "Erreur de déconnexion",
+  "routes": "Parcours",
+  "routesList": "Afficher tracés",
+  "routeCreate": "Créer un tracé"
 }

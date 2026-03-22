@@ -9,5 +9,8 @@
   "settings": "Opcions",
   "login": "Login",
   "logout": "Tanca sessió",
-  "errorLogout": "Error tancant sessió"
+  "errorLogout": "Error tancant sessió",
+  "routes": "Rutes",
+  "routesList": "Mostrar rutes",
+  "routeCreate": "Crear una ruta"
 }

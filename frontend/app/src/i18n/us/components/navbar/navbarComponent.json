@@ -9,5 +9,8 @@
   "settings": "Settings",
   "login": "Login",
   "logout": "Logout",
-  "errorLogout": "Error logging out"
+  "errorLogout": "Error logging out",
+  "routes": "Routes",
+  "routesList": "Show routes",
+  "routeCreate": "Create a route"
 }

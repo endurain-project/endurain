@@ -9,5 +9,8 @@
   "settings": "Definições",
   "login": "Iniciar sessão",
   "logout": "Encerrar sessão",
-  "errorLogout": "Erro ao terminar sessão"
+  "errorLogout": "Erro ao terminar sessão",
+  "routes": "Rotas",
+  "routesList": "Mostrar rotas",
+  "routeCreate": "Criar uma rota"
 }

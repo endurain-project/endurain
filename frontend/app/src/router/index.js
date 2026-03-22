@@ -58,6 +58,30 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/routes',
+    name: 'routes-list',
+    component: () => import('../views/Routes/RoutesListView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/routes/create',
+    name: 'route-create',
+    component: () => import('../views/Routes/RouteBuilderView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/routes/:id/edit',
+    name: 'route-edit',
+    component: () => import('../views/Routes/RouteBuilderView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/routes/:id',
+    name: 'route-detail',
+    component: () => import('../views/Routes/RouteDetailView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/summary',
     name: 'summary',
     component: () => import('../views/SummaryView.vue'),

@@ -9,5 +9,8 @@
   "settings": "Inställningar",
   "login": "Logga in",
   "logout": "Logga ut",
-  "errorLogout": "Fel vid utloggning"
+  "errorLogout": "Fel vid utloggning",
+  "routes": "Rutter",
+  "routesList": "Visa rutter",
+  "routeCreate": "Skapa en rutt"
 }

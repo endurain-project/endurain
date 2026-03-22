@@ -71,6 +71,27 @@
               {{ $t('navbarComponent.health') }}
             </span>
           </router-link>
+          
+          <div class="nav-item dropdown">
+            <a class="nav-link nav-link-custom link-body-emphasis dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <font-awesome-icon :icon="['fas', 'fa-map-location-dot']" />
+              <span class="ms-1">{{ $t('navbarComponent.routes') }}</span>
+            </a>
+            <ul class="dropdown-menu">
+              <li>
+                <router-link :to="{ name: 'routes-list' }" class="dropdown-item link-body-emphasis">
+                  <font-awesome-icon :icon="['fas', 'fa-map']" />
+                  <span class="ms-2">{{ $t('navbarComponent.routesList') }}</span>
+                </router-link>
+              </li>
+              <li>
+                <router-link :to="{ name: 'route-create' }" class="dropdown-item link-body-emphasis">
+                  <font-awesome-icon :icon="['fas', 'fa-plus']" />
+                  <span class="ms-2">{{ $t('navbarComponent.routeCreate') }}</span>
+                </router-link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <!-- Navigation end -->

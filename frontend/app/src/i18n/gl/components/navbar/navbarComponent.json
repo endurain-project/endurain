@@ -9,5 +9,8 @@
   "settings": "Axustes",
   "login": "Acceder",
   "logout": "Fechar sesión",
-  "errorLogout": "Erro ao fechar sesión"
+  "errorLogout": "Erro ao fechar sesión",
+  "routes": "Rutas",
+  "routesList": "Amosar rutas",
+  "routeCreate": "Crear ruta"
 }

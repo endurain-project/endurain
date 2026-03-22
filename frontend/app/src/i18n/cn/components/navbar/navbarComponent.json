@@ -9,5 +9,8 @@
   "settings": "设置",
   "login": "登录",
   "logout": "注销",
-  "errorLogout": "注销错误"
+  "errorLogout": "注销错误",
+  "routes": "路线",
+  "routesList": "显示路线",
+  "routeCreate": "创建路线"
 }
