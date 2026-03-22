@@ -9,5 +9,8 @@
   "settings": "Impostazioni",
   "login": "Accedi",
   "logout": "Esci",
-  "errorLogout": "Errore durante la disconnessione"
+  "errorLogout": "Errore durante la disconnessione",
+  "routes": "Percorsi",
+  "routesList": "Mostra percorsi",
+  "routeCreate": "Crea un percorso"
 }

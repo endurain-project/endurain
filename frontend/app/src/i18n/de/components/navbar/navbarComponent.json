@@ -9,5 +9,8 @@
   "settings": "Einstellungen",
   "login": "Anmelden",
   "logout": "Abmelden",
-  "errorLogout": "Fehler beim Ausloggen"
+  "errorLogout": "Fehler beim Ausloggen",
+  "routes": "Routen",
+  "routesList": "Routen anzeigen",
+  "routeCreate": "Route erstellen"
 }

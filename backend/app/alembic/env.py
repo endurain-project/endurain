@@ -27,6 +27,7 @@ import health.health_weight.models
 import migrations.models
 import notifications.models
 import password_reset_tokens.models
+import routes.models
 import sign_up_tokens.models
 import server_settings.models
 import users.users_sessions.models

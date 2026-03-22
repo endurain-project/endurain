@@ -75,7 +75,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Disable unnecessary browser features
         response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=()"
+            "geolocation=(self), microphone=(), camera=()"
         )
 
         # Content Security Policy for API responses
@@ -95,7 +95,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 f"img-src 'self' data: {tile_domains_str} https://fastapi.tiangolo.com; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "connect-src 'self' https://cdn.jsdelivr.net; "
+                "connect-src 'self' https://cdn.jsdelivr.net https://router.project-osrm.org https://routing.openstreetmap.de https://nominatim.openstreetmap.org https://api.open-meteo.com; "
                 "media-src 'self' data:"
             )
             # TODO: Serve Swagger UI locally to reduce security risks introduced by allowing CDN resources.
@@ -185,3 +185,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         return response
+
+
+
+

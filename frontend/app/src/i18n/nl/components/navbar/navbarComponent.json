@@ -9,5 +9,8 @@
   "settings": "Instellingen",
   "login": "Inloggen",
   "logout": "Uitloggen",
-  "errorLogout": "Fout bij uitloggen"
+  "errorLogout": "Fout bij uitloggen",
+  "routes": "Routes",
+  "routesList": "Toon routes",
+  "routeCreate": "Maak een route"
 }

@@ -229,6 +229,11 @@ class Users(Base):
         back_populates="users",
         cascade="all, delete-orphan",
     )
+    routes = relationship(
+        "Route",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     followers = relationship(
         "Follower",
         back_populates="following",

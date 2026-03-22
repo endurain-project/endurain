@@ -114,6 +114,7 @@ const componentPaths = {
   healthView: 'healthView.json',
   notFound: 'notFoundView.json',
   searchView: 'searchView.json',
+  routesView: 'routesView.json',
   settingsView: 'settingsView.json',
   userView: 'userView.json',
   summaryView: 'summaryView.json',

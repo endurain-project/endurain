@@ -9,5 +9,8 @@
   "settings": "Nastavitve",
   "login": "Prijava",
   "logout": "Odjava",
-  "errorLogout": "Napaka pri odjavi"
+  "errorLogout": "Napaka pri odjavi",
+  "routes": "Poti",
+  "routesList": "Pokaži poti",
+  "routeCreate": "Ustvari pot"
 }

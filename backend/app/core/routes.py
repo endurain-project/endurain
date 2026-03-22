@@ -44,6 +44,7 @@ import users.users_identity_providers.router as user_identity_providers_router
 import users.users.public_router as users_public_router
 import users.users_default_gear.router as user_default_gear_router
 import websocket.router as websocket_router
+import routes.router as routes_router
 
 
 router = APIRouter()
@@ -291,6 +292,12 @@ router.include_router(
     users_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/users",
     tags=["public_users"],
+)
+router.include_router(
+    routes_router.router,
+    prefix=core_config.ROOT_PATH + "/routes",
+    tags=["routes"],
+    dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
     core_router.router,
