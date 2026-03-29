@@ -12,15 +12,14 @@ from uuid import uuid4
 from math import atan2, cos, radians, sin, sqrt
 
 from core.database import SessionLocal, get_db
+import core.logger as core_logger
+from core.file_uploads import validate_and_read_gpx_file
 import auth.security as auth_security
-from users.users.models import Users
-from routes.models import Route
-from routes.schemas import RouteCreate, RouteUpdate, RouteResponse
+from routes.models import Route, RouteImportJob
+from routes.schemas import RouteCreate, RouteUpdate, RouteResponse, RouteSearchSuggestionResponse
 
 router = APIRouter()
 GEOCODE_CACHE: dict[str, str] = {}
-ROUTE_IMPORT_JOBS: dict[str, dict] = {}
-ROUTE_IMPORT_LOCK = asyncio.Lock()
 
 MAX_GPX_IMPORT_SIZE_BYTES = 10 * 1024 * 1024
 MAX_GPX_IMPORT_POINTS = 250000
@@ -435,25 +434,47 @@ def _normalize_route_data_for_storage(route_data: dict) -> dict:
     return route_data_safe
 
 
+def _set_route_import_job_sync(db: Session, job_id: str, payload: dict) -> None:
+    job = db.query(RouteImportJob).filter(RouteImportJob.job_id == job_id).first()
+    if not job:
+        job = RouteImportJob(job_id=job_id)
+        db.add(job)
+    
+    if "status" in payload:
+        job.status = payload["status"]
+    if "user_id" in payload:
+        job.user_id = payload["user_id"]
+    if "route_id" in payload:
+        job.route_id = payload["route_id"]
+    if "error" in payload:
+        job.error = payload["error"]
+        
+    db.commit()
+
+
 async def _set_route_import_job(
     job_id: str,
     payload: dict,
 ) -> None:
-    """Stores GPX import job state with periodic cleanup."""
-
-    now_ts = datetime.utcnow().timestamp()
-    async with ROUTE_IMPORT_LOCK:
-        stale_job_ids = [
-            jid
-            for jid, state in ROUTE_IMPORT_JOBS.items()
-            if now_ts - float(state.get("updated_at", now_ts))
-            > ROUTE_IMPORT_JOB_TTL_SECONDS
-        ]
-        for stale_job_id in stale_job_ids:
-            ROUTE_IMPORT_JOBS.pop(stale_job_id, None)
-
-        payload["updated_at"] = now_ts
-        ROUTE_IMPORT_JOBS[job_id] = payload
+    """Stores GPX import job state in the database."""
+    def _update_db():
+        db = SessionLocal()
+        try:
+            _set_route_import_job_sync(db, job_id, payload)
+            
+            # Clean up old jobs (older than ROUTE_IMPORT_JOB_TTL_SECONDS)
+            cutoff_time = datetime.utcnow().timestamp() - ROUTE_IMPORT_JOB_TTL_SECONDS
+            cutoff_dt = datetime.utcfromtimestamp(cutoff_time)
+            
+            # Use raw filter for old jobs
+            db.query(RouteImportJob).filter(
+                RouteImportJob.updated_at < cutoff_dt
+            ).delete()
+            db.commit()
+        finally:
+            db.close()
+            
+    await asyncio.to_thread(_update_db)
 
 
 async def _run_route_gpx_import_job(
@@ -474,41 +495,48 @@ async def _run_route_gpx_import_job(
         },
     )
 
-    db = SessionLocal()
-    try:
-        route_name, full_coordinates = _parse_gpx_document(xml_text, filename)
-        optimized_coordinates = _optimize_coordinates(
-            full_coordinates,
-            max_points=MAX_EDITOR_COORDINATES,
-            tolerance_m=4.0,
-        )
-        distance, elevation_gain = _compute_distance_and_elevation(full_coordinates)
-        waypoints = _build_waypoints_from_coordinates(optimized_coordinates)
+    def _sync_parse_and_save() -> int:
+        db = SessionLocal()
+        try:
+            route_name, full_coordinates = _parse_gpx_document(xml_text, filename)
+            optimized_coordinates = _optimize_coordinates(
+                full_coordinates,
+                max_points=MAX_EDITOR_COORDINATES,
+                tolerance_m=4.0,
+            )
+            distance, elevation_gain = _compute_distance_and_elevation(full_coordinates)
+            waypoints = _build_waypoints_from_coordinates(optimized_coordinates)
 
-        route = Route(
-            user_id=user_id,
-            name=route_name,
-            description="",
-            activity_type="other",
-            sub_type=None,
-            distance=float(distance),
-            elevation_gain=float(elevation_gain),
-            route_data={
-                "waypoints": waypoints,
-                "coordinates": optimized_coordinates,
-                "coordinates_full": full_coordinates,
-            },
-        )
-        db.add(route)
-        db.commit()
-        db.refresh(route)
+            route = Route(
+                user_id=user_id,
+                name=route_name,
+                description="",
+                activity_type="other",
+                sub_type=None,
+                distance=float(distance),
+                elevation_gain=float(elevation_gain),
+                route_data={
+                    "waypoints": waypoints,
+                    "coordinates": optimized_coordinates,
+                    "coordinates_full": full_coordinates,
+                },
+            )
+            db.add(route)
+            db.commit()
+            db.refresh(route)
+            return route.id
+        finally:
+            db.close()
+
+    try:
+        route_id = await asyncio.to_thread(_sync_parse_and_save)
 
         await _set_route_import_job(
             job_id,
             {
                 "status": "completed",
                 "user_id": user_id,
-                "route_id": route.id,
+                "route_id": route_id,
                 "error": None,
             },
         )
@@ -523,17 +551,20 @@ async def _run_route_gpx_import_job(
             },
         )
     except Exception as err:
+        core_logger.print_to_log_and_console(
+            f"Unexpected error during GPX import job {job_id}: {err}",
+            "error",
+            exc=err,
+        )
         await _set_route_import_job(
             job_id,
             {
                 "status": "failed",
                 "user_id": user_id,
                 "route_id": None,
-                "error": str(err),
+                "error": "An unexpected error occurred while processing the GPX file.",
             },
         )
-    finally:
-        db.close()
 
 
 def _build_safe_gpx_filename(route_name: str) -> str:
@@ -687,33 +718,8 @@ async def import_route_from_gpx(
 ):
     """Schedules a GPX route import job processed in background."""
 
+    xml_text = await validate_and_read_gpx_file(file, max_size_bytes=MAX_GPX_IMPORT_SIZE_BYTES)
     filename = (file.filename or "").strip()
-    if not filename.lower().endswith(".gpx"):
-        raise HTTPException(
-            status_code=422,
-            detail="Only .gpx files are supported",
-        )
-
-    file_bytes = await file.read()
-    if not file_bytes:
-        raise HTTPException(
-            status_code=422,
-            detail="Empty GPX file",
-        )
-
-    if len(file_bytes) > MAX_GPX_IMPORT_SIZE_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail="GPX file is too large",
-        )
-
-    try:
-        xml_text = file_bytes.decode("utf-8-sig")
-    except UnicodeDecodeError as err:
-        raise HTTPException(
-            status_code=422,
-            detail="Invalid GPX encoding",
-        ) from err
 
     job_id = uuid4().hex
     await _set_route_import_job(
@@ -744,20 +750,20 @@ async def import_route_from_gpx(
 async def get_route_gpx_import_status(
     job_id: str,
     token_user_id: int = Depends(auth_security.get_sub_from_access_token),
+    db: Session = Depends(get_db),
 ):
     """Returns current status for a GPX route import job."""
 
-    async with ROUTE_IMPORT_LOCK:
-        job = ROUTE_IMPORT_JOBS.get(job_id)
+    job = db.query(RouteImportJob).filter(RouteImportJob.job_id == job_id).first()
 
-    if not job or int(job.get("user_id", -1)) != token_user_id:
+    if not job or job.user_id != token_user_id:
         raise HTTPException(status_code=404, detail="Import job not found")
 
     return RouteImportStatusResponse(
-        job_id=job_id,
-        status=str(job.get("status", "failed")),
-        route_id=job.get("route_id"),
-        error=job.get("error"),
+        job_id=job.job_id,
+        status=job.status,
+        route_id=job.route_id,
+        error=job.error,
     )
 
 @router.get("/", response_model=List[RouteResponse])
@@ -920,3 +926,73 @@ async def export_route_gpx(
             )
         },
     )
+
+@router.get("/geocoding/search", response_model=list[RouteSearchSuggestionResponse])
+async def search_locations(
+    q: str,
+    lang: str = "en",
+    token_user_id: int = Depends(auth_security.get_sub_from_access_token),
+):
+    """
+    Search for locations using Nominatim API (proxied to avoid client-side CORS/rate limit issues).
+    """
+    trimmed_query = q.strip()
+    if not trimmed_query:
+        return []
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={
+                    "format": "jsonv2",
+                    "addressdetails": "1",
+                    "limit": "5",
+                    "q": trimmed_query,
+                    "accept-language": lang,
+                },
+                headers={
+                    "User-Agent": "EndurainApp/1.0"
+                },
+                timeout=10.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            suggestions = []
+            if isinstance(data, list):
+                for item in data[:5]:
+                    address = item.get("address", {})
+                    
+                    main_label = (
+                        item.get("name") or 
+                        address.get("city") or 
+                        address.get("town") or 
+                        address.get("village") or 
+                        address.get("municipality") or 
+                        address.get("road") or 
+                        (item.get("display_name", "").split(",")[0] if item.get("display_name") else "Search result")
+                    )
+                    
+                    meta_parts = [
+                        address.get("city") or address.get("town") or address.get("village") or address.get("municipality"),
+                        address.get("county") or address.get("state_district") or address.get("state"),
+                        address.get("country"),
+                        address.get("postcode")
+                    ]
+                    
+                    meta_str = " • ".join(filter(None, meta_parts))
+                    
+                    suggestions.append({
+                        "id": str(item.get("place_id", uuid4().hex)),
+                        "label": main_label,
+                        "meta": meta_str,
+                        "lat": float(item.get("lat", 0)),
+                        "lon": float(item.get("lon", 0))
+                    })
+                    
+            return suggestions
+            
+    except Exception as e:
+        core_logger.print_to_log_and_console(f"Nominatim search error: {e}", "error")
+        return []

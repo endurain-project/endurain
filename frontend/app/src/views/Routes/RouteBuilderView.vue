@@ -17,16 +17,16 @@
           <button class="btn btn-outline-secondary me-3" @click="redo" :disabled="!canRedo">
             <font-awesome-icon :icon="['fas', 'redo']" /> {{ $t('routesView.btn_redo') }}
           </button>
-          <button class="btn btn-primary" @click="showSaveModal = true" :disabled="waypoints.length < 2">
-            <font-awesome-icon :icon="['fas', 'save']" /> {{ isEditMode ? t('routesView.btn_save_edit') : t('routesView.btn_save') }}
+          <button class="btn btn-primary" @click="openSaveModal" :disabled="waypoints.length < 2">
+            <font-awesome-icon :icon="['fas', 'save']" />
+            {{ isEditMode ? t('routesView.btn_save_edit') : t('routesView.btn_save') }}
           </button>
         </div>
       </div>
     </div>
 
-    <div class="row flex-grow-1" style="min-height: 60vh;">
+    <div class="row flex-grow-1" style="min-height: 60vh">
       <div class="col-12 h-100 position-relative d-flex flex-column">
-        
         <div class="mb-2 d-flex">
           <div class="route-search position-relative w-100">
             <div class="input-group shadow-sm">
@@ -44,9 +44,18 @@
                 aria-autocomplete="list"
                 :aria-expanded="showSearchSuggestions"
                 aria-controls="route-search-suggestions"
+              />
+              <button
+                class="btn btn-primary"
+                type="button"
+                @click="searchLocation"
+                :disabled="isSearching"
+                :aria-label="$t('routesView.search_button_aria')"
               >
-              <button class="btn btn-primary" type="button" @click="searchLocation" :disabled="isSearching" :aria-label="$t('routesView.search_button_aria')">
-                <font-awesome-icon :icon="['fas', isSearching ? 'spinner' : 'search']" :class="{'fa-spin': isSearching}" />
+                <font-awesome-icon
+                  :icon="['fas', isSearching ? 'spinner' : 'search']"
+                  :class="{ 'fa-spin': isSearching }"
+                />
               </button>
             </div>
             <div
@@ -55,7 +64,10 @@
               class="list-group route-search-dropdown shadow-sm"
               role="listbox"
             >
-              <div v-if="isSearching && searchSuggestions.length === 0" class="list-group-item text-muted small">
+              <div
+                v-if="isSearching && searchSuggestions.length === 0"
+                class="list-group-item text-muted small"
+              >
                 {{ $t('routesView.search_loading') }}
               </div>
               <button
@@ -74,72 +86,110 @@
 
         <div class="flex-grow-1 position-relative">
           <div id="route-map" class="h-100 w-100 rounded shadow border"></div>
-          
-          <div v-show="isCalculating" class="loading-bar rounded-bottom text-center align-content-center" style="pointer-events:none;"></div>
 
-        
-        <div class="position-absolute bottom-0 start-50 translate-middle-x mb-3 bg-white p-2 rounded shadow-sm d-flex gap-3" style="z-index: 1000;">
-          <div class="form-check form-switch d-flex align-items-center mb-0 text-dark">
-            <input class="form-check-input me-2 mt-0" type="checkbox" role="switch" id="autoRouting" v-model="autoRouting">
-            <label class="form-check-label mb-0" for="autoRouting">
-              {{ $t('routesView.mode_auto') }}
-            </label>
-          </div>
-          <div class="border-start border-secondary ps-3">
-            <span class="text-dark fw-bold">{{ distanceLabel }} km</span>
-          </div>
-          <div class="border-start border-secondary ps-3">
-            <span class="text-dark fw-bold">+{{ elevationGain }} m</span>
-          </div>
-          <div class="border-start border-secondary ps-3">
-            <span class="text-dark fw-bold">-{{ elevationLoss }} m</span>
-          </div>
-          <div v-if="autoRouting" class="border-start border-secondary ps-3 d-flex align-items-center gap-1">
-            <button
-              class="btn btn-sm py-0 px-2"
-              :class="routingMode === 'hybrid' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="setRoutingMode('hybrid')"
-              :title="t('routesView.mode_hybrid')"
+          <div
+            v-show="isCalculating"
+            class="loading-bar rounded-bottom text-center align-content-center"
+            style="pointer-events: none"
+          ></div>
+
+          <div
+            class="position-absolute bottom-0 start-50 translate-middle-x mb-3 bg-white p-2 rounded shadow-sm d-flex gap-3"
+            style="z-index: 1000"
+          >
+            <div class="form-check form-switch d-flex align-items-center mb-0 text-dark">
+              <input
+                class="form-check-input me-2 mt-0"
+                type="checkbox"
+                role="switch"
+                id="autoRouting"
+                v-model="autoRouting"
+              />
+              <label class="form-check-label mb-0" for="autoRouting">
+                {{ $t('routesView.mode_auto') }}
+              </label>
+            </div>
+            <div class="border-start border-secondary ps-3">
+              <span class="text-dark fw-bold">{{ distanceLabel }} km</span>
+            </div>
+            <div class="border-start border-secondary ps-3">
+              <span class="text-dark fw-bold">+{{ elevationGain }} m</span>
+            </div>
+            <div class="border-start border-secondary ps-3">
+              <span class="text-dark fw-bold">-{{ elevationLoss }} m</span>
+            </div>
+            <div
+              v-if="autoRouting"
+              class="border-start border-secondary ps-3 d-flex align-items-center gap-1"
             >
-              <font-awesome-icon :icon="['fas', 'route']" />
-            </button>
-            <button
-              class="btn btn-sm py-0 px-2"
-              :class="routingMode === 'road' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="setRoutingMode('road')"
-              :title="t('routesView.mode_road')"
-            >
-              <font-awesome-icon :icon="['fas', 'road']" />
-            </button>
-            <button
-              class="btn btn-sm py-0 px-2"
-              :class="routingMode === 'path' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="setRoutingMode('path')"
-              :title="t('routesView.mode_path')"
-            >
-              <font-awesome-icon :icon="['fas', 'hiking']" />
-            </button>
+              <button
+                class="btn btn-sm py-0 px-2"
+                :class="routingMode === 'hybrid' ? 'btn-primary' : 'btn-outline-secondary'"
+                @click="setRoutingMode('hybrid')"
+                :title="t('routesView.mode_hybrid')"
+              >
+                <font-awesome-icon :icon="['fas', 'route']" />
+              </button>
+              <button
+                class="btn btn-sm py-0 px-2"
+                :class="routingMode === 'road' ? 'btn-primary' : 'btn-outline-secondary'"
+                @click="setRoutingMode('road')"
+                :title="t('routesView.mode_road')"
+              >
+                <font-awesome-icon :icon="['fas', 'road']" />
+              </button>
+              <button
+                class="btn btn-sm py-0 px-2"
+                :class="routingMode === 'path' ? 'btn-primary' : 'btn-outline-secondary'"
+                @click="setRoutingMode('path')"
+                :title="t('routesView.mode_path')"
+              >
+                <font-awesome-icon :icon="['fas', 'hiking']" />
+              </button>
+            </div>
           </div>
-        </div>
         </div>
       </div>
     </div>
 
-    
-    <div v-if="showSaveModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+    <div
+      ref="saveModalRef"
+      class="modal fade"
+      id="saveRouteModal"
+      tabindex="-1"
+      aria-labelledby="saveRouteModalLabel"
+      aria-hidden="true"
+    >
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">{{ isEditMode ? $t('routesView.title_edit') : $t('routesView.title_create') }}</h5>
-            <button type="button" class="btn-close" @click="showSaveModal = false"></button>
+            <h5 class="modal-title" id="saveRouteModalLabel">
+              {{ isEditMode ? $t('routesView.title_edit') : $t('routesView.title_create') }}
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Close"
+              @click="closeSaveModal"
+            ></button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
-              <label for="routeName" class="form-label">{{ $t('routesView.form_name') }} <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="routeName" v-model="routeForm.name" required>
+              <label for="routeName" class="form-label"
+                >{{ $t('routesView.form_name') }} <span class="text-danger">*</span></label
+              >
+              <input
+                type="text"
+                class="form-control"
+                id="routeName"
+                v-model="routeForm.name"
+                required
+              />
             </div>
             <div class="mb-3">
-              <label for="routeType" class="form-label">{{ $t('routesView.form_type') }} <span class="text-danger">*</span></label>
+              <label for="routeType" class="form-label"
+                >{{ $t('routesView.form_type') }} <span class="text-danger">*</span></label
+              >
               <select class="form-select" id="routeType" v-model="routeForm.activity_type">
                 <option value="cycling">{{ $t('routesView.type_cycling') }}</option>
                 <option value="running">{{ $t('routesView.type_running') }}</option>
@@ -148,7 +198,9 @@
               </select>
             </div>
             <div class="mb-3">
-              <label for="routeSubType" class="form-label">{{ $t('routesView.form_subtype') }}</label>
+              <label for="routeSubType" class="form-label">{{
+                $t('routesView.form_subtype')
+              }}</label>
               <select class="form-select" id="routeSubType" v-model="routeForm.sub_type">
                 <option v-for="option in subTypeOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
@@ -157,14 +209,33 @@
             </div>
             <div class="mb-3">
               <label for="routeDesc" class="form-label">{{ $t('routesView.form_desc') }}</label>
-              <textarea class="form-control" id="routeDesc" rows="3" v-model="routeForm.description"></textarea>
+              <textarea
+                class="form-control"
+                id="routeDesc"
+                rows="3"
+                v-model="routeForm.description"
+              ></textarea>
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="showSaveModal = false">{{ $t('routesView.form_cancel') }}</button>
-            <button type="button" class="btn btn-primary" @click="saveRoute" :disabled="!routeForm.name || isSaving">
-              <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              {{ isEditMode ? t('routesView.form_submit_edit') : t('routesView.form_submit_create') }}
+            <button type="button" class="btn btn-secondary" @click="closeSaveModal">
+              {{ $t('routesView.form_cancel') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              @click="saveRoute"
+              :disabled="!routeForm.name || isSaving"
+            >
+              <span
+                v-if="isSaving"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              {{
+                isEditMode ? t('routesView.form_submit_edit') : t('routesView.form_submit_create')
+              }}
             </button>
           </div>
         </div>
@@ -173,54 +244,70 @@
   </div>
 </template>
 
-<script setup>
-import { useI18n } from 'vue-i18n';
-const { t, locale } = useI18n();
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+const { t, locale } = useI18n()
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { routesService } from '@/services/routesService'
 import { push } from 'notivue'
-
+import { useBootstrapModal } from '@/composables/useBootstrapModal'
 
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
 import iconUrl from 'leaflet/dist/images/marker-icon.png'
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
 
-delete L.Icon.Default.prototype._getIconUrl;
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl,
   iconUrl,
-  shadowUrl,
-});
+  shadowUrl
+})
 
 const router = useRouter()
 const currentRoute = useRoute()
 
+let map: L.Map | null = null
+let polyline: L.Polyline | null = L.polyline([], { color: 'red', weight: 4 })
+let markersLayer: L.LayerGroup | null = L.layerGroup()
 
-let map = null
-let polyline = L.polyline([], { color: 'red', weight: 4 })
-let markersLayer = L.layerGroup()
+interface Waypoint {
+  lat: number
+  lng: number
+  mode?: string
+  segmentGeometry?: [number, number][] | null
+  segmentDistance?: number | null
+}
 
-const OSRM_API = 'https://router.project-osrm.org/route/v1'
-
-const waypoints = ref([])
-const history = ref([])
-const redoHistory = ref([])
+const waypoints = ref<Waypoint[]>([])
+const history = ref<Waypoint[][]>([])
+const redoHistory = ref<Waypoint[][]>([])
 const totalDistance = ref(0)
-const allCoordinates = ref([])
+const allCoordinates = ref<number[][]>([])
 const elevationGain = ref(0)
 const elevationLoss = ref(0)
 
 const autoRouting = ref(true)
 const routingMode = ref('hybrid')
-const showSaveModal = ref(false)
 const isSaving = ref(false)
-let elevationController = null
+
+const saveModalRef = ref(null)
+const { initializeModal, showModal, hideModal, disposeModal } = useBootstrapModal()
+
+const openSaveModal = () => {
+  showModal()
+}
+
+const closeSaveModal = () => {
+  hideModal()
+}
+let elevationController: AbortController | null = null
 let elevationRequestToken = 0
 let lastElevationKey = ''
-let elevationDebounceTimer = null
+let elevationDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let elevationCooldownUntil = 0
 let lastElevationRateLimitNoticeAt = 0
 const elevationCache = new Map()
@@ -231,7 +318,7 @@ const SEARCH_DEBOUNCE_MS = 350
 const INSERTION_DISTANCE_THRESHOLD_PX = 16
 const ROUTE_SUB_TYPE_OPTIONS = {
   cycling: [
-    { value: 'road', label: t('routesView.subtype_road_running') },
+    { value: 'road', label: t('routesView.subtype_road') },
     { value: 'gravel', label: t('routesView.subtype_gravel') },
     { value: 'mountain_bike', label: t('routesView.subtype_mountain_bike') },
     { value: 'bikepacking', label: t('routesView.subtype_bikepacking') },
@@ -251,19 +338,25 @@ const ROUTE_SUB_TYPE_OPTIONS = {
     { value: 'nordic_walking', label: t('routesView.subtype_nordic_walking') },
     { value: 'other', label: t('routesView.type_other') }
   ],
-  other: [
-    { value: 'other', label: t('routesView.type_other') }
-  ]
+  other: [{ value: 'other', label: t('routesView.type_other') }]
+}
+
+interface SearchSuggestion {
+  id: string | number
+  label: string
+  meta: string
+  lat: number
+  lon: number
 }
 
 const searchQuery = ref('')
-const searchSuggestions = ref([])
+const searchSuggestions = ref<SearchSuggestion[]>([])
 const showSearchSuggestions = ref(false)
 const isSearching = ref(false)
 const isCalculating = ref(false)
-let searchSuggestionsController = null
-let searchSuggestionsDebounceTimer = null
-let searchSuggestionHideTimer = null
+let searchSuggestionsController: AbortController | null = null
+let searchSuggestionsDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let searchSuggestionHideTimer: ReturnType<typeof setTimeout> | null = null
 
 const routeForm = ref({
   name: '',
@@ -274,12 +367,14 @@ const routeForm = ref({
 const loadedRouteId = ref(null)
 
 const isEditMode = computed(() => Boolean(currentRoute.params.id))
-const pageTitle = computed(() => isEditMode.value ? t('routesView.title_edit') : t('routesView.title_create'))
+const pageTitle = computed(() =>
+  isEditMode.value ? t('routesView.title_edit') : t('routesView.title_create')
+)
 
 const subTypeOptions = computed(() => {
-  return ROUTE_SUB_TYPE_OPTIONS[routeForm.value.activity_type] || []
+  const activityType = routeForm.value.activity_type as keyof typeof ROUTE_SUB_TYPE_OPTIONS
+  return ROUTE_SUB_TYPE_OPTIONS[activityType] || []
 })
-
 
 const startIcon = L.divIcon({
   className: 'custom-div-icon',
@@ -302,7 +397,7 @@ const loopEndIcon = L.divIcon({
   iconAnchor: [8, 8]
 })
 
-const canUndo = computed(() => waypoints.value.length > 0)
+const canUndo = computed(() => history.value.length > 0)
 const canRedo = computed(() => redoHistory.value.length > 0)
 const distanceLabel = computed(() => (totalDistance.value / 1000).toFixed(2))
 const isLoopClosed = computed(() => {
@@ -312,6 +407,7 @@ const isLoopClosed = computed(() => {
 
   const first = waypoints.value[0]
   const last = waypoints.value[waypoints.value.length - 1]
+  if (!first || !last) return false
   return first.lat === last.lat && first.lng === last.lng
 })
 
@@ -327,9 +423,17 @@ const invalidateRoutingSegments = () => {
   })
 }
 
-const buildSearchSuggestion = (item) => {
+const buildSearchSuggestion = (item: any) => {
   const address = item.address || {}
-  const mainLabel = item.name || address.city || address.town || address.village || address.municipality || address.road || item.display_name?.split(',')?.[0] || t('routesView.search_result')
+  const mainLabel =
+    item.name ||
+    address.city ||
+    address.town ||
+    address.village ||
+    address.municipality ||
+    address.road ||
+    item.display_name?.split(',')?.[0] ||
+    t('routesView.search_result')
   const metaParts = [
     address.city || address.town || address.village || address.municipality,
     address.county || address.state_district || address.state,
@@ -346,7 +450,7 @@ const buildSearchSuggestion = (item) => {
   }
 }
 
-const fetchSearchSuggestions = async (query) => {
+const fetchSearchSuggestions = async (query: string) => {
   const trimmedQuery = query.trim()
   if (!trimmedQuery) {
     searchSuggestions.value = []
@@ -379,11 +483,13 @@ const fetchSearchSuggestions = async (query) => {
     }
 
     const data = await response.json()
-    const suggestions = Array.isArray(data) ? data.slice(0, SEARCH_SUGGESTIONS_LIMIT).map(buildSearchSuggestion) : []
+    const suggestions = Array.isArray(data)
+      ? data.slice(0, SEARCH_SUGGESTIONS_LIMIT).map(buildSearchSuggestion)
+      : []
     searchSuggestions.value = suggestions
     showSearchSuggestions.value = suggestions.length > 0
     return suggestions
-  } catch (err) {
+  } catch (err: any) {
     if (err?.name !== 'AbortError') {
       console.error(err)
       searchSuggestions.value = []
@@ -431,7 +537,7 @@ const scheduleHideSearchSuggestions = () => {
   }, 150)
 }
 
-const selectSearchSuggestion = (suggestion) => {
+const selectSearchSuggestion = (suggestion: SearchSuggestion) => {
   searchQuery.value = suggestion.label
   showSearchSuggestions.value = false
 
@@ -444,7 +550,7 @@ const searchLocation = async () => {
   if (!searchQuery.value.trim()) return
 
   const suggestions = await fetchSearchSuggestions(searchQuery.value)
-  if (suggestions.length > 0) {
+  if (suggestions.length > 0 && suggestions[0]) {
     selectSearchSuggestion(suggestions[0])
     return
   }
@@ -473,7 +579,10 @@ const loadRouteForEditing = async () => {
 
     const coordinates = response.route_data?.coordinates || []
     if (map && coordinates.length > 1) {
-      const latLngs = coordinates.map((coordinate) => [coordinate[1], coordinate[0]])
+      const latLngs = coordinates.map((coordinate: [number, number, number?]) => [
+        coordinate[1],
+        coordinate[0]
+      ] as [number, number])
       map.fitBounds(latLngs, { padding: [30, 30] })
     }
   } catch (error) {
@@ -483,10 +592,9 @@ const loadRouteForEditing = async () => {
   }
 }
 
-
 const getRoutingBaseUrl = () => {
   const FOSSGIS = 'https://routing.openstreetmap.de'
-  const OSRM    = 'https://router.project-osrm.org/route/v1'
+  const OSRM = 'https://router.project-osrm.org/route/v1'
 
   const isFoot =
     routeForm.value.activity_type === 'running' ||
@@ -494,9 +602,7 @@ const getRoutingBaseUrl = () => {
     routeForm.value.activity_type === 'other'
 
   if (isFoot) {
-    return routingMode.value === 'road'
-      ? `${OSRM}/foot`
-      : `${FOSSGIS}/routed-foot/route/v1/driving`
+    return routingMode.value === 'road' ? `${OSRM}/foot` : `${FOSSGIS}/routed-foot/route/v1/driving`
   }
 
   if (routingMode.value === 'road') return `${OSRM}/cycling`
@@ -504,27 +610,27 @@ const getRoutingBaseUrl = () => {
   return `${FOSSGIS}/routed-bike/route/v1/driving`
 }
 
-const setRoutingMode = (mode) => {
+const setRoutingMode = (mode: string) => {
   if (routingMode.value === mode) return
   routingMode.value = mode
   invalidateRoutingSegments()
   updateMapVisuals()
 }
 
-const getWaypointSegmentLatLngs = (prevWaypoint, currentWaypoint) => {
+const getWaypointSegmentLatLngs = (prevWaypoint: Waypoint, currentWaypoint: Waypoint) => {
   if (
     currentWaypoint.mode === 'auto' &&
     Array.isArray(currentWaypoint.segmentGeometry) &&
     currentWaypoint.segmentGeometry.length > 1
   ) {
     return currentWaypoint.segmentGeometry
-      .map((coord) => {
+      .map((coord: number[]) => {
         if (!Array.isArray(coord) || coord.length < 2) {
           return null
         }
         return L.latLng(Number(coord[1]), Number(coord[0]))
       })
-      .filter((coord) => coord !== null)
+      .filter((coord: L.LatLng | null): coord is L.LatLng => coord !== null)
   }
 
   return [
@@ -533,7 +639,7 @@ const getWaypointSegmentLatLngs = (prevWaypoint, currentWaypoint) => {
   ]
 }
 
-const getInsertionIndexFromClick = (clickLatLng) => {
+const getInsertionIndexFromClick = (clickLatLng: L.LatLng) => {
   if (!map || waypoints.value.length < 2) {
     return -1
   }
@@ -543,13 +649,16 @@ const getInsertionIndexFromClick = (clickLatLng) => {
   let insertionIndex = -1
 
   for (let waypointIndex = 1; waypointIndex < waypoints.value.length; waypointIndex++) {
-    const previousWaypoint = waypoints.value[waypointIndex - 1]
-    const currentWaypoint = waypoints.value[waypointIndex]
+    const previousWaypoint = waypoints.value[waypointIndex - 1] as Waypoint
+    const currentWaypoint = waypoints.value[waypointIndex] as Waypoint
     const segmentLatLngs = getWaypointSegmentLatLngs(previousWaypoint, currentWaypoint)
 
     for (let segmentIndex = 1; segmentIndex < segmentLatLngs.length; segmentIndex++) {
-      const pointA = map.latLngToContainerPoint(segmentLatLngs[segmentIndex - 1])
-      const pointB = map.latLngToContainerPoint(segmentLatLngs[segmentIndex])
+      const p1 = segmentLatLngs[segmentIndex - 1]
+      const p2 = segmentLatLngs[segmentIndex]
+      if (!p1 || !p2) continue
+      const pointA = map.latLngToContainerPoint(p1)
+      const pointB = map.latLngToContainerPoint(p2)
       const distanceToSegment = L.LineUtil.pointToSegmentDistance(clickPoint, pointA, pointB)
 
       if (distanceToSegment < closestDistance) {
@@ -562,24 +671,26 @@ const getInsertionIndexFromClick = (clickLatLng) => {
   return closestDistance <= INSERTION_DISTANCE_THRESHOLD_PX ? insertionIndex : -1
 }
 
-const buildSampledCoordinates = (coordinates, maxPoints = 96) => {
+const buildSampledCoordinates = (coordinates: [number, number][], maxPoints = 96) => {
   if (coordinates.length <= maxPoints) {
     return coordinates
   }
 
-  const sampled = []
+  const sampled: [number, number][] = []
   const step = (coordinates.length - 1) / (maxPoints - 1)
   for (let i = 0; i < maxPoints; i++) {
-    sampled.push(coordinates[Math.round(i * step)])
+    const idx = Math.round(i * step)
+    const coord = coordinates[idx]
+    if (coord) sampled.push(coord)
   }
 
   return sampled
 }
 
-const normalizeCoordinates = (coordinates) => {
-  const normalized = []
+const normalizeCoordinates = (coordinates: any[]) => {
+  const normalized: [number, number][] = []
 
-  coordinates.forEach((coord) => {
+  coordinates.forEach((coord: any) => {
     if (!Array.isArray(coord) || coord.length < 2) {
       return
     }
@@ -601,12 +712,12 @@ const normalizeCoordinates = (coordinates) => {
   return normalized
 }
 
-const splitCoordinatesForElevation = (coordinates, chunkSize = 80) => {
+const splitCoordinatesForElevation = (coordinates: [number, number][], chunkSize = 80) => {
   if (coordinates.length <= chunkSize) {
     return [coordinates]
   }
 
-  const chunks = []
+  const chunks: [number, number][][] = []
   const step = Math.max(2, chunkSize - 1)
   for (let start = 0; start < coordinates.length; start += step) {
     const end = Math.min(start + chunkSize, coordinates.length)
@@ -620,7 +731,7 @@ const splitCoordinatesForElevation = (coordinates, chunkSize = 80) => {
   return chunks
 }
 
-const parseRetryAfterMs = (response) => {
+const parseRetryAfterMs = (response: Response) => {
   const retryAfterHeader = response.headers.get('Retry-After')
   const retryAfterSeconds = Number(retryAfterHeader)
   if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
@@ -630,7 +741,7 @@ const parseRetryAfterMs = (response) => {
   return ELEVATION_COOLDOWN_MS
 }
 
-const fetchElevationChunk = async (chunk, signal) => {
+const fetchElevationChunk = async (chunk: [number, number][], signal: AbortSignal) => {
   const latitude = chunk.map((coord) => coord[1].toFixed(6)).join(',')
   const longitude = chunk.map((coord) => coord[0].toFixed(6)).join(',')
   const queryParams = new URLSearchParams({ latitude, longitude })
@@ -663,32 +774,36 @@ const fetchElevationChunk = async (chunk, signal) => {
   }
 }
 
-
-const applyElevationsToAllCoordinates = (baseCoords, sampledCoords, elevations) => {
-  if (!elevations || elevations.length !== sampledCoords.length) return baseCoords;
-  let sIdx = 0;
+const applyElevationsToAllCoordinates = (
+  baseCoords: [number, number][],
+  sampledCoords: [number, number][],
+  elevations: number[] | undefined | null
+) => {
+  if (!elevations || elevations.length !== sampledCoords.length) return baseCoords
+  
+  let sIdx = 0
   return baseCoords.map((coord) => {
-    let bestDist = Infinity;
-    let bestIdx = sIdx;
+    let bestDist = Infinity
+    let bestIdx = sIdx
     for (let i = sIdx; i < sampledCoords.length; i++) {
-       let dx = coord[0] - sampledCoords[i][0];
-       let dy = coord[1] - sampledCoords[i][1];
-       let dist = dx*dx + dy*dy;
-       if (dist < bestDist) {
-         bestDist = dist;
-         bestIdx = i;
-       }
-       if (dist > bestDist + 0.0001) break;
+      const sCoord = sampledCoords[i]
+      if (!sCoord) continue
+      let dx = coord[0] - sCoord[0]
+      let dy = coord[1] - sCoord[1]
+      let dist = dx * dx + dy * dy
+      if (dist < bestDist) {
+        bestDist = dist
+        bestIdx = i
+      }
+      if (dist > bestDist + 0.0001) break
     }
-    sIdx = bestIdx;
-    let ele = elevations[sIdx] || 0;
-    return [coord[0], coord[1], ele];
-  });
-};
+    sIdx = bestIdx
+    let ele = elevations[sIdx] || 0
+    return [coord[0], coord[1], ele]
+  })
+}
 
 const updateElevation = async () => {
-
-
   if (elevationDebounceTimer) {
     clearTimeout(elevationDebounceTimer)
   }
@@ -710,7 +825,7 @@ const updateElevation = async () => {
       return
     }
 
-    const sampledCoordinates = normalizeCoordinates(buildSampledCoordinates(allCoordinates.value))
+    const sampledCoordinates = normalizeCoordinates(buildSampledCoordinates(allCoordinates.value as [number, number][]))
     if (sampledCoordinates.length < 2) {
       elevationGain.value = 0
       elevationLoss.value = 0
@@ -748,9 +863,10 @@ const updateElevation = async () => {
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i]
+        if (!chunk) continue
         const result = await fetchElevationChunk(chunk, elevationController.signal)
 
-        if (result.rateLimited) {
+        if (result.rateLimited && result.retryAfterMs !== undefined) {
           elevationCooldownUntil = Date.now() + result.retryAfterMs
           const now = Date.now()
           if (now - lastElevationRateLimitNoticeAt > 15000) {
@@ -762,11 +878,10 @@ const updateElevation = async () => {
           return
         }
 
-
         if (i === 0) {
-          elevations.push(...result.values)
+          if (result.values) elevations.push(...result.values)
         } else {
-          elevations.push(...result.values.slice(1))
+          if (result.values) elevations.push(...result.values.slice(1))
         }
       }
 
@@ -794,13 +909,17 @@ const updateElevation = async () => {
 
       elevationGain.value = Math.round(gain)
       elevationLoss.value = Math.round(loss)
-      allCoordinates.value = applyElevationsToAllCoordinates(allCoordinates.value, sampledCoordinates, elevations)
+      allCoordinates.value = applyElevationsToAllCoordinates(
+        allCoordinates.value as [number, number][],
+        sampledCoordinates as [number, number][],
+        elevations
+      )
       elevationCache.set(elevationKey, {
         gain: elevationGain.value,
         loss: elevationLoss.value
       })
     } catch (error) {
-      if (error?.name !== 'AbortError') {
+      if ((error as Error)?.name !== 'AbortError') {
         lastElevationKey = ''
         elevationGain.value = 0
         elevationLoss.value = 0
@@ -811,7 +930,6 @@ const updateElevation = async () => {
 
 const updateMapVisuals = async () => {
   isCalculating.value = true
-
 
   markersLayer.clearLayers()
   polyline.setLatLngs([])
@@ -826,120 +944,126 @@ const updateMapVisuals = async () => {
     return
   }
 
-
   waypoints.value.forEach((wp, index) => {
     const isStart = index === 0
     const isLoopEnd = isLoopClosed.value && index === waypoints.value.length - 1
     const marker = L.marker([wp.lat, wp.lng], {
-        icon: isStart ? startIcon : (isLoopEnd ? loopEndIcon : defaultIcon),
-        draggable: true
-      })
-
-      marker.on('contextmenu', () => {
-        saveState()
-        waypoints.value.splice(index, 1)
-        if (index > 0 && waypoints.value[index - 1]) {
-           waypoints.value[index - 1].segmentGeometry = null
-        }
-        updateMapVisuals()
-      })
-
-      marker.on('dragend', (e) => {
-      saveState()
-      const newPos = e.target.getLatLng()
-      waypoints.value[index].lat = newPos.lat
-      waypoints.value[index].lng = newPos.lng
-
-
-        if (waypoints.value[index]) {
-          waypoints.value[index].segmentGeometry = null
-        }
-
-        if (index + 1 < waypoints.value.length) {
-          waypoints.value[index + 1].segmentGeometry = null
-        }
-        updateMapVisuals()
-      })
-
-      markersLayer.addLayer(marker)
-
-
-      if(index === 0) {
-        allCoordinates.value.push([wp.lng, wp.lat])
-      }
+      icon: isStart ? startIcon : isLoopEnd ? loopEndIcon : defaultIcon,
+      draggable: true
     })
 
-
-    let currentAccumulatedLatLngs = [L.latLng(waypoints.value[0].lat, waypoints.value[0].lng)]
-    let tempDistance = 0;
-    let tempCoordinates = waypoints.value.length > 0 ? [[waypoints.value[0].lng, waypoints.value[0].lat]] : [];
-
-    const tempFallbackLine = (prev, curr, polylinePointsArray) => {
-      const p1 = L.latLng(prev.lat, prev.lng)
-      const p2 = L.latLng(curr.lat, curr.lng)
-      tempDistance += p1.distanceTo(p2)
-      tempCoordinates.push([curr.lng, curr.lat])
-      polylinePointsArray.push(p2)
-    }
-
-    for (let i = 1; i < waypoints.value.length; i++) {
-      const prev = waypoints.value[i-1]
-      const curr = waypoints.value[i]
-
-      if (curr.mode === 'auto') {
-        if (!curr.segmentGeometry) {
-          try {
-
-            const baseUrl = getRoutingBaseUrl()
-            const fetchUrl = `${baseUrl}/${prev.lng},${prev.lat};${curr.lng},${curr.lat}?overview=full&geometries=geojson`
-
-
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 3000)
-
-
-            const response = await fetch(fetchUrl, {
-              signal: controller.signal
-            })
-            clearTimeout(timeoutId)
-
-            const data = await response.json()
-
-            if (data.code === 'Ok') {
-              const route = data.routes[0]
-              curr.segmentDistance = route.distance
-              curr.segmentGeometry = route.geometry.coordinates
-            } else {
-              curr.segmentGeometry = 'fallback'
-            }
-          } catch (err) {
-            console.error('OSRM API Erreur', err)
-             curr.segmentGeometry = 'fallback'
-          }
-        }
-
-        if (curr.segmentGeometry && curr.segmentGeometry !== 'fallback') {
-           tempDistance += curr.segmentDistance || 0
-           const coords = curr.segmentGeometry
-
-           for (let j = 1; j < coords.length; j++) {
-             tempCoordinates.push([coords[j][0], coords[j][1]])
-             currentAccumulatedLatLngs.push(L.latLng(coords[j][1], coords[j][0]))
-           }
-        } else {
-            tempFallbackLine(prev, curr, currentAccumulatedLatLngs)
-         }
-      } else {
-         tempFallbackLine(prev, curr, currentAccumulatedLatLngs)
+    marker.on('contextmenu', () => {
+      saveState()
+      waypoints.value.splice(index, 1)
+      const prevWaypoint = waypoints.value[index - 1]
+      if (index > 0 && prevWaypoint) {
+        prevWaypoint.segmentGeometry = null
+        prevWaypoint.segmentDistance = null
       }
-    }
+      updateMapVisuals()
+    })
 
-    totalDistance.value = tempDistance;
-    allCoordinates.value = tempCoordinates;
-    polyline.setLatLngs(currentAccumulatedLatLngs);
-    updateElevation()
-    isCalculating.value = false;
+    marker.on('dragend', (e) => {
+      saveState()
+      const newPos = e.target.getLatLng()
+      const currentWp = waypoints.value[index]
+      if (currentWp) {
+        currentWp.lat = newPos.lat
+        currentWp.lng = newPos.lng
+        currentWp.segmentGeometry = null
+        currentWp.segmentDistance = null
+      }
+
+      const nextWp = waypoints.value[index + 1]
+      if (index + 1 < waypoints.value.length && nextWp) {
+        nextWp.segmentGeometry = null
+        nextWp.segmentDistance = null
+      }
+      updateMapVisuals()
+    })
+
+    markersLayer.addLayer(marker)
+
+    if (index === 0) {
+      allCoordinates.value.push([wp.lng, wp.lat])
+    }
+  })
+
+  let currentAccumulatedLatLngs: L.LatLng[] = waypoints.value.length > 0 && waypoints.value[0] 
+    ? [L.latLng(waypoints.value[0].lat, waypoints.value[0].lng)] 
+    : []
+  let tempDistance = 0
+  let tempCoordinates: [number, number][] =
+    waypoints.value.length > 0 && waypoints.value[0] ? [[waypoints.value[0].lng, waypoints.value[0].lat]] : []
+
+  const tempFallbackLine = (prev: Waypoint, curr: Waypoint, polylinePointsArray: L.LatLng[]) => {
+    const p1 = L.latLng(prev.lat, prev.lng)
+    const p2 = L.latLng(curr.lat, curr.lng)
+    tempDistance += p1.distanceTo(p2)
+    tempCoordinates.push([curr.lng, curr.lat])
+    polylinePointsArray.push(p2)
   }
+
+  for (let i = 1; i < waypoints.value.length; i++) {
+    const prev = waypoints.value[i - 1]
+    const curr = waypoints.value[i]
+    if (!prev || !curr) continue
+
+    if (curr.mode === 'auto') {
+      if (!curr.segmentGeometry) {
+        try {
+          const baseUrl = getRoutingBaseUrl()
+          const fetchUrl = `${baseUrl}/${prev.lng},${prev.lat};${curr.lng},${curr.lat}?overview=full&geometries=geojson`
+
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 3000)
+
+          const response = await fetch(fetchUrl, {
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+
+          const data = await response.json()
+
+          if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            const route = data.routes[0]
+            curr.segmentDistance = route.distance
+            curr.segmentGeometry = route.geometry.coordinates
+          } else {
+            curr.segmentGeometry = null
+            tempFallbackLine(prev, curr, currentAccumulatedLatLngs)
+          }
+        } catch (err) {
+          console.error('OSRM API Erreur', err)
+          curr.segmentGeometry = null
+          tempFallbackLine(prev, curr, currentAccumulatedLatLngs)
+        }
+      }
+
+      if (curr.segmentGeometry && Array.isArray(curr.segmentGeometry)) {
+        tempDistance += curr.segmentDistance || 0
+        const coords = curr.segmentGeometry as [number, number][]
+
+        for (let j = 1; j < coords.length; j++) {
+          const coord = coords[j]
+          if (!coord) continue
+          tempCoordinates.push([coord[0], coord[1]])
+          currentAccumulatedLatLngs.push(L.latLng(coord[1], coord[0]))
+        }
+      } else if (!curr.segmentGeometry) {
+        tempFallbackLine(prev, curr, currentAccumulatedLatLngs)
+      }
+    } else {
+      tempFallbackLine(prev, curr, currentAccumulatedLatLngs)
+    }
+  }
+
+  totalDistance.value = tempDistance
+  allCoordinates.value = tempCoordinates
+  polyline.setLatLngs(currentAccumulatedLatLngs)
+  updateElevation()
+  isCalculating.value = false
+}
 
 const closeLoop = () => {
   if (waypoints.value.length < 2 || isLoopClosed.value) {
@@ -947,6 +1071,8 @@ const closeLoop = () => {
   }
 
   const startPoint = waypoints.value[0]
+  if (!startPoint) return
+
   saveState()
   waypoints.value.push({
     lat: startPoint.lat,
@@ -961,7 +1087,8 @@ const undo = () => {
   redoHistory.value.push(current)
 
   if (history.value.length > 0) {
-    waypoints.value = history.value.pop()
+    const prevState = history.value.pop()
+    waypoints.value = prevState ? prevState : []
   } else {
     waypoints.value = []
   }
@@ -971,17 +1098,18 @@ const undo = () => {
 const redo = () => {
   if (!canRedo.value) return
   history.value.push(JSON.parse(JSON.stringify(waypoints.value)))
-  waypoints.value = redoHistory.value.pop()
+  const nextState = redoHistory.value.pop()
+  waypoints.value = nextState ? nextState : []
   updateMapVisuals()
 }
 
-const onMapClick = (e) => {
+const onMapClick = (e: L.LeafletMouseEvent) => {
   saveState()
   const insertionIndex = getInsertionIndexFromClick(e.latlng)
   const newWaypoint = {
     lat: e.latlng.lat,
     lng: e.latlng.lng,
-    mode: waypoints.value.length === 0 ? 'start' : (autoRouting.value ? 'auto' : 'manual')
+    mode: waypoints.value.length === 0 ? 'start' : autoRouting.value ? 'auto' : 'manual'
   }
 
   if (insertionIndex === -1) {
@@ -992,14 +1120,16 @@ const onMapClick = (e) => {
       mode: autoRouting.value ? 'auto' : 'manual'
     })
 
-    if (waypoints.value[insertionIndex]) {
-      waypoints.value[insertionIndex].segmentGeometry = null
-      waypoints.value[insertionIndex].segmentDistance = null
+    const wp1 = waypoints.value[insertionIndex]
+    if (wp1) {
+      wp1.segmentGeometry = null
+      wp1.segmentDistance = null
     }
 
-    if (waypoints.value[insertionIndex + 1]) {
-      waypoints.value[insertionIndex + 1].segmentGeometry = null
-      waypoints.value[insertionIndex + 1].segmentDistance = null
+    const wp2 = waypoints.value[insertionIndex + 1]
+    if (wp2) {
+      wp2.segmentGeometry = null
+      wp2.segmentDistance = null
     }
   }
 
@@ -1036,18 +1166,23 @@ const saveRoute = async () => {
     push.error(isEditMode.value ? t('routesView.error_update') : t('routesView.error_save'))
   } finally {
     isSaving.value = false
-    showSaveModal.value = false
+    hideModal()
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  if (saveModalRef.value) {
+    await initializeModal(saveModalRef)
+  }
+
   map = L.map('route-map').setView([48.8566, 2.3522], 13)
-  setTimeout(() => { map.invalidateSize() }, 300)
+  setTimeout(() => {
+    map?.invalidateSize()
+  }, 300)
 
-
-  if (!isEditMode.value && "geolocation" in navigator) {
-    navigator.geolocation.getCurrentPosition(position => {
-      map.setView([position.coords.latitude, position.coords.longitude], 13)
+  if (!isEditMode.value && 'geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition((position) => {
+      map?.setView([position.coords.latitude, position.coords.longitude], 13)
     })
   }
 
@@ -1080,6 +1215,10 @@ watch(
 )
 
 onUnmounted(() => {
+  if (saveModalRef.value) {
+    disposeModal()
+  }
+
   if (searchSuggestionsDebounceTimer) {
     clearTimeout(searchSuggestionsDebounceTimer)
   }
@@ -1119,8 +1258,12 @@ onUnmounted(() => {
   z-index: 1000;
 }
 @keyframes loadingBg {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 #route-map {
   cursor: crosshair;
@@ -1137,4 +1280,3 @@ onUnmounted(() => {
   border-radius: 0.75rem;
 }
 </style>
-
