@@ -271,8 +271,8 @@ const router = useRouter()
 const currentRoute = useRoute()
 
 let map: L.Map | null = null
-let polyline: L.Polyline | null = L.polyline([], { color: 'red', weight: 4 })
-let markersLayer: L.LayerGroup | null = L.layerGroup()
+let polyline: L.Polyline = L.polyline([], { color: 'red', weight: 4 })
+let markersLayer: L.LayerGroup = L.layerGroup()
 
 interface Waypoint {
   lat: number
@@ -466,23 +466,10 @@ const fetchSearchSuggestions = async (query: string) => {
   isSearching.value = true
 
   try {
-    const params = new URLSearchParams({
-      format: 'jsonv2',
-      addressdetails: '1',
-      limit: String(SEARCH_SUGGESTIONS_LIMIT),
-      q: trimmedQuery,
-      'accept-language': locale.value
+    const data = await routesService.searchLocations(trimmedQuery, locale.value, {
+      signal: searchSuggestionsController.signal
     })
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
-      { signal: searchSuggestionsController.signal }
-    )
 
-    if (!response.ok) {
-      throw new Error(`Search request failed (${response.status})`)
-    }
-
-    const data = await response.json()
     const suggestions = Array.isArray(data)
       ? data.slice(0, SEARCH_SUGGESTIONS_LIMIT).map(buildSearchSuggestion)
       : []
@@ -955,10 +942,10 @@ const updateMapVisuals = async () => {
     marker.on('contextmenu', () => {
       saveState()
       waypoints.value.splice(index, 1)
-      const prevWaypoint = waypoints.value[index - 1]
-      if (index > 0 && prevWaypoint) {
-        prevWaypoint.segmentGeometry = null
-        prevWaypoint.segmentDistance = null
+      const currentWaypoint = waypoints.value[index]
+      if (currentWaypoint) {
+        currentWaypoint.segmentGeometry = null
+        currentWaypoint.segmentDistance = null
       }
       updateMapVisuals()
     })
@@ -1155,8 +1142,10 @@ const saveRoute = async () => {
       }
     }
 
+    const targetRouteId = loadedRouteId.value || currentRoute.params.id
+
     const response = isEditMode.value
-      ? await routesService.updateRoute(loadedRouteId.value, payload)
+      ? await routesService.updateRoute(targetRouteId, payload)
       : await routesService.createRoute(payload)
     push.success(isEditMode.value ? t('routesView.success_update') : t('routesView.success_create'))
 
@@ -1196,7 +1185,7 @@ onMounted(async () => {
 
   map.on('click', onMapClick)
 
-  loadRouteForEditing()
+  await loadRouteForEditing()
 })
 
 watch(

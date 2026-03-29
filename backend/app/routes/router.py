@@ -10,6 +10,7 @@ import httpx
 from pydantic import BaseModel
 from uuid import uuid4
 from math import atan2, cos, radians, sin, sqrt
+from collections import OrderedDict
 
 from core.database import SessionLocal, get_db
 import core.logger as core_logger
@@ -19,7 +20,8 @@ from routes.models import Route, RouteImportJob
 from routes.schemas import RouteCreate, RouteUpdate, RouteResponse, RouteSearchSuggestionResponse
 
 router = APIRouter()
-GEOCODE_CACHE: dict[str, str] = {}
+GEOCODE_CACHE: OrderedDict[str, str] = OrderedDict()
+MAX_GEOCODE_CACHE_SIZE = 1000
 
 MAX_GPX_IMPORT_SIZE_BYTES = 10 * 1024 * 1024
 MAX_GPX_IMPORT_POINTS = 250000
@@ -610,6 +612,7 @@ async def _reverse_geocode_city(lat: float, lon: float) -> str:
 
     cache_key = _build_geocode_cache_key(lat, lon)
     if cache_key in GEOCODE_CACHE:
+        GEOCODE_CACHE.move_to_end(cache_key)
         return GEOCODE_CACHE[cache_key]
 
     city = ""
@@ -636,6 +639,8 @@ async def _reverse_geocode_city(lat: float, lon: float) -> str:
         city = f"{lat:.3f}, {lon:.3f}"
 
     GEOCODE_CACHE[cache_key] = city
+    if len(GEOCODE_CACHE) > MAX_GEOCODE_CACHE_SIZE:
+        GEOCODE_CACHE.popitem(last=False)
     return city
 
 
@@ -668,15 +673,22 @@ async def reverse_geocode_batch(
         )
 
     results: list[ReverseGeocodeResult] = []
-    first_uncached = True
+    uncached_count = 0
     for point in payload.points:
         cache_key = _build_geocode_cache_key(point.lat, point.lon)
-        if cache_key not in GEOCODE_CACHE:
-            # Respect Nominatim usage policy: max 1 request/second
-            if not first_uncached:
-                await asyncio.sleep(1.1)
-            first_uncached = False
-        city = await _reverse_geocode_city(point.lat, point.lon)
+        if cache_key in GEOCODE_CACHE:
+            city = GEOCODE_CACHE[cache_key]
+            GEOCODE_CACHE.move_to_end(cache_key)
+        else:
+            if uncached_count >= 15:
+                # Prevent HTTP timeouts (max ~16s of Nominatim sleep)
+                city = f"{point.lat:.3f}, {point.lon:.3f}"
+            else:
+                if uncached_count > 0:
+                    await asyncio.sleep(1.1)
+                city = await _reverse_geocode_city(point.lat, point.lon)
+                uncached_count += 1
+                
         results.append(ReverseGeocodeResult(key=point.key, city=city))
 
     return ReverseGeocodeBatchResponse(results=results)
