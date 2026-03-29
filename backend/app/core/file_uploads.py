@@ -94,6 +94,58 @@ async def save_image_file_and_validate_it(
         ) from err
 
 
+async def validate_and_read_gpx_file(file: UploadFile, max_size_bytes: int) -> str:
+    """
+    Read and validate a GPX file asynchronously with security validation.
+
+    Security measures:
+    - SafeUploads enforces file size limits.
+    - Type sniffing via magic number/MIME type to ensure it's XML/GPX.
+    - Asynchronous reading.
+
+    Args:
+        file: GPX file to upload (UploadFile).
+        max_size_bytes: Maximum allowed size in bytes.
+
+    Returns:
+        The decoded XML text content of the GPX file.
+
+    Raises:
+        HTTPException: 413 if file is too large, 422 if validation or decoding fails.
+    """
+    try:
+        file_validator = FileValidator()
+        file_validator._validate_filename(file)
+        file_validator._validate_file_extension(file, {".gpx", ".xml"})
+
+        file_bytes, _ = await file_validator._validate_file_size(file, max_file_size=max_size_bytes)
+
+        if not file_bytes:
+            raise HTTPException(status_code=422, detail="Empty GPX file")
+
+        if file_validator.magic_available:
+            mime_type = file_validator._detect_mime_type(file_bytes, file.filename or "route.gpx")
+            # GPX is typically text/xml, application/xml, or application/gpx+xml
+            # sometimes recognized as text/plain by less strict magic DBs
+            if "xml" not in mime_type.lower() and mime_type not in ("text/plain", "application/gpx+xml"):
+                raise HTTPException(status_code=422, detail=f"Invalid GPX file type: detected {mime_type}")
+
+        xml_text = file_bytes.decode("utf-8-sig")
+        return xml_text
+    except FileValidationError as err:
+        core_logger.print_to_log(f"Error validating GPX upload: {err}", "error", exc=err)
+        status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE if "exceed" in str(err).lower() else status.HTTP_422_UNPROCESSABLE_ENTITY
+        raise HTTPException(
+            status_code=status_code,
+            detail=str(err),
+        ) from err
+    except UnicodeDecodeError as err:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid GPX encoding",
+        ) from err
+
+
 async def delete_files_by_pattern(directory: str, pattern: str) -> None:
     """
     Delete files from filesystem matching a glob pattern asynchronously.

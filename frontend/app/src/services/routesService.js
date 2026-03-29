@@ -64,5 +64,12 @@ export const routesService = {
   // We will expose the endpoint to be used directly or fetched.
   getRouteGpxUrl(route_id) {
     return `${import.meta.env.VITE_API_URL || '/api/v1'}/routes/${route_id}/gpx`
+  },
+
+  // Search locations by name via backend proxy
+  searchLocations(query, lang = 'en') {
+    return fetchGetRequest(
+      `routes/geocoding/search?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(lang)}`
+    )
   }
 }

@@ -64,7 +64,7 @@
   "search_result": "Ergebnis",
   "btn_edit": "Bearbeiten",
   "btn_delete": "Löschen",
-  "error_load_detail": "Diese Route kann non geladen werden",
+  "error_load_detail": "Diese Route kann nicht geladen werden",
   "error_export_gpx": "Fehler beim GPX-Export",
   "confirm_delete": "Möchten Sie diese Route wirklich löschen?",
   "error_delete": "Fehler beim Löschen",

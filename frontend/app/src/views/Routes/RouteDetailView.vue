@@ -1,13 +1,20 @@
 <template>
   <div class="container-fluid py-4 route-detail-page" v-if="route">
     <div class="row mb-3">
-      <div class="col-12 d-flex justify-content-between align-items-md-center flex-column flex-md-row gap-3">
+      <div
+        class="col-12 d-flex justify-content-between align-items-md-center flex-column flex-md-row gap-3"
+      >
         <div>
           <h2 class="mb-1">{{ route.name }}</h2>
           <div class="d-flex gap-2 align-items-center text-muted flex-wrap">
             <span class="badge bg-secondary">{{ formatActivityType(route.activity_type) }}</span>
-            <span v-if="route.sub_type" class="badge detail-subtype-badge">{{ formatSubType(route.sub_type) }}</span>
-            <span><font-awesome-icon :icon="['far', 'calendar']" /> {{ new Date(route.created_at).toLocaleDateString() }}</span>
+            <span v-if="route.sub_type" class="badge detail-subtype-badge">{{
+              formatSubType(route.sub_type)
+            }}</span>
+            <span
+              ><font-awesome-icon :icon="['far', 'calendar']" />
+              {{ new Date(route.created_at).toLocaleDateString() }}</span
+            >
           </div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
@@ -15,7 +22,11 @@
             <font-awesome-icon :icon="['fas', 'pen']" /> {{ $t('routesView.btn_edit') }}
           </button>
           <button class="btn btn-success" @click="downloadGpx" :disabled="isExporting">
-            <font-awesome-icon :icon="['fas', isExporting ? 'spinner' : 'download']" :class="{ 'fa-spin': isExporting }" /> {{ $t('routesView.btn_export_gpx') }}
+            <font-awesome-icon
+              :icon="['fas', isExporting ? 'spinner' : 'download']"
+              :class="{ 'fa-spin': isExporting }"
+            />
+            {{ $t('routesView.btn_export_gpx') }}
           </button>
           <button class="btn btn-outline-danger" @click="deleteRoute" :disabled="isDeleting">
             <font-awesome-icon :icon="['fas', 'trash']" /> {{ $t('routesView.btn_delete') }}
@@ -53,7 +64,11 @@
 
     <div class="row mb-4">
       <div class="col-12">
-        <div ref="mapContainerRef" class="w-100 rounded shadow-sm border" style="height: 50vh;"></div>
+        <div
+          ref="mapContainerRef"
+          class="w-100 rounded shadow-sm border"
+          style="height: 50vh"
+        ></div>
       </div>
     </div>
 
@@ -76,7 +91,7 @@
             <h5 class="mb-0">{{ $t('routesView.waypoints') }}</h5>
           </div>
           <div class="card-body p-0">
-            <div class="table-responsive" style="max-height: 380px;">
+            <div class="table-responsive" style="max-height: 380px">
               <table class="table detail-table table-hover mb-0 align-middle">
                 <thead class="sticky-top detail-table-head">
                   <tr>
@@ -95,10 +110,18 @@
                       <span v-if="detail.city">{{ detail.city }}</span>
                       <span v-else class="detail-muted">{{ detail.fallbackCity }}</span>
                     </td>
-                    <td><small>{{ detail.lat.toFixed(5) }}, {{ detail.lng.toFixed(5) }}</small></td>
                     <td>
-                      <span v-if="detail.index === 0" class="badge bg-success">{{ $t('routesView.start') }}</span>
-                      <span v-else-if="detail.index === waypointDetails.length - 1" class="badge bg-danger">{{ $t('routesView.finish') }}</span>
+                      <small>{{ detail.lat.toFixed(5) }}, {{ detail.lng.toFixed(5) }}</small>
+                    </td>
+                    <td>
+                      <span v-if="detail.index === 0" class="badge bg-success">{{
+                        $t('routesView.start')
+                      }}</span>
+                      <span
+                        v-else-if="detail.index === waypointDetails.length - 1"
+                        class="badge bg-danger"
+                        >{{ $t('routesView.finish') }}</span
+                      >
                       <span v-else class="badge bg-secondary">{{ $t('routesView.step') }}</span>
                     </td>
                     <td>{{ formatCumulativeDistance(detail.cumulativeDistance) }}</td>
@@ -118,9 +141,9 @@
   </div>
 </template>
 
-<script setup>
-import { useI18n } from 'vue-i18n';
-const { t } = useI18n();
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { ref, onMounted, onUnmounted, computed, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
@@ -128,20 +151,52 @@ import 'leaflet/dist/leaflet.css'
 import { routesService } from '@/services/routesService'
 import { push } from 'notivue'
 
+interface Waypoint {
+  lat: number
+  lng: number
+  segmentDistance?: number
+  [key: string]: any
+}
+
+interface RouteData {
+  coordinates: number[][]
+  waypoints: Waypoint[]
+  [key: string]: any
+}
+
+interface Route {
+  id: number
+  user_id: number
+  name: string
+  description: string
+  activity_type: string
+  sub_type: string
+  distance: number
+  elevation_gain: number
+  route_data: RouteData
+  created_at: string
+  updated_at: string
+}
+
+interface GeocodeItem {
+  key: string
+  city: string
+}
+
 const routeParam = useRoute()
 const router = useRouter()
 
-const route = ref(null)
-const isLoading = ref(true)
-const isDeleting = ref(false)
-const isExporting = ref(false)
-const waypointCities = ref({})
-const waypointElevations = ref([])
+const route = ref<Route | null>(null)
+const isLoading = ref<boolean>(true)
+const isDeleting = ref<boolean>(false)
+const isExporting = ref<boolean>(false)
+const waypointCities = ref<Record<number, string>>({})
+const waypointElevations = ref<number[]>([])
 
-const mapContainerRef = useTemplateRef('mapContainerRef')
-let map = null
-let polyline = null
-let mapInitTimer = null
+const mapContainerRef = useTemplateRef<HTMLElement>('mapContainerRef')
+let map: L.Map | null = null
+let polyline: L.Polyline | null = null
+let mapInitTimer: ReturnType<typeof setTimeout> | null = null
 
 const waypointsList = computed(() => {
   if (!route.value?.route_data?.waypoints) {
@@ -156,8 +211,10 @@ const waypointDetails = computed(() => {
 
   return waypointsList.value.map((waypoint, index) => {
     const previousWaypoint = waypointsList.value[index - 1]
-    const previousElevation = waypointElevations.value[index - 1]
-    const currentElevation = waypointElevations.value[index]
+    const prevElevVal = waypointElevations.value[index - 1]
+    const currElevVal = waypointElevations.value[index]
+    const previousElevation: number | null = typeof prevElevVal === 'number' ? prevElevVal : null
+    const currentElevation: number | null = typeof currElevVal === 'number' ? currElevVal : null
     const fallbackDistance = previousWaypoint
       ? L.latLng(previousWaypoint.lat, previousWaypoint.lng).distanceTo(
           L.latLng(waypoint.lat, waypoint.lng)
@@ -166,11 +223,11 @@ const waypointDetails = computed(() => {
     const segmentDistanceValue =
       index === 0
         ? 0
-        : Number.isFinite(waypoint.segmentDistance)
+        : waypoint.segmentDistance !== undefined && Number.isFinite(waypoint.segmentDistance)
           ? waypoint.segmentDistance
-          : (fallbackDistance || 0)
+          : fallbackDistance || 0
 
-    cumulativeDistance += segmentDistanceValue
+    cumulativeDistance += segmentDistanceValue || 0
 
     return {
       id: `${index}-${waypoint.lat}-${waypoint.lng}`,
@@ -181,7 +238,9 @@ const waypointDetails = computed(() => {
       fallbackCity: `${waypoint.lat.toFixed(3)}, ${waypoint.lng.toFixed(3)}`,
       cumulativeDistance,
       elevationDelta:
-        index === 0 || !Number.isFinite(previousElevation) ||
+        previousElevation === null ||
+        currentElevation === null ||
+        !Number.isFinite(previousElevation) ||
         !Number.isFinite(currentElevation)
           ? null
           : currentElevation - previousElevation
@@ -203,8 +262,8 @@ const endIcon = L.divIcon({
   iconAnchor: [7, 7]
 })
 
-const formatActivityType = (type) => {
-  const map = {
+const formatActivityType = (type: string) => {
+  const map: Record<string, string> = {
     cycling: t('routesView.type_cycling'),
     running: t('routesView.type_running'),
     hiking: t('routesView.type_hiking'),
@@ -213,9 +272,9 @@ const formatActivityType = (type) => {
   return map[type] || type
 }
 
-const formatSubType = (type) => {
-  const map = {
-    road: t('routesView.subtype_road_running'),
+const formatSubType = (type: string) => {
+  const map: Record<string, string> = {
+    road: t('routesView.subtype_road'),
     gravel: t('routesView.subtype_gravel'),
     mountain_bike: t('routesView.subtype_mountain_bike'),
     bikepacking: t('routesView.subtype_bikepacking'),
@@ -227,22 +286,22 @@ const formatSubType = (type) => {
     trekking: t('routesView.subtype_trekking'),
     fast_hiking: t('routesView.subtype_fast_hiking'),
     nordic_walking: t('routesView.subtype_nordic_walking'),
-    trail: t('routesView.subtype_trail_running'),
+    trail: t('routesView.subtype_trail'),
     other: t('routesView.type_other')
   }
   return map[type] || type
 }
 
-const formatCumulativeDistance = (distance) => {
-  if (!Number.isFinite(distance)) {
+const formatCumulativeDistance = (distance: number | null) => {
+  if (distance === null || !Number.isFinite(distance)) {
     return '-'
   }
 
   return `${(distance / 1000).toFixed(2)} km`
 }
 
-const formatElevationDelta = (delta) => {
-  if (!Number.isFinite(delta)) {
+const formatElevationDelta = (delta: number | null) => {
+  if (delta === null || !Number.isFinite(delta)) {
     return '-'
   }
 
@@ -250,7 +309,7 @@ const formatElevationDelta = (delta) => {
   return `${rounded > 0 ? '+' : ''}${rounded} m`
 }
 
-const buildGpxFilename = (name) => {
+const buildGpxFilename = (name: string) => {
   const safeName = (name || t('routesView.default_name'))
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -266,9 +325,8 @@ const initMap = () => {
     return
   }
 
-
-  if (mapContainerRef.value._leaflet_id) {
-    L.DomUtil.get(mapContainerRef.value)?._leaflet_map?.remove()
+  if ((mapContainerRef.value as HTMLElement & { _leaflet_id?: number })._leaflet_id) {
+    ;(L.DomUtil.get(mapContainerRef.value) as any)?._leaflet_map?.remove()
   }
   if (map) {
     map.remove()
@@ -284,19 +342,25 @@ const initMap = () => {
 
   const coordinates = route.value.route_data.coordinates || []
   if (coordinates.length > 0) {
-    const latLngs = coordinates.map((coordinate) => [coordinate[1], coordinate[0]])
+    const latLngs = coordinates.map(
+      (coordinate) => [coordinate[1], coordinate[0]] as [number, number]
+    )
     polyline = L.polyline(latLngs, { color: 'blue', weight: 4 }).addTo(map)
     map.fitBounds(polyline.getBounds(), { padding: [20, 20] })
   }
 
-  const waypoints = route.value.route_data.waypoints || []
+  const waypoints = route.value.route_data?.waypoints || []
   if (waypoints.length > 0) {
-    L.marker([waypoints[0].lat, waypoints[0].lng], { icon: startIcon }).addTo(map)
+    const firstWaypoint = waypoints[0]
+    if (firstWaypoint) {
+      L.marker([firstWaypoint.lat, firstWaypoint.lng], { icon: startIcon }).addTo(map)
+    }
+
     if (waypoints.length > 1) {
-      L.marker([
-        waypoints[waypoints.length - 1].lat,
-        waypoints[waypoints.length - 1].lng
-      ], { icon: endIcon }).addTo(map)
+      const lastWaypoint = waypoints[waypoints.length - 1]
+      if (lastWaypoint) {
+        L.marker([lastWaypoint.lat, lastWaypoint.lng], { icon: endIcon }).addTo(map)
+      }
     }
   }
 }
@@ -326,7 +390,7 @@ const fetchWaypointMetadata = async () => {
     console.error(error)
   }
 
-  const nextCities = {}
+  const nextCities: Record<number, string> = {}
   try {
     const response = await routesService.reverseGeocodeBatch(
       waypointsList.value.map((waypoint, index) => ({
@@ -336,7 +400,7 @@ const fetchWaypointMetadata = async () => {
       }))
     )
 
-    ;(response?.results || []).forEach((item) => {
+    ;(response?.results || []).forEach((item: GeocodeItem) => {
       const index = Number(item.key)
       if (Number.isInteger(index)) {
         nextCities[index] = item.city
@@ -353,10 +417,10 @@ const loadRoute = async () => {
   try {
     const response = await routesService.getRoute(routeParam.params.id)
     route.value = response
-    
+
     // Execute metadata fetch asynchronously to unblock map rendering
     fetchWaypointMetadata()
-    
+
     mapInitTimer = setTimeout(() => {
       initMap()
     }, 100)
@@ -369,10 +433,12 @@ const loadRoute = async () => {
 }
 
 const editRoute = () => {
+  if (!route.value) return
   router.push({ name: 'route-edit', params: { id: route.value.id } })
 }
 
 const downloadGpx = async () => {
+  if (!route.value) return
   isExporting.value = true
   try {
     const blob = await routesService.downloadRouteGpx(route.value.id)
@@ -393,6 +459,7 @@ const downloadGpx = async () => {
 }
 
 const deleteRoute = async () => {
+  if (!route.value) return
   if (!confirm(t('routesView.confirm_delete'))) {
     return
   }
