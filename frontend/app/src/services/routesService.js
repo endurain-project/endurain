@@ -67,9 +67,10 @@ export const routesService = {
   },
 
   // Search locations by name via backend proxy
-  searchLocations(query, lang = 'en') {
+  searchLocations(query, lang = 'en', options = {}) {
     return fetchGetRequest(
-      `routes/geocoding/search?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(lang)}`
+      `routes/geocoding/search?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(lang)}`,
+      options
     )
   }
 }

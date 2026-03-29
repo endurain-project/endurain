@@ -175,15 +175,16 @@ async function refreshAccessToken() {
 }
 
 export async function fetchGetRequest(url, options = {}) {
+  const { responseType = 'json', ...restOptions } = options
   const requestOptions = {
     method: 'GET',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       'X-Client-Type': 'web'
-    }
+    },
+    ...restOptions
   }
-  const responseType = options.responseType || 'json'
   return fetchWithRetry(url, requestOptions, responseType)
 }
 

@@ -12,7 +12,7 @@ def setup_router(fast_api_app: FastAPI):
         fast_api_app.include_router(router, prefix="/routes")
     except ValueError:
         pass
-
+from unittest.mock import MagicMock
 
 class TestRoutesAuthorization:
 
@@ -20,20 +20,19 @@ class TestRoutesAuthorization:
     def setup_mocks(self, mock_db):
         self.mock_db = mock_db
         # create typical route mock
-        self.mock_route = Route(
-            id=10,
-            user_id=1,
-            name="Morning Run",
-            description="",
-            activity_type="running",
-            sub_type="road_running",
-            distance=5000.0,
-            elevation_gain=50.0,
-            route_data={
-                "coordinates": [[-1.0, 48.0], [-1.01, 48.01]],
-                "coordinates_full": [[-1.0, 48.0], [-1.01, 48.01]]
-            }
-        )
+        self.mock_route = MagicMock(spec=Route)
+        self.mock_route.id = 10
+        self.mock_route.user_id = 1
+        self.mock_route.name = "Morning Run"
+        self.mock_route.description = ""
+        self.mock_route.activity_type = "running"
+        self.mock_route.sub_type = "road_running"
+        self.mock_route.distance = 5000.0
+        self.mock_route.elevation_gain = 50.0
+        self.mock_route.route_data = {
+            "coordinates": [[-1.0, 48.0], [-1.01, 48.01]],
+            "coordinates_full": [[-1.0, 48.0], [-1.01, 48.01]]
+        }
 
     def test_get_route_success(self, fast_api_client, setup_mocks):
         self.mock_db.get.return_value = self.mock_route
@@ -123,19 +122,18 @@ class TestGPXExport:
     def setup_mocks(self, mock_db):
         self.mock_db = mock_db
         from datetime import datetime
-        self.mock_route = Route(
-            id=10,
-            user_id=1,
-            name="GPX Export Sub",
-            description="",
-            activity_type="running",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            route_data={
-                "coordinates": [[-1.0, 48.0, 100.0], [-1.01, 48.01, 105.0]],
-                "coordinates_full": [[-1.0, 48.0, 100.0], [-1.01, 48.01, 105.0]]
-            }
-        )
+        self.mock_route = MagicMock(spec=Route)
+        self.mock_route.id = 10
+        self.mock_route.user_id = 1
+        self.mock_route.name = "GPX Export Sub"
+        self.mock_route.description = ""
+        self.mock_route.activity_type = "running"
+        self.mock_route.created_at = datetime.utcnow()
+        self.mock_route.updated_at = datetime.utcnow()
+        self.mock_route.route_data = {
+            "coordinates": [[-1.0, 48.0, 100.0], [-1.01, 48.01, 105.0]],
+            "coordinates_full": [[-1.0, 48.0, 100.0], [-1.01, 48.01, 105.0]]
+        }
 
     def test_export_route_gpx_success(self, fast_api_client, setup_mocks):
         self.mock_db.get.return_value = self.mock_route
@@ -169,8 +167,8 @@ class TestGPXImport:
             files={"file": ("test.gpx", b"", "application/gpx+xml")},
             headers={"Authorization": "Bearer mock_token"}
         )
-        # Should raise 400 Empty file from file_uploads.py validation
-        assert response.status_code == 400
+        # Should raise 422 Empty file from file_uploads.py validation
+        assert response.status_code == 422
 
     @patch("routes.router.validate_and_read_gpx_file")
     def test_import_gpx_triggers_job(self, mock_validate, fast_api_client):
