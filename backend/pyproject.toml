@@ -33,7 +33,7 @@ garminconnect = "^0.2.38"
 websockets = "^16.0"
 timezonefinder = "^8.2.1"
 psycopg = {version = "^3.3.3", extras = ["binary", "pool"]}
-poetry = "^2.3.2"
+poetry = "^2.3.3"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.12.5"}
 garth = "^0.5.16"
