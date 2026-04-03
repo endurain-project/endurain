@@ -127,6 +127,7 @@
                 :class="routingMode === 'hybrid' ? 'btn-primary' : 'btn-outline-secondary'"
                 @click="setRoutingMode('hybrid')"
                 :title="t('routesView.mode_hybrid')"
+                :aria-label="t('routesView.mode_hybrid')"
               >
                 <font-awesome-icon :icon="['fas', 'route']" />
               </button>
@@ -135,6 +136,7 @@
                 :class="routingMode === 'road' ? 'btn-primary' : 'btn-outline-secondary'"
                 @click="setRoutingMode('road')"
                 :title="t('routesView.mode_road')"
+                :aria-label="t('routesView.mode_road')"
               >
                 <font-awesome-icon :icon="['fas', 'road']" />
               </button>
@@ -143,6 +145,7 @@
                 :class="routingMode === 'path' ? 'btn-primary' : 'btn-outline-secondary'"
                 @click="setRoutingMode('path')"
                 :title="t('routesView.mode_path')"
+                :aria-label="t('routesView.mode_path')"
               >
                 <font-awesome-icon :icon="['fas', 'hiking']" />
               </button>
@@ -823,15 +826,20 @@ const updateElevation = async () => {
       .map((coord) => `${coord[0].toFixed(5)}:${coord[1].toFixed(5)}`)
       .join('|')
 
-    if (elevationKey === lastElevationKey) {
-      return
-    }
-
     const cachedElevation = elevationCache.get(elevationKey)
     if (cachedElevation) {
       elevationGain.value = cachedElevation.gain
       elevationLoss.value = cachedElevation.loss
+      allCoordinates.value = applyElevationsToAllCoordinates(
+        allCoordinates.value as [number, number][],
+        sampledCoordinates as [number, number][],
+        cachedElevation.elevations
+      )
       lastElevationKey = elevationKey
+      return
+    }
+
+    if (elevationKey === lastElevationKey) {
       return
     }
 
@@ -903,7 +911,8 @@ const updateElevation = async () => {
       )
       elevationCache.set(elevationKey, {
         gain: elevationGain.value,
-        loss: elevationLoss.value
+        loss: elevationLoss.value,
+        elevations: elevations
       })
     } catch (error) {
       if ((error as Error)?.name !== 'AbortError') {

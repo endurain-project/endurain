@@ -22,7 +22,15 @@
 
     <div v-else class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
       <div class="col" v-for="route in routes" :key="route.id">
-        <div class="card h-100 shadow-sm route-card border-0" @click="goToDetail(route.id)">
+        <div 
+          class="card h-100 shadow-sm route-card border-0" 
+          @click="goToDetail(route.id)"
+          @keydown.enter="goToDetail(route.id)"
+          @keydown.space.prevent="goToDetail(route.id)"
+          tabindex="0"
+          role="button"
+          :aria-label="route.name"
+        >
           <div class="route-preview border-bottom position-relative">
             <div :id="`map-preview-${route.id}`" class="route-map-container"></div>
             <div

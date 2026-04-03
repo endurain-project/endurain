@@ -114,31 +114,32 @@ async def validate_and_read_gpx_file(file: UploadFile, max_size_bytes: int) -> s
         HTTPException: 413 if file is too large, 422 if validation or decoding fails.
     """
     try:
-        file_validator = FileValidator()
-        file_validator._validate_filename(file)
-        file_validator._validate_file_extension(file, {".gpx", ".xml"})
+        if not file.filename:
+            raise HTTPException(status_code=422, detail="Missing filename")
+        
+        ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+        if ext not in ("gpx", "xml"):
+            raise HTTPException(status_code=422, detail=f"Invalid file extension: .{ext}. Expected .gpx or .xml")
 
-        file_bytes, _ = await file_validator._validate_file_size(file, max_file_size=max_size_bytes)
-
+        file_bytes = await file.read(max_size_bytes + 1)
+        
         if not file_bytes:
-            raise HTTPException(status_code=422, detail="Empty GPX file")
+            raise HTTPException(status_code=400, detail="Empty GPX file")
+            
+        if len(file_bytes) > max_size_bytes:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large")
 
-        if file_validator.magic_available:
-            mime_type = file_validator._detect_mime_type(file_bytes, file.filename or "route.gpx")
-            # GPX is typically text/xml, application/xml, or application/gpx+xml
-            # sometimes recognized as text/plain by less strict magic DBs
+        # Try to use python-magic if available from safeuploads context, but fail gracefully
+        try:
+            import magic
+            mime_type = magic.from_buffer(file_bytes, mime=True)
             if "xml" not in mime_type.lower() and mime_type not in ("text/plain", "application/gpx+xml"):
                 raise HTTPException(status_code=422, detail=f"Invalid GPX file type: detected {mime_type}")
+        except ImportError:
+            pass # Skip magic check if library not available
 
         xml_text = file_bytes.decode("utf-8-sig")
         return xml_text
-    except FileValidationError as err:
-        core_logger.print_to_log(f"Error validating GPX upload: {err}", "error", exc=err)
-        status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE if "exceed" in str(err).lower() else status.HTTP_422_UNPROCESSABLE_ENTITY
-        raise HTTPException(
-            status_code=status_code,
-            detail=str(err),
-        ) from err
     except UnicodeDecodeError as err:
         raise HTTPException(
             status_code=422,

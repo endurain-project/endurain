@@ -1,6 +1,6 @@
 """add_route_import_jobs
 
-Revision ID: RouteImportJob001
+Revision ID: 174dc096a6df
 Revises: 81b2383c2748
 Create Date: 2026-03-24 16:00:00.000000
 
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision: str = "RouteImportJob001"
+revision: str = "174dc096a6df"
 down_revision: Union[str, None] = "81b2383c2748"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
