@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 
 base_dir = r"C:\Users\Julien\Documents\GitHub\endurain-course\endurain\frontend\app\src\i18n"
 langs = ['ca', 'cn', 'de', 'es', 'gl', 'it', 'nl', 'pt', 'sl', 'sv', 'tw']

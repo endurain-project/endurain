@@ -875,9 +875,12 @@ async def export_route_gpx(
         "creator": "Endurain",
         "xmlns": "http://www.topografix.com/GPX/1/1",
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xmlns:gpxx": "http://www.garmin.com/xmlschemas/GpxExtensions/v3",
         "xsi:schemaLocation": (
             "http://www.topografix.com/GPX/1/1 "
-            "http://www.topografix.com/GPX/1/1/gpx.xsd"
+            "http://www.topografix.com/GPX/1/1/gpx.xsd "
+            "http://www.garmin.com/xmlschemas/GpxExtensions/v3 "
+            "http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd"
         ),
     })
 
@@ -885,7 +888,16 @@ async def export_route_gpx(
     name_el = ET.SubElement(metadata, "name")
     name_el.text = route.name
     desc_el = ET.SubElement(metadata, "desc")
-    desc_el.text = route.description or ""
+    
+    desc_parts = []
+    if route.description:
+        desc_parts.append(route.description)
+    if route.distance:
+        desc_parts.append(f"Distance: {route.distance / 1000:.2f} km")
+    if route.elevation_gain is not None:
+        desc_parts.append(f"Elevation Gain: {int(route.elevation_gain)} m")
+    
+    desc_el.text = "\n".join(desc_parts)
 
     time_el = ET.SubElement(metadata, "time")
     time_el.text = route.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -907,6 +919,16 @@ async def export_route_gpx(
     if route.activity_type:
         trk_type = ET.SubElement(trk, "type")
         trk_type.text = route.activity_type
+
+    if route.distance or route.elevation_gain is not None:
+        ext_el = ET.SubElement(trk, "extensions")
+        gpxx_ext = ET.SubElement(ext_el, "gpxx:TrackExtension")
+        if route.distance:
+            dist_el = ET.SubElement(gpxx_ext, "gpxx:Distance")
+            dist_el.text = f"{route.distance:.1f}"
+        if route.elevation_gain is not None:
+            asc_el = ET.SubElement(gpxx_ext, "gpxx:Ascent")
+            asc_el.text = f"{route.elevation_gain:.1f}"
 
     trkseg = ET.SubElement(trk, "trkseg")
 
