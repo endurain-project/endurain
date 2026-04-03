@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class Gear(BaseModel):
     id: int | None = None
     brand: str | None = None
@@ -14,6 +15,15 @@ class Gear(BaseModel):
     strava_gear_id: str | None = None
     garminconnect_gear_id: str | None = None
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
+
+
+class GearStats(BaseModel):
+    id: int
+    nickname: str
+    gear_type: int
+    total_distance: float  # Distance in meters
+    initial_kms: float | None = None
+    active: bool | None = None
+
+    model_config = {"from_attributes": True}

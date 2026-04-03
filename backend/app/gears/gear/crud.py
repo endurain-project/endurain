@@ -588,3 +588,74 @@ def delete_all_garminconnect_gear_for_user(user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def get_gear_user_with_distances(user_id: int, db: Session):
+    try:
+        from activities.activity.models import Activity
+
+        gears = (
+            db.query(
+                gears_models.Gear.id,
+                gears_models.Gear.nickname,
+                gears_models.Gear.gear_type,
+                gears_models.Gear.active,
+                gears_models.Gear.initial_kms,
+                func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
+            )
+            .outerjoin(
+                Activity,
+                (
+                    (Activity.gear_id == gears_models.Gear.id)
+                    | (Activity.strava_gear_id == gears_models.Gear.strava_gear_id)
+                    | (
+                        Activity.garminconnect_gear_id
+                        == gears_models.Gear.garminconnect_gear_id
+                    )
+                )
+                & (Activity.user_id == user_id),
+            )
+            .filter(
+                gears_models.Gear.user_id == user_id,
+                gears_models.Gear.active == True,
+            )
+            .group_by(
+                gears_models.Gear.id,
+                gears_models.Gear.nickname,
+                gears_models.Gear.gear_type,
+                gears_models.Gear.active,
+                gears_models.Gear.initial_kms,
+            )
+            .order_by(func.sum(Activity.distance).desc())
+            .limit(5)
+            .all()
+        )
+
+        if gears is None or len(gears) == 0:
+            return None
+
+        result = []
+        for gear in gears:
+            total_distance_meters = gear.total_distance + (
+                (gear.initial_kms or 0) * 1000
+            )
+            result.append(
+                gears_schema.GearStats(
+                    id=gear.id,
+                    nickname=gear.nickname,
+                    gear_type=gear.gear_type,
+                    total_distance=round(total_distance_meters, 2),
+                    initial_kms=gear.initial_kms,
+                    active=gear.active,
+                )
+            )
+
+        return result
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_gear_user_with_distances: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err

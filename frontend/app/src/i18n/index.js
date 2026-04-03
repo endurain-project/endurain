@@ -98,6 +98,7 @@ const componentPaths = {
   // Users components
   userDistanceStats: 'components/users/userDistanceStatsComponent.json',
   userGoalsStatsComponent: 'components/users/userGoalsStatsComponent.json',
+  userGearsStatsComponent: 'components/users/userGearsStatsComponent.json',
   // General components
   noItemsFoundComponent: 'components/noItemsFoundComponent.json',
   // General translations

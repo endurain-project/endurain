@@ -243,3 +243,18 @@ async def delete_gear(
 
     # Return success message
     return {"detail": f"Gear ID {gear_id} deleted successfully"}
+
+
+@router.get(
+    "/stats",
+    response_model=list[gears_schema.GearStats] | None,
+    status_code=status.HTTP_200_OK,
+)
+async def get_user_gears_stats(
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
+):
+    """
+    Retrieve user's top 5 active gears with total distances.
+    """
+    return gears_crud.get_gear_user_with_distances(token_user_id, db)
