@@ -27,6 +27,9 @@ export const gears = {
   getUserGearsNumber() {
     return fetchGetRequest('gears/number')
   },
+  getUserGearsStats() {
+    return fetchGetRequest('gears/stats')
+  },
   createGear(data) {
     return fetchPostRequest('gears', data)
   },

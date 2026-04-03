@@ -192,6 +192,12 @@
           </div>
           <UserGoalsStatsComponent :goals="userGoals" v-else />
         </div>
+        <div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+          <div v-if="isLoading">
+            <LoadingComponent />
+          </div>
+          <UserGearsStatsComponent :gears="userGears" v-else />
+        </div>
       </div>
     </div>
   </div>
@@ -208,11 +214,13 @@ import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { activities } from '@/services/activitiesService'
 import { userGoals as userGoalsService } from '@/services/userGoalsService'
 import { activityMedia } from '@/services/activityMediaService'
+import { gears as gearsService } from '@/services/gearsService'
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Users/UserDistanceStatsComponent.vue'
 import UserGoalsStatsComponent from '@/components/Users/UserGoalsStatsComponent.vue'
+import UserGearsStatsComponent from '@/components/Users/UserGearsStatsComponent.vue'
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue'
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue'
@@ -228,6 +236,7 @@ const isLoading = ref(true)
 const thisWeekDistances = ref([])
 const thisMonthDistances = ref([])
 const userGoals = ref(null)
+const userGears = ref(null)
 const userNumberOfActivities = ref(0)
 const userActivities = ref([])
 const activityMediaMap = ref({})
@@ -251,6 +260,7 @@ async function fetchUserStars() {
     thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id)
     thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id)
     userGoals.value = await userGoalsService.getUserGoalResults()
+    userGears.value = await gearsService.getUserGearsStats()
   } catch (error) {
     // Set the error message
     push.error(`${t('homeView.errorFetchingUserStats')} - ${error}`)
