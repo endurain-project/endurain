@@ -57,7 +57,7 @@ def parse_tcx_file(
         lap_np = None
 
         for trackpoint in lap.trackpoints:
-            if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext:
+            if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext and trackpoint.time is not None:
                 lap_power_waypoints.append(
                     {
                         "time": trackpoint.time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -126,6 +126,7 @@ def parse_tcx_file(
             "lon": trackpoint["longitude"],
         }
         for trackpoint in trackpoints
+        if trackpoint.get("time") is not None
     ]
 
     hr_waypoints = [
@@ -134,7 +135,7 @@ def parse_tcx_file(
             "hr": trackpoint["hr_value"],
         }
         for trackpoint in trackpoints
-        if "hr_value" in trackpoint
+        if "hr_value" in trackpoint and trackpoint.get("time") is not None
     ]
     cad_waypoints = [
         {
@@ -142,7 +143,7 @@ def parse_tcx_file(
             "cad": trackpoint["cadence"],
         }
         for trackpoint in trackpoints
-        if trackpoint.get("cadence") is not None
+        if trackpoint.get("cadence") is not None and trackpoint.get("time") is not None
     ]
     if not cad_waypoints:
         cad_waypoints = [
@@ -151,7 +152,7 @@ def parse_tcx_file(
                 "cad": trackpoint.tpx_ext["RunCadence"],
             }
             for trackpoint in tcx_file.trackpoints
-            if hasattr(trackpoint, "tpx_ext") and "RunCadence" in trackpoint.tpx_ext
+            if hasattr(trackpoint, "tpx_ext") and "RunCadence" in trackpoint.tpx_ext and trackpoint.time is not None
         ]
     ele_waypoints = [
         {
@@ -159,7 +160,7 @@ def parse_tcx_file(
             "ele": trackpoint["elevation"],
         }
         for trackpoint in trackpoints
-        if "elevation" in trackpoint
+        if "elevation" in trackpoint and trackpoint.get("time") is not None
     ]
     power_waypoints = [
         {
@@ -167,7 +168,7 @@ def parse_tcx_file(
             "power": trackpoint.tpx_ext["Watts"],
         }
         for trackpoint in tcx_file.trackpoints
-        if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext
+        if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext and trackpoint.time is not None
     ]
 
     for trackpoint in trackpoints:
@@ -176,6 +177,9 @@ def parse_tcx_file(
             trackpoint["longitude"],
             trackpoint["time"],
         )
+
+        if time is None:
+            continue
 
         timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -247,10 +251,18 @@ def parse_tcx_file(
         distance=distance,
         activity_type=activity_type,
         timezone=timezone,
-        start_time=tcx_file.start_time.strftime("%Y-%m-%dT%H:%M:%S"),
-        end_time=tcx_file.end_time.strftime("%Y-%m-%dT%H:%M:%S"),
-        total_elapsed_time=(tcx_file.end_time - tcx_file.start_time).total_seconds(),
-        total_timer_time=(tcx_file.end_time - tcx_file.start_time).total_seconds(),
+        start_time=tcx_file.start_time.strftime("%Y-%m-%dT%H:%M:%S") if tcx_file.start_time else None,
+        end_time=tcx_file.end_time.strftime("%Y-%m-%dT%H:%M:%S") if tcx_file.end_time else None,
+        total_elapsed_time=(
+            (tcx_file.end_time - tcx_file.start_time).total_seconds()
+            if tcx_file.start_time and tcx_file.end_time
+            else None
+        ),
+        total_timer_time=(
+            (tcx_file.end_time - tcx_file.start_time).total_seconds()
+            if tcx_file.start_time and tcx_file.end_time
+            else None
+        ),
         city=city,
         town=town,
         country=country,
