@@ -135,6 +135,9 @@ class Activity(Base):
     garminconnect_gear_id = Column(
         String(length=45), nullable=True, comment="Garmin Connect gear ID"
     )
+    onelapfit_id = Column(
+        String(length=255), unique=True, nullable=True, comment="OneLapFit activity ID"
+    )
     import_info = Column(
         JSON, default=None, nullable=True, doc="Additional import information"
     )

@@ -451,3 +451,70 @@ def edit_user_integrations(
     db.commit()
     db.refresh(db_user_integrations)
     return db_user_integrations
+
+
+@core_decorators.handle_db_errors
+def link_onelapfit_account(
+    user_integrations: user_integrations_models.UsersIntegrations,
+    token: str,
+    region: str | None = None,
+    db: Session = None,
+) -> None:
+    """
+    Link a OneLapFit account by storing access token and region.
+
+    Args:
+        user_integrations: The UsersIntegrations ORM model to
+            update.
+        token: Encrypted OneLapFit access token.
+        region: OneLapFit region code.
+        db: SQLAlchemy database session.
+
+    Returns:
+        None
+
+    Raises:
+        HTTPException: 500 error if database operation fails.
+    """
+    # Update the user integrations with the token and region
+    user_integrations.onelapfit_token = token
+    if region:
+        user_integrations.onelapfit_region = region
+
+    # Commit the changes to the database
+    db.commit()
+    db.refresh(user_integrations)
+
+
+@core_decorators.handle_db_errors
+def unlink_onelapfit_account(user_id: int, db: Session) -> None:
+    """
+    Unlink a OneLapFit account by clearing access token.
+
+    Args:
+        user_id: The ID of the user to unlink.
+        db: SQLAlchemy database session.
+
+    Returns:
+        None
+
+    Raises:
+        HTTPException: 404 error if integrations not found.
+        HTTPException: 500 error if database operation fails.
+    """
+    # Get the user integrations by the user id
+    user_integrations = get_user_integrations_by_user_id(user_id, db)
+
+    if user_integrations is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User integrations not found",
+        )
+
+    # Clear all OneLapFit integration data
+    user_integrations.onelapfit_token = None
+    user_integrations.onelapfit_region = None
+
+    # Commit the changes to the database
+    db.commit()
+    db.refresh(user_integrations)

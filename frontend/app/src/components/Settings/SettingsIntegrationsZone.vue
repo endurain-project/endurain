@@ -204,10 +204,67 @@
               </ul>
             </div>
           </div>
-        </li>
-      </ul>
+         </li>
+         <!-- OneLapFit zone -->
+         <li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0 pb-0">
+           <div class="d-flex align-items-center">
+             <img :src="INTEGRATION_LOGOS.oneLapFit" alt="OneLapFit logo" height="32" />
+             <div class="ms-3">
+               <div class="fw-bold">
+                 {{ $t('oneLapFitView.integrationTitle') }}
+               </div>
+               {{ $t('oneLapFitView.integrationDescription') }}
+             </div>
+           </div>
+           <div class="d-flex align-items-center">
+             <!-- connect button -->
+             <a
+               href="#"
+               class="btn btn-primary"
+               v-if="authStore.user.is_onelapfit_linked == 0"
+               data-bs-toggle="modal"
+               data-bs-target="#oneLapFitAuthModal"
+               >{{ $t('settingsIntegrationsZone.buttonConnect') }}</a
+             >
 
-      <!-- modal retrieve Strava Client ID -->
+             <!-- retrieve activities and other buttons -->
+             <div class="dropdown" v-else>
+               <button
+                 class="btn btn-secondary dropdown-toggle"
+                 type="button"
+                 data-bs-toggle="dropdown"
+                 aria-expanded="false"
+               >
+                 {{ $t('settingsIntegrationsZone.buttonDropdownOptions') }}
+               </button>
+                 <ul class="dropdown-menu">
+                   <li>
+                     <!-- sync OneLapFit activities now -->
+                     <a href="#" class="dropdown-item" @click="submitSyncOneLapFitNow">{{
+                       $t('oneLapFitView.syncNowButton')
+                     }}</a>
+                   </li>
+                   <li>
+                     <hr class="dropdown-divider" />
+                   </li>
+                   <li>
+                     <!-- unlink OneLapFit -->
+                     <a
+                       href="#"
+                       class="dropdown-item"
+                       role="button"
+                       data-bs-toggle="modal"
+                       data-bs-target="#unlinkOneLapFitModal"
+                       >{{ $t('settingsIntegrationsZone.buttonUnlink') }}</a
+                     >
+                   </li>
+                 </ul>
+             </div>
+           </div>
+         </li>
+       </ul>
+
+       <!-- modal retrieve Strava Client ID -->
       <ModalComponentNumberAndStringInput
         modalId="retrieveStravaClientIdModal"
         :title="t('settingsIntegrationsZone.modalRetrieveClientIdTitle')"
@@ -301,6 +358,29 @@
         :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')"
         @submitAction="buttonGarminConnectUnlink"
       />
+
+      <!-- modal OneLapFit auth -->
+      <ModalComponentStringAndStringInput
+        modalId="oneLapFitAuthModal"
+        :title="t('oneLapFitView.linkingTitle')"
+        :firstFieldLabel="t('oneLapFitView.emailLabel')"
+        :secondFieldLabel="t('oneLapFitView.passwordLabel')"
+        :firstFieldType="'email'"
+        :secondFieldType="'password'"
+        actionButtonType="success"
+        :actionButtonText="t('settingsIntegrationsZone.buttonConnect')"
+        @fieldsToEmitAction="submitConnectOneLapFit"
+      />
+
+      <!-- modal unlink OneLapFit -->
+      <ModalComponent
+        modalId="unlinkOneLapFitModal"
+        :title="t('oneLapFitView.unlinkingTitle')"
+        :body="t('oneLapFitView.unlinkingDescription')"
+        actionButtonType="danger"
+        :actionButtonText="t('oneLapFitView.unlinkingTitle')"
+        @submitAction="buttonOneLapFitUnlink"
+      />
     </div>
   </div>
 </template>
@@ -312,8 +392,10 @@ import { useAuthStore } from '@/stores/authStore'
 import { strava } from '@/services/stravaService'
 import { activities } from '@/services/activitiesService'
 import { garminConnect } from '@/services/garminConnectService'
+import { onelapfit } from '@/services/onelapfitService'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import ModalComponentNumberAndStringInput from '@/components/Modals/ModalComponentNumberAndStringInput.vue'
+import ModalComponentStringAndStringInput from '@/components/Modals/ModalComponentStringAndStringInput.vue'
 import ModalComponentNumberInput from '@/components/Modals/ModalComponentNumberInput.vue'
 import ModalComponentDateRangeInput from '@/components/Modals/ModalComponentDateRangeInput.vue'
 import GarminConnectLoginModalComponent from './SettingsIntegrations/GarminConnectLoginModalComponent.vue'
@@ -472,6 +554,42 @@ async function buttonGarminConnectUnlink() {
     notification.reject(
       `${t('settingsIntegrationsZone.errorMessageUnableToUnlinkGarminConnect')} - ${error}`
     )
+  }
+}
+
+async function submitConnectOneLapFit(credentials) {
+  const notification = push.promise(t('oneLapFitView.linkingMessage'))
+  try {
+    await onelapfit.linkOneLapFit(credentials.firstToEmit, credentials.secondToEmit)
+    const user = authStore.user
+    user.is_onelapfit_linked = 1
+    authStore.setUser(user, locale)
+    notification.resolve(t('oneLapFitView.linkingSuccess'))
+  } catch (error) {
+    notification.reject(`${t('oneLapFitView.linkingError')} - ${error}`)
+  }
+}
+
+async function submitSyncOneLapFitNow() {
+  try {
+    const dates = getStartAndEndDateFromDaysAgo(30)
+    await onelapfit.getOneLapFitActivitiesByDates(dates.startDate, dates.endDate)
+    push.info(t('oneLapFitView.retrievingActivitiesMessage'))
+  } catch (error) {
+    push.error(`${t('oneLapFitView.retrievingActivitiesError')} - ${error}`)
+  }
+}
+
+async function buttonOneLapFitUnlink() {
+  const notification = push.promise(t('oneLapFitView.unlinkingMessage'))
+  try {
+    await onelapfit.unlinkOneLapFit()
+    const user = authStore.user
+    user.is_onelapfit_linked = 0
+    authStore.setUser(user, locale)
+    notification.resolve(t('oneLapFitView.unlinkingSuccess'))
+  } catch (error) {
+    notification.reject(`${t('oneLapFitView.unlinkingError')} - ${error}`)
   }
 }
 </script>

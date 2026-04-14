@@ -1137,6 +1137,37 @@ def get_activity_by_garminconnect_id_from_user_id(
         ) from err
 
 
+def get_activity_by_onelapfit_id_from_user_id(
+    activity_onelapfit_id: str, user_id: int, db: Session
+):
+    try:
+        # Get the activities from the database
+        activity = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.onelapfit_id == activity_onelapfit_id,
+            )
+            .first()
+        )
+
+        # Return the ORM model (truthy if found, None if not)
+        return activity
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_activity_by_onelapfit_id_from_user_id: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_activities_if_contains_name(name: str, user_id: int, db: Session):
     try:
         # Define a search term

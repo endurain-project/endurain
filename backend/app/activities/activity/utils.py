@@ -297,6 +297,7 @@ def transform_schema_activity_to_model_activity(
         strava_activity_id=activity.strava_activity_id,
         garminconnect_activity_id=activity.garminconnect_activity_id,
         garminconnect_gear_id=activity.garminconnect_gear_id,
+        onelapfit_id=activity.onelapfit_id,
         import_info=activity.import_info,
         is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
         hide_start_time=activity.hide_start_time,

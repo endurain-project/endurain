@@ -30,6 +30,7 @@ import health.health_weight.router as health_weight_router
 import health.health_steps.router as health_steps_router
 import health.health_targets.router as health_targets_router
 import notifications.router as notifications_router
+import onelapfit.router as onelapfit_router
 import password_reset_tokens.router as password_reset_tokens_router
 import profile.browser_redirect_router as profile_browser_redirect_router
 import profile.router as profile_router
@@ -163,6 +164,15 @@ router.include_router(
     notifications_router.router,
     prefix=core_config.ROOT_PATH + "/notifications",
     tags=["notifications"],
+    dependencies=[
+        Depends(auth_security.validate_access_token),
+        Security(auth_security.check_scopes, scopes=["profile"]),
+    ],
+)
+router.include_router(
+    onelapfit_router.router,
+    prefix=core_config.ROOT_PATH + "/onelapfit",
+    tags=["onelapfit"],
     dependencies=[
         Depends(auth_security.validate_access_token),
         Security(auth_security.check_scopes, scopes=["profile"]),

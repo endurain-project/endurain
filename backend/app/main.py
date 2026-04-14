@@ -1,9 +1,11 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi import status
 
 from alembic.config import Config
 from alembic import command
@@ -21,6 +23,8 @@ import garmin.health_utils as garmin_health_utils
 
 import strava.activity_utils as strava_activity_utils
 import strava.utils as strava_utils
+
+import onelapfit.activity_utils as onelapfit_activity_utils
 
 import password_reset_tokens.utils as password_reset_tokens_utils
 
@@ -65,6 +69,12 @@ async def startup_event():
     )
     await garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
     await strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
+
+    # Retrieve all OneLapFit activities on startup (full history)
+    core_logger.print_to_log_and_console(
+        "Retrieving OneLapFit activities on startup (full history)"
+    )
+    await onelapfit_activity_utils.retrieve_onelapfit_users_activities(is_startup=True)
 
     # Retrieve last day health stats from Garmin Connect
     core_logger.print_to_log_and_console(
@@ -126,6 +136,33 @@ def shutdown_event():
 
     # Shutdown the scheduler when the application is shutting down
     core_scheduler.stop_scheduler()
+
+
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Global exception handler to capture and log unhandled exceptions.
+    
+    This handler catches any exception not handled by route-specific error handlers
+    and ensures it's properly logged with full details for debugging.
+    
+    Args:
+        request: The incoming request
+        exc: The unhandled exception
+        
+    Returns:
+        JSONResponse with 500 status code and error details
+    """
+    core_logger.print_to_log(
+        f"Unhandled exception in {request.method} {request.url.path}: {exc}",
+        "error",
+        exc=exc,
+        context={"method": request.method, "path": request.url.path},
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error. Check logs for details."},
+    )
 
 
 def create_app() -> FastAPI:
@@ -226,6 +263,9 @@ core_logger.setup_main_logger()
 
 # Setup tracing
 core_tracing.setup_tracing(app)
+
+# Register global exception handler for unhandled exceptions
+app.add_exception_handler(Exception, global_exception_handler)
 
 # Register the startup event handler
 app.add_event_handler("startup", startup_event)

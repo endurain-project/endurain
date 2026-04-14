@@ -883,8 +883,173 @@ class TestSetUserStravaClientDBError:
                         1, "client_id", "client_secret", mock_db
                     )
 
-                assert exc_info.value.status_code == 500
-                mock_db.rollback.assert_called_once()
+            assert exc_info.value.status_code == 500
+            mock_db.rollback.assert_called_once()
+
+
+class TestLinkOneLapFitAccount:
+    """Test suite for link_onelapfit_account function."""
+
+    def test_link_onelapfit_account_success(self, mock_db):
+        """Test linking a OneLapFit account with token and region.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - Token and region are stored on the integrations object
+            - Database commit and refresh are called
+        """
+        # Arrange
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        # Act
+        user_integrations_crud.link_onelapfit_account(
+            mock_integrations, "encrypted_token", region="EU", db=mock_db
+        )
+
+        # Assert
+        assert mock_integrations.onelapfit_token == "encrypted_token"
+        assert mock_integrations.onelapfit_region == "EU"
+        mock_db.commit.assert_called_once()
+        mock_db.refresh.assert_called_once()
+
+    def test_link_onelapfit_account_no_region_skips_region_field(self, mock_db):
+        """Test that region field is not set when region is None.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - Token is stored on the integrations object
+            - onelapfit_region is not set to None (attribute retains its MagicMock value)
+        """
+        # Arrange
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        # Act
+        user_integrations_crud.link_onelapfit_account(
+            mock_integrations, "encrypted_token", region=None, db=mock_db
+        )
+
+        # Assert
+        assert mock_integrations.onelapfit_token == "encrypted_token"
+        # onelapfit_region must not have been assigned (still a MagicMock child,
+        # not None or any string value)
+        assert mock_integrations.onelapfit_region is not None
+        mock_db.commit.assert_called_once()
+
+    def test_link_onelapfit_account_database_error(self, mock_db):
+        """Test database error during OneLapFit account linking.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - HTTPException with 500 status on commit error
+            - Transaction is rolled back
+        """
+        # Arrange
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_db.commit.side_effect = SQLAlchemyError("Commit failed")
+        mock_db.rollback = MagicMock()
+
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            user_integrations_crud.link_onelapfit_account(
+                mock_integrations, "encrypted_token", region="EU", db=mock_db
+            )
+
+        assert exc_info.value.status_code == 500
+        mock_db.rollback.assert_called_once()
+
+
+class TestUnlinkOneLapFitAccount:
+    """Test suite for unlink_onelapfit_account function."""
+
+    def test_unlink_onelapfit_account_success(self, mock_db):
+        """Test unlinking a OneLapFit account clears token and region.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - onelapfit_token is set to None
+            - onelapfit_region is set to None
+            - Database commit is called
+        """
+        # Arrange
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+
+        with patch(
+            "users.users_integrations.crud"
+            ".get_user_integrations_by_user_id"
+        ) as mock_get:
+            mock_get.return_value = mock_integrations
+            mock_db.commit = MagicMock()
+            mock_db.refresh = MagicMock()
+
+            # Act
+            user_integrations_crud.unlink_onelapfit_account(1, mock_db)
+
+        # Assert
+        assert mock_integrations.onelapfit_token is None
+        assert mock_integrations.onelapfit_region is None
+        mock_db.commit.assert_called_once()
+
+    def test_unlink_onelapfit_account_not_found(self, mock_db):
+        """Test that 404 is raised when integrations are not found.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - HTTPException with 404 status code
+        """
+        # Arrange
+        with patch(
+            "users.users_integrations.crud"
+            ".get_user_integrations_by_user_id"
+        ) as mock_get:
+            mock_get.return_value = None
+
+            # Act & Assert
+            with pytest.raises(HTTPException) as exc_info:
+                user_integrations_crud.unlink_onelapfit_account(1, mock_db)
+
+            assert exc_info.value.status_code == 404
+
+    def test_unlink_onelapfit_account_database_error(self, mock_db):
+        """Test database error during OneLapFit account unlinking.
+
+        Args:
+            mock_db: Mocked database session
+
+        Asserts:
+            - HTTPException with 500 status on commit error
+            - Transaction is rolled back
+        """
+        # Arrange
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+
+        with patch(
+            "users.users_integrations.crud"
+            ".get_user_integrations_by_user_id"
+        ) as mock_get:
+            mock_get.return_value = mock_integrations
+            mock_db.commit.side_effect = SQLAlchemyError("Commit failed")
+            mock_db.rollback = MagicMock()
+
+            # Act & Assert
+            with pytest.raises(HTTPException) as exc_info:
+                user_integrations_crud.unlink_onelapfit_account(1, mock_db)
+
+            assert exc_info.value.status_code == 500
+            mock_db.rollback.assert_called_once()
 
 
 class TestSetUserStravaStateDBError:

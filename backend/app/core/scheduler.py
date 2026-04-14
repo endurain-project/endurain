@@ -7,6 +7,8 @@ import strava.utils as strava_utils
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 
+import onelapfit.activity_utils as onelapfit_activity_utils
+
 import password_reset_tokens.utils as password_reset_tokens_utils
 
 import sign_up_tokens.utils as sign_up_tokens_utils
@@ -58,6 +60,14 @@ def start_scheduler():
         240,
         [1],
         "retrieve last day Garmin Connect users health data",
+    )
+
+    add_scheduler_job(
+        onelapfit_activity_utils.retrieve_onelapfit_users_activities,
+        "interval",
+        15,
+        [False],
+        "retrieve last day OneLapFit users activities",
     )
 
     add_scheduler_job(

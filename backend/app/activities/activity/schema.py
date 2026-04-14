@@ -42,6 +42,7 @@ class Activity(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = None
+    onelapfit_id: str | None = None
     import_info: dict | None = None
     is_hidden: bool = False
     hide_start_time: bool | None = None
