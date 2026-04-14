@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Verbind uw OneLapFit-account om uw fietsactiviteiten automatisch te importeren",
+  "linkingTitle": "OneLapFit-account koppelen",
+  "emailLabel": "E-mailadres",
+  "passwordLabel": "Wachtwoord",
+  "linkingMessage": "Uw OneLapFit-account wordt gekoppeld...",
+  "linkingSuccess": "OneLapFit-account succesvol gekoppeld",
+  "linkingError": "Fout bij het koppelen van OneLapFit-account",
+  "unlinkingTitle": "OneLapFit-account ontkoppelen",
+  "unlinkingDescription": "Weet u zeker dat u uw OneLapFit-account wilt ontkoppelen? Alle OneLapFit-gegevens worden verwijderd.",
+  "unlinkingMessage": "Uw OneLapFit-account wordt ontkoppeld...",
+  "unlinkingSuccess": "OneLapFit-account succesvol ontkoppeld",
+  "unlinkingError": "Fout bij het ontkoppelen van OneLapFit-account",
+  "retrievingActivitiesMessage": "Uw OneLapFit-activiteiten worden gesynchroniseerd...",
+  "retrievingActivitiesError": "Fout bij het synchroniseren van OneLapFit-activiteiten",
+  "syncNowButton": "Nu synchroniseren"
+}

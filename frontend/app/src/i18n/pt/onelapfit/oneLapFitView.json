@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Conecte sua conta OneLapFit para importar automaticamente suas atividades de ciclismo",
+  "linkingTitle": "Vincular conta OneLapFit",
+  "emailLabel": "Email",
+  "passwordLabel": "Senha",
+  "linkingMessage": "Vinculando sua conta OneLapFit...",
+  "linkingSuccess": "Conta OneLapFit vinculada com sucesso",
+  "linkingError": "Erro ao vincular a conta OneLapFit",
+  "unlinkingTitle": "Desvincular conta OneLapFit",
+  "unlinkingDescription": "Tem certeza de que deseja desvincular sua conta OneLapFit? Todos os dados OneLapFit serão removidos.",
+  "unlinkingMessage": "Desvinculando sua conta OneLapFit...",
+  "unlinkingSuccess": "Conta OneLapFit desvinculada com sucesso",
+  "unlinkingError": "Erro ao desvincular a conta OneLapFit",
+  "retrievingActivitiesMessage": "Sincronizando suas atividades OneLapFit...",
+  "retrievingActivitiesError": "Erro ao sincronizar as atividades OneLapFit",
+  "syncNowButton": "Sincronizar agora"
+}

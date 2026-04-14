@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "連接您的 OneLapFit 帳戶以自動匯入您的騎車活動",
+  "linkingTitle": "連接 OneLapFit 帳戶",
+  "emailLabel": "電子郵件",
+  "passwordLabel": "密碼",
+  "linkingMessage": "正在連接您的 OneLapFit 帳戶...",
+  "linkingSuccess": "OneLapFit 帳戶連接成功",
+  "linkingError": "連接 OneLapFit 帳戶失敗",
+  "unlinkingTitle": "取消連接 OneLapFit 帳戶",
+  "unlinkingDescription": "確定要取消連接 OneLapFit 帳戶嗎？所有 OneLapFit 數據將被刪除。",
+  "unlinkingMessage": "正在取消連接 OneLapFit 帳戶...",
+  "unlinkingSuccess": "OneLapFit 帳戶取消連接成功",
+  "unlinkingError": "取消連接 OneLapFit 帳戶失敗",
+  "retrievingActivitiesMessage": "正在同步 OneLapFit 活動...",
+  "retrievingActivitiesError": "同步 OneLapFit 活動失敗",
+  "syncNowButton": "立即同步"
+}

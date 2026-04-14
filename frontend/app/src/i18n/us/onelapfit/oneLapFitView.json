@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Connect your OneLapFit account to automatically import your cycling activities",
+  "linkingTitle": "Link OneLapFit Account",
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "linkingMessage": "Linking your OneLapFit account...",
+  "linkingSuccess": "OneLapFit account linked successfully",
+  "linkingError": "Failed to link OneLapFit account",
+  "unlinkingTitle": "Unlink OneLapFit Account",
+  "unlinkingDescription": "Are you sure you want to unlink your OneLapFit account? All OneLapFit data will be removed.",
+  "unlinkingMessage": "Unlinking your OneLapFit account...",
+  "unlinkingSuccess": "OneLapFit account unlinked successfully",
+  "unlinkingError": "Failed to unlink OneLapFit account",
+  "retrievingActivitiesMessage": "Syncing your OneLapFit activities...",
+  "retrievingActivitiesError": "Failed to sync OneLapFit activities",
+  "syncNowButton": "Sync Now"
+}

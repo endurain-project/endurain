@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Povežite svoj račun OneLapFit za avtomatski uvoz svojih kolesarskih aktivnosti",
+  "linkingTitle": "Povežite račun OneLapFit",
+  "emailLabel": "E-pošta",
+  "passwordLabel": "Geslo",
+  "linkingMessage": "Povezovanje vašega računa OneLapFit...",
+  "linkingSuccess": "Račun OneLapFit je uspešno povezan",
+  "linkingError": "Napaka pri povezovanju računa OneLapFit",
+  "unlinkingTitle": "Odključite račun OneLapFit",
+  "unlinkingDescription": "Ali ste prepričani, da želite odključiti svoj račun OneLapFit? Vsi podatki OneLapFit bodo izbrisani.",
+  "unlinkingMessage": "Odključevanje vašega računa OneLapFit...",
+  "unlinkingSuccess": "Račun OneLapFit je uspešno odključen",
+  "unlinkingError": "Napaka pri odključevanju računa OneLapFit",
+  "retrievingActivitiesMessage": "Sinhronizacija vaših aktivnosti OneLapFit...",
+  "retrievingActivitiesError": "Napaka pri sinhronizaciji aktivnosti OneLapFit",
+  "syncNowButton": "Sinhroniziraj zdaj"
+}

@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "连接您的 OneLapFit 账户以自动导入您的自行车活动",
+  "linkingTitle": "链接 OneLapFit 账户",
+  "emailLabel": "电子邮件",
+  "passwordLabel": "密码",
+  "linkingMessage": "正在链接您的 OneLapFit 账户...",
+  "linkingSuccess": "OneLapFit 账户链接成功",
+  "linkingError": "链接 OneLapFit 账户失败",
+  "unlinkingTitle": "取消链接 OneLapFit 账户",
+  "unlinkingDescription": "确定要取消链接 OneLapFit 账户吗？所有 OneLapFit 数据将被删除。",
+  "unlinkingMessage": "正在取消链接 OneLapFit 账户...",
+  "unlinkingSuccess": "OneLapFit 账户取消链接成功",
+  "unlinkingError": "取消链接 OneLapFit 账户失败",
+  "retrievingActivitiesMessage": "正在同步 OneLapFit 活动...",
+  "retrievingActivitiesError": "同步 OneLapFit 活动失败",
+  "syncNowButton": "立即同步"
+}

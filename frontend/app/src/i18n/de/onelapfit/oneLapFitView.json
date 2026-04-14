@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Verbinden Sie Ihr OneLapFit-Konto, um Ihre Rennrad-Aktivitäten automatisch zu importieren",
+  "linkingTitle": "OneLapFit-Konto verbinden",
+  "emailLabel": "E-Mail",
+  "passwordLabel": "Passwort",
+  "linkingMessage": "Ihr OneLapFit-Konto wird verbunden...",
+  "linkingSuccess": "OneLapFit-Konto erfolgreich verbunden",
+  "linkingError": "Fehler beim Verbinden des OneLapFit-Kontos",
+  "unlinkingTitle": "OneLapFit-Konto trennen",
+  "unlinkingDescription": "Sind Sie sicher, dass Sie Ihr OneLapFit-Konto trennen möchten? Alle OneLapFit-Daten werden gelöscht.",
+  "unlinkingMessage": "Ihr OneLapFit-Konto wird getrennt...",
+  "unlinkingSuccess": "OneLapFit-Konto erfolgreich getrennt",
+  "unlinkingError": "Fehler beim Trennen des OneLapFit-Kontos",
+  "retrievingActivitiesMessage": "Ihre OneLapFit-Aktivitäten werden synchronisiert...",
+  "retrievingActivitiesError": "Fehler beim Synchronisieren der OneLapFit-Aktivitäten",
+  "syncNowButton": "Jetzt synchronisieren"
+}

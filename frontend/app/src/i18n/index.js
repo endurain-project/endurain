@@ -108,6 +108,7 @@ const componentPaths = {
   gearsView: 'gears/gearsView.json',
   gearView: 'gears/gearView.json',
   stravaCallbackView: 'strava/stravaCallbackView.json',
+  oneLapFitView: 'onelapfit/oneLapFitView.json',
   activityView: 'activityView.json',
   activityItems: 'activityItems.json',
   activitiesView: 'activitiesView.json',

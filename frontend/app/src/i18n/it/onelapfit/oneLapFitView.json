@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Collega il tuo account OneLapFit per importare automaticamente le tue attività in bicicletta",
+  "linkingTitle": "Collega account OneLapFit",
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+  "linkingMessage": "Collegamento del tuo account OneLapFit in corso...",
+  "linkingSuccess": "Account OneLapFit collegato con successo",
+  "linkingError": "Errore nel collegamento dell'account OneLapFit",
+  "unlinkingTitle": "Scollega account OneLapFit",
+  "unlinkingDescription": "Sei sicuro di voler scollegare il tuo account OneLapFit? Tutti i dati OneLapFit verranno eliminati.",
+  "unlinkingMessage": "Scollegamento del tuo account OneLapFit in corso...",
+  "unlinkingSuccess": "Account OneLapFit scollegato con successo",
+  "unlinkingError": "Errore nello scollegamento dell'account OneLapFit",
+  "retrievingActivitiesMessage": "Sincronizzazione delle tue attività OneLapFit in corso...",
+  "retrievingActivitiesError": "Errore nella sincronizzazione delle attività OneLapFit",
+  "syncNowButton": "Sincronizza ora"
+}

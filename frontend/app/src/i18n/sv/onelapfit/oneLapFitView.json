@@ -1,0 +1,18 @@
+{
+  "integrationTitle": "OneLapFit",
+  "integrationDescription": "Anslut ditt OneLapFit-konto för att automatiskt importera dina cykelaktiviteter",
+  "linkingTitle": "Länka OneLapFit-konto",
+  "emailLabel": "E-post",
+  "passwordLabel": "Lösenord",
+  "linkingMessage": "Länkar ditt OneLapFit-konto...",
+  "linkingSuccess": "OneLapFit-konto länkat framgångsrikt",
+  "linkingError": "Det gick inte att länka OneLapFit-kontot",
+  "unlinkingTitle": "Avlänka OneLapFit-konto",
+  "unlinkingDescription": "Är du säker på att du vill avlänka ditt OneLapFit-konto? Alla OneLapFit-data kommer att tas bort.",
+  "unlinkingMessage": "Avlänkar ditt OneLapFit-konto...",
+  "unlinkingSuccess": "OneLapFit-konto avlänkat framgångsrikt",
+  "unlinkingError": "Det gick inte att avlänka OneLapFit-kontot",
+  "retrievingActivitiesMessage": "Synkroniserar dina OneLapFit-aktiviteter...",
+  "retrievingActivitiesError": "Det gick inte att synkronisera OneLapFit-aktiviteter",
+  "syncNowButton": "Synkronisera nu"
+}
