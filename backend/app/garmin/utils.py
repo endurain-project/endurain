@@ -1,12 +1,11 @@
 import requests
 import asyncio
+import json
 
-from datetime import datetime
 from fastapi import (
     HTTPException,
     status,
 )
-import garth.exc
 import garminconnect
 
 from sqlalchemy.orm import Session
@@ -59,16 +58,23 @@ async def link_garminconnect(
     mfa_codes: garmin_schema.MFACodeStore,
     websocket_manager: websocket_manager.WebSocketManager,
 ):
-    # Define MFA callback as a coroutine
-    async def async_mfa_callback():
-        return await get_mfa(user_id, mfa_codes, websocket_manager)
+    # Capture the running event loop so the thread can schedule async work on it
+    loop = asyncio.get_running_loop()
 
     def blocking_login():
+        # Bridge sync→async: schedule the async MFA prompt on the event loop
+        # and block the thread until the user submits the code (timeout 65 s)
+        def sync_mfa_callback():
+            future = asyncio.run_coroutine_threadsafe(
+                get_mfa(user_id, mfa_codes, websocket_manager), loop
+            )
+            return future.result(timeout=65)
+
         # Create a new Garmin object
         garmin = garminconnect.Garmin(
             email=email,
             password=password,
-            prompt_mfa=async_mfa_callback,
+            prompt_mfa=sync_mfa_callback,
         )
         garmin.login()
 
@@ -78,7 +84,7 @@ async def link_garminconnect(
         # Run the blocking `login()` call in a thread
         garmin = await asyncio.to_thread(blocking_login)
 
-        if not garmin.garth.oauth1_token:
+        if not garmin.client.di_token:
             raise HTTPException(
                 status_code=status.HTTP_424_FAILED_DEPENDENCY,
                 detail="Incorrect Garmin Connect credentials",
@@ -87,8 +93,8 @@ async def link_garminconnect(
 
         user_integrations_crud.link_garminconnect_account(
             user_id,
-            serialize_oauth1_token(garmin.garth.oauth1_token),
-            serialize_oauth2_token(garmin.garth.oauth2_token),
+            serialize_garmin_token(garmin.client),
+            None,
             db,
         )
     except HTTPException as http_err:
@@ -96,7 +102,6 @@ async def link_garminconnect(
     except (
         garminconnect.GarminConnectAuthenticationError,
         requests.exceptions.HTTPError,
-        garth.exc.GarthException,
     ) as err:
         # Print error info to check dedicated log in main log
         core_logger.print_to_log_and_console(
@@ -138,14 +143,14 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
         # Create a new Garmin object
         garmin = garminconnect.Garmin()
 
-        # Configure the Garmin object with the tokens
-        garmin.garth.configure(
-            oauth1_token=deserialize_oauth1_token(oauth1_token),
-            oauth2_token=deserialize_oauth2_token(oauth2_token),
+        # Restore session from stored DI tokens
+        garmin.client.loads(
+            deserialize_garmin_token(oauth1_token)
         )
         return garmin
     except (
         garminconnect.GarminConnectAuthenticationError,
+        garminconnect.GarminConnectConnectionError,
         requests.exceptions.HTTPError,
     ) as err:
         # Print error info to check dedicated log in main log
@@ -157,100 +162,54 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
         return None
 
 
-def serialize_oauth1_token(token):
+def serialize_garmin_token(client) -> dict:
     try:
         return {
-            "oauth_token": core_cryptography.encrypt_token_fernet(token.oauth_token),
-            "oauth_token_secret": core_cryptography.encrypt_token_fernet(
-                token.oauth_token_secret
-            ),
-            "mfa_token": (
-                core_cryptography.encrypt_token_fernet(token.mfa_token)
-                if token.mfa_token
+            "di_token": (
+                core_cryptography.encrypt_token_fernet(
+                    client.di_token
+                )
+                if client.di_token
                 else None
             ),
-            "mfa_expiration_timestamp": (
-                token.mfa_expiration_timestamp.isoformat()
-                if token.mfa_expiration_timestamp
+            "di_refresh_token": (
+                core_cryptography.encrypt_token_fernet(
+                    client.di_refresh_token
+                )
+                if client.di_refresh_token
                 else None
             ),
-            "domain": token.domain,
+            "di_client_id": client.di_client_id,
         }
     except Exception as err:
-        # Log the error and re-raise the exception
         core_logger.print_to_log_and_console(
-            f"Error in serialize_oauth1_token: {err}", "error", err
+            f"Error in serialize_garmin_token: {err}", "error", err
         )
         raise err
 
 
-def serialize_oauth2_token(token):
+def deserialize_garmin_token(data: dict) -> str:
     try:
-        return {
-            "scope": token.scope,
-            "jti": token.jti,
-            "token_type": token.token_type,
-            "access_token": core_cryptography.encrypt_token_fernet(token.access_token),
-            "refresh_token": core_cryptography.encrypt_token_fernet(
-                token.refresh_token
-            ),
-            "expires_in": token.expires_in,
-            "expires_at": token.expires_at,
-            "refresh_token_expires_in": token.refresh_token_expires_in,
-            "refresh_token_expires_at": token.refresh_token_expires_at,
-        }
-    except Exception as err:
-        # Log the error and re-raise the exception
-        core_logger.print_to_log_and_console(
-            f"Error in serialize_oauth2_token: {err}", "error", err
-        )
-        raise err
-
-
-def deserialize_oauth1_token(data):
-    try:
-        return garminconnect.garth.auth_tokens.OAuth1Token(
-            oauth_token=core_cryptography.decrypt_token_fernet(data["oauth_token"]),
-            oauth_token_secret=core_cryptography.decrypt_token_fernet(
-                data["oauth_token_secret"]
-            ),
-            mfa_token=(
-                core_cryptography.decrypt_token_fernet(data.get("mfa_token"))
-                if data.get("mfa_token")
+        return json.dumps({
+            "di_token": (
+                core_cryptography.decrypt_token_fernet(
+                    data["di_token"]
+                )
+                if data.get("di_token")
                 else None
             ),
-            mfa_expiration_timestamp=(
-                datetime.fromisoformat(data["mfa_expiration_timestamp"])
-                if data.get("mfa_expiration_timestamp")
+            "di_refresh_token": (
+                core_cryptography.decrypt_token_fernet(
+                    data["di_refresh_token"]
+                )
+                if data.get("di_refresh_token")
                 else None
             ),
-            domain=data.get("domain"),
-        )
+            "di_client_id": data.get("di_client_id"),
+        })
     except Exception as err:
-        # Log the error and re-raise the exception
         core_logger.print_to_log_and_console(
-            f"Error in deserialize_oauth1_token: {err}", "error", err
-        )
-        raise err
-
-
-def deserialize_oauth2_token(data):
-    try:
-        return garminconnect.garth.auth_tokens.OAuth2Token(
-            scope=data["scope"],
-            jti=data["jti"],
-            token_type=data["token_type"],
-            access_token=core_cryptography.decrypt_token_fernet(data["access_token"]),
-            refresh_token=core_cryptography.decrypt_token_fernet(data["refresh_token"]),
-            expires_in=data["expires_in"],
-            expires_at=data["expires_at"],
-            refresh_token_expires_in=data.get("refresh_token_expires_in"),
-            refresh_token_expires_at=data.get("refresh_token_expires_at"),
-        )
-    except Exception as err:
-        # Log the error and re-raise the exception
-        core_logger.print_to_log_and_console(
-            f"Error in deserialize_oauth2_token: {err}", "error", err
+            f"Error in deserialize_garmin_token: {err}", "error", err
         )
         raise err
 
