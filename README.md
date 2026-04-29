@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> This repository has moved to **[Codeberg](https://codeberg.org/endurain-project/endurain)**.
+> This GitHub mirror is archived and no longer maintained.
+> Please update your remotes: `git remote set-url origin https://codeberg.org/endurain-project/endurain.git`
+
 <div align="center">
   <img src="frontend/app/public/logo/logo.png" width="128" height="128">
 
