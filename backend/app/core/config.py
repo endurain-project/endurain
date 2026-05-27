@@ -29,7 +29,7 @@ import core.logger as core_logger
 import core.redis as core_redis
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.18.3"
+API_VERSION = "v0.18.4"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"

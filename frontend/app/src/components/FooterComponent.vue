@@ -19,7 +19,7 @@
         <a class="link-body-emphasis" href="https://discord.gg/6VUjUq2uZR"
           ><font-awesome-icon :icon="['fab', 'fa-discord']"
         /></a>
-        • v0.18.3
+        • v0.18.4
       </p>
       <p class="text-center text-muted">
         <img :src="INTEGRATION_LOGOS.strava" alt="Compatible with STRAVA image" height="25" />
