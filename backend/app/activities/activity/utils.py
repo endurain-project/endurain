@@ -640,12 +640,11 @@ async def parse_and_store_activity_from_file(
             # sync I/O work (gpxpy, geopy, timezonefinder)
             parsed_info = await run_in_threadpool(
                 functools.partial(
-                    parse_file,
+                    _parse_file_with_thread_session,
                     token_user_id,
                     user_privacy_settings,
                     file_extension,
                     file_path,
-                    db,
                     activity_name,
                 )
             )
@@ -1195,6 +1194,40 @@ def parse_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def _parse_file_with_thread_session(
+    token_user_id: int,
+    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    file_extension: str,
+    filename: str,
+    activity_name: str | None = None,
+) -> dict | None:
+    """
+    Parse a file using a session owned by the worker thread.
+
+    Args:
+        token_user_id: ID of the authenticated user.
+        user_privacy_settings: Privacy settings used while parsing.
+        file_extension: Activity file extension.
+        filename: Path to the activity file.
+        activity_name: Optional activity name override.
+
+    Returns:
+        Parsed activity payload, or None when parsing is skipped.
+
+    Raises:
+        HTTPException: Propagated from the parser on parse failure.
+    """
+    with core_database.SessionLocal() as thread_db:
+        return parse_file(
+            token_user_id,
+            user_privacy_settings,
+            file_extension,
+            filename,
+            thread_db,
+            activity_name,
+        )
 
 
 async def store_activity(
@@ -1777,13 +1810,12 @@ def process_all_files_sync(
         file_paths: List of file paths to process.
         websocket_manager: WebSocket manager instance.
     """
-    db = next(core_database.get_db())
-    try:
-        total_files = len(file_paths)
-        for idx, file_path in enumerate(file_paths, 1):
-            core_logger.print_to_log_and_console(
-                f"Processing file {idx}/{total_files}: " f"{file_path}"
-            )
+    total_files = len(file_paths)
+    for idx, file_path in enumerate(file_paths, 1):
+        core_logger.print_to_log_and_console(
+            f"Processing file {idx}/{total_files}: " f"{file_path}"
+        )
+        with core_database.SessionLocal() as db:
             asyncio.run(
                 parse_and_store_activity_from_file(
                     user_id,
@@ -1794,15 +1826,13 @@ def process_all_files_sync(
                     import_initiated_time=import_initiated_time,
                 )
             )
-            # Small delay between files
-            time.sleep(0.1)
+        # Small delay between files
+        time.sleep(0.1)
 
-        core_logger.print_to_log_and_console(
-            f"Bulk import completed: {total_files} files "
-            f"processed for user {user_id}"
-        )
-    finally:
-        db.close()
+    core_logger.print_to_log_and_console(
+        f"Bulk import completed: {total_files} files "
+        f"processed for user {user_id}"
+    )
 
 
 def delete_and_regenerate_all_activity_thumbnails() -> None:

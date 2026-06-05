@@ -129,10 +129,6 @@ def create_gear_dictionary_for_bulk_import(
 def queue_bulk_export_activities_for_import(
     token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     websocket_manager: websocket_manager.WebSocketManager,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
     strava_activities_dict: dict, 
     users_existing_gear_nickname_to_id: dict,
     import_time: str, 
@@ -235,18 +231,21 @@ def queue_bulk_export_activities_for_import(
         if os.path.isfile(file_path):
             core_logger.print_to_log_and_console(f"Strava bulk import: Processing file {filenumber} of {number_of_importable_files} - {file_path}")
             # Parse and store the activity
-            asyncio.run(
-                activities_utils.parse_and_store_activity_from_file(
-                    token_user_id,
-                    file_path,
-                    websocket_manager,
-                    db,
-                    is_bulk_import=True,
-                    strava_activities=strava_activities_dict,
-                    import_initiated_time=import_time,
-                    users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
+            with core_database.SessionLocal() as db:
+                asyncio.run(
+                    activities_utils.parse_and_store_activity_from_file(
+                        token_user_id,
+                        file_path,
+                        websocket_manager,
+                        db,
+                        is_bulk_import=True,
+                        strava_activities=strava_activities_dict,
+                        import_initiated_time=import_time,
+                        users_existing_gear_nickname_to_id=(
+                            users_existing_gear_nickname_to_id
+                        ),
+                    )
                 )
-            )
             # Small delay between files
             time.sleep(0.1)
 
