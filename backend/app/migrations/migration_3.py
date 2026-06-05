@@ -9,12 +9,10 @@ import asyncio
 import os
 import glob
 import fitdecode
-from pytz import UTC
 
 from sqlalchemy.orm import Session
 
 import activities.activity.crud as activities_crud
-import activities.activity.utils as activities_utils
 import activities.activity.models as activities_models
 
 import activities.activity_streams.crud as activity_streams_crud
