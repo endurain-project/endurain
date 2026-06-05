@@ -306,7 +306,6 @@ async def import_activities_and_media_from_strava_export(
                     strava_bulk_import_utils.queue_bulk_export_activities_for_import,
                     token_user_id,
                     ws_manager,
-                    db,
                     strava_activities_dict,
                     users_existing_gear_nickname_to_id,
                     import_time,
