@@ -340,6 +340,8 @@ def _process_trackpoint(
     if time is None:
         return
 
+    time = activity_file_import_utils.normalize_datetime_to_utc_naive(time)
+
     if (
         state.prev_latitude is not None
         and state.prev_longitude is not None

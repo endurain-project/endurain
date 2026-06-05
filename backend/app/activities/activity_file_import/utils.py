@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TypedDict
 
 from geopy.distance import geodesic
@@ -33,6 +33,13 @@ STREAM_KEYS: tuple[str, ...] = (
     "is_lat_lon_set",
     "lat_lon_waypoints",
 )
+
+
+def normalize_datetime_to_utc_naive(dt: datetime) -> datetime:
+    """Return a UTC-normalized datetime without timezone information."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).replace(tzinfo=None)
 
 
 def build_activity_privacy_kwargs(
@@ -408,14 +415,14 @@ def filter_streams_by_time_range(
     """
     # Normalise bounds to UTC-aware for consistent comparisons.
     if start_time.tzinfo is None:
-        start_time = start_time.replace(tzinfo=timezone.utc)
+        start_time = start_time.replace(tzinfo=UTC)
     if end_time.tzinfo is None:
-        end_time = end_time.replace(tzinfo=timezone.utc)
+        end_time = end_time.replace(tzinfo=UTC)
 
     def _parse_wp_time(time_str: str) -> datetime:
         dt = datetime.strptime(time_str, _DT_FMT)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
 
     return {

@@ -796,6 +796,8 @@ def parse_frame_session(frame):
 
     # Extracting time values
     start_time = get_value_from_frame(frame, "start_time")
+    if start_time is not None:
+        start_time = activity_file_import_utils.normalize_datetime_to_utc_naive(start_time)
     total_elapsed_time = get_value_from_frame(frame, "total_elapsed_time")
     total_timer_time = get_value_from_frame(frame, "total_timer_time")
 
@@ -842,6 +844,9 @@ def parse_frame_record(frame):
     temperature = get_value_from_frame(frame, "temperature")
 
     latitude, longitude = convert_coordinates_to_degrees(latitude, longitude)
+
+    if time is not None:
+        time = activity_file_import_utils.normalize_datetime_to_utc_naive(time)
 
     # Return all extracted values
     return latitude, longitude, elevation, time, heart_rate, cadence, power, temperature

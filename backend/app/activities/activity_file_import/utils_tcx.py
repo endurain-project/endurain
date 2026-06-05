@@ -35,9 +35,10 @@ def _parse_lap_power(
             and "Watts" in trackpoint.tpx_ext
             and trackpoint.time is not None
         ):
+            normalized_time = activity_file_import_utils.normalize_datetime_to_utc_naive(trackpoint.time)
             power_waypoints.append(
                 {
-                    "time": trackpoint.time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "time": normalized_time.strftime("%Y-%m-%dT%H:%M:%S"),
                     "power": trackpoint.tpx_ext["Watts"],
                 }
             )
@@ -66,27 +67,22 @@ def _parse_laps(
         if lap.start_time is None:
             continue
 
+        start_time = activity_file_import_utils.normalize_datetime_to_utc_naive(lap.start_time)
+        end_time = activity_file_import_utils.normalize_datetime_to_utc_naive(lap.end_time) if lap.end_time else None
+
         lap_avg_pw, lap_max_pw, lap_np = _parse_lap_power(lap)
 
         max_spd_val = lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
 
         laps.append(
             {
-                "start_time": lap.start_time,
+                "start_time": start_time,
                 "start_position_lat": (lap.trackpoints[0].latitude),
                 "start_position_long": (lap.trackpoints[0].longitude),
                 "end_position_lat": (lap.trackpoints[-1].latitude),
                 "end_position_long": (lap.trackpoints[-1].longitude),
-                "total_elapsed_time": (
-                    (lap.end_time - lap.start_time).total_seconds()
-                    if lap.start_time and lap.end_time
-                    else None
-                ),
-                "total_timer_time": (
-                    (lap.end_time - lap.start_time).total_seconds()
-                    if lap.start_time and lap.end_time
-                    else None
-                ),
+                "total_elapsed_time": ((end_time - start_time).total_seconds() if start_time and end_time else None),
+                "total_timer_time": ((end_time - start_time).total_seconds() if start_time and end_time else None),
                 "total_distance": (round(lap.distance) if lap.distance else None),
                 "total_calories": (round(lap.calories) if lap.calories else None),
                 "avg_heart_rate": (round(lap.hr_avg) if lap.hr_avg else None),
@@ -132,7 +128,7 @@ def _extract_waypoints(
 
     lat_lon_waypoints = [
         {
-            "time": tp["time"].strftime(fmt),
+            "time": activity_file_import_utils.normalize_datetime_to_utc_naive(tp["time"]).strftime(fmt),
             "lat": tp["latitude"],
             "lon": tp["longitude"],
         }
@@ -142,7 +138,7 @@ def _extract_waypoints(
 
     hr_waypoints = [
         {
-            "time": tp["time"].strftime(fmt),
+            "time": activity_file_import_utils.normalize_datetime_to_utc_naive(tp["time"]).strftime(fmt),
             "hr": tp["hr_value"],
         }
         for tp in trackpoints
@@ -151,7 +147,7 @@ def _extract_waypoints(
 
     cad_waypoints = [
         {
-            "time": tp["time"].strftime(fmt),
+            "time": activity_file_import_utils.normalize_datetime_to_utc_naive(tp["time"]).strftime(fmt),
             "cad": tp["cadence"],
         }
         for tp in trackpoints
@@ -160,7 +156,7 @@ def _extract_waypoints(
     if not cad_waypoints:
         cad_waypoints = [
             {
-                "time": tp.time.strftime(fmt),
+                "time": activity_file_import_utils.normalize_datetime_to_utc_naive(tp.time).strftime(fmt),
                 "cad": tp.tpx_ext["RunCadence"],
             }
             for tp in tcx_file.trackpoints
@@ -173,7 +169,7 @@ def _extract_waypoints(
 
     ele_waypoints = [
         {
-            "time": tp["time"].strftime(fmt),
+            "time": activity_file_import_utils.normalize_datetime_to_utc_naive(tp["time"]).strftime(fmt),
             "ele": tp["elevation"],
         }
         for tp in trackpoints
@@ -182,7 +178,7 @@ def _extract_waypoints(
 
     power_waypoints = [
         {
-            "time": tp.time.strftime(fmt),
+            "time": activity_file_import_utils.normalize_datetime_to_utc_naive(tp.time).strftime(fmt),
             "power": tp.tpx_ext["Watts"],
         }
         for tp in tcx_file.trackpoints
@@ -206,6 +202,8 @@ def _extract_waypoints(
 
         if time_val is None:
             continue
+
+        time_val = activity_file_import_utils.normalize_datetime_to_utc_naive(time_val)
 
         timestamp = time_val.strftime(fmt)
 
@@ -309,11 +307,15 @@ def _build_activity(
         activity_type=activity_type,
         timezone=timezone,
         start_time=(
-            tcx_file.start_time.strftime(fmt)
+            activity_file_import_utils.normalize_datetime_to_utc_naive(tcx_file.start_time).strftime(fmt)
             if tcx_file.start_time
             else None
         ),
-        end_time=(tcx_file.end_time.strftime(fmt) if tcx_file.end_time else None),
+        end_time=(
+            activity_file_import_utils.normalize_datetime_to_utc_naive(tcx_file.end_time).strftime(fmt)
+            if tcx_file.end_time
+            else None
+        ),
         total_elapsed_time=elapsed,
         total_timer_time=elapsed,
         city=city,

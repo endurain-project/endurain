@@ -93,6 +93,44 @@ def _patch_parser_side_effects(monkeypatch) -> None:
     )
 
 
+def test_parse_gpx_file_normalizes_offset_timestamps_to_utc(
+    self,
+    tmp_path,
+    monkeypatch,
+):
+    """Test timestamp offsets are converted to UTC before storage."""
+    _patch_parser_side_effects(monkeypatch)
+    gpx_path = _write_gpx(
+        tmp_path,
+        """
+      <gpx version="1.1" creator="pytest">
+        <trk>
+          <name>Offset run</name>
+          <trkseg>
+            <trkpt lat="0.0" lon="0.0">
+              <time>2026-03-28T08:19:19-07:00</time>
+            </trkpt>
+            <trkpt lat="0.0" lon="0.001">
+              <time>2026-03-28T08:19:29-07:00</time>
+            </trkpt>
+          </trkseg>
+        </trk>
+      </gpx>
+      """.strip(),
+    )
+
+    result = utils_gpx.parse_gpx_file(
+        gpx_path,
+        user_id=1,
+        user_privacy_settings=_privacy_settings(),
+        db=MagicMock(),
+    )
+
+    assert result["activity"].start_time == "2026-03-28T15:19:19"
+    assert result["activity"].end_time == "2026-03-28T15:19:29"
+    assert result["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
+
+
 class TestParseGpxFile:
     """Test suite for full GPX parser behavior."""
 
@@ -140,13 +178,16 @@ class TestParseGpxFile:
             db=MagicMock(),
         )
 
-        expected_distance = geodesic(
-            (0.0, 0.0),
-            (0.0, 0.001),
-        ).meters + geodesic(
-            (10.0, 10.0),
-            (10.0, 10.001),
-        ).meters
+        expected_distance = (
+            geodesic(
+                (0.0, 0.0),
+                (0.0, 0.001),
+            ).meters
+            + geodesic(
+                (10.0, 10.0),
+                (10.0, 10.001),
+            ).meters
+        )
 
         assert result["activity"].distance == round(expected_distance)
         assert result["vel_waypoints"][0]["vel"] == 0

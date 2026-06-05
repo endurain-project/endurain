@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException, status, UploadFile, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 from statistics import mean
 from sqlalchemy.orm import Session
@@ -1678,16 +1678,23 @@ def calculate_pace(
     if distance == 0:
         return 0
 
-    # Convert the time strings to datetime objects
-    start_datetime = datetime.fromisoformat(
-        first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S")
-    )
-    end_datetime = datetime.fromisoformat(
-        last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S")
-    )
+    # Normalize to UTC-aware datetimes before calculating elapsed time.
+    start_datetime = first_waypoint_time
+    if isinstance(start_datetime, str):
+        start_datetime = datetime.fromisoformat(start_datetime)
+    end_datetime = last_waypoint_time
+    if isinstance(end_datetime, str):
+        end_datetime = datetime.fromisoformat(end_datetime)
+
+    if start_datetime.tzinfo is None:
+        start_datetime = start_datetime.replace(tzinfo=UTC)
+    if end_datetime.tzinfo is None:
+        end_datetime = end_datetime.replace(tzinfo=UTC)
 
     # Calculate the time difference in seconds
-    total_time_in_seconds = (end_datetime - start_datetime).total_seconds()
+    total_time_in_seconds = (
+        end_datetime.astimezone(UTC) - start_datetime.astimezone(UTC)
+    ).total_seconds()
 
     # Calculate pace in seconds per meter
     pace_seconds_per_meter = total_time_in_seconds / distance
