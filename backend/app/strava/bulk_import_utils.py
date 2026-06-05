@@ -244,9 +244,7 @@ def queue_bulk_export_activities_for_import(
                         is_bulk_import=True,
                         strava_activities=strava_activities_dict,
                         import_initiated_time=import_time,
-                        users_existing_gear_nickname_to_id=(
-                            users_existing_gear_nickname_to_id
-                        ),
+                        users_existing_gear_nickname_to_id=(users_existing_gear_nickname_to_id),
                     )
                 )
             # Small delay between files

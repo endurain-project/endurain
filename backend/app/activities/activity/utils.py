@@ -1661,9 +1661,7 @@ def process_all_files_sync(
     """
     total_files = len(file_paths)
     for idx, file_path in enumerate(file_paths, 1):
-        core_logger.print_to_log_and_console(
-            f"Processing file {idx}/{total_files}: " f"{file_path}"
-        )
+        core_logger.print_to_log_and_console(f"Processing file {idx}/{total_files}: {file_path}")
         with core_database.SessionLocal() as db:
             asyncio.run(
                 parse_and_store_activity_from_file(
@@ -1678,10 +1676,7 @@ def process_all_files_sync(
         # Small delay between files
         time.sleep(0.1)
 
-    core_logger.print_to_log_and_console(
-        f"Bulk import completed: {total_files} files "
-        f"processed for user {user_id}"
-    )
+    core_logger.print_to_log_and_console(f"Bulk import completed: {total_files} files processed for user {user_id}")
 
 
 def delete_and_regenerate_all_activity_thumbnails() -> None:
