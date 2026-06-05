@@ -1,9 +1,15 @@
 <script setup>
+import { computed } from 'vue'
 import { RouterView } from 'vue-router'
 import NavbarComponent from './components/Navbar/NavbarComponent.vue'
 import NavbarBottomMobileComponent from './components/Navbar/NavbarBottomMobileComponent.vue'
 import FooterComponent from './components/FooterComponent.vue'
 import { Notivue, Notification, NotivueSwipe, NotificationProgress, pastelTheme } from 'notivue'
+import { useServerSettingsStore } from '@/stores/serverSettingsStore'
+
+const serverSettingsStore = useServerSettingsStore()
+const configError = computed(() => serverSettingsStore.configError)
+const configuredHost = window.env?.ENDURAIN_HOST || ''
 </script>
 
 <template>
@@ -14,7 +20,31 @@ import { Notivue, Notification, NotivueSwipe, NotificationProgress, pastelTheme 
       </Notification>
     </NotivueSwipe>
   </Notivue>
-  <div class="d-flex flex-column min-vh-100">
+
+  <!-- Configuration error overlay -->
+  <div
+    v-if="configError"
+    class="d-flex flex-column min-vh-100 justify-content-center align-items-center p-4 bg-body-tertiary"
+  >
+    <div class="card shadow-sm" style="max-width: 600px; width: 100%">
+      <div class="card-body text-center p-4">
+        <font-awesome-icon
+          :icon="['fas', 'triangle-exclamation']"
+          class="text-warning mb-3"
+          style="font-size: 2.5rem"
+        />
+        <h2 class="mb-3">{{ $t('generalItems.configErrorTitle') }}</h2>
+        <p class="text-muted mb-3">{{ $t('generalItems.configErrorMessage') }}</p>
+        <div class="alert alert-secondary text-start font-monospace small mb-3">
+          <strong>ENDURAIN_HOST</strong>: {{ configuredHost || $t('generalItems.configErrorNotSet') }}
+        </div>
+        <p class="text-muted small">{{ $t('generalItems.configErrorHelp') }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Normal app layout -->
+  <div v-else class="d-flex flex-column min-vh-100">
     <!-- Top Navbar with safe-area padding -->
     <div class="bg-body-tertiary shadow-sm safe-area-top">
       <NavbarComponent class="container safe-area-container" />

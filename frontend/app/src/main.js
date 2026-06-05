@@ -96,6 +96,23 @@ async function initApp() {
     await serverSettingsStore.loadServerSettingsFromServer()
   } catch (error) {
     console.error('Failed to load server settings on app init:', error)
+    // Detect if ENDURAIN_HOST is misconfigured (different origin than current page).
+    // A TypeError ("Failed to fetch") combined with an origin mismatch strongly
+    // suggests a CSP block or unreachable host caused by a bad ENDURAIN_HOST value.
+    try {
+      const configuredHost = window.env?.ENDURAIN_HOST || ''
+      if (configuredHost) {
+        const configuredOrigin = new URL(configuredHost).origin
+        if (configuredOrigin !== window.location.origin) {
+          serverSettingsStore.setConfigError('hostMismatch')
+        }
+      } else {
+        serverSettingsStore.setConfigError('hostMismatch')
+      }
+    } catch {
+      // URL parsing failed — ENDURAIN_HOST is invalid
+      serverSettingsStore.setConfigError('hostMismatch')
+    }
     // Fall back to localStorage cache if available; otherwise the store's
     // built-in defaults (defined in state()) are used as-is.
     const cached = localStorage.getItem('serverSettings')

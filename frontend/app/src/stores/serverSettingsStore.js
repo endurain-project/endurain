@@ -3,6 +3,7 @@ import { serverSettings } from '@/services/serverSettingsService'
 
 export const useServerSettingsStore = defineStore('serverSettings', {
   state: () => ({
+    configError: null,
     serverSettings: {
       id: 1,
       units: 'metric',
@@ -30,6 +31,9 @@ export const useServerSettingsStore = defineStore('serverSettings', {
     setServerSettings(serverSettings) {
       this.serverSettings = serverSettings
       localStorage.setItem('serverSettings', JSON.stringify(this.serverSettings))
+    },
+    setConfigError(errorKey) {
+      this.configError = errorKey
     },
     loadServerSettingsFromStorage() {
       const storedServerSettings = localStorage.getItem('serverSettings')
