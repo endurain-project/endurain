@@ -19,7 +19,7 @@ services:
     restart: 'unless-stopped'
 
   runner-job-image:
-    image: docker:cli@sha256:873de13208aab9c1de73fe984fd45883e01464fcfcc85efa20aa56a9ccfe7aa6
+    image: docker:cli@sha256:cdfd70216347d3cbc202a64752101dd76d11f87396749c33641eb487e2e9effc
     depends_on:
       docker-in-docker:
         condition: service_healthy
