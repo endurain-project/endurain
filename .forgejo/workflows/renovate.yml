@@ -52,7 +52,7 @@ jobs:
           fi
 
       - name: Run Renovate
-        uses: docker://ghcr.io/renovatebot/renovate@sha256:38aac6e29e09288bc3fb3b95ba9445962508a1081013144d5b6ec5a6735707b9 # 43.168.5
+        uses: docker://ghcr.io/renovatebot/renovate@sha256:459b7e28aa54fa2fa7db83df6a2d6ad26de416a054ee554e7833203adf3d9a47 # 43.168.5
         env:
           RENOVATE_CONFIG_FILE: renovate.json
           RENOVATE_ENDPOINT: https://codeberg.org/api/v1/
