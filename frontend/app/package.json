@@ -27,7 +27,7 @@
     "chartjs-adapter-date-fns": "^3.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
     "chartjs-plugin-zoom": "^2.2.0",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.4.11",
     "flag-icons": "^7.2.3",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
