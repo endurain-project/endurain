@@ -671,6 +671,14 @@ class IdentityService(Protocol):
         """
         ...
 
+    def get_user_ids_with_identity_links(self) -> set[int]:
+        """Return the set of user IDs that have at least one identity-provider link.
+
+        Returns:
+            Set of user IDs with one or more linked IdPs (empty when none exist).
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # Default implementation
@@ -1316,6 +1324,10 @@ class DefaultIdentityService:
     def get_identity_link_counts_for_users(self, user_ids: list[int]) -> dict[int, int]:
         """Return identity-link count per user ID in a single grouped query."""
         return auth_identity_link_service.get_identity_link_counts_for_users(user_ids, self._db)
+
+    def get_user_ids_with_identity_links(self) -> set[int]:
+        """Return the set of user IDs that have at least one identity-provider link."""
+        return auth_identity_link_service.get_user_ids_with_identity_links(self._db)
 
 
 # ---------------------------------------------------------------------------

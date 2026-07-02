@@ -91,11 +91,30 @@ def read_users_all_pagination(
     Returns:
         Paginated list of users with total count.
     """
+    # Resolve the external/local auth filters into user-ID constraints so
+    # they are applied in SQL *before* pagination. The external-auth flag
+    # maps to "has >=1 identity-provider link"; local-auth is its inverse.
+    # Applying these per page (after pagination) would make `total`
+    # inconsistent with the returned rows and yield short or missing pages,
+    # so the linked-user set is fetched only when a filter is actually active.
+    include_user_ids: set[int] | None = None
+    exclude_user_ids: set[int] | None = None
+    if show_external_auth is False or show_local_auth is False:
+        linked_user_ids: set[int] = identity_service.get_user_ids_with_identity_links()
+        if show_local_auth is False:
+            # Keep only users that have an identity-provider link.
+            include_user_ids = linked_user_ids
+        if show_external_auth is False:
+            # Drop users that have an identity-provider link.
+            exclude_user_ids = linked_user_ids
+
     total: int = users_crud.get_users_number(
         db,
         show_inactive,
         show_email_unverified,
         show_pending_approval,
+        include_user_ids=include_user_ids,
+        exclude_user_ids=exclude_user_ids,
     )
     users: list[users_schema.UsersRead] = users_crud.get_users_with_pagination(
         db,
@@ -104,31 +123,22 @@ def read_users_all_pagination(
         show_inactive,
         show_email_unverified,
         show_pending_approval,
+        include_user_ids=include_user_ids,
+        exclude_user_ids=exclude_user_ids,
     )
 
-    # Batch fetch IdP link counts for all users in a single grouped query
+    # Batch fetch IdP link counts for the page's users in a single grouped
+    # query, purely to populate external_auth_count for display.
     user_ids: list[int] = [user.id for user in users]
     idp_counts: dict[int, int] = identity_service.get_identity_link_counts_for_users(user_ids)
-
-    # Enrich with IDP count before serializing
-    enriched_users: list[users_schema.UsersRead] = []
     for user in users:
-        idp_count: int = idp_counts.get(user.id, 0)
-        user.external_auth_count = idp_count
-
-        # Apply external/local auth filters
-        if idp_count > 0 and show_external_auth is False:
-            continue
-        if idp_count == 0 and show_local_auth is False:
-            continue
-
-        enriched_users.append(user)
+        user.external_auth_count = idp_counts.get(user.id, 0)
 
     return users_schema.UsersListResponse(
         total=total,
         num_records=num_records,
         page_number=page_number,
-        records=enriched_users,
+        records=users,
     )
 
 

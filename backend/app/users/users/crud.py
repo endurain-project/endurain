@@ -256,6 +256,8 @@ def get_users_number(
     show_inactive: bool | None = True,
     show_email_unverified: bool | None = True,
     show_pending_approval: bool | None = True,
+    include_user_ids: set[int] | None = None,
+    exclude_user_ids: set[int] | None = None,
 ) -> int:
     """
     Count users matching the optional list filters.
@@ -268,6 +270,12 @@ def get_users_number(
             unverified emails. Defaults to True.
         show_pending_approval: If False, excludes users pending
             admin approval. Defaults to True.
+        include_user_ids: If not None, restricts the count to these user
+            IDs (an empty set matches no users). Used to keep the total
+            consistent with an external/local auth filter applied by the
+            caller. Defaults to None (no restriction).
+        exclude_user_ids: If provided, removes these user IDs from the
+            count. Defaults to None (no exclusion).
 
     Returns:
         Number of users matching the filters.
@@ -283,6 +291,10 @@ def get_users_number(
         stmt = stmt.where(users_models.Users.email_verified.is_(True))
     if show_pending_approval is False:
         stmt = stmt.where(users_models.Users.pending_admin_approval.is_(False))
+    if include_user_ids is not None:
+        stmt = stmt.where(users_models.Users.id.in_(include_user_ids))
+    if exclude_user_ids:
+        stmt = stmt.where(users_models.Users.id.notin_(exclude_user_ids))
 
     return db.execute(stmt).scalar_one()
 
@@ -295,6 +307,8 @@ def get_users_with_pagination(
     show_inactive: bool | None = True,
     show_email_unverified: bool | None = True,
     show_pending_approval: bool | None = True,
+    include_user_ids: set[int] | None = None,
+    exclude_user_ids: set[int] | None = None,
 ) -> list[users_schema.UsersRead]:
     """
     Retrieve a paginated list of users with optional filtering.
@@ -315,6 +329,12 @@ def get_users_with_pagination(
             users).
         show_pending_approval (bool | None): If False, excludes users pending
             admin approval. Defaults to True (includes pending approval users).
+        include_user_ids (set[int] | None): If not None, restricts results to
+            these user IDs (an empty set returns no users). Used to apply an
+            external/local auth filter in SQL, before pagination, so pages
+            stay full and consistent with the total. Defaults to None.
+        exclude_user_ids (set[int] | None): If provided, removes these user
+            IDs from the results. Defaults to None.
 
     Returns:
         list[users_schema.UsersRead]: A list of User schemas matching the specified
@@ -329,6 +349,10 @@ def get_users_with_pagination(
         stmt = stmt.where(users_models.Users.email_verified.is_(True))
     if show_pending_approval is False:
         stmt = stmt.where(users_models.Users.pending_admin_approval.is_(False))
+    if include_user_ids is not None:
+        stmt = stmt.where(users_models.Users.id.in_(include_user_ids))
+    if exclude_user_ids:
+        stmt = stmt.where(users_models.Users.id.notin_(exclude_user_ids))
 
     stmt = stmt.order_by(users_models.Users.username)
 

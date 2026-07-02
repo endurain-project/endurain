@@ -110,15 +110,27 @@ class TestReadUsersAllPagination:
             _make_mock_user(1, name="Alice"),
             _make_mock_user(2, name="Bob"),
         ]
-        # Alice (id=1) has 1 IdP link; Bob (id=2) has none
-        mock_identity_service.get_identity_link_counts_for_users.return_value = {1: 1}
+        # Alice (id=1) has an IdP link; the DB layer applies the filter and
+        # returns only Bob (id=2).
+        mock_identity_service.get_user_ids_with_identity_links.return_value = {1}
+        mock_get_number.return_value = 1
+        mock_get_paginated.return_value = [_make_mock_user(2, name="Bob")]
+        mock_identity_service.get_identity_link_counts_for_users.return_value = {}
 
         response = client.get("/users?show_external_auth=false")
 
         assert response.status_code == 200
         data = response.json()
+        assert data["total"] == 1
         assert len(data["records"]) == 1
         assert data["records"][0]["name"] == "Bob"
+
+        # External-auth users are excluded in SQL, before pagination, so the
+        # same constraint is passed to both the count and the page query.
+        assert mock_get_paginated.call_args.kwargs["exclude_user_ids"] == {1}
+        assert mock_get_paginated.call_args.kwargs["include_user_ids"] is None
+        assert mock_get_number.call_args.kwargs["exclude_user_ids"] == {1}
+        assert mock_get_number.call_args.kwargs["include_user_ids"] is None
 
     @patch("users.users.router.users_crud.get_users_number")
     @patch("users.users.router.users_crud.get_users_with_pagination")
@@ -139,15 +151,83 @@ class TestReadUsersAllPagination:
             _make_mock_user(1, name="Alice"),
             _make_mock_user(2, name="Bob"),
         ]
-        # Alice (id=1) has 1 IdP link; Bob (id=2) has none
+        # Alice (id=1) has an IdP link; the DB layer keeps only linked users.
+        mock_identity_service.get_user_ids_with_identity_links.return_value = {1}
+        mock_get_number.return_value = 1
+        mock_get_paginated.return_value = [_make_mock_user(1, name="Alice")]
         mock_identity_service.get_identity_link_counts_for_users.return_value = {1: 1}
 
         response = client.get("/users?show_local_auth=false")
 
         assert response.status_code == 200
         data = response.json()
+        assert data["total"] == 1
         assert len(data["records"]) == 1
         assert data["records"][0]["name"] == "Alice"
+        assert data["records"][0]["external_auth_count"] == 1
+
+        # Only linked users are included in SQL, before pagination.
+        assert mock_get_paginated.call_args.kwargs["include_user_ids"] == {1}
+        assert mock_get_paginated.call_args.kwargs["exclude_user_ids"] is None
+        assert mock_get_number.call_args.kwargs["include_user_ids"] == {1}
+        assert mock_get_number.call_args.kwargs["exclude_user_ids"] is None
+
+    @patch("users.users.router.users_crud.get_users_number")
+    @patch("users.users.router.users_crud.get_users_with_pagination")
+    def test_no_auth_filter_skips_link_lookup(
+        self,
+        mock_get_paginated,
+        mock_get_number,
+        mock_db,
+        auth_app,
+    ):
+        mock_identity_service = MagicMock()
+        auth_app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: mock_identity_service
+        auth_app.dependency_overrides[core_dependencies.validate_pagination_values_on_query] = lambda: None
+        client = TestClient(auth_app)
+
+        mock_get_number.return_value = 1
+        mock_get_paginated.return_value = [_make_mock_user(1, name="Alice")]
+        mock_identity_service.get_identity_link_counts_for_users.return_value = {}
+
+        response = client.get("/users")
+
+        assert response.status_code == 200
+        # Without an external/local auth filter, the linked-user set is never
+        # queried and no ID constraints are passed to the DB layer.
+        mock_identity_service.get_user_ids_with_identity_links.assert_not_called()
+        assert mock_get_paginated.call_args.kwargs["include_user_ids"] is None
+        assert mock_get_paginated.call_args.kwargs["exclude_user_ids"] is None
+
+    @patch("users.users.router.users_crud.get_users_number")
+    @patch("users.users.router.users_crud.get_users_with_pagination")
+    def test_both_auth_filters_false(
+        self,
+        mock_get_paginated,
+        mock_get_number,
+        mock_db,
+        auth_app,
+    ):
+        mock_identity_service = MagicMock()
+        auth_app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: mock_identity_service
+        auth_app.dependency_overrides[core_dependencies.validate_pagination_values_on_query] = lambda: None
+        client = TestClient(auth_app)
+
+        # Hiding both external and local auth leaves nothing: the same linked
+        # set is passed as both include and exclude, so the DB returns none.
+        mock_identity_service.get_user_ids_with_identity_links.return_value = {1}
+        mock_get_number.return_value = 0
+        mock_get_paginated.return_value = []
+        mock_identity_service.get_identity_link_counts_for_users.return_value = {}
+
+        response = client.get("/users?show_external_auth=false&show_local_auth=false")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["records"] == []
+        assert mock_get_paginated.call_args.kwargs["include_user_ids"] == {1}
+        assert mock_get_paginated.call_args.kwargs["exclude_user_ids"] == {1}
 
 
 class TestReadUsersContainUsername:

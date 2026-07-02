@@ -309,3 +309,15 @@ def get_identity_link_counts_for_users(
         Users with no links are absent (callers should use .get(id, 0)).
     """
     return auth_identity_links_crud.get_identity_link_counts_for_users(user_ids, db)
+
+
+def get_user_ids_with_identity_links(db: Session) -> set[int]:
+    """Return the set of user IDs that have at least one identity-provider link.
+
+    Args:
+        db: SQLAlchemy database session.
+
+    Returns:
+        Set of user IDs with one or more linked IdPs (empty when none exist).
+    """
+    return auth_identity_links_crud.get_user_ids_with_identity_links(db)

@@ -60,6 +60,21 @@ class TestGetIdentityLinkCountsForUsers:
         mock_crud.assert_called_once_with([1, 2], mock_db)
 
 
+class TestGetUserIdsWithIdentityLinks:
+    """get_user_ids_with_identity_links: delegates to CRUD distinct query."""
+
+    def test_delegates_to_crud(self, mock_db):
+        expected = {1, 2, 3}
+        with patch(
+            "auth.services.identity_link_service.auth_identity_links_crud.get_user_ids_with_identity_links",
+            return_value=expected,
+        ) as mock_crud:
+            result = identity_link_service.get_user_ids_with_identity_links(mock_db)
+
+        assert result == expected
+        mock_crud.assert_called_once_with(mock_db)
+
+
 class TestGenerateLinkToken:
     """generate_link_token: step-up verified before issuing IdP link token."""
 

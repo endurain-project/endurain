@@ -98,6 +98,31 @@ class TestGetUsersNumber:
             get_users_number(mock_db)
         assert exc.value.status_code == 500
 
+    def test_include_and_exclude_user_ids(self):
+        from users.users.crud import get_users_number
+
+        mock_db = MagicMock(spec=Session)
+        mock_db.execute.return_value.scalar_one.return_value = 1
+
+        get_users_number(mock_db, include_user_ids={5}, exclude_user_ids={9})
+
+        compiled = str(mock_db.execute.call_args[0][0].compile(compile_kwargs={"literal_binds": True}))
+        assert ".id IN (" in compiled
+        assert ".id NOT IN (" in compiled
+
+    def test_empty_include_user_ids_constrains_query(self):
+        from users.users.crud import get_users_number
+
+        mock_db = MagicMock(spec=Session)
+        mock_db.execute.return_value.scalar_one.return_value = 0
+
+        get_users_number(mock_db, include_user_ids=set())
+
+        compiled = str(mock_db.execute.call_args[0][0].compile(compile_kwargs={"literal_binds": True}))
+        # An empty include set must still add a WHERE clause (match nothing),
+        # proving it is not treated the same as None (no restriction).
+        assert "WHERE" in compiled
+
 
 class TestGetUsersWithPagination:
     """get_users_with_pagination: paginated list with optional filters."""

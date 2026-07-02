@@ -337,3 +337,21 @@ def get_identity_link_counts_for_users(
     )
     rows = db.execute(stmt).all()
     return {row.user_id: row.cnt for row in rows}
+
+
+@core_decorators.handle_db_errors
+def get_user_ids_with_identity_links(db: Session) -> set[int]:
+    """
+    Return the set of user IDs that have at least one identity-provider link.
+
+    Args:
+        db: SQLAlchemy database session.
+
+    Returns:
+        Set of user IDs with one or more linked IdPs. Empty when no links exist.
+
+    Raises:
+        HTTPException: 500 error if database query fails.
+    """
+    stmt = select(auth_identity_links_models.IdentityLink.user_id).distinct()
+    return set(db.execute(stmt).scalars().all())

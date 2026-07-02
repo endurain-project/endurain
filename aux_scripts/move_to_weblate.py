@@ -163,14 +163,20 @@ def get_existing_components(token: str) -> dict[str, dict[str, Any]]:
 
 
 def purge_json_components(
-    existing: dict[str, dict[str, Any]], protected_slugs: set[str], token: str, dry_run: bool
+    existing: dict[str, dict[str, Any]],
+    protected_slugs: set[str],
+    token: str,
+    dry_run: bool,
 ) -> dict[str, dict[str, Any]]:
     """Delete stale git/json-nested components, except ones in
     `protected_slugs` (components matching a current v2 source file - those
     are reconciled via create/update instead, so they're never deleted).
     """
     for component in list(existing.values()):
-        if component.get("vcs") != "git" or component.get("file_format") != "json-nested":
+        if (
+            component.get("vcs") != "git"
+            or component.get("file_format") != "json-nested"
+        ):
             continue
         slug = component["slug"]
         if slug in protected_slugs:
@@ -258,8 +264,12 @@ def sync_component_languages(
         return
 
     supported = {to_weblate_language_code(code) for code in supported_codes}
-    to_remove = sorted(code for code in current if code not in supported and code != source_language)
-    to_add = sorted(code for code in supported if code != source_language and code not in current)
+    to_remove = sorted(
+        code for code in current if code not in supported and code != source_language
+    )
+    to_add = sorted(
+        code for code in supported if code != source_language and code not in current
+    )
 
     for code in to_remove:
         if dry_run:
@@ -351,7 +361,9 @@ def sync_file(
 
     current = existing.get(slug)
     if current is not None:
-        needs_update = any(current.get(field) != desired[field] for field in COMPONENT_FIELDS)
+        needs_update = any(
+            current.get(field) != desired[field] for field in COMPONENT_FIELDS
+        )
         if not needs_update:
             print(f"SKIP existing (already aligned): {slug}")
             return (slug, True, component_source_language(current))
@@ -419,7 +431,9 @@ def sync_project_repository(operation: str, token: str) -> Any:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--token",
         default=os.environ.get("WEBLATE_TOKEN"),
@@ -448,7 +462,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--repo-sync-operation",
         default="pull",
-        choices=("push", "pull", "commit", "reset", "cleanup", "file-sync", "file-scan"),
+        choices=(
+            "push",
+            "pull",
+            "commit",
+            "reset",
+            "cleanup",
+            "file-sync",
+            "file-scan",
+        ),
         help="VCS operation to run as the final step (default: pull).",
     )
     parser.add_argument("--quiet", action="store_true", help="Reduce debug output.")
@@ -476,7 +498,9 @@ def main(argv: list[str] | None = None) -> int:
     if debug:
         print(f"DEBUG repoRoot={root}")
         print(f"DEBUG baseDir={base_dir}")
-        print(f"DEBUG dryRun={dry_run} purgeFirst={purge_first} languageSync={language_sync}")
+        print(
+            f"DEBUG dryRun={dry_run} purgeFirst={purge_first} languageSync={language_sync}"
+        )
 
     if not base_dir.is_dir():
         print(f"ERROR: base dir not found: {base_dir}", file=sys.stderr)
@@ -508,17 +532,25 @@ def main(argv: list[str] | None = None) -> int:
         if not queryable:
             print(f"DRYRUN language sync for {slug} (component does not exist yet)")
             continue
-        sync_component_languages(slug, source_language, supported_codes, args.token, dry_run, debug)
+        sync_component_languages(
+            slug, source_language, supported_codes, args.token, dry_run, debug
+        )
 
     if not args.no_repo_sync:
         if dry_run:
-            print(f"DRYRUN repository {args.repo_sync_operation} for project {PROJECT_SLUG}")
+            print(
+                f"DRYRUN repository {args.repo_sync_operation} for project {PROJECT_SLUG}"
+            )
         else:
             try:
                 result = sync_project_repository(args.repo_sync_operation, args.token)
-                print(f"REPOSITORY {args.repo_sync_operation}: result={result.get('result')}")
+                print(
+                    f"REPOSITORY {args.repo_sync_operation}: result={result.get('result')}"
+                )
             except RuntimeError as exc:
-                print(f"FAILED repository {args.repo_sync_operation} for project {PROJECT_SLUG}")
+                print(
+                    f"FAILED repository {args.repo_sync_operation} for project {PROJECT_SLUG}"
+                )
                 print(exc)
                 return 1
 

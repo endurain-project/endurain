@@ -84,7 +84,7 @@ the boundary.
 | ----------------- | -------------- | ----------------------------- |
 | `auth.services.account_security_service` | `change_own_password`, `change_managed_user_password`, session listing/revocation | `get_user_sessions`, `delete_user_session`, `change_own_password`, `change_managed_user_password` |
 | `auth.services.mfa_workflow` | MFA status, setup, enable, disable, backup-code status and regeneration | `get_mfa_status`, `setup_mfa`, `enable_mfa`, `disable_mfa`, `verify_mfa`, `get_backup_code_status`, `generate_backup_codes` |
-| `auth.services.identity_link_service` | IdP link listing, token generation, link removal, browser-redirect claiming, link counts | `get_user_identity_provider_links`, `generate_link_token`, `delete_identity_provider_link`, `validate_and_claim_browser_link_token`, `get_identity_link_counts_for_users` |
+| `auth.services.identity_link_service` | IdP link listing, token generation, link removal, browser-redirect claiming, link counts and membership | `get_user_identity_provider_links`, `generate_link_token`, `delete_identity_provider_link`, `validate_and_claim_browser_link_token`, `get_identity_link_counts_for_users`, `get_user_ids_with_identity_links` |
 | `auth.services.step_up_service` | `verify_step_up_credentials` with progressive lockout (5/5 min, 10/30 min, 15/2 hr) | used internally by the workflow modules above |
 
 ## Service Placement Rule
