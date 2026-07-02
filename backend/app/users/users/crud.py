@@ -28,6 +28,15 @@ import users.users.models as users_models
 import users.users.schema as users_schema
 import users.users.utils as users_utils
 
+# Upper bound on rows returned by the username "contains" search.
+# The leading-wildcard LIKE it issues cannot use an index (full
+# table scan), so a hard LIMIT stops it streaming the whole table.
+# This is a fixed internal query-safety cap for a hot typeahead
+# path -- deliberately not the admin-configurable list page size
+# (server_settings.num_records_per_page) so the search never has to
+# read server settings on every keystroke.
+USERNAME_SEARCH_LIMIT: int = 50
+
 # Private internal helpers
 
 
@@ -244,9 +253,12 @@ def get_users_with_pagination(
     Args:
         db (Session): Database session for executing queries.
         page_number (int | None): The page number for pagination (1-indexed).
-            If None, pagination is not applied. Defaults to None.
-        num_records (int | None): The number of records per page.
-            If None, pagination is not applied. Defaults to None.
+            When None or below 1, defaults to the first page. Defaults to None.
+        num_records (int | None): The number of records per page. When None,
+            falls back to the server-configured page size
+            (server_settings.num_records_per_page); the value is always
+            clamped to that configured size so the result set stays bounded.
+            Defaults to None.
         show_inactive (bool | None): If False, excludes inactive users.
             Defaults to True (includes inactive users).
         show_email_unverified (bool | None): If False, excludes users with
@@ -271,8 +283,17 @@ def get_users_with_pagination(
 
     stmt = stmt.order_by(users_models.Users.username)
 
-    if page_number is not None and num_records is not None:
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
+    # Always bound the result set using the admin-configured page size
+    # (server_settings.num_records_per_page, itself constrained to
+    # [1, 100]). It is both the default when the caller omits
+    # num_records and the ceiling when they request more, so a LIMIT is
+    # always applied and the endpoint can never return the whole users
+    # table.
+    max_page_size = server_settings_utils.get_server_settings_or_404(db).num_records_per_page
+    effective_num_records = num_records if num_records is not None else max_page_size
+    effective_num_records = max(1, min(effective_num_records, max_page_size))
+    effective_page_number = page_number if page_number is not None and page_number > 0 else 1
+    stmt = stmt.offset((effective_page_number - 1) * effective_num_records).limit(effective_num_records)
 
     users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
     return _transform_users(users)
@@ -322,11 +343,16 @@ def get_user_by_username(
         # Escape LIKE special characters to prevent SQL injection
         escaped_username = normalized_username.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
 
-        # Query users with username containing the search term
+        # Query users with username containing the search term.
+        # Order for deterministic results and cap the row count so the
+        # unindexed leading-wildcard LIKE can never stream the whole
+        # table back to the caller.
         stmt = (
             select(users_models.Users)
             .options(selectinload(users_models.Users.auth_mfa))
             .where(func.lower(users_models.Users.username).like(f"%{escaped_username}%", escape="\\"))
+            .order_by(users_models.Users.username)
+            .limit(USERNAME_SEARCH_LIMIT)
         )
         users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
         return _transform_users(users)

@@ -108,8 +108,11 @@ class TestGetUsersWithPagination:
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
         mock_db.execute.return_value.scalars.return_value.all.return_value = [mock_user]
+        mock_settings = MagicMock()
+        mock_settings.num_records_per_page = 25
 
-        result = get_users_with_pagination(mock_db)
+        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+            result = get_users_with_pagination(mock_db)
 
         assert result == [mock_user]
 
@@ -119,8 +122,11 @@ class TestGetUsersWithPagination:
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
         mock_db.execute.return_value.scalars.return_value.all.return_value = [mock_user]
+        mock_settings = MagicMock()
+        mock_settings.num_records_per_page = 25
 
-        result = get_users_with_pagination(mock_db, page_number=1, num_records=10)
+        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+            result = get_users_with_pagination(mock_db, page_number=1, num_records=10)
 
         assert result == [mock_user]
 
@@ -129,8 +135,11 @@ class TestGetUsersWithPagination:
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        mock_settings = MagicMock()
+        mock_settings.num_records_per_page = 25
 
-        result = get_users_with_pagination(mock_db, show_inactive=False)
+        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+            result = get_users_with_pagination(mock_db, show_inactive=False)
 
         assert result == []
 
@@ -139,8 +148,11 @@ class TestGetUsersWithPagination:
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        mock_settings = MagicMock()
+        mock_settings.num_records_per_page = 25
 
-        result = get_users_with_pagination(mock_db, show_email_unverified=False)
+        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+            result = get_users_with_pagination(mock_db, show_email_unverified=False)
 
         assert result == []
 
@@ -149,8 +161,11 @@ class TestGetUsersWithPagination:
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        mock_settings = MagicMock()
+        mock_settings.num_records_per_page = 25
 
-        result = get_users_with_pagination(mock_db, show_pending_approval=False)
+        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+            result = get_users_with_pagination(mock_db, show_pending_approval=False)
 
         assert result == []
 
@@ -159,8 +174,11 @@ class TestGetUsersWithPagination:
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
+        mock_settings = MagicMock()
+        mock_settings.num_records_per_page = 25
 
-        result = get_users_with_pagination(mock_db)
+        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+            result = get_users_with_pagination(mock_db)
 
         assert result == []
 

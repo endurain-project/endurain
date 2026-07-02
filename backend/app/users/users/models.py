@@ -194,118 +194,151 @@ class Users(Base):
         comment=("Whether the user is pending admin approval for activation (true - yes, false - no)"),
     )
 
-    # Relationships
+    # Relationships.
+    #
+    # ``passive_deletes=True`` pairs with the ON DELETE CASCADE
+    # foreign keys these child tables declare. On user deletion the
+    # database removes the children in a single statement instead of
+    # SQLAlchemy loading and deleting every row in Python, which was
+    # O(N) queries over activities, health rows, gear, and so on.
     users_sessions: Mapped[list["UsersSessions"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     sign_up_tokens: Mapped[list["SignUpToken"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     users_integrations: Mapped[list["UsersIntegrations"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     users_default_gear: Mapped[list["UsersDefaultGear"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     users_privacy_settings: Mapped[list["UsersPrivacySettings"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     gear: Mapped[list["Gear"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     gear_components: Mapped[list["GearComponents"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     activities: Mapped[list["Activity"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     followers: Mapped[list["Follower"]] = relationship(
         back_populates="following",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         foreign_keys="Follower.following_id",
     )
     following: Mapped[list["Follower"]] = relationship(
         back_populates="follower",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         foreign_keys="Follower.follower_id",
     )
     health_sleep: Mapped[list["HealthSleep"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     health_weight: Mapped[list["HealthWeight"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     health_steps: Mapped[list["HealthSteps"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     health_targets: Mapped[list["HealthTargets"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     health_fasting: Mapped[list["HealthFasting"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     health_water: Mapped[list["HealthWater"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     health_poop: Mapped[list["HealthPoop"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     notifications: Mapped[list["Notification"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     goals: Mapped[list["UsersGoal"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     user_identity_providers: Mapped[list["IdentityLink"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     oauth_states: Mapped[list["OAuthState"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     mfa_backup_codes: Mapped[list["MFABackupCode"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     auth_mfa: Mapped["UsersMFA"] = relationship(
         back_populates="users",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     users_api_keys: Mapped[list["UsersApiKeys"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     idp_link_tokens: Mapped[list["IdpLinkToken"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     local_credential: Mapped["LocalCredential | None"] = relationship(
         back_populates="users",
         uselist=False,
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     @property

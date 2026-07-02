@@ -43,11 +43,14 @@ def read_users_all_pagination(
     ],
     page_number: Annotated[
         int | None,
-        Query(description="Pagination page number"),
+        Query(ge=1, description="Pagination page number"),
     ] = None,
     num_records: Annotated[
         int | None,
-        Query(description="Number of records per page"),
+        Query(
+            ge=1,
+            description="Number of records per page",
+        ),
     ] = None,
     show_inactive: Annotated[
         bool | None,
