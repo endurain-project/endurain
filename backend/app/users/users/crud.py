@@ -7,6 +7,7 @@ consumption.
 """
 
 import posixpath
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Literal, overload
 from urllib.parse import unquote
 
@@ -199,6 +200,54 @@ def get_all_users(db: Session) -> list[users_schema.UsersRead]:
     users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
 
     return _transform_users(users)
+
+
+# Batch size for streaming every user ID without materialising the whole
+# users table. Keyset (seek) pagination keeps the total cost O(N) and the
+# memory footprint bounded to one batch, unlike OFFSET pagination which
+# re-scans the skipped rows on every page.
+USER_STREAM_BATCH_SIZE: int = 100
+
+
+def stream_all_user_ids(db: Session, batch_size: int = USER_STREAM_BATCH_SIZE) -> Iterator[int]:
+    """
+    Yield every user's ID in ascending order using keyset pagination.
+
+    Streams IDs in bounded batches so background jobs can iterate the
+    entire user base without loading the whole ``users`` table (and its
+    eager-loaded relationships) into memory at once. Uses seek pagination
+    (``WHERE id > last_id``) rather than ``OFFSET`` so the total cost
+    stays O(N) as the table grows.
+
+    Each batch is fully materialised before being yielded, so callers may
+    safely run their own queries (and commit) on the same session while
+    iterating.
+
+    Not decorated with ``handle_db_errors``: a generator body does not run
+    until iterated, so a wrapping try/except would never observe the query
+    errors. The background callers already guard their iteration loops.
+
+    Args:
+        db: SQLAlchemy database session.
+        batch_size: Number of IDs to fetch per round trip. Defaults to
+            ``USER_STREAM_BATCH_SIZE``.
+
+    Yields:
+        User IDs in ascending order.
+    """
+    last_id = 0
+    while True:
+        stmt = (
+            select(users_models.Users.id)
+            .where(users_models.Users.id > last_id)
+            .order_by(users_models.Users.id)
+            .limit(batch_size)
+        )
+        batch: list[int] = list(db.execute(stmt).scalars().all())
+        if not batch:
+            break
+        yield from batch
+        last_id = batch[-1]
 
 
 @core_decorators.handle_db_errors

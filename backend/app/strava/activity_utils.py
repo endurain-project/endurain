@@ -722,48 +722,45 @@ async def retrieve_strava_users_activities_for_days(days: int, is_startup: bool 
     # Create a new database session using context manager
     with SessionLocal() as db:
         try:
-            # Get all users
-            users = users_crud.get_all_users(db)
-
             # Calculate the start date and end date
             calculated_start_date = datetime.now(UTC) - timedelta(days=days)
             calculated_end_date = datetime.now(UTC)
 
-            # Process the activities for each user
-            if users:
-                for user in users:
-                    try:
-                        await get_user_strava_activities_by_dates(
-                            calculated_start_date,
-                            calculated_end_date,
-                            user.id,
-                            None,
-                            None,
-                            is_startup,
-                        )
-                    except HTTPException as err:
-                        # Log the error but continue processing other users
-                        core_logger.print_to_log(
-                            f"User {user.id}: Error processing Strava activities: {err!s}",
-                            "error",
-                            exc=err,
-                        )
-                        # Don't reraise the exception if we're in startup mode
-                        if not is_startup:
-                            raise err
-                    except Exception as err:
-                        # Log the error but continue processing other users
-                        core_logger.print_to_log(
-                            f"User {user.id}: Unexpected error processing Strava activities: {err!s}",
-                            "error",
-                            exc=err,
-                        )
-                        # Don't reraise the exception if we're in startup mode
-                        if not is_startup:
-                            raise HTTPException(
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                                detail="Internal Server Error",
-                            ) from err
+            # Stream user IDs in bounded batches instead of loading the whole
+            # users table, processing each user's activities in turn.
+            for user_id in users_crud.stream_all_user_ids(db):
+                try:
+                    await get_user_strava_activities_by_dates(
+                        calculated_start_date,
+                        calculated_end_date,
+                        user_id,
+                        None,
+                        None,
+                        is_startup,
+                    )
+                except HTTPException as err:
+                    # Log the error but continue processing other users
+                    core_logger.print_to_log(
+                        f"User {user_id}: Error processing Strava activities: {err!s}",
+                        "error",
+                        exc=err,
+                    )
+                    # Don't reraise the exception if we're in startup mode
+                    if not is_startup:
+                        raise err
+                except Exception as err:
+                    # Log the error but continue processing other users
+                    core_logger.print_to_log(
+                        f"User {user_id}: Unexpected error processing Strava activities: {err!s}",
+                        "error",
+                        exc=err,
+                    )
+                    # Don't reraise the exception if we're in startup mode
+                    if not is_startup:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Internal Server Error",
+                        ) from err
         except HTTPException as err:
             # Log an error event if an HTTPException occurred
             core_logger.print_to_log(

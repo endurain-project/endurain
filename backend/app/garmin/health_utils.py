@@ -430,25 +430,24 @@ async def retrieve_garminconnect_users_health_for_days(days: int):
     # Create a new database session using context manager
     with SessionLocal() as db:
         try:
-            # Get all users
-            users = users_crud.get_all_users(db)
             # Calculate the start and end dates
             calculated_start_date = datetime.now(UTC) - timedelta(days=days)
             calculated_end_date = datetime.now(UTC)
 
-            # Iterate through all users
-            for user in users:
+            # Stream user IDs in bounded batches instead of loading the whole
+            # users table into memory.
+            for user_id in users_crud.stream_all_user_ids(db):
                 try:
                     # Get the user's Garmin Connect body composition data
                     await get_user_garminconnect_health_by_dates(
                         calculated_start_date,
                         calculated_end_date,
-                        user.id,
+                        user_id,
                         ws_manager,
                     )
                 except Exception as err:
                     core_logger.print_to_log(
-                        f"Error processing health data for user {user.id} in retrieve_garminconnect_users_health_for_days: {err}",
+                        f"Error processing health data for user {user_id} in retrieve_garminconnect_users_health_for_days: {err}",
                         "error",
                         exc=err,
                     )

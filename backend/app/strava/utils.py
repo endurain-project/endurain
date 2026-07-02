@@ -153,13 +153,10 @@ def refresh_strava_tokens(is_startup: bool = False):
 
     # Create a new database session using context manager
     with SessionLocal() as db:
-        # Get all users
-        users = users_crud.get_all_users(db)
-
-        # Iterate through all users
-        if users:
-            for user in users:
-                refresh_user_strava_token(user.id, db, is_startup)
+        # Stream user IDs in bounded batches instead of loading the whole
+        # users table into memory, refreshing each user's Strava token.
+        for user_id in users_crud.stream_all_user_ids(db):
+            refresh_user_strava_token(user_id, db, is_startup)
 
 
 def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = False):
