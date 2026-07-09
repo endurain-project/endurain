@@ -228,6 +228,7 @@ ACTIVITY_NAME_TO_ID.update(
         "padelball": 39,
         "paddelball": 39,
         "treadmill": 40,
+        "indoor_running": 40,
         "cardio_training": 41,
         "kayaking": 42,
         "sailing": 43,

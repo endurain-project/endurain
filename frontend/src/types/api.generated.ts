@@ -988,6 +988,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/event_log/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Event Log Summary
+         * @description Get aggregated event-processing observability for the admin dashboard.
+         *
+         *     Requires admin authentication with the server_settings:read scope.
+         *
+         *     Args:
+         *         hours: Look-back window in hours (1-168) for throughput/latency stats.
+         *         db: Active database session.
+         *
+         *     Returns:
+         *         Aggregated event_log summary — throughput, outcomes, latency, pending
+         *         work, and the most recent failures.
+         */
+        get: operations["read_event_log_summary_api_v1_event_log_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/followers/accept/targetUser/{target_user_id}": {
         parameters: {
             query?: never;
@@ -6060,6 +6090,124 @@ export interface components {
              * @default 0
              */
             total_elevation_gain: number;
+        };
+        /**
+         * EventLogFailure
+         * @description A single failed or dead-lettered event for inspection.
+         *
+         *     Attributes:
+         *         id: The event_id.
+         *         event_type: The domain-event channel.
+         *         event_source: Where the event originated.
+         *         handler_name: The subscriber(s) that processed the event.
+         *         error_message: The failure reason.
+         *         retry_count: Processing attempts so far.
+         *         event_metadata: Correlation context (request_id, user_id, activity_id).
+         *         created_at: When the event was published.
+         *         completed_at: When processing finished.
+         */
+        EventLogFailure: {
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error Message */
+            error_message: string | null;
+            /** Event Metadata */
+            event_metadata: {
+                [key: string]: unknown;
+            } | null;
+            /** Event Source */
+            event_source: string;
+            /** Event Type */
+            event_type: string;
+            /** Handler Name */
+            handler_name: string | null;
+            /** Id */
+            id: string;
+            /** Retry Count */
+            retry_count: number;
+        };
+        /**
+         * EventLogPending
+         * @description A group of not-yet-finished events and its oldest age.
+         *
+         *     Attributes:
+         *         event_type: The domain-event channel.
+         *         status: The pending state (published or processing).
+         *         count: Number of events in this group.
+         *         oldest_seconds: Age of the oldest event in the group, in seconds.
+         */
+        EventLogPending: {
+            /** Count */
+            count: number;
+            /** Event Type */
+            event_type: string;
+            /** Oldest Seconds */
+            oldest_seconds: number | null;
+            /** Status */
+            status: string;
+        };
+        /**
+         * EventLogSummary
+         * @description The full admin-dashboard payload, aggregated from event_log.
+         *
+         *     Attributes:
+         *         window_hours: The look-back window applied to the aggregates.
+         *         total_events: Total events recorded within the window.
+         *         by_type: Per-event-type throughput/outcome/latency stats.
+         *         pending: Not-yet-finished event groups and their oldest age.
+         *         recent_failures: The most recent failed/dead-lettered events.
+         */
+        EventLogSummary: {
+            /** By Type */
+            by_type: components["schemas"]["EventTypeStats"][];
+            /** Pending */
+            pending: components["schemas"]["EventLogPending"][];
+            /** Recent Failures */
+            recent_failures: components["schemas"]["EventLogFailure"][];
+            /** Total Events */
+            total_events: number;
+            /** Window Hours */
+            window_hours: number;
+        };
+        /**
+         * EventTypeStats
+         * @description Per-event-type throughput, outcome, and latency counts.
+         *
+         *     Attributes:
+         *         event_type: The domain-event channel.
+         *         total: Total events of this type in the window.
+         *         published: Count still in the published state.
+         *         processing: Count currently processing.
+         *         completed: Count that finished successfully.
+         *         failed: Count that failed.
+         *         dead_letter: Count moved to dead-letter.
+         *         avg_processing_time_ms: Mean handler time, or None when unmeasured.
+         *         max_processing_time_ms: Slowest handler time, or None.
+         */
+        EventTypeStats: {
+            /** Avg Processing Time Ms */
+            avg_processing_time_ms: number | null;
+            /** Completed */
+            completed: number;
+            /** Dead Letter */
+            dead_letter: number;
+            /** Event Type */
+            event_type: string;
+            /** Failed */
+            failed: number;
+            /** Max Processing Time Ms */
+            max_processing_time_ms: number | null;
+            /** Processing */
+            processing: number;
+            /** Published */
+            published: number;
+            /** Total */
+            total: number;
         };
         /**
          * FastingStatus
@@ -13092,6 +13240,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
+                };
+            };
+        };
+    };
+    read_event_log_summary_api_v1_event_log_summary_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventLogSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

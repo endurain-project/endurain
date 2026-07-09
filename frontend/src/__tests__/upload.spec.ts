@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { InfiniteData } from '@tanstack/vue-query'
 
+import { prependActivitiesToFeed } from '@/features/upload/composables/useUpload'
 import { assertValidActivityFile, uploadActivityFile } from '@/features/upload/services/upload'
 import { UploadValidationError } from '@/features/upload/types'
+import type { Activity } from '@/features/activities/types'
+
+import { makeActivity } from './fixtures/activity'
 
 vi.mock('@/services/runtime', () => ({
   getApiBaseUrl: () => '',
@@ -144,5 +149,44 @@ describe('uploadActivityFile', () => {
       UploadValidationError,
     )
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Wraps pages into an infinite-query cache value with matching page params.
+ *
+ * @param pages - The feed pages, newest-first.
+ * @returns An {@link InfiniteData} value keyed by 1-based page number.
+ */
+function feed(pages: Activity[][]): InfiniteData<Activity[]> {
+  return { pages, pageParams: pages.map((_, index) => index + 1) }
+}
+
+describe('prependActivitiesToFeed', () => {
+  it('pins the new activities to the top of the first page', () => {
+    const result = prependActivitiesToFeed(feed([[makeActivity({ id: 1 })]]), [
+      makeActivity({ id: 2 }),
+    ])
+
+    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([2, 1])
+  })
+
+  it('removes an existing copy from any page before pinning it to the top', () => {
+    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
+
+    const result = prependActivitiesToFeed(data, [makeActivity({ id: 2 })])
+
+    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([2, 1])
+    expect(result?.pages[1]).toEqual([])
+  })
+
+  it('returns the value untouched when there is nothing cached', () => {
+    expect(prependActivitiesToFeed(undefined, [makeActivity()])).toBeUndefined()
+  })
+
+  it('returns the value untouched when there are no new activities', () => {
+    const data = feed([[makeActivity({ id: 1 })]])
+
+    expect(prependActivitiesToFeed(data, [])).toBe(data)
   })
 })

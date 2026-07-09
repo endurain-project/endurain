@@ -9,8 +9,8 @@ services:
       - SECRET_KEY=~changeme # openssl rand -hex 32
       - FERNET_KEY=changeme # https://fernetkeygen.com or python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
-      - RATE_LIMIT_STORAGE_URI=redis://redis:6379/0
-      - AUTH_SECURITY_STORAGE_URI=redis://redis:6379/0
+      - DEPLOYMENT_PROFILE=local # or `distributed` for multi-node deployments
+      - REDIS_URL=redis://redis:6379/0 # shared ephemeral state; required for distributed / WEB_WORKERS>1
     volumes:
       # The container runs as a non-root user (default UID 1000).
       # Ensure the bind mount directories exist on the host (see getting-started docs).
@@ -28,7 +28,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      jaeger: {} # optional
     restart: unless-stopped
 
   # postgres logic
@@ -61,34 +60,6 @@ services:
       retries: 5
     volumes:
       - ${LOCAL_PATH:-/var/opt/endurain}/redis:/data:Z
-    restart: unless-stopped
-
-  # Jaeger for opentelemetry - optional
-  # Jaeger is not enabled by default. If you do not need it or want it, you can remove this container
-  jaeger:
-    container_name: jaeger
-    image: jaegertracing/jaeger:2.6.0@sha256:9b29aad1b65cd61016428ec15f3e04d75d4969f3551977d4fbed5acc4c85ec8c
-    command:
-      - --set
-      - receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317
-      - --set
-      - receivers.otlp.protocols.http.endpoint=0.0.0.0:4318
-    environment:
-      - TZ=Europe/Lisbon
-    ports:
-      # UI / Query
-      - "16686:16686"
-      # OTLP (gRPC / HTTP)
-      - "4317:4317"
-      - "4318:4318"
-      # Collector APIs
-      - "14250:14250"
-      - "14268:14268"
-      - "14269:14269"   # health/admin
-      # Zipkin-compatible intake
-      - "9411:9411"
-      # Optional (kept from the docs’ quickstart)
-      - "5778:5778"
     restart: unless-stopped
 
 # adminer for DB manipulation - optional

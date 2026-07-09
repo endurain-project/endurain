@@ -31,7 +31,7 @@ async def garminconnect_link(
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     mfa_codes: Annotated[
-        garmin_mfa_code_store.GarminMFACodeStoreBackend,
+        garmin_mfa_code_store.GarminMFACodeStore,
         Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
     ],
     websocket_manager: Annotated[
@@ -62,7 +62,7 @@ async def garminconnect_mfa_code(
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
     mfa_codes: Annotated[
-        garmin_mfa_code_store.GarminMFACodeStoreBackend,
+        garmin_mfa_code_store.GarminMFACodeStore,
         Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
     ],
 ):

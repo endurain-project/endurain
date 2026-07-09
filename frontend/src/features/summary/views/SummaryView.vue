@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Activity as ActivityIcon,
   ArrowDown,
@@ -62,12 +63,13 @@ import {
 
 const { t, locale } = useI18n()
 const { data: currentUser } = useCurrentUser()
+const route = useRoute()
+const router = useRouter()
 
 const units = computed(() => currentUser.value?.units ?? 'metric')
 const userId = computed(() => currentUser.value?.id ?? null)
 
 // View type (period granularity) and its tab options.
-const viewType = ref<SummaryViewType>('week')
 const VIEW_TYPE_OPTIONS: ReadonlyArray<{
   value: SummaryViewType
   labelKey: string
@@ -78,6 +80,45 @@ const VIEW_TYPE_OPTIONS: ReadonlyArray<{
   { value: 'year', labelKey: 'summary.viewType.year', icon: CalendarRange },
   { value: 'lifetime', labelKey: 'summary.viewType.lifetime', icon: InfinityIcon },
 ]
+
+/** Reads a single string value out of a route query param (ignores array values). */
+function queryParam(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+/** Parses the `viewType` query param, falling back to `'week'` for unknown/missing values. */
+function parseViewTypeParam(value: unknown): SummaryViewType {
+  const match = VIEW_TYPE_OPTIONS.find((option) => option.value === queryParam(value))
+  return match ? match.value : 'week'
+}
+
+/** Parses an ISO `YYYY-MM-DD` query param, falling back when missing or malformed. */
+function parseDateParam(value: unknown, fallback: string): string {
+  const raw = queryParam(value)
+  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : fallback
+}
+
+/** Parses a `YYYY-MM` query param, falling back when missing or malformed. */
+function parseMonthParam(value: unknown, fallback: string): string {
+  const raw = queryParam(value)
+  return raw && /^\d{4}-\d{2}$/.test(raw) ? raw : fallback
+}
+
+/** Parses the `year` query param, clamped to `[1900, maxYear]`. */
+function parseYearParam(value: unknown, maxYear: number): number {
+  const raw = queryParam(value)
+  const parsed = raw ? Number(raw) : NaN
+  return Number.isFinite(parsed) && parsed >= 1900 && parsed <= maxYear ? parsed : maxYear
+}
+
+/** Parses the `type` query param (activity type code; 0 = all types). */
+function parseTypeFilterParam(value: unknown): number {
+  const raw = queryParam(value)
+  const parsed = raw ? Number(raw) : NaN
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
+}
+
+const viewType = ref<SummaryViewType>(parseViewTypeParam(route.query.viewType))
 
 /**
  * String proxy for the Tabs primitive, whose model is a plain `string`. Reads
@@ -95,11 +136,13 @@ const viewTypeModel = computed<string>({
 })
 
 // Period anchors per view type. Native pickers can be cleared, so each value is
-// run through a guard before use to fall back to the current period.
-const weekAnchor = ref(currentWeekAnchor())
-const month = ref(currentMonth())
+// run through a guard before use to fall back to the current period. Initial
+// values are read from the URL query so a refresh doesn't reset the period
+// back to the defaults.
+const weekAnchor = ref(parseDateParam(route.query.weekAnchor, currentWeekAnchor()))
+const month = ref(parseMonthParam(route.query.month, currentMonth()))
 const thisYear = currentYear()
-const year = ref(thisYear)
+const year = ref(parseYearParam(route.query.year, thisYear))
 
 // Upper bounds for the native pickers and the next-period guard: a period that
 // has not started yet can't be summarized.
@@ -122,7 +165,7 @@ const yearModel = computed<string>({
 
 // Type filter (code; 0 = all). The summary endpoint filters by type *name*, so
 // the selected code is resolved to its backend name via the owned-types map.
-const typeFilter = ref(0)
+const typeFilter = ref(parseTypeFilterParam(route.query.type))
 const typeMapQuery = useUserActivityTypeMapQuery()
 const typeOptions = computed(() =>
   [...(typeMapQuery.data.value?.keys() ?? [])].sort((a, b) => a - b),
@@ -149,6 +192,31 @@ const summaryQuery = useActivitySummaryQuery(viewType, summaryParams)
 const summary = computed(() => summaryQuery.data.value ?? null)
 const isSummaryPending = computed(() => summaryQuery.isPending.value)
 const isSummaryError = computed(() => summaryQuery.isError.value)
+
+// Mirror the active filter state into the URL query so it survives page
+// refreshes and can be bookmarked/shared; browser back/forward then also works.
+const summaryQueryState = computed<Record<string, string>>(() => {
+  const params: Record<string, string> = { viewType: viewType.value }
+  if (viewType.value === 'week') {
+    params.weekAnchor = safeWeekAnchor.value
+  } else if (viewType.value === 'month') {
+    params.month = safeMonth.value
+  } else if (viewType.value === 'year') {
+    params.year = String(year.value)
+  }
+  if (typeFilter.value > 0) {
+    params.type = String(typeFilter.value)
+  }
+  return params
+})
+
+watch(
+  summaryQueryState,
+  (params) => {
+    void router.replace({ query: params }).catch(() => {})
+  },
+  { immediate: true },
+)
 
 const showPeriodNav = computed(() => viewType.value !== 'lifetime')
 const showTypeBreakdown = computed(() => typeFilter.value === 0)

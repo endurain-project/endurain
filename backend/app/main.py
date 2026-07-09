@@ -30,9 +30,11 @@ import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
 import core.migrations as core_migrations
 import core.network as core_network
+import core.platform.capabilities as platform_capabilities
+import core.platform.container as platform_container
+import core.platform.runtime as platform_runtime
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
-import core.tracing as core_tracing
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 import server_settings.schema as server_settings_schema
@@ -183,6 +185,43 @@ async def _resolve_trusted_proxy_hostnames() -> dict[str, list[str]]:
     )
 
 
+def _log_capability_report() -> None:
+    """Log how each infrastructure capability is wired for this deployment.
+
+    Renders the resolved backend for state, storage, events, lock, and clock so
+    the effective wiring is visible at boot. Purely observational; the fatal
+    consistency checks live in ``core.config``
+    (``Settings._enforce_deployment_topology``).
+    """
+    settings = core_config.settings
+    state_label = "STATE_URI" if settings.STATE_URI else "REDIS_URL" if settings.REDIS_URL else "profile default"
+    storage_uri = settings.resolved_storage_uri
+    storage_backend = "s3" if storage_uri.startswith("s3://") else "local"
+    storage_source = "STORAGE_URI" if settings.STORAGE_URI else "profile default"
+    events_uri = settings.resolved_events_uri
+    events_backend = "redis" if events_uri.startswith(("redis://", "rediss://", "unix://")) else "in-process"
+    events_source = "EVENTS_URI" if settings.EVENTS_URI else "REDIS_URL" if settings.REDIS_URL else "profile default"
+    lock_uri = settings.resolved_lock_uri
+    lock_backend = "pg" if lock_uri.startswith("postgres-advisory://") else "none"
+    lock_source = "LOCK_URI" if settings.LOCK_URI else "profile default"
+    report = platform_capabilities.build_capability_report(
+        profile=settings.DEPLOYMENT_PROFILE,
+        web_workers=settings.WEB_WORKERS,
+        primary_state=platform_capabilities.StateSource(state_label, settings.resolved_state_uri),
+        storage_backend=storage_backend,
+        storage_source=storage_source,
+        events_backend=events_backend,
+        events_source=events_source,
+        lock_backend=lock_backend,
+        lock_source=lock_source,
+    )
+    # Emit each line as its own record so every line carries the standard log
+    # prefix; a single multi-line message only prefixes the first line.
+    core_logger.print_to_log_and_console("Deployment capability report:")
+    for line in report.render().splitlines():
+        core_logger.print_to_log_and_console(line)
+
+
 async def startup_event(fastapi_app: FastAPI) -> None:
     """Run startup tasks in well-defined phases.
 
@@ -196,6 +235,22 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     requests.
     """
     core_logger.print_to_log_and_console(f"Backend startup event - {core_config.API_VERSION}")
+
+    # Observational capability report (reflects today's effective wiring).
+    _log_capability_report()
+
+    # Build the platform substrate (providers + backends) and attach it to app state.
+    platform = platform_container.build_platform(core_config.settings)
+    fastapi_app.state.platform = platform
+
+    # Publish it process-wide so background work (scheduler, Garmin login thread)
+    # that has no request can resolve providers via core.platform.runtime.
+    platform_runtime.set_active_platform(platform)
+
+    # Start the event bus. No-op for the in-process bus (local); starts the
+    # Redis Streams consumer thread in distributed mode. Domain subscribers must
+    # be registered before this call once they land (thumbnail PoC).
+    platform.events.start()
 
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
@@ -238,9 +293,17 @@ async def startup_event(fastapi_app: FastAPI) -> None:
         )
 
 
-def shutdown_event() -> None:
-    """Stop the background scheduler and release DB resources on shutdown."""
+def shutdown_event(fastapi_app: FastAPI) -> None:
+    """Stop the event bus and scheduler and release DB resources on shutdown."""
     core_logger.print_to_log_and_console("Backend shutdown event")
+
+    # Stop the event bus consumer (no-op for the in-process bus; joins the Redis
+    # Streams consumer thread in distributed mode). Guarded because startup may
+    # have failed before the platform was attached.
+    platform = getattr(fastapi_app.state, "platform", None)
+    if platform is not None:
+        platform.events.stop()
+
     core_scheduler.stop_scheduler()
 
     # Dispose the SQLAlchemy engine so all pooled
@@ -261,7 +324,7 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        shutdown_event()
+        shutdown_event(fastapi_app)
 
 
 def create_app() -> FastAPI:
@@ -388,10 +451,6 @@ def create_app() -> FastAPI:
 
     # Router files
     fastapi_app.include_router(api_router)
-
-    # Setup tracing once the app and its routes are
-    # registered so instrumentation can wrap them.
-    core_tracing.setup_tracing(fastapi_app)
 
     return fastapi_app
 

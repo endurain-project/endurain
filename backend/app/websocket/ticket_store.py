@@ -1,15 +1,17 @@
-"""WebSocket authentication ticket store."""
+"""WebSocket authentication ticket store, backed by the platform state.
+
+A ticket is a single-use, 30-second credential exchanged for the real access
+token so the token never appears in a WebSocket URL. Storage goes through the
+platform ``StateProvider`` (in-process under ``local``, Redis under
+``distributed``), so this module no longer knows which backend is used.
+"""
 
 import secrets
-from datetime import UTC, datetime, timedelta
-from threading import Lock
-from typing import NoReturn, Protocol, cast, runtime_checkable
+from typing import NoReturn, Protocol, runtime_checkable
 
-from redis import Redis, RedisError
-
-import core.config as core_config
 import core.logger as core_logger
-import core.redis as core_redis
+import core.platform.runtime as platform_runtime
+from core.platform.providers import StateBackendUnavailableError, StateProvider
 
 TICKET_TTL_SECONDS = 30
 _TICKET_KEY_PREFIX = "ws:ticket:"
@@ -24,29 +26,25 @@ class WsTicketStoreUnavailableError(RuntimeError):
     """
 
 
-def _raise_store_unavailable(operation: str, err: RedisError) -> NoReturn:
+def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
     """
-    Raise a sanitized WS ticket storage exception.
+    Log a storage outage and re-raise it as a WS-ticket error.
 
     Args:
         operation: Storage operation that failed.
-        err: Redis client exception.
+        err: The provider outage error.
 
     Raises:
         WsTicketStoreUnavailableError: Always raised.
     """
-    core_redis.raise_storage_unavailable_as(
-        WsTicketStoreUnavailableError,
-        display_name="WS ticket storage",
-        operation=operation,
-        err=err,
-    )
+    core_logger.print_to_log(f"WS ticket storage failed: {operation}", "error", exc=err)
+    raise WsTicketStoreUnavailableError("WS ticket storage is unavailable") from err
 
 
 @runtime_checkable
 class WsTicketStoreProtocol(Protocol):
     """
-    Contract for WS ticket stores (memory or Redis).
+    Contract for WS ticket stores.
 
     Attributes:
         None.
@@ -59,89 +57,29 @@ class WsTicketStoreProtocol(Protocol):
 
 class WsTicketStore:
     """
-    In-memory, short-lived, single-use ticket store for WebSocket auth.
+    Single-use, short-lived WebSocket auth tickets backed by the platform state.
+
+    ``create_ticket`` uses an atomic set-if-absent so a token collision cannot
+    overwrite another user's ticket; ``consume_ticket`` uses an atomic
+    get-and-delete so a ticket is valid exactly once even under concurrency.
 
     Attributes:
-        _store: Mapping of ticket to (user_id, expires_at).
-        _lock: Thread-safety lock.
+        _state_override: Explicit provider (tests); ``None`` resolves the
+            process-wide provider lazily at call time.
     """
 
-    def __init__(self) -> None:
-        """Initialize the ticket store."""
-        self._store: dict[str, tuple[int, datetime]] = {}
-        self._lock = Lock()
-
-    def create_ticket(self, user_id: int) -> str:
+    def __init__(self, state: StateProvider | None = None) -> None:
         """
-        Issue a new short-lived ticket for a user.
+        Initialize the ticket store.
 
         Args:
-            user_id: Authenticated user ID.
-
-        Returns:
-            Opaque, URL-safe ticket string.
+            state: Optional explicit state provider (defaults to the process-wide one).
         """
-        ticket = secrets.token_urlsafe(32)
-        expires_at = datetime.now(UTC) + timedelta(seconds=TICKET_TTL_SECONDS)
-        with self._lock:
-            self._cleanup_expired_locked()
-            self._store[ticket] = (user_id, expires_at)
-        return ticket
+        self._state_override = state
 
-    def consume_ticket(self, ticket: str) -> int | None:
-        """
-        Validate and consume a ticket (single-use).
-
-        Args:
-            ticket: Opaque ticket string from query parameter.
-
-        Returns:
-            Authenticated user ID, or None if invalid/expired.
-        """
-        with self._lock:
-            entry = self._store.pop(ticket, None)
-        if entry is None:
-            return None
-        user_id, expires_at = entry
-        if datetime.now(UTC) > expires_at:
-            return None
-        return user_id
-
-    def _cleanup_expired_locked(self) -> None:
-        """
-        Remove expired tickets while holding the lock.
-
-        Args:
-            None.
-
-        Returns:
-            None.
-        """
-        now = datetime.now(UTC)
-        expired = [k for k, (_, exp) in self._store.items() if now > exp]
-        for k in expired:
-            del self._store[k]
-
-
-class RedisWsTicketStore:
-    """
-    Redis-backed, short-lived, single-use ticket store for WebSocket auth.
-
-    Uses Redis SET with EX (TTL) and NX (collision guard) for atomic
-    creation and GETDEL for atomic single-use consumption.
-
-    Attributes:
-        _redis: Redis client used for storage.
-    """
-
-    def __init__(self, redis_client: Redis) -> None:
-        """
-        Initialize the Redis-backed ticket store.
-
-        Args:
-            redis_client: Redis client used for storage.
-        """
-        self._redis = redis_client
+    @property
+    def _state(self) -> StateProvider:
+        return self._state_override if self._state_override is not None else platform_runtime.get_state()
 
     def create_ticket(self, user_id: int) -> str:
         """
@@ -154,15 +92,15 @@ class RedisWsTicketStore:
             Opaque, URL-safe ticket string.
 
         Raises:
-            WsTicketStoreUnavailableError: When Redis is unreachable.
+            WsTicketStoreUnavailableError: When storage is unavailable.
         """
         try:
             for _ in range(3):
                 ticket = secrets.token_urlsafe(32)
                 key = f"{_TICKET_KEY_PREFIX}{ticket}"
-                if self._redis.set(key, str(user_id), ex=TICKET_TTL_SECONDS, nx=True):
+                if self._state.set_if_absent(key, str(user_id).encode(), ttl_seconds=TICKET_TTL_SECONDS):
                     return ticket
-        except RedisError as err:
+        except StateBackendUnavailableError as err:
             _raise_store_unavailable("create_ticket", err)
         raise RuntimeError(  # pragma: no cover
             "Failed to generate a unique WS ticket after 3 attempts"
@@ -179,17 +117,17 @@ class RedisWsTicketStore:
             Authenticated user ID, or None if invalid/expired/unknown.
 
         Raises:
-            WsTicketStoreUnavailableError: When Redis is unreachable.
+            WsTicketStoreUnavailableError: When storage is unavailable.
         """
         key = f"{_TICKET_KEY_PREFIX}{ticket}"
         try:
-            value = cast("str | None", self._redis.getdel(key))
-        except RedisError as err:
+            value = self._state.get_and_delete(key)
+        except StateBackendUnavailableError as err:
             _raise_store_unavailable("consume_ticket", err)
         if value is None:
             return None
         try:
-            return int(value)
+            return int(value.decode())
         except (ValueError, TypeError):
             core_logger.print_to_log(
                 "Unexpected non-integer value in WS ticket store",
@@ -198,58 +136,14 @@ class RedisWsTicketStore:
             return None
 
 
-def get_ws_ticket_storage_uri() -> str:
-    """
-    Resolve the configured WS ticket storage URI.
-
-    Falls back to the auth security storage URI, which itself
-    falls back to the rate-limit URI and then memory://.
-
-    Returns:
-        Storage URI string.
-
-    Raises:
-        None.
-    """
-    return core_config.settings.resolved_auth_security_storage_uri
+_ws_ticket_store = WsTicketStore()
 
 
-def create_ws_ticket_store(
-    storage_uri: str,
-) -> WsTicketStore | RedisWsTicketStore:
-    """
-    Create a WS ticket store for the configured backend.
-
-    Args:
-        storage_uri: Storage URI selecting memory or Redis.
-
-    Returns:
-        WsTicketStore or RedisWsTicketStore instance.
-
-    Raises:
-        RuntimeError: When Redis cannot be initialized.
-        ValueError: When the storage URI scheme is unsupported.
-    """
-    return cast(
-        WsTicketStore | RedisWsTicketStore,
-        core_redis.select_storage_backend(
-            storage_uri,
-            purpose="WS ticket storage",
-            scheme_error_label="WS_TICKET_STORAGE_URI",
-            memory_factory=WsTicketStore,
-            redis_factory=RedisWsTicketStore,
-        ),
-    )
-
-
-_ws_ticket_store: WsTicketStore | RedisWsTicketStore = create_ws_ticket_store(get_ws_ticket_storage_uri())
-
-
-def get_ws_ticket_store() -> WsTicketStore | RedisWsTicketStore:
+def get_ws_ticket_store() -> WsTicketStore:
     """
     FastAPI dependency providing the singleton ticket store.
 
     Returns:
-        The global WsTicketStore or RedisWsTicketStore instance.
+        The global WsTicketStore instance.
     """
     return _ws_ticket_store

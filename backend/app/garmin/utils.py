@@ -20,7 +20,7 @@ import websocket.utils as websocket_utils
 
 async def get_mfa(
     user_id: int,
-    mfa_codes: garmin_mfa_code_store.GarminMFACodeStoreBackend,
+    mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     websocket_manager: websocket_manager.WebSocketManager,
 ) -> str:
     # Notify frontend that MFA is required
@@ -48,7 +48,7 @@ async def link_garminconnect(
     email: str,
     password: str,
     db: Session,
-    mfa_codes: garmin_mfa_code_store.GarminMFACodeStoreBackend,
+    mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     websocket_manager: websocket_manager.WebSocketManager,
     is_cn: bool = False,
 ):

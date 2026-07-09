@@ -45,10 +45,6 @@ Table below shows supported environment variables. Variables marked with optiona
 | SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Enforce idle timeouts (supported values are `true` and `false`) |
 | SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Time in hours |
 | SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Time in hours |
-| JAEGER_ENABLED | false | Yes | N/A |
-| JAEGER_PROTOCOL | http | Yes | N/A |
-| JAEGER_HOST | jaeger | Yes | N/A |
-| JAEGER_PORT | 4317 | Yes | N/A |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
 | ENVIRONMENT | production | Yes | `production`, `demo` and `development` allowed. `development` allows connections from localhost:8080 and localhost:5173 at the CORS level. `demo` equals to `production` except it does not return user sessions. **`production` and `demo` set the `Secure` flag on all authentication cookies (refresh token and OAuth/SSO session), so Endurain must be served over HTTPS (directly or via a reverse proxy terminating TLS) for login, session refresh, and SSO to work** |
 | SMTP_HOST | No default set | Yes | The SMTP host of your email provider. Example `smtp.protonmail.ch` |
@@ -64,8 +60,10 @@ Table below shows supported environment variables. Variables marked with optiona
 | SSRF_ALLOWED_HOSTS | No default set | Yes | Comma-separated allowlist of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges that may resolve to private/internal addresses for admin-configured outbound calls (currently OIDC discovery and JWKS fetch only). Enables self-hosted identity providers (Authentik, Pocket ID, Keycloak, ...) reachable only over a private network. Example: `auth.internal.example.com,10.10.0.0/24,fd00::/64`. Wildcards (`*`) are rejected; CIDRs must be at least `/8` for IPv4 and `/32` for IPv6. Every allowlisted outbound call is audit-logged at INFO. Does not affect other outbound calls (geocoding, etc.) |
 | CSP_ADDITIONAL_CONNECT_SRC | No default set | Yes | Comma-separated list of extra origins appended to the `Content-Security-Policy` `connect-src` directive. Set this when Endurain is behind a forward-auth reverse proxy (e.g. Pangolin) that redirects API calls to its own domain for session validation; without its origin here the browser blocks the redirect with a CSP error and the app fails to load. Example: `https://auth.example.com`. Use specific origins: overly broad values that would defeat `connect-src` are rejected at startup — the bare wildcard `*` and scheme-only sources like `https:` (host wildcards such as `https://*.example.com` are fine). Entries containing whitespace or `;` are also rejected (to prevent header injection). Default: empty (`connect-src` stays `'self'` plus the jsDelivr CDN). |
 | RATE_LIMIT_ENABLED | true | Yes | Enable or disable API rate limiting. Set to `false` to disable for development or testing. Accepted values are `true` and `false` |
-| RATE_LIMIT_STORAGE_URI | memory:// | Yes | Storage backend URI for rate limit counters. Use `memory://` for single-worker deployments or `redis://redis:6379/0` for multi-worker setups so all workers share counters. |
-| AUTH_SECURITY_STORAGE_URI | No default set | Yes | Storage backend URI for auth security state, including login lockout, pending MFA login state, and temporary MFA setup secrets. Defaults to `RATE_LIMIT_STORAGE_URI` when unset. Use `memory://` for single-worker deployments or Redis for shared multi-worker protection. |
+| DEPLOYMENT_PROFILE | local | No | Deployment shape selecting the backend for all shared state. `local` (default) uses in-process memory; `distributed` requires Redis. A `distributed` or multi-worker deployment wired to memory is rejected at startup. |
+| WEB_WORKERS | 1 | No | Number of web-server worker processes. When `> 1`, shared state (Redis) is required even under the `local` profile. |
+| STATE_URI | No default set | No | Explicit override for the shared ephemeral-state backend (rate-limit counters, login/step-up lockout, pending-MFA, MFA setup secrets, Garmin MFA codes, websocket tickets). Takes precedence over `REDIS_URL`. `memory://` or `redis://…`. |
+| REDIS_URL | No default set | No | Shared Redis DSN for every Redis capability with no explicit URI. Required for `distributed` or `WEB_WORKERS > 1`. |
 | ALLOW_API_KEY_QUERY_PARAM | false | Yes | Allow API keys to be passed as a `?api_key=` query parameter. Disabled by default because query-string credentials appear in server access logs, reverse-proxy logs, and browser history. Enable only for integrations that cannot set custom request headers (e.g. some webhook senders). The `X-API-Key` header is always preferred. When enabled, every request that uses the query parameter emits a warning in the application log. |
 
 ### TRUSTED_PROXIES Examples

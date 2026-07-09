@@ -401,6 +401,20 @@ export const queryKeys = {
   },
 
   /**
+   * Event-log observability domain (admin). The aggregated dashboard summary is
+   * keyed by its look-back window so changing the window fetches a fresh slice.
+   */
+  eventLog: {
+    /** Broad prefix; invalidating this cascades to every event-log query. */
+    all: () => ['event-log'] as const,
+    /**
+     * @param hours - The look-back window in hours.
+     * @returns A summary query key scoped to that window.
+     */
+    summary: (hours: number) => ['event-log', 'summary', hours] as const,
+  },
+
+  /**
    * Identity providers domain (admin SSO config). `all()` is the broad prefix
    * the create/update/delete mutations invalidate on settle so the list (and
    * any derived view) refetches the server-authoritative state.

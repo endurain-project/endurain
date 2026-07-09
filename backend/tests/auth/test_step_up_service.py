@@ -505,7 +505,8 @@ class TestVerifyStepUpCredentials:
         store = security_stores.StepUpAttempts()
         key = "user:1"
         # Pre-load 3 failures (below threshold)
-        store._lockout._attempts[key] = (3, None)
+        for _ in range(3):
+            store.record_failed_attempt(key)
 
         self._call(
             user_id=1,
@@ -516,4 +517,5 @@ class TestVerifyStepUpCredentials:
         )
 
         assert not store.is_locked_out(key)
-        assert key not in store._lockout._attempts
+        # The counter was reset: the next failure starts again at 1.
+        assert store.record_failed_attempt(key) == 1

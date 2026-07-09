@@ -30,6 +30,22 @@ PUBLIC_ROUTER_MODULES = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _publish_local_platform():
+    """Publish a fresh local ``Platform`` process-wide for every test.
+
+    The auth/garmin/websocket store singletons resolve ``platform.state`` lazily
+    through ``core.platform.runtime`` (production sets it at startup). A fresh
+    platform per test keeps the in-memory state isolated between tests.
+    """
+    import core.config as core_config
+    import core.platform.container as platform_container
+    import core.platform.runtime as platform_runtime
+
+    platform_runtime.set_active_platform(platform_container.build_platform(core_config.settings))
+    yield
+
+
 @pytest.fixture
 def password_hasher() -> auth_password_hasher.PasswordHasher:
     """

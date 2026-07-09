@@ -8,6 +8,7 @@ import HomeProfileCard from '@/features/home/components/HomeProfileCard.vue'
 import UserDistanceStats from '@/features/home/components/UserDistanceStats.vue'
 import UserGoalResults from '@/features/home/components/UserGoalResults.vue'
 import HomeActivityCard from '@/features/home/components/HomeActivityCard.vue'
+import HomeActivityCardSkeleton from '@/features/home/components/HomeActivityCardSkeleton.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -125,6 +126,15 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const uploadMutation = useUploadActivityFileMutation()
 const acceptedFileTypes = ACTIVITY_FILE_EXTENSIONS.map((ext) => `.${ext}`).join(',')
 
+/**
+ * Whether to show a placeholder card at the top of the viewer's own feed while
+ * an upload is in flight. Scoped to the "mine" feed because that is where the
+ * new activity is pinned to the top once the upload resolves.
+ */
+const showUploadPlaceholder = computed(
+  () => scope.value === 'mine' && uploadMutation.isPending.value,
+)
+
 /** Opens the hidden file picker. */
 function pickFile(): void {
   fileInput.value?.click()
@@ -234,17 +244,7 @@ function onRefresh(): void {
 
       <!-- Loading -->
       <div v-if="isPending" class="flex flex-col gap-3" aria-busy="true">
-        <Card v-for="n in 3" :key="n" class="flex flex-col gap-3">
-          <div class="flex items-center gap-3">
-            <Skeleton class="size-11 rounded-full" />
-            <div class="flex-1 space-y-2">
-              <Skeleton class="h-4 w-1/3" />
-              <Skeleton class="h-3 w-1/2" />
-            </div>
-          </div>
-          <Skeleton class="h-5 w-2/3" />
-          <Skeleton class="h-48 w-full rounded-card" />
-        </Card>
+        <HomeActivityCardSkeleton v-for="n in 3" :key="n" />
       </div>
 
       <!-- Error -->
@@ -261,7 +261,7 @@ function onRefresh(): void {
 
       <!-- Empty -->
       <EmptyState
-        v-else-if="isEmpty"
+        v-else-if="isEmpty && !showUploadPlaceholder"
         :title="
           scope === 'mine' ? t('home.feed.empty.mine.title') : t('home.feed.empty.following.title')
         "
@@ -278,6 +278,9 @@ function onRefresh(): void {
 
       <!-- Feed -->
       <template v-else>
+        <!-- Placeholder for an activity currently being uploaded. -->
+        <HomeActivityCardSkeleton v-if="showUploadPlaceholder" />
+
         <HomeActivityCard
           v-for="activity in activities"
           :key="activity.id"

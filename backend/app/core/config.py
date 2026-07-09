@@ -28,10 +28,11 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.logger as core_logger
 import core.network as core_network
-import core.redis as core_redis
+import core.platform.capabilities as platform_capabilities
+import core.platform.profile as platform_profile
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.19.0-beta4"
+API_VERSION = "v0.19.0-beta5"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
@@ -73,6 +74,17 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
     ENVIRONMENT: str = "production"
     TZ: str = "UTC"
+
+    # --- Deployment shape ---
+    # DEPLOYMENT_PROFILE shapes every infrastructure capability
+    # (state, storage, events, coordination lock):
+    #   local       - single process/node; in-memory state, local disk (default)
+    #   distributed - multi-node; requires shared state (Redis) + object storage
+    #   custom      - no profile defaults; every capability set explicitly
+    # WEB_WORKERS is the number of web-server worker processes; when it is > 1
+    # the deployment needs shared state even under the local profile.
+    DEPLOYMENT_PROFILE: platform_profile.DeploymentProfile = platform_profile.DeploymentProfile.LOCAL
+    WEB_WORKERS: int = 1
 
     # --- Host / redirects ---
     ENDURAIN_HOST: str = "http://localhost:8080"
@@ -118,8 +130,45 @@ class Settings(BaseSettings):
 
     # --- Rate limiting ---
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_STORAGE_URI: str = "memory://"
-    AUTH_SECURITY_STORAGE_URI: str | None = None
+
+    # --- Shared ephemeral state ---
+    # One backend for rate-limit counters, auth lockout, pending-MFA, MFA
+    # setup secrets, Garmin MFA codes, and websocket tickets. Selected by
+    # DEPLOYMENT_PROFILE with this precedence (highest wins):
+    #   STATE_URI (explicit) -> REDIS_URL (shared Redis) -> memory:// (the
+    #   local-profile default). A distributed or multi-worker deployment that
+    #   resolves to memory:// is rejected at startup.
+    STATE_URI: str | None = None
+    # Shared Redis DSN; the default for every Redis-backed capability with no
+    # explicit per-capability URI.
+    REDIS_URL: str | None = None
+
+    # --- Blob storage (activity thumbnails, media, images) ---
+    # local:// (default) stores each area as a subdirectory under DATA_DIR;
+    # s3://bucket/prefix uses S3-compatible object storage (install the `s3` extra
+    # for boto3). The scheme selects the StorageProvider backend independently of
+    # DEPLOYMENT_PROFILE.
+    STORAGE_URI: str | None = None
+
+    # --- Event bus (pub/sub) ---
+    # memory:// (default) dispatches subscribers in-process synchronously;
+    # redis://… uses Redis Streams with a consumer group. Precedence:
+    # EVENTS_URI -> REDIS_URL -> memory:// (the local-profile default).
+    EVENTS_URI: str | None = None
+
+    # --- Event observability (event_log table) ---
+    # When enabled (default), the event bus records every event's lifecycle
+    # (published -> processing -> completed/failed) to the ``event_log`` table so
+    # it can be queried and summarized in the admin dashboard. Disable to skip the
+    # per-event database writes if the extra import-path latency ever matters.
+    EVENT_LOG_ENABLED: bool = True
+
+    # --- Coordination lock (scheduler/backfill single-runner) ---
+    # noop:// always acquires (single process); postgres-advisory:// uses
+    # pg_try_advisory_lock on the main database so only one replica runs a
+    # scheduled job. Precedence: LOCK_URI -> profile default (noop:// locally,
+    # postgres-advisory:// for the distributed profile).
+    LOCK_URI: str | None = None
 
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
@@ -162,6 +211,28 @@ class Settings(BaseSettings):
     @classmethod
     def _to_lower(cls, v: str) -> str:
         return v.lower() if isinstance(v, str) else v
+
+    @field_validator("DEPLOYMENT_PROFILE", mode="before")
+    @classmethod
+    def _parse_deployment_profile(cls, v):
+        """Normalise DEPLOYMENT_PROFILE to a DeploymentProfile (raises on typo)."""
+        return platform_profile.parse_profile(v)
+
+    @field_validator("WEB_WORKERS", mode="before")
+    @classmethod
+    def _parse_web_workers(cls, v):
+        """Coerce WEB_WORKERS to an int >= 1, tolerating blank/invalid input."""
+        if v is None or v == "":
+            return 1
+        try:
+            parsed = int(v)
+        except (TypeError, ValueError):
+            core_logger.print_to_log_and_console(
+                "Invalid WEB_WORKERS value, expected a positive integer; defaulting to 1",
+                "warning",
+            )
+            return 1
+        return parsed if parsed >= 1 else 1
 
     @field_validator("PHOTON_API_HOST", "NOMINATIM_API_HOST", mode="before")
     @classmethod
@@ -420,39 +491,102 @@ class Settings(BaseSettings):
         return self
 
     @property
-    def resolved_auth_security_storage_uri(self) -> str:
-        """Effective storage URI for auth-security and MFA stores.
+    def resolved_state_uri(self) -> str:
+        """Effective storage URI for all shared ephemeral state.
 
-        Resolves the precedence shared by the auth security stores, MFA
-        setup-secret store, and Garmin MFA code store:
-        ``AUTH_SECURITY_STORAGE_URI`` overrides ``RATE_LIMIT_STORAGE_URI``,
-        falling back to ``memory://`` when neither is set.
+        One profile-driven backend for rate-limit counters, auth lockout,
+        pending-MFA, MFA setup secrets, Garmin MFA codes, and websocket
+        tickets. Precedence: ``STATE_URI`` -> ``REDIS_URL`` -> ``memory://``
+        (the local-profile default). A distributed or multi-worker deployment
+        that resolves to ``memory://`` is rejected by
+        :meth:`_enforce_deployment_topology`.
         """
-        return self.AUTH_SECURITY_STORAGE_URI or self.RATE_LIMIT_STORAGE_URI or "memory://"
+        return self.STATE_URI or self.REDIS_URL or "memory://"
+
+    @property
+    def resolved_storage_uri(self) -> str:
+        """Effective blob-storage URI: ``STORAGE_URI`` or the ``local://`` default.
+
+        The scheme (``local`` or ``s3``) selects the ``StorageProvider`` backend in
+        :func:`core.platform.container.build_platform`.
+        """
+        return self.STORAGE_URI or "local://"
+
+    @property
+    def resolved_events_uri(self) -> str:
+        """Effective event-bus URI: ``EVENTS_URI`` -> ``REDIS_URL`` -> ``memory://``.
+
+        The scheme (``memory`` or ``redis``) selects the ``EventBusProvider`` backend
+        in :func:`core.platform.container.build_platform`.
+        """
+        return self.EVENTS_URI or self.REDIS_URL or "memory://"
+
+    @property
+    def resolved_lock_uri(self) -> str:
+        """Effective coordination-lock URI: ``LOCK_URI`` or the profile default.
+
+        Defaults to ``noop://`` for a single-process ``local`` deployment and to
+        ``postgres-advisory://`` (the main database) whenever the topology runs
+        more than one process — the ``distributed`` profile *or* a multi-worker
+        ``local`` deployment — so the default never coordinates scheduled jobs
+        with a no-op lock. The scheme (``noop`` or ``postgres-advisory``) selects
+        the ``LockProvider`` backend in
+        :func:`core.platform.container.build_platform`. An explicit
+        ``LOCK_URI=noop://`` under a multi-process topology is rejected by
+        :meth:`_enforce_deployment_topology`.
+        """
+        if self.LOCK_URI:
+            return self.LOCK_URI
+        if self.resolved_deployment_topology.requires_shared_state:
+            return "postgres-advisory://"
+        return "noop://"
+
+    @property
+    def resolved_deployment_topology(self) -> platform_profile.DeploymentTopology:
+        """Resolved deployment shape (profile + worker count)."""
+        return platform_profile.resolve_topology(self.DEPLOYMENT_PROFILE, self.WEB_WORKERS)
 
     @model_validator(mode="after")
-    def _warn_on_memory_security_storage(self) -> Self:
-        """Warn when production-like auth protections are process-local."""
-        if self.ENVIRONMENT == "development":
-            return self
+    def _enforce_deployment_topology(self) -> Self:
+        """Fail fast when a shared-state deployment is wired to process-local infra.
 
-        if self.RATE_LIMIT_ENABLED and core_redis.is_memory_storage_uri(self.RATE_LIMIT_STORAGE_URI):
-            core_logger.print_to_log_and_console(
-                "RATE_LIMIT_STORAGE_URI uses process-local memory outside "
-                "development. API rate-limit counters are not shared "
-                "across workers; use Redis for multi-worker deployments.",
-                "warning",
-            )
-
-        if core_redis.is_memory_storage_uri(self.resolved_auth_security_storage_uri):
-            core_logger.print_to_log_and_console(
-                "AUTH_SECURITY_STORAGE_URI resolves to process-local "
-                "memory outside development. Login lockout and pending "
-                "MFA state, including setup secrets, are not shared "
-                "across workers; use Redis for multi-worker deployments.",
-                "warning",
-            )
-
+        A ``distributed`` or multi-worker deployment cannot use process-local
+        memory for the cross-process backends (rate-limit / auth-security / MFA
+        state and the event bus) — they would diverge silently across processes —
+        nor an in-process ``noop`` coordination lock, or every process would run
+        every scheduled job. A ``distributed`` deployment also cannot use the
+        local filesystem for blob storage, because replicas do not share a disk.
+        Raising here aborts ``Settings`` construction so the misconfiguration
+        surfaces at boot rather than at request time. ``development`` and the
+        ``custom`` profile are never fatal. Multi-worker ``local`` keeps local
+        storage (shared host disk) but still needs a shared lock.
+        """
+        state_label = "STATE_URI" if self.STATE_URI else "REDIS_URL" if self.REDIS_URL else "STATE_URI/REDIS_URL"
+        events_label = "EVENTS_URI" if self.EVENTS_URI else "REDIS_URL" if self.REDIS_URL else "EVENTS_URI/REDIS_URL"
+        issues = platform_capabilities.check_state_consistency(
+            profile=self.DEPLOYMENT_PROFILE,
+            web_workers=self.WEB_WORKERS,
+            environment=self.ENVIRONMENT,
+            state_sources=[
+                platform_capabilities.StateSource(state_label, self.resolved_state_uri),
+                platform_capabilities.StateSource(events_label, self.resolved_events_uri),
+            ],
+        )
+        issues += platform_capabilities.check_storage_consistency(
+            profile=self.DEPLOYMENT_PROFILE,
+            environment=self.ENVIRONMENT,
+            storage_uri=self.resolved_storage_uri,
+            storage_label="STORAGE_URI",
+        )
+        issues += platform_capabilities.check_lock_consistency(
+            profile=self.DEPLOYMENT_PROFILE,
+            web_workers=self.WEB_WORKERS,
+            environment=self.ENVIRONMENT,
+            lock_uri=self.resolved_lock_uri,
+            lock_label="LOCK_URI",
+        )
+        if issues:
+            raise ValueError("Inconsistent deployment configuration:\n" + "\n".join(f"  - {issue}" for issue in issues))
         return self
 
 

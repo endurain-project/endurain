@@ -12,7 +12,57 @@
     "import": "Import",
     "users": "Users",
     "idp": "Identity providers",
-    "server": "Server settings"
+    "server": "Server settings",
+    "eventLog": "Event log"
+  },
+  "eventLog": {
+    "title": "Event log",
+    "subtitle": "Observe how background events are processed across the deployment",
+    "window": {
+      "label": "Time window",
+      "last24h": "Last 24 hours",
+      "last7d": "Last 7 days"
+    },
+    "refresh": "Refresh",
+    "loadError": {
+      "title": "Couldn't load the event log",
+      "description": "Something went wrong while loading the observability data. Try again.",
+      "retry": "Retry"
+    },
+    "overview": {
+      "total": "Total events",
+      "failed": "Failed",
+      "pending": "Pending"
+    },
+    "empty": {
+      "title": "No events recorded yet",
+      "description": "Events appear here as the system publishes and processes them."
+    },
+    "byType": {
+      "title": "By event type",
+      "eventType": "Event type",
+      "total": "Total",
+      "completed": "Completed",
+      "pending": "Pending",
+      "failed": "Failed",
+      "deadLetter": "Dead-letter",
+      "avg": "Avg",
+      "max": "Max"
+    },
+    "pending": {
+      "title": "Pending work",
+      "empty": "No events are waiting or in progress.",
+      "eventType": "Event type",
+      "status": "Status",
+      "count": "Count",
+      "oldest": "Oldest"
+    },
+    "failures": {
+      "title": "Recent failures",
+      "empty": "No failures in this window.",
+      "activity": "Activity",
+      "handler": "Handler:"
+    }
   },
   "users": {
     "title": "Users",

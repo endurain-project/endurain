@@ -15,7 +15,7 @@ router = APIRouter()
 def issue_ws_ticket(
     user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     ticket_store: Annotated[
-        ws_ticket_store.WsTicketStore | ws_ticket_store.RedisWsTicketStore,
+        ws_ticket_store.WsTicketStore,
         Depends(ws_ticket_store.get_ws_ticket_store),
     ],
 ) -> dict[str, str]:
@@ -43,7 +43,7 @@ async def websocket_endpoint(
     websocket: WebSocket,
     ticket: Annotated[str, Query(alias="ticket")],
     ticket_store: Annotated[
-        ws_ticket_store.WsTicketStore | ws_ticket_store.RedisWsTicketStore,
+        ws_ticket_store.WsTicketStore,
         Depends(ws_ticket_store.get_ws_ticket_store),
     ],
     manager: Annotated[

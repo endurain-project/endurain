@@ -1,5 +1,6 @@
 [importlinter]
 # Run from backend/ with: PYTHONPATH=app uv run lint-imports
+include_external_packages = True
 root_packages =
     auth
     users
@@ -62,3 +63,80 @@ forbidden_modules =
     auth.credentials.crud
     auth.security_stores
     auth.services
+
+[importlinter:contract:platform-core-no-infra]
+name = Platform core (providers/events/profile/container/deps/runtime) must not import infrastructure directly
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    core.platform.providers
+    core.platform.events
+    core.platform.profile
+    core.platform.capabilities
+    core.platform.container
+    core.platform.deps
+    core.platform.runtime
+forbidden_modules =
+    redis
+    sqlalchemy
+    boto3
+
+[importlinter:contract:domain-not-platform-backends]
+name = Domain modules must depend on platform providers, not backends
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    activities
+    auth
+    users
+    followers
+    garmin
+    gears
+    health
+    notifications
+    server_settings
+    strava
+    websocket
+forbidden_modules =
+    core.platform.backends
+
+[importlinter:contract:platform-not-domain]
+name = Platform substrate must not import domain modules
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    core.platform
+forbidden_modules =
+    activities
+    auth
+    users
+    followers
+    garmin
+    gears
+    health
+    notifications
+    server_settings
+    strava
+    websocket
+
+[importlinter:contract:redis-owned-by-platform]
+name = Only the platform Redis capability may import redis
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    activities
+    auth
+    core
+    followers
+    garmin
+    gears
+    health
+    notifications
+    server_settings
+    strava
+    users
+    websocket
+forbidden_modules =
+    redis
+ignore_imports =
+    core.platform.redis -> redis

@@ -411,57 +411,6 @@ class TestSettingsSsrfAllowedHosts:
         assert s.SSRF_ALLOWED_HOSTS == []
 
 
-@patch.dict(os.environ, {}, clear=True)
-class TestSettingsWarnings:
-    """Settings model_validator warnings."""
-
-    def test_memory_rate_limit_warning_production(self):
-        from core.config import Settings
-
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
-            Settings(
-                _env_file=None,
-                ENVIRONMENT="production",
-                RATE_LIMIT_STORAGE_URI="memory://",
-                RATE_LIMIT_ENABLED=True,
-            )
-        mock_log.assert_any_call(
-            "RATE_LIMIT_STORAGE_URI uses process-local memory outside "
-            "development. API rate-limit counters are not shared "
-            "across workers; use Redis for multi-worker deployments.",
-            "warning",
-        )
-
-    def test_memory_auth_security_storage_warning_production(self):
-        from core.config import Settings
-
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
-            Settings(
-                _env_file=None,
-                ENVIRONMENT="production",
-                RATE_LIMIT_STORAGE_URI="memory://",
-                AUTH_SECURITY_STORAGE_URI=None,
-                RATE_LIMIT_ENABLED=True,
-            )
-        mock_log.assert_any_call(
-            "AUTH_SECURITY_STORAGE_URI resolves to process-local "
-            "memory outside development. Login lockout and pending "
-            "MFA state, including setup secrets, are not shared "
-            "across workers; use Redis for multi-worker deployments.",
-            "warning",
-        )
-
-    def test_no_warnings_in_development(self):
-        from core.config import Settings
-
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
-            Settings(
-                _env_file=None, ENVIRONMENT="development", RATE_LIMIT_STORAGE_URI="memory://", RATE_LIMIT_ENABLED=True
-            )
-        relevant = [c for c in mock_log.call_args_list if "process-local memory" in str(c)]
-        assert len(relevant) == 0
-
-
 class TestReadSecret:
     """read_secret: env var and Docker secrets file loading."""
 
@@ -836,7 +785,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.19.0-beta4"
+        assert API_VERSION == "v0.19.0-beta5"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL

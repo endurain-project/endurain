@@ -26,9 +26,9 @@ Exports:
       ``MFARequiredResponse``, ``MobileSessionResponse``,
       ``TokenResponseWeb``, ``TokenResponseMobile``,
       ``LogoutResponse``
-    - Stores: ``PendingMFALogin``, ``RedisPendingMFALogin``,
-      ``FailedLoginAttempts``, ``RedisFailedLoginAttempts``,
-      ``get_pending_mfa_store``, ``get_failed_login_attempts``,
+    - Stores: ``PendingMFALogin``, ``FailedLoginAttempts``,
+      ``StepUpAttempts``, ``get_pending_mfa_store``,
+      ``get_failed_login_attempts``, ``get_step_up_attempts``,
       ``cleanup_expired_pending_mfa_logins``,
       ``clear_pending_mfa_for_user``
     - Helpers: ``authenticate_user``, ``complete_login``,
@@ -70,14 +70,10 @@ from .schema import (
 from .security_stores import (
     FailedLoginAttempts,
     PendingMFALogin,
-    RedisFailedLoginAttempts,
-    RedisPendingMFALogin,
-    RedisStepUpAttempts,
     StepUpAttempts,
     StepUpStore,
     cleanup_expired_pending_mfa_logins,
     clear_pending_mfa_for_user,
-    create_auth_security_stores,
     get_failed_login_attempts,
     get_pending_mfa_store,
     get_step_up_attempts,
@@ -105,9 +101,6 @@ __all__ = [
     "PasswordPolicyError",
     # Auth security stores / lockout
     "PendingMFALogin",
-    "RedisFailedLoginAttempts",
-    "RedisPendingMFALogin",
-    "RedisStepUpAttempts",
     "StepUpAttempts",
     "StepUpStore",
     # JWT / token management
@@ -121,7 +114,6 @@ __all__ = [
     "cleanup_expired_pending_mfa_logins",
     "clear_pending_mfa_for_user",
     "complete_login",
-    "create_auth_security_stores",
     "create_mobile_pkce_session_response",
     "create_tokens",
     "get_failed_login_attempts",
