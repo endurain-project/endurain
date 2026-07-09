@@ -855,6 +855,68 @@ def check_required_env_vars():
     validate_log_level(settings.LOG_LEVEL)
 
 
+# Environment variables retired in v0.19.x. Maps the removed variable name to a
+# short, actionable remediation string. These are validated by
+# ``check_deprecated_env_vars`` at startup: because ``Settings`` uses
+# ``extra="ignore"``, a stale value would otherwise be silently dropped, leaving
+# the operator with no feedback that their configuration no longer takes effect.
+DEPRECATED_ENV_VARS: dict[str, str] = {
+    "UID": (
+        "no longer used. The container runs as a fixed non-root 'app' user. "
+        "For a custom UID/GID set 'user: \"<UID>:<GID>\"' in docker-compose and "
+        "chown the host bind mounts accordingly."
+    ),
+    "GID": (
+        "no longer used. The container runs as a fixed non-root 'app' user. "
+        "For a custom UID/GID set 'user: \"<UID>:<GID>\"' in docker-compose and "
+        "chown the host bind mounts accordingly."
+    ),
+    "FRONTEND_PROTOCOL": (
+        "removed. ENVIRONMENT is now the single source of truth for the cookie "
+        "'Secure' flag across login, refresh, and SSO. Use ENVIRONMENT=production "
+        "(or demo) to serve over HTTPS."
+    ),
+}
+
+
+def check_deprecated_env_vars() -> None:
+    """
+    Abort startup when retired environment variables are still set.
+
+    Variables removed in v0.19.x are silently ignored by ``Settings``
+    (``extra="ignore"``), so a leftover value would give the operator no
+    feedback. Every offending variable is collected and reported together
+    so the deployment can be fixed in a single pass rather than one restart
+    at a time.
+
+    Raises:
+        EnvironmentError: If any deprecated variable is present in the
+            process environment.
+    """
+    found = [name for name in DEPRECATED_ENV_VARS if name in os.environ]
+    if not found:
+        return
+
+    core_logger.print_to_log_and_console(
+        "Deprecated environment variable(s) detected. Endurain will not start "
+        "until they are removed from your configuration:",
+        "error",
+    )
+    for name in found:
+        core_logger.print_to_log_and_console(
+            f"  - {name}: {DEPRECATED_ENV_VARS[name]}",
+            "error",
+        )
+
+    message = (
+        f"Deprecated environment variable(s) in use: {', '.join(found)}. "
+        "Remove them and restart. See "
+        "https://docs.endurain.com/getting-started/advanced-started/"
+        "#supported-environment-variables"
+    )
+    raise OSError(message)
+
+
 def check_required_dirs():
     """
     Ensure required directories exist and are valid.

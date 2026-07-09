@@ -816,3 +816,83 @@ class TestModuleLevelConstants:
 
         assert ".fit" in SUPPORTED_FILE_FORMATS
         assert ".gpx" in SUPPORTED_FILE_FORMATS
+
+
+class TestCheckDeprecatedEnvVars:
+    """check_deprecated_env_vars: fail-fast on variables retired in v0.19.x."""
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_no_deprecated_vars_passes_silently(self):
+        from core.config import check_deprecated_env_vars
+
+        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
+            check_deprecated_env_vars()
+
+        assert mock_log.call_count == 0
+
+    @patch.dict(os.environ, {"SOME_CURRENT_VAR": "value"}, clear=True)
+    def test_unrelated_var_passes_silently(self):
+        from core.config import check_deprecated_env_vars
+
+        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
+            check_deprecated_env_vars()
+
+        assert mock_log.call_count == 0
+
+    @patch.dict(os.environ, {"FRONTEND_PROTOCOL": "https"}, clear=True)
+    def test_frontend_protocol_aborts_with_replacement_hint(self):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            pytest.raises(OSError, match="FRONTEND_PROTOCOL"),
+        ):
+            check_deprecated_env_vars()
+
+        logged = " ".join(str(call) for call in mock_log.call_args_list)
+        assert "FRONTEND_PROTOCOL" in logged
+        # Remediation points operators at the replacement variable.
+        assert "ENVIRONMENT" in logged
+
+    @patch.dict(os.environ, {"UID": "1000"}, clear=True)
+    def test_uid_aborts_with_compose_guidance(self):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            pytest.raises(OSError, match="UID"),
+        ):
+            check_deprecated_env_vars()
+
+        logged = " ".join(str(call) for call in mock_log.call_args_list)
+        assert "docker-compose" in logged
+
+    @patch.dict(
+        os.environ,
+        {"UID": "1000", "GID": "1000", "FRONTEND_PROTOCOL": "http"},
+        clear=True,
+    )
+    def test_multiple_deprecated_vars_reported_together(self):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            pytest.raises(OSError) as exc_info,
+        ):
+            check_deprecated_env_vars()
+
+        # A single abort lists every offending variable at once so the
+        # operator can fix the deployment in one pass.
+        message = str(exc_info.value)
+        assert "UID" in message
+        assert "GID" in message
+        assert "FRONTEND_PROTOCOL" in message
+
+        # One header line plus one line per offending variable.
+        assert mock_log.call_count == 4
+
+    def test_mapping_contains_expected_keys(self):
+        from core.config import DEPRECATED_ENV_VARS
+
+        assert set(DEPRECATED_ENV_VARS) == {"UID", "GID", "FRONTEND_PROTOCOL"}
+        assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())

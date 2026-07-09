@@ -330,16 +330,17 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     """Build, configure, and return the FastAPI app.
 
-    Pre-flight: validate required env vars, ensure data
-    directories exist, and configure the main logger so
-    every subsequent log line is captured by the
-    environment-appropriate handler.
+    Pre-flight: reject retired env vars, validate required
+    env vars, ensure data directories exist, and configure
+    the main logger so every subsequent log line is
+    captured by the environment-appropriate handler.
     """
     # Pre-flight checks that must run before the app is
-    # constructed: required environment variables and
-    # filesystem layout. Logger setup must happen after
-    # config validation so log routing reflects the
-    # validated settings.
+    # constructed: retired and required environment
+    # variables and filesystem layout. Logger setup must
+    # happen after config validation so log routing
+    # reflects the validated settings.
+    core_config.check_deprecated_env_vars()
     core_config.check_required_env_vars()
     core_config.check_required_dirs()
     core_logger.setup_main_logger()

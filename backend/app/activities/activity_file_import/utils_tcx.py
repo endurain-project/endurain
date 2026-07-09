@@ -357,6 +357,11 @@ def parse_tcx_file(
         power_wp = waypoints["power_waypoints"]
 
         distance = round(tcx_file.distance) if tcx_file.distance else 0
+        if not distance and lat_lon_wp:
+            # Some TCX sources omit the summary Distance element even when a
+            # GPS track is present. Fall back to the geodesic sum over the
+            # track, mirroring the FIT/GPX importers.
+            distance = round(activity_file_import_utils.compute_distance_from_waypoints(lat_lon_wp))
 
         if lat_lon_wp:
             pace = activities_utils.calculate_pace(

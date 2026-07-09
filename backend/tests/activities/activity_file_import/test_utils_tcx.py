@@ -236,3 +236,145 @@ class TestUtilsTcx:
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
         assert activity.average_hr == 155
         assert activity.max_hr == 160
+
+    def test_parse_tcx_file_derives_distance_from_gps_track_when_missing(self):
+        """Missing tcx_file.distance falls back to the geodesic sum over the GPS track."""
+        dt_start = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 8, 25, 3, tzinfo=UTC)
+
+        mock_tcx = SimpleNamespace(
+            activity_type="Running",
+            distance=None,
+            start_time=dt_start,
+            end_time=dt_end,
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+            laps=[],
+            trackpoints=[],
+        )
+        trackpoints = [
+            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
+            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
+        ]
+        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+
+        fake_waypoints = {
+            # ~0.01 deg of latitude ≈ 1.1 km.
+            "lat_lon_waypoints": [
+                {"time": "2026-06-20T08:20:03", "lat": 40.0, "lon": -3.0},
+                {"time": "2026-06-20T08:25:03", "lat": 40.01, "lon": -3.0},
+            ],
+            "hr_waypoints": [],
+            "cad_waypoints": [],
+            "ele_waypoints": [],
+            "power_waypoints": [],
+            "vel_waypoints": [],
+            "pace_waypoints": [],
+        }
+
+        with (
+            patch("tcxreader.TCXReader") as mock_reader_class,
+            patch(
+                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                return_value=fake_waypoints,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx"
+                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+                return_value="UTC",
+            ),
+        ):
+            mock_reader_class.return_value.read.return_value = mock_tcx
+
+            result = utils_tcx.parse_tcx_file(
+                file="dummy.tcx",
+                user_id=1,
+                user_privacy_settings=_privacy_settings(),
+                db=MagicMock(),
+            )
+
+        assert 1000 < result["activity"].distance < 1200
+        assert result["activity"].pace > 0
+
+    def test_parse_tcx_file_keeps_reported_distance_when_present(self):
+        """A real tcx_file.distance is used as-is, ignoring the GPS fallback."""
+        dt_start = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 8, 25, 3, tzinfo=UTC)
+
+        mock_tcx = SimpleNamespace(
+            activity_type="Running",
+            distance=5000.0,
+            start_time=dt_start,
+            end_time=dt_end,
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+            laps=[],
+            trackpoints=[],
+        )
+        trackpoints = [
+            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
+            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
+        ]
+        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+
+        fake_waypoints = {
+            "lat_lon_waypoints": [
+                {"time": "2026-06-20T08:20:03", "lat": 40.0, "lon": -3.0},
+                {"time": "2026-06-20T08:25:03", "lat": 40.01, "lon": -3.0},
+            ],
+            "hr_waypoints": [],
+            "cad_waypoints": [],
+            "ele_waypoints": [],
+            "power_waypoints": [],
+            "vel_waypoints": [],
+            "pace_waypoints": [],
+        }
+
+        with (
+            patch("tcxreader.TCXReader") as mock_reader_class,
+            patch(
+                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                return_value=fake_waypoints,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx"
+                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+                return_value="UTC",
+            ),
+        ):
+            mock_reader_class.return_value.read.return_value = mock_tcx
+
+            result = utils_tcx.parse_tcx_file(
+                file="dummy.tcx",
+                user_id=1,
+                user_privacy_settings=_privacy_settings(),
+                db=MagicMock(),
+            )
+
+        assert result["activity"].distance == 5000

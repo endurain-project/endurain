@@ -9,7 +9,6 @@ from typing import TypedDict
 import gpxpy
 import gpxpy.gpx
 from fastapi import HTTPException, status
-from geopy.distance import geodesic
 from sqlalchemy.orm import Session
 
 import activities.activity.schema as activities_schema
@@ -335,12 +334,6 @@ def _process_trackpoint(
     if time is None:
         return
 
-    if state.prev_latitude is not None and state.prev_longitude is not None:
-        state.distance += geodesic(
-            (state.prev_latitude, state.prev_longitude),
-            (latitude, longitude),
-        ).meters
-
     if elevation is not None:
         state.is_elevation_set = True
 
@@ -649,6 +642,13 @@ def parse_gpx_file(
                 status_code=(status.HTTP_400_BAD_REQUEST),
                 detail=("Invalid GPX file - no valid segments with at least two timed GPS trackpoints found"),
             )
+
+        # Sum distance per segment (not across the full flat waypoint list) so
+        # that gaps between segments are never counted as travelled distance.
+        state.distance = sum(
+            activity_file_import_utils.compute_distance_from_waypoints(segment_waypoints)
+            for segment_waypoints in state.lat_lon_segments
+        )
 
         _compute_derived_metrics(state, user_id, db)
 

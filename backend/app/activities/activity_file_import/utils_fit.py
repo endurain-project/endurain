@@ -63,9 +63,24 @@ def create_activity_objects(
             if session_record["activity_name"] and session_record["activity_name"] != "Workout":
                 activity_name = session_record["activity_name"]
 
+            # Resolve the summary distance. FIT stores it on the session frame,
+            # but some sources omit total_distance even when the activity has a
+            # GPS track or an average speed. Fall back so distance (and the pace
+            # derived from it) are not left at zero when they are recoverable.
+            resolved_distance = session_record["session"]["distance"]
+            if not resolved_distance and session_record["is_lat_lon_set"]:
+                resolved_distance = activity_file_import_utils.compute_distance_from_waypoints(
+                    session_record["lat_lon_waypoints"]
+                )
+            if not resolved_distance:
+                avg_speed = session_record["session"]["avg_speed"]
+                timer_time = session_record["session"]["total_timer_time"]
+                if avg_speed and timer_time:
+                    resolved_distance = avg_speed * timer_time
+
             # Calculate elevation gain/loss, pace, average speed, and average power
             total_timer_time, pace = calculate_pace(
-                session_record["session"]["distance"],
+                resolved_distance,
                 session_record["session"]["total_timer_time"],
                 session_record["session"]["activity_type"],
                 session_record["split_summary"],
@@ -116,10 +131,56 @@ def create_activity_objects(
                 if recomputed_max:
                     session_max_hr = round(recomputed_max)
 
+            # Fall back to a computed speed when the session omitted
+            # avg/max speed. Use distance/moving-time for the average
+            # (the basis trackers use) and GPS velocity waypoints for
+            # the maximum. Values are in m/s to match the schema.
+            avg_speed = session_record["session"]["avg_speed"]
+            max_speed = session_record["session"]["max_speed"]
+            if avg_speed is None and pace:
+                # pace is s/m (moving_time / distance); invert to m/s.
+                avg_speed = 1 / pace
+            if (avg_speed is None or max_speed is None) and session_record["vel_waypoints"]:
+                vel_avg, vel_max = activities_utils.calculate_avg_and_max(
+                    session_record["vel_waypoints"],
+                    "vel",
+                )
+                if avg_speed is None and vel_avg:
+                    avg_speed = vel_avg
+                if max_speed is None and vel_max:
+                    max_speed = vel_max
+
+            # Fall back to cadence from the per-record stream when the
+            # session omitted avg/max cadence but cadence was recorded.
+            avg_cadence = session_record["session"]["avg_cadence"]
+            max_cadence = session_record["session"]["max_cadence"]
+            if (avg_cadence is None or max_cadence is None) and session_record["cad_waypoints"]:
+                cad_avg, cad_max = activities_utils.calculate_avg_and_max(
+                    session_record["cad_waypoints"],
+                    "cad",
+                )
+                if avg_cadence is None and cad_avg:
+                    avg_cadence = round(cad_avg)
+                if max_cadence is None and cad_max:
+                    max_cadence = round(cad_max)
+
+            # Fall back to elevation gain/loss computed from the elevation
+            # stream when the session omitted them but elevation exists.
+            ele_gain = session_record["session"]["ele_gain"]
+            ele_loss = session_record["session"]["ele_loss"]
+            if (ele_gain is None or ele_loss is None) and session_record["ele_waypoints"]:
+                computed_gain, computed_loss = activities_utils.compute_elevation_gain_and_loss(
+                    elevations=session_record["ele_waypoints"],
+                )
+                if ele_gain is None and computed_gain:
+                    ele_gain = round(computed_gain)
+                if ele_loss is None and computed_loss:
+                    ele_loss = round(computed_loss)
+
             activity = activities_schema.Activity(
                 user_id=user_id,
                 name=activity_name,
-                distance=(round(session_record["session"]["distance"]) if session_record["session"]["distance"] else 0),
+                distance=(round(resolved_distance) if resolved_distance else 0),
                 activity_type=activity_type,
                 start_time=session_record["session"]["first_waypoint_time"].strftime("%Y-%m-%dT%H:%M:%S"),
                 end_time=session_record["session"]["last_waypoint_time"].strftime("%Y-%m-%dT%H:%M:%S"),
@@ -129,18 +190,18 @@ def create_activity_objects(
                 city=session_record["session"]["city"],
                 town=session_record["session"]["town"],
                 country=session_record["session"]["country"],
-                elevation_gain=session_record["session"]["ele_gain"],
-                elevation_loss=session_record["session"]["ele_loss"],
+                elevation_gain=ele_gain,
+                elevation_loss=ele_loss,
                 pace=pace,
-                average_speed=session_record["session"]["avg_speed"],
-                max_speed=session_record["session"]["max_speed"],
+                average_speed=avg_speed,
+                max_speed=max_speed,
                 average_power=round(avg_power) if avg_power else None,
                 max_power=round(max_power) if max_power else None,
                 normalized_power=round(np_power) if np_power else None,
                 average_hr=session_avg_hr,
                 max_hr=session_max_hr,
-                average_cad=session_record["session"]["avg_cadence"],
-                max_cad=session_record["session"]["max_cadence"],
+                average_cad=avg_cadence,
+                max_cad=max_cadence,
                 workout_feeling=session_record["session"]["workout_feeling"],
                 workout_rpe=session_record["session"]["workout_rpe"],
                 calories=session_record["session"]["calories"],
@@ -753,8 +814,10 @@ def parse_frame_session(frame):
         get_value_from_frame(frame, "total_ascent"),
         get_value_from_frame(frame, "total_descent"),
         get_value_from_frame(frame, "normalized_power"),
-        get_value_from_frame(frame, "enhanced_avg_speed"),
-        get_value_from_frame(frame, "enhanced_max_speed"),
+        # Prefer the enhanced speed fields, falling back to the legacy
+        # avg_speed/max_speed fields some devices write instead.
+        get_value_from_frame(frame, "enhanced_avg_speed", get_value_from_frame(frame, "avg_speed")),
+        get_value_from_frame(frame, "enhanced_max_speed", get_value_from_frame(frame, "max_speed")),
         get_value_from_frame(frame, "workout_feel"),
         get_value_from_frame(frame, "workout_rpe"),
         get_value_from_frame(frame, "total_cycles"),

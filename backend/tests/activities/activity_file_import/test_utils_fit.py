@@ -171,6 +171,223 @@ class TestUtilsFit:
         assert activity.average_hr == 155
         assert activity.max_hr == 160
 
+    def test_create_activity_objects_computes_avg_speed_from_distance(self):
+        """avg_speed falls back to distance/moving-time when omitted."""
+        record = _session_record(None)
+        # Device recorded distance and timer time but no session speed.
+        record["session"]["distance"] = 10012.0
+        record["session"]["total_timer_time"] = 5006.0
+        record["session"]["avg_speed"] = None
+        record["session"]["max_speed"] = None
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        # 10012 m / 5006 s = 2.0 m/s.
+        assert activity.average_speed == 2.0
+
+    def test_create_activity_objects_computes_speed_from_vel_waypoints(self):
+        """max_speed falls back to GPS velocity waypoints when omitted."""
+        record = _session_record(None)
+        # No distance (indoor-style record) so only GPS speed is usable.
+        record["session"]["avg_speed"] = None
+        record["session"]["max_speed"] = None
+        record["vel_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "vel": 2.0},
+            {"time": "2026-06-20T08:20:10", "vel": 4.0},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        # mean([2, 4]) = 3.0, max = 4.0.
+        assert activity.average_speed == 3.0
+        assert activity.max_speed == 4.0
+
+    def test_create_activity_objects_keeps_device_speed(self):
+        """Device-provided session speed is used verbatim when present."""
+        record = _session_record(None)
+        record["session"]["distance"] = 10012.0
+        record["session"]["avg_speed"] = 2.5
+        record["session"]["max_speed"] = 6.0
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        assert activity.average_speed == 2.5
+        assert activity.max_speed == 6.0
+
+    def test_create_activity_objects_computes_cadence_from_waypoints(self):
+        """avg/max cadence fall back to cad_waypoints when omitted."""
+        record = _session_record(None)
+        record["session"]["avg_cadence"] = None
+        record["session"]["max_cadence"] = None
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 80},
+            {"time": "2026-06-20T08:20:10", "cad": 90},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        # mean([80, 90]) = 85, max = 90.
+        assert activity.average_cad == 85
+        assert activity.max_cad == 90
+
+    def test_create_activity_objects_keeps_device_cadence(self):
+        """Device-provided session cadence is used verbatim when present."""
+        record = _session_record(None)
+        record["session"]["avg_cadence"] = 88
+        record["session"]["max_cadence"] = 95
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 80},
+            {"time": "2026-06-20T08:20:10", "cad": 90},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        assert activity.average_cad == 88
+        assert activity.max_cad == 95
+
+    def test_create_activity_objects_computes_elevation_from_waypoints(self):
+        """Elevation gain/loss fall back to ele_waypoints when omitted."""
+        record = _session_record(None)
+        record["session"]["ele_gain"] = None
+        record["session"]["ele_loss"] = None
+        # Rise 100 -> 130, then descend to 110 (net +30 gain / +20 loss),
+        # with enough points for the smoothing filters to retain the trend.
+        record["ele_waypoints"] = [
+            {"time": "2026-06-20T08:20:00", "ele": 100},
+            {"time": "2026-06-20T08:20:10", "ele": 100},
+            {"time": "2026-06-20T08:20:20", "ele": 110},
+            {"time": "2026-06-20T08:20:30", "ele": 120},
+            {"time": "2026-06-20T08:20:40", "ele": 130},
+            {"time": "2026-06-20T08:20:50", "ele": 130},
+            {"time": "2026-06-20T08:21:00", "ele": 120},
+            {"time": "2026-06-20T08:21:10", "ele": 110},
+            {"time": "2026-06-20T08:21:20", "ele": 110},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        # Elevation increases overall then decreases, so both are set.
+        assert activity.elevation_gain is not None
+        assert activity.elevation_gain > 0
+        assert activity.elevation_loss is not None
+        assert activity.elevation_loss > 0
+
+    def test_create_activity_objects_keeps_device_elevation(self):
+        """Device-provided elevation gain/loss are used verbatim."""
+        record = _session_record(None)
+        record["session"]["ele_gain"] = 250
+        record["session"]["ele_loss"] = 240
+        record["ele_waypoints"] = [
+            {"time": "2026-06-20T08:20:00", "ele": 100},
+            {"time": "2026-06-20T08:20:10", "ele": 130},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        assert activity.elevation_gain == 250
+        assert activity.elevation_loss == 240
+
+    def test_create_activity_objects_leaves_distance_zero_without_data(self):
+        """No session distance, no GPS track, no avg_speed → distance/pace stay 0."""
+        # Category A: an HR-only recording has nothing to derive distance from.
+        activities_list = utils_fit.create_activity_objects(
+            [_session_record(None)],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        assert activity.distance == 0
+        assert activity.pace == 0
+
+    def test_create_activity_objects_derives_distance_from_avg_speed(self):
+        """Missing session distance falls back to avg_speed * total_timer_time."""
+        record = _session_record(None)
+        record["session"]["distance"] = None
+        record["session"]["avg_speed"] = 1.495
+        record["session"]["total_timer_time"] = 1890.0
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        assert activity.distance == round(1.495 * 1890.0)  # ~2826 m
+        assert activity.pace > 0
+
+    def test_create_activity_objects_derives_distance_from_gps_track(self):
+        """Missing session distance falls back to geodesic sum over the GPS track."""
+        record = _session_record(None)
+        record["session"]["distance"] = None
+        record["is_lat_lon_set"] = True
+        record["lat_lon_waypoints"] = [
+            {"time": datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC), "lat": 40.0, "lon": -3.0},
+            {"time": datetime(2026, 6, 20, 8, 25, 3, tzinfo=UTC), "lat": 40.01, "lon": -3.0},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        # ~0.01 deg of latitude ≈ 1.1 km.
+        assert 1000 < activity.distance < 1200
+        assert activity.pace > 0
+
+    def test_session_distance_takes_precedence_over_fallbacks(self):
+        """A real session distance is used as-is, ignoring the fallbacks."""
+        record = _session_record(None)
+        record["session"]["distance"] = 5000.0
+        record["session"]["avg_speed"] = 1.495
+        record["session"]["total_timer_time"] = 1890.0
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        assert activities_list[0]["activity"].distance == 5000
+
 
 class TestParseFrameSession:
     """Tests for parse_frame_session sub_sport → activity_type resolution."""

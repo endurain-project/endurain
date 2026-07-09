@@ -9,7 +9,6 @@ from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
 
 import activities.activity.schema as activities_schema
-import activities.activity.utils as activities_utils
 import users.users_privacy_settings.models as users_privacy_settings_models
 import users.users_privacy_settings.utils as users_privacy_settings_utils
 
@@ -211,6 +210,10 @@ def _compute_lap_metrics(
     Returns:
         Dict with all computed lap metrics.
     """
+    # Imported lazily to avoid a circular import: activities.activity.utils
+    # imports utils_gpx, which re-exports names from this module.
+    import activities.activity.utils as activities_utils
+
     lap_ele = filter_waypoints_by_time_range(
         ele_waypoints,
         start_time,
@@ -432,6 +435,9 @@ def resolve_location(
         Dict with keys ``'city'``, ``'town'``, ``'country'``, or
         ``None`` on geocoding error.
     """
+    # Imported lazily to avoid a circular import (see _compute_lap_metrics).
+    import activities.activity.utils as activities_utils
+
     return activities_utils.location_based_on_coordinates(latitude, longitude)
 
 
@@ -469,6 +475,42 @@ def calculate_power_metrics(
         Tuple of ``(avg_power, max_power, normalized_power)``.  Any
         value may be ``None`` if the stream contains no valid readings.
     """
+    # Imported lazily to avoid a circular import (see _compute_lap_metrics).
+    import activities.activity.utils as activities_utils
+
     avg_power, max_power = activities_utils.calculate_avg_and_max(power_waypoints, "power")
     normalized_power = activities_utils.calculate_np(power_waypoints)
     return avg_power, max_power, normalized_power
+
+
+def compute_distance_from_waypoints(lat_lon_waypoints: list[dict]) -> float:
+    """Compute total distance in metres from a GPS track.
+
+    Sums the geodesic distance between consecutive waypoints. Used as a
+    fallback when a source file does not provide a summary distance (e.g. a
+    FIT session frame without ``total_distance``). Mirrors the accumulation
+    the GPX importer already performs point-by-point.
+
+    Args:
+        lat_lon_waypoints: Ordered list of dicts each containing ``'lat'``
+            and ``'lon'`` numeric keys.
+
+    Returns:
+        Total distance in metres. ``0.0`` if fewer than two valid points.
+    """
+    total = 0.0
+    for i in range(1, len(lat_lon_waypoints)):
+        prev_point = lat_lon_waypoints[i - 1]
+        current_point = lat_lon_waypoints[i]
+        if (
+            prev_point.get("lat") is None
+            or prev_point.get("lon") is None
+            or current_point.get("lat") is None
+            or current_point.get("lon") is None
+        ):
+            continue
+        total += geodesic(
+            (prev_point["lat"], prev_point["lon"]),
+            (current_point["lat"], current_point["lon"]),
+        ).meters
+    return total

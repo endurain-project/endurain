@@ -143,6 +143,61 @@ class TestParseGpxFile:
         assert result["activity"].max_speed < 20
         assert all(lap["total_distance"] < 1000 for lap in result["laps"])
 
+    def test_parse_gpx_file_sums_distance_over_multiple_points_in_one_segment(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test distance accumulates over every hop in a single segment.
+
+        Regression test for the refactor from an inline per-point geodesic
+        accumulator to summing ``compute_distance_from_waypoints`` per
+        segment: verifies a segment with more than two points still sums
+        every consecutive hop, not just the first/last point pair.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Multi-point run</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.002">
+                    <time>2025-01-01T00:00:20Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.004">
+                    <time>2025-01-01T00:00:30Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        expected_distance = (
+            geodesic((0.0, 0.0), (0.0, 0.001)).meters
+            + geodesic((0.0, 0.001), (0.0, 0.002)).meters
+            + geodesic((0.0, 0.002), (0.0, 0.004)).meters
+        )
+
+        assert result["activity"].distance == round(expected_distance)
+
     def test_parse_gpx_file_converts_offset_timestamps_to_utc(
         self,
         tmp_path,
