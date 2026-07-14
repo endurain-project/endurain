@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Security, UploadFile, status
 from sqlalchemy.orm import Session
 
+import activities.activity.crud as activity_crud
 import activities.activity.dependencies as activities_dependencies
 import activities.activity_media.crud as activity_media_crud
 import activities.activity_media.dependencies as activities_media_dependencies
@@ -104,6 +105,10 @@ async def upload_media(
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["activities:write"]),
     ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_sub_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -121,6 +126,7 @@ async def upload_media(
         activity_id: Activity ID the media belongs to.
         _validate_id: Activity ID validation dependency.
         _check_scopes: Scope validation dependency.
+        token_user_id: Authenticated user ID.
         db: Database session.
 
     Returns:
@@ -128,11 +134,19 @@ async def upload_media(
 
     Raises:
         HTTPException:
+            - 404 Not Found: If the activity is not owned by the user.
             - 400 Bad Request: If image validation fails.
             - 415 Unsupported Media Type: If the extension is rejected.
             - 409 Conflict: If a media with the same path already exists.
             - 500 Internal Server Error: For unexpected I/O or DB errors.
     """
+    activity = activity_crud.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
+    if activity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity not found",
+        )
+
     new_file_name = _build_safe_media_filename(activity_id, file.filename)
 
     # SafeUploads validates magic number and size before writing to disk.

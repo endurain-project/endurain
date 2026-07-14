@@ -6,6 +6,7 @@ Use only the public functions exported by users.users.__init__ for external
 consumption.
 """
 
+import datetime
 import posixpath
 from typing import TYPE_CHECKING, Literal, overload
 from urllib.parse import unquote
@@ -86,26 +87,34 @@ def _get_user_model_by_id_or_404(user_id: int, db: Session) -> users_models.User
     return db_userss
 
 
-def _persist_user_bmi_changes(
+def _persist_user_edits(
     db_users: users_models.Users,
     height_before: int | None,
+    max_heart_rate_before: int | None,
+    birthdate_before: datetime.date | None,
     recalculate_bmi_on_height_change: bool,
     db: Session,
 ) -> users_schema.UsersRead:
     """
-    Commit pending user edits and serialize the result.
+    Commit pending user edits and refresh derived data.
 
     Bundles the blocking portion of an edit into a single unit so
     callers can offload it with ``run_in_threadpool`` and keep the API
     event loop responsive. The commit/refresh, the bulk BMI
-    recalculation, and the ``mfa_enabled`` lazy-load triggered while
-    serializing are all synchronous SQLAlchemy calls.
+    recalculation, the HR zone recomputation, and the ``mfa_enabled``
+    lazy-load triggered while serializing are all synchronous
+    SQLAlchemy calls.
 
     Args:
         db_users: Mapped ``Users`` row carrying pending in-memory
             changes that have not yet been committed.
         height_before: User height prior to the edit, used to detect a
             change that requires recalculating BMI.
+        max_heart_rate_before: Max heart rate prior to the edit, used
+            to detect a change that requires recomputing HR zones.
+        birthdate_before: Birthdate prior to the edit; it feeds the
+            age-derived max-HR fallback, so a change can also require
+            recomputing HR zones.
         recalculate_bmi_on_height_change: When ``True`` and the height
             actually changed, recompute BMI for every weight entry.
         db: SQLAlchemy database session.
@@ -119,6 +128,18 @@ def _persist_user_bmi_changes(
     if recalculate_bmi_on_height_change and height_before != db_users.height:
         # Update the user's health data
         health_weight_utils.calculate_bmi_all_user_entries(db_users.id, db)
+
+    # HR zones are pre-computed and stored per stream at import time
+    # from the user's resolved max heart rate. Recompute them when the
+    # max heart rate or birthdate changes so previously imported
+    # activities show up-to-date zones (issue #776). Imported lazily to
+    # avoid a users <-> activity_streams import cycle; the recompute
+    # logs and swallows its own errors so it can't fail the edit.
+    if max_heart_rate_before != db_users.max_heart_rate or birthdate_before != db_users.birthdate:
+        # Lazy import to avoid a users <-> activity_streams import cycle
+        import activities.activity_streams.crud as activity_streams_crud
+
+        activity_streams_crud.recompute_hr_zone_percentages_for_user(db_users.id, db)
 
     return _transform_users(db_users)
 
@@ -619,6 +640,8 @@ async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> 
         db_users = await run_in_threadpool(_get_user_model_by_id_or_404, user_id, db)
 
         height_before = db_users.height
+        max_heart_rate_before = db_users.max_heart_rate
+        birthdate_before = db_users.birthdate
 
         # Check if the photo_path is being updated
         if user.photo_path:
@@ -644,7 +667,15 @@ async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> 
         # bulk BMI recalculation, and the ``mfa_enabled`` lazy-load triggered
         # while serializing are blocking SQLAlchemy calls, so run them in a
         # worker thread to keep the API event loop responsive.
-        updated_user = await run_in_threadpool(_persist_user_bmi_changes, db_users, height_before, True, db)
+        updated_user = await run_in_threadpool(
+            _persist_user_edits,
+            db_users,
+            height_before,
+            max_heart_rate_before,
+            birthdate_before,
+            True,
+            db,
+        )
 
         if db_users.photo_path is None:
             # Delete the user photo in the filesystem
@@ -721,6 +752,8 @@ async def edit_profile_user(
         db_users = await run_in_threadpool(_get_user_model_by_id_or_404, user_id, db)
 
         height_before = db_users.height
+        max_heart_rate_before = db_users.max_heart_rate
+        birthdate_before = db_users.birthdate
         previous_photo_path = db_users.photo_path
 
         # exclude_unset means only fields the caller actually sent
@@ -779,9 +812,11 @@ async def edit_profile_user(
         # while serializing are blocking SQLAlchemy calls, so run them in a
         # worker thread to keep the API event loop responsive.
         return await run_in_threadpool(
-            _persist_user_bmi_changes,
+            _persist_user_edits,
             db_users,
             height_before,
+            max_heart_rate_before,
+            birthdate_before,
             "height" in updates,
             db,
         )

@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Rychlost",
       "paceSpeed": "Tempo / Rychlost",
-      "elevation": "Převýšení"
+      "elevation": "Převýšení",
+      "calories": "Kalorie",
+      "avgHr": "Prům. TF"
     },
     "empty": {
       "title": "Zatím žádné aktivity",

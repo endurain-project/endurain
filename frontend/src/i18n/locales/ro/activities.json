@@ -41,7 +41,9 @@
       "pace": "Ritm",
       "speed": "Viteză",
       "paceSpeed": "Ritm / Viteză",
-      "elevation": "Diferență de nivel"
+      "elevation": "Diferență de nivel",
+      "calories": "Calorii",
+      "avgHr": "Puls mediu"
     },
     "empty": {
       "title": "Încă nicio activitate",

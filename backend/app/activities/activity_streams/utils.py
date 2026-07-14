@@ -112,7 +112,7 @@ def resolve_max_heart_rate(user: users_schema.UsersRead) -> int | None:
     return None
 
 
-async def compute_hr_zone_breakdown(
+def compute_hr_zone_breakdown_sync(
     waypoints: list[dict],
     max_heart_rate: int,
     total_timer_time: float | None,
@@ -172,9 +172,7 @@ async def compute_hr_zone_breakdown(
         ]
         return [round((count / total) * 100, 2) for count in zone_counts]
 
-    zone_percentages: list[float] | None = await run_in_threadpool(
-        _compute_zone_counts, waypoints, zone_1, zone_2, zone_3, zone_4
-    )
+    zone_percentages: list[float] | None = _compute_zone_counts(waypoints, zone_1, zone_2, zone_3, zone_4)
 
     if zone_percentages is None:
         return None
@@ -199,6 +197,25 @@ async def compute_hr_zone_breakdown(
         "zone_4": {"percent": zone_percentages[3], "hr": zone_hr["zone_4"], "time_seconds": zone_time_seconds[3]},
         "zone_5": {"percent": zone_percentages[4], "hr": zone_hr["zone_5"], "time_seconds": zone_time_seconds[4]},
     }
+
+
+async def compute_hr_zone_breakdown(
+    waypoints: list[dict],
+    max_heart_rate: int,
+    total_timer_time: float | None,
+) -> dict | None:
+    """
+    Compute the HR zone breakdown off the event loop.
+
+    Args:
+        waypoints: List of waypoint dicts (each may contain an "hr" key).
+        max_heart_rate: The user's max heart rate.
+        total_timer_time: Activity total timer time in seconds (may be falsy).
+
+    Returns:
+        A dict of zone_1..zone_5 entries, or None if it cannot be computed.
+    """
+    return await run_in_threadpool(compute_hr_zone_breakdown_sync, waypoints, max_heart_rate, total_timer_time)
 
 
 async def build_zone_percentages(

@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Kiirus",
       "paceSpeed": "Tempo / kiirus",
-      "elevation": "Tõus"
+      "elevation": "Tõus",
+      "calories": "Kalorid",
+      "avgHr": "Kesk. pulss"
     },
     "empty": {
       "title": "Veel pole ühtegi tegevust",

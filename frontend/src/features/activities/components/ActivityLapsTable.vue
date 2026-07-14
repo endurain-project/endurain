@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Activity, ActivityLap } from '@/features/activities/types'
 import type { Units } from '@/features/activities/utils/format'
 
-import { activityTypeIsSwimming } from '@/features/activities/utils/activityType'
+import { activityTypeIsSwimming, lapCyclesLabelKey } from '@/features/activities/utils/activityType'
 import {
   combineMetric,
   formatDistance,
@@ -27,6 +27,9 @@ const isSwimming = computed(() => activityTypeIsSwimming(props.activity.activity
 // Swimming hides elevation and shows stroke rate in its place (v1 parity).
 const showElevation = computed(() => !isSwimming.value)
 const showStrokeRate = computed(() => isSwimming.value)
+// FIT total_cycles means different things per sport (strokes, revolutions,
+// strides, jumps); label the column accordingly.
+const cyclesLabelKey = computed(() => lapCyclesLabelKey(props.activity.activityType))
 
 const normalized = computed(() => normalizeLaps(props.laps, props.activity.activityType))
 const hasIntensity = computed(() => normalized.value.some((entry) => entry.lap.intensity !== null))
@@ -96,7 +99,7 @@ const rows = computed<LapRow[]>(() =>
           <th v-if="showStrokeRate" class="py-2 pe-3 font-medium">
             {{ t('activities.laps.strokeRate') }}
           </th>
-          <th class="py-2 pe-3 font-medium">{{ t('activities.laps.cycles') }}</th>
+          <th class="py-2 pe-3 font-medium">{{ t(cyclesLabelKey) }}</th>
           <th class="py-2 font-medium">{{ t('activities.laps.hr') }}</th>
         </tr>
       </thead>

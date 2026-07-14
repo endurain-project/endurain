@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Hastighed",
       "paceSpeed": "Tempo / Hastighed",
-      "elevation": "Højdemeter"
+      "elevation": "Højdemeter",
+      "calories": "Kalorier",
+      "avgHr": "Gns. puls"
     },
     "empty": {
       "title": "Ingen aktiviteter endnu",

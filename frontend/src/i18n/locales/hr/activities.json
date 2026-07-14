@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Brzina",
       "paceSpeed": "Tempo / Brzina",
-      "elevation": "Visinska razlika"
+      "elevation": "Visinska razlika",
+      "calories": "Kalorije",
+      "avgHr": "Prosj. puls"
     },
     "empty": {
       "title": "Još nema aktivnosti",

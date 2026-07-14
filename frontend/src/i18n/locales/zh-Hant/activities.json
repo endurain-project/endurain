@@ -41,7 +41,9 @@
       "pace": "配速",
       "speed": "速度",
       "paceSpeed": "配速 / 速度",
-      "elevation": "海拔"
+      "elevation": "海拔",
+      "calories": "卡路里",
+      "avgHr": "平均心率"
     },
     "empty": {
       "title": "尚無活動",

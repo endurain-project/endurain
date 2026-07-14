@@ -41,7 +41,9 @@
       "pace": "Pace",
       "speed": "Tempo",
       "paceSpeed": "Pace / Tempo",
-      "elevation": "Höhenmeter"
+      "elevation": "Höhenmeter",
+      "calories": "Kalorien",
+      "avgHr": "Ø HF"
     },
     "empty": {
       "title": "Noch keine Aktivitäten",

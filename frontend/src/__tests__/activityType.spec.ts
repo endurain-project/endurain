@@ -10,6 +10,7 @@ import {
   activityTypeToGearType,
   activityTypeUsesKnots,
   activityTypeUsesPace,
+  lapCyclesLabelKey,
   presentActivityType,
 } from '@/features/activities/utils/activityType'
 import { GEAR_TYPE } from '@/features/gears/utils/gearType'
@@ -64,6 +65,24 @@ describe('activity type predicates', () => {
     expect(activityTypeUsesKnots(43)).toBe(true)
     expect(activityTypeUsesKnots(30)).toBe(true)
     expect(activityTypeUsesKnots(4)).toBe(false)
+  })
+})
+
+describe('lapCyclesLabelKey', () => {
+  it('labels the cycle column per sport', () => {
+    expect(lapCyclesLabelKey(13)).toBe('activities.laps.strokes') // rowing
+    expect(lapCyclesLabelKey(42)).toBe('activities.laps.strokes') // kayaking
+    expect(lapCyclesLabelKey(32)).toBe('activities.laps.strokes') // SUP
+    expect(lapCyclesLabelKey(8)).toBe('activities.laps.strokes') // swimming
+    expect(lapCyclesLabelKey(4)).toBe('activities.laps.revolutions') // cycling
+    expect(lapCyclesLabelKey(1)).toBe('activities.laps.strides') // running
+    expect(lapCyclesLabelKey(11)).toBe('activities.laps.strides') // walking
+    expect(lapCyclesLabelKey(47)).toBe('activities.laps.jumps') // jump rope
+  })
+
+  it('falls back to the generic cycles label', () => {
+    expect(lapCyclesLabelKey(10)).toBe('activities.laps.cycles') // workout
+    expect(lapCyclesLabelKey(999)).toBe('activities.laps.cycles')
   })
 })
 

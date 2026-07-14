@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   Activity as ActivityIcon,
   ArrowDown,
@@ -24,6 +24,10 @@ import type { ActivitySummaryParams } from '@/features/summary/services/summary'
 import type { SummaryViewType } from '@/features/summary/types'
 
 import ActivityListItem from '@/features/activities/components/ActivityListItem.vue'
+import {
+  ACTIVITY_METRIC_COLUMNS,
+  sortByToExtraColumn,
+} from '@/features/activities/utils/activityListColumns'
 import SummaryBreakdownTable from '@/features/summary/components/SummaryBreakdownTable.vue'
 import SummaryTotals from '@/features/summary/components/SummaryTotals.vue'
 import SummaryTypeBreakdownTable from '@/features/summary/components/SummaryTypeBreakdownTable.vue'
@@ -41,10 +45,17 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import {
+  getScalarQueryString,
+  parseActivityTypeFilterQuery,
+  parseIsoDateQuery,
+  useRouteQueryReplacement,
+} from '@/composables/useRouteQuery'
+import {
   useUserActivitiesQuery,
   useUserActivityTypeMapQuery,
 } from '@/features/activities/composables/useActivities'
 import { useActivitySummaryQuery } from '@/features/summary/composables/useSummary'
+import { SUMMARY_ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
 import { presentActivityType } from '@/features/activities/utils/activityType'
 import {
   currentMonth,
@@ -64,7 +75,6 @@ import {
 const { t, locale } = useI18n()
 const { data: currentUser } = useCurrentUser()
 const route = useRoute()
-const router = useRouter()
 
 const units = computed(() => currentUser.value?.units ?? 'metric')
 const userId = computed(() => currentUser.value?.id ?? null)
@@ -81,41 +91,23 @@ const VIEW_TYPE_OPTIONS: ReadonlyArray<{
   { value: 'lifetime', labelKey: 'summary.viewType.lifetime', icon: InfinityIcon },
 ]
 
-/** Reads a single string value out of a route query param (ignores array values). */
-function queryParam(value: unknown): string | null {
-  return typeof value === 'string' && value.length > 0 ? value : null
-}
-
 /** Parses the `viewType` query param, falling back to `'week'` for unknown/missing values. */
 function parseViewTypeParam(value: unknown): SummaryViewType {
-  const match = VIEW_TYPE_OPTIONS.find((option) => option.value === queryParam(value))
+  const match = VIEW_TYPE_OPTIONS.find((option) => option.value === getScalarQueryString(value))
   return match ? match.value : 'week'
-}
-
-/** Parses an ISO `YYYY-MM-DD` query param, falling back when missing or malformed. */
-function parseDateParam(value: unknown, fallback: string): string {
-  const raw = queryParam(value)
-  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : fallback
 }
 
 /** Parses a `YYYY-MM` query param, falling back when missing or malformed. */
 function parseMonthParam(value: unknown, fallback: string): string {
-  const raw = queryParam(value)
+  const raw = getScalarQueryString(value)
   return raw && /^\d{4}-\d{2}$/.test(raw) ? raw : fallback
 }
 
 /** Parses the `year` query param, clamped to `[1900, maxYear]`. */
 function parseYearParam(value: unknown, maxYear: number): number {
-  const raw = queryParam(value)
+  const raw = getScalarQueryString(value)
   const parsed = raw ? Number(raw) : NaN
   return Number.isFinite(parsed) && parsed >= 1900 && parsed <= maxYear ? parsed : maxYear
-}
-
-/** Parses the `type` query param (activity type code; 0 = all types). */
-function parseTypeFilterParam(value: unknown): number {
-  const raw = queryParam(value)
-  const parsed = raw ? Number(raw) : NaN
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
 }
 
 const viewType = ref<SummaryViewType>(parseViewTypeParam(route.query.viewType))
@@ -139,7 +131,7 @@ const viewTypeModel = computed<string>({
 // run through a guard before use to fall back to the current period. Initial
 // values are read from the URL query so a refresh doesn't reset the period
 // back to the defaults.
-const weekAnchor = ref(parseDateParam(route.query.weekAnchor, currentWeekAnchor()))
+const weekAnchor = ref(parseIsoDateQuery(route.query.weekAnchor, currentWeekAnchor()))
 const month = ref(parseMonthParam(route.query.month, currentMonth()))
 const thisYear = currentYear()
 const year = ref(parseYearParam(route.query.year, thisYear))
@@ -165,7 +157,7 @@ const yearModel = computed<string>({
 
 // Type filter (code; 0 = all). The summary endpoint filters by type *name*, so
 // the selected code is resolved to its backend name via the owned-types map.
-const typeFilter = ref(parseTypeFilterParam(route.query.type))
+const typeFilter = ref(parseActivityTypeFilterQuery(route.query.type))
 const typeMapQuery = useUserActivityTypeMapQuery()
 const typeOptions = computed(() =>
   [...(typeMapQuery.data.value?.keys() ?? [])].sort((a, b) => a - b),
@@ -210,13 +202,7 @@ const summaryQueryState = computed<Record<string, string>>(() => {
   return params
 })
 
-watch(
-  summaryQueryState,
-  (params) => {
-    void router.replace({ query: params }).catch(() => {})
-  },
-  { immediate: true },
-)
+useRouteQueryReplacement(summaryQueryState)
 
 const showPeriodNav = computed(() => viewType.value !== 'lifetime')
 const showTypeBreakdown = computed(() => typeFilter.value === 0)
@@ -288,18 +274,13 @@ const { recordsPerPage } = useRecordsPerPage()
 const sortBy = ref<ActivitySortBy>('start_time')
 const sortOrder = ref<ActivitySortOrder>('desc')
 
-/** Sort-by options, mirroring the activities list. */
-const SORT_OPTIONS: ReadonlyArray<{ value: ActivitySortBy; labelKey: string }> = [
-  { value: 'start_time', labelKey: 'activities.list.sort.startTime' },
-  { value: 'name', labelKey: 'activities.list.sort.name' },
-  { value: 'type', labelKey: 'activities.list.sort.type' },
-  { value: 'distance', labelKey: 'activities.list.sort.distance' },
-  { value: 'duration', labelKey: 'activities.list.sort.duration' },
-  { value: 'pace', labelKey: 'activities.list.sort.pace' },
-  { value: 'elevation', labelKey: 'activities.list.sort.elevation' },
-  { value: 'calories', labelKey: 'activities.list.sort.calories' },
-  { value: 'average_hr', labelKey: 'activities.list.sort.avgHr' },
-]
+// Calories/avg HR aren't part of the default headline columns, so sorting by
+// either added no visible column (issue #778); append the matching one so its
+// values are visible while that sort is active.
+const visibleColumns = computed(() => {
+  const extraColumn = sortByToExtraColumn(sortBy.value)
+  return extraColumn ? [...ACTIVITY_METRIC_COLUMNS, extraColumn] : ACTIVITY_METRIC_COLUMNS
+})
 
 /** Inclusive period bounds for the activities list (matches the summary period). */
 const activityRange = computed<{ startDate: string | null; endDate: string | null }>(() => {
@@ -526,7 +507,11 @@ function refetchList(): void {
                 class="h-9 w-auto"
                 :aria-label="t('activities.list.sort.label')"
               >
-                <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">
+                <option
+                  v-for="option in SUMMARY_ACTIVITY_SORT_OPTIONS"
+                  :key="option.value"
+                  :value="option.value"
+                >
                   {{ t(option.labelKey) }}
                 </option>
               </Select>
@@ -570,7 +555,7 @@ function refetchList(): void {
 
         <ul class="divide-y divide-border">
           <li v-for="activity in activities" :key="activity.id">
-            <ActivityListItem :activity="activity" :units="units" />
+            <ActivityListItem :activity="activity" :units="units" :columns="visibleColumns" />
           </li>
         </ul>
       </ListPanel>

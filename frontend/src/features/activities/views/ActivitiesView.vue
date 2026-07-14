@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { Activity as ActivityIcon, ArrowDown, ArrowUp, Search, X } from '@lucide/vue'
 
 import type {
@@ -22,45 +23,71 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import {
+  getScalarQueryString,
+  parseActivityTypeFilterQuery,
+  parseIsoDateQuery,
+  useRouteQueryReplacement,
+} from '@/composables/useRouteQuery'
+import {
   useUserActivitiesQuery,
   useUserActivityTypesQuery,
 } from '@/features/activities/composables/useActivities'
-import { ACTIVITY_METRIC_COLUMNS } from '@/features/activities/utils/activityListColumns'
+import {
+  ACTIVITY_METRIC_COLUMNS,
+  sortByToExtraColumn,
+} from '@/features/activities/utils/activityListColumns'
+import { ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
 import { presentActivityType } from '@/features/activities/utils/activityType'
 
 const { t } = useI18n()
 const { data: currentUser } = useCurrentUser()
+const route = useRoute()
 
 const units = computed(() => currentUser.value?.units ?? 'metric')
 const userId = computed(() => currentUser.value?.id ?? null)
 
-const page = ref(1)
+/** Parses the `sortBy` query param, falling back to `'start_time'` for unknown/missing values. */
+function parseSortByParam(value: unknown): ActivitySortBy {
+  const match = ACTIVITY_SORT_OPTIONS.find((option) => option.value === getScalarQueryString(value))
+  return match ? match.value : 'start_time'
+}
+
+/** Parses the `sortOrder` query param, falling back to `'desc'` for unknown/missing values. */
+function parseSortOrderParam(value: unknown): ActivitySortOrder {
+  const raw = getScalarQueryString(value)
+  return raw === 'asc' || raw === 'desc' ? raw : 'desc'
+}
+
+/** Parses the `page` query param, falling back to `1` for unknown/missing/invalid values. */
+function parsePageParam(value: unknown): number {
+  const raw = getScalarQueryString(value)
+  const parsed = raw ? Number(raw) : NaN
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1
+}
+
+const page = ref(parsePageParam(route.query.page))
 
 // Filter state. `typeFilter` uses 0 as the "all types" sentinel (codes start at
 // 1); the dates are ISO `YYYY-MM-DD` strings straight from the native pickers.
-const typeFilter = ref(0)
-const startDate = ref('')
-const endDate = ref('')
-const searchTerm = ref('')
-const debouncedSearch = ref('')
+// Initial values are read from the URL query so that navigating to an activity
+// and back doesn't reset the list back to its defaults.
+const typeFilter = ref(parseActivityTypeFilterQuery(route.query.type))
+const startDate = ref(parseIsoDateQuery(route.query.startDate))
+const endDate = ref(parseIsoDateQuery(route.query.endDate))
+const searchTerm = ref(getScalarQueryString(route.query.q))
+const debouncedSearch = ref(searchTerm.value)
 
 // Sort state, defaulting to newest first (mirrors v1).
-const sortBy = ref<ActivitySortBy>('start_time')
-const sortOrder = ref<ActivitySortOrder>('desc')
+const sortBy = ref<ActivitySortBy>(parseSortByParam(route.query.sortBy))
+const sortOrder = ref<ActivitySortOrder>(parseSortOrderParam(route.query.sortOrder))
 
-/** The sort-by options, in display order. */
-const SORT_OPTIONS: ReadonlyArray<{ value: ActivitySortBy; labelKey: string }> = [
-  { value: 'start_time', labelKey: 'activities.list.sort.startTime' },
-  { value: 'name', labelKey: 'activities.list.sort.name' },
-  { value: 'type', labelKey: 'activities.list.sort.type' },
-  { value: 'location', labelKey: 'activities.list.sort.location' },
-  { value: 'distance', labelKey: 'activities.list.sort.distance' },
-  { value: 'duration', labelKey: 'activities.list.sort.duration' },
-  { value: 'pace', labelKey: 'activities.list.sort.pace' },
-  { value: 'elevation', labelKey: 'activities.list.sort.elevation' },
-  { value: 'calories', labelKey: 'activities.list.sort.calories' },
-  { value: 'average_hr', labelKey: 'activities.list.sort.avgHr' },
-]
+// Calories/avg HR aren't part of the default headline columns, so sorting by
+// either added no visible column (issue #778); append the matching one so its
+// values are visible while that sort is active.
+const visibleColumns = computed(() => {
+  const extraColumn = sortByToExtraColumn(sortBy.value)
+  return extraColumn ? [...ACTIVITY_METRIC_COLUMNS, extraColumn] : ACTIVITY_METRIC_COLUMNS
+})
 
 // Page size follows the server's enforced `num_records_per_page` setting.
 const { recordsPerPage } = useRecordsPerPage()
@@ -145,6 +172,34 @@ function toggleSortOrder(): void {
 function refetch(): void {
   void listQuery.refetch()
 }
+
+// Mirror the active filter/sort/page state into the URL query so it survives
+// navigating to an activity and back (and page refreshes); browser
+// back/forward then also works as expected.
+const activitiesQueryState = computed<Record<string, string>>(() => {
+  const params: Record<string, string> = {
+    sortBy: sortBy.value,
+    sortOrder: sortOrder.value,
+  }
+  if (typeFilter.value > 0) {
+    params.type = String(typeFilter.value)
+  }
+  if (startDate.value) {
+    params.startDate = startDate.value
+  }
+  if (endDate.value) {
+    params.endDate = endDate.value
+  }
+  if (debouncedSearch.value.trim()) {
+    params.q = debouncedSearch.value.trim()
+  }
+  if (page.value > 1) {
+    params.page = String(page.value)
+  }
+  return params
+})
+
+useRouteQueryReplacement(activitiesQueryState)
 </script>
 
 <template>
@@ -245,7 +300,11 @@ function refetch(): void {
                 class="w-auto"
                 :aria-label="t('activities.list.sort.label')"
               >
-                <option v-for="option in SORT_OPTIONS" :key="option.value" :value="option.value">
+                <option
+                  v-for="option in ACTIVITY_SORT_OPTIONS"
+                  :key="option.value"
+                  :value="option.value"
+                >
                   {{ t(option.labelKey) }}
                 </option>
               </Select>
@@ -303,7 +362,7 @@ function refetch(): void {
             }}</span>
             <div class="flex shrink-0 items-baseline gap-6">
               <span
-                v-for="col in ACTIVITY_METRIC_COLUMNS"
+                v-for="col in visibleColumns"
                 :key="col.key"
                 :class="['text-caption', col.cellClass]"
               >
@@ -313,7 +372,7 @@ function refetch(): void {
           </div>
           <ul class="divide-y divide-border">
             <li v-for="activity in activities" :key="activity.id">
-              <ActivityListItem :activity="activity" :units="units" />
+              <ActivityListItem :activity="activity" :units="units" :columns="visibleColumns" />
             </li>
           </ul>
         </div>

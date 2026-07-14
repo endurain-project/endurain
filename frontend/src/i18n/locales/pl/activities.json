@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Prędkość",
       "paceSpeed": "Tempo / Prędkość",
-      "elevation": "Przewyższenie"
+      "elevation": "Przewyższenie",
+      "calories": "Kalorie",
+      "avgHr": "Śr. tętno"
     },
     "empty": {
       "title": "Brak aktywności",

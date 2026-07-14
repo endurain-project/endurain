@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Hız",
       "paceSpeed": "Tempo / Hız",
-      "elevation": "Yükseklik"
+      "elevation": "Yükseklik",
+      "calories": "Kalori",
+      "avgHr": "Ort. nabız"
     },
     "empty": {
       "title": "Henüz etkinlik yok",

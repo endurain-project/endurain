@@ -41,7 +41,9 @@
       "pace": "Ritmo",
       "speed": "Velocità",
       "paceSpeed": "Ritmo / Velocità",
-      "elevation": "Dislivello"
+      "elevation": "Dislivello",
+      "calories": "Calorie",
+      "avgHr": "FC media"
     },
     "empty": {
       "title": "Ancora nessuna attività",

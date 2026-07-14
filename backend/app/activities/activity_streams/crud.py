@@ -283,6 +283,95 @@ def backfill_zone_percentages_for_missing_hr_streams(
         )
 
 
+def _get_user_hr_streams_batch(
+    user_id: int,
+    db: Session,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[tuple[activity_streams_models.ActivityStreams, float | None]]:
+    """
+    Fetch a user's HR streams paired with their activity timer time.
+
+    Args:
+        user_id: The user whose HR streams should be fetched.
+        db: Database session.
+        after_id: Return only streams with an id greater than this.
+        batch_size: Maximum number of streams to return.
+
+    Returns:
+        List of (HR stream, activity total_timer_time) tuples ordered
+        by stream id.
+    """
+    stmt = (
+        select(
+            activity_streams_models.ActivityStreams,
+            activity_models.Activity.total_timer_time,
+        )
+        .join(
+            activity_models.Activity,
+            activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
+        )
+        .where(
+            activity_models.Activity.user_id == user_id,
+            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
+            activity_streams_models.ActivityStreams.id > after_id,
+        )
+        .order_by(activity_streams_models.ActivityStreams.id)
+        .limit(batch_size)
+    )
+    return [(row[0], row[1]) for row in db.execute(stmt).all()]
+
+
+def recompute_hr_zone_percentages_for_user(user_id: int, db: Session) -> None:
+    """
+    Recompute stored HR zone_percentages for a user's HR streams.
+
+    Called after the user's max heart rate or birthdate changes so
+    activities imported earlier reflect the new zones. Errors are
+    logged and swallowed so a recompute problem never fails the
+    originating user edit.
+
+    Args:
+        user_id: The user whose HR streams should be refreshed.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    try:
+        user = users_crud.get_user_by_id(user_id, db)
+        if user is None:
+            return
+
+        max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
+
+        last_id = 0
+        while True:
+            batch = _get_user_hr_streams_batch(user_id, db, after_id=last_id)
+            if not batch:
+                break
+
+            for stream, total_timer_time in batch:
+                hr_block: dict | None = None
+                if max_heart_rate:
+                    hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
+                        stream.stream_waypoints,
+                        max_heart_rate,
+                        total_timer_time,
+                    )
+                stream.zone_percentages = {"hr": hr_block} if hr_block else None
+
+            last_id = batch[-1][0].id
+            db.commit()
+    except Exception as err:
+        db.rollback()
+        core_logger.print_to_log_and_console(
+            f"Failed to recompute HR zone_percentages for user {user_id}: {err}",
+            "error",
+            exc=err,
+        )
+
+
 @core_decorators.handle_db_errors
 async def create_activity_streams(
     activity_streams: list[activity_streams_schema.ActivityStreamsCreate],

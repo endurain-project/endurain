@@ -1,6 +1,6 @@
 [project]
 name = "endurain"
-version = "0.19.0-beta5"
+version = "0.19.0-beta6"
 description = "Endurain API for the Endurain app"
 authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI

@@ -41,7 +41,9 @@
       "pace": "Allure",
       "speed": "Vitesse",
       "paceSpeed": "Allure / Vitesse",
-      "elevation": "Dénivelé"
+      "elevation": "Dénivelé",
+      "calories": "Calories",
+      "avgHr": "FC moy."
     },
     "empty": {
       "title": "Aucune activité pour l'instant",

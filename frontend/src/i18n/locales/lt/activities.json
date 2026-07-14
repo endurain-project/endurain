@@ -41,7 +41,9 @@
       "pace": "Tempas",
       "speed": "Greitis",
       "paceSpeed": "Tempas / greitis",
-      "elevation": "Aukščio pokytis"
+      "elevation": "Aukščio pokytis",
+      "calories": "Kalorijos",
+      "avgHr": "Vid. pulsas"
     },
     "empty": {
       "title": "Veiklų dar nėra",

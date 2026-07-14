@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Fart",
       "paceSpeed": "Tempo / Fart",
-      "elevation": "Stigning"
+      "elevation": "Stigning",
+      "calories": "Kalorier",
+      "avgHr": "Gj.sn. puls"
     },
     "empty": {
       "title": "Ingen aktiviteter ennå",

@@ -41,7 +41,9 @@
       "pace": "Ritmo",
       "speed": "Velocidade",
       "paceSpeed": "Ritmo / Velocidade",
-      "elevation": "Elevação"
+      "elevation": "Elevação",
+      "calories": "Calorias",
+      "avgHr": "FC média"
     },
     "empty": {
       "title": "Ainda sem atividades",

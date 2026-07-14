@@ -32,7 +32,7 @@ GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a 
 
 ## Importing data from a Strava bulk export (BETA)
 
-Strava allows users to create a bulk export of their historical activity from the Strava website.  This exported information is stored in a zip file, primarily as .csv files, GPS recording files (e.g., .gpx, .fit), and media files (e.g., .jpg, .png).
+Strava allows users to create a bulk export of their historical activity from the Strava website.  This exported information is stored in a zip file, primarily as .csv files, GPS recording files (e.g., .gpx, .fit), and media files (e.g., .jpg, .png). Currently, the import script only works for English .csv files. If you're using a different language, please switch your Strava profile to English before bulk exporting.
 
 All Strava bulk import functions expect files in the data/activity_files/strava_import folder. Create the folder if needed.
 
@@ -90,7 +90,7 @@ Gear that is already present in Endurain due to having an active link with Strav
 
 ### Importing activities and media from a Strava bulk export
 
-At the present time, importing activities and media from a Strava bulk export is implemented as a very early beta feature that has undergone only limited testing, use with extreme caution. Please read the entire section below, especially the limitations.
+At the present time, importing activities and media from a Strava bulk export is implemented as a very early beta feature that has undergone only limited testing, use with extreme caution. Please read the entire section below, especially the limitations. Currently, only images can be imported, not videos.
 
 **We advise backing up your database, or using a test install of Endurain, before importing data.  There is currently no mechanism to undo or revert an import.**
 

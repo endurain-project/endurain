@@ -167,6 +167,36 @@ export function activityTypeIsJumpRope(type: number): boolean {
 }
 
 /**
+ * Resolves the i18n key for a lap's cycle-count column header. FIT stores a
+ * generic `total_cycles`, but its real-world meaning is sport-specific:
+ * strokes (rowing/paddling/swimming), pedal revolutions (cycling), strides
+ * (running/walking — one cycle is a stride, i.e. two steps, not one step), or
+ * jumps (jump rope). Falls back to the generic "cycles" label.
+ *
+ * @param type - Numeric activity-type code.
+ * @returns The i18n key under `activities.laps`.
+ */
+export function lapCyclesLabelKey(type: number): string {
+  if (
+    activityTypeIsRowing(type) ||
+    activityTypeIsStandUpPaddling(type) ||
+    activityTypeIsSwimming(type)
+  ) {
+    return 'activities.laps.strokes'
+  }
+  if (activityTypeIsCycling(type)) {
+    return 'activities.laps.revolutions'
+  }
+  if (activityTypeIsRunning(type) || activityTypeIsWalking(type)) {
+    return 'activities.laps.strides'
+  }
+  if (activityTypeIsJumpRope(type)) {
+    return 'activities.laps.jumps'
+  }
+  return 'activities.laps.cycles'
+}
+
+/**
  * Maps an activity type to the gear type whose gears may be associated with it,
  * mirroring v1's `ActivityView.getGearsByActivityType`. Returns `null` for
  * activity families that have no associated gear (e.g. strength, cardio, HIIT).

@@ -742,6 +742,8 @@ class TestEditUser:
             def __init__(self):
                 self.id = 1
                 self.height = 180
+                self.max_heart_rate = 180
+                self.birthdate = None
                 self.photo_path = "data/user_images/1.jpg"
                 self.name = "Old"
                 self._mfa = False
@@ -969,6 +971,56 @@ class TestEditProfileUser:
 
         assert result == mock_db_user
         mock_bmi.assert_called_once_with(1, mock_db)
+
+    @pytest.mark.asyncio
+    async def test_max_heart_rate_change_triggers_hr_zone_recompute(self):
+        from users.users.crud import edit_profile_user
+
+        mock_db = MagicMock(spec=Session)
+        mock_db_user = MagicMock()
+        mock_db_user.id = 1
+        mock_db_user.height = 180
+        mock_db_user.max_heart_rate = 180
+        mock_db_user.birthdate = None
+        mock_db_user.photo_path = None
+
+        mock_profile = MagicMock()
+        mock_profile.model_dump.return_value = {"max_heart_rate": 190}
+
+        with (
+            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
+        ):
+            mock_db.refresh.side_effect = lambda x: setattr(mock_db_user, "max_heart_rate", 190)
+
+            result = await edit_profile_user(1, mock_profile, mock_db)
+
+        assert result == mock_db_user
+        mock_recompute.assert_called_once_with(1, mock_db)
+
+    @pytest.mark.asyncio
+    async def test_unchanged_max_heart_rate_skips_hr_zone_recompute(self):
+        from users.users.crud import edit_profile_user
+
+        mock_db = MagicMock(spec=Session)
+        mock_db_user = MagicMock()
+        mock_db_user.id = 1
+        mock_db_user.height = 180
+        mock_db_user.max_heart_rate = 190
+        mock_db_user.birthdate = None
+        mock_db_user.photo_path = None
+
+        mock_profile = MagicMock()
+        mock_profile.model_dump.return_value = {"name": "Test"}
+
+        with (
+            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
+        ):
+            result = await edit_profile_user(1, mock_profile, mock_db)
+
+        assert result == mock_db_user
+        mock_recompute.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_photo_cleared_deletes_filesystem(self):

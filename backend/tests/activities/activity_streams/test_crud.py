@@ -430,3 +430,61 @@ class TestGetPublicActivityStreamByType:
         with pytest.raises(HTTPException) as e:
             crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
         assert e.value.status_code == 500
+
+
+class TestRecomputeHrZonePercentagesForUser:
+    @patch("activities.activity_streams.crud._get_user_hr_streams_batch")
+    @patch("activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync")
+    @patch("activities.activity_streams.crud.users_crud.get_user_by_id")
+    def test_updates_streams_and_commits(self, mock_get_user, mock_compute, mock_batch, mock_db):
+        import activities.activity_streams.crud as crud
+
+        mock_get_user.return_value = MagicMock(max_heart_rate=200, birthdate=None)
+        hr_block = {"zone_1": {"percent": 100.0, "hr": "< 120", "time_seconds": 60}}
+        mock_compute.return_value = hr_block
+        stream = MagicMock(id=7, stream_waypoints=[{"hr": 100}])
+        mock_batch.side_effect = [[(stream, 60.0)], []]
+
+        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
+
+        assert stream.zone_percentages == {"hr": hr_block}
+        mock_compute.assert_called_once_with([{"hr": 100}], 200, 60.0)
+        mock_db.commit.assert_called_once()
+
+    @patch("activities.activity_streams.crud._get_user_hr_streams_batch")
+    @patch("activities.activity_streams.crud.users_crud.get_user_by_id")
+    def test_clears_zones_when_max_hr_unresolvable(self, mock_get_user, mock_batch, mock_db):
+        import activities.activity_streams.crud as crud
+
+        mock_get_user.return_value = MagicMock(max_heart_rate=None, birthdate=None)
+        stream = MagicMock(id=7, stream_waypoints=[{"hr": 100}])
+        mock_batch.side_effect = [[(stream, 60.0)], []]
+
+        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
+
+        assert stream.zone_percentages is None
+        mock_db.commit.assert_called_once()
+
+    @patch("activities.activity_streams.crud._get_user_hr_streams_batch")
+    @patch("activities.activity_streams.crud.users_crud.get_user_by_id")
+    def test_no_user_is_noop(self, mock_get_user, mock_batch, mock_db):
+        import activities.activity_streams.crud as crud
+
+        mock_get_user.return_value = None
+
+        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
+
+        mock_batch.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    @patch("activities.activity_streams.crud._get_user_hr_streams_batch")
+    @patch("activities.activity_streams.crud.users_crud.get_user_by_id")
+    def test_swallows_errors_and_rolls_back(self, mock_get_user, mock_batch, mock_db):
+        import activities.activity_streams.crud as crud
+
+        mock_get_user.return_value = MagicMock(max_heart_rate=200, birthdate=None)
+        mock_batch.side_effect = SQLAlchemyError("boom")
+
+        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
+
+        mock_db.rollback.assert_called_once()

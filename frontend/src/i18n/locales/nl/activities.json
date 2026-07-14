@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Snelheid",
       "paceSpeed": "Tempo / Snelheid",
-      "elevation": "Hoogte"
+      "elevation": "Hoogte",
+      "calories": "Calorieën",
+      "avgHr": "Gem. hartslag"
     },
     "empty": {
       "title": "Nog geen activiteiten",

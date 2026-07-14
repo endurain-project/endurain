@@ -1,15 +1,7 @@
 import { useRoute, useRouter } from 'vue-router'
+import { getQueryString } from '@/composables/useRouteQuery'
 
-/**
- * Resolves a route query value to its first string value.
- *
- * @param value - Raw route query value.
- * @returns The first string value, or an empty string.
- */
-export function getQueryString(value: unknown): string {
-  const candidate = Array.isArray(value) ? value[0] : value
-  return typeof candidate === 'string' ? candidate : ''
-}
+export { getQueryString } from '@/composables/useRouteQuery'
 
 /**
  * Custom URL schemes accepted as redirect targets — restricted to the app's

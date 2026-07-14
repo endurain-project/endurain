@@ -593,6 +593,7 @@ export interface paths {
          *         activity_id: Activity ID the media belongs to.
          *         _validate_id: Activity ID validation dependency.
          *         _check_scopes: Scope validation dependency.
+         *         token_user_id: Authenticated user ID.
          *         db: Database session.
          *
          *     Returns:
@@ -600,6 +601,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException:
+         *             - 404 Not Found: If the activity is not owned by the user.
          *             - 400 Bad Request: If image validation fails.
          *             - 415 Unsupported Media Type: If the extension is rejected.
          *             - 409 Conflict: If a media with the same path already exists.

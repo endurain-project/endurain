@@ -41,7 +41,9 @@
       "pace": "Temps",
       "speed": "Ātrums",
       "paceSpeed": "Temps / Ātrums",
-      "elevation": "Augstuma ieguvums"
+      "elevation": "Augstuma ieguvums",
+      "calories": "Kalorijas",
+      "avgHr": "Vid. pulss"
     },
     "empty": {
       "title": "Vēl nav aktivitāšu",

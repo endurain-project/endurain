@@ -41,7 +41,9 @@
       "pace": "Pace",
       "speed": "Speed",
       "paceSpeed": "Pace / Speed",
-      "elevation": "Elevation"
+      "elevation": "Elevation",
+      "calories": "Calories",
+      "avgHr": "Avg HR"
     },
     "empty": {
       "title": "No activities yet",
@@ -107,6 +109,10 @@
     "elevation": "Elevation",
     "strokeRate": "Stroke rate",
     "cycles": "Cycles",
+    "strokes": "Strokes",
+    "revolutions": "Revolutions",
+    "strides": "Strides",
+    "jumps": "Jumps",
     "hr": "Heart rate"
   },
   "workout": {

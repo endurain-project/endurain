@@ -41,7 +41,9 @@
       "pace": "Tempó",
       "speed": "Sebesség",
       "paceSpeed": "Tempó / Sebesség",
-      "elevation": "Szintemelkedés"
+      "elevation": "Szintemelkedés",
+      "calories": "Kalória",
+      "avgHr": "Átl. pulzus"
     },
     "empty": {
       "title": "Még nincs tevékenység",

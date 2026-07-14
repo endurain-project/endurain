@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Hastighet",
       "paceSpeed": "Tempo / Hastighet",
-      "elevation": "Höjdmeter"
+      "elevation": "Höjdmeter",
+      "calories": "Kalorier",
+      "avgHr": "Snittpuls"
     },
     "empty": {
       "title": "Inga aktiviteter än",

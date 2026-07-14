@@ -41,7 +41,9 @@
       "pace": "Tempo",
       "speed": "Rýchlosť",
       "paceSpeed": "Tempo / Rýchlosť",
-      "elevation": "Prevýšenie"
+      "elevation": "Prevýšenie",
+      "calories": "Kalórie",
+      "avgHr": "Priem. TF"
     },
     "empty": {
       "title": "Zatiaľ žiadne aktivity",

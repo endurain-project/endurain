@@ -73,6 +73,8 @@ nav:
     - Import development notes: developer-guide/import-dev-notes.md
   - Gallery: gallery.md
   - Tools: tools.md
+  - Privacy:
+    - Mobile app privacy policy: privacy/mobile-app-privacy-policy.md
   - Backend reference:
     - Activities:
       - Activity streams: reference/activities/activity_streams.md
