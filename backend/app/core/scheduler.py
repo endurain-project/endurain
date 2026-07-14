@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-import activities.activity.utils as activities_utils
+import activities.activity_thumbnail.service as activity_thumbnail_service
 import auth.maintenance as auth_maintenance
 import core.logger as core_logger
 import core.network as core_network
@@ -121,7 +121,7 @@ def start_scheduler() -> None:
     )
 
     add_scheduler_job(
-        activities_utils.generate_missing_activity_thumbnails,
+        activity_thumbnail_service.generate_missing_activity_thumbnails,
         "interval",
         60,
         [],
@@ -156,7 +156,7 @@ def schedule_thumbnail_regeneration() -> None:
     """
     try:
         scheduler.add_job(
-            activities_utils.delete_and_regenerate_all_activity_thumbnails,
+            activity_thumbnail_service.delete_and_regenerate_all_activity_thumbnails,
             "date",
             id="endurain_regenerate_all_thumbnails",
             replace_existing=True,
@@ -192,7 +192,7 @@ def schedule_missing_thumbnail_generation() -> None:
     """
     try:
         scheduler.add_job(
-            activities_utils.generate_missing_activity_thumbnails,
+            activity_thumbnail_service.generate_missing_activity_thumbnails,
             "date",
             id="endurain_generate_missing_thumbnails_oneshot",
             replace_existing=True,

@@ -1281,6 +1281,46 @@ def get_activities_without_thumbnail(
         return []
 
 
+def get_activities_with_legacy_thumbnail_path(
+    db: Session,
+    after_id: int = 0,
+    limit: int = 200,
+) -> list[activities_models.Activity]:
+    """Return activities whose thumbnail value is a legacy filesystem path.
+
+    Legacy values are absolute paths (they contain a ``/`` separator); the new
+    storage keys (e.g. ``42.webp``) never do. Ordered by id and paged via
+    ``after_id`` so migration 8 can process them in bounded batches.
+
+    Args:
+        db: Database session.
+        after_id: Return only activities with ``id`` greater than this.
+        limit: Maximum number of rows to return.
+
+    Returns:
+        ORM rows with a legacy thumbnail path, or an empty list on error.
+    """
+    try:
+        stmt = (
+            select(activities_models.Activity)
+            .where(
+                activities_models.Activity.map_thumbnail_path.isnot(None),
+                activities_models.Activity.map_thumbnail_path.like("%/%"),
+                activities_models.Activity.id > after_id,
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
+        return list(db.execute(stmt).scalars().all())
+    except SQLAlchemyError as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_with_legacy_thumbnail_path: {err}",
+            "error",
+            exc=err,
+        )
+        return []
+
+
 def edit_activity(
     user_id: int,
     activity_attributes: activities_schema.ActivityEdit | activities_schema.Activity,

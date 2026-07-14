@@ -115,19 +115,18 @@ const garminUrl = computed(() =>
 const metricVisibility = computed(() => buildMetricVisibility(props.activity, props.currentUserId))
 
 /**
- * The static map thumbnail URL, or `null` when there is no thumbnail or the
- * viewer may not see the map. The backend stores an absolute filesystem path;
- * the file is served from `/activity_thumbnails/<file>`, so strip everything
- * before that segment (mirrors `resolveActivityMediaUrl`).
+ * The map thumbnail URL, or `null` when there is no thumbnail or the viewer may
+ * not see the map. The backend returns a ready-to-use URL: a same-origin path
+ * (`/activity_thumbnails/42.webp`) for local storage, or an absolute (presigned)
+ * URL for remote object storage. Same-origin paths are prefixed with the backend
+ * host; absolute URLs are used as-is.
  */
 const thumbnailUrl = computed(() => {
   const path = props.activity.mapThumbnailPath
   if (!path || !canViewField(props.activity, 'hideMap', props.currentUserId)) {
     return null
   }
-  const marker = 'activity_thumbnails/'
-  const index = path.lastIndexOf(marker)
-  return getBackendAssetUrl(index >= 0 ? path.slice(index) : path)
+  return /^https?:\/\//i.test(path) ? path : getBackendAssetUrl(path)
 })
 
 const activityRoute = computed(() => ({ name: 'activity', params: { id: props.activity.id } }))

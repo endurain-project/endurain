@@ -1,31 +1,80 @@
-"""Thumbnail generation for activity map previews.
+"""Render activity map thumbnails and address them in storage.
 
-Generates static PNG map images using OpenStreetMap tiles and
-a polyline overlay of the activity route. Thumbnails are created
-at activity import time and served as static files.
+Renders a static WebP map image (OpenStreetMap tiles + a polyline of the
+activity route) as raw bytes. Persisting the bytes, addressing them by storage
+key, and turning a key back into a servable URL all go through the platform
+``StorageProvider`` (foundations plan §13), so the same code serves local disk
+or remote object storage without change.
 """
 
 import re
-from pathlib import Path
+from io import BytesIO
 
 from staticmap import CircleMarker, Line, StaticMap
 
 import core.config as core_config
 import core.logger as core_logger
+import core.platform.runtime as platform_runtime
+
+# The storage area (domain-owned namespace) activity thumbnails live under.
+THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
+
+# Thumbnail geometry and encoding. Kept at 1200x400 so the map stays crisp in
+# the large desktop feed/detail cards; WebP at quality 75 keeps the file far
+# smaller than the previous 1200x400 PNG.
+THUMBNAIL_WIDTH = 1200
+THUMBNAIL_HEIGHT = 400
+THUMBNAIL_CONTENT_TYPE = "image/webp"
+_THUMBNAIL_QUALITY = 75
+# WebP encoder effort (0-6). 6 searches hardest for the smallest file at a given
+# quality — identical visual result, fewer bytes; the extra CPU is negligible for
+# a one-time background render.
+_THUMBNAIL_METHOD = 6
 
 # Fallback tile URL used when server settings are unavailable.
 # Uses a fixed subdomain; staticmap does not support {s} rotation.
 _DEFAULT_TILE_URL = "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 _DEFAULT_BG_COLOR = "#dddddd"
 
-# Visual constants matching the Leaflet map renderer
-_LINE_COLOR = "#2563eb"
+# Visual constants mirroring the frontend Leaflet map (design tokens):
+# track = --color-brand, start marker = --color-goal, finish marker = --color-hr.
+# staticmap's CircleMarker has no stroke, so the white "border" the frontend gets
+# from Leaflet is drawn as a larger white circle behind the coloured dot.
+_LINE_COLOR = "#1d9e75"  # --color-brand (brand teal)
 _LINE_WIDTH = 4
 _MARKER_OUTER_COLOR = "#ffffff"
 _MARKER_OUTER_RADIUS = 20
-_START_COLOR = "#28a745"
-_END_COLOR = "#dc3545"
+_START_COLOR = "#639922"  # --color-goal (green)
+_END_COLOR = "#e24b4a"  # --color-hr (red)
 _MARKER_INNER_RADIUS = 13
+
+
+def thumbnail_key(activity_id: int) -> str:
+    """Return the storage key for an activity's thumbnail (e.g. ``42.webp``)."""
+    return f"{activity_id}.webp"
+
+
+def thumbnail_url(key: str | None) -> str | None:
+    """Resolve a stored thumbnail *key* to a servable URL.
+
+    Uses the process-wide ``StorageProvider`` so the URL is a same-origin path
+    for local disk (``/activity_thumbnails/42.webp``) or a presigned URL for
+    object storage. Falls back to the local static path when the platform is not
+    initialised (e.g. isolated unit tests).
+
+    Args:
+        key: The stored storage key, or ``None``.
+
+    Returns:
+        A servable URL, or ``None`` when ``key`` is falsy.
+    """
+    if not key:
+        return None
+    try:
+        storage = platform_runtime.get_active_platform().storage
+    except RuntimeError:
+        return f"/{THUMBNAIL_STORAGE_AREA}/{key}"
+    return storage.url(THUMBNAIL_STORAGE_AREA, key)
 
 
 def _normalise_tile_url(url: str) -> str:
@@ -61,38 +110,37 @@ def _normalise_tile_url(url: str) -> str:
     return url
 
 
-def generate_activity_thumbnail(
+def render_activity_thumbnail(
     activity_id: int,
     waypoints: list[dict],
-    output_dir: str,
+    *,
     tile_url: str = _DEFAULT_TILE_URL,
     background_color: str = _DEFAULT_BG_COLOR,
     api_key: str | None = None,
-    width: int = 1200,
-    height: int = 400,
-) -> str | None:
-    """Generate a static map thumbnail for an activity.
+    width: int = THUMBNAIL_WIDTH,
+    height: int = THUMBNAIL_HEIGHT,
+) -> bytes | None:
+    """Render an activity map thumbnail as WebP bytes.
 
     Renders map tiles with the activity polyline and start/end
     markers overlaid, matching the Leaflet map appearance used
-    on the activity detail page. Saves the result as a PNG.
+    on the activity detail page.
 
     Args:
-        activity_id: The activity ID, used as the filename.
+        activity_id: The activity ID (used only for logging).
         waypoints: List of dicts with 'lat' and 'lon' keys.
-        output_dir: Absolute directory path to save the PNG.
         tile_url: Leaflet-style tile URL template. {s} subdomains
             are normalised to 'a' automatically.
         background_color: Hex background color for the map canvas.
         api_key: Optional tile provider API key. When provided,
             sent as 'Authorization: Stadia-Auth <key>' HTTP header
             (compatible with Stadia Maps and similar providers).
-        width: Thumbnail width in pixels (default 1200).
-        height: Thumbnail height in pixels (default 400).
+        width: Thumbnail width in pixels.
+        height: Thumbnail height in pixels.
 
     Returns:
-        Absolute path to the saved thumbnail file, or None if
-        generation was skipped or failed.
+        WebP-encoded bytes, or None if generation was skipped or
+        failed.
 
     Raises:
         None — errors are logged and None is returned.
@@ -150,16 +198,15 @@ def generate_activity_thumbnail(
 
         image = static_map.render()
 
-        output_path = Path(output_dir) / f"{activity_id}.png"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        image.save(str(output_path), "PNG")
+        buffer = BytesIO()
+        image.save(buffer, "WEBP", quality=_THUMBNAIL_QUALITY, method=_THUMBNAIL_METHOD)
 
         core_logger.print_to_log_and_console(
-            f"Activity {activity_id}: thumbnail saved to {output_path}",
+            f"Activity {activity_id}: thumbnail rendered ({width}x{height} WebP)",
             "info",
         )
 
-        return str(output_path)
+        return buffer.getvalue()
 
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
         core_logger.print_to_log_and_console(

@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 import activities.activity.crud as activities_crud
 import activities.activity.dependencies as activities_dependencies
+import activities.activity.event_publishers as activity_event_publishers
 import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
 import auth.dependencies as auth_dependencies
@@ -893,21 +894,15 @@ async def delete_activity(
     # Delete the activity
     activities_crud.delete_activity(activity_id, db)
 
-    # Filesystem cleanup runs in a worker thread to avoid blocking
-    # the event loop with potentially slow disk I/O.
-    def _cleanup_files() -> None:
-        if activity.map_thumbnail_path:
-            try:
-                os.remove(activity.map_thumbnail_path)
-            except FileNotFoundError:
-                pass
-            except OSError as fs_err:
-                core_logger.print_to_log(
-                    f"Error deleting thumbnail {activity.map_thumbnail_path}: {fs_err}",
-                    "error",
-                    exc=fs_err,
-                )
+    # Publish the domain fact so each subsystem removes the artifacts it owns
+    # (the map thumbnail today; media/search-index/... later). The route stays
+    # ignorant of who reacts and publishing is best-effort — it never blocks or
+    # fails the delete.
+    activity_event_publishers.publish_activity_deleted(activity_id, token_user_id)
 
+    # This activity's own processed files are removed here, in a worker thread,
+    # to avoid blocking the event loop with potentially slow disk I/O.
+    def _cleanup_processed_files() -> None:
         # Define the search pattern using the file ID (e.g., '1.*')
         pattern = f"{core_config.FILES_PROCESSED_DIR}/{activity_id}.*"
         for file in glob.glob(pattern):
@@ -922,7 +917,7 @@ async def delete_activity(
                     "warning",
                 )
 
-    await run_in_threadpool(_cleanup_files)
+    await run_in_threadpool(_cleanup_processed_files)
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

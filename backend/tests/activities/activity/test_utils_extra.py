@@ -104,9 +104,10 @@ class TestTransformSchemaToModel:
 
 
 class TestSerializeActivity:
+    @patch("activities.activity.utils.activity_thumbnail_render")
     @patch("activities.activity.utils.activities_schema.Activity")
     @patch("activities.activity.utils.core_timezone")
-    def test_serialize_basic(self, mock_tz, mock_schema_cls):
+    def test_serialize_basic(self, mock_tz, mock_schema_cls, mock_thumbnail):
         from activities.activity.utils import serialize_activity
 
         mock_tz.format_aware_datetime.side_effect = lambda dt, tz: (
@@ -114,9 +115,11 @@ class TestSerializeActivity:
         )
         mock_schema = MagicMock()
         mock_schema_cls.model_validate.return_value = mock_schema
+        mock_thumbnail.thumbnail_url.return_value = "/activity_thumbnails/1.webp"
 
         activity = MagicMock()
         activity.timezone = "Europe/Lisbon"
+        activity.map_thumbnail_path = "1.webp"
         activity.start_time = datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
         activity.end_time = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
         activity.created_at = datetime(2024, 1, 15, 7, 0, 0, tzinfo=UTC)
@@ -126,6 +129,8 @@ class TestSerializeActivity:
         assert mock_tz.format_aware_datetime.call_count == 6
         assert result.start_time_tz_applied == "2024-01-15T09:00:00"
         assert result.start_time == "2024-01-15T08:00:00"
+        assert result.map_thumbnail_path == "/activity_thumbnails/1.webp"
+        mock_thumbnail.thumbnail_url.assert_called_once_with("1.webp")
         mock_schema_cls.model_validate.assert_called_once_with(activity)
 
 
@@ -865,27 +870,15 @@ class TestStoreActivityExtended:
 
     @patch("activities.activity.utils.activities_crud")
     @patch("activities.activity.utils.parse_activity_streams_from_file")
-    @patch("activities.activity.utils.server_settings_crud")
-    @patch("activities.activity.utils.activities_thumbnail")
-    @patch("activities.activity.utils.core_cryptography")
+    @patch("activities.activity.utils.activity_event_publishers")
     @patch("activities.activity.utils.core_logger")
-    def test_store_with_thumbnail_and_api_key(
-        self, mock_logger, mock_crypto, mock_thumbnail, mock_ss_crud, mock_parse_streams, mock_crud
-    ):
+    def test_store_publishes_activity_created(self, mock_logger, mock_publishers, mock_parse_streams, mock_crud):
         import asyncio
 
         from activities.activity.utils import store_activity
 
-        mock_crud.create_activity = AsyncMock(return_value=MagicMock(id=1))
+        mock_crud.create_activity = AsyncMock(return_value=MagicMock(id=7, user_id=3))
         mock_parse_streams.return_value = None
-
-        server_settings = MagicMock()
-        server_settings.tileserver_url = "https://tiles.example.com"
-        server_settings.map_background_color = "#fff"
-        server_settings.tileserver_api_key = "encrypted_key"
-        mock_ss_crud.get_server_settings.return_value = server_settings
-        mock_crypto.decrypt_token_fernet.return_value = "decrypted_key"
-        mock_thumbnail.generate_activity_thumbnail.return_value = "/thumbnails/1.png"
 
         parsed_info = {
             "activity": {"name": "test"},
@@ -895,36 +888,9 @@ class TestStoreActivityExtended:
 
         asyncio.run(store_activity(parsed_info, MagicMock(), MagicMock()))
 
-        mock_thumbnail.generate_activity_thumbnail.assert_called_once()
-        mock_crud.set_activity_thumbnail_path.assert_called_once()
-
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.parse_activity_streams_from_file")
-    @patch("activities.activity.utils.server_settings_crud")
-    @patch("activities.activity.utils.activities_thumbnail")
-    @patch("activities.activity.utils.core_logger")
-    def test_store_with_thumbnail_no_server_settings(
-        self, mock_logger, mock_thumbnail, mock_ss_crud, mock_parse_streams, mock_crud
-    ):
-        import asyncio
-
-        from activities.activity.utils import store_activity
-
-        mock_crud.create_activity = AsyncMock(return_value=MagicMock(id=1))
-        mock_parse_streams.return_value = None
-        mock_ss_crud.get_server_settings.return_value = None
-        mock_thumbnail.generate_activity_thumbnail.return_value = "/thumbnails/1.png"
-
-        parsed_info = {
-            "activity": {"name": "test"},
-            "is_lat_lon_set": True,
-            "lat_lon_waypoints": [{"lat": 38.0, "lon": -9.0}],
-        }
-
-        asyncio.run(store_activity(parsed_info, MagicMock(), MagicMock()))
-
-        mock_thumbnail.generate_activity_thumbnail.assert_called_once()
-        mock_crud.set_activity_thumbnail_path.assert_called_once()
+        # store_activity delegates to the domain publisher; best-effort delivery
+        # and error swallowing live in the platform facade (see the publisher tests).
+        mock_publishers.publish_activity_created.assert_called_once_with(7, 3)
 
 
 class TestCalculateActivityStatsExtended:
@@ -1107,203 +1073,3 @@ class TestLocationBasedOnCoordinatesFull:
 
             assert result is not None
             mock_sleep.assert_called_once()
-
-
-class TestDeleteAndRegenerateThumbnails:
-    """Cover lines 1667-1696: delete and regenerate all activity thumbnails."""
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.Path")
-    @patch("activities.activity.utils.generate_missing_activity_thumbnails")
-    @patch("activities.activity.utils.core_logger")
-    def test_happy_path(self, mock_logger, mock_gen, mock_path_cls, mock_crud, mock_session):
-        from activities.activity.utils import delete_and_regenerate_all_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-
-        mock_thumb_dir = MagicMock()
-        mock_path_cls.return_value = mock_thumb_dir
-        mock_thumb_dir.is_dir.return_value = True
-        mock_file1 = MagicMock()
-        mock_file2 = MagicMock()
-        mock_thumb_dir.glob.return_value = [mock_file1, mock_file2]
-
-        delete_and_regenerate_all_activity_thumbnails()
-
-        mock_crud.clear_all_activity_thumbnail_paths.assert_called_once_with(mock_db)
-        mock_file1.unlink.assert_called_once()
-        mock_file2.unlink.assert_called_once()
-        mock_gen.assert_called_once()
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.Path")
-    @patch("activities.activity.utils.generate_missing_activity_thumbnails")
-    @patch("activities.activity.utils.core_logger")
-    def test_no_thumbnails_dir(self, mock_logger, mock_gen, mock_path_cls, mock_crud, mock_session):
-        from activities.activity.utils import delete_and_regenerate_all_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-
-        mock_thumb_dir = MagicMock()
-        mock_path_cls.return_value = mock_thumb_dir
-        mock_thumb_dir.is_dir.return_value = False
-
-        delete_and_regenerate_all_activity_thumbnails()
-
-        mock_thumb_dir.glob.assert_not_called()
-        mock_gen.assert_called_once()
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.Path")
-    @patch("activities.activity.utils.generate_missing_activity_thumbnails")
-    @patch("activities.activity.utils.core_logger")
-    def test_logs_oserror_on_unlink(self, mock_logger, mock_gen, mock_path_cls, mock_crud, mock_session):
-        from activities.activity.utils import delete_and_regenerate_all_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-
-        mock_thumb_dir = MagicMock()
-        mock_path_cls.return_value = mock_thumb_dir
-        mock_thumb_dir.is_dir.return_value = True
-        mock_file = MagicMock()
-        mock_file.unlink.side_effect = OSError("Permission denied")
-        mock_thumb_dir.glob.return_value = [mock_file]
-
-        delete_and_regenerate_all_activity_thumbnails()
-
-        mock_logger.print_to_log.assert_any_call(
-            f"Thumbnail regeneration: could not delete {mock_file}: Permission denied",
-            "warning",
-        )
-        mock_gen.assert_called_once()
-
-
-class TestGenerateMissingThumbnails:
-    """Cover lines 1714-1779: generate missing activity thumbnails."""
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.core_logger")
-    def test_no_activities_without_thumbnail(self, mock_logger, mock_crud, mock_session):
-        from activities.activity.utils import generate_missing_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-        mock_crud.get_activities_with_thumbnail.return_value = []
-        mock_crud.get_activities_without_thumbnail.return_value = []
-
-        generate_missing_activity_thumbnails()
-
-        mock_logger.print_to_log.assert_any_call(
-            "Thumbnail scheduler: no activities without thumbnail found",
-            "debug",
-        )
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.Path")
-    @patch("activities.activity.utils.core_logger")
-    def test_clears_missing_thumbnail_file_reference(self, mock_logger, mock_path_cls, mock_crud, mock_session):
-        from activities.activity.utils import generate_missing_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-
-        activity = MagicMock()
-        activity.id = 1
-        activity.map_thumbnail_path = "/thumbnails/missing.png"
-        mock_crud.get_activities_with_thumbnail.return_value = [activity]
-        mock_crud.get_activities_without_thumbnail.return_value = []
-
-        mock_path = MagicMock()
-        mock_path.is_file.return_value = False
-        mock_path_cls.return_value = mock_path
-
-        generate_missing_activity_thumbnails()
-
-        mock_crud.set_activity_thumbnail_path.assert_called_once_with(1, None, mock_db)
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.server_settings_crud")
-    @patch("activities.activity.utils.activities_thumbnail")
-    @patch("activities.activity.utils.core_cryptography")
-    @patch("activities.activity.utils.core_logger")
-    def test_generates_thumbnails_with_api_key(
-        self, mock_logger, mock_crypto, mock_thumbnail, mock_ss_crud, mock_crud, mock_session
-    ):
-        from activities.activity.utils import generate_missing_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-        mock_crud.get_activities_with_thumbnail.return_value = []
-
-        act = MagicMock()
-        act.id = 1
-        mock_crud.get_activities_without_thumbnail.return_value = [act]
-
-        server_settings = MagicMock()
-        server_settings.tileserver_url = "https://tiles.example.com"
-        server_settings.map_background_color = "#fff"
-        server_settings.tileserver_api_key = "encrypted_key"
-        mock_ss_crud.get_server_settings.return_value = server_settings
-        mock_crypto.decrypt_token_fernet.return_value = "decrypted_key"
-
-        mock_stream = MagicMock()
-        mock_stream.activity_id = 1
-        mock_stream.stream_waypoints = [{"lat": 38.0, "lon": -9.0}]
-
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_stream]
-        mock_db.execute.return_value = mock_result
-
-        mock_thumbnail.generate_activity_thumbnail.return_value = "/thumbnails/1.png"
-
-        generate_missing_activity_thumbnails()
-
-        mock_crypto.decrypt_token_fernet.assert_called_once_with("encrypted_key")
-        mock_thumbnail.generate_activity_thumbnail.assert_called_once()
-        mock_crud.set_activity_thumbnail_path.assert_called_once()
-
-    @patch("activities.activity.utils.core_database.SessionLocal")
-    @patch("activities.activity.utils.activities_crud")
-    @patch("activities.activity.utils.server_settings_crud")
-    @patch("activities.activity.utils.activities_thumbnail")
-    @patch("activities.activity.utils.core_logger")
-    def test_skips_activity_without_gps_stream(
-        self, mock_logger, mock_thumbnail, mock_ss_crud, mock_crud, mock_session
-    ):
-        from activities.activity.utils import generate_missing_activity_thumbnails
-
-        mock_db = MagicMock()
-        mock_session.return_value.__enter__.return_value = mock_db
-        mock_crud.get_activities_with_thumbnail.return_value = []
-
-        act1 = MagicMock()
-        act1.id = 1
-        act2 = MagicMock()
-        act2.id = 2
-        mock_crud.get_activities_without_thumbnail.return_value = [act1, act2]
-
-        mock_ss_crud.get_server_settings.return_value = None
-
-        mock_stream1 = MagicMock()
-        mock_stream1.activity_id = 1
-        mock_stream1.stream_waypoints = [{"lat": 38.0, "lon": -9.0}]
-
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_stream1]
-        mock_db.execute.return_value = mock_result
-
-        mock_thumbnail.generate_activity_thumbnail.return_value = "/thumbnails/1.png"
-
-        generate_missing_activity_thumbnails()
-
-        mock_thumbnail.generate_activity_thumbnail.assert_called_once()
-        mock_crud.set_activity_thumbnail_path.assert_called_once()

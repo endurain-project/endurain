@@ -1274,3 +1274,19 @@ class TestDeleteAllStravaActivitiesForUser:
             crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
+
+
+class TestGetActivitiesWithLegacyThumbnailPath:
+    def test_returns_rows(self, mock_db):
+        import activities.activity.crud as crud
+
+        row = MagicMock()
+        setup_mock_execute(mock_db, return_scalars_all=[row])
+        result = crud.get_activities_with_legacy_thumbnail_path(mock_db)
+        assert result == [row]
+
+    def test_returns_empty_on_error(self, mock_db):
+        import activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("boom")
+        assert crud.get_activities_with_legacy_thumbnail_path(mock_db) == []

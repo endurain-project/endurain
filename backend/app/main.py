@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+import activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 import auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import auth.oauth_state.utils as oauth_state_utils
 import auth.password_reset_tokens.utils as password_reset_tokens_utils
@@ -247,9 +248,13 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # that has no request can resolve providers via core.platform.runtime.
     platform_runtime.set_active_platform(platform)
 
+    # Register domain subscribers before starting the bus. The thumbnail
+    # subsystem is the first real consumer of the substrate (foundations §13),
+    # reacting to both activity.created and activity.deleted.
+    activity_thumbnail_subscribers.register_thumbnail_subscribers(platform.events)
+
     # Start the event bus. No-op for the in-process bus (local); starts the
-    # Redis Streams consumer thread in distributed mode. Domain subscribers must
-    # be registered before this call once they land (thumbnail PoC).
+    # Redis Streams consumer thread in distributed mode.
     platform.events.start()
 
     # Phase 1: critical pre-flight tasks.

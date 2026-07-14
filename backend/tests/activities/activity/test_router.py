@@ -175,14 +175,17 @@ class TestEditVisibility:
 class TestDelete:
     def test_success(self, mock_db):
         act = MagicMock()
-        act.map_thumbnail_path = None
         with (
             patch("activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g,
             patch("activities.activity.router.activities_crud.delete_activity"),
+            patch("activities.activity.router.activity_event_publishers") as mock_pub,
         ):
             g.return_value = act
             resp = TestClient(_build_app(mock_db)).delete("/activities/1/delete", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            # The route publishes the fact; subsystems (thumbnails) react on their own.
+            mock_pub.publish_activity_deleted.assert_called_once()
+            assert mock_pub.publish_activity_deleted.call_args.args[0] == 1
 
     def test_not_found(self, mock_db):
         with patch("activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g:

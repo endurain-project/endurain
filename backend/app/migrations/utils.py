@@ -14,12 +14,14 @@ import migrations.migration_4 as migrations_migration_4
 import migrations.migration_5 as migrations_migration_5
 import migrations.migration_6 as migrations_migration_6
 import migrations.migration_7 as migrations_migration_7
+import migrations.migration_8 as migrations_migration_8
 
 # Synchronous migration handlers keyed by migration ID.
 _SYNC_MIGRATIONS: dict[int, Callable[[Session], None]] = {
     1: migrations_migration_1.process_migration_1,
     2: migrations_migration_2.process_migration_2,
     3: migrations_migration_3.process_migration_3,
+    8: migrations_migration_8.process_migration_8,
 }
 
 # Asynchronous migration handlers keyed by migration ID.
