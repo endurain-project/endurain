@@ -6,9 +6,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
-from auth.identity_providers import crud as idp_crud
-from auth.identity_providers.models import IdentityProvider
-from auth.identity_providers.schema import (
+from modules.auth.identity_providers import crud as idp_crud
+from modules.auth.identity_providers.models import IdentityProvider
+from modules.auth.identity_providers.schema import (
     IdentityProviderCreate,
     IdentityProviderUpdate,
 )
@@ -392,9 +392,9 @@ class TestGetIdentityProvidersByIds:
 class TestCreateIdentityProvider:
     """Test suite for create_identity_provider function."""
 
-    @patch("auth.identity_providers.crud.idp_models.IdentityProvider")
-    @patch("auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("auth.identity_providers.crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.crud.idp_models.IdentityProvider")
+    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
     def test_create_identity_provider_success(self, mock_get_by_slug, mock_encrypt, mock_idp_model, mock_db):
         """Test successfully creating a new identity provider.
 
@@ -435,7 +435,7 @@ class TestCreateIdentityProvider:
         mock_db.refresh.assert_called_once()
         assert result == mock_idp_instance
 
-    @patch("auth.identity_providers.crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
     def test_create_identity_provider_slug_exists(self, mock_get_by_slug, mock_db):
         """Test creating identity provider with existing slug.
 
@@ -465,8 +465,8 @@ class TestCreateIdentityProvider:
         assert exc_info.value.status_code == 409
         assert "already exists" in str(exc_info.value.detail)
 
-    @patch("auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("auth.identity_providers.crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
     def test_create_identity_provider_database_error(self, mock_get_by_slug, mock_encrypt, mock_db):
         """Test create_identity_provider handles database errors.
 
@@ -502,9 +502,9 @@ class TestCreateIdentityProvider:
 class TestUpdateIdentityProvider:
     """Test suite for update_identity_provider function."""
 
-    @patch("auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("auth.identity_providers.crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_update_identity_provider_success(self, mock_get, mock_get_by_slug, mock_encrypt, mock_db):
         """Test successfully updating an identity provider.
 
@@ -544,7 +544,7 @@ class TestUpdateIdentityProvider:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()
 
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_update_identity_provider_not_found(self, mock_get, mock_db):
         """Test updating non-existent identity provider.
 
@@ -566,8 +566,8 @@ class TestUpdateIdentityProvider:
         assert exc_info.value.status_code == 404
         assert "not found" in str(exc_info.value.detail)
 
-    @patch("auth.identity_providers.crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_update_identity_provider_slug_conflict(self, mock_get, mock_get_by_slug, mock_db):
         """Test updating identity provider with conflicting slug.
 
@@ -597,8 +597,8 @@ class TestUpdateIdentityProvider:
         assert exc_info.value.status_code == 409
         assert "already exists" in str(exc_info.value.detail)
 
-    @patch("auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_update_identity_provider_without_slug_change(self, mock_get, mock_encrypt, mock_db):
         """Test updating identity provider without changing slug.
 
@@ -626,8 +626,8 @@ class TestUpdateIdentityProvider:
         mock_get.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_called_once()
 
-    @patch("auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_update_identity_provider_database_error(self, mock_get, mock_encrypt, mock_db):
         """Test update_identity_provider handles database errors.
 
@@ -660,8 +660,8 @@ class TestUpdateIdentityProvider:
 class TestDeleteIdentityProvider:
     """Test suite for delete_identity_provider function."""
 
-    @patch("auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_delete_identity_provider_success(self, mock_get, mock_check_users, mock_db):
         """Test successfully deleting an identity provider.
 
@@ -690,7 +690,7 @@ class TestDeleteIdentityProvider:
         mock_db.delete.assert_called_once_with(mock_idp)
         mock_db.commit.assert_called_once()
 
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_delete_identity_provider_not_found(self, mock_get, mock_db):
         """Test deleting non-existent identity provider.
 
@@ -711,8 +711,8 @@ class TestDeleteIdentityProvider:
         assert exc_info.value.status_code == 404
         assert "not found" in str(exc_info.value.detail)
 
-    @patch("auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_delete_identity_provider_with_linked_users(self, mock_get, mock_check_users, mock_db):
         """Test deleting identity provider with linked users.
 
@@ -737,8 +737,8 @@ class TestDeleteIdentityProvider:
         assert exc_info.value.status_code == 409
         assert "linked users" in str(exc_info.value.detail)
 
-    @patch("auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
-    @patch("auth.identity_providers.crud.get_identity_provider")
+    @patch("modules.auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
+    @patch("modules.auth.identity_providers.crud.get_identity_provider")
     def test_delete_identity_provider_database_error(self, mock_get, mock_check_users, mock_db):
         """Test delete_identity_provider handles database errors.
 

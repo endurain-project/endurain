@@ -6,10 +6,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-import auth.identity_service as auth_identity_service
 import core.config as core_config
 import core.database as core_database
-import users.users_profile.browser_redirect_router as profile_browser_redirect_router
+import modules.auth.identity_service as auth_identity_service
+import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 
 
 class TestLinkIdentityProvider:
@@ -40,15 +40,16 @@ class TestLinkIdentityProvider:
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
             patch(
-                "users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=mock_idp
+                "modules.users.users_profile.browser_redirect_router.idp_service.get_identity_provider",
+                return_value=mock_idp,
             ),
             patch(
-                "users.users_profile.browser_redirect_router.oauth_state_utils.create_state_id_and_nonce",
+                "modules.users.users_profile.browser_redirect_router.oauth_state_utils.create_state_id_and_nonce",
                 return_value=("state-id", "nonce"),
             ),
-            patch("users.users_profile.browser_redirect_router.idp_service.create_link_oauth_state"),
+            patch("modules.users.users_profile.browser_redirect_router.idp_service.create_link_oauth_state"),
             patch(
-                "users.users_profile.browser_redirect_router.idp_service.idp_service.initiate_link",
+                "modules.users.users_profile.browser_redirect_router.idp_service.idp_service.initiate_link",
                 new_callable=AsyncMock,
                 return_value="https://idp.example.com/auth",
             ),
@@ -69,17 +70,18 @@ class TestLinkIdentityProvider:
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
             patch(
-                "users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=mock_idp
+                "modules.users.users_profile.browser_redirect_router.idp_service.get_identity_provider",
+                return_value=mock_idp,
             ),
             patch(
-                "users.users_profile.browser_redirect_router.oauth_state_utils.create_state_id_and_nonce",
+                "modules.users.users_profile.browser_redirect_router.oauth_state_utils.create_state_id_and_nonce",
                 return_value=("state-id", "nonce"),
             ),
             patch(
-                "users.users_profile.browser_redirect_router.idp_service.create_link_oauth_state"
+                "modules.users.users_profile.browser_redirect_router.idp_service.create_link_oauth_state"
             ) as mock_create_state,
             patch(
-                "users.users_profile.browser_redirect_router.idp_service.idp_service.initiate_link",
+                "modules.users.users_profile.browser_redirect_router.idp_service.idp_service.initiate_link",
                 new_callable=AsyncMock,
                 return_value="https://idp.example.com/auth",
             ),
@@ -135,7 +137,10 @@ class TestLinkIdentityProvider:
 
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
-            patch("users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=None),
+            patch(
+                "modules.users.users_profile.browser_redirect_router.idp_service.get_identity_provider",
+                return_value=None,
+            ),
         ):
             response = client.get(self.endpoint)
 
@@ -151,7 +156,8 @@ class TestLinkIdentityProvider:
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
             patch(
-                "users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=mock_idp
+                "modules.users.users_profile.browser_redirect_router.idp_service.get_identity_provider",
+                return_value=mock_idp,
             ),
         ):
             response = client.get(self.endpoint)

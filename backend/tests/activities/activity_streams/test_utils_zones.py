@@ -1,4 +1,4 @@
-from activities.activity_streams.utils import compute_hr_zone_breakdown
+from modules.activities.activity_streams.utils import compute_hr_zone_breakdown
 
 
 async def test_compute_hr_zone_percentages_with_even_distribution():
@@ -63,7 +63,7 @@ async def test_compute_hr_zone_percentages_respects_known_zone_boundaries():
 
 
 def test_compute_hr_zone_breakdown_sync_matches_even_distribution():
-    from activities.activity_streams.utils import compute_hr_zone_breakdown_sync
+    from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
 
     waypoints = [{"hr": 100}, {"hr": 130}, {"hr": 150}, {"hr": 170}, {"hr": 190}]
 
@@ -75,6 +75,6 @@ def test_compute_hr_zone_breakdown_sync_matches_even_distribution():
 
 
 def test_compute_hr_zone_breakdown_sync_returns_none_without_hr_values():
-    from activities.activity_streams.utils import compute_hr_zone_breakdown_sync
+    from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
 
     assert compute_hr_zone_breakdown_sync([{"cadence": 90}], max_heart_rate=200, total_timer_time=100) is None

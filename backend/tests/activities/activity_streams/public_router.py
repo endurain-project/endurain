@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_streams.public_router as router
     import core.database as core_db
+    import modules.activities.activity_streams.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities_streams")
@@ -15,9 +15,9 @@ def _build_app(mock_db):
 
 
 class TestReadPublicActivityStreams:
-    @patch("activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
     def test_all_success(self, mock_get, mock_db):
-        from activities.activity_streams.schema import ActivityStreamsRead
+        from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])]
@@ -25,7 +25,7 @@ class TestReadPublicActivityStreams:
         response = client.get("/public/activities_streams/activity_id/1/all")
         assert response.status_code == 200
 
-    @patch("activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
     def test_all_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -34,9 +34,9 @@ class TestReadPublicActivityStreams:
         assert response.status_code == 200
         assert response.json() is None
 
-    @patch("activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
     def test_by_type_success(self, mock_get, mock_db):
-        from activities.activity_streams.schema import ActivityStreamsRead
+        from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
@@ -44,7 +44,7 @@ class TestReadPublicActivityStreams:
         response = client.get("/public/activities_streams/activity_id/1/stream_type/1")
         assert response.status_code == 200
 
-    @patch("activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
     def test_by_type_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

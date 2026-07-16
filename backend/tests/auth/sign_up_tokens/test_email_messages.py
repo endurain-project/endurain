@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-import auth.sign_up_tokens.email_messages as email_messages
+import modules.auth.sign_up_tokens.email_messages as email_messages
 
 
 def _make_service(frontend_host: str = "https://endurain.example.com"):

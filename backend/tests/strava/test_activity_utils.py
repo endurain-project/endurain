@@ -8,8 +8,8 @@ import pytest
 from fastapi import HTTPException
 from stravalib.exc import Fault as StravaFault
 
-import strava.activity_utils as activity_utils
-import strava.utils as strava_utils
+import modules.strava.activity_utils as activity_utils
+import modules.strava.utils as strava_utils
 
 # ---------------------------------------------------------------------------
 # Helpers

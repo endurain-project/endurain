@@ -20,7 +20,7 @@ import re
 
 import pytest
 
-import auth.token_hashing as token_hashing
+import modules.auth.token_hashing as token_hashing
 
 _HEX_RE = r"^[0-9a-f]{64}$"
 

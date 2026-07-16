@@ -8,8 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 class TestGetUserNotificationById:
     def test_success(self, mock_db):
-        import notifications.crud as crud
-        import notifications.models as m
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
 
         n = MagicMock(
             spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
@@ -21,14 +21,14 @@ class TestGetUserNotificationById:
         assert r.user_id == 1
 
     def test_not_found(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.first.return_value = None
         r = crud.get_user_notification_by_id(notification_id=999, user_id=1, db=mock_db)
         assert r is None
 
     def test_db_error(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -38,21 +38,21 @@ class TestGetUserNotificationById:
 
 class TestGetUserNotificationsCount:
     def test_success(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 7
         r = crud.get_user_notifications_count(user_id=1, db=mock_db)
         assert r == 7
 
     def test_zero(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 0
         r = crud.get_user_notifications_count(user_id=1, db=mock_db)
         assert r == 0
 
     def test_db_error(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -62,8 +62,8 @@ class TestGetUserNotificationsCount:
 
 class TestGetUserNotificationsWithPagination:
     def test_success(self, mock_db):
-        import notifications.crud as crud
-        import notifications.models as m
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
 
         n = MagicMock(
             spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
@@ -75,21 +75,21 @@ class TestGetUserNotificationsWithPagination:
         assert r[0].user_id == 1
 
     def test_page_two(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
         r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db, page_number=2, num_records=5)
         assert r == []
 
     def test_empty(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
         r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db)
         assert r == []
 
     def test_db_error(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -99,8 +99,8 @@ class TestGetUserNotificationsWithPagination:
 
 class TestCreateNotification:
     def test_success(self, mock_db):
-        import notifications.crud as crud
-        import notifications.schema as schema
+        import modules.notifications.crud as crud
+        import modules.notifications.schema as schema
 
         notification_data = schema.NotificationCreate(user_id=1, type=1, options={})
 
@@ -112,7 +112,7 @@ class TestCreateNotification:
         mock_notification.options = None
         mock_notification.created_at = datetime(2024, 1, 1)
 
-        with patch("notifications.crud.notifications_models.Notification", return_value=mock_notification):
+        with patch("modules.notifications.crud.notifications_models.Notification", return_value=mock_notification):
             n = crud.create_notification(notification=notification_data, db=mock_db)
         assert n is not None
         mock_db.add.assert_called_once()
@@ -122,7 +122,7 @@ class TestCreateNotification:
     def test_db_error(self, mock_db):
         from pydantic import BaseModel
 
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.add.side_effect = SQLAlchemyError("err")
 
@@ -138,8 +138,8 @@ class TestCreateNotification:
 
 class TestMarkNotificationAsRead:
     def test_success(self, mock_db):
-        import notifications.crud as crud
-        import notifications.models as m
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
 
         n = MagicMock(
             spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
@@ -155,15 +155,15 @@ class TestMarkNotificationAsRead:
         mock_db.refresh.assert_called_once_with(n)
 
     def test_not_found(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.first.return_value = None
         r = crud.mark_notification_as_read(notification_id=999, user_id=1, db=mock_db)
         assert r is None
 
     def test_db_error(self, mock_db):
-        import notifications.crud as crud
-        import notifications.models as m
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
 
         n = MagicMock(spec=m.Notification, id=1, user_id=1, read=False)
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
@@ -176,7 +176,7 @@ class TestMarkNotificationAsRead:
 
 class TestMarkAllNotificationsAsRead:
     def test_success(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         result = crud.mark_all_notifications_as_read(user_id=1, db=mock_db)
 
@@ -185,7 +185,7 @@ class TestMarkAllNotificationsAsRead:
         mock_db.commit.assert_called_once()
 
     def test_db_error(self, mock_db):
-        import notifications.crud as crud
+        import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
 

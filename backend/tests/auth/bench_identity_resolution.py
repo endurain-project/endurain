@@ -19,11 +19,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import auth._internal.password_hasher as auth_password_hasher
-import auth._internal.token_manager as auth_token_manager
-import users.users.schema as users_schema
-from auth.identity_service import DefaultIdentityService
-from auth.principal import AccessTokenCred
+import modules.auth._internal.password_hasher as auth_password_hasher
+import modules.auth._internal.token_manager as auth_token_manager
+import modules.users.users.schema as users_schema
+from modules.auth.identity_service import DefaultIdentityService
+from modules.auth.principal import AccessTokenCred
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -112,7 +112,7 @@ def service_with_mocked_db(
     )
 
     # Patch DB utility used inside resolve_from_access_token
-    import users.users.utils as users_utils
+    import modules.users.users.utils as users_utils
 
     users_utils_patcher = patch.object(
         users_utils,
@@ -186,7 +186,7 @@ class TestResolveFromAccessTokenBenchmark:
         """
         from unittest.mock import patch
 
-        import users.users.utils as users_utils
+        import modules.users.users.utils as users_utils
 
         mock_db = MagicMock()
         password_hasher = auth_password_hasher.get_password_hasher()

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import auth._internal.security_stores as security_stores
+import modules.auth._internal.security_stores as security_stores
 from infra.backends.state_memory import MemoryState
 from infra.providers import StateBackendUnavailableError
 

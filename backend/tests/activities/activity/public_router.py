@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity.public_router as router
     import core.database as core_db
+    import modules.activities.activity.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities")
@@ -15,7 +15,7 @@ def _build_app(mock_db):
 
 
 def _valid_activity(**kw):
-    from activities.activity.schema import Activity
+    from modules.activities.activity.schema import Activity
 
     data = dict(
         distance=10000,
@@ -48,7 +48,7 @@ def _valid_activity(**kw):
 
 
 class TestReadPublicActivity:
-    @patch("activities.activity.public_router.activities_crud.get_activity_by_id_if_is_public")
+    @patch("modules.activities.activity.public_router.activities_crud.get_activity_by_id_if_is_public")
     def test_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = _valid_activity()
@@ -57,7 +57,7 @@ class TestReadPublicActivity:
         assert response.status_code == 200
         assert response.json()["id"] == 1
 
-    @patch("activities.activity.public_router.activities_crud.get_activity_by_id_if_is_public")
+    @patch("modules.activities.activity.public_router.activities_crud.get_activity_by_id_if_is_public")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

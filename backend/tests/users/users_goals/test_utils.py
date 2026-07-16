@@ -7,9 +7,9 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import users.users_goals.models as user_goals_models
-import users.users_goals.schema as user_goals_schema
-import users.users_goals.utils as user_goals_utils
+import modules.users.users_goals.models as user_goals_models
+import modules.users.users_goals.schema as user_goals_schema
+import modules.users.users_goals.utils as user_goals_utils
 
 
 class TestCalculateUserGoals:
@@ -17,8 +17,8 @@ class TestCalculateUserGoals:
     Test suite for calculate_user_goals function.
     """
 
-    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
-    @patch("users.users_goals.utils.calculate_goal_progress_by_activity_type")
+    @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("modules.users.users_goals.utils.calculate_goal_progress_by_activity_type")
     def test_calculate_user_goals_success(self, mock_calc_progress, mock_get_goals):
         """Test successful calculation of user goals."""
         # Arrange
@@ -42,7 +42,7 @@ class TestCalculateUserGoals:
         mock_get_goals.assert_called_once_with(user_id, mock_db)
         assert mock_calc_progress.call_count == 2
 
-    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_no_goals(self, mock_get_goals):
         """Test calculation returns None when no goals exist."""
         # Arrange
@@ -57,7 +57,7 @@ class TestCalculateUserGoals:
         # Assert
         assert result is None
 
-    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_no_date(self, mock_get_goals):
         """Test calculation uses current date when None provided."""
         # Arrange
@@ -72,7 +72,7 @@ class TestCalculateUserGoals:
         assert result is None
         mock_get_goals.assert_called_once()
 
-    @patch("users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
+    @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_value_error(self, mock_get_goals):
         """Test ValueError handling."""
         # Arrange
@@ -94,8 +94,8 @@ class TestCalculateGoalProgressByActivityType:
     Test suite for calculate_goal_progress_by_activity_type.
     """
 
-    @patch("users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.users_goals.utils.get_start_end_date_by_interval")
+    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_calories_goal(self, mock_get_dates, mock_get_activities):
         """Test calculation for calories goal."""
         # Arrange
@@ -128,8 +128,8 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_calories == 1500
         assert result.percentage_completed == 30
 
-    @patch("users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.users_goals.utils.get_start_end_date_by_interval")
+    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_distance_goal(self, mock_get_dates, mock_get_activities):
         """Test calculation for distance goal."""
         # Arrange
@@ -162,8 +162,8 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_distance == 10000
         assert result.percentage_completed == 20
 
-    @patch("users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.users_goals.utils.get_start_end_date_by_interval")
+    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_activities_goal(self, mock_get_dates, mock_get_activities):
         """Test calculation for activities count goal."""
         # Arrange
@@ -193,8 +193,8 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_activities_number == 2
         assert result.percentage_completed == 40
 
-    @patch("users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.users_goals.utils.get_start_end_date_by_interval")
+    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_caps_at_100_percent(self, mock_get_dates, mock_get_activities):
         """Test percentage is capped at 100."""
         # Arrange
@@ -225,8 +225,8 @@ class TestCalculateGoalProgressByActivityType:
         # Assert
         assert result.percentage_completed == 100
 
-    @patch("users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
-    @patch("users.users_goals.utils.get_start_end_date_by_interval")
+    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_excludes_hidden_activities(self, mock_get_dates, mock_get_activities):
         """Test that hidden activities are excluded from goal progress."""
         # Arrange

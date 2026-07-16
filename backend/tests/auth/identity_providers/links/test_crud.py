@@ -6,8 +6,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from auth.identity_providers.links import crud as identity_links_crud
-from auth.identity_providers.links.models import IdentityLink
+from modules.auth.identity_providers.links import crud as identity_links_crud
+from modules.auth.identity_providers.links.models import IdentityLink
 
 
 class TestCheckUserIdentityProvidersByIdpId:
@@ -235,7 +235,7 @@ class TestCreateUserIdentityProvider:
         mock_db.refresh.side_effect = lambda obj: None
 
         with patch(
-            "auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
+            "modules.auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
             return_value=mock_link,
         ):
             result = identity_links_crud.create_user_identity_provider(
@@ -282,7 +282,7 @@ class TestCreateUserIdentityProvider:
 
         with (
             patch(
-                "auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
+                "modules.auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink",
                 return_value=mock_link,
             ),
             pytest.raises(HTTPException) as exc_info,

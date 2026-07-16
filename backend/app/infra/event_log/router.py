@@ -6,10 +6,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Security, status
 from sqlalchemy.orm import Session
 
-import auth.dependencies as auth_dependencies
 import core.database as core_database
 import infra.event_log.crud as event_log_crud
 import infra.event_log.schema as event_log_schema
+import modules.auth.dependencies as auth_dependencies
 
 # Define the API router
 router = APIRouter()

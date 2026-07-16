@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, status
 
-from auth.identity_providers.service import IdentityProviderService, TokenAction
+from modules.auth.identity_providers.service import IdentityProviderService, TokenAction
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ class TestGetRedirectUri:
     def test_builds_expected_callback_url(self, service):
         mock_settings = MagicMock()
         mock_settings.ENDURAIN_HOST = "https://endurain.example"
-        with patch("auth.identity_providers.service.core_config.settings", mock_settings):
+        with patch("modules.auth.identity_providers.service.core_config.settings", mock_settings):
             uri = service._get_redirect_uri("my-idp")
         assert uri == "https://endurain.example/api/v1/public/idp/callback/my-idp"
 
@@ -101,7 +101,7 @@ class TestDecryptClientId:
         idp = MagicMock()
         idp.client_id = "encrypted-id"
         with patch(
-            "auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
+            "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
             return_value="plain-client-id",
         ):
             assert service._decrypt_client_id(idp) == "plain-client-id"
@@ -112,7 +112,7 @@ class TestDecryptClientId:
         idp.client_id = "encrypted-id"
         with (
             patch(
-                "auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
+                "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 return_value="",
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -126,7 +126,7 @@ class TestDecryptClientId:
         idp.client_id = "encrypted-id"
         with (
             patch(
-                "auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
+                "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 side_effect=ValueError("bad token"),
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -142,7 +142,7 @@ class TestDecryptClientSecret:
         idp = MagicMock()
         idp.client_secret = "encrypted-secret"
         with patch(
-            "auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
+            "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
             return_value="plain-secret",
         ):
             assert service._decrypt_client_secret(idp) == "plain-secret"
@@ -153,7 +153,7 @@ class TestDecryptClientSecret:
         idp.client_secret = "encrypted-secret"
         with (
             patch(
-                "auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
+                "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 return_value="",
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -167,7 +167,7 @@ class TestDecryptClientSecret:
         idp.client_secret = "encrypted-secret"
         with (
             patch(
-                "auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
+                "modules.auth.identity_providers.service.core_cryptography.decrypt_token_fernet",
                 side_effect=ValueError("bad token"),
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -230,7 +230,7 @@ class TestBoundaryFacades:
     data operations without importing the auth CRUD layer directly (auth-boundary)."""
 
     def test_get_identity_provider_delegates_to_crud(self):
-        import auth.identity_providers.service as idp_service
+        import modules.auth.identity_providers.service as idp_service
 
         db = MagicMock()
         provider = MagicMock()
@@ -240,7 +240,7 @@ class TestBoundaryFacades:
         assert result is provider
 
     def test_create_link_oauth_state_delegates_to_crud(self):
-        import auth.identity_providers.service as idp_service
+        import modules.auth.identity_providers.service as idp_service
 
         db = MagicMock()
         with patch.object(idp_service.oauth_state_crud, "create_oauth_state") as create:

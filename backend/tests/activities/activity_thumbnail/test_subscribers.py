@@ -12,30 +12,30 @@ class TestOnActivityCreatedGenerateThumbnail:
     def _event(payload):
         return new_event("activity.created", payload, source="test")
 
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_for_non_int_activity_id(self, mock_runtime):
-        from activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         on_activity_created_generate_thumbnail(self._event({"activity_id": "x", "user_id": 2}))
 
         mock_runtime.get_active_platform.assert_not_called()
 
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_when_user_id_missing(self, mock_runtime):
-        from activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         # The owner id is required to load the activity's stream; without it, skip.
         on_activity_created_generate_thumbnail(self._event({"activity_id": 1}))
 
         mock_runtime.get_active_platform.assert_not_called()
 
-    @patch("activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("activities.activity_thumbnail.subscribers.activity_streams_crud")
-    @patch("activities.activity_thumbnail.subscribers.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_when_stream_missing(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
-        from activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         mock_session.return_value.__enter__.return_value = MagicMock()
         mock_streams.get_activity_stream_by_type.return_value = None
@@ -45,13 +45,13 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
 
-    @patch("activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("activities.activity_thumbnail.subscribers.activity_streams_crud")
-    @patch("activities.activity_thumbnail.subscribers.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_when_too_few_waypoints(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
-        from activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         mock_session.return_value.__enter__.return_value = MagicMock()
         mock_streams.get_activity_stream_by_type.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
@@ -61,13 +61,13 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
 
-    @patch("activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("activities.activity_thumbnail.subscribers.activity_streams_crud")
-    @patch("activities.activity_thumbnail.subscribers.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_generates_for_gps_activity(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
-        from activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         db = MagicMock()
         mock_session.return_value.__enter__.return_value = db
@@ -90,10 +90,10 @@ class TestOnActivityCreatedGenerateThumbnail:
         assert gen_args[1] == waypoints
         assert gen_args[2] is storage
 
-    @patch("activities.activity_thumbnail.subscribers.core_logger")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.subscribers.core_logger")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_swallows_errors(self, mock_runtime, mock_logger):
-        from activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
 
@@ -108,18 +108,18 @@ class TestOnActivityDeletedCleanupThumbnail:
     def _event(payload):
         return new_event("activity.deleted", payload, source="test")
 
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_for_non_int_payload(self, mock_runtime):
-        from activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
 
         on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": None}))
 
         mock_runtime.get_active_platform.assert_not_called()
 
-    @patch("activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_deletes_thumbnail(self, mock_runtime, mock_delete):
-        from activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
 
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value.storage = storage
@@ -128,11 +128,11 @@ class TestOnActivityDeletedCleanupThumbnail:
 
         mock_delete.assert_called_once_with(9, storage)
 
-    @patch("activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("activities.activity_thumbnail.subscribers.core_logger")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
+    @patch("modules.activities.activity_thumbnail.subscribers.core_logger")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_swallows_errors(self, mock_runtime, mock_logger, mock_delete):
-        from activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
+        from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
 
         mock_delete.side_effect = OSError("boom")
         mock_runtime.get_active_platform.return_value.storage = MagicMock()
@@ -145,7 +145,7 @@ class TestOnActivityDeletedCleanupThumbnail:
 
 class TestRegisterThumbnailSubscribers:
     def test_subscribes_to_created_and_deleted(self):
-        from activities.activity_thumbnail.subscribers import (
+        from modules.activities.activity_thumbnail.subscribers import (
             on_activity_created_generate_thumbnail,
             on_activity_deleted_cleanup_thumbnail,
             register_thumbnail_subscribers,
@@ -160,18 +160,18 @@ class TestRegisterThumbnailSubscribers:
 
 
 class TestDurableThumbnailHandlers:
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_generate_core_noops_without_owner(self, mock_runtime):
-        from activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
+        from modules.activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
 
         # No user_id -> nothing to do; the core returns (job completes, not fails).
         generate_activity_thumbnail_for_event(new_event("activity.created", {"activity_id": 1}, source="test"))
 
         mock_runtime.get_active_platform.assert_not_called()
 
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_generate_core_raises_on_error(self, mock_runtime):
-        from activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
+        from modules.activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
 
         mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
 
@@ -181,10 +181,10 @@ class TestDurableThumbnailHandlers:
                 new_event("activity.created", {"activity_id": 1, "user_id": 2}, source="test")
             )
 
-    @patch("activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_cleanup_core_raises_on_error(self, mock_runtime, mock_delete):
-        from activities.activity_thumbnail.subscribers import cleanup_activity_thumbnail_for_event
+        from modules.activities.activity_thumbnail.subscribers import cleanup_activity_thumbnail_for_event
 
         mock_delete.side_effect = OSError("boom")
         mock_runtime.get_active_platform.return_value.storage = MagicMock()
@@ -193,14 +193,14 @@ class TestDurableThumbnailHandlers:
             cleanup_activity_thumbnail_for_event(new_event("activity.deleted", {"activity_id": 1}, source="test"))
 
     def test_register_durable_handlers(self):
-        from activities.activity_thumbnail.subscribers import (
+        from infra.jobs.registry import JobHandlerRegistry
+        from modules.activities.activity_thumbnail.subscribers import (
             THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
             THUMBNAIL_GENERATE_SUBSCRIBER_ID,
             cleanup_activity_thumbnail_for_event,
             generate_activity_thumbnail_for_event,
             register_thumbnail_durable_handlers,
         )
-        from infra.jobs.registry import JobHandlerRegistry
 
         registry = JobHandlerRegistry()
         register_thumbnail_durable_handlers(registry)

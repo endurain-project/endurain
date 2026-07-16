@@ -9,10 +9,10 @@ from tests._helpers.models import mock_model
 
 
 class TestGetGearUserById:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, user_id=1)
         setup_mock_execute(mock_db, return_one_or_none=g)
@@ -20,14 +20,14 @@ class TestGetGearUserById:
         assert r is g
 
     def test_not_found(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         r = crud.get_gear_user_by_id(user_id=1, gear_id=999, db=mock_db)
         assert r is None
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -37,21 +37,21 @@ class TestGetGearUserById:
 
 class TestGetGearActivityStats:
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.one.return_value = (50000.0, 7200.0)
         r = crud.get_gear_activity_stats(gear_id=1, db=mock_db)
         assert r == {"total_distance": 50000.0, "total_time": 7200.0}
 
     def test_zero_values(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.one.return_value = (0.0, 0.0)
         r = crud.get_gear_activity_stats(gear_id=1, db=mock_db)
         assert r == {"total_distance": 0.0, "total_time": 0.0}
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -61,21 +61,21 @@ class TestGetGearActivityStats:
 
 class TestGetGearComponentsTotalCost:
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 1500.0
         r = crud.get_gear_components_total_cost(gear_id=1, user_id=1, db=mock_db)
         assert r == 1500.0
 
     def test_zero(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 0.0
         r = crud.get_gear_components_total_cost(gear_id=1, user_id=1, db=mock_db)
         assert r == 0.0
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -85,28 +85,28 @@ class TestGetGearComponentsTotalCost:
 
 class TestGetGearsNumber:
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 42
         r = crud.get_gears_number(user_id=1, db=mock_db)
         assert r == 42
 
     def test_zero(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 0
         r = crud.get_gears_number(user_id=1, db=mock_db)
         assert r == 0
 
     def test_hide_inactive(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 9
         r = crud.get_gears_number(user_id=1, db=mock_db, show_inactive=False)
         assert r == 9
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -115,30 +115,30 @@ class TestGetGearsNumber:
 
 
 class TestGetGearUsersWithPagination:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success_defaults(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, user_id=1)
         setup_mock_execute(mock_db, return_scalars_all=[g])
         r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db)
         assert r == [g]
 
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success_paginated(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, user_id=1)
         setup_mock_execute(mock_db, return_scalars_all=[g])
         r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db, page_number=1, num_records=10)
         assert r == [g]
 
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success_hide_inactive(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, user_id=1, active=True)
         setup_mock_execute(mock_db, return_scalars_all=[g])
@@ -146,14 +146,14 @@ class TestGetGearUsersWithPagination:
         assert r == [g]
 
     def test_empty(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_gear_users_with_pagination(user_id=1, db=mock_db)
         assert r == []
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -162,10 +162,10 @@ class TestGetGearUsersWithPagination:
 
 
 class TestGetGearUser:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, user_id=1)
         setup_mock_execute(mock_db, return_scalars_all=[g])
@@ -173,14 +173,14 @@ class TestGetGearUser:
         assert r == [g]
 
     def test_empty(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_gear_user(user_id=1, db=mock_db)
         assert r == []
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -189,10 +189,10 @@ class TestGetGearUser:
 
 
 class TestGetGearUserContainsNickname:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, nickname="Mountain Bike")
         setup_mock_execute(mock_db, return_scalars_all=[g])
@@ -200,14 +200,14 @@ class TestGetGearUserContainsNickname:
         assert r == [g]
 
     def test_empty(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_gear_user_contains_nickname(user_id=1, nickname="nonexistent", db=mock_db)
         assert r == []
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -216,10 +216,10 @@ class TestGetGearUserContainsNickname:
 
 
 class TestGetGearUserByNickname:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, nickname="Road Bike")
         setup_mock_execute(mock_db, return_one_or_none=g)
@@ -227,14 +227,14 @@ class TestGetGearUserByNickname:
         assert r is g
 
     def test_not_found(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         r = crud.get_gear_user_by_nickname(user_id=1, nickname="Unknown", db=mock_db)
         assert r is None
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -243,10 +243,10 @@ class TestGetGearUserByNickname:
 
 
 class TestGetGearByTypeAndUser:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, gear_type=1)
         setup_mock_execute(mock_db, return_scalars_all=[g])
@@ -254,14 +254,14 @@ class TestGetGearByTypeAndUser:
         assert r == [g]
 
     def test_empty(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_gear_by_type_and_user(gear_type=1, user_id=1, db=mock_db)
         assert r == []
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -270,10 +270,10 @@ class TestGetGearByTypeAndUser:
 
 
 class TestGetGearByStravaIdFromUserId:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, strava_gear_id="strava_123")
         setup_mock_execute(mock_db, return_one_or_none=g)
@@ -281,14 +281,14 @@ class TestGetGearByStravaIdFromUserId:
         assert r is g
 
     def test_not_found(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         r = crud.get_gear_by_strava_id_from_user_id(gear_strava_id="strava_999", user_id=1, db=mock_db)
         assert r is None
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -297,10 +297,10 @@ class TestGetGearByStravaIdFromUserId:
 
 
 class TestGetGearByGarminconnectIdFromUserId:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         g = mock_model(m.Gear, id=1, garminconnect_gear_id="garmin_123")
         setup_mock_execute(mock_db, return_one_or_none=g)
@@ -308,14 +308,14 @@ class TestGetGearByGarminconnectIdFromUserId:
         assert r is g
 
     def test_not_found(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         r = crud.get_gear_by_garminconnect_id_from_user_id(gear_garminconnect_id="garmin_999", user_id=1, db=mock_db)
         assert r is None
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -326,19 +326,19 @@ class TestGetGearByGarminconnectIdFromUserId:
 @pytest.fixture
 def patched_gear():
     """Patch Gear so instances are mocked but columns stay real."""
-    from gears.gear.models import Gear as RealGear
+    from modules.gears.gear.models import Gear as RealGear
 
-    with patch("gears.gear.crud.gears_models.Gear") as mock_gear:
+    with patch("modules.gears.gear.crud.gears_models.Gear") as mock_gear:
         mock_gear.nickname = RealGear.nickname
         mock_gear.user_id = RealGear.user_id
         yield mock_gear
 
 
 class TestCreateMultipleGears:
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_success_single(self, mock_log, mock_db, patched_gear):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         execute_mock = setup_mock_execute(mock_db)
         execute_mock.all.return_value = []
@@ -348,10 +348,10 @@ class TestCreateMultipleGears:
         mock_db.add_all.assert_called_once()
         mock_db.commit.assert_called_once()
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_success_multiple(self, mock_log, mock_db, patched_gear):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         execute_mock = setup_mock_execute(mock_db)
         execute_mock.all.return_value = []
@@ -364,10 +364,10 @@ class TestCreateMultipleGears:
         assert mock_db.add_all.call_count == 1
         mock_db.commit.assert_called_once()
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_dedup_by_nickname(self, mock_log, mock_db, patched_gear):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         execute_mock = setup_mock_execute(mock_db)
         execute_mock.all.return_value = []
@@ -380,10 +380,10 @@ class TestCreateMultipleGears:
         mock_db.add_all.assert_called_once()
         assert mock_log.call_count == 1
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_skip_existing(self, mock_log, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         execute_mock = setup_mock_execute(mock_db)
         execute_mock.all.return_value = [("Existing",)]
@@ -392,25 +392,25 @@ class TestCreateMultipleGears:
         crud.create_multiple_gears([gear], user_id=1, db=mock_db)
         mock_db.add_all.assert_not_called()
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_empty_input(self, mock_log, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         crud.create_multiple_gears([], user_id=1, db=mock_db)
         mock_db.add_all.assert_not_called()
         mock_db.commit.assert_not_called()
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_all_invalid(self, mock_log, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         crud.create_multiple_gears([None, None], user_id=1, db=mock_db)
         mock_db.add_all.assert_not_called()
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_integrity_error(self, mock_log, mock_db, patched_gear):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         execute_mock = setup_mock_execute(mock_db)
         execute_mock.all.return_value = []
@@ -422,10 +422,10 @@ class TestCreateMultipleGears:
         assert e.value.status_code == 409
         mock_db.rollback.assert_called_once()
 
-    @patch("gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
     def test_db_error(self, mock_log, mock_db, patched_gear):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         execute_mock = setup_mock_execute(mock_db)
         execute_mock.all.return_value = []
@@ -438,12 +438,12 @@ class TestCreateMultipleGears:
 
 
 class TestCreateGear:
-    @patch("gears.gear.crud.get_gear_user_by_nickname")
-    @patch("gears.gear.crud._transform_gears")
-    @patch("gears.gear.crud.gears_models.Gear")
+    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
+    @patch("modules.gears.gear.crud._transform_gears")
+    @patch("modules.gears.gear.crud.gears_models.Gear")
     def test_success(self, mock_gear_cls, mock_transform, mock_get_by_nick, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         mock_get_by_nick.return_value = None
         transformed = MagicMock()
@@ -458,10 +458,10 @@ class TestCreateGear:
         mock_db.refresh.assert_called_once_with(added)
         mock_transform.assert_called_once_with(added)
 
-    @patch("gears.gear.crud.get_gear_user_by_nickname")
+    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
     def test_already_exists(self, mock_get_by_nick, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         mock_get_by_nick.return_value = MagicMock()
 
@@ -470,11 +470,11 @@ class TestCreateGear:
             crud.create_gear(gear=gear, user_id=1, db=mock_db)
         assert e.value.status_code == 409
 
-    @patch("gears.gear.crud.get_gear_user_by_nickname")
-    @patch("gears.gear.crud.gears_models.Gear")
+    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
+    @patch("modules.gears.gear.crud.gears_models.Gear")
     def test_integrity_error(self, mock_gear_cls, mock_get_by_nick, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         mock_get_by_nick.return_value = None
         mock_db.commit.side_effect = IntegrityError("stmt", "params", "orig")
@@ -485,11 +485,11 @@ class TestCreateGear:
         assert e.value.status_code == 409
         mock_db.rollback.assert_called_once()
 
-    @patch("gears.gear.crud.get_gear_user_by_nickname")
-    @patch("gears.gear.crud.gears_models.Gear")
+    @patch("modules.gears.gear.crud.get_gear_user_by_nickname")
+    @patch("modules.gears.gear.crud.gears_models.Gear")
     def test_db_error(self, mock_gear_cls, mock_get_by_nick, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.schema as s
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.schema as s
 
         mock_get_by_nick.return_value = None
         mock_db.add.side_effect = SQLAlchemyError("err")
@@ -501,10 +501,10 @@ class TestCreateGear:
 
 
 class TestEditGear:
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         db_gear = MagicMock(spec=m.Gear)
         db_gear.id = 1
@@ -530,10 +530,10 @@ class TestEditGear:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(db_gear)
 
-    @patch("gears.gear.crud._transform_gears", new=lambda x: x)
+    @patch("modules.gears.gear.crud._transform_gears", new=lambda x: x)
     def test_trims_text_and_skips_immutable_and_none(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         db_gear = MagicMock(spec=m.Gear)
         db_gear.id = 1
@@ -566,7 +566,7 @@ class TestEditGear:
         mock_db.commit.assert_called_once()
 
     def test_not_found(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
 
@@ -582,7 +582,7 @@ class TestEditGear:
         assert e.value.status_code == 404
 
     def test_db_error_execute(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
 
@@ -598,8 +598,8 @@ class TestEditGear:
         assert e.value.status_code == 500
 
     def test_db_error_commit(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         db_gear = MagicMock(spec=m.Gear)
         db_gear.id = 1
@@ -628,8 +628,8 @@ class TestEditGear:
 
 class TestDeleteGear:
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
-        import gears.gear.models as m
+        import modules.gears.gear.crud as crud
+        import modules.gears.gear.models as m
 
         db_gear = MagicMock(spec=m.Gear)
         setup_mock_execute(mock_db, return_one_or_none=db_gear)
@@ -638,7 +638,7 @@ class TestDeleteGear:
         mock_db.commit.assert_called_once()
 
     def test_not_found(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         setup_mock_execute(mock_db, return_one_or_none=None)
         with pytest.raises(HTTPException) as e:
@@ -646,7 +646,7 @@ class TestDeleteGear:
         assert e.value.status_code == 404
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -656,7 +656,7 @@ class TestDeleteGear:
 
 class TestDeleteAllStravaGearForUser:
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         r = MagicMock()
         r.rowcount = 3
@@ -665,7 +665,7 @@ class TestDeleteAllStravaGearForUser:
         mock_db.commit.assert_called_once()
 
     def test_no_deletions(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         r = MagicMock()
         r.rowcount = 0
@@ -674,7 +674,7 @@ class TestDeleteAllStravaGearForUser:
         mock_db.commit.assert_called_once()
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
@@ -684,7 +684,7 @@ class TestDeleteAllStravaGearForUser:
 
 class TestDeleteAllGarminconnectGearForUser:
     def test_success(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         r = MagicMock()
         r.rowcount = 2
@@ -693,7 +693,7 @@ class TestDeleteAllGarminconnectGearForUser:
         mock_db.commit.assert_called_once()
 
     def test_no_deletions(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         r = MagicMock()
         r.rowcount = 0
@@ -702,7 +702,7 @@ class TestDeleteAllGarminconnectGearForUser:
         mock_db.commit.assert_called_once()
 
     def test_db_error(self, mock_db):
-        import gears.gear.crud as crud
+        import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:

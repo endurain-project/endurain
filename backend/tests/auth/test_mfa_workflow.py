@@ -2,11 +2,11 @@
 
 mfa_workflow is the security-critical route-facing facade profile routes call.
 It owns step-up verification, the pending setup-secret store, and response
-shaping while orchestrating the lower-level ``auth.mfa.service`` /
-``auth.mfa.backup_codes.crud`` helpers.
+shaping while orchestrating the lower-level ``modules.auth.mfa.service`` /
+``modules.auth.mfa.backup_codes.crud`` helpers.
 
 These tests mock the lower-level helpers (patched at the
-``auth._internal.services.mfa_workflow`` namespace) and assert the orchestration
+``modules.auth._internal.services.mfa_workflow`` namespace) and assert the orchestration
 behaviour: delegation arguments, step-up enforcement, the pending-secret
 store lifecycle, error propagation, and response/schema shaping.
 """
@@ -17,9 +17,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, status
 
-import auth._internal.services.mfa_workflow as mfa_workflow
-import auth.mfa.schema as mfa_schema
-import users.users.schema as users_schema
+import modules.auth._internal.services.mfa_workflow as mfa_workflow
+import modules.auth.mfa.schema as mfa_schema
+import modules.users.users.schema as users_schema
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ class TestGetMfaStatus:
 
     def test_returns_enabled_true(self, mock_db):
         with patch(
-            "auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+            "modules.auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
             return_value=True,
         ) as mock_is_enabled:
             result = mfa_workflow.get_mfa_status(7, mock_db)
@@ -61,7 +61,7 @@ class TestGetMfaStatus:
 
     def test_returns_enabled_false(self, mock_db):
         with patch(
-            "auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+            "modules.auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
             return_value=False,
         ):
             result = mfa_workflow.get_mfa_status(7, mock_db)
@@ -79,7 +79,7 @@ class TestGetBackupCodeStatus:
 
     def test_no_codes_returns_empty_status(self, mock_db):
         with patch(
-            "auth._internal.services.mfa_workflow.mfa_backup_codes_crud.get_user_backup_codes",
+            "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.get_user_backup_codes",
             return_value=[],
         ) as mock_get:
             result = mfa_workflow.get_backup_code_status(7, mock_db)
@@ -99,7 +99,7 @@ class TestGetBackupCodeStatus:
             MagicMock(used=True, created_at=created),
         ]
         with patch(
-            "auth._internal.services.mfa_workflow.mfa_backup_codes_crud.get_user_backup_codes",
+            "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.get_user_backup_codes",
             return_value=codes,
         ):
             result = mfa_workflow.get_backup_code_status(7, mock_db)
@@ -123,7 +123,7 @@ class TestSetupMfa:
         response = MagicMock()
         response.secret = "TOTPSECRET"
         with patch(
-            "auth._internal.services.mfa_workflow.mfa_service.setup_user_mfa",
+            "modules.auth._internal.services.mfa_workflow.mfa_service.setup_user_mfa",
             return_value=response,
         ) as mock_setup:
             result = mfa_workflow.setup_mfa(7, mock_db, mfa_secret_store)
@@ -149,12 +149,14 @@ class TestEnableMfa:
     ):
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
             patch(
-                "auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
+            ) as mock_verify,
+            patch(
+                "modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
                 return_value=["code-1", "code-2"],
             ) as mock_enable,
-            patch("auth._internal.services.mfa_workflow.core_logger.print_to_log") as mock_log,
+            patch("modules.auth._internal.services.mfa_workflow.core_logger.print_to_log") as mock_log,
         ):
             result = mfa_workflow.enable_mfa(
                 self._request(),
@@ -183,10 +185,10 @@ class TestEnableMfa:
     ):
         with (
             patch(
-                "auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
                 side_effect=HTTPException(status_code=401, detail="bad password"),
             ),
-            patch("auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa") as mock_enable,
+            patch("modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa") as mock_enable,
             pytest.raises(HTTPException) as exc_info,
         ):
             mfa_workflow.enable_mfa(
@@ -205,8 +207,8 @@ class TestEnableMfa:
     def test_no_pending_secret_raises_400(self, mock_db, identity_service, step_up_store, mfa_secret_store):
         mfa_secret_store.get_secret.return_value = None
         with (
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
-            patch("auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa") as mock_enable,
+            patch("modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
+            patch("modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa") as mock_enable,
             pytest.raises(HTTPException) as exc_info,
         ):
             mfa_workflow.enable_mfa(
@@ -228,9 +230,9 @@ class TestEnableMfa:
         """A wrong TOTP code must NOT discard the pending secret (allow retry)."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
+            patch("modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
             patch(
-                "auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
+                "modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
                 side_effect=HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid MFA code"),
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -253,9 +255,9 @@ class TestEnableMfa:
         """Any non-"Invalid MFA code" failure clears the pending secret."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
+            patch("modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
             patch(
-                "auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
+                "modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
                 side_effect=HTTPException(status_code=status.HTTP_409_CONFLICT, detail="MFA already enabled"),
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -278,9 +280,9 @@ class TestEnableMfa:
         """Same detail but a non-400 status still discards the pending secret."""
         mfa_secret_store.get_secret.return_value = "pending-secret"
         with (
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
+            patch("modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"),
             patch(
-                "auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
+                "modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
                 side_effect=HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MFA code"),
             ),
             pytest.raises(HTTPException),
@@ -310,9 +312,11 @@ class TestDisableMfa:
 
     def test_happy_path_disables_after_step_up(self, mock_db, identity_service, step_up_store):
         with (
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
-            patch("auth._internal.services.mfa_workflow.mfa_service.disable_user_mfa") as mock_disable,
-            patch("auth._internal.services.mfa_workflow.core_logger.print_to_log") as mock_log,
+            patch(
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
+            ) as mock_verify,
+            patch("modules.auth._internal.services.mfa_workflow.mfa_service.disable_user_mfa") as mock_disable,
+            patch("modules.auth._internal.services.mfa_workflow.core_logger.print_to_log") as mock_log,
         ):
             result = mfa_workflow.disable_mfa(
                 self._request(),
@@ -337,10 +341,10 @@ class TestDisableMfa:
     def test_step_up_failure_does_not_disable(self, mock_db, identity_service, step_up_store):
         with (
             patch(
-                "auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
                 side_effect=HTTPException(status_code=401, detail="bad"),
             ),
-            patch("auth._internal.services.mfa_workflow.mfa_service.disable_user_mfa") as mock_disable,
+            patch("modules.auth._internal.services.mfa_workflow.mfa_service.disable_user_mfa") as mock_disable,
             pytest.raises(HTTPException) as exc_info,
         ):
             mfa_workflow.disable_mfa(
@@ -368,7 +372,7 @@ class TestVerifyMfa:
 
     def test_valid_code_returns_success(self, mock_db, identity_service):
         with patch(
-            "auth._internal.services.mfa_workflow.mfa_service.verify_user_mfa",
+            "modules.auth._internal.services.mfa_workflow.mfa_service.verify_user_mfa",
             return_value=True,
         ) as mock_verify:
             result = mfa_workflow.verify_mfa(self._request(), 7, identity_service, mock_db)
@@ -379,7 +383,7 @@ class TestVerifyMfa:
     def test_invalid_code_raises_400(self, mock_db, identity_service):
         with (
             patch(
-                "auth._internal.services.mfa_workflow.mfa_service.verify_user_mfa",
+                "modules.auth._internal.services.mfa_workflow.mfa_service.verify_user_mfa",
                 return_value=False,
             ),
             pytest.raises(HTTPException) as exc_info,
@@ -406,13 +410,15 @@ class TestGenerateBackupCodes:
         user.id = 7
         user.mfa_enabled = True
         with (
-            patch("auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
+            patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
             patch(
-                "auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes",
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
+            ) as mock_verify,
+            patch(
+                "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes",
                 return_value=["a", "b", "c"],
             ) as mock_create,
-            patch("auth._internal.services.mfa_workflow.core_logger.print_to_log"),
+            patch("modules.auth._internal.services.mfa_workflow.core_logger.print_to_log"),
         ):
             result = mfa_workflow.generate_backup_codes(
                 self._step_up(),
@@ -436,8 +442,10 @@ class TestGenerateBackupCodes:
 
     def test_user_not_found_raises_404(self, mock_db, identity_service, step_up_store):
         with (
-            patch("auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=None),
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
+            patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=None),
+            patch(
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
+            ) as mock_verify,
             pytest.raises(HTTPException) as exc_info,
         ):
             mfa_workflow.generate_backup_codes(
@@ -455,8 +463,10 @@ class TestGenerateBackupCodes:
         user = MagicMock()
         user.mfa_enabled = False
         with (
-            patch("auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
-            patch("auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
+            patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
+            ) as mock_verify,
             pytest.raises(HTTPException) as exc_info,
         ):
             mfa_workflow.generate_backup_codes(
@@ -475,12 +485,14 @@ class TestGenerateBackupCodes:
         user.id = 7
         user.mfa_enabled = True
         with (
-            patch("auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
             patch(
-                "auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
+                "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
                 side_effect=HTTPException(status_code=401, detail="bad"),
             ),
-            patch("auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes") as mock_create,
+            patch(
+                "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes"
+            ) as mock_create,
             pytest.raises(HTTPException) as exc_info,
         ):
             mfa_workflow.generate_backup_codes(

@@ -51,7 +51,7 @@ class TestStartScheduler:
 
     def test_idp_link_token_cleanup_job_registered(self):
         """IdP link token cleanup must be registered with a 5-minute interval."""
-        import auth.identity_providers.link_tokens.utils as idp_link_tokens_utils
+        import modules.auth.identity_providers.link_tokens.utils as idp_link_tokens_utils
 
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,

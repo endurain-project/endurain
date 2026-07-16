@@ -2,15 +2,15 @@
 
 from sqlalchemy.orm import Session
 
-import activities.activity.crud as activity_crud
-import activities.activity.schema as activity_schema
-import activities.activity_streams.crud as activity_streams_crud
-import activities.activity_streams.schema as activity_streams_schema
-import activities.activity_streams.utils as activity_streams_utils
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import users.users.crud as users_crud
-import users.users.schema as users_schema
+import modules.activities.activity.crud as activity_crud
+import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_streams.utils as activity_streams_utils
+import modules.users.users.crud as users_crud
+import modules.users.users.schema as users_schema
 
 
 async def process_migration_7(db: Session) -> None:

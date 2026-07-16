@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 
 
 class TestRenderActivityThumbnail:
-    @patch("activities.activity_thumbnail.render.StaticMap")
+    @patch("modules.activities.activity_thumbnail.render.StaticMap")
     def test_returns_webp_bytes(self, mock_staticmap):
-        from activities.activity_thumbnail.render import render_activity_thumbnail
+        from modules.activities.activity_thumbnail.render import render_activity_thumbnail
 
         mock_map = MagicMock()
         mock_image = MagicMock()
@@ -26,14 +26,14 @@ class TestRenderActivityThumbnail:
         assert mock_image.save.call_args.kwargs["quality"] == 75
 
     def test_none_when_too_few_waypoints(self):
-        from activities.activity_thumbnail.render import render_activity_thumbnail
+        from modules.activities.activity_thumbnail.render import render_activity_thumbnail
 
         assert render_activity_thumbnail(1, [{"lat": 1.0, "lon": 2.0}]) is None
         assert render_activity_thumbnail(1, []) is None
 
-    @patch("activities.activity_thumbnail.render.StaticMap")
+    @patch("modules.activities.activity_thumbnail.render.StaticMap")
     def test_none_for_stadia_without_key(self, mock_staticmap):
-        from activities.activity_thumbnail.render import render_activity_thumbnail
+        from modules.activities.activity_thumbnail.render import render_activity_thumbnail
 
         data = render_activity_thumbnail(
             1,
@@ -47,19 +47,19 @@ class TestRenderActivityThumbnail:
 
 class TestThumbnailKeyAndUrl:
     def test_key_format(self):
-        from activities.activity_thumbnail.render import thumbnail_key
+        from modules.activities.activity_thumbnail.render import thumbnail_key
 
         assert thumbnail_key(42) == "42.webp"
 
     def test_url_none_for_missing_key(self):
-        from activities.activity_thumbnail.render import thumbnail_url
+        from modules.activities.activity_thumbnail.render import thumbnail_url
 
         assert thumbnail_url(None) is None
         assert thumbnail_url("") is None
 
-    @patch("activities.activity_thumbnail.render.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.render.platform_runtime")
     def test_url_uses_storage_provider(self, mock_runtime):
-        from activities.activity_thumbnail.render import thumbnail_url
+        from modules.activities.activity_thumbnail.render import thumbnail_url
 
         storage = MagicMock()
         storage.url.return_value = "https://cdn/activity_thumbnails/1.webp"
@@ -68,9 +68,9 @@ class TestThumbnailKeyAndUrl:
         assert thumbnail_url("1.webp") == "https://cdn/activity_thumbnails/1.webp"
         storage.url.assert_called_once_with("activity_thumbnails", "1.webp")
 
-    @patch("activities.activity_thumbnail.render.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.render.platform_runtime")
     def test_url_falls_back_when_platform_uninitialised(self, mock_runtime):
-        from activities.activity_thumbnail.render import thumbnail_url
+        from modules.activities.activity_thumbnail.render import thumbnail_url
 
         mock_runtime.get_active_platform.side_effect = RuntimeError("no platform")
 

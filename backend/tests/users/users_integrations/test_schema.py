@@ -6,7 +6,7 @@ from typing import ClassVar
 import pytest
 from pydantic import ValidationError
 
-from users.users_integrations.schema import (
+from modules.users.users_integrations.schema import (
     UsersIntegrationsBase,
     UsersIntegrationsCreate,
     UsersIntegrationsRead,

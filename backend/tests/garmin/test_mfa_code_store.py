@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import garmin.mfa_code_store as mfa_code_store
+import modules.garmin.mfa_code_store as mfa_code_store
 from infra.backends.state_memory import MemoryState
 from infra.providers import StateBackendUnavailableError
 

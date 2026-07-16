@@ -6,16 +6,16 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-import users.users_goals.crud as user_goals_crud
-import users.users_goals.models as user_goals_models
-import users.users_goals.schema as user_goals_schema
+import modules.users.users_goals.crud as user_goals_crud
+import modules.users.users_goals.models as user_goals_models
+import modules.users.users_goals.schema as user_goals_schema
 
 
 @pytest.fixture(autouse=True)
 def _patch_transform():
     """Patch _transform_users_goals to a passthrough for MagicMock compatibility."""
     with patch(
-        "users.users_goals.crud._transform_users_goals",
+        "modules.users.users_goals.crud._transform_users_goals",
         side_effect=lambda x: x,
     ):
         yield
@@ -190,7 +190,7 @@ class TestUpdateUserGoal:
     Test suite for update_user_goal function.
     """
 
-    @patch("users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
+    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
     def test_update_user_goal_success(self, mock_get_goal, mock_db):
         """Test successful goal update."""
         # Arrange
@@ -221,7 +221,7 @@ class TestUpdateUserGoal:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(mock_db_goal)
 
-    @patch("users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
+    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
     def test_update_user_goal_not_found(self, mock_get_goal, mock_db):
         """Test update fails when goal not found."""
         # Arrange
@@ -251,7 +251,7 @@ class TestUpdateUserGoal:
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
-    @patch("users.users_goals.crud.get_user_goal_by_user_and_goal_id")
+    @patch("modules.users.users_goals.crud.get_user_goal_by_user_and_goal_id")
     def test_update_user_goal_wrong_user(self, mock_get_goal, mock_db):
         """Test update fails when user doesn't own goal."""
         # Arrange
@@ -286,7 +286,7 @@ class TestDeleteUserGoal:
     Test suite for delete_user_goal function.
     """
 
-    @patch("users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
+    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
     def test_delete_user_goal_success(self, mock_get_goal, mock_db):
         """Test successful goal deletion."""
         # Arrange
@@ -302,7 +302,7 @@ class TestDeleteUserGoal:
         mock_db.delete.assert_called_once_with(mock_db_goal)
         mock_db.commit.assert_called_once()
 
-    @patch("users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
+    @patch("modules.users.users_goals.crud._get_user_goal_model_by_user_and_goal_id_or_404")
     def test_delete_user_goal_not_found(self, mock_get_goal, mock_db):
         """Test deletion fails when goal not found."""
         # Arrange
@@ -319,7 +319,7 @@ class TestDeleteUserGoal:
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
-    @patch("users.users_goals.crud.get_user_goal_by_user_and_goal_id")
+    @patch("modules.users.users_goals.crud.get_user_goal_by_user_and_goal_id")
     def test_delete_user_goal_db_error(self, mock_get_goal, mock_db):
         """Test database error handling during deletion."""
         # Arrange

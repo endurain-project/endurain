@@ -5,9 +5,9 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import health.health_weight.crud as health_weight_crud
-import health.health_weight.models as health_weight_models
-import health.health_weight.schema as health_weight_schema
+import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.models as health_weight_models
+import modules.health.health_weight.schema as health_weight_schema
 
 
 class TestGetAllHealthWeight:
@@ -377,7 +377,7 @@ class TestCreateHealthWeight:
     Test suite for create_health_weight function.
     """
 
-    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("modules.health.health_weight.crud.health_weight_utils.calculate_bmi")
     def test_create_health_weight_success(self, mock_calculate_bmi, mock_db):
         """
         Test successful creation of health weight entry.
@@ -520,8 +520,8 @@ class TestEditHealthWeight:
     Test suite for edit_health_weight function.
     """
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
-    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud.health_weight_utils.calculate_bmi")
     def test_edit_health_weight_success(self, mock_calculate_bmi, mock_get_by_id, mock_db):
         """
         Test successful edit of health weight entry.
@@ -562,7 +562,7 @@ class TestEditHealthWeight:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_edit_health_weight_not_found(self, mock_get_by_id, mock_db):
         """
         Test edit when health weight record not found.
@@ -606,7 +606,7 @@ class TestEditHealthWeight:
 
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_edit_health_weight_with_bmi_provided(self, mock_get_by_id, mock_db):
         """
         Test edit without BMI calculation when BMI provided.
@@ -638,7 +638,7 @@ class TestEditHealthWeight:
         # Assert
         mock_db.commit.assert_called_once()
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_edit_health_weight_exception(self, mock_get_by_id, mock_db):
         """
         Test exception handling in edit_health_weight.
@@ -663,7 +663,7 @@ class TestDeleteHealthWeight:
     Test suite for delete_health_weight function.
     """
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_delete_health_weight_success(self, mock_get_by_id, mock_db):
         """
         Test successful deletion of health weight entry.
@@ -682,7 +682,7 @@ class TestDeleteHealthWeight:
         mock_db.delete.assert_called_once_with(mock_db_weight)
         mock_db.commit.assert_called_once()
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_delete_health_weight_not_found(self, mock_get_by_id, mock_db):
         """
         Test deletion when health weight record not found.
@@ -702,7 +702,7 @@ class TestDeleteHealthWeight:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert exc_info.value.detail == "Health weight not found"
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_delete_health_weight_exception(self, mock_get_by_id, mock_db):
         """
         Test exception handling in delete_health_weight.

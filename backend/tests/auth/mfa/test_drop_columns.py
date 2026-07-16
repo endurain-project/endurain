@@ -3,7 +3,7 @@
 Verifies that:
 * ``Users.mfa_enabled`` reads from ``auth_mfa`` (the legacy
   column is no longer present on the ORM).
-* ``update_user_mfa`` (now in ``auth.mfa.crud``) writes ONLY
+* ``update_user_mfa`` (now in ``modules.auth.mfa.crud``) writes ONLY
   to ``users_mfa``; the ``Users`` mock's attributes are never
   touched.
 * ``db.refresh(db_user)`` is not called.
@@ -13,9 +13,9 @@ Verifies that:
 import contextlib
 from unittest.mock import MagicMock, patch
 
-import auth.mfa.crud as auth_mfa_crud
-import auth.mfa.models as auth_mfa_models
-import users.users.models as users_models
+import modules.auth.mfa.crud as auth_mfa_crud
+import modules.auth.mfa.models as auth_mfa_models
+import modules.users.users.models as users_models
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -166,11 +166,11 @@ class TestUpdateUserMFASingleWrite:
         mock_stmt = MagicMock()
         with (
             patch(
-                "auth.mfa.crud.select",
+                "modules.auth.mfa.crud.select",
                 return_value=mock_stmt,
             ),
             patch(
-                "auth.mfa.crud.auth_mfa_models.UsersMFA",
+                "modules.auth.mfa.crud.auth_mfa_models.UsersMFA",
                 return_value=mock_new_row,
             ) as mock_class,
         ):

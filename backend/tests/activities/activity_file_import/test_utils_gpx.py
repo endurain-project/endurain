@@ -8,8 +8,8 @@ import gpxpy
 import pytest
 from geopy.distance import geodesic
 
-import activities.activity.utils as activities_utils
-import activities.activity_file_import.utils_gpx as utils_gpx
+import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.utils_gpx as utils_gpx
 
 
 def _privacy_settings() -> SimpleNamespace:

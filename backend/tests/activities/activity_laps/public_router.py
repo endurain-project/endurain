@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_laps.public_router as router
     import core.database as core_db
+    import modules.activities.activity_laps.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities_laps")
@@ -16,9 +16,9 @@ def _build_app(mock_db):
 
 
 class TestReadPublicActivityLaps:
-    @patch("activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
+    @patch("modules.activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
     def test_success(self, mock_get, mock_db):
-        from activities.activity_laps.schema import ActivityLapsRead
+        from modules.activities.activity_laps.schema import ActivityLapsRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [ActivityLapsRead(id=1, activity_id=1, start_time=datetime(2024, 1, 15, 8, 0, 0))]
@@ -26,7 +26,7 @@ class TestReadPublicActivityLaps:
         response = client.get("/public/activities_laps/activity_id/1/all")
         assert response.status_code == 200
 
-    @patch("activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
+    @patch("modules.activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

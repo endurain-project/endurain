@@ -1,6 +1,6 @@
 """Tests for MFA reads sourced from the ``users_mfa`` table.
 
-Verifies that MFA logic in ``auth.mfa.service`` derives MFA state from
+Verifies that MFA logic in ``modules.auth.mfa.service`` derives MFA state from
 ``user.auth_mfa`` (the ``users_mfa`` row). Since the legacy ``users`` MFA
 columns were dropped, ``Users.mfa_enabled`` is a property computed from
 ``auth_mfa``; these tests configure the mock's ``mfa_enabled`` to mirror the
@@ -13,9 +13,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, status
 
-import auth.mfa.models as auth_mfa_models
-import auth.mfa.service as mfa_service
-import users.users.models as users_models
+import modules.auth.mfa.models as auth_mfa_models
+import modules.auth.mfa.service as mfa_service
+import modules.users.users.models as users_models
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -55,7 +55,7 @@ def _make_user(
 def _patch_get_user(user: MagicMock) -> Any:
     """Patch users_utils.get_user_by_id_or_404 to return a user."""
     return patch(
-        "auth.mfa.service.users_utils.get_user_by_id_or_404",
+        "modules.auth.mfa.service.users_utils.get_user_by_id_or_404",
         return_value=user,
     )
 
@@ -182,7 +182,7 @@ class TestVerifyUserMFAReadSwitch:
             user = mfa_service.users_utils.get_user_by_id_or_404.return_value
             return getattr(user, "auth_mfa", None)
 
-        with patch("auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
+        with patch("modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
             yield
 
     def test_returns_false_when_auth_mfa_disabled(self, mock_db):
@@ -221,7 +221,7 @@ class TestVerifyUserMFAReadSwitch:
         with (
             _patch_get_user(user),
             patch(
-                "auth.mfa.service.core_cryptography.decrypt_token_fernet",
+                "modules.auth.mfa.service.core_cryptography.decrypt_token_fernet",
                 return_value=None,  # decrypt fails → returns False cleanly
             ) as mock_decrypt,
         ):
@@ -251,7 +251,7 @@ class TestIsMFAEnabledForUserReadSwitch:
             user = mfa_service.users_utils.get_user_by_id_or_404.return_value
             return getattr(user, "auth_mfa", None)
 
-        with patch("auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
+        with patch("modules.auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
             yield
 
     def test_returns_true_when_auth_mfa_enabled_with_secret(self, mock_db):
@@ -292,7 +292,7 @@ class TestIsMFAEnabledForUserReadSwitch:
     def test_returns_false_when_user_not_found(self, mock_db):
         """Returns False when user does not exist."""
         with patch(
-            "auth.mfa.service.users_utils.get_user_by_id_or_404",
+            "modules.auth.mfa.service.users_utils.get_user_by_id_or_404",
             side_effect=HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",

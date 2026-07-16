@@ -7,9 +7,9 @@ from fastapi import HTTPException
 class TestCreateAndNotify:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.models as m
-        import notifications.schema as s
-        from notifications.utils import _create_and_notify
+        import modules.notifications.models as m
+        import modules.notifications.schema as s
+        from modules.notifications.utils import _create_and_notify
 
         mock_notification = MagicMock(spec=m.Notification, id=1)
         mock_ws_manager = MagicMock()
@@ -17,9 +17,9 @@ class TestCreateAndNotify:
 
         with (
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             result = await _create_and_notify(
                 notification_data=MagicMock(spec=s.NotificationCreate),
@@ -44,9 +44,9 @@ class TestCreateAndNotify:
 class TestCreateNewActivityNotification:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.constants as c
-        import notifications.models as m
-        from notifications.utils import create_new_activity_notification
+        import modules.notifications.constants as c
+        import modules.notifications.models as m
+        from modules.notifications.utils import create_new_activity_notification
 
         mock_notification = MagicMock(spec=m.Notification, id=1)
         mock_ws_manager = MagicMock()
@@ -57,11 +57,11 @@ class TestCreateNewActivityNotification:
         mock_session_local = MagicMock(return_value=mock_session)
 
         with (
-            patch("notifications.utils.SessionLocal", mock_session_local),
+            patch("modules.notifications.utils.SessionLocal", mock_session_local),
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             result = await create_new_activity_notification(
                 user_id=1,
@@ -76,14 +76,14 @@ class TestCreateNewActivityNotification:
 
     @pytest.mark.asyncio
     async def test_http_exception_propagates(self):
-        from notifications.utils import create_new_activity_notification
+        from modules.notifications.utils import create_new_activity_notification
 
         mock_ws_manager = MagicMock()
 
         with (
-            patch("notifications.utils.SessionLocal"),
+            patch("modules.notifications.utils.SessionLocal"),
             patch(
-                "notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification",
                 side_effect=HTTPException(status_code=404, detail="Not found"),
             ),
         ):
@@ -97,13 +97,13 @@ class TestCreateNewActivityNotification:
 
     @pytest.mark.asyncio
     async def test_generic_exception_raises_500(self):
-        from notifications.utils import create_new_activity_notification
+        from modules.notifications.utils import create_new_activity_notification
 
         mock_ws_manager = MagicMock()
 
         with (
-            patch("notifications.utils.SessionLocal"),
-            patch("notifications.utils.notifications_crud.create_notification", side_effect=ValueError("boom")),
+            patch("modules.notifications.utils.SessionLocal"),
+            patch("modules.notifications.utils.notifications_crud.create_notification", side_effect=ValueError("boom")),
         ):
             with pytest.raises(HTTPException) as e:
                 await create_new_activity_notification(
@@ -117,9 +117,9 @@ class TestCreateNewActivityNotification:
 class TestCreateNewDuplicateStartTimeActivityNotification:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.constants as c
-        import notifications.models as m
-        from notifications.utils import create_new_duplicate_start_time_activity_notification
+        import modules.notifications.constants as c
+        import modules.notifications.models as m
+        from modules.notifications.utils import create_new_duplicate_start_time_activity_notification
 
         mock_notification = MagicMock(spec=m.Notification, id=1)
         mock_ws_manager = MagicMock()
@@ -130,11 +130,11 @@ class TestCreateNewDuplicateStartTimeActivityNotification:
         mock_session_local = MagicMock(return_value=mock_session)
 
         with (
-            patch("notifications.utils.SessionLocal", mock_session_local),
+            patch("modules.notifications.utils.SessionLocal", mock_session_local),
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             result = await create_new_duplicate_start_time_activity_notification(
                 user_id=1,
@@ -149,7 +149,7 @@ class TestCreateNewDuplicateStartTimeActivityNotification:
 
     @pytest.mark.asyncio
     async def test_http_exception_propagates(self):
-        from notifications.utils import create_new_duplicate_start_time_activity_notification
+        from modules.notifications.utils import create_new_duplicate_start_time_activity_notification
 
         mock_ws_manager = MagicMock()
 
@@ -159,9 +159,9 @@ class TestCreateNewDuplicateStartTimeActivityNotification:
         mock_session_local = MagicMock(return_value=mock_session)
 
         with (
-            patch("notifications.utils.SessionLocal", mock_session_local),
+            patch("modules.notifications.utils.SessionLocal", mock_session_local),
             patch(
-                "notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification",
                 side_effect=HTTPException(status_code=400, detail="Bad"),
             ),
         ):
@@ -175,7 +175,7 @@ class TestCreateNewDuplicateStartTimeActivityNotification:
 
     @pytest.mark.asyncio
     async def test_generic_exception_raises_500(self):
-        from notifications.utils import create_new_duplicate_start_time_activity_notification
+        from modules.notifications.utils import create_new_duplicate_start_time_activity_notification
 
         mock_ws_manager = MagicMock()
 
@@ -185,8 +185,10 @@ class TestCreateNewDuplicateStartTimeActivityNotification:
         mock_session_local = MagicMock(return_value=mock_session)
 
         with (
-            patch("notifications.utils.SessionLocal", mock_session_local),
-            patch("notifications.utils.notifications_crud.create_notification", side_effect=RuntimeError("fail")),
+            patch("modules.notifications.utils.SessionLocal", mock_session_local),
+            patch(
+                "modules.notifications.utils.notifications_crud.create_notification", side_effect=RuntimeError("fail")
+            ),
         ):
             with pytest.raises(HTTPException) as e:
                 await create_new_duplicate_start_time_activity_notification(
@@ -200,10 +202,10 @@ class TestCreateNewDuplicateStartTimeActivityNotification:
 class TestCreateNewFollowerRequestNotification:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.constants as c
-        import notifications.models as m
-        import users.users.models as u_models
-        from notifications.utils import create_new_follower_request_notification
+        import modules.notifications.constants as c
+        import modules.notifications.models as m
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_new_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="follower_user")
         mock_user.name = "Follower"
@@ -212,11 +214,11 @@ class TestCreateNewFollowerRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
+            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             result = await create_new_follower_request_notification(
                 user_id=5,
@@ -238,12 +240,12 @@ class TestCreateNewFollowerRequestNotification:
 
     @pytest.mark.asyncio
     async def test_user_not_found_raises_404(self):
-        from notifications.utils import create_new_follower_request_notification
+        from modules.notifications.utils import create_new_follower_request_notification
 
         mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
-        with patch("notifications.utils.users_crud.get_user_by_id", return_value=None):
+        with patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=None):
             with pytest.raises(HTTPException) as e:
                 await create_new_follower_request_notification(
                     user_id=999,
@@ -255,8 +257,8 @@ class TestCreateNewFollowerRequestNotification:
 
     @pytest.mark.asyncio
     async def test_http_exception_propagates(self):
-        import users.users.models as u_models
-        from notifications.utils import create_new_follower_request_notification
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_new_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="follower_user")
         mock_user.name = "Follower"
@@ -264,9 +266,9 @@ class TestCreateNewFollowerRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
+            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification",
                 side_effect=HTTPException(status_code=409, detail="Conflict"),
             ),
         ):
@@ -281,8 +283,8 @@ class TestCreateNewFollowerRequestNotification:
 
     @pytest.mark.asyncio
     async def test_generic_exception_raises_500(self):
-        import users.users.models as u_models
-        from notifications.utils import create_new_follower_request_notification
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_new_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="follower_user")
         mock_user.name = "Follower"
@@ -290,8 +292,10 @@ class TestCreateNewFollowerRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
-            patch("notifications.utils.notifications_crud.create_notification", side_effect=KeyError("missing")),
+            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
+            patch(
+                "modules.notifications.utils.notifications_crud.create_notification", side_effect=KeyError("missing")
+            ),
         ):
             with pytest.raises(HTTPException) as e:
                 await create_new_follower_request_notification(
@@ -306,10 +310,10 @@ class TestCreateNewFollowerRequestNotification:
 class TestCreateAcceptedFollowerRequestNotification:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.constants as c
-        import notifications.models as m
-        import users.users.models as u_models
-        from notifications.utils import create_accepted_follower_request_notification
+        import modules.notifications.constants as c
+        import modules.notifications.models as m
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_accepted_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="accepter_user")
         mock_user.name = "Accepter"
@@ -318,11 +322,11 @@ class TestCreateAcceptedFollowerRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
+            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             result = await create_accepted_follower_request_notification(
                 user_id=5,
@@ -344,12 +348,12 @@ class TestCreateAcceptedFollowerRequestNotification:
 
     @pytest.mark.asyncio
     async def test_user_not_found_raises_404(self):
-        from notifications.utils import create_accepted_follower_request_notification
+        from modules.notifications.utils import create_accepted_follower_request_notification
 
         mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
-        with patch("notifications.utils.users_crud.get_user_by_id", return_value=None):
+        with patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=None):
             with pytest.raises(HTTPException) as e:
                 await create_accepted_follower_request_notification(
                     user_id=999,
@@ -361,8 +365,8 @@ class TestCreateAcceptedFollowerRequestNotification:
 
     @pytest.mark.asyncio
     async def test_http_exception_propagates(self):
-        import users.users.models as u_models
-        from notifications.utils import create_accepted_follower_request_notification
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_accepted_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="accepter_user")
         mock_user.name = "Accepter"
@@ -370,9 +374,9 @@ class TestCreateAcceptedFollowerRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
+            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification",
                 side_effect=HTTPException(status_code=403, detail="Forbidden"),
             ),
         ):
@@ -387,8 +391,8 @@ class TestCreateAcceptedFollowerRequestNotification:
 
     @pytest.mark.asyncio
     async def test_generic_exception_raises_500(self):
-        import users.users.models as u_models
-        from notifications.utils import create_accepted_follower_request_notification
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_accepted_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="accepter_user")
         mock_user.name = "Accepter"
@@ -396,8 +400,8 @@ class TestCreateAcceptedFollowerRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
-            patch("notifications.utils.notifications_crud.create_notification", side_effect=ValueError("bad")),
+            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
+            patch("modules.notifications.utils.notifications_crud.create_notification", side_effect=ValueError("bad")),
         ):
             with pytest.raises(HTTPException) as e:
                 await create_accepted_follower_request_notification(
@@ -412,10 +416,10 @@ class TestCreateAcceptedFollowerRequestNotification:
 class TestCreateAdminNewSignUpApprovalRequestNotification:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.constants as c
-        import notifications.models as m
-        import users.users.models as u_models
-        from notifications.utils import create_admin_new_sign_up_approval_request_notification
+        import modules.notifications.constants as c
+        import modules.notifications.models as m
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_admin_new_sign_up_approval_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=1, username="newbie")
         mock_user.name = "New User"
@@ -429,11 +433,14 @@ class TestCreateAdminNewSignUpApprovalRequestNotification:
         mock_notification = MagicMock(spec=m.Notification, id=1)
 
         with (
-            patch("notifications.utils.users_utils.get_admin_users_or_404", return_value=[mock_admin1, mock_admin2]),
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.users_utils.get_admin_users_or_404",
+                return_value=[mock_admin1, mock_admin2],
+            ),
+            patch(
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             await create_admin_new_sign_up_approval_request_notification(
                 user=mock_user,
@@ -455,8 +462,8 @@ class TestCreateAdminNewSignUpApprovalRequestNotification:
 
     @pytest.mark.asyncio
     async def test_http_exception_propagates(self):
-        import users.users.models as u_models
-        from notifications.utils import create_admin_new_sign_up_approval_request_notification
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_admin_new_sign_up_approval_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=1, username="newbie")
         mock_user.name = "New User"
@@ -465,7 +472,7 @@ class TestCreateAdminNewSignUpApprovalRequestNotification:
 
         with (
             patch(
-                "notifications.utils.users_utils.get_admin_users_or_404",
+                "modules.notifications.utils.users_utils.get_admin_users_or_404",
                 side_effect=HTTPException(status_code=404, detail="No admins"),
             ),
         ):
@@ -479,8 +486,8 @@ class TestCreateAdminNewSignUpApprovalRequestNotification:
 
     @pytest.mark.asyncio
     async def test_generic_exception_raises_500(self):
-        import users.users.models as u_models
-        from notifications.utils import create_admin_new_sign_up_approval_request_notification
+        import modules.users.users.models as u_models
+        from modules.notifications.utils import create_admin_new_sign_up_approval_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=1, username="newbie")
         mock_user.name = "New User"
@@ -488,7 +495,9 @@ class TestCreateAdminNewSignUpApprovalRequestNotification:
         mock_db = MagicMock()
 
         with (
-            patch("notifications.utils.users_utils.get_admin_users_or_404", side_effect=RuntimeError("unexpected")),
+            patch(
+                "modules.notifications.utils.users_utils.get_admin_users_or_404", side_effect=RuntimeError("unexpected")
+            ),
         ):
             with pytest.raises(HTTPException) as e:
                 await create_admin_new_sign_up_approval_request_notification(
@@ -502,19 +511,19 @@ class TestCreateAdminNewSignUpApprovalRequestNotification:
 class TestCreateGarminTokenExpiredNotification:
     @pytest.mark.asyncio
     async def test_success(self):
-        import notifications.constants as c
-        import notifications.models as m
-        from notifications.utils import create_garmin_token_expired_notification
+        import modules.notifications.constants as c
+        import modules.notifications.models as m
+        from modules.notifications.utils import create_garmin_token_expired_notification
 
         mock_notification = MagicMock(spec=m.Notification, id=1)
         mock_ws_manager = MagicMock()
 
         with (
-            patch("notifications.utils.SessionLocal"),
+            patch("modules.notifications.utils.SessionLocal"),
             patch(
-                "notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
+            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
             await create_garmin_token_expired_notification(
                 user_id=42,
@@ -529,7 +538,7 @@ class TestCreateGarminTokenExpiredNotification:
 
     @pytest.mark.asyncio
     async def test_http_exception_propagates(self):
-        from notifications.utils import create_garmin_token_expired_notification
+        from modules.notifications.utils import create_garmin_token_expired_notification
 
         mock_ws_manager = MagicMock()
 
@@ -539,9 +548,9 @@ class TestCreateGarminTokenExpiredNotification:
         mock_session_local = MagicMock(return_value=mock_session)
 
         with (
-            patch("notifications.utils.SessionLocal", mock_session_local),
+            patch("modules.notifications.utils.SessionLocal", mock_session_local),
             patch(
-                "notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification",
                 side_effect=HTTPException(status_code=500, detail="err"),
             ),
         ):
@@ -554,7 +563,7 @@ class TestCreateGarminTokenExpiredNotification:
 
     @pytest.mark.asyncio
     async def test_generic_exception_raises_500(self):
-        from notifications.utils import create_garmin_token_expired_notification
+        from modules.notifications.utils import create_garmin_token_expired_notification
 
         mock_ws_manager = MagicMock()
 
@@ -564,8 +573,8 @@ class TestCreateGarminTokenExpiredNotification:
         mock_session_local = MagicMock(return_value=mock_session)
 
         with (
-            patch("notifications.utils.SessionLocal", mock_session_local),
-            patch("notifications.utils.notifications_crud.create_notification", side_effect=ValueError("oops")),
+            patch("modules.notifications.utils.SessionLocal", mock_session_local),
+            patch("modules.notifications.utils.notifications_crud.create_notification", side_effect=ValueError("oops")),
         ):
             with pytest.raises(HTTPException) as e:
                 await create_garmin_token_expired_notification(

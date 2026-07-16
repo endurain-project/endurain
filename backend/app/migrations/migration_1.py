@@ -4,12 +4,12 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-import activities.activity.crud as activities_crud
-import activities.activity.utils as activities_utils
-import activities.activity_streams.constants as activity_streams_constants
-import activities.activity_streams.crud as activity_streams_crud
 import core.logger as core_logger
 import migrations.crud as migrations_crud
+import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.crud as activity_streams_crud
 
 
 def _optional_float_to_int(value: float | None) -> int | None:

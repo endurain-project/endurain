@@ -3770,7 +3770,7 @@ export interface paths {
          *     6-digit TOTP or an unused ``XXXX-XXXX`` backup code — the
          *     same set of factors accepted at login. Step-up verification
          *     is the single source of truth for the MFA check;
-         *     :func:`auth.mfa.service.disable_user_mfa` only clears state.
+         *     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state.
          *
          *     Args:
          *         request: MFA disable request with current password and
@@ -3813,10 +3813,10 @@ export interface paths {
          *     current password before the binding is committed. The TOTP
          *     code in the request body is the fresh enrolment code from the
          *     user's authenticator app and is verified separately by
-         *     :func:`auth.mfa.service.enable_user_mfa` against the secret
+         *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
          *     issued by ``POST /profile/mfa/setup``. SSO-only accounts may
          *     omit ``current_password`` (see
-         *     :func:`auth._internal.services.step_up_service.verify_step_up_credentials`).
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`).
          *
          *     Args:
          *         request: MFA setup request with TOTP code and (when the
@@ -7075,7 +7075,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Data source for the record */
-            source?: components["schemas"]["health__health_fasting__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7194,7 +7194,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Data source for the record */
-            source?: components["schemas"]["health__health_fasting__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7287,7 +7287,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Data source for the record */
-            source?: components["schemas"]["health__health_fasting__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7323,7 +7323,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Source of the data */
-            source?: components["schemas"]["health__health_poop__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
         };
         /**
          * HealthPoopDashboard
@@ -7398,7 +7398,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Source of the data */
-            source?: components["schemas"]["health__health_poop__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7433,7 +7433,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Source of the data */
-            source?: components["schemas"]["health__health_poop__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7605,7 +7605,7 @@ export interface components {
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
             /** @description Source of the sleep data */
-            source?: components["schemas"]["health__health_sleep__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -7857,7 +7857,7 @@ export interface components {
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
             /** @description Source of the sleep data */
-            source?: components["schemas"]["health__health_sleep__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -8079,7 +8079,7 @@ export interface components {
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
             /** @description Source of the sleep data */
-            source?: components["schemas"]["health__health_sleep__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -8110,7 +8110,7 @@ export interface components {
              */
             date?: string | null;
             /** @description Source of the steps data */
-            source?: components["schemas"]["health__health_steps__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -8188,7 +8188,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the steps data */
-            source?: components["schemas"]["health__health_steps__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -8220,7 +8220,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the steps data */
-            source?: components["schemas"]["health__health_steps__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -8349,7 +8349,7 @@ export interface components {
              */
             date?: string | null;
             /** @description Source of the water intake data */
-            source?: components["schemas"]["health__health_water__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
         };
         /**
          * HealthWaterDashboard
@@ -8420,7 +8420,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the water intake data */
-            source?: components["schemas"]["health__health_water__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8451,7 +8451,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the water intake data */
-            source?: components["schemas"]["health__health_water__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8507,7 +8507,7 @@ export interface components {
              */
             physique_rating?: number | null;
             /** @description Source of the weight data */
-            source?: components["schemas"]["health__health_weight__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * Visceral Fat
              * @description Visceral fat
@@ -8631,7 +8631,7 @@ export interface components {
              */
             physique_rating?: number | null;
             /** @description Source of the weight data */
-            source?: components["schemas"]["health__health_weight__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8703,7 +8703,7 @@ export interface components {
              */
             physique_rating?: number | null;
             /** @description Source of the weight data */
-            source?: components["schemas"]["health__health_weight__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -9401,7 +9401,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -9474,7 +9474,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -10228,7 +10228,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -10545,7 +10545,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth._internal.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -11091,7 +11091,7 @@ export interface components {
             /** @description Type of goal metric being tracked */
             goal_type: components["schemas"]["GoalType"];
             /** @description Goal time interval */
-            interval: components["schemas"]["users__users_goals__schema__Interval"];
+            interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
         };
         /**
          * UsersGoalProgress
@@ -11286,7 +11286,7 @@ export interface components {
              */
             id: number;
             /** @description Goal time interval */
-            interval: components["schemas"]["users__users_goals__schema__Interval"];
+            interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
             /**
              * User Id
              * @description User who owns this goal
@@ -12175,7 +12175,7 @@ export interface components {
          *         mfa_code: The MFA code to verify (6-digit TOTP or
          *             9-char backup code).
          */
-        auth__mfa__schema__MFARequest: {
+        modules__auth__mfa__schema__MFARequest: {
             /**
              * Mfa Code
              * @description MFA code (6-digit TOTP or XXXX-XXXX)
@@ -12183,7 +12183,7 @@ export interface components {
             mfa_code: string;
         };
         /** MFARequest */
-        garmin__schema__MFARequest: {
+        modules__garmin__schema__MFARequest: {
             /** Mfa Code */
             mfa_code: string;
         };
@@ -12199,7 +12199,7 @@ export interface components {
          *         ALL_TIME: All time interval.
          * @enum {string}
          */
-        health__constants__Interval: "last_7_days" | "last_30_days" | "last_90_days" | "last_year" | "all_time";
+        modules__health__constants__Interval: "last_7_days" | "last_30_days" | "last_90_days" | "last_year" | "all_time";
         /**
          * Source
          * @description Enumeration of data sources for fasting records.
@@ -12209,7 +12209,7 @@ export interface components {
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        health__health_fasting__schema__Source: "manual" | "garmin";
+        modules__health__health_fasting__schema__Source: "manual" | "garmin";
         /**
          * Source
          * @description Enumeration of data sources for poop records.
@@ -12218,7 +12218,7 @@ export interface components {
          *         MANUAL: Manually entered data.
          * @enum {string}
          */
-        health__health_poop__schema__Source: "manual";
+        modules__health__health_poop__schema__Source: "manual";
         /**
          * Source
          * @description Enum representing the source of sleep health data.
@@ -12227,7 +12227,7 @@ export interface components {
          *         GARMIN: Sleep data sourced from Garmin devices or services.
          * @enum {string}
          */
-        health__health_sleep__schema__Source: "garmin";
+        modules__health__health_sleep__schema__Source: "garmin";
         /**
          * Source
          * @description An enumeration representing supported sources for the application.
@@ -12236,7 +12236,7 @@ export interface components {
          *         GARMIN: Garmin health data source
          * @enum {string}
          */
-        health__health_steps__schema__Source: "garmin";
+        modules__health__health_steps__schema__Source: "garmin";
         /**
          * Source
          * @description Enumeration of data sources for water intake records.
@@ -12246,7 +12246,7 @@ export interface components {
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        health__health_water__schema__Source: "manual" | "garmin";
+        modules__health__health_water__schema__Source: "manual" | "garmin";
         /**
          * Source
          * @description Enumeration of data sources for health weight records.
@@ -12255,7 +12255,7 @@ export interface components {
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        health__health_weight__schema__Source: "garmin";
+        modules__health__health_weight__schema__Source: "garmin";
         /**
          * Interval
          * @description Recurrence intervals for user goals.
@@ -12267,7 +12267,7 @@ export interface components {
          *         YEARLY: Yearly recurrence interval.
          * @enum {string}
          */
-        users__users_goals__schema__Interval: "daily" | "weekly" | "monthly" | "yearly";
+        modules__users__users_goals__schema__Interval: "daily" | "weekly" | "monthly" | "yearly";
     };
     responses: never;
     parameters: never;
@@ -13931,7 +13931,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["garmin__schema__MFARequest"];
+                "application/json": components["schemas"]["modules__garmin__schema__MFARequest"];
             };
         };
         responses: {
@@ -14406,7 +14406,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14643,7 +14643,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14805,7 +14805,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14956,7 +14956,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -15140,7 +15140,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -15271,7 +15271,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -16030,7 +16030,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["users__users_goals__schema__Interval"] | null;
+                interval?: components["schemas"]["modules__users__users_goals__schema__Interval"] | null;
                 /** @description Filter by activity type */
                 activity_type?: components["schemas"]["ActivityType"] | null;
                 /** @description Filter by goal type */
@@ -16538,7 +16538,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["auth__mfa__schema__MFARequest"];
+                "application/json": components["schemas"]["modules__auth__mfa__schema__MFARequest"];
             };
         };
         responses: {

@@ -1,6 +1,6 @@
 """Tests for shared activity file import utilities."""
 
-import activities.activity_file_import.utils as afi_utils
+import modules.activities.activity_file_import.utils as afi_utils
 
 
 class TestComputeDistanceFromWaypoints:

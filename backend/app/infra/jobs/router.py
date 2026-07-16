@@ -7,10 +7,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Security, status
 from sqlalchemy.orm import Session
 
-import auth.dependencies as auth_dependencies
 import core.database as core_database
 import infra.jobs.crud as jobs_crud
 import infra.jobs.schema as jobs_schema
+import modules.auth.dependencies as auth_dependencies
 
 # Define the API router
 router = APIRouter()

@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
     import core.dependencies as core_deps
-    import gears.gear.dependencies as gear_deps
-    import gears.gear.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.gears.gear.dependencies as gear_deps
+    import modules.gears.gear.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/gears")
@@ -30,10 +30,10 @@ def _build_app(mock_db):
 
 
 class TestReadGearsUserAllPagination:
-    @patch("gears.gear.router.gears_crud.get_gears_number")
-    @patch("gears.gear.router.gears_crud.get_gear_users_with_pagination")
+    @patch("modules.gears.gear.router.gears_crud.get_gears_number")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_users_with_pagination")
     def test_list_success(self, mock_paginated, mock_number, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         mock_paginated.return_value = [GearRead(id=1, user_id=1, nickname="Bike", gear_type=1)]
@@ -44,8 +44,8 @@ class TestReadGearsUserAllPagination:
         data = response.json()
         assert data["total"] == 1
 
-    @patch("gears.gear.router.gears_crud.get_gears_number")
-    @patch("gears.gear.router.gears_crud.get_gear_users_with_pagination")
+    @patch("modules.gears.gear.router.gears_crud.get_gears_number")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_users_with_pagination")
     def test_list_empty(self, mock_paginated, mock_number, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_paginated.return_value = []
@@ -59,11 +59,11 @@ class TestReadGearsUserAllPagination:
 
 
 class TestReadGearById:
-    @patch("gears.gear.router.gears_crud.get_gear_components_total_cost")
-    @patch("gears.gear.router.gears_crud.get_gear_activity_stats")
-    @patch("gears.gear.router.gears_crud.get_gear_user_by_id")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_components_total_cost")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_activity_stats")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_id")
     def test_success(self, mock_get, mock_stats, mock_cost, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         gear = GearRead(id=1, user_id=1, nickname="Bike", gear_type=1, initial_kms=100.0)
@@ -74,7 +74,7 @@ class TestReadGearById:
         response = client.get("/gears/id/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("gears.gear.router.gears_crud.get_gear_user_by_id")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -85,9 +85,9 @@ class TestReadGearById:
 
 
 class TestReadGearByNickname:
-    @patch("gears.gear.router.gears_crud.get_gear_user_contains_nickname")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_user_contains_nickname")
     def test_contains_success(self, mock_get, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [GearRead(id=1, user_id=1, nickname="Mountain Bike", gear_type=1)]
@@ -95,9 +95,9 @@ class TestReadGearByNickname:
         response = client.get("/gears/nickname/contains/Mountain", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("gears.gear.router.gears_crud.get_gear_user_by_nickname")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_nickname")
     def test_exact_success(self, mock_get, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = GearRead(id=1, user_id=1, nickname="Bike", gear_type=1)
@@ -105,7 +105,7 @@ class TestReadGearByNickname:
         response = client.get("/gears/nickname/Bike", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("gears.gear.router.gears_crud.get_gear_user_by_nickname")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_user_by_nickname")
     def test_exact_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -116,9 +116,9 @@ class TestReadGearByNickname:
 
 
 class TestReadGearByType:
-    @patch("gears.gear.router.gears_crud.get_gear_by_type_and_user")
+    @patch("modules.gears.gear.router.gears_crud.get_gear_by_type_and_user")
     def test_success(self, mock_get, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [GearRead(id=1, user_id=1, nickname="Bike", gear_type=1)]
@@ -128,9 +128,9 @@ class TestReadGearByType:
 
 
 class TestCreateGear:
-    @patch("gears.gear.router.gears_crud.create_gear")
+    @patch("modules.gears.gear.router.gears_crud.create_gear")
     def test_create_success(self, mock_create, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         mock_create.return_value = GearRead(id=1, user_id=1, nickname="New Bike", gear_type=1)
@@ -144,9 +144,9 @@ class TestCreateGear:
 
 
 class TestEditGear:
-    @patch("gears.gear.router.gears_crud.edit_gear")
+    @patch("modules.gears.gear.router.gears_crud.edit_gear")
     def test_edit_success(self, mock_edit, mock_db):
-        from gears.gear.schema import GearRead
+        from modules.gears.gear.schema import GearRead
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = GearRead(id=1, user_id=1, nickname="Updated Bike", gear_type=1)
@@ -158,7 +158,7 @@ class TestEditGear:
         )
         assert response.status_code == 200
 
-    @patch("gears.gear.router.gears_crud.edit_gear")
+    @patch("modules.gears.gear.router.gears_crud.edit_gear")
     def test_edit_not_found(self, mock_edit, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_edit.side_effect = HTTPException(
@@ -175,7 +175,7 @@ class TestEditGear:
 
 
 class TestDeleteGear:
-    @patch("gears.gear.router.gears_crud.delete_gear")
+    @patch("modules.gears.gear.router.gears_crud.delete_gear")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_delete.return_value = None
@@ -183,7 +183,7 @@ class TestDeleteGear:
         response = client.delete("/gears/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
 
-    @patch("gears.gear.router.gears_crud.delete_gear")
+    @patch("modules.gears.gear.router.gears_crud.delete_gear")
     def test_delete_not_found(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_delete.side_effect = HTTPException(

@@ -9,9 +9,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
-import users.users_profile.export_service as profile_export_service
-import users.users_profile.utils as profile_utils
-from users.users_profile.exceptions import (
+import modules.users.users_profile.export_service as profile_export_service
+import modules.users.users_profile.utils as profile_utils
+from modules.users.users_profile.exceptions import (
     DatabaseConnectionError,
     DataCollectionError,
     ExportTimeoutError,
@@ -147,7 +147,7 @@ class TestExportServiceCollectUserActivities:
         mock_activity = _make_activity_mock(1)
 
         with patch(
-            "users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
+            "modules.users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
             return_value=[mock_activity],
         ):
             result = service._get_activities_batch(0, 10)
@@ -161,7 +161,7 @@ class TestExportServiceCollectUserActivities:
 
         with (
             patch(
-                "users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
+                "modules.users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
                 side_effect=Exception("db error"),
             ),
             pytest.raises(Exception, match="db error"),
@@ -276,9 +276,10 @@ class TestExportServiceCollectGearData:
             service.performance_config.enable_memory_monitoring = False
 
             with (
-                patch("users.users_profile.export_service.gear_crud.get_gear_user", return_value=[]),
+                patch("modules.users.users_profile.export_service.gear_crud.get_gear_user", return_value=[]),
                 patch(
-                    "users.users_profile.export_service.gear_components_crud.get_gear_components_user", return_value=[]
+                    "modules.users.users_profile.export_service.gear_components_crud.get_gear_components_user",
+                    return_value=[],
                 ),
             ):
                 service.collect_gear_data(z)
@@ -293,7 +294,7 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     return_value=mock_gears,
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -310,7 +311,7 @@ class TestExportServiceCollectGearData:
             service.performance_config.enable_memory_monitoring = False
 
             with patch(
-                "users.users_profile.export_service.gear_crud.get_gear_user",
+                "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                 return_value=[],
             ):
                 service.collect_gear_data(z)
@@ -327,7 +328,7 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     side_effect=Exception("unexpected"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -343,11 +344,11 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.gear_components_crud.get_gear_components_user",
+                    "modules.users.users_profile.export_service.gear_components_crud.get_gear_components_user",
                     side_effect=Exception("components fail"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -366,11 +367,11 @@ class TestExportServiceCollectHealthWeight:
 
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     return_value=mock_health,
                 ),
                 patch(
-                    "users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
+                    "modules.users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -388,7 +389,7 @@ class TestExportServiceCollectHealthWeight:
 
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     side_effect=Exception("unexpected"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -404,11 +405,11 @@ class TestExportServiceCollectHealthWeight:
 
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
+                    "modules.users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
                     return_value=None,
                 ),
             ):
@@ -425,19 +426,19 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     return_value=None,
                 ),
             ):
@@ -452,19 +453,19 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     return_value=[MagicMock()],
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -484,19 +485,19 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     return_value=None,
                 ),
             ):
@@ -515,7 +516,7 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     side_effect=Exception("fail"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -800,7 +801,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
                 patch(
-                    "users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
+                    "modules.users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
                     return_value=[MagicMock(), MagicMock()],
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"title": "t"}),
@@ -823,7 +824,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
                 patch(
-                    "users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
+                    "modules.users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
                     side_effect=Exception("boom"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1126,7 +1127,7 @@ class TestExportServiceDbErrorWrapsDataCollectionError:
             service.performance_config.enable_memory_monitoring = False
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1139,7 +1140,7 @@ class TestExportServiceDbErrorWrapsDataCollectionError:
             service.performance_config.enable_memory_monitoring = False
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1160,19 +1161,19 @@ class TestExportServiceCollectUserSettingsEdgeCases:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     side_effect=Exception("gear fail"),
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     side_effect=Exception("goals fail"),
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     side_effect=Exception("integrations fail"),
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     side_effect=Exception("privacy fail"),
                 ),
                 patch.object(profile_utils, "write_json_to_zip"),
@@ -1190,7 +1191,7 @@ class TestExportServiceCollectUserSettingsEdgeCases:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1557,7 +1558,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch(
-                "users.users_profile.export_service.zipfile.ZipFile",
+                "modules.users.users_profile.export_service.zipfile.ZipFile",
                 side_effect=zipfile.BadZipFile("corrupt"),
             ),
             pytest.raises(ZipCreationError),
@@ -1572,7 +1573,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch(
-                "users.users_profile.export_service.zipfile.ZipFile",
+                "modules.users.users_profile.export_service.zipfile.ZipFile",
                 side_effect=zipfile.LargeZipFile("too large"),
             ),
             pytest.raises(ZipCreationError),

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 @pytest.fixture(autouse=True)
 def _patch_transform_users():
     """Patch _transform_users to a passthrough so tests can use MagicMock users."""
-    with patch("users.users.crud._transform_users", side_effect=lambda x: x):
+    with patch("modules.users.users.crud._transform_users", side_effect=lambda x: x):
         yield
 
 
@@ -19,7 +19,7 @@ class TestGetAllUsers:
     """get_all_users: retrieve all users."""
 
     def test_success(self):
-        from users.users.crud import get_all_users
+        from modules.users.users.crud import get_all_users
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -30,7 +30,7 @@ class TestGetAllUsers:
         assert result == [mock_user]
 
     def test_empty(self):
-        from users.users.crud import get_all_users
+        from modules.users.users.crud import get_all_users
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -40,7 +40,7 @@ class TestGetAllUsers:
         assert result == []
 
     def test_db_error(self):
-        from users.users.crud import get_all_users
+        from modules.users.users.crud import get_all_users
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -54,7 +54,7 @@ class TestGetUsersNumber:
     """get_users_number: total user count."""
 
     def test_success(self):
-        from users.users.crud import get_users_number
+        from modules.users.users.crud import get_users_number
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalar_one.return_value = 42
@@ -64,7 +64,7 @@ class TestGetUsersNumber:
         assert result == 42
 
     def test_zero(self):
-        from users.users.crud import get_users_number
+        from modules.users.users.crud import get_users_number
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalar_one.return_value = 0
@@ -74,7 +74,7 @@ class TestGetUsersNumber:
         assert result == 0
 
     def test_filters_applied(self):
-        from users.users.crud import get_users_number
+        from modules.users.users.crud import get_users_number
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalar_one.return_value = 9
@@ -89,7 +89,7 @@ class TestGetUsersNumber:
         assert result == 9
 
     def test_db_error(self):
-        from users.users.crud import get_users_number
+        from modules.users.users.crud import get_users_number
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -103,7 +103,7 @@ class TestGetUsersWithPagination:
     """get_users_with_pagination: paginated list with optional filters."""
 
     def test_success_defaults(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -114,7 +114,7 @@ class TestGetUsersWithPagination:
         assert result == [mock_user]
 
     def test_with_pagination(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -125,7 +125,7 @@ class TestGetUsersWithPagination:
         assert result == [mock_user]
 
     def test_filter_inactive(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -135,7 +135,7 @@ class TestGetUsersWithPagination:
         assert result == []
 
     def test_filter_email_unverified(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -145,7 +145,7 @@ class TestGetUsersWithPagination:
         assert result == []
 
     def test_filter_pending_approval(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -155,7 +155,7 @@ class TestGetUsersWithPagination:
         assert result == []
 
     def test_empty(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -165,7 +165,7 @@ class TestGetUsersWithPagination:
         assert result == []
 
     def test_db_error(self):
-        from users.users.crud import get_users_with_pagination
+        from modules.users.users.crud import get_users_with_pagination
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -179,7 +179,7 @@ class TestGetUserByUsername:
     """get_user_by_username: exact and partial match."""
 
     def test_exact_match_found(self):
-        from users.users.crud import get_user_by_username
+        from modules.users.users.crud import get_user_by_username
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -190,7 +190,7 @@ class TestGetUserByUsername:
         assert result == mock_user
 
     def test_exact_match_not_found(self):
-        from users.users.crud import get_user_by_username
+        from modules.users.users.crud import get_user_by_username
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
@@ -200,7 +200,7 @@ class TestGetUserByUsername:
         assert result is None
 
     def test_contains_found(self):
-        from users.users.crud import get_user_by_username
+        from modules.users.users.crud import get_user_by_username
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -211,7 +211,7 @@ class TestGetUserByUsername:
         assert result == [mock_user]
 
     def test_contains_empty(self):
-        from users.users.crud import get_user_by_username
+        from modules.users.users.crud import get_user_by_username
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -221,7 +221,7 @@ class TestGetUserByUsername:
         assert result == []
 
     def test_db_error(self):
-        from users.users.crud import get_user_by_username
+        from modules.users.users.crud import get_user_by_username
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -235,7 +235,7 @@ class TestGetUserByEmail:
     """get_user_by_email: case-insensitive email lookup."""
 
     def test_found(self):
-        from users.users.crud import get_user_by_email
+        from modules.users.users.crud import get_user_by_email
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -246,7 +246,7 @@ class TestGetUserByEmail:
         assert result == mock_user
 
     def test_not_found(self):
-        from users.users.crud import get_user_by_email
+        from modules.users.users.crud import get_user_by_email
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
@@ -256,7 +256,7 @@ class TestGetUserByEmail:
         assert result is None
 
     def test_db_error(self):
-        from users.users.crud import get_user_by_email
+        from modules.users.users.crud import get_user_by_email
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -270,7 +270,7 @@ class TestGetUserById:
     """get_user_by_id: lookup by primary key with optional public_check."""
 
     def test_found(self):
-        from users.users.crud import get_user_by_id
+        from modules.users.users.crud import get_user_by_id
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -281,7 +281,7 @@ class TestGetUserById:
         assert result == mock_user
 
     def test_not_found(self):
-        from users.users.crud import get_user_by_id
+        from modules.users.users.crud import get_user_by_id
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
@@ -291,21 +291,23 @@ class TestGetUserById:
         assert result is None
 
     def test_public_check_disabled_by_settings(self):
-        from users.users.crud import get_user_by_id
+        from modules.users.users.crud import get_user_by_id
 
         mock_db = MagicMock(spec=Session)
         mock_settings = MagicMock()
         mock_settings.public_shareable_links = False
         mock_settings.public_shareable_links_user_info = True
 
-        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+        with patch(
+            "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+        ):
             result = get_user_by_id(1, mock_db, public_check=True)
 
         assert result is None
         mock_db.execute.assert_not_called()
 
     def test_public_check_enabled(self):
-        from users.users.crud import get_user_by_id
+        from modules.users.users.crud import get_user_by_id
 
         mock_db = MagicMock(spec=Session)
         mock_user = MagicMock()
@@ -314,13 +316,15 @@ class TestGetUserById:
         mock_settings.public_shareable_links_user_info = True
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_user
 
-        with patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings):
+        with patch(
+            "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+        ):
             result = get_user_by_id(1, mock_db, public_check=True)
 
         assert result == mock_user
 
     def test_db_error(self):
-        from users.users.crud import get_user_by_id
+        from modules.users.users.crud import get_user_by_id
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -334,7 +338,7 @@ class TestGetUsersAdmin:
     """get_users_admin: retrieve all admin users."""
 
     def test_success(self):
-        from users.users.crud import get_users_admin
+        from modules.users.users.crud import get_users_admin
 
         mock_db = MagicMock(spec=Session)
         mock_admin = MagicMock()
@@ -345,7 +349,7 @@ class TestGetUsersAdmin:
         assert result == [mock_admin]
 
     def test_empty(self):
-        from users.users.crud import get_users_admin
+        from modules.users.users.crud import get_users_admin
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
@@ -355,7 +359,7 @@ class TestGetUsersAdmin:
         assert result == []
 
     def test_db_error(self):
-        from users.users.crud import get_users_admin
+        from modules.users.users.crud import get_users_admin
 
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
@@ -369,7 +373,7 @@ class TestCreateUser:
     """create_user: admin user creation with password hashing."""
 
     def test_success(self):
-        from users.users.crud import create_user
+        from modules.users.users.crud import create_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -392,9 +396,11 @@ class TestCreateUser:
         mock_hashed = "hashed_password_123"
 
         with (
-            patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings),
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value=mock_hashed),
-            patch("users.users.crud.users_models.Users", return_value=mock_db_user),
+            patch(
+                "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+            ),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value=mock_hashed),
+            patch("modules.users.users.crud.users_models.Users", return_value=mock_db_user),
         ):
             result = create_user(mock_user_schema, mock_identity, mock_db)
 
@@ -405,7 +411,7 @@ class TestCreateUser:
         mock_db.refresh.assert_called_once_with(mock_db_user)
 
     def test_integrity_error(self):
-        from users.users.crud import create_user
+        from modules.users.users.crud import create_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -426,9 +432,11 @@ class TestCreateUser:
         ]
 
         with (
-            patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings),
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=MagicMock()),
+            patch(
+                "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+            ),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=MagicMock()),
         ):
             mock_db.add.side_effect = None
             # We need IntegrityError on commit, not add
@@ -443,7 +451,7 @@ class TestCreateUser:
         mock_db.rollback.assert_called_once()
 
     def test_db_error(self):
-        from users.users.crud import create_user
+        from modules.users.users.crud import create_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -459,9 +467,11 @@ class TestCreateUser:
         mock_settings.password_type = "strict"
 
         with (
-            patch("users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings),
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=MagicMock()),
+            patch(
+                "modules.users.users.crud.server_settings_utils.get_server_settings_or_404", return_value=mock_settings
+            ),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=MagicMock()),
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
@@ -474,7 +484,7 @@ class TestCreateSignupUser:
     """create_signup_user: signup with verification/approval logic."""
 
     def test_success_immediate_active(self):
-        from users.users.crud import create_signup_user
+        from modules.users.users.crud import create_signup_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -491,8 +501,8 @@ class TestCreateSignupUser:
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=mock_db_user),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=mock_db_user),
         ):
             result = create_signup_user(mock_user_schema, mock_settings, mock_identity, mock_db)
 
@@ -505,7 +515,7 @@ class TestCreateSignupUser:
 
     def test_sso_optout_skips_credential(self):
         """persist_credential=False must not hash or store a credential."""
-        from users.users.crud import create_signup_user
+        from modules.users.users.crud import create_signup_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -522,8 +532,10 @@ class TestCreateSignupUser:
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash") as mock_hash,
-            patch("users.users.crud.users_models.Users", return_value=mock_db_user),
+            patch(
+                "modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"
+            ) as mock_hash,
+            patch("modules.users.users.crud.users_models.Users", return_value=mock_db_user),
         ):
             result = create_signup_user(
                 mock_user_schema,
@@ -541,7 +553,7 @@ class TestCreateSignupUser:
         mock_identity.set_local_password_hash.assert_not_called()
 
     def test_success_with_email_verification(self):
-        from users.users.crud import create_signup_user
+        from modules.users.users.crud import create_signup_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -558,15 +570,15 @@ class TestCreateSignupUser:
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=mock_db_user),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=mock_db_user),
         ):
             result = create_signup_user(mock_user_schema, mock_settings, mock_identity, mock_db)
 
         assert result == mock_db_user
 
     def test_success_with_admin_approval(self):
-        from users.users.crud import create_signup_user
+        from modules.users.users.crud import create_signup_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -583,15 +595,15 @@ class TestCreateSignupUser:
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=mock_db_user),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=mock_db_user),
         ):
             result = create_signup_user(mock_user_schema, mock_settings, mock_identity, mock_db)
 
         assert result == mock_db_user
 
     def test_integrity_error(self):
-        from users.users.crud import create_signup_user
+        from modules.users.users.crud import create_signup_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -607,8 +619,8 @@ class TestCreateSignupUser:
         mock_identity = MagicMock()
 
         with (
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=MagicMock()),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=MagicMock()),
         ):
             mock_db.commit.side_effect = __import__("sqlalchemy.exc", fromlist=["IntegrityError"]).IntegrityError(
                 "mock", None, None
@@ -621,7 +633,7 @@ class TestCreateSignupUser:
         mock_db.rollback.assert_called_once()
 
     def test_db_error(self):
-        from users.users.crud import create_signup_user
+        from modules.users.users.crud import create_signup_user
 
         mock_db = MagicMock(spec=Session)
         mock_user_schema = MagicMock()
@@ -637,8 +649,8 @@ class TestCreateSignupUser:
         mock_identity = MagicMock()
 
         with (
-            patch("users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
-            patch("users.users.crud.users_models.Users", return_value=MagicMock()),
+            patch("modules.users.users.crud.auth_password_policy.validate_and_hash_for_user", return_value="hash"),
+            patch("modules.users.users.crud.users_models.Users", return_value=MagicMock()),
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
@@ -652,7 +664,7 @@ class TestEditUser:
 
     @pytest.mark.asyncio
     async def test_success(self):
-        from users.users.crud import edit_user
+        from modules.users.users.crud import edit_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -665,7 +677,7 @@ class TestEditUser:
         mock_user_schema.model_dump.return_value = {"username": "updateduser", "name": "Updated"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             result = await edit_user(1, mock_user_schema, mock_db)
 
@@ -675,7 +687,7 @@ class TestEditUser:
 
     @pytest.mark.asyncio
     async def test_success_with_height_change(self):
-        from users.users.crud import edit_user
+        from modules.users.users.crud import edit_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -689,8 +701,8 @@ class TestEditUser:
         mock_user_schema.model_dump.return_value = {"username": "updateduser", "height": 185}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.health_weight_utils.calculate_bmi_all_user_entries") as mock_bmi,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud.health_weight_utils.calculate_bmi_all_user_entries") as mock_bmi,
         ):
             # Simulate that height changes during refresh
             def refresh_side_effect():
@@ -705,7 +717,7 @@ class TestEditUser:
 
     @pytest.mark.asyncio
     async def test_with_photo_path_update(self):
-        from users.users.crud import edit_user
+        from modules.users.users.crud import edit_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -721,8 +733,10 @@ class TestEditUser:
         }
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock) as mock_del,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch(
+                "modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock
+            ) as mock_del,
         ):
             mock_db_user.photo_path = "new/path.jpg"
             result = await edit_user(1, mock_user_schema, mock_db)
@@ -736,7 +750,7 @@ class TestEditUser:
         includes ``mfa_enabled``, a read-only computed property on the
         Users model. edit_user must skip it instead of raising
         AttributeError via setattr (see PR #727 / issue #726)."""
-        from users.users.crud import edit_user
+        from modules.users.users.crud import edit_user
 
         class _FakeUser:
             def __init__(self):
@@ -766,8 +780,8 @@ class TestEditUser:
         }
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=fake_user),
-            patch("users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=fake_user),
+            patch("modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock),
         ):
             result = await edit_user(1, mock_user_schema, mock_db)
 
@@ -780,7 +794,7 @@ class TestEditUser:
 
     @pytest.mark.asyncio
     async def test_integrity_error(self):
-        from users.users.crud import edit_user
+        from modules.users.users.crud import edit_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -793,7 +807,7 @@ class TestEditUser:
         mock_user_schema.model_dump.return_value = {"username": "updateduser"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             mock_db.commit.side_effect = __import__("sqlalchemy.exc", fromlist=["IntegrityError"]).IntegrityError(
                 "mock", None, None
@@ -807,7 +821,7 @@ class TestEditUser:
 
     @pytest.mark.asyncio
     async def test_db_error(self):
-        from users.users.crud import edit_user
+        from modules.users.users.crud import edit_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -821,7 +835,7 @@ class TestEditUser:
         mock_user_schema.model_dump.return_value = {"username": "updateduser"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
@@ -835,7 +849,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_success(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -847,7 +861,7 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"name": "New Name", "username": "newname"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -857,7 +871,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_allow_list_filters_admin_fields(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -872,7 +886,7 @@ class TestEditProfileUser:
         }
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -884,7 +898,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_photo_path_traversal_rejected(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -898,7 +912,7 @@ class TestEditProfileUser:
         }
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -906,7 +920,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_photo_path_with_backslash_traversal_rejected(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -920,7 +934,7 @@ class TestEditProfileUser:
         }
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -928,7 +942,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_photo_path_with_dotdot_traversal_rejected(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -942,7 +956,7 @@ class TestEditProfileUser:
         }
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -950,7 +964,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_height_change_triggers_bmi_recalc(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -962,8 +976,8 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"height": 185}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.health_weight_utils.calculate_bmi_all_user_entries") as mock_bmi,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud.health_weight_utils.calculate_bmi_all_user_entries") as mock_bmi,
         ):
             mock_db.refresh.side_effect = lambda x: setattr(mock_db_user, "height", 185)
 
@@ -974,7 +988,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_max_heart_rate_change_triggers_hr_zone_recompute(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -988,8 +1002,8 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"max_heart_rate": 190}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
         ):
             mock_db.refresh.side_effect = lambda x: setattr(mock_db_user, "max_heart_rate", 190)
 
@@ -1000,7 +1014,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_unchanged_max_heart_rate_skips_hr_zone_recompute(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -1014,8 +1028,8 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"name": "Test"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -1024,7 +1038,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_photo_cleared_deletes_filesystem(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -1036,8 +1050,10 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"photo_path": None}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock) as mock_del,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch(
+                "modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock
+            ) as mock_del,
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 
@@ -1046,7 +1062,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_integrity_error(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -1057,7 +1073,7 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"name": "Test"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             mock_db.commit.side_effect = __import__("sqlalchemy.exc", fromlist=["IntegrityError"]).IntegrityError(
                 "mock", None, None
@@ -1069,7 +1085,7 @@ class TestEditProfileUser:
 
     @pytest.mark.asyncio
     async def test_db_error(self):
-        from users.users.crud import edit_profile_user
+        from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
@@ -1080,7 +1096,7 @@ class TestEditProfileUser:
         mock_profile.model_dump.return_value = {"name": "Test"}
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
@@ -1093,13 +1109,13 @@ class TestApproveUser:
     """approve_user: admin approval flow."""
 
     def test_success(self):
-        from users.users.crud import approve_user
+        from modules.users.users.crud import approve_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_db_user.email_verified = True
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             approve_user(1, mock_db)
 
         assert mock_db_user.active is True
@@ -1108,13 +1124,13 @@ class TestApproveUser:
         mock_db.refresh.assert_called_once()
 
     def test_email_not_verified(self):
-        from users.users.crud import approve_user
+        from modules.users.users.crud import approve_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_db_user.email_verified = False
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             with pytest.raises(HTTPException) as exc:
                 approve_user(1, mock_db)
             assert exc.value.status_code == 400
@@ -1122,13 +1138,13 @@ class TestApproveUser:
         mock_db.commit.assert_not_called()
 
     def test_db_error(self):
-        from users.users.crud import approve_user
+        from modules.users.users.crud import approve_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_db_user.email_verified = True
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
             with pytest.raises(HTTPException) as exc:
@@ -1140,14 +1156,14 @@ class TestVerifyUserEmail:
     """verify_user_email: email verification with conditional activation."""
 
     def test_success_without_admin_approval(self):
-        from users.users.crud import verify_user_email
+        from modules.users.users.crud import verify_user_email
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_settings = MagicMock()
         mock_settings.signup_require_admin_approval = False
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             verify_user_email(1, mock_settings, mock_db)
 
         assert mock_db_user.email_verified is True
@@ -1157,14 +1173,14 @@ class TestVerifyUserEmail:
         mock_db.refresh.assert_called_once()
 
     def test_success_with_admin_approval(self):
-        from users.users.crud import verify_user_email
+        from modules.users.users.crud import verify_user_email
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_settings = MagicMock()
         mock_settings.signup_require_admin_approval = True
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             verify_user_email(1, mock_settings, mock_db)
 
         assert mock_db_user.email_verified is True
@@ -1173,14 +1189,14 @@ class TestVerifyUserEmail:
         mock_db.refresh.assert_called_once()
 
     def test_db_error(self):
-        from users.users.crud import verify_user_email
+        from modules.users.users.crud import verify_user_email
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_settings = MagicMock()
         mock_settings.signup_require_admin_approval = False
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
             with pytest.raises(HTTPException) as exc:
@@ -1193,12 +1209,12 @@ class TestUpdateUserPhoto:
 
     @pytest.mark.asyncio
     async def test_set_photo(self):
-        from users.users.crud import update_user_photo
+        from modules.users.users.crud import update_user_photo
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
 
-        with patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             result = await update_user_photo(1, mock_db, photo_path="data/user_images/1.jpg")
 
         assert result == "data/user_images/1.jpg"
@@ -1208,14 +1224,16 @@ class TestUpdateUserPhoto:
 
     @pytest.mark.asyncio
     async def test_remove_photo(self):
-        from users.users.crud import update_user_photo
+        from modules.users.users.crud import update_user_photo
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock) as mock_del,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch(
+                "modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock
+            ) as mock_del,
         ):
             result = await update_user_photo(1, mock_db, photo_path=None)
 
@@ -1227,13 +1245,13 @@ class TestUpdateUserPhoto:
 
     @pytest.mark.asyncio
     async def test_db_error(self):
-        from users.users.crud import update_user_photo
+        from modules.users.users.crud import update_user_photo
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
@@ -1247,14 +1265,16 @@ class TestDeleteUser:
 
     @pytest.mark.asyncio
     async def test_success(self):
-        from users.users.crud import delete_user
+        from modules.users.users.crud import delete_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock) as mock_del,
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch(
+                "modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock
+            ) as mock_del,
         ):
             await delete_user(1, mock_db)
 
@@ -1264,14 +1284,14 @@ class TestDeleteUser:
 
     @pytest.mark.asyncio
     async def test_db_error(self):
-        from users.users.crud import delete_user
+        from modules.users.users.crud import delete_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
 
         with (
-            patch("users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock),
+            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock),
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 

@@ -9,9 +9,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import users.users_profile.import_service as profile_import_service
-import users.users_profile.utils as profile_utils
-from users.users_profile.exceptions import (
+import modules.users.users_profile.import_service as profile_import_service
+import modules.users.users_profile.utils as profile_utils
+from modules.users.users_profile.exceptions import (
     ActivityLimitError,
     FileFormatError,
     FileSizeError,
@@ -247,7 +247,7 @@ class TestImportServiceGears:
         mock_new_gear.id = 10
 
         with patch(
-            "users.users_profile.import_service.gear_crud.create_gear",
+            "modules.users.users_profile.import_service.gear_crud.create_gear",
             return_value=mock_new_gear,
         ):
             mapping = await service.collect_and_import_gears_data([{"id": 5, "nickname": "Garmin", "gear_type": 1}])
@@ -275,7 +275,7 @@ class TestImportServiceGears:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.gear_components_crud.create_gear_component"):
+        with patch("modules.users.users_profile.import_service.gear_components_crud.create_gear_component"):
             await service.collect_and_import_gear_components_data(
                 [{"gear_id": 5, "type": "chain", "brand": "Shimano", "model": "Ultegra"}],
                 {5: 10},
@@ -318,11 +318,13 @@ class TestImportServiceUserData:
         )
         with (
             patch(
-                "users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                "modules.users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                 return_value=None,
             ),
-            patch("users.users_profile.import_service.user_default_gear_crud.create_user_default_gear") as mock_create,
-            patch("users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
+            patch(
+                "modules.users.users_profile.import_service.user_default_gear_crud.create_user_default_gear"
+            ) as mock_create,
+            patch("modules.users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
         ):
             mock_create.return_value.id = 99
             await service.collect_and_import_user_default_gear([{"run_gear_id": 5}], {5: 10})
@@ -341,10 +343,10 @@ class TestImportServiceUserData:
         mock_existing.id = 99
         with (
             patch(
-                "users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                "modules.users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                 return_value=mock_existing,
             ),
-            patch("users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
+            patch("modules.users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
         ):
             await service.collect_and_import_user_default_gear(
                 [{"run_gear_id": 5, "ride_gear_id": 7}],
@@ -396,7 +398,7 @@ class TestImportServiceUserData:
 
         with (
             patch(
-                "users.users_profile.import_service.users_crud.edit_profile_user",
+                "modules.users.users_profile.import_service.users_crud.edit_profile_user",
                 new_callable=AsyncMock,
             ),
             patch.object(service, "collect_and_import_user_default_gear", new_callable=AsyncMock),
@@ -448,7 +450,7 @@ class TestImportServiceUserData:
         )
 
         with patch(
-            "users.users_profile.import_service.user_integrations_crud.edit_user_integrations",
+            "modules.users.users_profile.import_service.user_integrations_crud.edit_user_integrations",
         ):
             await service.collect_and_import_user_integrations([{"strava_sync_gear": True}])
 
@@ -463,7 +465,7 @@ class TestImportServiceUserData:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.user_goals_crud.create_user_goal"):
+        with patch("modules.users.users_profile.import_service.user_goals_crud.create_user_goal"):
             await service.collect_and_import_user_goals(
                 [{"interval": "daily", "activity_type": "run", "goal_type": "distance", "goal_distance": 5000}]
             )
@@ -480,7 +482,7 @@ class TestImportServiceUserData:
         )
 
         with patch(
-            "users.users_profile.import_service.users_privacy_settings_crud.edit_user_privacy_settings",
+            "modules.users.users_profile.import_service.users_privacy_settings_crud.edit_user_privacy_settings",
         ):
             await service.collect_and_import_user_privacy_settings([{"hide_activity_map": True}])
 
@@ -523,7 +525,7 @@ class TestImportServiceUserData:
 
         assert not hasattr(service, "collect_and_import_user_identity_providers")
         with patch(
-            "users.users_profile.import_service.users_crud.edit_profile_user",
+            "modules.users.users_profile.import_service.users_crud.edit_profile_user",
             new_callable=AsyncMock,
         ) as mock_edit_profile:
             result = await service.import_from_zip_data(zip_data)
@@ -548,12 +550,12 @@ class TestImportServiceHealth:
         mock_health_target.id = 1
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=mock_health_target,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": 75.5}],
@@ -576,12 +578,12 @@ class TestImportServiceHealth:
         mock_target.id = 1
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=mock_target,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": "abc", "physique_rating": "xyz", "metabolic_age": "invalid"}],
@@ -601,12 +603,12 @@ class TestImportServiceHealth:
         )
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=None,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.create_health_targets"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.create_health_targets"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": 75.5}],
@@ -691,7 +693,7 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_laps_crud.create_activity_laps"):
+        with patch("modules.users.users_profile.import_service.activity_laps_crud.create_activity_laps"):
             await service.collect_and_import_activity_components(
                 [{"activity_id": 1, "lap_index": 1}],
                 [],
@@ -715,7 +717,7 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_sets_crud.create_activity_sets"):
+        with patch("modules.users.users_profile.import_service.activity_sets_crud.create_activity_sets"):
             await service.collect_and_import_activity_components(
                 [],
                 [{"activity_id": 1, "duration": 30.0, "set_type": "manual", "start_time": "2024-01-01T00:00:00"}],
@@ -740,7 +742,8 @@ class TestImportServiceActivityComponents:
 
         mock_activity = MagicMock(id=10, user_id=1)
         with patch(
-            "users.users_profile.import_service.activity_streams_crud.create_activity_streams", new_callable=AsyncMock
+            "modules.users.users_profile.import_service.activity_streams_crud.create_activity_streams",
+            new_callable=AsyncMock,
         ):
             await service.collect_and_import_activity_components(
                 [],
@@ -765,7 +768,9 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_workout_steps_crud.create_activity_workout_steps"):
+        with patch(
+            "modules.users.users_profile.import_service.activity_workout_steps_crud.create_activity_workout_steps"
+        ):
             await service.collect_and_import_activity_components(
                 [],
                 [],
@@ -789,7 +794,9 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_exercise_titles_crud.create_activity_exercise_titles"):
+        with patch(
+            "modules.users.users_profile.import_service.activity_exercise_titles_crud.create_activity_exercise_titles"
+        ):
             await service.collect_and_import_activity_components(
                 [],
                 [],
@@ -1117,10 +1124,10 @@ class TestImportServiceActivityComponentsMedia:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.resolve_storage_path",
+                "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
                 return_value="/safe/path/10_photo.jpg",
             ),
-            patch("users.users_profile.import_service.activity_media_crud.create_activity_medias"),
+            patch("modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1145,7 +1152,9 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.activity_media_crud.create_activity_medias") as mock_create:
+        with patch(
+            "modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"
+        ) as mock_create:
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
                 [],
@@ -1172,10 +1181,12 @@ class TestImportServiceActivityComponentsMedia:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.resolve_storage_path",
+                "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
                 side_effect=HTTPException(status_code=400, detail="unsafe path"),
             ),
-            patch("users.users_profile.import_service.activity_media_crud.create_activity_medias") as mock_create,
+            patch(
+                "modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"
+            ) as mock_create,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1203,10 +1214,10 @@ class TestImportServiceActivityComponentsMedia:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.resolve_storage_path",
+                "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
                 return_value="/safe/path/10_photo.jpg",
             ),
-            patch("users.users_profile.import_service.activity_media_crud.create_activity_medias"),
+            patch("modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1261,7 +1272,7 @@ class TestImportServiceActivitiesDataBatched:
 
         with (
             patch(
-                "users.users_profile.import_service.activities_crud.create_activity",
+                "modules.users.users_profile.import_service.activities_crud.create_activity",
                 new_callable=AsyncMock,
                 return_value=mock_new_activity,
             ),
@@ -1311,7 +1322,7 @@ class TestImportServiceActivitiesDataBatched:
 
         with (
             patch(
-                "users.users_profile.import_service.activities_crud.create_activity",
+                "modules.users.users_profile.import_service.activities_crud.create_activity",
                 new_callable=AsyncMock,
                 return_value=mock_new_activity,
             ),
@@ -1351,8 +1362,10 @@ class TestImportServiceAddActivityFiles:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_activity_file_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch(
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
+            ),
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_files_from_zip(
@@ -1380,7 +1393,7 @@ class TestImportServiceAddActivityFiles:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
             ) as mock_save,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
@@ -1411,9 +1424,9 @@ class TestImportServiceAddActivityFiles:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_activity_file_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid file"),
             ),
@@ -1447,8 +1460,10 @@ class TestImportServiceAddActivityMediaFromZip:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch(
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
+            ),
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_media_from_zip(
@@ -1476,7 +1491,7 @@ class TestImportServiceAddActivityMediaFromZip:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
             ) as mock_save,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
@@ -1507,9 +1522,9 @@ class TestImportServiceAddActivityMediaFromZip:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid image"),
             ),
@@ -1567,8 +1582,10 @@ class TestImportServiceAddUserImages:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch(
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
+            ),
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_user_images_from_zip(z, {"user_images/old_photo.jpg"})
@@ -1593,9 +1610,9 @@ class TestImportServiceAddUserImages:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid image"),
             ),
@@ -1621,10 +1638,10 @@ class TestImportServiceHealthEmptyBranches:
 
         with (
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=mock_target,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
         ):
             await service.collect_and_import_health_weight([], [{"weight": 80.0}])
 
@@ -1641,14 +1658,15 @@ class TestImportServiceHealthEmptyBranches:
         )
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=None,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
             patch(
-                "users.users_profile.import_service.health_targets_schema.HealthTargetsUpdate", return_value=MagicMock()
+                "modules.users.users_profile.import_service.health_targets_schema.HealthTargetsUpdate",
+                return_value=MagicMock(),
             ),
         ):
             await service.collect_and_import_health_weight(
@@ -1668,7 +1686,7 @@ class TestImportServiceHealthEmptyBranches:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.health_weight_crud.create_health_weight"):
+        with patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"):
             await service.collect_and_import_health_weight([{"weight": 75.5}], [])
 
         assert service.counts["health_weight"] == 1

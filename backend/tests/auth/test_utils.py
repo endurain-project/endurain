@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException, Response
 
-import auth.schema as auth_schema
-import auth.utils as auth_utils
+import modules.auth.schema as auth_schema
+import modules.auth.utils as auth_utils
 
 
 def _set_cookie_headers(response: Response) -> list[str]:
@@ -34,8 +34,8 @@ class TestAuthenticateUser:
 
         # Mock the CRUD function to return our user
         with (
-            patch("auth.utils.users_crud.get_user_by_username", return_value=mock_user),
-            patch("auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
+            patch("modules.auth.utils.users_crud.get_user_by_username", return_value=mock_user),
+            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
         ):
             # Act
             result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
@@ -45,7 +45,7 @@ class TestAuthenticateUser:
 
     def test_authenticate_user_invalid_username(self, password_hasher, mock_db):
         """Test authentication with invalid username raises 401."""
-        with patch("auth.utils.users_crud.get_user_by_username", return_value=None):
+        with patch("modules.auth.utils.users_crud.get_user_by_username", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user("nonexistent", "password", password_hasher, mock_db)
             assert exc_info.value.status_code == 401
@@ -64,8 +64,8 @@ class TestAuthenticateUser:
         mock_credential.password_hash = hashed_password
 
         with (
-            patch("auth.utils.users_crud.get_user_by_username", return_value=mock_user),
-            patch("auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
+            patch("modules.auth.utils.users_crud.get_user_by_username", return_value=mock_user),
+            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user(username, wrong_password, password_hasher, mock_db)
@@ -91,9 +91,9 @@ class TestAuthenticateUser:
         mock_credential.password_hash = old_hash
 
         with (
-            patch("auth.utils.users_crud.get_user_by_username", return_value=mock_user),
-            patch("auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
-            patch("auth.utils.auth_credentials_crud.upsert_password_hash") as mock_edit,
+            patch("modules.auth.utils.users_crud.get_user_by_username", return_value=mock_user),
+            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=mock_credential),
+            patch("modules.auth.utils.auth_credentials_crud.upsert_password_hash") as mock_edit,
         ):
             # Act
             result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
@@ -107,8 +107,8 @@ class TestAuthenticateUser:
         """SSO-only account (no local password) raises 401."""
         mock_user = MagicMock()
         with (
-            patch("auth.utils.users_crud.get_user_by_username", return_value=mock_user),
-            patch("auth.utils.auth_credentials_crud.get_credential", return_value=None),
+            patch("modules.auth.utils.users_crud.get_user_by_username", return_value=mock_user),
+            patch("modules.auth.utils.auth_credentials_crud.get_credential", return_value=None),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 auth_utils.authenticate_user("ssouser", "anypass", password_hasher, mock_db)
@@ -216,7 +216,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -249,7 +249,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "mobile"
 
-        with patch("auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -277,7 +277,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.auth_sessions_utils.create_session") as mock_create_session:
+        with patch("modules.auth.utils.auth_sessions_utils.create_session") as mock_create_session:
             # Act
             result = auth_utils.complete_login(
                 response,
@@ -331,8 +331,8 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("auth.utils.auth_sessions_utils.create_session"),
-            patch("auth.utils.core_config.settings.ENVIRONMENT", "production"),
+            patch("modules.auth.utils.auth_sessions_utils.create_session"),
+            patch("modules.auth.utils.core_config.settings.ENVIRONMENT", "production"),
         ):
             # Act
             auth_utils.complete_login(
@@ -358,8 +358,8 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("auth.utils.auth_sessions_utils.create_session"),
-            patch("auth.utils.core_config.settings.ENVIRONMENT", "development"),
+            patch("modules.auth.utils.auth_sessions_utils.create_session"),
+            patch("modules.auth.utils.core_config.settings.ENVIRONMENT", "development"),
         ):
             # Act
             auth_utils.complete_login(
@@ -384,7 +384,7 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
             # Act
             auth_utils.complete_login(
                 response,
@@ -450,7 +450,7 @@ class TestCompleteLogin:
         response2 = Response()
         client_type = "web"
 
-        with patch("auth.utils.auth_sessions_utils.create_session"):
+        with patch("modules.auth.utils.auth_sessions_utils.create_session"):
             # Act
             result1 = auth_utils.complete_login(
                 response1,
@@ -541,9 +541,9 @@ class TestCreateMobilePkceSessionResponse:
         mock_user.id = 1
 
         with (
-            patch("auth.utils.idp_utils.validate_pkce_challenge"),
-            patch("auth.utils.oauth_state_crud.create_oauth_state"),
-            patch("auth.utils.auth_sessions_utils.create_session"),
+            patch("modules.auth.utils.idp_utils.validate_pkce_challenge"),
+            patch("modules.auth.utils.oauth_state_crud.create_oauth_state"),
+            patch("modules.auth.utils.auth_sessions_utils.create_session"),
         ):
             result = auth_utils.create_mobile_pkce_session_response(
                 response=response,

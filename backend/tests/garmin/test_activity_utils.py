@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from fastapi import HTTPException, status
 
-import garmin.activity_utils as activity_utils
+import modules.garmin.activity_utils as activity_utils
 
 
 def _make_garminconnect_client(activity_id: int = 12345) -> Mock:

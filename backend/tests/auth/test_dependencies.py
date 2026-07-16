@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-import auth.dependencies as auth_dependencies
-from auth.dependencies import (
+import modules.auth.dependencies as auth_dependencies
+from modules.auth.dependencies import (
     AuthContext,
     check_auth_scopes,
     check_scopes,
@@ -20,7 +20,7 @@ from auth.dependencies import (
     validate_access_token,
     validate_access_token_or_api_key,
 )
-from auth.principal import ApiKeyCred, PasswordCred, Principal
+from modules.auth.principal import ApiKeyCred, PasswordCred, Principal
 
 
 class TestGetAccessToken:
@@ -40,7 +40,7 @@ class TestGetAccessToken:
 class TestValidateAccessToken:
     """Tests for validate_access_token."""
 
-    @patch("auth.dependencies._resolve_and_cache_principal")
+    @patch("modules.auth.dependencies._resolve_and_cache_principal")
     def test_calls_resolve_and_cache_principal(self, mock_resolve):
         request = MagicMock()
         validate_access_token(request, "token", MagicMock())
@@ -50,7 +50,7 @@ class TestValidateAccessToken:
 class TestGetSubFromAccessToken:
     """Tests for get_sub_from_access_token."""
 
-    @patch("auth._internal.internal_dependencies._resolve_and_cache_principal")
+    @patch("modules.auth._internal.internal_dependencies._resolve_and_cache_principal")
     def test_returns_user_id(self, mock_resolve):
         principal = Principal(
             user_id=5,
@@ -69,7 +69,7 @@ class TestGetSubFromAccessToken:
 class TestCheckScopes:
     """Tests for check_scopes."""
 
-    @patch("auth.dependencies._resolve_and_cache_principal")
+    @patch("modules.auth.dependencies._resolve_and_cache_principal")
     def test_delegates_to_identity_service_check_scope(self, mock_resolve):
         principal = MagicMock()
         mock_resolve.return_value = principal
@@ -169,7 +169,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
         with (
-            patch("auth._internal.internal_dependencies.core_config.settings", mock_settings),
+            patch("modules.auth._internal.internal_dependencies.core_config.settings", mock_settings),
             pytest.raises(HTTPException) as exc_info,
         ):
             await validate_access_token_or_api_key(
@@ -198,7 +198,7 @@ class TestValidateAccessTokenOrApiKey:
         )
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
-        with patch("auth._internal.internal_dependencies.core_config.settings", mock_settings):
+        with patch("modules.auth._internal.internal_dependencies.core_config.settings", mock_settings):
             result = await validate_access_token_or_api_key(
                 request,
                 identity_service,
@@ -216,7 +216,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
         with (
-            patch("auth._internal.internal_dependencies.core_config.settings", mock_settings),
+            patch("modules.auth._internal.internal_dependencies.core_config.settings", mock_settings),
             pytest.raises(HTTPException) as exc_info,
         ):
             await validate_access_token_or_api_key(
@@ -281,6 +281,6 @@ class TestAuthContextIdentity:
     """Assert that dependencies.AuthContext is the same type as internal_dependencies.AuthContext."""
 
     def test_auth_context_is_same_type_as_security(self):
-        import auth._internal.internal_dependencies as auth_security
+        import modules.auth._internal.internal_dependencies as auth_security
 
         assert auth_dependencies.AuthContext is auth_security.AuthContext

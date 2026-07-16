@@ -11,9 +11,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import users.users_default_gear.crud as user_default_gear_crud
-import users.users_default_gear.models as user_default_gear_models
-import users.users_default_gear.schema as user_default_gear_schema
+import modules.users.users_default_gear.crud as user_default_gear_crud
+import modules.users.users_default_gear.models as user_default_gear_models
+import modules.users.users_default_gear.schema as user_default_gear_schema
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def mock_db():
 def _patch_transform():
     """Patch _transform_users_default_gear to a passthrough for MagicMock compatibility."""
     with patch(
-        "users.users_default_gear.crud._transform_users_default_gear",
+        "modules.users.users_default_gear.crud._transform_users_default_gear",
         side_effect=lambda x: x,
     ):
         yield
@@ -137,7 +137,7 @@ class TestCreateUserDefaultGear:
 class TestEditUserDefaultGear:
     """Test suite for edit_user_default_gear function."""
 
-    @patch("users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
+    @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
     def test_edit_user_default_gear_success(self, mock_get_gear, mock_db):
         """Test successful update of user default gear."""
         # Arrange
@@ -160,7 +160,7 @@ class TestEditUserDefaultGear:
         assert result == mock_db_gear
         mock_db.commit.assert_called_once()
 
-    @patch("users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
+    @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
     def test_edit_user_default_gear_not_found(self, mock_get_gear, mock_db):
         """Test update fails when gear settings not found."""
         # Arrange
@@ -181,7 +181,7 @@ class TestEditUserDefaultGear:
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
-    @patch("users.users_default_gear.crud.get_user_default_gear_by_user_id")
+    @patch("modules.users.users_default_gear.crud.get_user_default_gear_by_user_id")
     def test_edit_user_default_gear_wrong_user(self, mock_get_gear, mock_db):
         """Test update fails when user IDs don't match."""
         # Arrange

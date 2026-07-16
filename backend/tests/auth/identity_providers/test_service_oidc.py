@@ -29,7 +29,7 @@ from fastapi import HTTPException, status
 from joserfc import jwt
 from joserfc.jwk import RSAKey
 
-from auth.identity_providers.service import IdentityProviderService
+from modules.auth.identity_providers.service import IdentityProviderService
 
 # ---------------------------------------------------------------------------
 # Test constants and real-key fixtures
@@ -336,7 +336,7 @@ class TestFetchJwks:
         jwks = {"keys": [{"kid": KID, "kty": "RSA"}]}
         client = self._client_returning(json_value=jwks)
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
         ):
             result = await service._fetch_jwks(JWKS_URI)
@@ -351,7 +351,7 @@ class TestFetchJwks:
         # This test pins the *actual* behaviour rather than the intended 502.
         client = self._client_returning(json_value={"no_keys": True})
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -362,7 +362,7 @@ class TestFetchJwks:
     async def test_timeout_raises_504(self, service):
         client = self._client_returning(get_exc=httpx.TimeoutException("timeout"))
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -378,7 +378,7 @@ class TestFetchJwks:
         )
         client = self._client_returning(raise_for_status_exc=err)
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             patch.object(service, "_get_http_client", AsyncMock(return_value=client)),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -398,7 +398,7 @@ class TestFetchJwks:
         """
         with (
             patch(
-                "auth.identity_providers.service.core_network.reject_private_url",
+                "modules.auth.identity_providers.service.core_network.reject_private_url",
                 side_effect=HTTPException(status_code=400, detail="blocked"),
             ),
             patch.object(service, "_get_http_client", AsyncMock()) as mock_client,
@@ -424,7 +424,7 @@ class TestGetUserinfo:
         response.raise_for_status.return_value = None
         response.json.return_value = {"sub": "user-1", "email": "a@example.com"}
         client.get = AsyncMock(return_value=response)
-        with patch("auth.identity_providers.service.core_network.reject_private_url"):
+        with patch("modules.auth.identity_providers.service.core_network.reject_private_url"):
             result = await service._get_userinfo(
                 token_response={"access_token": "at"},
                 userinfo_endpoint="https://idp.example.com/userinfo",
@@ -444,7 +444,7 @@ class TestGetUserinfo:
         client.get = AsyncMock(return_value=response)
         verified = {"sub": "verified-sub", "email": "v@example.com"}
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             patch.object(service, "_verify_id_token", AsyncMock(return_value=verified)),
         ):
             result = await service._get_userinfo(
@@ -499,7 +499,7 @@ class TestGetUserinfo:
         """Nothing to return → fail closed with 500."""
         result_client = AsyncMock()
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             pytest.raises(HTTPException) as exc_info,
         ):
             await service._get_userinfo(
@@ -519,7 +519,7 @@ class TestGetUserinfo:
         client.get = AsyncMock(side_effect=httpx.RequestError("network down"))
         verified = {"sub": "verified-sub"}
         with (
-            patch("auth.identity_providers.service.core_network.reject_private_url"),
+            patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
             patch.object(service, "_verify_id_token", AsyncMock(return_value=verified)),
         ):
             result = await service._get_userinfo(

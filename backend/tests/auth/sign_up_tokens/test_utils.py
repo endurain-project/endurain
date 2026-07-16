@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException, status
 
-import auth.sign_up_tokens.utils as sign_up_tokens_utils
+import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 
 
 def _make_email_service(configured: bool = True) -> MagicMock:
@@ -21,8 +21,8 @@ def _make_email_service(configured: bool = True) -> MagicMock:
 class TestCreateSignUpTokenUtils:
     """Test suite for create_sign_up_token utility function."""
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.create_sign_up_token")
-    @patch("auth.sign_up_tokens.utils.core_apprise.generate_token_and_hash")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.create_sign_up_token")
+    @patch("modules.auth.sign_up_tokens.utils.core_apprise.generate_token_and_hash")
     def test_create_sign_up_token_returns_plain_token(
         self,
         mock_generate,
@@ -40,8 +40,8 @@ class TestCreateSignUpTokenUtils:
         assert result == "plain-token"
         mock_generate.assert_called_once()
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.create_sign_up_token")
-    @patch("auth.sign_up_tokens.utils.core_apprise.generate_token_and_hash")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.create_sign_up_token")
+    @patch("modules.auth.sign_up_tokens.utils.core_apprise.generate_token_and_hash")
     def test_create_sign_up_token_persists_to_db(
         self,
         mock_generate,
@@ -76,9 +76,9 @@ class TestSendSignUpEmail:
 
         assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_signup_confirmation_email")
-    @patch("auth.sign_up_tokens.utils.core_i18n.normalize_locale")
-    @patch("auth.sign_up_tokens.utils.create_sign_up_token")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_signup_confirmation_email")
+    @patch("modules.auth.sign_up_tokens.utils.core_i18n.normalize_locale")
+    @patch("modules.auth.sign_up_tokens.utils.create_sign_up_token")
     async def test_send_sign_up_email_success_sends_email(
         self,
         mock_create_token,
@@ -121,9 +121,9 @@ class TestSendSignUpAdminApprovalEmail:
 
         assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_admin_signup_notification_email")
-    @patch("auth.sign_up_tokens.utils.core_i18n.normalize_locale")
-    @patch("auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_admin_signup_notification_email")
+    @patch("modules.auth.sign_up_tokens.utils.core_i18n.normalize_locale")
+    @patch("modules.auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
     async def test_send_sign_up_admin_approval_sends_to_all_admins(
         self,
         mock_get_admins,
@@ -153,7 +153,7 @@ class TestSendSignUpAdminApprovalEmail:
         # Assert
         assert email_service.send_email.await_count == 2
 
-    @patch("auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
+    @patch("modules.auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
     async def test_send_sign_up_admin_approval_no_admins_raises_404(
         self,
         mock_get_admins,
@@ -189,7 +189,7 @@ class TestSendSignUpApprovalEmail:
 
         assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-    @patch("auth.sign_up_tokens.utils.users_crud.get_user_by_id")
+    @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
     async def test_send_sign_up_approval_user_not_found_raises_404(
         self,
         mock_get_user,
@@ -206,9 +206,9 @@ class TestSendSignUpApprovalEmail:
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_user_signup_approved_email")
-    @patch("auth.sign_up_tokens.utils.core_i18n.normalize_locale")
-    @patch("auth.sign_up_tokens.utils.users_crud.get_user_by_id")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_user_signup_approved_email")
+    @patch("modules.auth.sign_up_tokens.utils.core_i18n.normalize_locale")
+    @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
     async def test_send_sign_up_approval_success_sends_email(
         self,
         mock_get_user,
@@ -239,8 +239,8 @@ class TestSendSignUpApprovalEmail:
 class TestUseSignUpToken:
     """Test suite for use_sign_up_token function."""
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
     def test_use_sign_up_token_success_returns_user_id(
         self,
         mock_get_by_hash,
@@ -263,8 +263,8 @@ class TestUseSignUpToken:
         mock_get_by_hash.assert_called_once_with(token_hash, mock_db)
         mock_mark_used.assert_called_once_with(mock_token.id, mock_db)
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
     def test_use_sign_up_token_invalid_token_raises_400(
         self,
         mock_get_by_hash,
@@ -282,8 +282,8 @@ class TestUseSignUpToken:
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         mock_mark_used.assert_not_called()
 
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
     def test_use_sign_up_token_mark_used_http_exception_propagates(
         self,
         mock_get_by_hash,
@@ -306,9 +306,9 @@ class TestUseSignUpToken:
 
         assert exc_info.value is http_err
 
-    @patch("auth.sign_up_tokens.utils.core_logger.print_to_log")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
+    @patch("modules.auth.sign_up_tokens.utils.core_logger.print_to_log")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
     def test_use_sign_up_token_unexpected_error_raises_500(
         self,
         mock_get_by_hash,
@@ -333,9 +333,9 @@ class TestUseSignUpToken:
 class TestDeleteInvalidTokensFromDb:
     """Test suite for delete_invalid_tokens_from_db function."""
 
-    @patch("auth.sign_up_tokens.utils.core_logger.print_to_log_and_console")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.delete_expired_sign_up_tokens")
-    @patch("auth.sign_up_tokens.utils.SessionLocal")
+    @patch("modules.auth.sign_up_tokens.utils.core_logger.print_to_log_and_console")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.delete_expired_sign_up_tokens")
+    @patch("modules.auth.sign_up_tokens.utils.SessionLocal")
     def test_delete_invalid_tokens_from_db_logs_on_deletion(
         self,
         mock_session_local,
@@ -355,9 +355,9 @@ class TestDeleteInvalidTokensFromDb:
         mock_delete_expired.assert_called_once_with(mock_db_ctx)
         mock_log.assert_called_once()
 
-    @patch("auth.sign_up_tokens.utils.core_logger.print_to_log_and_console")
-    @patch("auth.sign_up_tokens.utils.sign_up_tokens_crud.delete_expired_sign_up_tokens")
-    @patch("auth.sign_up_tokens.utils.SessionLocal")
+    @patch("modules.auth.sign_up_tokens.utils.core_logger.print_to_log_and_console")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.delete_expired_sign_up_tokens")
+    @patch("modules.auth.sign_up_tokens.utils.SessionLocal")
     def test_delete_invalid_tokens_from_db_no_log_when_zero(
         self,
         mock_session_local,

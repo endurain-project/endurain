@@ -14,13 +14,13 @@ import signal
 import threading
 from types import FrameType
 
-import activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 import core.config as core_config
 import core.logger as core_logger
 import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
+import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 from infra.jobs.worker import run_worker
 
 

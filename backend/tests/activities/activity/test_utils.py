@@ -5,31 +5,31 @@ import pytest
 
 class TestEscapeLike:
     def test_escape_percent(self):
-        from activities.activity.utils import escape_like
+        from modules.activities.activity.utils import escape_like
 
         result = escape_like("100%")
         assert result == "100\\%"
 
     def test_escape_underscore(self):
-        from activities.activity.utils import escape_like
+        from modules.activities.activity.utils import escape_like
 
         result = escape_like("test_name")
         assert result == "test\\_name"
 
     def test_escape_backslash(self):
-        from activities.activity.utils import escape_like
+        from modules.activities.activity.utils import escape_like
 
         result = escape_like("foo\\bar")
         assert result == "foo\\\\bar"
 
     def test_no_escaping_needed(self):
-        from activities.activity.utils import escape_like
+        from modules.activities.activity.utils import escape_like
 
         result = escape_like("hello")
         assert result == "hello"
 
     def test_escape_all(self):
-        from activities.activity.utils import escape_like
+        from modules.activities.activity.utils import escape_like
 
         result = escape_like("a%b_c\\d")
         assert result == "a\\%b\\_c\\\\d"
@@ -37,7 +37,7 @@ class TestEscapeLike:
 
 class TestApplyVisibilityMask:
     def test_owner_no_mask(self):
-        from activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.utils import apply_visibility_mask
 
         schema = MagicMock()
         schema.private_notes = "secret"
@@ -50,7 +50,7 @@ class TestApplyVisibilityMask:
         assert result.private_notes == "secret"
 
     def test_non_owner_masks_private_notes(self):
-        from activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.utils import apply_visibility_mask
 
         schema = MagicMock()
         schema.private_notes = "secret"
@@ -60,7 +60,7 @@ class TestApplyVisibilityMask:
         assert result.private_notes is None
 
     def test_non_owner_masks_hidden_fields(self):
-        from activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.utils import apply_visibility_mask
 
         schema = MagicMock()
         schema.hide_start_time = True
@@ -88,7 +88,7 @@ class TestApplyVisibilityMask:
         assert result.garminconnect_gear_id is None
 
     def test_non_owner_does_not_mask_visible_fields(self):
-        from activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.utils import apply_visibility_mask
 
         schema = MagicMock()
         schema.hide_start_time = False
@@ -105,7 +105,7 @@ class TestApplyVisibilityMask:
         assert result.gear_id == 1
 
     def test_mask_private_notes_false_allows_notes(self):
-        from activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.utils import apply_visibility_mask
 
         schema = MagicMock()
         schema.private_notes = "visible"
@@ -117,7 +117,7 @@ class TestApplyVisibilityMask:
 
 class TestCalculateActivityStats:
     def test_calculate_stats(self):
-        from activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.utils import calculate_activity_stats
 
         activity = MagicMock()
         activity.activity_type = 1
@@ -132,7 +132,7 @@ class TestCalculateActivityStats:
         assert result.run.calories == 500
 
     def test_calculate_stats_multiple_activities(self):
-        from activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.utils import calculate_activity_stats
 
         run = MagicMock()
         run.activity_type = 1
@@ -152,14 +152,14 @@ class TestCalculateActivityStats:
         assert result.bike.distance == 30000.0
 
     def test_calculate_stats_none_activities(self):
-        from activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.utils import calculate_activity_stats
 
         result = calculate_activity_stats(None)
 
         assert result.run.distance == 0.0
 
     def test_calculate_stats_different_sports(self):
-        from activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.utils import calculate_activity_stats
 
         swim = MagicMock()
         swim.activity_type = 8
@@ -181,7 +181,7 @@ class TestCalculateActivityStats:
 
 class TestActivityIdToName:
     def test_mapping_contains_common_types(self):
-        from activities.activity.utils import ACTIVITY_ID_TO_NAME
+        from modules.activities.activity.utils import ACTIVITY_ID_TO_NAME
 
         assert ACTIVITY_ID_TO_NAME[1] == "Run"
         assert ACTIVITY_ID_TO_NAME[4] == "Ride"
@@ -190,14 +190,14 @@ class TestActivityIdToName:
         assert ACTIVITY_ID_TO_NAME[47] == "Jump rope"
 
     def test_unknown_id(self):
-        from activities.activity.utils import ACTIVITY_ID_TO_NAME
+        from modules.activities.activity.utils import ACTIVITY_ID_TO_NAME
 
         assert 999 not in ACTIVITY_ID_TO_NAME
 
 
 class TestAppendIfNotNone:
     def test_appends_when_value_not_none(self):
-        from activities.activity.utils import append_if_not_none
+        from modules.activities.activity.utils import append_if_not_none
 
         waypoints = []
         append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=145, key="hr")
@@ -205,7 +205,7 @@ class TestAppendIfNotNone:
         assert waypoints[0]["hr"] == 145
 
     def test_does_not_append_when_none(self):
-        from activities.activity.utils import append_if_not_none
+        from modules.activities.activity.utils import append_if_not_none
 
         waypoints = []
         append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=None, key="hr")
@@ -214,7 +214,7 @@ class TestAppendIfNotNone:
 
 class TestParseActivityStreams:
     def test_parse_streams_hr_set(self):
-        from activities.activity.utils import parse_activity_streams_from_file
+        from modules.activities.activity.utils import parse_activity_streams_from_file
 
         parsed_info = {
             "is_heart_rate_set": True,
@@ -234,7 +234,7 @@ class TestParseActivityStreams:
         assert result[0].stream_type == 1
 
     def test_parse_streams_multiple(self):
-        from activities.activity.utils import parse_activity_streams_from_file
+        from modules.activities.activity.utils import parse_activity_streams_from_file
 
         parsed_info = {
             "is_heart_rate_set": True,
@@ -254,7 +254,7 @@ class TestParseActivityStreams:
         assert len(result) == 3
 
     def test_parse_streams_no_streams(self):
-        from activities.activity.utils import parse_activity_streams_from_file
+        from modules.activities.activity.utils import parse_activity_streams_from_file
 
         parsed_info = {
             "is_heart_rate_set": False,
@@ -272,29 +272,29 @@ class TestParseActivityStreams:
 
 
 class TestLocationBasedOnCoordinates:
-    @patch("activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
-    @patch("activities.activity.utils.core_config")
+    @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
+    @patch("modules.activities.activity.utils.core_config")
     def test_location_missing_coords(self, mock_config):
-        from activities.activity.utils import location_based_on_coordinates
+        from modules.activities.activity.utils import location_based_on_coordinates
 
         result = location_based_on_coordinates(None, None)
 
         assert result is None
 
-    @patch("activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
-    @patch("activities.activity.utils.core_config.settings.GEOCODES_MAPS_API", "changeme")
-    @patch("activities.activity.utils.core_config")
+    @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
+    @patch("modules.activities.activity.utils.core_config.settings.GEOCODES_MAPS_API", "changeme")
+    @patch("modules.activities.activity.utils.core_config")
     def test_location_geocode_api_key_changeme(self, mock_config):
-        from activities.activity.utils import location_based_on_coordinates
+        from modules.activities.activity.utils import location_based_on_coordinates
 
         result = location_based_on_coordinates(38.0, -9.0)
 
         assert result is None
 
-    @patch("activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "unsupported")
-    @patch("activities.activity.utils.core_config")
+    @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "unsupported")
+    @patch("modules.activities.activity.utils.core_config")
     def test_location_unsupported_provider(self, mock_config):
-        from activities.activity.utils import location_based_on_coordinates
+        from modules.activities.activity.utils import location_based_on_coordinates
 
         result = location_based_on_coordinates(38.0, -9.0)
 
@@ -311,9 +311,9 @@ class TestTransformSchemaToModel:
 
 
 class TestMoveFile:
-    @patch("activities.activity.utils.core_file_uploads.move_within")
+    @patch("modules.activities.activity.utils.core_file_uploads.move_within")
     def test_move_file_calls_move_within(self, mock_move_within):
-        from activities.activity.utils import move_file
+        from modules.activities.activity.utils import move_file
 
         move_file(new_dir="/dest", new_filename="test.fit", file_path="/src/test.fit")
 

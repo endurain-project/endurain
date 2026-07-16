@@ -6,7 +6,7 @@ import pytest
 
 from infra.backends.state_memory import MemoryState
 from infra.providers import StateBackendUnavailableError
-from websocket.ticket_store import (
+from modules.websocket.ticket_store import (
     TICKET_TTL_SECONDS,
     WsTicketStore,
     WsTicketStoreProtocol,
@@ -72,7 +72,7 @@ class TestWsTicketStore:
     def test_consume_corrupt_value_returns_none_and_does_not_leak(self):
         state = MagicMock()
         state.get_and_delete.return_value = b"not-an-int"
-        with patch("websocket.ticket_store.core_logger.print_to_log") as mock_log:
+        with patch("modules.websocket.ticket_store.core_logger.print_to_log") as mock_log:
             assert WsTicketStore(state=state).consume_ticket("secret-ticket-abc") is None
         mock_log.assert_called_once()
         warning_msg = mock_log.call_args.args[0]

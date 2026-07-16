@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_workout_steps.public_router as router
     import core.database as core_db
+    import modules.activities.activity_workout_steps.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities_workout_steps")
@@ -16,10 +16,10 @@ def _build_app(mock_db):
 
 class TestReadPublicWorkoutSteps:
     @patch(
-        "activities.activity_workout_steps.public_router.activity_workout_steps_crud.get_public_activity_workout_steps"
+        "modules.activities.activity_workout_steps.public_router.activity_workout_steps_crud.get_public_activity_workout_steps"
     )
     def test_success(self, mock_get, mock_db):
-        from activities.activity_workout_steps.schema import ActivityWorkoutSteps
+        from modules.activities.activity_workout_steps.schema import ActivityWorkoutSteps
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [ActivityWorkoutSteps(id=1, activity_id=1, message_index=0, duration_type="active")]
@@ -28,7 +28,7 @@ class TestReadPublicWorkoutSteps:
         assert response.status_code == 200
 
     @patch(
-        "activities.activity_workout_steps.public_router.activity_workout_steps_crud.get_public_activity_workout_steps"
+        "modules.activities.activity_workout_steps.public_router.activity_workout_steps_crud.get_public_activity_workout_steps"
     )
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))

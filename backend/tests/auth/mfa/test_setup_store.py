@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import auth.mfa.setup_store as auth_mfa_setup_store
+import modules.auth.mfa.setup_store as auth_mfa_setup_store
 from infra.backends.state_memory import MemoryState
 from infra.providers import StateBackendUnavailableError
 
@@ -52,7 +52,7 @@ class TestMFASecretStore:
 
     def test_add_secret_encryption_failure(self):
         with (
-            patch("auth.mfa.setup_store.core_cryptography.encrypt_token_fernet", return_value=None),
+            patch("modules.auth.mfa.setup_store.core_cryptography.encrypt_token_fernet", return_value=None),
             pytest.raises(ValueError, match="Failed to encrypt MFA secret"),
         ):
             self._make_store().add_secret(123, "secret-value")
@@ -60,7 +60,7 @@ class TestMFASecretStore:
     def test_get_secret_returns_none_when_decrypt_fails(self):
         store = self._make_store()
         store.add_secret(1, "secret")
-        with patch("auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad")):
+        with patch("modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad")):
             assert store.get_secret(1) is None
 
 
@@ -69,13 +69,15 @@ class TestEncryptionHelpers:
 
     def test_encrypt_secret_error(self):
         with (
-            patch("auth.mfa.setup_store.core_cryptography.encrypt_token_fernet", return_value=None),
+            patch("modules.auth.mfa.setup_store.core_cryptography.encrypt_token_fernet", return_value=None),
             pytest.raises(ValueError, match="Failed to encrypt MFA secret"),
         ):
             auth_mfa_setup_store._encrypt_secret("test-secret")
 
     def test_decrypt_secret_returns_none_on_error(self):
-        with patch("auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad decrypt")):
+        with patch(
+            "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet", side_effect=Exception("bad decrypt")
+        ):
             assert auth_mfa_setup_store._decrypt_secret("bad-encrypted-data", 123) is None
 
 

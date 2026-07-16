@@ -12,23 +12,23 @@ import os
 import fitdecode
 from sqlalchemy.orm import Session
 
-import activities.activity.crud as activities_crud
-import activities.activity.models as activities_models
-import activities.activity_file_import.utils_fit as fit_utils
-import activities.activity_file_import.utils_gpx as gpx_utils
-import activities.activity_laps.crud as activity_laps_crud
-import activities.activity_sets.crud as activity_sets_crud
-import activities.activity_streams.constants as activity_streams_constants
-import activities.activity_streams.crud as activity_streams_crud
-import activities.activity_workout_steps.crud as activity_workout_steps_crud
 import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import garmin.activity_utils as garmin_activity_utils
 import migrations.crud as migrations_crud
-import strava.activity_utils as strava_activity_utils
-import strava.utils as strava_utils
-from activities.activity_exercise_titles import (
+import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.models as activities_models
+import modules.activities.activity_file_import.utils_fit as fit_utils
+import modules.activities.activity_file_import.utils_gpx as gpx_utils
+import modules.activities.activity_laps.crud as activity_laps_crud
+import modules.activities.activity_sets.crud as activity_sets_crud
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
+import modules.garmin.activity_utils as garmin_activity_utils
+import modules.strava.activity_utils as strava_activity_utils
+import modules.strava.utils as strava_utils
+from modules.activities.activity_exercise_titles import (
     crud as activity_exercise_titles_crud,
 )
 

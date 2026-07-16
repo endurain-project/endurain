@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_exercise_titles.public_router as router
     import core.database as core_db
+    import modules.activities.activity_exercise_titles.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activity_exercise_titles")
@@ -16,10 +16,10 @@ def _build_app(mock_db):
 
 class TestReadPublicExerciseTitles:
     @patch(
-        "activities.activity_exercise_titles.public_router.activity_exercise_titles_crud.get_public_activity_exercise_titles"
+        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_crud.get_public_activity_exercise_titles"
     )
     def test_success(self, mock_get, mock_db):
-        from activities.activity_exercise_titles.schema import ActivityExerciseTitles
+        from modules.activities.activity_exercise_titles.schema import ActivityExerciseTitles
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [
@@ -30,7 +30,7 @@ class TestReadPublicExerciseTitles:
         assert response.status_code == 200
 
     @patch(
-        "activities.activity_exercise_titles.public_router.activity_exercise_titles_crud.get_public_activity_exercise_titles"
+        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_crud.get_public_activity_exercise_titles"
     )
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))

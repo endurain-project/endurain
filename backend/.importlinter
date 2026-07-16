@@ -2,18 +2,8 @@
 # Run from backend/ with: PYTHONPATH=app uv run lint-imports
 include_external_packages = True
 root_packages =
-    auth
-    users
-    activities
+    modules
     core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
     infra
 
 [importlinter:contract:auth-boundary]
@@ -21,22 +11,22 @@ name = Auth boundary: non-auth must not import auth internals directly
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    users
-    activities
+    modules.users
+    modules.activities
     core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
+    modules.followers
+    modules.garmin
+    modules.gears
+    modules.health
+    modules.notifications
+    modules.server_settings
+    modules.strava
+    modules.websocket
     infra
 forbidden_modules =
-    auth._internal
-    auth.*.crud
-    auth.*.*.crud
+    modules.auth._internal
+    modules.auth.*.crud
+    modules.auth.*.*.crud
 
 [importlinter:contract:platform-core-no-infra]
 name = Platform core (providers/events/publisher/profile/container/runtime) must not import infrastructure directly
@@ -60,17 +50,7 @@ name = Domain modules must depend on platform providers, not backends
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    activities
-    auth
-    users
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
+    modules
 forbidden_modules =
     infra.backends
 
@@ -81,40 +61,36 @@ allow_indirect_imports = True
 source_modules =
     infra
 forbidden_modules =
-    activities
-    auth
-    users
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
+    modules
 ignore_imports =
-    infra.jobs.router -> auth.dependencies
-    infra.event_log.router -> auth.dependencies
+    infra.jobs.router -> modules.auth.dependencies
+    infra.event_log.router -> modules.auth.dependencies
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    activities
-    auth
+    modules
     core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    users
-    websocket
     infra
 forbidden_modules =
     redis
 ignore_imports =
     infra.redis -> redis
+
+# A layers contract (not a denylist) that states the substrate's internal direction
+# once: the composition root (container) sits above the adapters (backends), which sit
+# above the ports (providers) and the event envelope (events). Higher layers may import
+# lower ones, never the reverse — so a port importing an adapter (the ports-and-adapters
+# inversion the forbidden contracts above do NOT catch) is rejected here.
+[importlinter:contract:platform-ports-and-adapters]
+name = Platform ports-and-adapters: adapters may import ports, never the reverse
+type = layers
+containers =
+    infra
+layers =
+    container
+    backends
+    providers
+    events

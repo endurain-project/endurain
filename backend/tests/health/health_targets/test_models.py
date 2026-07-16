@@ -1,4 +1,4 @@
-import health.health_targets.models as health_targets_models
+import modules.health.health_targets.models as health_targets_models
 
 
 class TestHealthTargetsModel:

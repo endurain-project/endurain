@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-import auth.sessions.schema as users_session_schema
+import modules.auth.sessions.schema as users_session_schema
 
 
 class TestUsersSessionsBaseSchema:

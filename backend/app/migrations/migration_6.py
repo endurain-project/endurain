@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import users.users.crud as user_crud
-import users.users.schema as users_schema
+import modules.users.users.crud as user_crud
+import modules.users.users.schema as users_schema
 
 
 async def process_migration_6(db: Session) -> None:

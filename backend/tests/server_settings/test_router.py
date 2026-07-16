@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException, status
 
-import server_settings.models as server_settings_models
-import server_settings.schema as server_settings_schema
+import modules.server_settings.models as server_settings_models
+import modules.server_settings.schema as server_settings_schema
 
 
 class TestReadServerSettings:
     """Test suite for read_server_settings endpoint."""
 
-    @patch("server_settings.router.server_settings_utils.get_server_settings_for_admin")
+    @patch("modules.server_settings.router.server_settings_utils.get_server_settings_for_admin")
     def test_read_server_settings_success(self, mock_get_settings, fast_api_client, fast_api_app):
         """Test successful retrieval of server settings."""
         # Arrange
@@ -58,7 +58,7 @@ class TestReadServerSettings:
         assert data["units"] == "metric"
         assert data["public_shareable_links"] is False
 
-    @patch("server_settings.router.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.server_settings.router.server_settings_utils.get_server_settings_or_404")
     def test_read_server_settings_not_found(self, mock_get_settings, fast_api_client, fast_api_app):
         """Test retrieval when settings not found."""
         # Arrange
@@ -80,7 +80,7 @@ class TestReadServerSettings:
 class TestListTileMapsTemplates:
     """Test suite for list_tile_maps_templates endpoint."""
 
-    @patch("server_settings.router.server_settings_utils.get_tile_maps_templates")
+    @patch("modules.server_settings.router.server_settings_utils.get_tile_maps_templates")
     def test_list_tile_maps_templates_success(self, mock_get_templates, fast_api_client, fast_api_app):
         """Test successful retrieval of tile map templates."""
         # Arrange
@@ -123,7 +123,7 @@ class TestListTileMapsTemplates:
 class TestEditServerSettings:
     """Test suite for edit_server_settings endpoint."""
 
-    @patch("server_settings.router.server_settings_crud.edit_server_settings")
+    @patch("modules.server_settings.router.server_settings_crud.edit_server_settings")
     def test_edit_server_settings_success(self, mock_edit_settings, fast_api_client, fast_api_app):
         """Test successful update of server settings."""
         # Arrange
@@ -185,7 +185,7 @@ class TestEditServerSettings:
         assert data["units"] == "imperial"
         assert data["num_records_per_page"] == 50
 
-    @patch("server_settings.router.server_settings_crud.edit_server_settings")
+    @patch("modules.server_settings.router.server_settings_crud.edit_server_settings")
     def test_edit_server_settings_not_found(self, mock_edit_settings, fast_api_client, fast_api_app):
         """Test update when settings not found."""
         # Arrange
@@ -229,7 +229,7 @@ class TestDeleteLoginPhoto:
     """Test suite for delete_login_photo endpoint."""
 
     @patch(
-        "server_settings.router.core_file_uploads.delete_files_by_pattern",
+        "modules.server_settings.router.core_file_uploads.delete_files_by_pattern",
         new_callable=AsyncMock,
     )
     def test_delete_login_photo_success(self, mock_delete, fast_api_client, fast_api_app):
@@ -244,7 +244,7 @@ class TestDeleteLoginPhoto:
         assert response.status_code == 204
 
     @patch(
-        "server_settings.router.core_file_uploads.delete_files_by_pattern",
+        "modules.server_settings.router.core_file_uploads.delete_files_by_pattern",
         new_callable=AsyncMock,
     )
     def test_delete_login_photo_not_exists(self, mock_delete, fast_api_client, fast_api_app):

@@ -7,11 +7,11 @@ import pytest
 from fastapi import HTTPException, Request, status
 from joserfc.errors import MissingClaimError
 
-import auth._internal.internal_dependencies as auth_security
-import auth._internal.token_manager as auth_token_manager
-import auth.utils as auth_utils
-from auth.identity_service import IdentityService
-from auth.principal import AccessTokenCred, ApiKeyCred, Principal
+import modules.auth._internal.internal_dependencies as auth_security
+import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.utils as auth_utils
+from modules.auth.identity_service import IdentityService
+from modules.auth.principal import AccessTokenCred, ApiKeyCred, Principal
 
 
 def _make_principal(
