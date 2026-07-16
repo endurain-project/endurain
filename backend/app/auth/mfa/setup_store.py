@@ -11,8 +11,8 @@ from typing import NoReturn
 import core.cryptography as core_cryptography
 import core.hashing as core_hashing
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
-from core.platform.providers import StateBackendUnavailableError, StateProvider
+import infra.runtime as platform_runtime
+from infra.providers import StateBackendUnavailableError, StateProvider
 
 _MFA_SECRET_KEY_PREFIX = "endurain:auth:mfa:setup_secret"  # noqa: S105 - storage key prefix, not a credential
 _DEFAULT_TTL_SECONDS: int = 300

@@ -13,14 +13,14 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import core.config as core_config
 import core.database as core_database
-import core.jobs.crud as jobs_crud
-import core.jobs.registry as jobs_registry
-import core.jobs.relay as jobs_relay
 import core.logger as core_logger
-import core.platform.node as platform_node
-import core.platform.runtime as platform_runtime
-from core.jobs.runner import JobRunner
-from core.jobs.worker import BackgroundWorker
+import infra.jobs.crud as jobs_crud
+import infra.jobs.registry as jobs_registry
+import infra.jobs.relay as jobs_relay
+import infra.node as platform_node
+import infra.runtime as platform_runtime
+from infra.jobs.runner import JobRunner
+from infra.jobs.worker import BackgroundWorker
 
 # How often the scheduler relays the outbox and reaps expired leases (seconds).
 _RELAY_INTERVAL_SECONDS = 5

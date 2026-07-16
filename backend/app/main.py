@@ -26,27 +26,27 @@ import auth.password_reset_tokens.utils as password_reset_tokens_utils
 import auth.sign_up_tokens.utils as sign_up_tokens_utils
 import auth.utils as auth_utils
 import core.config as core_config
-import core.jobs.registry as jobs_registry
-import core.jobs.service as jobs_service
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
 import core.migrations as core_migrations
 import core.network as core_network
-import core.platform.capabilities as platform_capabilities
-import core.platform.container as platform_container
-import core.platform.runtime as platform_runtime
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
+import infra.capabilities as platform_capabilities
+import infra.container as platform_container
+import infra.jobs.registry as jobs_registry
+import infra.jobs.service as jobs_service
+import infra.runtime as platform_runtime
 import server_settings.schema as server_settings_schema
 import server_settings.utils as server_settings_utils
 import strava.activity_utils as strava_activity_utils
 import strava.utils as strava_utils
+from api import router as api_router
 from core.database import SessionLocal
 from core.database import engine as core_db_engine
-from core.routes import router as api_router
 
 _DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 
@@ -247,7 +247,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     fastapi_app.state.platform = platform
 
     # Publish it process-wide so background work (scheduler, Garmin login thread)
-    # that has no request can resolve providers via core.platform.runtime.
+    # that has no request can resolve providers via infra.runtime.
     platform_runtime.set_active_platform(platform)
 
     # Register domain subscribers before starting the bus. The thumbnail

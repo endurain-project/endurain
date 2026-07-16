@@ -4,7 +4,7 @@
 clock) to a concrete backend based on the deployment profile and returns a
 frozen ``Platform`` holding the providers. It is called once at startup and
 attached to ``app.state.platform`` and published process-wide via
-``core.platform.runtime`` so both request and non-request code resolve the same
+``infra.runtime`` so both request and non-request code resolve the same
 instance.
 
 Every capability resolves its backend by URI scheme, independently of the
@@ -19,16 +19,16 @@ profile just picks memory-vs-Redis and local-fs-vs-S3 defaults.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from core.platform.backends.clock_system import SystemClock
-from core.platform.backends.events_inprocess import InProcessEventBus
-from core.platform.backends.events_redis import RedisStreamEventBus
-from core.platform.backends.lock_noop import NoopLock
-from core.platform.backends.lock_pg import PgAdvisoryLock
-from core.platform.backends.state_memory import MemoryState
-from core.platform.backends.state_redis import RedisState
-from core.platform.backends.storage_local import LocalStorage
-from core.platform.profile import DeploymentProfile
-from core.platform.providers import (
+from infra.backends.clock_system import SystemClock
+from infra.backends.events_inprocess import InProcessEventBus
+from infra.backends.events_redis import RedisStreamEventBus
+from infra.backends.lock_noop import NoopLock
+from infra.backends.lock_pg import PgAdvisoryLock
+from infra.backends.state_memory import MemoryState
+from infra.backends.state_redis import RedisState
+from infra.backends.storage_local import LocalStorage
+from infra.profile import DeploymentProfile
+from infra.providers import (
     ClockProvider,
     EventBusProvider,
     EventRecorder,
@@ -116,7 +116,7 @@ def _build_storage(settings: "Settings") -> StorageProvider:
     if scheme == "s3":
         # Imported lazily: boto3 is the optional `s3` extra and is absent from the
         # default image, so a top-level import would break non-S3 deployments.
-        from core.platform.backends.storage_s3 import S3Storage
+        from infra.backends.storage_s3 import S3Storage
 
         return S3Storage.from_uri(storage_uri)
     raise ValueError(f"Unsupported STORAGE_URI scheme: {scheme or storage_uri!r}")
@@ -137,7 +137,7 @@ def _build_event_recorder(settings: "Settings") -> EventRecorder | None:
         return None
     # Imported lazily: the recorder pulls in the ORM/session layer, which the
     # pure providers/events modules deliberately do not depend on.
-    from core.event_log.recorder import EventLogRecorder
+    from infra.event_log.recorder import EventLogRecorder
 
     return EventLogRecorder()
 

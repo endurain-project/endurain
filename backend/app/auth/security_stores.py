@@ -15,8 +15,8 @@ from urllib.parse import unquote
 
 import core.hashing as core_hashing
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
-from core.platform.providers import StateBackendUnavailableError, StateProvider
+import infra.runtime as platform_runtime
+from infra.providers import StateBackendUnavailableError, StateProvider
 
 _AUTH_KEY_PREFIX = "endurain:auth"
 

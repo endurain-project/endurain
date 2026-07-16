@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import auth.mfa.setup_store as auth_mfa_setup_store
-from core.platform.backends.state_memory import MemoryState
-from core.platform.providers import StateBackendUnavailableError
+from infra.backends.state_memory import MemoryState
+from infra.providers import StateBackendUnavailableError
 
 
 class TestMFASecretStore:

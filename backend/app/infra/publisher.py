@@ -1,6 +1,6 @@
 """The single publish seam every producer goes through.
 
-One tiny facade so no producer ever assembles an :class:`~core.platform.events.Event`
+One tiny facade so no producer ever assembles an :class:`~infra.events.Event`
 or touches the active platform directly. Centralising publishing here means the
 transactional outbox (foundations plan F8) is a change to *this* function alone,
 not to every call site.
@@ -34,12 +34,12 @@ layer only knows the generic envelope.
 from typing import Any
 
 import core.config as core_config
-import core.jobs.outbox as jobs_outbox
-import core.jobs.registry as jobs_registry
 import core.logger as core_logger
 import core.middleware_request_id as core_middleware_request_id
-import core.platform.runtime as platform_runtime
-from core.platform.events import META_REQUEST_ID, new_event
+import infra.jobs.outbox as jobs_outbox
+import infra.jobs.registry as jobs_registry
+import infra.runtime as platform_runtime
+from infra.events import META_REQUEST_ID, new_event
 
 
 def publish(

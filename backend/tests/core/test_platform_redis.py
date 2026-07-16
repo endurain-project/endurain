@@ -1,11 +1,11 @@
-"""Tests for the core.platform.redis capability module."""
+"""Tests for the infra.redis capability module."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 from redis import RedisError
 
-import core.platform.redis as platform_redis
+import infra.redis as platform_redis
 
 
 class TestLazyRedisAttrs:

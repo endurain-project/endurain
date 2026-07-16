@@ -2,7 +2,7 @@
 
 The recording helpers write the event lifecycle: ``record_published`` /
 ``mark_processing`` / ``mark_completed`` / ``mark_failed`` for bus-delivered
-events (via the recorder in :mod:`core.event_log.recorder`), and ``record_queued``
+events (via the recorder in :mod:`infra.event_log.recorder`), and ``record_queued``
 for events handed to the durable job queue (via the publish facade). The
 ``get_event_log_summary`` helper powers the admin dashboard. Every query here is
 portable SQL so the same code runs on PostgreSQL in production and SQLite in tests.
@@ -14,9 +14,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-import core.event_log.schema as event_log_schema
-from core.event_log.models import EventLog
-from core.platform.events import Event
+import infra.event_log.schema as event_log_schema
+from infra.event_log.models import EventLog
+from infra.events import Event
 
 _STATUS_PUBLISHED = "published"
 _STATUS_QUEUED = "queued"

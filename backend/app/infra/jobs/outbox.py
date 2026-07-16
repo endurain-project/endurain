@@ -16,8 +16,8 @@ from datetime import datetime
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from core.jobs.models import EventOutbox
-from core.platform.events import Event
+from infra.events import Event
+from infra.jobs.models import EventOutbox
 
 
 def add_to_outbox(event: Event, *, now: datetime, db: Session) -> str:

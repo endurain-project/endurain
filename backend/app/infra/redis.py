@@ -32,7 +32,7 @@ _LAZY_REDIS_ATTRS = frozenset({"Redis", "RedisError", "ResponseError"})
 def __getattr__(name: str) -> Any:
     """Lazily expose the ``redis`` exception/client classes.
 
-    Lets callers write clean top-level ``import core.platform.redis as
+    Lets callers write clean top-level ``import infra.redis as
     platform_redis`` and ``except platform_redis.RedisError`` without importing
     ``redis`` until the attribute is actually accessed at runtime (i.e. only on
     the Redis code path). Keeps ``redis`` a genuinely optional dependency.

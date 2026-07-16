@@ -21,8 +21,6 @@ import auth.router as auth_router
 import auth.sessions.router as auth_sessions_router
 import auth.sign_up_tokens.router as sign_up_tokens_router
 import core.config as core_config
-import core.event_log.router as event_log_router
-import core.jobs.router as jobs_router
 import core.router as core_router
 import followers.router as followers_router
 import garmin.router as garmin_router
@@ -36,6 +34,8 @@ import health.health_targets.router as health_targets_router
 import health.health_water.router as health_water_router
 import health.health_weight.router as health_weight_router
 import health.router as health_router
+import infra.event_log.router as event_log_router
+import infra.jobs.router as jobs_router
 import notifications.router as notifications_router
 import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router

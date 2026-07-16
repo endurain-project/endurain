@@ -20,8 +20,8 @@ from typing import NoReturn
 
 import core.hashing as core_hashing
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
-from core.platform.providers import StateBackendUnavailableError, StateProvider
+import infra.runtime as platform_runtime
+from infra.providers import StateBackendUnavailableError, StateProvider
 
 _GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
 # TTL must exceed the 65-second blocking_login timeout in garmin/utils.py.

@@ -10,8 +10,8 @@ in any context resolve their provider lazily through :func:`get_state`.
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.platform.container import Platform
-    from core.platform.providers import StateProvider
+    from infra.container import Platform
+    from infra.providers import StateProvider
 
 _active_platform: "Platform | None" = None
 

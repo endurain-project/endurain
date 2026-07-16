@@ -10,7 +10,7 @@ code therefore runs subscribers in-process or out-of-process in a worker.
 from collections import defaultdict
 from collections.abc import Callable
 
-from core.platform.events import Event
+from infra.events import Event
 
 JobHandler = Callable[[Event], None]
 

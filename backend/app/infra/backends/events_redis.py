@@ -29,12 +29,12 @@ from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import core.logger as core_logger
-import core.platform.node as platform_node
-import core.platform.redis as platform_redis
-from core.platform.events import Event
+import infra.node as platform_node
+import infra.redis as platform_redis
+from infra.events import Event
 
 if TYPE_CHECKING:
-    from core.platform.providers import EventRecorder
+    from infra.providers import EventRecorder
 
 _DEFAULT_STREAM = "endurain:events"
 _DEFAULT_GROUP = "endurain"

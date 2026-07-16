@@ -4,8 +4,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-import core.jobs.crud as jobs_crud
-from core.jobs.models import ProcessingJob
+import infra.jobs.crud as jobs_crud
+from infra.jobs.models import ProcessingJob
 from tests._helpers.db import create_sqlite_session
 
 

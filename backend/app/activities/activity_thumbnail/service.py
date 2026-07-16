@@ -17,8 +17,8 @@ import activities.activity_thumbnail.render as activity_thumbnail_render
 import core.cryptography as core_cryptography
 import core.database as core_database
 import core.logger as core_logger
-import core.platform.providers as platform_providers
-import core.platform.runtime as platform_runtime
+import infra.providers as platform_providers
+import infra.runtime as platform_runtime
 import server_settings.crud as server_settings_crud
 
 

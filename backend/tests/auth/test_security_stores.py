@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import auth.security_stores as security_stores
-from core.platform.backends.state_memory import MemoryState
-from core.platform.providers import StateBackendUnavailableError
+from infra.backends.state_memory import MemoryState
+from infra.providers import StateBackendUnavailableError
 
 
 class TestNormalizeUsernameKey:

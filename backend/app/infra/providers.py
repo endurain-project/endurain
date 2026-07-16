@@ -3,8 +3,8 @@
 Pure module: only stdlib typing and the event envelope. No infrastructure
 (redis / boto3 / sqlalchemy) and no domain imports, so any module can depend on
 these providers without pulling in a backend. Concrete backends live in
-``core.platform.backends`` and are selected by the composition root
-(``core.platform.container.build_platform``).
+``infra.backends`` and are selected by the composition root
+(``infra.container.build_platform``).
 """
 
 from collections.abc import Callable, Iterator
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
-from core.platform.events import Event
+from infra.events import Event
 
 
 class StateBackendUnavailableError(RuntimeError):

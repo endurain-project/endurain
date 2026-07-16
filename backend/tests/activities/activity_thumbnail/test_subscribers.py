@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.platform.events import new_event
+from infra.events import new_event
 
 
 class TestOnActivityCreatedGenerateThumbnail:
@@ -200,7 +200,7 @@ class TestDurableThumbnailHandlers:
             generate_activity_thumbnail_for_event,
             register_thumbnail_durable_handlers,
         )
-        from core.jobs.registry import JobHandlerRegistry
+        from infra.jobs.registry import JobHandlerRegistry
 
         registry = JobHandlerRegistry()
         register_thumbnail_durable_handlers(registry)

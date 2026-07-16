@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-import core.jobs.outbox as jobs_outbox
-import core.platform.events as platform_events
-from core.jobs.models import EventOutbox
+import infra.events as platform_events
+import infra.jobs.outbox as jobs_outbox
+from infra.jobs.models import EventOutbox
 from tests._helpers.db import create_sqlite_session
 
 _NOW = datetime(2026, 7, 14, 12, 0, 0, tzinfo=UTC)

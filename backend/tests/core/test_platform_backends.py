@@ -9,14 +9,14 @@ import pytest
 from botocore.exceptions import ClientError
 from redis.exceptions import RedisError, ResponseError
 
-import core.platform.events as platform_events
-import core.platform.providers as platform_providers
-from core.platform.backends import events_redis, state_redis, storage_s3
-from core.platform.backends.clock_system import SystemClock
-from core.platform.backends.events_inprocess import InProcessEventBus
-from core.platform.backends.lock_noop import NoopLock
-from core.platform.backends.state_memory import MemoryState
-from core.platform.backends.storage_local import LocalStorage
+import infra.events as platform_events
+import infra.providers as platform_providers
+from infra.backends import events_redis, state_redis, storage_s3
+from infra.backends.clock_system import SystemClock
+from infra.backends.events_inprocess import InProcessEventBus
+from infra.backends.lock_noop import NoopLock
+from infra.backends.state_memory import MemoryState
+from infra.backends.storage_local import LocalStorage
 
 
 class TestMemoryState:
@@ -40,7 +40,7 @@ class TestMemoryState:
 
     def test_ttl_expiry(self):
         state = MemoryState()
-        with patch("core.platform.backends.state_memory.time.monotonic") as clock:
+        with patch("infra.backends.state_memory.time.monotonic") as clock:
             clock.return_value = 1000.0
             state.set("k", b"v", ttl_seconds=10)
             clock.return_value = 1009.0
@@ -50,7 +50,7 @@ class TestMemoryState:
 
     def test_incr_sets_then_preserves_ttl(self):
         state = MemoryState()
-        with patch("core.platform.backends.state_memory.time.monotonic") as clock:
+        with patch("infra.backends.state_memory.time.monotonic") as clock:
             clock.return_value = 100.0
             assert state.incr("c", ttl_seconds=5) == 1
             clock.return_value = 103.0
@@ -66,7 +66,7 @@ class TestMemoryState:
 
     def test_set_if_absent_after_expiry(self):
         state = MemoryState()
-        with patch("core.platform.backends.state_memory.time.monotonic") as clock:
+        with patch("infra.backends.state_memory.time.monotonic") as clock:
             clock.return_value = 0.0
             assert state.set_if_absent("k", b"v", ttl_seconds=10) is True
             clock.return_value = 11.0
@@ -120,13 +120,13 @@ class TestMemoryState:
         state = MemoryState()
         tiers = ((1, 300),)
         with (
-            patch("core.platform.backends.state_memory.time.time", return_value=1000),
-            patch("core.platform.backends.state_memory.time.monotonic", return_value=0.0),
+            patch("infra.backends.state_memory.time.time", return_value=1000),
+            patch("infra.backends.state_memory.time.monotonic", return_value=0.0),
         ):
             state.record_tiered_failure("count", "gate", tiers, 3600)
         with (
-            patch("core.platform.backends.state_memory.time.time", return_value=2000),
-            patch("core.platform.backends.state_memory.time.monotonic", return_value=0.0),
+            patch("infra.backends.state_memory.time.time", return_value=2000),
+            patch("infra.backends.state_memory.time.monotonic", return_value=0.0),
         ):
             reopened = state.record_tiered_failure("count", "gate", tiers, 3600)
         assert reopened.count == 2
@@ -700,14 +700,14 @@ class _FakeEngine:
 
 class TestPgAdvisoryLock:
     def test_advisory_key_deterministic_and_signed_64bit(self):
-        from core.platform.backends.lock_pg import advisory_key
+        from infra.backends.lock_pg import advisory_key
 
         assert advisory_key("thumbnail_backfill") == advisory_key("thumbnail_backfill")
         assert advisory_key("a") != advisory_key("b")
         assert -(2**63) <= advisory_key("x") < 2**63
 
     def test_acquire_true_locks_then_unlocks_and_closes(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         engine = _FakeEngine(acquired=True)
         with PgAdvisoryLock(engine).try_acquire("job") as acquired:
@@ -718,7 +718,7 @@ class TestPgAdvisoryLock:
         assert engine.connection.closed is True
 
     def test_acquire_false_does_not_unlock_but_closes(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         engine = _FakeEngine(acquired=False)
         with PgAdvisoryLock(engine).try_acquire("job") as acquired:
@@ -728,7 +728,7 @@ class TestPgAdvisoryLock:
         assert engine.connection.closed is True
 
     def test_connection_closed_when_body_raises(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         engine = _FakeEngine(acquired=True)
         with pytest.raises(RuntimeError), PgAdvisoryLock(engine).try_acquire("job"):
@@ -737,17 +737,17 @@ class TestPgAdvisoryLock:
 
     def test_from_main_database_uses_app_engine(self):
         import core.database as core_database
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         assert PgAdvisoryLock.from_main_database()._engine is core_database.engine
 
     def test_satisfies_lock_provider(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         assert isinstance(PgAdvisoryLock(_FakeEngine()), platform_providers.LockProvider)
 
     def test_advisory_sql_casts_key_to_bigint(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         engine = _FakeEngine(acquired=True)
         with PgAdvisoryLock(engine).try_acquire("job"):
@@ -756,7 +756,7 @@ class TestPgAdvisoryLock:
         assert statements and all("bigint" in sql.lower() for sql in statements)
 
     def test_unlock_failure_is_logged_and_connection_invalidated(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         engine = _FakeEngine(acquired=True, unlock_error=True)
         with PgAdvisoryLock(engine).try_acquire("job") as acquired:
@@ -765,7 +765,7 @@ class TestPgAdvisoryLock:
         assert engine.connection.closed is True
 
     def test_unlock_failure_does_not_mask_body_exception(self):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         engine = _FakeEngine(acquired=True, unlock_error=True)
         with pytest.raises(ValueError, match="body"), PgAdvisoryLock(engine).try_acquire("job"):

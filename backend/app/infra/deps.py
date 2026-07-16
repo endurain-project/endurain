@@ -7,8 +7,8 @@ routes depend on providers (via ``Depends``) rather than importing backends.
 
 from fastapi import Request
 
-from core.platform.container import Platform
-from core.platform.providers import ClockProvider, EventBusProvider, LockProvider, StateProvider, StorageProvider
+from infra.container import Platform
+from infra.providers import ClockProvider, EventBusProvider, LockProvider, StateProvider, StorageProvider
 
 
 def get_platform(request: Request) -> Platform:

@@ -10,7 +10,7 @@ loop.
 import threading
 
 import core.logger as core_logger
-from core.jobs.runner import JobRunner
+from infra.jobs.runner import JobRunner
 
 _STOP_JOIN_TIMEOUT = 5.0
 

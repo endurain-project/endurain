@@ -14,6 +14,7 @@ root_packages =
     server_settings
     strava
     websocket
+    infra
 
 [importlinter:contract:auth-boundary]
 name = Auth boundary: non-auth must not import auth internals directly
@@ -31,6 +32,7 @@ source_modules =
     server_settings
     strava
     websocket
+    infra
 forbidden_modules =
     auth.internal_dependencies
     auth.password_hasher
@@ -52,6 +54,7 @@ source_modules =
     server_settings
     strava
     websocket
+    infra
 forbidden_modules =
     auth.password_reset_tokens.crud
     auth.sign_up_tokens.crud
@@ -69,13 +72,13 @@ name = Platform core (providers/events/publisher/profile/container/runtime) must
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    core.platform.providers
-    core.platform.events
-    core.platform.publisher
-    core.platform.profile
-    core.platform.capabilities
-    core.platform.container
-    core.platform.runtime
+    infra.providers
+    infra.events
+    infra.publisher
+    infra.profile
+    infra.capabilities
+    infra.container
+    infra.runtime
 forbidden_modules =
     redis
     sqlalchemy
@@ -98,14 +101,14 @@ source_modules =
     strava
     websocket
 forbidden_modules =
-    core.platform.backends
+    infra.backends
 
 [importlinter:contract:platform-not-domain]
 name = Platform substrate must not import domain modules
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    core.platform
+    infra
 forbidden_modules =
     activities
     auth
@@ -118,6 +121,9 @@ forbidden_modules =
     server_settings
     strava
     websocket
+ignore_imports =
+    infra.jobs.router -> auth.dependencies
+    infra.event_log.router -> auth.dependencies
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis
@@ -136,7 +142,8 @@ source_modules =
     strava
     users
     websocket
+    infra
 forbidden_modules =
     redis
 ignore_imports =
-    core.platform.redis -> redis
+    infra.redis -> redis

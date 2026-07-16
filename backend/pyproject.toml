@@ -209,7 +209,7 @@ ignore = [
 "app/main.py" = ["S105"]  # false positive on env var value
 "app/profile/mfa_store.py" = ["S105"]  # false positive on Redis key prefix
 "app/profile/**/*.py" = ["A005"]  # tracked in https://codeberg.org/endurain-project/endurain/issues/677
-"app/core/platform/**/*.py" = ["A005"]  # 'platform'/'profile' deliberately shadow stdlib module names
+"app/infra/profile.py" = ["A005"]  # 'profile' deliberately shadows a stdlib module name
 
 [tool.ruff.format]
 quote-style = "double"

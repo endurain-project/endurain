@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 import auth.dependencies as auth_dependencies
 import core.database as core_database
-import core.event_log.crud as event_log_crud
-import core.event_log.schema as event_log_schema
+import infra.event_log.crud as event_log_crud
+import infra.event_log.schema as event_log_schema
 
 # Define the API router
 router = APIRouter()

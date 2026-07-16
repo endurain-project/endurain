@@ -1,6 +1,6 @@
 """The event-log recorder — persists event lifecycle to the event_log table.
 
-Implements the :class:`~core.platform.providers.EventRecorder` protocol. The
+Implements the :class:`~infra.providers.EventRecorder` protocol. The
 composition root injects one instance into the event bus when
 ``EVENT_LOG_ENABLED`` is set. Each write opens its own short-lived session and
 swallows/logs any storage error, so a database hiccup never breaks event
@@ -13,10 +13,10 @@ from contextlib import contextmanager
 
 from sqlalchemy.orm import Session
 
-import core.event_log.crud as event_log_crud
 import core.logger as core_logger
+import infra.event_log.crud as event_log_crud
 from core.database import SessionLocal
-from core.platform.events import Event
+from infra.events import Event
 
 
 class EventLogRecorder:

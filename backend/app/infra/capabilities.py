@@ -25,7 +25,7 @@ Two consistency rules are enforced (see the foundations plan §9.2):
 The *clock* is always the system clock, so its default is never a fatal choice
 here.
 
-Pure module — imports only ``core.platform.profile``. The actual logging is
+Pure module — imports only ``infra.profile``. The actual logging is
 performed by the caller (``main.startup_event``) so this stays side-effect free
 and trivially testable.
 """
@@ -33,7 +33,7 @@ and trivially testable.
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from core.platform.profile import (
+from infra.profile import (
     DeploymentProfile,
     DeploymentTopology,
     StateBackendKind,

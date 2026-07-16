@@ -1,6 +1,6 @@
 """Tests for the durable-job retry backoff schedule."""
 
-import core.jobs.backoff as jobs_backoff
+import infra.jobs.backoff as jobs_backoff
 
 
 class TestBackoffSeconds:

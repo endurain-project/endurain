@@ -12,12 +12,12 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-import core.jobs.crud as jobs_crud
 import core.logger as core_logger
-from core.jobs.models import ProcessingJob
-from core.jobs.registry import JobHandlerRegistry
-from core.platform.events import Event
-from core.platform.providers import ClockProvider
+import infra.jobs.crud as jobs_crud
+from infra.events import Event
+from infra.jobs.models import ProcessingJob
+from infra.jobs.registry import JobHandlerRegistry
+from infra.providers import ClockProvider
 
 
 @dataclass(frozen=True)

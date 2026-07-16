@@ -14,7 +14,7 @@ from staticmap import CircleMarker, Line, StaticMap
 
 import core.config as core_config
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
+import infra.runtime as platform_runtime
 
 # The storage area (domain-owned namespace) activity thumbnails live under.
 THUMBNAIL_STORAGE_AREA = "activity_thumbnails"

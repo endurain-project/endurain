@@ -4,10 +4,10 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from core.platform.events import Event
+from infra.events import Event
 
 if TYPE_CHECKING:
-    from core.platform.providers import EventRecorder
+    from infra.providers import EventRecorder
 
 # Worker label recorded for in-process dispatch (single process, no consumer).
 _INPROCESS_WORKER = "inprocess"
@@ -21,7 +21,7 @@ class InProcessEventBus:
     backfill is the safety net). ``start`` / ``stop`` are no-ops because there is
     no background consumer.
 
-    When an :class:`~core.platform.providers.EventRecorder` is injected, each
+    When an :class:`~infra.providers.EventRecorder` is injected, each
     ``publish`` records the event's lifecycle (published -> completed/failed)
     around the inline dispatch in two writes: the intermediate ``processing``
     state is skipped because dispatch is synchronous and single-process, so that

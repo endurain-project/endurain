@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-import core.event_log.crud as event_log_crud
-import core.platform.events as platform_events
-from core.event_log.models import EventLog
+import infra.event_log.crud as event_log_crud
+import infra.events as platform_events
+from infra.event_log.models import EventLog
 from tests._helpers.db import create_sqlite_session
 
 

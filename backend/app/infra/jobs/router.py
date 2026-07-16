@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 import auth.dependencies as auth_dependencies
 import core.database as core_database
-import core.jobs.crud as jobs_crud
-import core.jobs.schema as jobs_schema
+import infra.jobs.crud as jobs_crud
+import infra.jobs.schema as jobs_schema
 
 # Define the API router
 router = APIRouter()

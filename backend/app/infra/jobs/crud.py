@@ -17,10 +17,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-import core.jobs.backoff as jobs_backoff
-import core.jobs.schema as jobs_schema
-from core.jobs.models import ProcessingJob
-from core.platform.events import Event
+import infra.jobs.backoff as jobs_backoff
+import infra.jobs.schema as jobs_schema
+from infra.events import Event
+from infra.jobs.models import ProcessingJob
 
 STATUS_PENDING = "pending"
 STATUS_CLAIMED = "claimed"

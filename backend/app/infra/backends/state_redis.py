@@ -13,8 +13,8 @@ import time
 from collections.abc import Callable, Iterator
 from typing import Any, Concatenate
 
-import core.platform.redis as platform_redis
-from core.platform.providers import StateBackendUnavailableError, TieredFailureOutcome
+import infra.redis as platform_redis
+from infra.providers import StateBackendUnavailableError, TieredFailureOutcome
 
 # Atomic tiered-lockout script (KEYS: gate, counter; ARGV: now, counter_ttl,
 # then (threshold, lock_seconds) pairs ascending). Mirrors the in-memory backend:

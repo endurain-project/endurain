@@ -4,7 +4,7 @@ import threading
 import time
 from collections.abc import Iterator
 
-from core.platform.providers import TieredFailureOutcome
+from infra.providers import TieredFailureOutcome
 
 
 class MemoryState:

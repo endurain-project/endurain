@@ -28,8 +28,8 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.logger as core_logger
 import core.network as core_network
-import core.platform.capabilities as platform_capabilities
-import core.platform.profile as platform_profile
+import infra.capabilities as platform_capabilities
+import infra.profile as platform_profile
 
 # Pure constants — neither env-driven nor derived from settings.
 API_VERSION = "v0.19.0-beta6"
@@ -535,7 +535,7 @@ class Settings(BaseSettings):
         """Effective blob-storage URI: ``STORAGE_URI`` or the ``local://`` default.
 
         The scheme (``local`` or ``s3``) selects the ``StorageProvider`` backend in
-        :func:`core.platform.container.build_platform`.
+        :func:`infra.container.build_platform`.
         """
         return self.STORAGE_URI or "local://"
 
@@ -544,7 +544,7 @@ class Settings(BaseSettings):
         """Effective event-bus URI: ``EVENTS_URI`` -> ``REDIS_URL`` -> ``memory://``.
 
         The scheme (``memory`` or ``redis``) selects the ``EventBusProvider`` backend
-        in :func:`core.platform.container.build_platform`.
+        in :func:`infra.container.build_platform`.
         """
         return self.EVENTS_URI or self.REDIS_URL or "memory://"
 
@@ -558,7 +558,7 @@ class Settings(BaseSettings):
         ``local`` deployment — so the default never coordinates scheduled jobs
         with a no-op lock. The scheme (``noop`` or ``postgres-advisory``) selects
         the ``LockProvider`` backend in
-        :func:`core.platform.container.build_platform`. An explicit
+        :func:`infra.container.build_platform`. An explicit
         ``LOCK_URI=noop://`` under a multi-process topology is rejected by
         :meth:`_enforce_deployment_topology`.
         """

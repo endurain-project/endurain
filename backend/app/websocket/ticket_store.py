@@ -10,8 +10,8 @@ import secrets
 from typing import NoReturn, Protocol, runtime_checkable
 
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
-from core.platform.providers import StateBackendUnavailableError, StateProvider
+import infra.runtime as platform_runtime
+from infra.providers import StateBackendUnavailableError, StateProvider
 
 TICKET_TTL_SECONDS = 30
 _TICKET_KEY_PREFIX = "ws:ticket:"

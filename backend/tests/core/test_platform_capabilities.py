@@ -1,7 +1,7 @@
-"""Tests for core.platform.capabilities."""
+"""Tests for infra.capabilities."""
 
-import core.platform.capabilities as platform_capabilities
-import core.platform.profile as platform_profile
+import infra.capabilities as platform_capabilities
+import infra.profile as platform_profile
 
 
 class TestStateSource:

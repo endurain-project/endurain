@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 import activities.activity.crud as activities_crud
 import activities.activity_thumbnail.render as activity_thumbnail_render
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
+import infra.runtime as platform_runtime
 import migrations.crud as migrations_crud
 
 # Rows processed per DB round-trip; keeps memory bounded on large libraries.

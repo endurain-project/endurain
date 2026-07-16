@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-import core.jobs.crud as jobs_crud
-import core.platform.events as platform_events
-from core.jobs.models import ProcessingJob
+import infra.events as platform_events
+import infra.jobs.crud as jobs_crud
+from infra.jobs.models import ProcessingJob
 from tests._helpers.db import create_sqlite_session
 
 _NOW = datetime(2026, 7, 14, 12, 0, 0, tzinfo=UTC)

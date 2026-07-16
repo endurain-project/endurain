@@ -21,10 +21,10 @@ import activities.activity_streams.crud as activity_streams_crud
 import activities.activity_thumbnail.service as activity_thumbnail_service
 import core.database as core_database
 import core.logger as core_logger
-import core.platform.runtime as platform_runtime
-from core.jobs.registry import JobHandlerRegistry
-from core.platform.events import Event
-from core.platform.providers import EventBusProvider
+import infra.runtime as platform_runtime
+from infra.events import Event
+from infra.jobs.registry import JobHandlerRegistry
+from infra.providers import EventBusProvider
 
 # The minimum GPS waypoints needed to draw a route; below this there is no map
 # to render (non-GPS activities such as strength training cost nothing).

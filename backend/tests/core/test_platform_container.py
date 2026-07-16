@@ -1,18 +1,18 @@
-"""Tests for core.platform.container.build_platform."""
+"""Tests for infra.container.build_platform."""
 
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-import core.platform.providers as platform_providers
-from core.platform.backends.clock_system import SystemClock
-from core.platform.backends.events_inprocess import InProcessEventBus
-from core.platform.backends.lock_noop import NoopLock
-from core.platform.backends.state_memory import MemoryState
-from core.platform.backends.storage_local import LocalStorage
-from core.platform.container import build_platform
-from core.platform.profile import DeploymentProfile
+import infra.providers as platform_providers
+from infra.backends.clock_system import SystemClock
+from infra.backends.events_inprocess import InProcessEventBus
+from infra.backends.lock_noop import NoopLock
+from infra.backends.state_memory import MemoryState
+from infra.backends.storage_local import LocalStorage
+from infra.container import build_platform
+from infra.profile import DeploymentProfile
 
 
 def _settings(
@@ -69,8 +69,8 @@ class TestBuildPlatformState:
         assert isinstance(platform.state, MemoryState)
 
     def test_redis_scheme_builds_redis_backend(self, tmp_path):
-        from core.platform.backends import state_redis
-        from core.platform.backends.state_redis import RedisState
+        from infra.backends import state_redis
+        from infra.backends.state_redis import RedisState
 
         with patch.object(state_redis.platform_redis, "get_shared_client"):
             platform = build_platform(
@@ -100,10 +100,10 @@ class TestBuildPlatformAllModes:
         assert isinstance(platform.clock, platform_providers.ClockProvider)
 
     def test_distributed_wires_distributed_backends(self, tmp_path):
-        from core.platform.backends import events_redis, state_redis, storage_s3
-        from core.platform.backends.events_redis import RedisStreamEventBus
-        from core.platform.backends.lock_pg import PgAdvisoryLock
-        from core.platform.backends.state_redis import RedisState
+        from infra.backends import events_redis, state_redis, storage_s3
+        from infra.backends.events_redis import RedisStreamEventBus
+        from infra.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.state_redis import RedisState
 
         settings = _settings(
             DeploymentProfile.DISTRIBUTED,
@@ -127,7 +127,7 @@ class TestBuildPlatformAllModes:
 
 class TestBuildPlatformStorage:
     def test_s3_scheme_builds_s3_backend(self, tmp_path):
-        from core.platform.backends import storage_s3
+        from infra.backends import storage_s3
 
         with patch.object(storage_s3.boto3, "client") as mock_client:
             platform = build_platform(
@@ -148,8 +148,8 @@ class TestBuildPlatformEvents:
         assert isinstance(platform.events, InProcessEventBus)
 
     def test_redis_scheme_builds_redis_event_bus(self, tmp_path):
-        from core.platform.backends import events_redis
-        from core.platform.backends.events_redis import RedisStreamEventBus
+        from infra.backends import events_redis
+        from infra.backends.events_redis import RedisStreamEventBus
 
         with patch.object(events_redis.platform_redis, "get_shared_client"):
             platform = build_platform(
@@ -163,7 +163,7 @@ class TestBuildPlatformEvents:
             build_platform(_settings(DeploymentProfile.LOCAL, str(tmp_path), events_uri="kafka://broker"))
 
     def test_event_log_enabled_attaches_recorder(self, tmp_path):
-        from core.event_log.recorder import EventLogRecorder
+        from infra.event_log.recorder import EventLogRecorder
 
         platform = build_platform(
             _settings(DeploymentProfile.LOCAL, str(tmp_path), events_uri="memory://", event_log_enabled=True)
@@ -187,7 +187,7 @@ class TestBuildPlatformLock:
         assert isinstance(platform.lock, NoopLock)
 
     def test_postgres_advisory_scheme_builds_pg_lock(self, tmp_path):
-        from core.platform.backends.lock_pg import PgAdvisoryLock
+        from infra.backends.lock_pg import PgAdvisoryLock
 
         platform = build_platform(_settings(DeploymentProfile.LOCAL, str(tmp_path), lock_uri="postgres-advisory://"))
         assert isinstance(platform.lock, PgAdvisoryLock)
