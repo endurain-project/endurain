@@ -1,4 +1,4 @@
-"""Tests for the auth.internal_dependencies module."""
+"""Tests for the auth._internal.internal_dependencies module."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -7,8 +7,8 @@ import pytest
 from fastapi import HTTPException, Request, status
 from joserfc.errors import MissingClaimError
 
-import auth.internal_dependencies as auth_security
-import auth.token_manager as auth_token_manager
+import auth._internal.internal_dependencies as auth_security
+import auth._internal.token_manager as auth_token_manager
 import auth.utils as auth_utils
 from auth.identity_service import IdentityService
 from auth.principal import AccessTokenCred, ApiKeyCred, Principal

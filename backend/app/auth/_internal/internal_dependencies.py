@@ -33,9 +33,9 @@ from fastapi.security import (
 )
 from joserfc.errors import MissingClaimError
 
+import auth._internal.token_manager as auth_token_manager
 import auth.constants as auth_constants
 import auth.identity_service as auth_identity_service
-import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import core.config as core_config
 import core.logger as core_logger

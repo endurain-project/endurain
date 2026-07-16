@@ -13,7 +13,7 @@ import auth.mfa.backup_codes.models as mfa_backup_codes_models
 import auth.mfa.backup_codes.utils as mfa_backup_codes_utils
 import core.decorators as core_decorators
 import core.logger as core_logger
-from auth.password_hasher import SupportsHashPassword
+from auth._internal.password_hasher import SupportsHashPassword
 
 
 @core_decorators.handle_db_errors

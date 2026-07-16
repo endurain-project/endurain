@@ -7,7 +7,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import auth.security_stores as security_stores
+import auth._internal.security_stores as security_stores
 import auth.services.step_up_service as step_up_service
 
 

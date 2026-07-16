@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import auth._internal.security_stores as auth_security_stores
 import auth.credentials.crud as auth_credentials_crud
 import auth.mfa.service as mfa_service
-import auth.security_stores as auth_security_stores
 import core.logger as core_logger
 import users.users.utils as users_utils
 

@@ -2,8 +2,8 @@
 
 Defines the ``IdentityService`` boundary type that non-auth modules must use
 to consume identity.  The boundary hides the concrete helpers
-(:mod:`auth.internal_dependencies`, :mod:`auth.password_hasher`,
-:mod:`auth.token_manager`) from external callers and makes them mockable in
+(:mod:`auth._internal.internal_dependencies`, :mod:`auth._internal.password_hasher`,
+:mod:`auth._internal.token_manager`) from external callers and makes them mockable in
 isolation.
 
 Transaction contract
@@ -37,16 +37,16 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.token_manager as auth_token_manager
 import auth.api_keys.crud as auth_api_keys_crud
 import auth.api_keys.utils as auth_api_keys_utils
 import auth.credentials.crud as auth_credentials_crud
 import auth.mfa.crud as auth_mfa_crud
-import auth.password_hasher as auth_password_hasher
 import auth.services.account_security_service as auth_account_security_service
 import auth.services.identity_link_service as auth_identity_link_service
 import auth.services.mfa_workflow as auth_mfa_workflow
 import auth.sessions.crud as auth_sessions_crud
-import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import core.database as core_database
 import core.logger as core_logger
@@ -62,12 +62,12 @@ from auth.principal import (
 )
 
 if TYPE_CHECKING:
+    import auth._internal.security_stores as auth_security_stores
     import auth.identity_providers.link_tokens.schema as auth_idp_link_tokens_schema
     import auth.identity_providers.links.schema as auth_identity_links_schema
     import auth.mfa.backup_codes.schema as auth_mfa_backup_codes_schema
     import auth.mfa.schema as auth_mfa_schema
     import auth.mfa.setup_store as auth_mfa_setup_store
-    import auth.security_stores as auth_security_stores
     import auth.sessions.schema as auth_sessions_schema
 
 __all__ = [

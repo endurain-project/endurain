@@ -223,3 +223,44 @@ class TestTokenActionEnum:
         assert TokenAction.SKIP.value == "skip"
         assert TokenAction.REFRESH.value == "refresh"
         assert TokenAction.CLEAR.value == "clear"
+
+
+class TestBoundaryFacades:
+    """Module-level facades let the non-auth browser IdP-link router reach auth
+    data operations without importing the auth CRUD layer directly (auth-boundary)."""
+
+    def test_get_identity_provider_delegates_to_crud(self):
+        import auth.identity_providers.service as idp_service
+
+        db = MagicMock()
+        provider = MagicMock()
+        with patch.object(idp_service.idp_crud, "get_identity_provider", return_value=provider) as get:
+            result = idp_service.get_identity_provider(7, db)
+        get.assert_called_once_with(7, db)
+        assert result is provider
+
+    def test_create_link_oauth_state_delegates_to_crud(self):
+        import auth.identity_providers.service as idp_service
+
+        db = MagicMock()
+        with patch.object(idp_service.oauth_state_crud, "create_oauth_state") as create:
+            idp_service.create_link_oauth_state(
+                db,
+                state_id="state-id",
+                idp_id=3,
+                nonce="nonce",
+                client_type="web",
+                ip_address="203.0.113.1",
+                user_id=42,
+                redirect_path="/settings/security",
+            )
+        create.assert_called_once_with(
+            db=db,
+            state_id="state-id",
+            idp_id=3,
+            nonce="nonce",
+            client_type="web",
+            ip_address="203.0.113.1",
+            user_id=42,
+            redirect_path="/settings/security",
+        )

@@ -11,7 +11,7 @@ are re-exported unchanged so their sync/async nature and arguments are
 preserved.
 """
 
-import auth.security_stores as auth_security_stores
+import auth._internal.security_stores as auth_security_stores
 from auth.identity_providers.link_tokens.utils import delete_idp_link_expired_tokens_from_db
 from auth.oauth_state.utils import delete_expired_oauth_states_from_db
 from auth.password_reset_tokens.utils import (

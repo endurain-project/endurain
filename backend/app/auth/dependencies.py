@@ -3,12 +3,12 @@
 This module is the supported boundary for routers outside ``auth`` that
 need identity, scope checks, or mixed JWT/API-key authentication. The
 implementations delegate credential resolution to ``IdentityService`` so
-callers do not import ``auth.internal_dependencies`` directly.
+callers do not import ``auth._internal.internal_dependencies`` directly.
 
 ``AuthContext``, the shared OAuth2/API-key schemes
 (``oauth2_scheme``, ``header_client_type_scheme``, ``header_api_key_scheme``),
 the principal caching helper ``_resolve_and_cache_principal``, and functions
-whose implementations are identical in ``auth.internal_dependencies`` are
+whose implementations are identical in ``auth._internal.internal_dependencies`` are
 re-exported from that module.  Only functions with a different FastAPI
 dependency signature (using ``IdentityService`` instead of ``TokenManager``),
 plus the unified ``check_auth_scopes``, are defined here.
@@ -21,9 +21,9 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import SecurityScopes
 
+import auth._internal.security_stores as auth_security_stores
 import auth.identity_service as auth_identity_service
-import auth.security_stores as auth_security_stores
-from auth.internal_dependencies import (
+from auth._internal.internal_dependencies import (
     AuthContext,
     _resolve_and_cache_principal,
     get_access_token,

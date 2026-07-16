@@ -3,7 +3,7 @@
 ``auth.maintenance`` is the single surface ``core.scheduler`` uses to run
 recurring auth cleanup jobs. It re-exports lower-level ``*.utils`` callables
 unchanged and defines one thin wrapper, ``cleanup_expired_pending_mfa_logins``,
-which delegates to ``auth.security_stores``.
+which delegates to ``auth._internal.security_stores``.
 
 These tests verify the delegation wrapper and that the public maintenance
 contract (the re-exported names and ``__all__``) stays intact, since the whole
@@ -17,7 +17,7 @@ import auth.maintenance as auth_maintenance
 
 
 class TestCleanupExpiredPendingMfaLogins:
-    """The wrapper delegates to auth.security_stores."""
+    """The wrapper delegates to auth._internal.security_stores."""
 
     def test_delegates_to_security_stores_and_returns_result(self):
         with patch(

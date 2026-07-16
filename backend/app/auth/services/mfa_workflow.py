@@ -20,11 +20,11 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import auth._internal.security_stores as auth_security_stores
 import auth.mfa.backup_codes.crud as mfa_backup_codes_crud
 import auth.mfa.backup_codes.schema as mfa_backup_codes_schema
 import auth.mfa.schema as mfa_schema
 import auth.mfa.service as mfa_service
-import auth.security_stores as auth_security_stores
 import auth.services.step_up_service as step_up_service
 import core.logger as core_logger
 import users.users.crud as users_crud

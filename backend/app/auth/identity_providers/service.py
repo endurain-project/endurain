@@ -21,6 +21,8 @@ from joserfc.errors import (
 from joserfc.jwk import ECKey, OctKey, RSAKey
 from sqlalchemy.orm import Session
 
+import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.token_manager as auth_token_manager
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.links.crud as auth_identity_links_crud
 import auth.identity_providers.links.models as auth_identity_links_models
@@ -29,8 +31,6 @@ import auth.identity_providers.models as idp_models
 import auth.identity_service as auth_identity_service
 import auth.oauth_state.crud as oauth_state_crud
 import auth.oauth_state.models as oauth_state_models
-import auth.password_hasher as auth_password_hasher
-import auth.token_manager as auth_token_manager
 import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
@@ -2245,3 +2245,62 @@ class IdentityProviderService:
 
 # Global service instance
 idp_service = IdentityProviderService()
+
+
+def get_identity_provider(idp_id: int, db: Session) -> idp_models.IdentityProvider | None:
+    """Public facade over the identity-provider CRUD lookup.
+
+    Lets non-auth callers (the browser IdP-link redirect router) fetch a provider
+    without importing ``auth.identity_providers.crud`` directly, keeping the auth
+    data layer behind the boundary enforced by import-linter.
+
+    Args:
+        idp_id: The identity provider id.
+        db: Active database session.
+
+    Returns:
+        The identity provider, or ``None`` when it does not exist.
+    """
+    return idp_crud.get_identity_provider(idp_id, db)
+
+
+def create_link_oauth_state(
+    db: Session,
+    *,
+    state_id: str,
+    idp_id: int,
+    nonce: str,
+    client_type: str,
+    ip_address: str | None,
+    user_id: int,
+    redirect_path: str | None,
+) -> None:
+    """Persist the OAuth-state row for a browser IdP-link flow (auth-boundary facade).
+
+    Wraps ``auth.oauth_state.crud.create_oauth_state`` so the non-auth browser
+    link router can start the link flow without importing the auth OAuth-state
+    data layer directly.
+
+    Args:
+        db: Active database session.
+        state_id: The generated OAuth ``state`` id.
+        idp_id: The identity provider being linked.
+        nonce: The OIDC nonce bound to this flow.
+        client_type: ``"web"`` or ``"mobile"``.
+        ip_address: The initiating client IP, when known.
+        user_id: The user the link is for (its presence marks link mode).
+        redirect_path: The frontend return target after linking.
+
+    Returns:
+        None.
+    """
+    oauth_state_crud.create_oauth_state(
+        db=db,
+        state_id=state_id,
+        idp_id=idp_id,
+        nonce=nonce,
+        client_type=client_type,
+        ip_address=ip_address,
+        user_id=user_id,
+        redirect_path=redirect_path,
+    )

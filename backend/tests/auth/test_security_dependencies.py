@@ -17,8 +17,8 @@ import pytest
 from fastapi import HTTPException, Request, status
 from fastapi.security import SecurityScopes
 
+import auth._internal.internal_dependencies as auth_security
 import auth.dependencies as auth_dependencies
-import auth.internal_dependencies as auth_security
 from auth.identity_service import IdentityService
 from auth.principal import AccessTokenCred, ApiKeyCred, Principal
 
@@ -274,7 +274,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
 
         with (
-            patch("auth.internal_dependencies.core_config.settings", mock_settings),
+            patch("auth._internal.internal_dependencies.core_config.settings", mock_settings),
             pytest.raises(HTTPException) as exc,
         ):
             await auth_security.validate_access_token_or_api_key(
@@ -300,7 +300,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
 
-        with patch("auth.internal_dependencies.core_config.settings", mock_settings):
+        with patch("auth._internal.internal_dependencies.core_config.settings", mock_settings):
             ctx = await auth_security.validate_access_token_or_api_key(
                 request,
                 mock_svc,
@@ -321,7 +321,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
 
         with (
-            patch("auth.internal_dependencies.core_config.settings", mock_settings),
+            patch("auth._internal.internal_dependencies.core_config.settings", mock_settings),
             pytest.raises(HTTPException) as exc,
         ):
             await auth_security.validate_access_token_or_api_key(

@@ -50,7 +50,7 @@ class TestValidateAccessToken:
 class TestGetSubFromAccessToken:
     """Tests for get_sub_from_access_token."""
 
-    @patch("auth.internal_dependencies._resolve_and_cache_principal")
+    @patch("auth._internal.internal_dependencies._resolve_and_cache_principal")
     def test_returns_user_id(self, mock_resolve):
         principal = Principal(
             user_id=5,
@@ -169,7 +169,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
         with (
-            patch("auth.internal_dependencies.core_config.settings", mock_settings),
+            patch("auth._internal.internal_dependencies.core_config.settings", mock_settings),
             pytest.raises(HTTPException) as exc_info,
         ):
             await validate_access_token_or_api_key(
@@ -198,7 +198,7 @@ class TestValidateAccessTokenOrApiKey:
         )
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = True
-        with patch("auth.internal_dependencies.core_config.settings", mock_settings):
+        with patch("auth._internal.internal_dependencies.core_config.settings", mock_settings):
             result = await validate_access_token_or_api_key(
                 request,
                 identity_service,
@@ -216,7 +216,7 @@ class TestValidateAccessTokenOrApiKey:
         mock_settings = MagicMock()
         mock_settings.ALLOW_API_KEY_QUERY_PARAM = False
         with (
-            patch("auth.internal_dependencies.core_config.settings", mock_settings),
+            patch("auth._internal.internal_dependencies.core_config.settings", mock_settings),
             pytest.raises(HTTPException) as exc_info,
         ):
             await validate_access_token_or_api_key(
@@ -281,6 +281,6 @@ class TestAuthContextIdentity:
     """Assert that dependencies.AuthContext is the same type as internal_dependencies.AuthContext."""
 
     def test_auth_context_is_same_type_as_security(self):
-        import auth.internal_dependencies as auth_security
+        import auth._internal.internal_dependencies as auth_security
 
         assert auth_dependencies.AuthContext is auth_security.AuthContext

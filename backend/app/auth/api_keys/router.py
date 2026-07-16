@@ -5,12 +5,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+import auth._internal.internal_dependencies as auth_internal_dependencies
 import auth.api_keys.crud as auth_api_keys_crud
 import auth.api_keys.schema as api_keys_schema
 import auth.api_keys.utils as api_keys_utils
 import auth.dependencies as auth_dependencies
 import auth.identity_service as auth_identity_service
-import auth.internal_dependencies as auth_internal_dependencies
 import auth.services.step_up_service as step_up_service
 import core.database as core_database
 import users.users.crud as users_crud

@@ -34,38 +34,10 @@ source_modules =
     websocket
     infra
 forbidden_modules =
-    auth.internal_dependencies
-    auth.password_hasher
-    auth.token_manager
-
-[importlinter:contract:auth-low-level-ownership]
-name = Auth boundary: non-auth must not import low-level auth ownership modules directly
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    users
-    activities
-    core
-    followers
-    garmin
-    gears
-    health
-    notifications
-    server_settings
-    strava
-    websocket
-    infra
-forbidden_modules =
-    auth.password_reset_tokens.crud
-    auth.sign_up_tokens.crud
-    auth.sessions.crud
-    auth.mfa.crud
-    auth.mfa.backup_codes.crud
-    auth.identity_providers.links.crud
-    auth.identity_providers.link_tokens.crud
-    auth.credentials.crud
-    auth.security_stores
+    auth._internal
     auth.services
+    auth.*.crud
+    auth.*.*.crud
 
 [importlinter:contract:platform-core-no-infra]
 name = Platform core (providers/events/publisher/profile/container/runtime) must not import infrastructure directly

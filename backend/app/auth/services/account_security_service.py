@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+import auth._internal.security_stores as auth_security_stores
 import auth.password_policy as auth_password_policy
-import auth.security_stores as auth_security_stores
 import auth.services.step_up_service as step_up_service
 import auth.sessions.crud as auth_sessions_crud
 import auth.sessions.schema as auth_sessions_schema

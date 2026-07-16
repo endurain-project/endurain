@@ -9,16 +9,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.token_manager as auth_token_manager
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.schema as idp_schema
 import auth.identity_providers.service as idp_service
 import auth.identity_providers.utils as idp_utils
 import auth.oauth_state.crud as oauth_state_crud
 import auth.oauth_state.utils as oauth_state_utils
-import auth.password_hasher as auth_password_hasher
 import auth.sessions.crud as auth_sessions_crud
 import auth.sessions.utils as auth_sessions_utils
-import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import core.config as core_config
 import core.database as core_database

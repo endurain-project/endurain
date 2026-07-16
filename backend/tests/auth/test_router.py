@@ -8,12 +8,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+import auth._internal.internal_dependencies as auth_security
+import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.security_stores as auth_security_stores
+import auth._internal.token_manager as auth_token_manager
 import auth.identity_service as auth_identity_service
-import auth.internal_dependencies as auth_security
-import auth.password_hasher as auth_password_hasher
 import auth.router as auth_router
-import auth.security_stores as auth_security_stores
-import auth.token_manager as auth_token_manager
 import core.database as core_database
 
 # ------------------------------------------------------------------

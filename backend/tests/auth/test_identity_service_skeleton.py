@@ -737,7 +737,7 @@ class TestValidateAndHashPassword:
         assert result == "$argon2id$hash"
 
     def test_password_policy_error_raises_400(self, service, mock_password_hasher):
-        from auth.password_hasher import PasswordPolicyError
+        from auth._internal.password_hasher import PasswordPolicyError
 
         mock_password_hasher.validate_password.side_effect = PasswordPolicyError("Too short")
         with pytest.raises(HTTPException) as exc_info:

@@ -10,7 +10,7 @@ from joserfc.errors import (
     MissingClaimError,
 )
 
-import auth.token_manager as auth_token_manager
+import auth._internal.token_manager as auth_token_manager
 from users.users.schema import UserAccessType, UsersRead
 
 
@@ -422,7 +422,7 @@ class TestTokenManagerSecurity:
         _, token = token_manager.create_token("session-id", sample_user_read, auth_token_manager.TokenType.ACCESS)
 
         # Mock the validation to raise InsecureClaimError
-        with patch("auth.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
+        with patch("auth._internal.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
             mock_instance.validate.side_effect = InsecureClaimError("Insecure")
             mock_registry.return_value = mock_instance
@@ -452,7 +452,7 @@ class TestTokenManagerSecurity:
         _, token = token_manager.create_token("session-id", sample_user_read, auth_token_manager.TokenType.ACCESS)
 
         # Mock to raise MissingClaimError
-        with patch("auth.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
+        with patch("auth._internal.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
             mock_instance.validate.side_effect = MissingClaimError("sub")
             mock_registry.return_value = mock_instance
@@ -473,7 +473,7 @@ class TestTokenManagerSecurity:
         _, token = token_manager.create_token("session-id", sample_user_read, auth_token_manager.TokenType.ACCESS)
 
         # Mock to raise InvalidTokenError
-        with patch("auth.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
+        with patch("auth._internal.token_manager.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
             mock_instance.validate.side_effect = InvalidTokenError("not valid yet")
             mock_registry.return_value = mock_instance
@@ -489,7 +489,7 @@ class TestTokenManagerSecurity:
         """
 
         with patch(
-            "auth.token_manager.jwt.decode",
+            "auth._internal.token_manager.jwt.decode",
             side_effect=InvalidPayloadError("Invalid payload"),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -502,7 +502,7 @@ class TestTokenManagerSecurity:
         Test that decode_token handles generic exceptions correctly.
         """
         with patch(
-            "auth.token_manager.jwt.decode",
+            "auth._internal.token_manager.jwt.decode",
             side_effect=RuntimeError("Unexpected error"),
         ):
             with pytest.raises(HTTPException) as exc_info:

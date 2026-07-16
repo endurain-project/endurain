@@ -13,8 +13,8 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from user_agents import parse
 
+import auth._internal.password_hasher as auth_password_hasher
 import auth.constants as auth_constants
-import auth.password_hasher as auth_password_hasher
 import auth.sessions.crud as auth_sessions_crud
 import auth.sessions.models as auth_sessions_models
 import auth.sessions.schema as auth_sessions_schema

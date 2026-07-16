@@ -39,8 +39,7 @@ Exports:
 # mapper registry whenever the auth package loads, so the
 # ``Users.local_credential`` relationship resolves at mapper configuration time.
 from . import credentials  # noqa: F401
-from .dependencies import check_auth_scopes
-from .internal_dependencies import (
+from ._internal.internal_dependencies import (
     AuthContext,
     get_sid_from_access_token,
     get_sid_from_refresh_token,
@@ -53,21 +52,12 @@ from .internal_dependencies import (
     validate_access_token_or_api_key,
     validate_refresh_token,
 )
-from .password_hasher import (
+from ._internal.password_hasher import (
     PasswordHasher,
     PasswordPolicyError,
     get_password_hasher,
 )
-from .schema import (
-    LoginRequest,
-    LogoutResponse,
-    MFALoginRequest,
-    MFARequiredResponse,
-    MobileSessionResponse,
-    TokenResponseMobile,
-    TokenResponseWeb,
-)
-from .security_stores import (
+from ._internal.security_stores import (
     FailedLoginAttempts,
     PendingMFALogin,
     StepUpAttempts,
@@ -78,7 +68,17 @@ from .security_stores import (
     get_pending_mfa_store,
     get_step_up_attempts,
 )
-from .token_manager import TokenManager, TokenType, get_token_manager
+from ._internal.token_manager import TokenManager, TokenType, get_token_manager
+from .dependencies import check_auth_scopes
+from .schema import (
+    LoginRequest,
+    LogoutResponse,
+    MFALoginRequest,
+    MFARequiredResponse,
+    MobileSessionResponse,
+    TokenResponseMobile,
+    TokenResponseWeb,
+)
 from .utils import (
     authenticate_user,
     complete_login,

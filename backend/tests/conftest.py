@@ -7,11 +7,11 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+import auth._internal.internal_dependencies as auth_internal_dependencies
+import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.security_stores as auth_security_stores
+import auth._internal.token_manager as auth_token_manager
 import auth.dependencies as auth_dependencies
-import auth.internal_dependencies as auth_internal_dependencies
-import auth.password_hasher as auth_password_hasher
-import auth.security_stores as auth_security_stores
-import auth.token_manager as auth_token_manager
 import users.users.schema as user_schema
 
 # Variables and constants
@@ -422,11 +422,11 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "auth.password_hasher",
+        "auth._internal.password_hasher",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "auth.token_manager", "get_token_manager", lambda: token_manager)
+    _override_if_exists(app, "auth._internal.token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "session.auth_token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
@@ -504,11 +504,11 @@ def fast_api_app_public(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "auth.password_hasher",
+        "auth._internal.password_hasher",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "auth.token_manager", "get_token_manager", lambda: token_manager)
+    _override_if_exists(app, "auth._internal.token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
     ) or _override_if_exists(app, "app.core.database", "get_db", lambda: mock_db)

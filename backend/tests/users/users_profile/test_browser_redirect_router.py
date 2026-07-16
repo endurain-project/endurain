@@ -39,12 +39,14 @@ class TestLinkIdentityProvider:
 
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
-            patch("users.users_profile.browser_redirect_router.idp_crud.get_identity_provider", return_value=mock_idp),
+            patch(
+                "users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=mock_idp
+            ),
             patch(
                 "users.users_profile.browser_redirect_router.oauth_state_utils.create_state_id_and_nonce",
                 return_value=("state-id", "nonce"),
             ),
-            patch("users.users_profile.browser_redirect_router.oauth_state_crud.create_oauth_state"),
+            patch("users.users_profile.browser_redirect_router.idp_service.create_link_oauth_state"),
             patch(
                 "users.users_profile.browser_redirect_router.idp_service.idp_service.initiate_link",
                 new_callable=AsyncMock,
@@ -66,13 +68,15 @@ class TestLinkIdentityProvider:
 
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
-            patch("users.users_profile.browser_redirect_router.idp_crud.get_identity_provider", return_value=mock_idp),
+            patch(
+                "users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=mock_idp
+            ),
             patch(
                 "users.users_profile.browser_redirect_router.oauth_state_utils.create_state_id_and_nonce",
                 return_value=("state-id", "nonce"),
             ),
             patch(
-                "users.users_profile.browser_redirect_router.oauth_state_crud.create_oauth_state"
+                "users.users_profile.browser_redirect_router.idp_service.create_link_oauth_state"
             ) as mock_create_state,
             patch(
                 "users.users_profile.browser_redirect_router.idp_service.idp_service.initiate_link",
@@ -131,7 +135,7 @@ class TestLinkIdentityProvider:
 
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
-            patch("users.users_profile.browser_redirect_router.idp_crud.get_identity_provider", return_value=None),
+            patch("users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=None),
         ):
             response = client.get(self.endpoint)
 
@@ -146,7 +150,9 @@ class TestLinkIdentityProvider:
 
         mock_identity_service.validate_and_claim_browser_link_token.return_value = 1
         with (
-            patch("users.users_profile.browser_redirect_router.idp_crud.get_identity_provider", return_value=mock_idp),
+            patch(
+                "users.users_profile.browser_redirect_router.idp_service.get_identity_provider", return_value=mock_idp
+            ),
         ):
             response = client.get(self.endpoint)
 

@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-import auth.password_hasher as auth_password_hasher
+import auth._internal.password_hasher as auth_password_hasher
 import auth.sign_up_tokens.router as sign_up_tokens_router
 import core.apprise as core_apprise
 import core.database as core_database

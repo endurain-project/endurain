@@ -17,11 +17,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
-import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.service as idp_service
 import auth.identity_providers.utils as idp_utils
 import auth.identity_service as auth_identity_service
-import auth.oauth_state.crud as oauth_state_crud
 import auth.oauth_state.utils as oauth_state_utils
 import core.database as core_database
 import core.logger as core_logger
@@ -97,8 +95,9 @@ async def link_identity_provider(
         client_ip=client_ip,
     )
 
-    # Validate IDP exists and is enabled (non-auth concern — stays in router)
-    idp = idp_crud.get_identity_provider(idp_id, db)
+    # Validate IDP exists and is enabled (fetched via the auth service facade so
+    # the router does not import the auth data layer directly).
+    idp = idp_service.get_identity_provider(idp_id, db)
     if not idp or not idp.enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -113,7 +112,7 @@ async def link_identity_provider(
     # login flow); a plain relative path is a normal web return.
     client_type = "mobile" if idp_utils.is_custom_scheme_redirect(redirect) else "web"
 
-    oauth_state_crud.create_oauth_state(
+    idp_service.create_link_oauth_state(
         db=db,
         state_id=state,
         idp_id=idp_id,

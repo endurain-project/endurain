@@ -19,8 +19,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import auth.password_hasher as auth_password_hasher
-import auth.token_manager as auth_token_manager
+import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.token_manager as auth_token_manager
 import users.users.schema as users_schema
 from auth.identity_service import DefaultIdentityService
 from auth.principal import AccessTokenCred

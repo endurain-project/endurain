@@ -10,11 +10,11 @@ from fastapi import (
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import auth._internal.security_stores as auth_security_stores
 import auth.credentials.crud as auth_credentials_crud
 import auth.password_policy as auth_password_policy
 import auth.password_reset_tokens.crud as password_reset_tokens_crud
 import auth.password_reset_tokens.schema as password_reset_tokens_schema
-import auth.security_stores as auth_security_stores
 import auth.sessions.crud as auth_sessions_crud
 import auth.token_hashing as token_hashing
 import core.apprise as core_apprise

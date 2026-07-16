@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+import auth._internal.security_stores as auth_security_stores
 import auth.credentials.crud as auth_credentials_crud
 import auth.identity_providers.crud as idp_crud
 import auth.identity_providers.link_tokens.crud as idp_link_token_crud
@@ -15,7 +16,6 @@ import auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import auth.identity_providers.links.crud as auth_identity_links_crud
 import auth.identity_providers.links.schema as auth_identity_links_schema
 import auth.identity_providers.links.utils as auth_identity_links_utils
-import auth.security_stores as auth_security_stores
 import auth.services.step_up_service as step_up_service
 import core.logger as core_logger
 import users.users.schema as users_schema

@@ -17,7 +17,9 @@ the injected `IdentityService`; they do **not** import the implementations.
 The workflow implementations live in `auth.services.*` (see *Auth Service Modules*
 below), but those modules are **auth-internal**: `IdentityService` delegates to them,
 and import-linter forbids non-auth modules from importing them directly. Do not import
-low-level auth internals or `auth.services.*` from non-auth modules.
+the private `auth._internal` package, any auth `*.crud` module, or `auth.services.*`
+from non-auth modules — the single `auth-boundary` contract in `backend/.importlinter`
+enforces this structurally.
 
 ## Principal Model
 
@@ -51,7 +53,7 @@ Each variant contains only the fields meaningful for that authentication method 
 
 Auth-owned modules include:
 
-- Credentials and token lifecycle (`auth.token_manager`, `auth.password_hasher`)
+- Credentials and token lifecycle (`auth._internal.token_manager`, `auth._internal.password_hasher`)
 - Sessions and rotated refresh tokens (`auth.sessions`)
 - API keys (`auth.api_keys`)
 - MFA setup state, TOTP logic, and backup-code lifecycle (`auth.mfa`, `auth.mfa.backup_codes`)
