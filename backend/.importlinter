@@ -62,9 +62,6 @@ source_modules =
     infra
 forbidden_modules =
     modules
-ignore_imports =
-    infra.jobs.router -> modules.auth.dependencies
-    infra.event_log.router -> modules.auth.dependencies
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis

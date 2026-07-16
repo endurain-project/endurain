@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-import infra.event_log.router as event_log_router
+import modules.server_settings.event_log_router as event_log_router
 
 
 class TestReadEventLogSummary:
@@ -10,7 +10,7 @@ class TestReadEventLogSummary:
         fake_db = MagicMock()
         sentinel = MagicMock()
         with patch(
-            "infra.event_log.router.event_log_crud.get_event_log_summary",
+            "modules.server_settings.event_log_router.event_log_crud.get_event_log_summary",
             return_value=sentinel,
         ) as get_summary:
             result = event_log_router.read_event_log_summary(_check_scopes=None, db=fake_db, hours=12)
@@ -19,6 +19,6 @@ class TestReadEventLogSummary:
 
     def test_defaults_to_24_hours(self):
         fake_db = MagicMock()
-        with patch("infra.event_log.router.event_log_crud.get_event_log_summary") as get_summary:
+        with patch("modules.server_settings.event_log_router.event_log_crud.get_event_log_summary") as get_summary:
             event_log_router.read_event_log_summary(_check_scopes=None, db=fake_db)
         get_summary.assert_called_once_with(fake_db, hours=24)

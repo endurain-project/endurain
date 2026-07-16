@@ -4,8 +4,6 @@ from fastapi import APIRouter, Depends, Security
 
 import core.config as core_config
 import core.router as core_router
-import infra.event_log.router as event_log_router
-import infra.jobs.router as jobs_router
 import modules.activities.activity.public_router as activities_public_router
 
 # Alphabetized router imports
@@ -37,6 +35,8 @@ import modules.health.health_water.router as health_water_router
 import modules.health.health_weight.router as health_weight_router
 import modules.health.router as health_router
 import modules.notifications.router as notifications_router
+import modules.server_settings.event_log_router as event_log_router
+import modules.server_settings.jobs_router as jobs_router
 import modules.server_settings.public_router as server_settings_public_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
