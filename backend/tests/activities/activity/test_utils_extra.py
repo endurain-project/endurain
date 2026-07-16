@@ -1,5 +1,6 @@
 """Tests for uncovered utility functions in activities.activity.utils."""
 
+import math
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -415,6 +416,47 @@ class TestComputeElevationGainAndLoss:
         gain, loss = compute_elevation_gain_and_loss([{"ele": 100}], median_window=10, avg_window=10, threshold=0.1)
         assert gain == 0.0
         assert loss == 0.0
+
+
+class TestSmoothElevationWaypoints:
+    def test_preserves_time_keys_and_length(self):
+        from activities.activity.utils import smooth_elevation_waypoints
+
+        waypoints = [{"time": f"2024-01-15T08:00:{i:02d}", "ele": 100 + (i % 2)} for i in range(10)]
+        smoothed = smooth_elevation_waypoints(waypoints)
+        assert len(smoothed) == len(waypoints)
+        assert [wp["time"] for wp in smoothed] == [wp["time"] for wp in waypoints]
+        assert all(isinstance(wp["ele"], float) for wp in smoothed)
+
+    def test_returns_empty_for_invalid_or_empty(self):
+        from activities.activity.utils import smooth_elevation_waypoints
+
+        assert smooth_elevation_waypoints([]) == []
+        assert smooth_elevation_waypoints([{"no_ele": 1}]) == []
+
+
+class TestSumElevationDeltas:
+    def test_flat_series_returns_zero_zero(self):
+        from activities.activity.utils import sum_elevation_deltas
+
+        assert sum_elevation_deltas([{"ele": 100.0}, {"ele": 100.0}, {"ele": 100.0}]) == (0.0, 0.0)
+
+    def test_empty_returns_zero_zero(self):
+        from activities.activity.utils import sum_elevation_deltas
+
+        assert sum_elevation_deltas([]) == (0.0, 0.0)
+
+    def test_composition_equals_compute_elevation_gain_and_loss(self):
+        from activities.activity.utils import (
+            compute_elevation_gain_and_loss,
+            smooth_elevation_waypoints,
+            sum_elevation_deltas,
+        )
+
+        # Synthetic noisy climb: linear trend + sinusoid + alternating jitter.
+        elevations = [{"ele": 100 + i * 0.5 + math.sin(i / 5) * 3 + (0.5 if i % 2 else -0.5)} for i in range(200)]
+        expected = compute_elevation_gain_and_loss(elevations)
+        assert sum_elevation_deltas(smooth_elevation_waypoints(elevations)) == expected
 
 
 class TestCalculatePace:

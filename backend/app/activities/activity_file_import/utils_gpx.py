@@ -551,8 +551,10 @@ def _build_activity_schema(
         city=state.city,
         town=state.town,
         country=state.country,
-        elevation_gain=(round(state.ele_gain) if state.ele_gain else None),
-        elevation_loss=(round(state.ele_loss) if state.ele_loss else None),
+        # `is not None`: 0 m gain on a flat activity is a real value, not
+        # missing data (issue #161).
+        elevation_gain=(round(state.ele_gain) if state.ele_gain is not None else None),
+        elevation_loss=(round(state.ele_loss) if state.ele_loss is not None else None),
         pace=state.pace,
         average_speed=state.avg_speed,
         max_speed=state.max_speed,

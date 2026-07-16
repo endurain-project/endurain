@@ -10,6 +10,7 @@ import statistics
 import time
 import uuid
 from datetime import datetime
+from itertools import pairwise
 from pathlib import Path
 from statistics import mean
 from tempfile import NamedTemporaryFile
@@ -1430,6 +1431,112 @@ def calculate_instant_speed(
     return distance / time_difference
 
 
+def _median_filter(values: list[float], window_size: int) -> list[float]:
+    """Apply a centered median filter to a series of values.
+
+    Args:
+        values: Series to filter.
+        window_size: Window size; windows shrink at the edges.
+
+    Returns:
+        Filtered series of the same length.
+    """
+    if window_size < 2:
+        return values[:]
+    half = window_size // 2
+    filtered = []
+    for i in range(len(values)):
+        start = max(0, i - half)
+        end = min(len(values), i + half + 1)
+        window_vals = values[start:end]
+        m = statistics.median(window_vals)
+        filtered.append(m)
+    return filtered
+
+
+def _moving_average(values: list[float], window_size: int) -> list[float]:
+    """Apply a centered moving-average smoother to a series of values.
+
+    Args:
+        values: Series to smooth.
+        window_size: Window size; windows shrink at the edges.
+
+    Returns:
+        Smoothed series of the same length.
+    """
+    if window_size < 2:
+        return values[:]
+    half = window_size // 2
+    smoothed = []
+    n = len(values)
+    for i in range(n):
+        start = max(0, i - half)
+        end = min(n, i + half + 1)
+        window_vals = values[start:end]
+        smoothed.append(statistics.mean(window_vals))
+    return smoothed
+
+
+def smooth_elevation_waypoints(
+    elevations: list[dict],
+    median_window: int = 6,
+    avg_window: int = 3,
+) -> list[dict]:
+    """Smooth the ``ele`` series of a full elevation stream once.
+
+    Applies the same median filter + moving average used by
+    :func:`compute_elevation_gain_and_loss`. Smoothing the full stream
+    once (instead of re-smoothing per lap slice) avoids filter edge
+    effects at lap boundaries, so per-lap delta sums partition the
+    activity total exactly.
+
+    Args:
+        elevations: List of dicts with an ``ele`` key (meters); other
+            keys (e.g. ``time``) are preserved.
+        median_window: Window size for the median pre-filter.
+        avg_window: Window size for the moving-average smoother.
+
+    Returns:
+        New waypoint dicts with smoothed ``ele`` values, or an empty
+        list when values are missing or invalid.
+    """
+    try:
+        values = [float(waypoint["ele"]) for waypoint in elevations]
+    except (ValueError, KeyError):
+        return []
+
+    filtered = _median_filter(values, median_window)
+    filtered = _moving_average(filtered, avg_window)
+    return [{**waypoint, "ele": value} for waypoint, value in zip(elevations, filtered, strict=True)]
+
+
+def sum_elevation_deltas(
+    elevations: list[dict],
+    threshold: float = 0.1,
+) -> tuple[float, float]:
+    """Sum per-step elevation deltas above ``threshold``.
+
+    Expects an already-smoothed series (see
+    :func:`smooth_elevation_waypoints`); applies no smoothing itself.
+
+    Args:
+        elevations: List of dicts with an ``ele`` key (meters).
+        threshold: Minimum |delta| (m) counted toward gain/loss.
+
+    Returns:
+        Tuple of (gain_m, loss_m); (0.0, 0.0) for empty input.
+    """
+    total_gain = 0.0
+    total_loss = 0.0
+    for previous, current in pairwise(elevations):
+        diff = current["ele"] - previous["ele"]
+        if diff > threshold:
+            total_gain += diff
+        elif diff < -threshold:
+            total_loss -= diff  # diff is negative, so subtracting it is adding positive
+    return total_gain, total_loss
+
+
 def compute_elevation_gain_and_loss(
     elevations: list[dict],
     median_window: int = 6,
@@ -1450,56 +1557,11 @@ def compute_elevation_gain_and_loss(
     Returns:
         Tuple of (gain_m, loss_m).
     """
-
-    # 1) Median Filter
-    def median_filter(values, window_size):
-        if window_size < 2:
-            return values[:]
-        half = window_size // 2
-        filtered = []
-        for i in range(len(values)):
-            start = max(0, i - half)
-            end = min(len(values), i + half + 1)
-            window_vals = values[start:end]
-            m = statistics.median(window_vals)
-            filtered.append(m)
-        return filtered
-
-    # 2) Moving-Average Smoothing
-    def moving_average(values, window_size):
-        if window_size < 2:
-            return values[:]
-        half = window_size // 2
-        smoothed = []
-        n = len(values)
-        for i in range(n):
-            start = max(0, i - half)
-            end = min(n, i + half + 1)
-            window_vals = values[start:end]
-            smoothed.append(statistics.mean(window_vals))
-        return smoothed
-
-    try:
-        # Get the values from the elevations
-        values = [float(waypoint["ele"]) for waypoint in elevations]
-    except (ValueError, KeyError):
+    smoothed = smooth_elevation_waypoints(elevations, median_window, avg_window)
+    if not smoothed:
         # If there are no valid values, return 0
         return 0, 0
-
-    # Apply median filter -> then average smoothing
-    filtered = median_filter(values, median_window)
-    filtered = moving_average(filtered, avg_window)
-
-    # 3) Compute gain/loss with threshold
-    total_gain = 0.0
-    total_loss = 0.0
-    for i in range(1, len(filtered)):
-        diff = filtered[i] - filtered[i - 1]
-        if diff > threshold:
-            total_gain += diff
-        elif diff < -threshold:
-            total_loss -= diff  # diff is negative, so subtracting it is adding positive
-    return total_gain, total_loss
+    return sum_elevation_deltas(smoothed, threshold)
 
 
 def calculate_pace(
