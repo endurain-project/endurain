@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import activities.activity_file_import.utils_tcx as utils_tcx
+import core.config as core_config
 
 
 def _privacy_settings() -> SimpleNamespace:
@@ -78,6 +79,51 @@ class TestUtilsTcx:
         assert len(waypoints["ele_waypoints"]) == 1
         assert len(waypoints["power_waypoints"]) == 1
         assert all(wp["time"] == "2026-04-01T10:00:00" for wp in waypoints["lat_lon_waypoints"])
+
+    def test_extract_waypoints_skips_entries_without_position(self):
+        """Trackpoints without GPS coordinates yield no lat/lon waypoints (issue #775)."""
+        dt = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+
+        # tcxreader emits latitude/longitude keys set to None when the TCX
+        # has no <Position> elements (indoor/treadmill activities).
+        trackpoints = [
+            {
+                "time": dt,
+                "latitude": None,
+                "longitude": None,
+                "hr_value": 150,
+                "elevation": 100,
+            },
+            {
+                "time": dt + timedelta(seconds=10),
+                "latitude": None,
+                "longitude": None,
+                "hr_value": 152,
+                "elevation": 101,
+            },
+        ]
+        tcx_file = SimpleNamespace(trackpoints=[])
+
+        waypoints = utils_tcx._extract_waypoints(trackpoints, tcx_file)
+
+        assert waypoints["lat_lon_waypoints"] == []
+        assert len(waypoints["hr_waypoints"]) == 2
+        assert len(waypoints["ele_waypoints"]) == 2
+
+    def test_extract_waypoints_handles_mixed_gps_and_no_gps_trackpoints(self):
+        """A GPS point followed by a position-less point must not crash speed calc (issue #775)."""
+        dt = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+
+        trackpoints = [
+            {"time": dt, "latitude": 40.0, "longitude": -3.0},
+            {"time": dt + timedelta(seconds=10), "latitude": None, "longitude": None},
+            {"time": dt + timedelta(seconds=20), "latitude": 40.001, "longitude": -3.0},
+        ]
+        tcx_file = SimpleNamespace(trackpoints=[])
+
+        waypoints = utils_tcx._extract_waypoints(trackpoints, tcx_file)
+
+        assert len(waypoints["lat_lon_waypoints"]) == 2
 
     def test_build_activity_handles_missing_start_and_end_time(self):
         """Test activity schema accepts missing start/end timestamps."""
@@ -236,6 +282,123 @@ class TestUtilsTcx:
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
         assert activity.average_hr == 155
         assert activity.max_hr == 160
+
+    def test_parse_tcx_file_without_gps_imports_as_indoor_activity(self):
+        """A TCX without GPS coordinates parses as an indoor activity (issue #775)."""
+        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC)
+
+        trackpoints = [
+            {"time": dt_start, "latitude": None, "longitude": None, "hr_value": 120},
+            {"time": dt_end, "latitude": None, "longitude": None, "hr_value": 140},
+        ]
+        mock_tcx = SimpleNamespace(
+            activity_type="Running",
+            distance=None,
+            start_time=dt_start,
+            end_time=dt_end,
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+            laps=[],
+            trackpoints=[],
+        )
+        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+
+        with (
+            patch("tcxreader.TCXReader") as mock_reader_class,
+            patch(
+                "activities.activity_file_import.utils_tcx"
+                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+            ) as mock_resolve_location,
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+            ) as mock_resolve_timezone,
+        ):
+            mock_reader_class.return_value.read.return_value = mock_tcx
+
+            result = utils_tcx.parse_tcx_file(
+                file="dummy.tcx",
+                user_id=1,
+                user_privacy_settings=_privacy_settings(),
+                db=MagicMock(),
+            )
+
+        assert result["is_lat_lon_set"] is False
+        assert result["lat_lon_waypoints"] == []
+        assert result["is_heart_rate_set"] is True
+        assert result["activity"].timezone == core_config.settings.TZ
+        mock_resolve_location.assert_not_called()
+        mock_resolve_timezone.assert_not_called()
+
+    def test_parse_laps_handles_lap_without_trackpoints(self):
+        """A lap with zero trackpoints yields None positions instead of IndexError (issue #775)."""
+        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 8, 30, 0, tzinfo=UTC)
+
+        lap = SimpleNamespace(
+            start_time=dt_start,
+            end_time=dt_end,
+            trackpoints=[],
+            tpx_ext_stats={},
+            distance=None,
+            calories=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            ascent=None,
+            descent=None,
+            avg_speed=None,
+        )
+        tcx_file = SimpleNamespace(laps=[lap])
+
+        laps = utils_tcx._parse_laps(tcx_file)
+
+        assert len(laps) == 1
+        assert laps[0]["start_position_lat"] is None
+        assert laps[0]["start_position_long"] is None
+        assert laps[0]["end_position_lat"] is None
+        assert laps[0]["end_position_long"] is None
+
+    def test_parse_laps_handles_trackpoints_without_position(self):
+        """Lap trackpoints without GPS coordinates yield None positions (issue #775)."""
+        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 8, 30, 0, tzinfo=UTC)
+
+        lap = SimpleNamespace(
+            start_time=dt_start,
+            end_time=dt_end,
+            trackpoints=[
+                SimpleNamespace(latitude=None, longitude=None, time=dt_start, tpx_ext={}),
+                SimpleNamespace(latitude=None, longitude=None, time=dt_end, tpx_ext={}),
+            ],
+            tpx_ext_stats={},
+            distance=None,
+            calories=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            ascent=None,
+            descent=None,
+            avg_speed=None,
+        )
+        tcx_file = SimpleNamespace(laps=[lap])
+
+        laps = utils_tcx._parse_laps(tcx_file)
+
+        assert len(laps) == 1
+        assert laps[0]["start_position_lat"] is None
+        assert laps[0]["end_position_long"] is None
 
     def test_parse_tcx_file_derives_distance_from_gps_track_when_missing(self):
         """Missing tcx_file.distance falls back to the geodesic sum over the GPS track."""
