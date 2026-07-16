@@ -2,15 +2,15 @@
 
 from unittest.mock import MagicMock, patch
 
-import auth.services.account_security_service as account_security_service
+import auth._internal.services.account_security_service as account_security_service
 
 
 class TestChangeOwnPassword:
     """Tests for self-service password changes."""
 
-    @patch("auth.services.account_security_service.core_logger.print_to_log")
-    @patch("auth.services.account_security_service.auth_security_stores.clear_pending_mfa_for_user")
-    @patch("auth.services.account_security_service.step_up_service.verify_step_up_credentials")
+    @patch("auth._internal.services.account_security_service.core_logger.print_to_log")
+    @patch("auth._internal.services.account_security_service.auth_security_stores.clear_pending_mfa_for_user")
+    @patch("auth._internal.services.account_security_service.step_up_service.verify_step_up_credentials")
     def test_verifies_updates_and_clears_pending_mfa(
         self,
         mock_verify,
@@ -32,11 +32,11 @@ class TestChangeOwnPassword:
 
         with (
             patch(
-                "auth.services.account_security_service.server_settings_utils.get_server_settings_or_404",
+                "auth._internal.services.account_security_service.server_settings_utils.get_server_settings_or_404",
                 return_value=mock_settings,
             ),
             patch(
-                "auth.services.account_security_service.users_utils.get_user_by_id_or_404",
+                "auth._internal.services.account_security_service.users_utils.get_user_by_id_or_404",
                 return_value=mock_user,
             ),
         ):
@@ -70,9 +70,9 @@ class TestChangeOwnPassword:
         mock_clear_pending_mfa.assert_called_once_with(7)
         mock_log.assert_called_once()
 
-    @patch("auth.services.account_security_service.core_logger.print_to_log")
-    @patch("auth.services.account_security_service.auth_security_stores.clear_pending_mfa_for_user")
-    @patch("auth.services.account_security_service.step_up_service.verify_step_up_credentials")
+    @patch("auth._internal.services.account_security_service.core_logger.print_to_log")
+    @patch("auth._internal.services.account_security_service.auth_security_stores.clear_pending_mfa_for_user")
+    @patch("auth._internal.services.account_security_service.step_up_service.verify_step_up_credentials")
     def test_admin_user_uses_admin_min_length(
         self,
         mock_verify,
@@ -96,11 +96,11 @@ class TestChangeOwnPassword:
 
         with (
             patch(
-                "auth.services.account_security_service.server_settings_utils.get_server_settings_or_404",
+                "auth._internal.services.account_security_service.server_settings_utils.get_server_settings_or_404",
                 return_value=mock_settings,
             ),
             patch(
-                "auth.services.account_security_service.users_utils.get_user_by_id_or_404",
+                "auth._internal.services.account_security_service.users_utils.get_user_by_id_or_404",
                 return_value=mock_user,
             ),
         ):
@@ -124,8 +124,8 @@ class TestChangeOwnPassword:
 class TestChangeManagedUserPassword:
     """Tests for managed user password changes."""
 
-    @patch("auth.services.account_security_service.auth_security_stores.clear_pending_mfa_for_user")
-    @patch("auth.services.account_security_service.auth_sessions_crud.delete_sessions_by_user")
+    @patch("auth._internal.services.account_security_service.auth_security_stores.clear_pending_mfa_for_user")
+    @patch("auth._internal.services.account_security_service.auth_sessions_crud.delete_sessions_by_user")
     def test_updates_password_revokes_sessions_and_clears_pending_mfa(
         self,
         mock_delete_sessions,
@@ -145,11 +145,11 @@ class TestChangeManagedUserPassword:
 
         with (
             patch(
-                "auth.services.account_security_service.server_settings_utils.get_server_settings_or_404",
+                "auth._internal.services.account_security_service.server_settings_utils.get_server_settings_or_404",
                 return_value=mock_settings,
             ),
             patch(
-                "auth.services.account_security_service.users_utils.get_user_by_id_or_404",
+                "auth._internal.services.account_security_service.users_utils.get_user_by_id_or_404",
                 return_value=mock_user,
             ),
         ):
@@ -176,8 +176,8 @@ class TestChangeManagedUserPassword:
 class TestDeleteOtherUserSessions:
     """Tests for self-service 'revoke other sessions'."""
 
-    @patch("auth.services.account_security_service.core_logger.print_to_log")
-    @patch("auth.services.account_security_service.auth_sessions_crud.delete_sessions_by_user")
+    @patch("auth._internal.services.account_security_service.core_logger.print_to_log")
+    @patch("auth._internal.services.account_security_service.auth_sessions_crud.delete_sessions_by_user")
     def test_revokes_all_sessions_except_current(
         self,
         mock_delete_sessions,

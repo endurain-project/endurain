@@ -2,7 +2,7 @@
 
 Module layering (where MFA logic lives):
 
-- ``auth.services.mfa_workflow`` (this module): the workflow facade profile
+- ``auth._internal.services.mfa_workflow`` (this module): the workflow facade profile
   routes call. It composes lower-level helpers and owns step-up verification,
   the pending setup-secret store, and response/schema shaping.
 - ``auth.mfa.service``: pure TOTP/QR helpers plus the per-user state helpers
@@ -21,11 +21,11 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import auth._internal.security_stores as auth_security_stores
+import auth._internal.services.step_up_service as step_up_service
 import auth.mfa.backup_codes.crud as mfa_backup_codes_crud
 import auth.mfa.backup_codes.schema as mfa_backup_codes_schema
 import auth.mfa.schema as mfa_schema
 import auth.mfa.service as mfa_service
-import auth.services.step_up_service as step_up_service
 import core.logger as core_logger
 import users.users.crud as users_crud
 import users.users.schema as users_schema

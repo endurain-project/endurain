@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import auth._internal.security_stores as security_stores
-import auth.services.step_up_service as step_up_service
+import auth._internal.services.step_up_service as step_up_service
 
 
 class FakeStepUpStore:
@@ -98,19 +98,19 @@ class TestVerifyStepUpCredentials:
 
         with (
             patch(
-                "auth.services.step_up_service.users_utils.get_user_by_id_or_404",
+                "auth._internal.services.step_up_service.users_utils.get_user_by_id_or_404",
                 return_value=mock_user,
             ),
             patch(
-                "auth.services.step_up_service.auth_credentials_crud.get_credential",
+                "auth._internal.services.step_up_service.auth_credentials_crud.get_credential",
                 return_value=credential,
             ),
             patch(
-                "auth.services.step_up_service.mfa_service.is_mfa_enabled_for_user",
+                "auth._internal.services.step_up_service.mfa_service.is_mfa_enabled_for_user",
                 return_value=mfa_enabled,
             ),
             patch(
-                "auth.services.step_up_service.mfa_service.verify_user_mfa",
+                "auth._internal.services.step_up_service.mfa_service.verify_user_mfa",
                 return_value=mfa_valid,
             ),
         ):

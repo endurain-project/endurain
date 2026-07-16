@@ -505,7 +505,7 @@ class StepUpVerification(BaseModel):
 
     For SSO-only accounts (no local password set), the password
     field may be omitted and the password check is skipped — see
-    :func:`auth.services.step_up_service.verify_step_up_credentials`
+    :func:`auth._internal.services.step_up_service.verify_step_up_credentials`
     and ``docs/developer-guide/auth-boundary.md`` for the rationale
     and the tracked SSO-only step-up gap.
 

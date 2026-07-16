@@ -861,7 +861,7 @@ async def enable_mfa(
     :func:`auth.mfa.service.enable_user_mfa` against the secret
     issued by ``POST /profile/mfa/setup``. SSO-only accounts may
     omit ``current_password`` (see
-    :func:`auth.services.step_up_service.verify_step_up_credentials`).
+    :func:`auth._internal.services.step_up_service.verify_step_up_credentials`).
 
     Args:
         request: MFA setup request with TOTP code and (when the

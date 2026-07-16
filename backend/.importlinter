@@ -35,7 +35,6 @@ source_modules =
     infra
 forbidden_modules =
     auth._internal
-    auth.services
     auth.*.crud
     auth.*.*.crud
 

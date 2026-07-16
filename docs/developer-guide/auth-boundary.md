@@ -14,10 +14,10 @@ Non-auth modules must consume auth **only** through these public entry points:
 password change, MFA lifecycle, IdP linking). Non-auth modules call these methods on
 the injected `IdentityService`; they do **not** import the implementations.
 
-The workflow implementations live in `auth.services.*` (see *Auth Service Modules*
+The workflow implementations live in `auth._internal.services.*` (see *Auth Service Modules*
 below), but those modules are **auth-internal**: `IdentityService` delegates to them,
 and import-linter forbids non-auth modules from importing them directly. Do not import
-the private `auth._internal` package, any auth `*.crud` module, or `auth.services.*`
+the private `auth._internal` package, any auth `*.crud` module, or `auth._internal.services.*`
 from non-auth modules — the single `auth-boundary` contract in `backend/.importlinter`
 enforces this structurally.
 
@@ -61,10 +61,10 @@ Auth-owned modules include:
 - Identity-provider config, links, and link tokens (`auth.identity_providers`, `auth.identity_providers.links`, `auth.identity_providers.link_tokens`)
 - Password reset tokens (`auth.password_reset_tokens`)
 - Sign-up verification tokens (`auth.sign_up_tokens`)
-- Step-up credential verification with lockout (`auth.services.step_up_service`)
-- Password change workflows (`auth.services.account_security_service`)
-- MFA management workflows (`auth.services.mfa_workflow`)
-- Identity-link management workflows (`auth.services.identity_link_service`)
+- Step-up credential verification with lockout (`auth._internal.services.step_up_service`)
+- Password change workflows (`auth._internal.services.account_security_service`)
+- MFA management workflows (`auth._internal.services.mfa_workflow`)
+- Identity-link management workflows (`auth._internal.services.identity_link_service`)
 
 Users/profile-owned modules include:
 
@@ -84,21 +84,21 @@ the boundary.
 
 | Module (internal) | Responsibility | Reached via `IdentityService` |
 | ----------------- | -------------- | ----------------------------- |
-| `auth.services.account_security_service` | `change_own_password`, `change_managed_user_password`, session listing/revocation | `get_user_sessions`, `delete_user_session`, `change_own_password`, `change_managed_user_password` |
-| `auth.services.mfa_workflow` | MFA status, setup, enable, disable, backup-code status and regeneration | `get_mfa_status`, `setup_mfa`, `enable_mfa`, `disable_mfa`, `verify_mfa`, `get_backup_code_status`, `generate_backup_codes` |
-| `auth.services.identity_link_service` | IdP link listing, token generation, link removal, browser-redirect claiming, link counts | `get_user_identity_provider_links`, `generate_link_token`, `delete_identity_provider_link`, `validate_and_claim_browser_link_token`, `get_identity_link_counts_for_users` |
-| `auth.services.step_up_service` | `verify_step_up_credentials` with progressive lockout (5/5 min, 10/30 min, 15/2 hr) | used internally by the workflow modules above |
+| `auth._internal.services.account_security_service` | `change_own_password`, `change_managed_user_password`, session listing/revocation | `get_user_sessions`, `delete_user_session`, `change_own_password`, `change_managed_user_password` |
+| `auth._internal.services.mfa_workflow` | MFA status, setup, enable, disable, backup-code status and regeneration | `get_mfa_status`, `setup_mfa`, `enable_mfa`, `disable_mfa`, `verify_mfa`, `get_backup_code_status`, `generate_backup_codes` |
+| `auth._internal.services.identity_link_service` | IdP link listing, token generation, link removal, browser-redirect claiming, link counts | `get_user_identity_provider_links`, `generate_link_token`, `delete_identity_provider_link`, `validate_and_claim_browser_link_token`, `get_identity_link_counts_for_users` |
+| `auth._internal.services.step_up_service` | `verify_step_up_credentials` with progressive lockout (5/5 min, 10/30 min, 15/2 hr) | used internally by the workflow modules above |
 
 ## Service Placement Rule
 
-- `auth.services.*` owns high-level workflows, reached by non-auth callers through
+- `auth._internal.services.*` owns high-level workflows, reached by non-auth callers through
   `IdentityService` (not imported directly).
 - `auth.<domain>.crud` owns persistence for one auth domain.
 - `auth.<domain>.schema` owns request/response models for that domain.
 - Pure helpers may live in `auth.<domain>.*` when they do not orchestrate step-up,
   route behavior, or multi-module workflows.
 - New non-auth callers must use `auth.dependencies` or `IdentityService`, not
-  `auth.services.*` or low-level CRUD modules.
+  `auth._internal.services.*` or low-level CRUD modules.
 
 ## Import-Linter Contracts
 
@@ -119,7 +119,7 @@ The backend import-linter enforces two key constraints:
    - `auth.identity_providers.link_tokens.crud`
    - `auth.credentials.crud`
    - `auth.security_stores`
-   - `auth.services`
+   - `auth._internal.services`
 
 These workflows and persistence helpers are reached through `IdentityService`
 instead. A small set of route/service facade exceptions is explicitly
@@ -161,7 +161,7 @@ code and do not add new credential columns to `users/users/models.py`.
 ### Step-up verification gap for SSO-only accounts
 
 SSO-only accounts (no local password) skip the password factor in
-`auth.services.step_up_service.verify_step_up_credentials`. MFA still gates if
+`auth._internal.services.step_up_service.verify_step_up_credentials`. MFA still gates if
 enabled, but an SSO-only user with no MFA configured receives no step-up challenge.
 
 The correct fix is to require a fresh IdP re-authentication for SSO-only accounts

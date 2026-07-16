@@ -9,7 +9,7 @@ Module layering (where MFA logic lives):
   :func:`disable_user_mfa`, :func:`verify_user_mfa`,
   :func:`is_mfa_enabled_for_user`). No HTTP request/response shapes here.
 - ``auth.mfa.crud``: persistence for the ``users_mfa`` table.
-- ``auth.services.mfa_workflow``: route-facing orchestration (step-up
+- ``auth._internal.services.mfa_workflow``: route-facing orchestration (step-up
   verification, setup-secret store handling, response/schema shaping) that
   composes the helpers in this module. Profile routes call that module, not
   this one, for end-to-end flows.
@@ -190,7 +190,7 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
 
     This helper does NOT verify any MFA code itself — callers
     are responsible for proving identity (e.g. via
-    :func:`auth.services.step_up_service.verify_step_up_credentials`,
+    :func:`auth._internal.services.step_up_service.verify_step_up_credentials`,
     which accepts both TOTP and backup codes for parity with login).
     Performing the check here as well would either double-charge
     a backup code or, worse, reject a backup code that step-up

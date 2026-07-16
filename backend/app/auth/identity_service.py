@@ -38,14 +38,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import auth._internal.password_hasher as auth_password_hasher
+import auth._internal.services.account_security_service as auth_account_security_service
+import auth._internal.services.identity_link_service as auth_identity_link_service
+import auth._internal.services.mfa_workflow as auth_mfa_workflow
 import auth._internal.token_manager as auth_token_manager
 import auth.api_keys.crud as auth_api_keys_crud
 import auth.api_keys.utils as auth_api_keys_utils
 import auth.credentials.crud as auth_credentials_crud
 import auth.mfa.crud as auth_mfa_crud
-import auth.services.account_security_service as auth_account_security_service
-import auth.services.identity_link_service as auth_identity_link_service
-import auth.services.mfa_workflow as auth_mfa_workflow
 import auth.sessions.crud as auth_sessions_crud
 import auth.utils as auth_utils
 import core.database as core_database
@@ -353,7 +353,7 @@ class IdentityService(Protocol):
     # These are higher-level, route-facing workflows (sessions, password
     # change, MFA lifecycle, IdP linking) consumed by non-auth routers
     # (e.g. ``users.users_profile``). They are part of the public auth
-    # boundary: implementations live in ``auth.services.*`` and are reached
+    # boundary: implementations live in ``auth._internal.services.*`` and are reached
     # only through this contract, never imported directly by non-auth code.
     # ------------------------------------------------------------------
 
@@ -1138,7 +1138,7 @@ class DefaultIdentityService:
         auth_mfa_crud.create_users_mfa_row(user_id, self._db)
 
     # ------------------------------------------------------------------
-    # Account-security workflows (delegate to auth.services.*)
+    # Account-security workflows (delegate to auth._internal.services.*)
     # ------------------------------------------------------------------
 
     def get_user_sessions(self, user_id: int) -> list[auth_sessions_schema.UsersSessionsRead]:
