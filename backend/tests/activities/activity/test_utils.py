@@ -318,3 +318,51 @@ class TestMoveFile:
         move_file(new_dir="/dest", new_filename="test.fit", file_path="/src/test.fit")
 
         mock_move_within.assert_called_once_with("/src/test.fit", "/dest", filename="test.fit")
+
+
+class TestApplyGarminSummaryName:
+    def _summaries(self):
+        # 2026-01-16T02:48:23 UTC (issue #492 example) as epoch seconds.
+        return {1768531703: {"name": "Auckland Cycling", "activityId": 21562025206}}
+
+    def _payload(self, start_time="2026-01-16T02:48:23"):
+        from types import SimpleNamespace
+
+        return {"activity": SimpleNamespace(start_time=start_time)}
+
+    def test_injects_name_on_start_time_match(self):
+        from activities.activity.utils import _apply_garmin_summary_name
+
+        metadata = {"import_dict": {"imported": True}}
+
+        result = _apply_garmin_summary_name(self._payload(), self._summaries(), metadata)
+
+        assert result["name"] == "Auckland Cycling"
+        # The caller's dict is not mutated (multi-activity .fit safety).
+        assert "name" not in metadata
+
+    def test_existing_name_takes_precedence(self):
+        from activities.activity.utils import _apply_garmin_summary_name
+
+        metadata = {"name": "Strava name"}
+
+        result = _apply_garmin_summary_name(self._payload(), self._summaries(), metadata)
+
+        assert result["name"] == "Strava name"
+
+    def test_no_summaries_returns_metadata_unchanged(self):
+        from activities.activity.utils import _apply_garmin_summary_name
+
+        metadata = {"import_dict": {"imported": True}}
+
+        assert _apply_garmin_summary_name(self._payload(), None, metadata) is metadata
+        assert _apply_garmin_summary_name(self._payload(), {}, metadata) is metadata
+
+    def test_no_match_returns_metadata_unchanged(self):
+        from activities.activity.utils import _apply_garmin_summary_name
+
+        metadata = {"import_dict": {"imported": True}}
+
+        result = _apply_garmin_summary_name(self._payload("2026-01-16T10:00:00"), self._summaries(), metadata)
+
+        assert result is metadata
