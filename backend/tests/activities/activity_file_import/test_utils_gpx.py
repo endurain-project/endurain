@@ -198,6 +198,242 @@ class TestParseGpxFile:
 
         assert result["activity"].distance == round(expected_distance)
 
+    def test_parse_gpx_file_excludes_pause_gap_from_timer_and_distance(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a within-segment pause is excluded from timer, distance and pace.
+
+        Regression test for issue #571: a 300 s recording pause inside a
+        single ``<trkseg>`` must not count as active time, and the
+        straight-line hop across the gap must not count as distance.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Paused run</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.010">
+                    <time>2025-01-01T00:05:10Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.011">
+                    <time>2025-01-01T00:05:20Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        expected_distance = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.0, 0.010), (0.0, 0.011)).meters
+
+        activity = result["activity"]
+        assert activity.distance == round(expected_distance)
+        assert activity.total_elapsed_time == 320
+        assert activity.total_timer_time == 20
+        assert activity.pace == pytest.approx(20 / expected_distance, rel=0.01)
+        # First point after the pause has no previous cursor -> speed 0.
+        assert result["vel_waypoints"][2]["vel"] == 0
+        # No lap spans the pause gap.
+        assert all(lap["total_distance"] < 1000 for lap in result["laps"])
+
+    def test_parse_gpx_file_timer_excludes_inter_segment_gap(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test timer time excludes the gap between two ``<trkseg>`` blocks.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Split run</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                </trkseg>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.010">
+                    <time>2025-01-01T00:10:10Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.011">
+                    <time>2025-01-01T00:10:20Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 620
+        assert activity.total_timer_time == 20
+
+    def test_parse_gpx_file_gap_equal_to_threshold_counts_as_moving(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a delta exactly at the pause threshold stays active time.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Slow cadence run</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:15Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.002">
+                    <time>2025-01-01T00:00:30Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        expected_distance = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.0, 0.001), (0.0, 0.002)).meters
+
+        activity = result["activity"]
+        assert activity.distance == round(expected_distance)
+        assert activity.total_timer_time == 30
+
+    def test_parse_gpx_file_all_paused_falls_back_to_elapsed(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a track whose only delta is a pause falls back to elapsed time.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>All paused</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:01:40Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 100
+        assert activity.total_timer_time == 100
+        assert activity.distance == 0
+        assert activity.pace == 0
+
+    def test_parse_gpx_file_ignores_duplicate_timestamps(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test duplicate timestamps do not inflate timer time or crash.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Duplicate stamps</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.002">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 10
+        assert activity.total_timer_time == 10
+
     def test_parse_gpx_file_converts_offset_timestamps_to_utc(
         self,
         tmp_path,
