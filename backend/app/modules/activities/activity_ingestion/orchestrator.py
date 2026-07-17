@@ -33,7 +33,6 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.models as activities_models
-import modules.activities.activity.serializers as activities_serializers
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_file_import.utils_tcx as tcx_utils
@@ -535,7 +534,7 @@ async def parse_and_store_activity_from_file(
         return None
 
 
-async def parse_and_store_activity_from_uploaded_file(
+def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
     file: UploadFile,
     db: Session,
@@ -590,21 +589,17 @@ async def parse_and_store_activity_from_uploaded_file(
         # the upload to disk in one unified step. The streaming
         # writer enforces the activity/gzip byte cap and writes via
         # a ``.part``-then-rename for atomicity.
-        file_path = await core_file_uploads.save_validated_upload(
+        file_path = core_file_uploads.save_validated_upload_sync(
             file,
             kind=upload_kind,
             upload_dir=upload_dir,
             filename=storage_name,
-            stream=True,
         )
         upload_artifacts.append(file_path)
 
         if file_extension.lower() == ".gz":
             original_file_path = file_path
-            file_path, file_extension = await run_in_threadpool(
-                handle_gzipped_file,
-                file_path,
-            )
+            file_path, file_extension = handle_gzipped_file(file_path)
             upload_artifacts.append(file_path)
             upload_artifacts.append(
                 os.path.join(
@@ -622,7 +617,7 @@ async def parse_and_store_activity_from_uploaded_file(
             # Defense in depth: signature-check the inner payload
             # via the same safeuploads validator used for direct
             # activity uploads.
-            await core_file_uploads.validate_local_file(
+            core_file_uploads.validate_local_file_sync(
                 file_path,
                 kind=core_file_uploads.UploadKind.ACTIVITY,
             )
@@ -641,18 +636,15 @@ async def parse_and_store_activity_from_uploaded_file(
                 detail="User privacy settings not found",
             )
 
-        # Parse the file in a thread pool to avoid
-        # blocking the event loop with CPU-bound and
-        # sync I/O work (gpxpy, geopy, timezonefinder)
-        parsed_info = await run_in_threadpool(
-            functools.partial(
-                parse_file,
-                token_user_id,
-                user_privacy_settings,
-                file_extension,
-                file_path,
-                db,
-            )
+        # CPU-bound + sync I/O parsing (gpxpy, geopy, timezonefinder). This runs
+        # directly: the route is synchronous, so Starlette already executes it on
+        # a threadpool worker — no need to offload again.
+        parsed_info = parse_file(
+            token_user_id,
+            user_privacy_settings,
+            file_extension,
+            file_path,
+            db,
         )
 
         if parsed_info is not None:
@@ -699,17 +691,14 @@ async def parse_and_store_activity_from_uploaded_file(
             # Move the file to the processed directory
             core_file_uploads.move_within(file_path, processed_dir, filename=new_file_name)
 
-            for activity in created_activities:
-                # Serialize the activity
-                activity = activities_serializers.serialize_activity(activity)
-
-            # Return the created activity
+            # The ingestion service already returns Activity schemas, so no
+            # further serialization is needed here.
             return created_activities
         else:
-            await run_in_threadpool(_cleanup_upload_artifacts, upload_artifacts)
+            _cleanup_upload_artifacts(upload_artifacts)
             return None
     except HTTPException:
-        await run_in_threadpool(_cleanup_upload_artifacts, upload_artifacts)
+        _cleanup_upload_artifacts(upload_artifacts)
         raise
     except (
         OSError,
@@ -728,7 +717,7 @@ async def parse_and_store_activity_from_uploaded_file(
             "error",
             exc=err,
         )
-        await run_in_threadpool(_cleanup_upload_artifacts, upload_artifacts)
+        _cleanup_upload_artifacts(upload_artifacts)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

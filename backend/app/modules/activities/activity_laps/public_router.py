@@ -18,7 +18,7 @@ router = APIRouter()
     "/activity_id/{activity_id}/all",
     response_model=list[activity_laps_schema.ActivityLapsRead] | None,
 )
-async def read_public_activities_laps_for_activity_all(
+def read_public_activities_laps_for_activity_all(
     activity_id: int,
     validate_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     db: Annotated[Session, Depends(core_database.get_db)],

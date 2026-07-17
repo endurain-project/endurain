@@ -6,12 +6,10 @@ These endpoints stay under the ``/activities`` prefix but live here (not in
 router parser-agnostic.
 """
 
-import asyncio
 import os
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime
-from functools import partial
 from typing import Annotated
 
 from fastapi import (
@@ -48,7 +46,7 @@ executor = ThreadPoolExecutor(max_workers=2)
     status_code=201,
     response_model=list[activities_schema.Activity],
 )
-async def create_activity_with_uploaded_file(
+def create_activity_with_uploaded_file(
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_user_id_from_auth),
@@ -83,7 +81,7 @@ async def create_activity_with_uploaded_file(
     Returns:
         List of created activity objects.
     """
-    return await orchestrator.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
+    return orchestrator.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
 
 
 @router.post(
@@ -91,7 +89,7 @@ async def create_activity_with_uploaded_file(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=dict[str, str],
 )
-async def create_activity_with_bulk_import(
+def create_activity_with_bulk_import(
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
@@ -136,7 +134,7 @@ async def create_activity_with_bulk_import(
                         if file_extension == ".gz"
                         else core_file_uploads.UploadKind.ACTIVITY
                     )
-                    await core_file_uploads.validate_local_file(
+                    core_file_uploads.validate_local_file_sync(
                         file_path,
                         kind=validate_kind,
                     )
@@ -151,22 +149,19 @@ async def create_activity_with_bulk_import(
                 # Log the file being processed
                 core_logger.print_to_log_and_console(f"Queuing file for processing: {file_path}", "info")
 
-        # Submit ONE task that processes all files. Use the running
-        # loop (get_event_loop is deprecated in 3.12+ when no loop
-        # exists) and attach a done-callback so executor exceptions
-        # are surfaced via the logger instead of being silently lost.
-        loop = asyncio.get_running_loop()
-        future = loop.run_in_executor(
-            executor,
-            partial(
-                orchestrator.process_all_files_sync,
-                token_user_id,
-                files_to_process,
-                import_initiated_time=import_time,
-            ),
+        # Submit ONE task that processes all files on the module-level thread
+        # pool and attach a done-callback so executor exceptions are surfaced via
+        # the logger instead of being silently lost. The route is synchronous, so
+        # we submit directly to the executor (there is no running event loop to
+        # hand the work to).
+        future = executor.submit(
+            orchestrator.process_all_files_sync,
+            token_user_id,
+            files_to_process,
+            import_initiated_time=import_time,
         )
 
-        def _log_bulk_import_failure(fut: asyncio.Future) -> None:
+        def _log_bulk_import_failure(fut: Future) -> None:
             exc = fut.exception()
             if exc is not None and isinstance(exc, Exception):
                 core_logger.print_to_log(

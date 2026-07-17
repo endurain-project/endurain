@@ -60,7 +60,7 @@ def _parse_target_date(
         | summary_schema.LifetimeSummaryResponse
     ),
 )
-async def read_activity_summary(
+def read_activity_summary(
     view_type: str,
     _validate_view_type: Annotated[
         Callable,

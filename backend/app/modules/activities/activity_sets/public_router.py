@@ -17,7 +17,7 @@ router = APIRouter()
     "/activity_id/{activity_id}/all",
     response_model=list[activity_sets_schema.ActivitySetsRead] | None,
 )
-async def read_public_activities_sets_for_activity_all(
+def read_public_activities_sets_for_activity_all(
     activity_id: int,
     validate_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     db: Annotated[

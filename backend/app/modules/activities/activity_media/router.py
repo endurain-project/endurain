@@ -62,7 +62,7 @@ def _build_safe_media_filename(activity_id: int, original_name: str | None) -> s
     "/activity_id/{activity_id}",
     response_model=list[activity_media_schema.ActivityMedia] | None,
 )
-async def read_activities_media_user(
+def read_activities_media_user(
     activity_id: int,
     _validate_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -170,7 +170,7 @@ async def upload_media(
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
 )
-async def delete_activity_media(
+def delete_activity_media(
     media_id: int,
     _validate_id: Annotated[Callable, Depends(activities_media_dependencies.validate_media_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],

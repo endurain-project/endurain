@@ -19,7 +19,7 @@ router = APIRouter()
     "/activity_id/{activity_id}/all",
     response_model=(list[activity_workout_steps_schema.ActivityWorkoutSteps] | None),
 )
-async def read_public_activity_workout_steps_all(
+def read_public_activity_workout_steps_all(
     activity_id: int,
     _validate_id: Annotated[
         Callable,
