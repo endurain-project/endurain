@@ -40,7 +40,9 @@ from core.file_uploads import (
     save_file,
     save_validated_bytes,
     save_validated_upload,
+    save_validated_upload_sync,
     validate_bytes,
+    validate_local_file_sync,
     validate_upload,
 )
 
@@ -1141,3 +1143,67 @@ def test_safe_remove_within_oserror_handling(tmp_path: Path, monkeypatch):
 
     result = safe_remove_within(target, base_dir=tmp_path)
     assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Synchronous entry points: save_validated_upload_sync / validate_local_file_sync
+# ---------------------------------------------------------------------------
+
+
+def test_save_validated_upload_sync_happy_path(tmp_path: Path):
+    """A valid activity is validated then streamed to disk synchronously."""
+    upload = _upload("ride.gpx", _make_gpx_bytes())
+    path = save_validated_upload_sync(
+        upload,
+        kind=UploadKind.ACTIVITY,
+        upload_dir=str(tmp_path),
+        filename="server.gpx",
+    )
+    assert path == str(tmp_path / "server.gpx")
+    assert Path(path).read_bytes() == _make_gpx_bytes()
+    assert not (tmp_path / "server.gpx.part").exists()
+
+
+def test_save_validated_upload_sync_rejects_garbage(tmp_path: Path):
+    """Garbage bytes with a valid extension are rejected before any write."""
+    upload = _upload("ride.gpx", b"not a real activity file")
+    with pytest.raises(HTTPException) as exc:
+        save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="server.gpx",
+        )
+    assert exc.value.status_code in {400, 413}
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_save_validated_upload_sync_traversal_rejected(tmp_path: Path):
+    """A traversal filename never produces a file on disk (validation passes first)."""
+    upload = _upload("ride.gpx", _make_gpx_bytes())
+    with pytest.raises(HTTPException) as exc:
+        save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="../escape.gpx",
+        )
+    assert exc.value.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+    assert not (tmp_path.parent / "escape.gpx").exists()
+
+
+def test_validate_local_file_sync_accepts_valid(tmp_path: Path):
+    """A valid on-disk activity validates without raising."""
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(_make_gpx_bytes())
+    validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+
+
+def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
+    """Garbage on-disk content is rejected with a 4xx/413."""
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(b"not a real activity file")
+    with pytest.raises(HTTPException) as exc:
+        validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+    assert exc.value.status_code in {400, 413}

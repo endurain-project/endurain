@@ -27,6 +27,7 @@ import core.migrations as core_migrations
 import core.network as core_network
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
+import infra.async_bridge as platform_async_bridge
 import infra.capabilities as platform_capabilities
 import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
@@ -250,6 +251,11 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # that has no request can resolve providers via infra.runtime.
     platform_runtime.set_active_platform(platform)
 
+    # Capture the running event loop so synchronous code (sync routes in the
+    # threadpool, in-process event subscribers) can dispatch async I/O — e.g. a
+    # websocket push — back onto it via infra.async_bridge.
+    platform_async_bridge.capture_running_loop()
+
     # Register domain subscribers before starting the bus. The thumbnail
     # subsystem is the first real consumer of the substrate (foundations §13),
     # reacting to both activity.created and activity.deleted.
@@ -357,6 +363,9 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     jobs_service.stop_job_worker()
 
     core_scheduler.stop_scheduler()
+
+    # Clear the captured event loop; nothing may dispatch onto it after shutdown.
+    platform_async_bridge.set_main_loop(None)
 
     # Dispose the SQLAlchemy engine so all pooled
     # psycopg connections are closed deterministically.
