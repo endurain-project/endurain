@@ -111,7 +111,7 @@ class TestWeekStats:
     def test_stats_success(self, mock_db):
         with (
             patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m,
-            patch("modules.activities.activity.router.activities_stats.calculate_activity_stats") as s,
+            patch("modules.activities.activity.service.activities_stats.calculate_activity_stats") as s,
         ):
             m.return_value = [_valid_activity()]
             s.return_value = {"bogus": {}}
@@ -314,7 +314,7 @@ class TestThisMonthStats:
     def test_success(self, mock_db):
         with (
             patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as g,
-            patch("modules.activities.activity.router.activities_stats.calculate_activity_stats") as s,
+            patch("modules.activities.activity.service.activities_stats.calculate_activity_stats") as s,
         ):
             g.return_value = [_valid_activity()]
             s.return_value = {}

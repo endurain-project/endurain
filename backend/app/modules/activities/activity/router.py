@@ -1,6 +1,5 @@
 """FastAPI routes for the activities module (authenticated)."""
 
-import calendar
 import glob
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
@@ -25,7 +24,7 @@ import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.stats as activities_stats
+import modules.activities.activity.service as activities_service
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.gears.gear.dependencies as gears_dependencies
@@ -56,31 +55,8 @@ def read_activities_user_activities_week(
         Depends(core_database.get_db),
     ],
 ):
-    # Calculate the start of the requested week
-    today = datetime.now(UTC)
-    start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
-    end_of_week = start_of_week + timedelta(days=6)
-
-    if user_id == token_user_id:
-        # Get all user activities for the requested week if the user is the owner of the token
-        activities = activities_crud.get_user_activities_per_timeframe(user_id, start_of_week, end_of_week, db, True)
-    else:
-        activities = activities_crud.get_user_activities_per_timeframe(
-            user_id,
-            start_of_week,
-            end_of_week,
-            db,
-            False,
-            requester_user_id=token_user_id,
-        )
-
-    # Check if activities is None
-    if activities is None:
-        # Return None if activities is None
-        return None
-
-    # Return the activities
-    return activities
+    # Delegate timeframe + owner/requester scoping to the service layer.
+    return activities_service.list_week_activities(user_id, week_number, token_user_id, db)
 
 
 @router.get(
@@ -100,29 +76,8 @@ def read_activities_user_activities_this_week_stats(
         Depends(core_database.get_db),
     ],
 ) -> activities_schema.ActivityStats:
-    # Calculate the start of the current week
-    today = datetime.now(UTC)
-    start_of_week = today - timedelta(days=today.weekday())
-    end_of_week = start_of_week + timedelta(days=6)
-    activities: list[activities_schema.Activity] | None = None
-
-    if user_id == token_user_id:
-        # Get all user activities for the requested week if the user is the owner of the token
-        activities = activities_crud.get_user_activities_per_timeframe(user_id, start_of_week, end_of_week, db, True)
-    else:
-        activities = activities_crud.get_user_activities_per_timeframe(
-            user_id,
-            start_of_week,
-            end_of_week,
-            db,
-            False,
-            requester_user_id=token_user_id,
-        )
-
-    # Return the aggregated stats (distance, time, calories) per sport for this week
-    if activities:
-        return activities_stats.calculate_activity_stats(activities)
-    return activities_schema.ActivityStats()
+    # Delegate timeframe + scoping + aggregation to the service layer.
+    return activities_service.week_stats(user_id, token_user_id, db)
 
 
 @router.get(
@@ -142,29 +97,8 @@ def read_activities_user_activities_this_month_stats(
         Depends(core_database.get_db),
     ],
 ) -> activities_schema.ActivityStats:
-    # Calculate the start of the current month
-    today = datetime.now(UTC)
-    start_of_month = today.replace(day=1)
-    end_of_month = start_of_month.replace(day=calendar.monthrange(today.year, today.month)[1])
-    activities: list[activities_schema.Activity] | None = None
-
-    if user_id == token_user_id:
-        # Get all user activities for the requested month if the user is the owner of the token
-        activities = activities_crud.get_user_activities_per_timeframe(user_id, start_of_month, end_of_month, db, True)
-    else:
-        activities = activities_crud.get_user_activities_per_timeframe(
-            user_id,
-            start_of_month,
-            end_of_month,
-            db,
-            False,
-            requester_user_id=token_user_id,
-        )
-
-    # Return the aggregated stats (distance, time, calories) per sport for this month
-    if activities:
-        return activities_stats.calculate_activity_stats(activities)
-    return activities_schema.ActivityStats()
+    # Delegate timeframe + scoping + aggregation to the service layer.
+    return activities_service.month_stats(user_id, token_user_id, db)
 
 
 @router.get(
@@ -184,30 +118,7 @@ def read_activities_user_activities_this_month_number(
         Depends(core_database.get_db),
     ],
 ):
-    # Calculate the start of the current month
-    today = datetime.now(UTC)
-    start_of_month = today.replace(day=1)
-    end_of_month = start_of_month.replace(day=calendar.monthrange(today.year, today.month)[1])
-
-    if user_id == token_user_id:
-        # Get all user activities for the requested month if the user is the owner of the token
-        activities = activities_crud.get_user_activities_per_timeframe(user_id, start_of_month, end_of_month, db, True)
-    else:
-        activities = activities_crud.get_user_activities_per_timeframe(
-            user_id,
-            start_of_month,
-            end_of_month,
-            db,
-            False,
-            requester_user_id=token_user_id,
-        )
-
-    # Check if activities is None and return 0 if it is
-    if activities is None:
-        return 0
-
-    # Return the number of activities
-    return len(activities)
+    return activities_service.count_month_activities(user_id, token_user_id, db)
 
 
 @router.get(
@@ -451,23 +362,18 @@ def read_activities_user_activities_pagination(
     sort_by: str | None = Query(None),
     sort_order: str | None = Query(None),
 ):
-    user_is_owner = True
-    if token_user_id != user_id:
-        user_is_owner = False
-    # Get and return the activities for the user with pagination and filters
-    return activities_crud.get_user_activities_with_pagination(
-        user_id=user_id,
-        db=db,
-        page_number=page_number,
-        num_records=num_records,
+    return activities_service.list_user_activities_paginated(
+        user_id,
+        token_user_id,
+        page_number,
+        num_records,
+        db,
         activity_type=activity_type,
         start_date=start_date,
         end_date=end_date,
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
-        user_is_owner=user_is_owner,
-        requester_user_id=token_user_id,
     )
 
 
@@ -491,15 +397,7 @@ def read_activities_followed_user_activities_pagination(
         Depends(core_database.get_db),
     ],
 ):
-    # Enforce ownership: a user can only read their own following feed
-    # to prevent IDOR (OWASP A01).
-    if user_id != token_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden",
-        )
-    # Get the activities for the following users with pagination
-    return activities_crud.get_user_following_activities_with_pagination(token_user_id, page_number, num_records, db)
+    return activities_service.get_following_feed(user_id, token_user_id, page_number, num_records, db)
 
 
 @router.get(
@@ -519,22 +417,7 @@ def read_activities_followed_user_activities_number(
         Depends(core_database.get_db),
     ],
 ):
-    # Enforce ownership: a user can only read their own following count
-    # to prevent IDOR (OWASP A01).
-    if user_id != token_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden",
-        )
-    # Get the number of activities for the following users
-    activities = activities_crud.get_user_following_activities(token_user_id, db)
-
-    # Check if activities is None and return 0 if it is
-    if activities is None:
-        return 0
-
-    # Return the number of activities
-    return len(activities)
+    return activities_service.count_following_feed(user_id, token_user_id, db)
 
 
 @router.get(
