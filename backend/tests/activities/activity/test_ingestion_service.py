@@ -1,7 +1,6 @@
 """Tests for the core activity ingestion service (store_parsed_activity)."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -33,16 +32,16 @@ class TestStoreParsedActivity:
 
         created = MagicMock(id=7, user_id=3)
         mock_crud.create_activity = MagicMock(return_value=created)
-        mock_streams_crud.create_activity_streams = AsyncMock()
+        mock_streams_crud.create_activity_streams = MagicMock()
 
         parsed = _parsed(streams=[schema.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 100}])])
 
-        result = asyncio.run(ingestion_service.store_parsed_activity(parsed, MagicMock()))
+        result = ingestion_service.store_parsed_activity(parsed, MagicMock())
 
         assert result is created
         mock_crud.create_activity.assert_called_once()
         # The stream was converted to an ActivityStreamsCreate carrying the new id.
-        mock_streams_crud.create_activity_streams.assert_awaited_once()
+        mock_streams_crud.create_activity_streams.assert_called_once()
         built_streams = mock_streams_crud.create_activity_streams.call_args.args[0]
         assert built_streams[0].activity_id == 7
         assert built_streams[0].stream_type == 1
@@ -56,11 +55,11 @@ class TestStoreParsedActivity:
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=1, user_id=1))
-        mock_streams_crud.create_activity_streams = AsyncMock()
+        mock_streams_crud.create_activity_streams = MagicMock()
 
-        asyncio.run(ingestion_service.store_parsed_activity(_parsed(), MagicMock()))
+        ingestion_service.store_parsed_activity(_parsed(), MagicMock())
 
-        mock_streams_crud.create_activity_streams.assert_not_awaited()
+        mock_streams_crud.create_activity_streams.assert_not_called()
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
     @patch("modules.activities.activity.ingestion_service.activity_workout_steps_crud")
@@ -73,7 +72,7 @@ class TestStoreParsedActivity:
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=9, user_id=1))
 
         parsed = _parsed(laps=[{"a": 1}], sets=[{"b": 2}], workout_steps=[{"c": 3}])
-        asyncio.run(ingestion_service.store_parsed_activity(parsed, MagicMock()))
+        ingestion_service.store_parsed_activity(parsed, MagicMock())
 
         mock_laps.create_activity_laps.assert_called_once()
         mock_sets.create_activity_sets.assert_called_once()
@@ -86,7 +85,7 @@ class TestStoreParsedActivity:
         mock_crud.create_activity = MagicMock(return_value=None)
 
         with pytest.raises(HTTPException) as exc:
-            asyncio.run(ingestion_service.store_parsed_activity(_parsed(), MagicMock()))
+            ingestion_service.store_parsed_activity(_parsed(), MagicMock())
         assert exc.value.status_code == 500
 
     @patch("modules.activities.activity.ingestion_service.activities_crud")
@@ -96,5 +95,5 @@ class TestStoreParsedActivity:
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=None))
 
         with pytest.raises(HTTPException) as exc:
-            asyncio.run(ingestion_service.store_parsed_activity(_parsed(), MagicMock()))
+            ingestion_service.store_parsed_activity(_parsed(), MagicMock())
         assert exc.value.status_code == 500

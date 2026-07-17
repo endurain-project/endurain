@@ -684,7 +684,7 @@ class ImportService:
                 streams.append(stream)
 
             if streams:
-                await activity_streams_crud.create_activity_streams(streams, new_activity, self.db)
+                activity_streams_crud.create_activity_streams(streams, new_activity, self.db)
                 self.counts["activity_streams"] += len(streams)
 
         # Import workout steps

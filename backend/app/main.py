@@ -34,6 +34,7 @@ import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
 import modules.activities.activity.subscribers as activity_subscribers
+import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
@@ -148,6 +149,16 @@ def _generate_missing_thumbnails() -> None:
     connections.
     """
     core_scheduler.schedule_missing_thumbnail_generation()
+
+
+def _backfill_missing_hr_zones() -> None:
+    """Queue HR-zone backfill for streams missing zone percentages.
+
+    Schedules a one-shot job on the background scheduler (the reconciliation net
+    for the activity.created HR-zone subscriber) instead of running the backfill
+    inline, so it cannot block lifespan startup.
+    """
+    core_scheduler.schedule_missing_hr_zone_backfill()
 
 
 def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
@@ -267,6 +278,10 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # used to emit.
     activity_subscribers.register_activity_notification_subscribers(platform.events)
 
+    # The HR-zone subscriber reacts to activity.created to score HR streams off the
+    # synchronous ingestion path; the scheduled backfill is its reconciliation net.
+    activity_streams_subscribers.register_hr_zone_subscribers(platform.events)
+
     # Also register the thumbnail handlers as durable job subscribers. Harmless
     # when durable jobs are off (the registry is simply not consulted); when on,
     # the outbox relay fans activity events out into retryable per-subscriber
@@ -276,6 +291,9 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Also register the activity-notification handler as a durable job subscriber
     # (harmless when durable jobs are off; retryable per-subscriber delivery when on).
     activity_subscribers.register_activity_notification_durable_handlers(jobs_registry.registry)
+
+    # Also register the HR-zone handler as a durable job subscriber.
+    activity_streams_subscribers.register_hr_zone_durable_handlers(jobs_registry.registry)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -343,6 +361,9 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     core_logger.print_to_log_and_console("Scheduling missing activity map thumbnail generation")
     _safe_run("generate_missing_thumbnails", _generate_missing_thumbnails)
+
+    core_logger.print_to_log_and_console("Scheduling missing HR-zone backfill")
+    _safe_run("backfill_missing_hr_zones", _backfill_missing_hr_zones)
 
     core_logger.print_to_log_and_console("Initializing allowed tile domains for Content Security Policy")
     _init_allowed_tile_domains(fastapi_app)

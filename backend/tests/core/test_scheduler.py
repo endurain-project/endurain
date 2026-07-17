@@ -47,7 +47,7 @@ class TestStartScheduler:
             from core.scheduler import start_scheduler
 
             start_scheduler()
-            assert mock_add_job.call_count == 13
+            assert mock_add_job.call_count == 14
 
     def test_idp_link_token_cleanup_job_registered(self):
         """IdP link token cleanup must be registered with a 5-minute interval."""

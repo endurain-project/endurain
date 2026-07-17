@@ -381,7 +381,7 @@ def parse_activity(
     }
 
 
-async def save_activity_streams_laps(
+def save_activity_streams_laps(
     activity: activities_schema.Activity,
     stream_data: list,
     laps: dict,
@@ -408,7 +408,7 @@ async def save_activity_streams_laps(
                 )
 
         # Create the activity streams in the database
-        await activity_streams_crud.create_activity_streams(activity_streams, created_activity, db)
+        activity_streams_crud.create_activity_streams(activity_streams, created_activity, db)
 
     # Append activity id to laps
     if laps is not None:
@@ -463,7 +463,7 @@ async def process_activity(
     )
 
     # Save the activity and streams to the database
-    return await save_activity_streams_laps(
+    return save_activity_streams_laps(
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],

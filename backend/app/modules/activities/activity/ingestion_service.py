@@ -21,7 +21,7 @@ import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 
 
-async def store_parsed_activity(
+def store_parsed_activity(
     parsed: activities_schema.ParsedActivity,
     db: Session,
 ) -> activities_schema.Activity:
@@ -64,7 +64,7 @@ async def store_parsed_activity(
             )
             for stream in parsed.streams
         ]
-        await activity_streams_crud.create_activity_streams(streams, created_activity, db)
+        activity_streams_crud.create_activity_streams(streams, created_activity, db)
 
     if parsed.laps is not None:
         activity_laps_crud.create_activity_laps(parsed.laps, created_activity.id, db)

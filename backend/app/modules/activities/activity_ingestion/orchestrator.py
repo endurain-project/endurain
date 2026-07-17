@@ -401,7 +401,7 @@ async def parse_and_store_activity_from_file(
                         )
 
                     # Store the activity in the database
-                    created_activity = await ingestion_service.store_parsed_activity(
+                    created_activity = ingestion_service.store_parsed_activity(
                         file_adapter.parsed_info_to_parsed_activity(parsed_info), db
                     )
                     created_activities.append(created_activity)
@@ -442,7 +442,7 @@ async def parse_and_store_activity_from_file(
                             continue
 
                         # Store the activity in the database
-                        created_activity = await ingestion_service.store_parsed_activity(
+                        created_activity = ingestion_service.store_parsed_activity(
                             file_adapter.parsed_info_to_parsed_activity(activity), db
                         )
 
@@ -660,7 +660,7 @@ async def parse_and_store_activity_from_uploaded_file(
             ids_to_filename = ""
             if file_extension.lower() in (".gpx", ".tcx"):
                 # Store the activity in the database
-                created_activity = await ingestion_service.store_parsed_activity(
+                created_activity = ingestion_service.store_parsed_activity(
                     file_adapter.parsed_info_to_parsed_activity(parsed_info), db
                 )
                 created_activities.append(created_activity)
@@ -681,7 +681,7 @@ async def parse_and_store_activity_from_uploaded_file(
 
                 for activity in created_activities_objects:
                     # Store the activity in the database
-                    created_activity = await ingestion_service.store_parsed_activity(
+                    created_activity = ingestion_service.store_parsed_activity(
                         file_adapter.parsed_info_to_parsed_activity(activity), db
                     )
                     created_activities.append(created_activity)

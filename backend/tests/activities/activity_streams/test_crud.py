@@ -9,109 +9,57 @@ from tests._helpers.models import mock_model
 
 class TestCreateActivityStreams:
     @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.build_zone_percentages")
-    async def test_success(
-        self,
-        mock_build_zone_percentages,
-        mock_get_user_by_id,
-        mock_streams_model,
-        mock_db,
-    ):
+    def test_success(self, mock_streams_model, mock_db):
         import modules.activities.activity_streams.crud as crud
         from modules.activities.activity_streams.schema import ActivityStreamsCreate
 
         mock_activity = MagicMock(user_id=1, id=1)
         mock_streams_model.return_value = MagicMock()
-        mock_get_user_by_id.return_value = MagicMock(max_heart_rate=200)
-        mock_build_zone_percentages.return_value = {"hr": {}}
         s = [
             ActivityStreamsCreate(
                 activity_id=1, stream_type=1, stream_waypoints=[{"hr": 145}], strava_activity_stream_id=None
             )
         ]
-        await crud.create_activity_streams(s, mock_activity, mock_db)
+        crud.create_activity_streams(s, mock_activity, mock_db)
         mock_db.add_all.assert_called_once()
         mock_db.commit.assert_called_once()
 
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
-    async def test_empty(self, mock_get_user_by_id, mock_db):
+    def test_empty(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
         mock_activity = MagicMock(user_id=1, id=1)
-        mock_get_user_by_id.return_value = MagicMock(max_heart_rate=200)
-        await crud.create_activity_streams([], mock_activity, mock_db)
+        crud.create_activity_streams([], mock_activity, mock_db)
+        mock_db.add_all.assert_not_called()
 
     @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.build_zone_percentages")
-    async def test_create_activity_streams_populates_zone_percentages(
-        self,
-        mock_build_zone_percentages,
-        mock_get_user_by_id,
-        mock_streams_model,
-        mock_db,
-    ):
-        import modules.activities.activity_streams.crud as crud
-        from modules.activities.activity_streams.schema import ActivityStreamsCreate
-
-        expected_zone_percentages = {
-            "hr": {
-                "zone_1": {"percent": 20.0, "hr": "< 120", "time_seconds": 20},
-                "zone_2": {"percent": 20.0, "hr": "120 - 139", "time_seconds": 20},
-                "zone_3": {"percent": 20.0, "hr": "140 - 159", "time_seconds": 20},
-                "zone_4": {"percent": 20.0, "hr": "160 - 179", "time_seconds": 20},
-                "zone_5": {"percent": 20.0, "hr": ">= 180", "time_seconds": 20},
-            }
-        }
-
-        mock_activity = MagicMock(user_id=1, id=1)
-        mock_streams_model.side_effect = [MagicMock(), MagicMock()]
-        mock_get_user_by_id.return_value = MagicMock(max_heart_rate=200)
-        mock_build_zone_percentages.return_value = expected_zone_percentages
-
-        streams = [
-            ActivityStreamsCreate(
-                activity_id=1,
-                stream_type=1,
-                stream_waypoints=[{"hr": 100}],
-                strava_activity_stream_id=None,
-            ),
-            ActivityStreamsCreate(
-                activity_id=2,
-                stream_type=2,
-                stream_waypoints=[],
-                strava_activity_stream_id=None,
-            ),
-        ]
-
-        await crud.create_activity_streams(streams, mock_activity, mock_db)
-
-        assert mock_build_zone_percentages.call_count == 1
-        assert mock_streams_model.call_args_list[0].kwargs["zone_percentages"] == expected_zone_percentages
-        assert mock_streams_model.call_args_list[1].kwargs["zone_percentages"] is None
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.build_zone_percentages")
-    async def test_db_error(
-        self,
-        mock_build_zone_percentages,
-        mock_get_user_by_id,
-        mock_streams_model,
-        mock_db,
-    ):
+    def test_persists_without_zone_percentages(self, mock_streams_model, mock_db):
+        # HR-zone computation is decoupled to the activity.created subscriber, so
+        # streams are persisted with zone_percentages=None (scored later).
         import modules.activities.activity_streams.crud as crud
         from modules.activities.activity_streams.schema import ActivityStreamsCreate
 
         mock_activity = MagicMock(user_id=1, id=1)
         mock_streams_model.return_value = MagicMock()
-        mock_get_user_by_id.return_value = MagicMock(max_heart_rate=200)
-        mock_build_zone_percentages.return_value = {"hr": {}}
+        s = [
+            ActivityStreamsCreate(
+                activity_id=1, stream_type=1, stream_waypoints=[{"hr": 100}], strava_activity_stream_id=None
+            )
+        ]
+        crud.create_activity_streams(s, mock_activity, mock_db)
+
+        assert mock_streams_model.call_args.kwargs["zone_percentages"] is None
+
+    @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
+    def test_db_error(self, mock_streams_model, mock_db):
+        import modules.activities.activity_streams.crud as crud
+        from modules.activities.activity_streams.schema import ActivityStreamsCreate
+
+        mock_activity = MagicMock(user_id=1, id=1)
+        mock_streams_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
         s = [ActivityStreamsCreate(activity_id=1, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None)]
         with pytest.raises(HTTPException) as e:
-            await crud.create_activity_streams(s, mock_activity, mock_db)
+            crud.create_activity_streams(s, mock_activity, mock_db)
         assert e.value.status_code == 500
 
 
@@ -488,3 +436,82 @@ class TestRecomputeHrZonePercentagesForUser:
         crud.recompute_hr_zone_percentages_for_user(1, mock_db)
 
         mock_db.rollback.assert_called_once()
+
+
+class TestComputeAndStoreHrZonePercentagesForActivity:
+    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=None)
+    def test_noop_when_user_missing(self, mock_user, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
+
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=None)
+    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    def test_noop_when_no_max_hr(self, mock_user, mock_max, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
+
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    def test_noop_when_no_hr_stream(self, mock_user, mock_max, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        mock_db.execute.return_value.first.return_value = None
+
+        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
+
+        mock_db.commit.assert_not_called()
+
+    @patch(
+        "modules.activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync",
+        return_value={"zone_1": 1},
+    )
+    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    def test_stores_zone_percentages(self, mock_user, mock_max, mock_compute, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        stream = MagicMock(stream_waypoints=[{"hr": 100}])
+        mock_db.execute.return_value.first.return_value = (stream, 600.0)
+
+        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
+
+        assert stream.zone_percentages == {"hr": {"zone_1": 1}}
+        mock_db.commit.assert_called_once()
+
+
+class TestBackfillMissingHrZonePercentages:
+    @patch(
+        "modules.activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync",
+        return_value={"zone_1": 1},
+    )
+    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    def test_scores_missing_streams(self, mock_user, mock_max, mock_compute, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        stream = MagicMock(id=5, stream_waypoints=[{"hr": 100}])
+        # First batch returns one (stream, total_timer_time, owner_id); second is empty.
+        mock_db.execute.return_value.all.side_effect = [[(stream, 600.0, 2)], []]
+
+        updated = crud.backfill_missing_hr_zone_percentages(mock_db)
+
+        assert updated == 1
+        assert stream.zone_percentages == {"hr": {"zone_1": 1}}
+
+    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=None)
+    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    def test_skips_when_owner_has_no_max_hr(self, mock_user, mock_max, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        stream = MagicMock(id=5, stream_waypoints=[{"hr": 100}])
+        mock_db.execute.return_value.all.side_effect = [[(stream, 600.0, 2)], []]
+
+        updated = crud.backfill_missing_hr_zone_percentages(mock_db)
+
+        assert updated == 0

@@ -743,7 +743,6 @@ class TestImportServiceActivityComponents:
         mock_activity = MagicMock(id=10, user_id=1)
         with patch(
             "modules.users.users_profile.import_service.activity_streams_crud.create_activity_streams",
-            new_callable=AsyncMock,
         ):
             await service.collect_and_import_activity_components(
                 [],
