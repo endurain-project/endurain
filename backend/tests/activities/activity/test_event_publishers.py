@@ -18,6 +18,30 @@ class TestPublishActivityCreated:
         assert kwargs["metadata"] == {"activity_id": 7, "user_id": 3}
 
 
+class TestPublishActivityUpdated:
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
+    def test_delegates_to_facade(self, mock_publisher):
+        from modules.activities.activity.event_publishers import publish_activity_updated
+
+        publish_activity_updated(7, 3, changed=["name", "visibility"])
+
+        mock_publisher.publish.assert_called_once()
+        args, kwargs = mock_publisher.publish.call_args
+        assert args[0] == "activity.updated"
+        assert args[1] == {"activity_id": 7, "user_id": 3, "changed": ["name", "visibility"]}
+        assert kwargs["source"] == "api:edit_activity"
+        assert kwargs["metadata"] == {"activity_id": 7, "user_id": 3}
+
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
+    def test_changed_defaults_to_none(self, mock_publisher):
+        from modules.activities.activity.event_publishers import publish_activity_updated
+
+        publish_activity_updated(7, 3)
+
+        args, _ = mock_publisher.publish.call_args
+        assert args[1] == {"activity_id": 7, "user_id": 3, "changed": None}
+
+
 class TestPublishActivityDeleted:
     @patch("modules.activities.activity.event_publishers.platform_publisher")
     def test_delegates_to_facade(self, mock_publisher):

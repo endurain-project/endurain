@@ -165,6 +165,29 @@ class TestReadByID:
             assert resp.status_code == 200 and resp.json() is None
 
 
+class TestEdit:
+    def test_success_publishes_updated(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.edit_activity") as m,
+            patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
+        ):
+            m.return_value = _valid_activity()
+            resp = TestClient(_build_app(mock_db)).put(
+                "/activities/edit",
+                headers={"Authorization": "Bearer x"},
+                json={"id": 1, "name": "Run", "activity_type": 1, "visibility": 2},
+            )
+            assert resp.status_code == 200
+            # The route publishes the fact with the changed field names (excluding id).
+            mock_pub.publish_activity_updated.assert_called_once()
+            assert mock_pub.publish_activity_updated.call_args.args[0] == 1
+            assert mock_pub.publish_activity_updated.call_args.kwargs["changed"] == [
+                "activity_type",
+                "name",
+                "visibility",
+            ]
+
+
 class TestEditVisibility:
     def test_success(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.edit_user_activities_visibility") as m:

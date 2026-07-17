@@ -17,3 +17,8 @@ ACTIVITY_CREATED = "activity.created"
 # artifacts it owns — the map thumbnail today, media/search-index/... later —
 # without the route knowing who reacts.
 ACTIVITY_DELETED = "activity.deleted"
+
+# Published by the edit-activity route after an activity's metadata has been
+# updated, so subscribers can react to edits (reindex, feed refresh, ...) without
+# the route knowing who reacts. The payload carries the changed field names.
+ACTIVITY_UPDATED = "activity.updated"
