@@ -13,7 +13,7 @@ class TestPublishActivityCreated:
         mock_publisher.publish.assert_called_once()
         args, kwargs = mock_publisher.publish.call_args
         assert args[0] == "activity.created"
-        assert args[1] == {"activity_id": 7, "user_id": 3}
+        assert args[1] == {"activity_id": 7, "user_id": 3, "duplicate_start_time": False}
         assert kwargs["source"] == "api:store_activity"
         assert kwargs["metadata"] == {"activity_id": 7, "user_id": 3}
 

@@ -33,6 +33,7 @@ import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
+import modules.activities.activity.subscribers as activity_subscribers
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
@@ -261,11 +262,20 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # reacting to both activity.created and activity.deleted.
     activity_thumbnail_subscribers.register_thumbnail_subscribers(platform.events)
 
+    # The activity-notification subscriber reacts to activity.created (new /
+    # duplicate-start-time), replacing the inline notification that create_activity
+    # used to emit.
+    activity_subscribers.register_activity_notification_subscribers(platform.events)
+
     # Also register the thumbnail handlers as durable job subscribers. Harmless
     # when durable jobs are off (the registry is simply not consulted); when on,
     # the outbox relay fans activity events out into retryable per-subscriber
     # jobs run by the worker instead of the inline bus path.
     activity_thumbnail_subscribers.register_thumbnail_durable_handlers(jobs_registry.registry)
+
+    # Also register the activity-notification handler as a durable job subscriber
+    # (harmless when durable jobs are off; retryable per-subscriber delivery when on).
+    activity_subscribers.register_activity_notification_durable_handlers(jobs_registry.registry)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.

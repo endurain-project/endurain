@@ -42,7 +42,6 @@ import modules.strava.bulk_import_utils as strava_bulk_import_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
-import modules.websocket.manager as websocket_manager
 
 # Maximum size accepted when decompressing a gzipped activity
 # upload. Mirrors core_file_uploads' activity cap; safeuploads
@@ -253,7 +252,6 @@ def parse_file(
 async def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
     from_garmin: bool = False,
     is_bulk_import: bool = False,
@@ -267,14 +265,12 @@ async def parse_and_store_activity_from_file(
     Parse an activity file and persist the result to the database.
 
     Supports .gpx, .tcx, .fit, and .gz files. Handles Garmin Connect and Strava
-    bulk imports, moves processed files to the appropriate directory, and emits
-    WebSocket notifications.
+    bulk imports, moves processed files to the appropriate directory, and
+    publishes ``activity.created`` (notification/thumbnail work reacts as subscribers).
 
     Args:
         token_user_id: ID of the authenticated user performing the import.
         file_path: Absolute path to the activity file to parse.
-        websocket_manager: Manager used to push real-time notifications to
-            connected clients.
         db: SQLAlchemy database session.
         from_garmin: Whether the file originates from a Garmin Connect sync.
         garminconnect_gear: Garmin Connect gear metadata to associate with the
@@ -406,7 +402,7 @@ async def parse_and_store_activity_from_file(
 
                     # Store the activity in the database
                     created_activity = await ingestion_service.store_parsed_activity(
-                        file_adapter.parsed_info_to_parsed_activity(parsed_info), websocket_manager, db
+                        file_adapter.parsed_info_to_parsed_activity(parsed_info), db
                     )
                     created_activities.append(created_activity)
                     ids_to_filename += str(created_activity.id)
@@ -447,7 +443,7 @@ async def parse_and_store_activity_from_file(
 
                         # Store the activity in the database
                         created_activity = await ingestion_service.store_parsed_activity(
-                            file_adapter.parsed_info_to_parsed_activity(activity), websocket_manager, db
+                            file_adapter.parsed_info_to_parsed_activity(activity), db
                         )
 
                         created_activities.append(created_activity)
@@ -542,7 +538,6 @@ async def parse_and_store_activity_from_file(
 async def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
     file: UploadFile,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     """Persist an uploaded activity file and return the result.
@@ -553,7 +548,6 @@ async def parse_and_store_activity_from_uploaded_file(
     Args:
         token_user_id: Authenticated user ID.
         file: Incoming FastAPI UploadFile.
-        websocket_manager: Manager used for notifications.
         db: Database session.
 
     Returns:
@@ -667,7 +661,7 @@ async def parse_and_store_activity_from_uploaded_file(
             if file_extension.lower() in (".gpx", ".tcx"):
                 # Store the activity in the database
                 created_activity = await ingestion_service.store_parsed_activity(
-                    file_adapter.parsed_info_to_parsed_activity(parsed_info), websocket_manager, db
+                    file_adapter.parsed_info_to_parsed_activity(parsed_info), db
                 )
                 created_activities.append(created_activity)
                 ids_to_filename += str(created_activity.id)
@@ -688,7 +682,7 @@ async def parse_and_store_activity_from_uploaded_file(
                 for activity in created_activities_objects:
                     # Store the activity in the database
                     created_activity = await ingestion_service.store_parsed_activity(
-                        file_adapter.parsed_info_to_parsed_activity(activity), websocket_manager, db
+                        file_adapter.parsed_info_to_parsed_activity(activity), db
                     )
                     created_activities.append(created_activity)
 
@@ -745,7 +739,6 @@ async def parse_and_store_activity_from_uploaded_file(
 def process_all_files_sync(
     user_id: int,
     file_paths: list[str],
-    websocket_manager: websocket_manager.WebSocketManager,
     import_initiated_time: str,
 ):
     """
@@ -754,7 +747,6 @@ def process_all_files_sync(
     Args:
         user_id: User ID.
         file_paths: List of file paths to process.
-        websocket_manager: WebSocket manager instance.
     """
     db = next(core_database.get_db())
     try:
@@ -765,7 +757,6 @@ def process_all_files_sync(
                 parse_and_store_activity_from_file(
                     user_id,
                     file_path,
-                    websocket_manager,
                     db,
                     is_bulk_import=True,
                     import_initiated_time=import_initiated_time,

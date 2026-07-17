@@ -166,6 +166,50 @@ async def create_new_duplicate_start_time_activity_notification(
         ) from err
 
 
+def create_activity_created_notification(
+    user_id: int,
+    activity_id: int,
+    duplicate_start_time: bool,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """Create the notification row for a newly stored activity (synchronous).
+
+    The synchronous counterpart of :func:`create_new_activity_notification` /
+    :func:`create_new_duplicate_start_time_activity_notification`, for the
+    ``activity.created`` subscriber: it only writes the row (the record) and
+    returns it together with the websocket message type, leaving the best-effort
+    websocket push to the caller (dispatched onto the main loop via the async
+    bridge). No websocket work happens here, so it is safe to run on a durable
+    job worker thread or inline on the bus.
+
+    Args:
+        user_id: The user to notify (the activity owner).
+        activity_id: The stored activity's ID.
+        duplicate_start_time: Whether the activity was flagged as a duplicate
+            start time (raises the duplicate variant instead of the new one).
+        db: Database session used for the row write.
+
+    Returns:
+        Tuple of the created notification and the websocket message type string.
+    """
+    if duplicate_start_time:
+        notification_type = notifications_constants.NotificationType.DUPLICATE_ACTIVITY
+        ws_message = "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION"
+    else:
+        notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
+        ws_message = "NEW_ACTIVITY_NOTIFICATION"
+
+    notification = notifications_crud.create_notification(
+        notifications_schema.NotificationCreate(
+            user_id=user_id,
+            type=notification_type,
+            options={"activity_id": activity_id},
+        ),
+        db,
+    )
+    return notification, ws_message
+
+
 async def create_new_follower_request_notification(
     user_id: int,
     target_user_id: int,

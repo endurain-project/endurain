@@ -31,7 +31,6 @@ import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.orchestrator as orchestrator
 import modules.auth.dependencies as auth_dependencies
-import modules.websocket.manager as websocket_manager
 
 # Bulk import endpoint (JWT auth)
 router = APIRouter()
@@ -62,10 +61,6 @@ async def create_activity_with_uploaded_file(
             scopes=["activities:upload"],
         ),
     ],
-    ws_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -83,14 +78,12 @@ async def create_activity_with_uploaded_file(
         token_user_id: Authenticated user ID.
         file: The activity file to upload.
         _check_scopes: Scope validation dependency.
-        ws_manager: WebSocket manager for real-time
-            notifications.
         db: Database session dependency.
 
     Returns:
         List of created activity objects.
     """
-    return await orchestrator.parse_and_store_activity_from_uploaded_file(token_user_id, file, ws_manager, db)
+    return await orchestrator.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
 
 
 @router.post(
@@ -104,10 +97,6 @@ async def create_activity_with_bulk_import(
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    ws_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
 ):
     try:
         # Get time of import initiation to pass to function for recording in import_data
@@ -173,7 +162,6 @@ async def create_activity_with_bulk_import(
                 orchestrator.process_all_files_sync,
                 token_user_id,
                 files_to_process,
-                ws_manager,
                 import_initiated_time=import_time,
             ),
         )

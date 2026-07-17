@@ -251,7 +251,6 @@ def queue_bulk_export_activities_for_import(
                 ingestion_orchestrator.parse_and_store_activity_from_file(
                     token_user_id,
                     file_path,
-                    websocket_manager,
                     db,
                     is_bulk_import=True,
                     strava_activities=strava_activities_dict,

@@ -33,9 +33,7 @@ import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
 import modules.activities.activity.utils as activities_utils
 import modules.followers.models as followers_models
-import modules.notifications.utils as notifications_utils
 import modules.server_settings.utils as server_settings_utils
-import modules.websocket.manager as websocket_manager
 
 # Mapping from frontend sort keys to model columns
 SORT_MAP = {
@@ -1210,23 +1208,26 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
         raise _internal_server_error(err, "get_activities_if_contains_name") from err
 
 
-async def create_activity(
+def create_activity(
     activity: activities_schema.Activity,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
-    create_notification: bool = True,
 ) -> activities_schema.Activity:
-    """Persist a new activity and emit notifications.
+    """Persist a new activity; duplicate start-times are marked hidden.
+
+    Pure persistence: notifications and derived work (thumbnails, HR zones) are
+    decoupled to ``activity.created`` subscribers (plan §6). The caller publishes
+    the event after the activity's children are stored; this function only writes
+    the row and flags start-time duplicates as hidden.
 
     Args:
         activity: Activity schema to persist.
-        websocket_manager: Manager used for notifications.
         db: Database session.
-        create_notification: Whether to push a notification.
 
     Returns:
-        The provided activity schema with generated ID and
-        ``created_at`` populated.
+        The provided activity schema with generated ID and ``created_at``
+        populated. ``is_hidden`` is set ``True`` when the start time duplicates
+        an existing activity — the signal the caller forwards to the
+        ``activity.created`` notification subscriber.
 
     Raises:
         HTTPException: 500 on database error.
@@ -1251,15 +1252,6 @@ async def create_activity(
             "debug",
         )
 
-        if create_notification:
-            if activity_start_time_exists:
-                await notifications_utils.create_new_duplicate_start_time_activity_notification(
-                    activity.user_id, new_activity.id, websocket_manager
-                )
-            else:
-                await notifications_utils.create_new_activity_notification(
-                    activity.user_id, new_activity.id, websocket_manager
-                )
         return activity
     except SQLAlchemyError as err:
         db.rollback()

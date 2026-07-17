@@ -41,6 +41,42 @@ class TestCreateAndNotify:
         )
 
 
+class TestCreateActivityCreatedNotification:
+    """The synchronous helper used by the activity.created subscriber."""
+
+    def test_new_activity_variant(self):
+        import modules.notifications.constants as c
+        from modules.notifications.utils import create_activity_created_notification
+
+        mock_db = MagicMock()
+        with patch(
+            "modules.notifications.utils.notifications_crud.create_notification",
+            return_value=MagicMock(id=1),
+        ) as mock_create:
+            notification, ws_message = create_activity_created_notification(42, 7, False, mock_db)
+
+        assert notification.id == 1
+        assert ws_message == "NEW_ACTIVITY_NOTIFICATION"
+        created = mock_create.call_args.args[0]
+        assert created.user_id == 42
+        assert created.type == c.NotificationType.NEW_ACTIVITY
+        assert created.options == {"activity_id": 7}
+
+    def test_duplicate_variant(self):
+        import modules.notifications.constants as c
+        from modules.notifications.utils import create_activity_created_notification
+
+        mock_db = MagicMock()
+        with patch(
+            "modules.notifications.utils.notifications_crud.create_notification",
+            return_value=MagicMock(id=2),
+        ) as mock_create:
+            _, ws_message = create_activity_created_notification(1, 3, True, mock_db)
+
+        assert ws_message == "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION"
+        assert mock_create.call_args.args[0].type == c.NotificationType.DUPLICATE_ACTIVITY
+
+
 class TestCreateNewActivityNotification:
     @pytest.mark.asyncio
     async def test_success(self):

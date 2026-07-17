@@ -18,7 +18,12 @@ import infra.publisher as platform_publisher
 import modules.activities.activity.events as activity_events
 
 
-def publish_activity_created(activity_id: int, user_id: int | None, db: Session | None = None) -> None:
+def publish_activity_created(
+    activity_id: int,
+    user_id: int | None,
+    duplicate_start_time: bool = False,
+    db: Session | None = None,
+) -> None:
     """Publish ``activity.created`` for a freshly stored activity.
 
     Args:
@@ -27,6 +32,10 @@ def publish_activity_created(activity_id: int, user_id: int | None, db: Session 
             such as thumbnail generation needs the owner to load the activity's
             own streams) and mirrored into the **metadata** for event-log
             correlation.
+        duplicate_start_time: Whether the activity duplicates an existing
+            activity's start time (marked hidden on store). Carried in the
+            payload so the notification subscriber can raise the duplicate
+            variant instead of the new-activity notification.
         db: The producer's DB session, used for durable outbox delivery when
             durable jobs are enabled.
 
@@ -35,7 +44,11 @@ def publish_activity_created(activity_id: int, user_id: int | None, db: Session 
     """
     platform_publisher.publish(
         activity_events.ACTIVITY_CREATED,
-        {"activity_id": activity_id, "user_id": user_id},
+        {
+            "activity_id": activity_id,
+            "user_id": user_id,
+            "duplicate_start_time": duplicate_start_time,
+        },
         source="api:store_activity",
         metadata={
             platform_events.META_ACTIVITY_ID: activity_id,

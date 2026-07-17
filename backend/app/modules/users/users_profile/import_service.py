@@ -854,7 +854,7 @@ class ImportService:
                 activity_data.pop("id", None)
 
                 activity = activity_schema.Activity(**activity_data)
-                new_activity = await activities_crud.create_activity(activity, self.websocket_manager, self.db, False)
+                new_activity = activities_crud.create_activity(activity, self.db)
 
                 if original_activity_id is not None and new_activity.id is not None:
                     activities_id_mapping[original_activity_id] = new_activity.id

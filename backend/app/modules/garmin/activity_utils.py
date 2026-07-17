@@ -139,7 +139,6 @@ async def fetch_and_process_activities_by_dates(
             parsed_result = await ingestion_orchestrator.parse_and_store_activity_from_file(
                 token_user_id=user_id,
                 file_path=str(full_file_path),
-                websocket_manager=ws_manager,
                 db=db,
                 from_garmin=True,
                 garminconnect_gear=activity_gear,

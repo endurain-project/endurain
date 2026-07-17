@@ -218,8 +218,7 @@ class TestGetActivityByID:
 class TestCreateActivity:
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")
-    @patch("modules.activities.activity.crud.notifications_utils.create_new_activity_notification")
-    async def test_success(self, mock_notif, mock_transform, mock_check, mock_db):
+    def test_success(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_check.return_value = None
@@ -229,14 +228,13 @@ class TestCreateActivity:
         a = MagicMock()
         a.user_id = 1
         a.start_time = None
-        r = await crud.create_activity(activity=a, websocket_manager=MagicMock(), db=mock_db)
+        r = crud.create_activity(activity=a, db=mock_db)
         assert r is not None
         mock_db.add.assert_called_once()
 
-    @patch("modules.activities.activity.crud.notifications_utils.create_new_duplicate_start_time_activity_notification")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")
-    async def test_duplicate_start_time(self, mock_transform, mock_check, mock_notif, mock_db):
+    def test_duplicate_start_time(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_check.return_value = MagicMock()
@@ -247,13 +245,15 @@ class TestCreateActivity:
         a.user_id = 1
         a.start_time = datetime.now(UTC)
         a.is_hidden = False
-        await crud.create_activity(activity=a, websocket_manager=MagicMock(), db=mock_db)
+        crud.create_activity(activity=a, db=mock_db)
+        # A duplicate start time marks the activity hidden; the caller forwards
+        # this (via publish_activity_created) to the notification subscriber,
+        # which raises the duplicate variant. No notification is emitted inline.
         assert a.is_hidden is True
-        mock_notif.assert_awaited_once()
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")
-    async def test_db_error(self, mock_transform, mock_check, mock_db):
+    def test_db_error(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_check.return_value = None
@@ -263,7 +263,7 @@ class TestCreateActivity:
         a.user_id = 1
         a.start_time = "2024-01-01T10:00:00+00:00"
         with pytest.raises(HTTPException) as e:
-            await crud.create_activity(activity=a, websocket_manager=MagicMock(), db=mock_db)
+            crud.create_activity(activity=a, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 

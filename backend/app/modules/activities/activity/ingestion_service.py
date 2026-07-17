@@ -19,20 +19,16 @@ import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
-import modules.websocket.manager as websocket_manager
 
 
 async def store_parsed_activity(
     parsed: activities_schema.ParsedActivity,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> activities_schema.Activity:
     """Persist a parsed activity and its children, then publish ``activity.created``.
 
     Args:
         parsed: The canonical parsed activity to store.
-        websocket_manager: Manager used for the create notification (temporary —
-            notifications move to a subscriber in the pub/sub phase).
         db: Database session.
 
     Returns:
@@ -41,7 +37,7 @@ async def store_parsed_activity(
     Raises:
         HTTPException: 500 when the activity could not be created.
     """
-    created_activity = await activities_crud.create_activity(parsed.activity, websocket_manager, db)
+    created_activity = activities_crud.create_activity(parsed.activity, db)
 
     if created_activity is None or created_activity.id is None:
         core_logger.print_to_log(
@@ -91,6 +87,11 @@ async def store_parsed_activity(
     # ``activity.created``; this service has no knowledge of what consumes it.
     # Best-effort (the stored activity is the source of truth); the session is
     # passed so durable jobs can stage the event in the outbox.
-    activity_event_publishers.publish_activity_created(created_activity.id, created_activity.user_id, db)
+    activity_event_publishers.publish_activity_created(
+        created_activity.id,
+        created_activity.user_id,
+        duplicate_start_time=created_activity.is_hidden,
+        db=db,
+    )
 
     return created_activity
