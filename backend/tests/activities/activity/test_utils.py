@@ -37,7 +37,7 @@ class TestEscapeLike:
 
 class TestApplyVisibilityMask:
     def test_owner_no_mask(self):
-        from modules.activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = MagicMock()
         schema.private_notes = "secret"
@@ -50,7 +50,7 @@ class TestApplyVisibilityMask:
         assert result.private_notes == "secret"
 
     def test_non_owner_masks_private_notes(self):
-        from modules.activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = MagicMock()
         schema.private_notes = "secret"
@@ -60,7 +60,7 @@ class TestApplyVisibilityMask:
         assert result.private_notes is None
 
     def test_non_owner_masks_hidden_fields(self):
-        from modules.activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = MagicMock()
         schema.hide_start_time = True
@@ -88,7 +88,7 @@ class TestApplyVisibilityMask:
         assert result.garminconnect_gear_id is None
 
     def test_non_owner_does_not_mask_visible_fields(self):
-        from modules.activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = MagicMock()
         schema.hide_start_time = False
@@ -105,7 +105,7 @@ class TestApplyVisibilityMask:
         assert result.gear_id == 1
 
     def test_mask_private_notes_false_allows_notes(self):
-        from modules.activities.activity.utils import apply_visibility_mask
+        from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = MagicMock()
         schema.private_notes = "visible"

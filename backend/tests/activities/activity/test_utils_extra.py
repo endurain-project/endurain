@@ -104,11 +104,11 @@ class TestTransformSchemaToModel:
 
 
 class TestSerializeActivity:
-    @patch("modules.activities.activity.utils.activity_thumbnail_render")
-    @patch("modules.activities.activity.utils.activities_schema.Activity")
-    @patch("modules.activities.activity.utils.core_timezone")
+    @patch("modules.activities.activity.serializers.activity_thumbnail_render")
+    @patch("modules.activities.activity.serializers.activities_schema.Activity")
+    @patch("modules.activities.activity.serializers.core_timezone")
     def test_serialize_basic(self, mock_tz, mock_schema_cls, mock_thumbnail):
-        from modules.activities.activity.utils import serialize_activity
+        from modules.activities.activity.serializers import serialize_activity
 
         mock_tz.format_aware_datetime.side_effect = lambda dt, tz: (
             "2024-01-15T08:00:00" if tz is None else "2024-01-15T09:00:00"

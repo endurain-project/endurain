@@ -26,11 +26,11 @@ import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
-import core.timezone as core_timezone
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity.serializers as activities_serializers
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_file_import.utils_tcx as tcx_utils
@@ -38,7 +38,6 @@ import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.strava.bulk_import_utils as strava_bulk_import_utils
 import modules.users.users.crud as users_crud
@@ -49,79 +48,6 @@ from modules.activities.activity.constants import (
     ACTIVITY_ID_TO_NAME,
     ACTIVITY_NAME_TO_ID,
 )
-
-
-def serialize_activity(
-    activity: activities_models.Activity,
-) -> activities_schema.Activity:
-    """
-    Convert an ORM Activity to a schema with TZ.
-
-    Converts ORM model to Pydantic schema and
-    applies timezone formatting to datetime fields.
-    Does NOT mutate the ORM object.
-
-    Args:
-        activity: The ORM Activity instance.
-
-    Returns:
-        An Activity schema with formatted datetimes.
-    """
-    schema = activities_schema.Activity.model_validate(activity)
-
-    # The DB stores the thumbnail's storage key; resolve it to a servable URL
-    # (a same-origin path locally, or a presigned URL for object storage).
-    schema.map_thumbnail_path = activity_thumbnail_render.thumbnail_url(activity.map_thumbnail_path)
-
-    tz_name = activity.timezone
-    schema.start_time_tz_applied = core_timezone.format_aware_datetime(activity.start_time, tz_name)
-    schema.end_time_tz_applied = core_timezone.format_aware_datetime(activity.end_time, tz_name)
-    schema.created_at_tz_applied = core_timezone.format_aware_datetime(activity.created_at, tz_name)
-
-    schema.start_time = core_timezone.format_aware_datetime(activity.start_time, None)
-    schema.end_time = core_timezone.format_aware_datetime(activity.end_time, None)
-    schema.created_at = core_timezone.format_aware_datetime(activity.created_at, None)
-
-    return schema
-
-
-def apply_visibility_mask(
-    schema: activities_schema.Activity,
-    *,
-    is_owner: bool,
-    mask_private_notes: bool = True,
-) -> activities_schema.Activity:
-    """Mask hidden activity fields for non-owners.
-
-    Mutates and returns the provided Pydantic schema instance.
-    For owners no masking is applied.
-
-    Args:
-        schema: Activity schema to potentially mask.
-        is_owner: Whether the requesting user owns the
-            activity.
-        mask_private_notes: Whether to clear private_notes
-            for non-owners. Defaults to True.
-
-    Returns:
-        The (possibly mutated) Activity schema.
-    """
-    if is_owner:
-        return schema
-    if mask_private_notes:
-        schema.private_notes = None
-    if schema.hide_start_time:
-        schema.start_time = None
-        schema.end_time = None
-    if schema.hide_location:
-        schema.city = None
-        schema.town = None
-        schema.country = None
-    if schema.hide_gear:
-        schema.gear_id = None
-        schema.strava_gear_id = None
-        schema.garminconnect_gear_id = None
-    return schema
 
 
 def escape_like(term: str) -> str:
@@ -733,7 +659,7 @@ async def parse_and_store_activity_from_uploaded_file(
 
             for activity in created_activities:
                 # Serialize the activity
-                activity = serialize_activity(activity)
+                activity = activities_serializers.serialize_activity(activity)
 
             # Return the created activity
             return created_activities

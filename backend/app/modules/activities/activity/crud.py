@@ -30,6 +30,7 @@ import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity.serializers as activities_serializers
 import modules.activities.activity.utils as activities_utils
 import modules.followers.models as followers_models
 import modules.notifications.utils as notifications_utils
@@ -233,9 +234,9 @@ def _serialize_and_mask(
     """
     result: list[activities_schema.Activity] = []
     for orm_activity in activities:
-        schema = activities_utils.serialize_activity(orm_activity)
+        schema = activities_serializers.serialize_activity(orm_activity)
         is_owner = not force_non_owner and requester_user_id is not None and orm_activity.user_id == requester_user_id
-        activities_utils.apply_visibility_mask(
+        activities_serializers.apply_visibility_mask(
             schema,
             is_owner=is_owner,
             mask_private_notes=mask_private_notes,
@@ -293,7 +294,7 @@ def get_all_activities(
         activities = db.execute(select(activities_models.Activity)).scalars().all()
         if not activities:
             return None
-        return [activities_utils.serialize_activity(a) for a in activities]
+        return [activities_serializers.serialize_activity(a) for a in activities]
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_all_activities") from err
 
@@ -842,7 +843,7 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         activities = db.execute(stmt).scalars().all()
         if not activities:
             return None
-        return [activities_utils.serialize_activity(a) for a in activities]
+        return [activities_serializers.serialize_activity(a) for a in activities]
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_user_following_activities") from err
 
@@ -990,8 +991,8 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        schema = activities_utils.serialize_activity(activity)
-        activities_utils.apply_visibility_mask(schema, is_owner=(activity.user_id == user_id))
+        schema = activities_serializers.serialize_activity(activity)
+        activities_serializers.apply_visibility_mask(schema, is_owner=(activity.user_id == user_id))
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_from_user_id_or_has_visibility") from err
@@ -1023,8 +1024,8 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        schema = activities_utils.serialize_activity(activity)
-        activities_utils.apply_visibility_mask(schema, is_owner=False)
+        schema = activities_serializers.serialize_activity(activity)
+        activities_serializers.apply_visibility_mask(schema, is_owner=False)
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_if_is_public") from err
@@ -1050,7 +1051,7 @@ def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activ
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id") from err
 
@@ -1083,7 +1084,7 @@ def get_activity_by_start_time(
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_start_time") from err
 
@@ -1110,7 +1111,7 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_from_user_id") from err
 
@@ -1139,7 +1140,7 @@ def get_activity_by_strava_id_from_user_id(
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_strava_id_from_user_id") from err
 
@@ -1168,7 +1169,7 @@ def get_activity_by_garminconnect_id_from_user_id(
         activity = db.execute(stmt).scalars().first()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_garminconnect_id_from_user_id") from err
 
@@ -1471,7 +1472,7 @@ def edit_activity(
             f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})",
             "debug",
         )
-        return activities_utils.serialize_activity(db_activity)
+        return activities_serializers.serialize_activity(db_activity)
     except HTTPException:
         raise
     except SQLAlchemyError as err:
