@@ -19,7 +19,6 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -31,6 +30,7 @@ import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity.stats as activities_stats
 import modules.activities.activity.utils as activities_utils
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.activity_utils as garmin_activity_utils
@@ -54,7 +54,7 @@ executor = ThreadPoolExecutor(max_workers=2)
     "/user/{user_id}/week/{week_number}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_user_activities_week(
+def read_activities_user_activities_week(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     week_number: int,
@@ -100,7 +100,7 @@ async def read_activities_user_activities_week(
     "/user/{user_id}/thisweek/stats",
     response_model=activities_schema.ActivityStats,
 )
-async def read_activities_user_activities_this_week_stats(
+def read_activities_user_activities_this_week_stats(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -134,7 +134,7 @@ async def read_activities_user_activities_this_week_stats(
 
     # Return the aggregated stats (distance, time, calories) per sport for this week
     if activities:
-        return activities_utils.calculate_activity_stats(activities)
+        return activities_stats.calculate_activity_stats(activities)
     return activities_schema.ActivityStats()
 
 
@@ -142,7 +142,7 @@ async def read_activities_user_activities_this_week_stats(
     "/user/{user_id}/thismonth/stats",
     response_model=activities_schema.ActivityStats,
 )
-async def read_activities_user_activities_this_month_stats(
+def read_activities_user_activities_this_month_stats(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -176,7 +176,7 @@ async def read_activities_user_activities_this_month_stats(
 
     # Return the aggregated stats (distance, time, calories) per sport for this month
     if activities:
-        return activities_utils.calculate_activity_stats(activities)
+        return activities_stats.calculate_activity_stats(activities)
     return activities_schema.ActivityStats()
 
 
@@ -184,7 +184,7 @@ async def read_activities_user_activities_this_month_stats(
     "/user/{user_id}/thismonth/number",
     response_model=int,
 )
-async def read_activities_user_activities_this_month_number(
+def read_activities_user_activities_this_month_number(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -228,7 +228,7 @@ async def read_activities_user_activities_this_month_number(
     response_model=(activities_schema.GearActivitiesListResponse),
     status_code=status.HTTP_200_OK,
 )
-async def read_gear_activities_list(
+def read_gear_activities_list(
     gear_id: int,
     _validate_gear_id: Annotated[
         Callable,
@@ -308,7 +308,7 @@ async def read_gear_activities_list(
     "/gear/{gear_id}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_gear_activities(
+def read_activities_gear_activities(
     gear_id: int,
     _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -329,7 +329,7 @@ async def read_activities_gear_activities(
     "/gear/{gear_id}/number",
     response_model=int,
 )
-async def read_activities_gear_activities_number(
+def read_activities_gear_activities_number(
     gear_id: int,
     _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -353,7 +353,7 @@ async def read_activities_gear_activities_number(
     "/gear/{gear_id}/page_number/{page_number}/num_records/{num_records}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_gear_activities_with_pagination(
+def read_activities_gear_activities_with_pagination(
     gear_id: int,
     _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     page_number: int,
@@ -379,7 +379,7 @@ async def read_activities_gear_activities_with_pagination(
     "/number",
     response_model=int,
 )
-async def read_activities_user_activities_number(
+def read_activities_user_activities_number(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[
         int,
@@ -419,7 +419,7 @@ async def read_activities_user_activities_number(
     "/types",
     response_model=dict | None,
 )
-async def read_activities_types(
+def read_activities_types(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[
         int,
@@ -437,7 +437,7 @@ async def read_activities_types(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_user_activities_pagination(
+def read_activities_user_activities_pagination(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     page_number: int,
@@ -488,7 +488,7 @@ async def read_activities_user_activities_pagination(
     "/user/{user_id}/followed/page_number/{page_number}/num_records/{num_records}",
     response_model=list[activities_schema.Activity] | None,  # Keep old response model for now
 )
-async def read_activities_followed_user_activities_pagination(
+def read_activities_followed_user_activities_pagination(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     page_number: int,
@@ -519,7 +519,7 @@ async def read_activities_followed_user_activities_pagination(
     "/user/{user_id}/followed/number",
     response_model=int,
 )
-async def read_activities_followed_user_activities_number(
+def read_activities_followed_user_activities_number(
     user_id: int,
     _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -608,7 +608,7 @@ async def read_activities_user_activities_refresh(
     "/{activity_id}",
     response_model=activities_schema.Activity | None,
 )
-async def read_activities_activity_from_id(
+def read_activities_activity_from_id(
     activity_id: int,
     _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -629,7 +629,7 @@ async def read_activities_activity_from_id(
     "/name/contains/{name}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_contain_name(
+def read_activities_contain_name(
     name: str,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[
@@ -821,7 +821,7 @@ async def create_activity_with_bulk_import(
     "/edit",
     response_model=activities_schema.Activity,
 )
-async def edit_activity(
+def edit_activity(
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
@@ -841,7 +841,7 @@ async def edit_activity(
     "/visibility/{visibility}",
     response_model=dict[str, str | int],
 )
-async def edit_activity_visibility(
+def edit_activity_visibility(
     visibility: int,
     _validate_visibility: Annotated[Callable, Depends(activities_dependencies.validate_visibility)],
     token_user_id: Annotated[
@@ -868,7 +868,7 @@ async def edit_activity_visibility(
     "/{activity_id}/delete",
     response_model=dict[str, str],
 )
-async def delete_activity(
+def delete_activity(
     activity_id: int,
     _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
@@ -918,7 +918,7 @@ async def delete_activity(
                     "warning",
                 )
 
-    await run_in_threadpool(_cleanup_processed_files)
+    _cleanup_processed_files()
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

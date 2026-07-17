@@ -22,7 +22,7 @@ router = APIRouter()
     "/{activity_id}",
     response_model=activities_schema.Activity | None,
 )
-async def read_public_activities_activity_from_id(
+def read_public_activities_activity_from_id(
     activity_id: int,
     _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     db: Annotated[

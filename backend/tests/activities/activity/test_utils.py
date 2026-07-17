@@ -117,7 +117,7 @@ class TestApplyVisibilityMask:
 
 class TestCalculateActivityStats:
     def test_calculate_stats(self):
-        from modules.activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.stats import calculate_activity_stats
 
         activity = MagicMock()
         activity.activity_type = 1
@@ -132,7 +132,7 @@ class TestCalculateActivityStats:
         assert result.run.calories == 500
 
     def test_calculate_stats_multiple_activities(self):
-        from modules.activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.stats import calculate_activity_stats
 
         run = MagicMock()
         run.activity_type = 1
@@ -152,14 +152,14 @@ class TestCalculateActivityStats:
         assert result.bike.distance == 30000.0
 
     def test_calculate_stats_none_activities(self):
-        from modules.activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.stats import calculate_activity_stats
 
         result = calculate_activity_stats(None)
 
         assert result.run.distance == 0.0
 
     def test_calculate_stats_different_sports(self):
-        from modules.activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.stats import calculate_activity_stats
 
         swim = MagicMock()
         swim.activity_type = 8
@@ -181,7 +181,7 @@ class TestCalculateActivityStats:
 
 class TestActivityIdToName:
     def test_mapping_contains_common_types(self):
-        from modules.activities.activity.utils import ACTIVITY_ID_TO_NAME
+        from modules.activities.activity.constants import ACTIVITY_ID_TO_NAME
 
         assert ACTIVITY_ID_TO_NAME[1] == "Run"
         assert ACTIVITY_ID_TO_NAME[4] == "Ride"

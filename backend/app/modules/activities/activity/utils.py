@@ -19,7 +19,6 @@ import requests
 from fastapi import HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from geopy.distance import geodesic
-from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -27,7 +26,6 @@ import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
-import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
@@ -47,273 +45,10 @@ import modules.users.users.crud as users_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
 import modules.websocket.manager as websocket_manager
-
-# Global Activity Type Mappings (ID to Name)
-ACTIVITY_ID_TO_NAME = {
-    1: "Run",
-    2: "Trail run",
-    3: "Virtual run",
-    4: "Ride",
-    5: "Gravel ride",
-    6: "MTB ride",
-    7: "Virtual ride",
-    8: "Lap swimming",
-    9: "Open water swimming",
-    10: "Workout",
-    11: "Walk",
-    12: "Hike",
-    13: "Rowing",
-    14: "Yoga",
-    15: "Alpine ski",
-    16: "Nordic ski",
-    17: "Snowboard",
-    18: "Transition",
-    19: "Strength training",
-    20: "Crossfit",
-    21: "Tennis",
-    22: "TableTennis",
-    23: "Badminton",
-    24: "Squash",
-    25: "Racquetball",
-    26: "Pickleball",
-    27: "Commuting ride",
-    28: "Indoor ride",
-    29: "Mixed surface ride",
-    30: "Windsurf",
-    31: "Indoor walking",
-    32: "Stand up paddling",
-    33: "Surf",
-    34: "Track run",
-    35: "E-Bike ride",
-    36: "E-Mountain Bike ride",
-    37: "Ice Skate",
-    38: "Soccer",
-    39: "Padel",
-    40: "Treadmill",
-    41: "Cardio training",
-    42: "Kayaking",
-    43: "Sailing",
-    44: "Snow shoeing",
-    45: "Inline skating",
-    46: "HIIT",
-    47: "Jump rope",
-    # Add other mappings as needed based on the full list in define_activity_type comments if required
-    # "AlpineSki",
-    # "BackcountrySki",
-    # "Badminton",
-    # "Canoeing",
-    # "Crossfit",
-    # "EBikeRide",
-    # "Elliptical",
-    # "EMountainBikeRide",
-    # "Golf",
-    # "GravelRide",
-    # "Handcycle",
-    # "HighIntensityIntervalTraining",
-    # "Hike",
-    # "IceSkate",
-    # "InlineSkate",
-    # "Kayaking",
-    # "Kitesurf",
-    # "MountainBikeRide",
-    # "NordicSki",
-    # "Pickleball",
-    # "Pilates",
-    # "Racquetball",
-    # "Ride",
-    # "RockClimbing",
-    # "RollerSki",
-    # "Rowing",
-    # "Run",
-    # "Sail",
-    # "Skateboard",
-    # "Snowboard",
-    # "Snowshoe",
-    # "Soccer",
-    # "Squash",
-    # "StairStepper",
-    # "StandUpPaddling",
-    # "Surfing",
-    # "Swim",
-    # "TableTennis",
-    # "Tennis",
-    # "TrailRun",
-    # "Velomobile",
-    # "VirtualRide",
-    # "VirtualRow",
-    # "VirtualRun",
-    # "Walk",
-    # "WeightTraining",
-    # "Wheelchair",
-    # "Windsurf",
-    # "Workout",
-    # "Yoga"
-}
-
-# Global Activity Type Mappings (Name to ID) - Case Insensitive Keys
-ACTIVITY_NAME_TO_ID = {name.lower(): activity_type_id for activity_type_id, name in ACTIVITY_ID_TO_NAME.items()}
-# Add specific variations found in define_activity_type
-ACTIVITY_NAME_TO_ID.update(
-    {
-        "running": 1,
-        "trail running": 2,
-        "trailrun": 2,
-        "trail": 2,
-        "virtualrun": 3,
-        "cycling": 4,
-        "biking": 4,
-        "road": 4,
-        "gravelride": 5,
-        "gravel_cycling": 5,
-        "mountainbikeride": 6,
-        "mountain": 6,
-        "virtualride": 7,
-        "virtual_ride": 7,
-        "swim": 8,
-        "swimming": 8,
-        "lap_swimming": 8,
-        "open_water_swimming": 9,
-        "open_water": 9,
-        "walk": 11,
-        "walking": 11,
-        "hike": 12,
-        "hiking": 12,
-        "rowing": 13,
-        "indoor_rowing": 13,
-        "yoga": 14,
-        "alpineski": 15,
-        "resort_skiing": 15,
-        "alpine_skiing": 15,
-        "nordicski": 16,
-        "snowboard": 17,
-        "transition": 18,
-        "strength_training": 19,
-        "weighttraining": 19,
-        "crossfit": 20,
-        "tennis": 21,
-        "tabletennis": 22,
-        "badminton": 23,
-        "squash": 24,
-        "racquetball": 25,
-        "pickleball": 26,
-        "commuting_ride": 27,
-        "indoor_ride": 28,
-        "indoor_cycling": 28,
-        "mixed_surface_ride": 29,
-        "windsurf": 30,
-        "windsurfing": 30,
-        "indoor_walking": 31,
-        "stand_up_paddleboarding": 32,
-        "standuppaddling": 32,
-        "surfing": 33,
-        "track running": 34,
-        "trackrun": 34,
-        "track": 34,
-        "ebikeride": 35,
-        "e_bike": 35,
-        "ebike": 35,
-        "e_bike_ride": 35,
-        "e_bike_fitness": 35,
-        "emountainbikeride": 36,
-        "e_bike_mountain": 36,
-        "ebikemountain": 36,
-        "e_bike_mountain_ride": 36,
-        "ebikemountainride": 36,
-        "iceskate": 37,
-        "soccer": 38,
-        "padel": 39,
-        "padelball": 39,
-        "paddelball": 39,
-        "treadmill": 40,
-        "indoor_running": 40,
-        "cardio_training": 41,
-        "kayaking": 42,
-        "sailing": 43,
-        "sail": 43,
-        "snowshoeing": 44,
-        "snowshoe": 44,
-        "inline_skating": 45,
-        "inlineskate": 45,
-        "hiit": 46,
-        "high_intensity_interval_training": 46,
-        "highintensityintervaltraining": 46,
-        "jump_rope": 47,
-        "jumprope": 47,
-    }
+from modules.activities.activity.constants import (
+    ACTIVITY_ID_TO_NAME,
+    ACTIVITY_NAME_TO_ID,
 )
-
-
-def transform_schema_activity_to_model_activity(
-    activity: activities_schema.Activity,
-) -> activities_models.Activity:
-    # Use an explicit UTC-aware created_at when provided,
-    # otherwise let the database stamp the row with now().
-    created_date = core_timezone.to_utc_aware(activity.created_at) if activity.created_at is not None else func.now()
-
-    # Sanitize markdown fields to prevent XSS
-    sanitized_description = core_sanitization.sanitize_markdown(activity.description)
-    sanitized_private_notes = core_sanitization.sanitize_markdown(activity.private_notes)
-
-    # Create a new activity object
-    new_activity = activities_models.Activity(
-        user_id=activity.user_id,
-        description=sanitized_description,
-        private_notes=sanitized_private_notes,
-        distance=activity.distance,
-        name=activity.name,
-        activity_type=activity.activity_type,
-        start_time=core_timezone.to_utc_aware(activity.start_time),
-        end_time=core_timezone.to_utc_aware(activity.end_time),
-        timezone=activity.timezone,
-        total_elapsed_time=activity.total_elapsed_time,
-        total_timer_time=(
-            activity.total_timer_time if activity.total_timer_time is not None else activity.total_elapsed_time
-        ),
-        city=activity.city,
-        town=activity.town,
-        country=activity.country,
-        created_at=created_date,
-        elevation_gain=activity.elevation_gain,
-        elevation_loss=activity.elevation_loss,
-        pace=activity.pace,
-        average_speed=activity.average_speed,
-        max_speed=activity.max_speed,
-        average_power=activity.average_power,
-        max_power=activity.max_power,
-        normalized_power=activity.normalized_power,
-        average_hr=activity.average_hr,
-        max_hr=activity.max_hr,
-        average_cad=activity.average_cad,
-        max_cad=activity.max_cad,
-        workout_feeling=activity.workout_feeling,
-        workout_rpe=activity.workout_rpe,
-        calories=activity.calories,
-        visibility=activity.visibility,
-        gear_id=activity.gear_id,
-        strava_gear_id=activity.strava_gear_id,
-        strava_activity_id=activity.strava_activity_id,
-        garminconnect_activity_id=activity.garminconnect_activity_id,
-        garminconnect_gear_id=activity.garminconnect_gear_id,
-        import_info=activity.import_info,
-        is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
-        hide_start_time=activity.hide_start_time,
-        hide_location=activity.hide_location,
-        hide_map=activity.hide_map,
-        hide_hr=activity.hide_hr,
-        hide_power=activity.hide_power,
-        hide_cadence=activity.hide_cadence,
-        hide_elevation=activity.hide_elevation,
-        hide_speed=activity.hide_speed,
-        hide_pace=activity.hide_pace,
-        hide_laps=activity.hide_laps,
-        hide_workout_sets_steps=activity.hide_workout_sets_steps,
-        hide_gear=activity.hide_gear,
-        tracker_manufacturer=activity.tracker_manufacturer,
-        tracker_model=activity.tracker_model,
-        total_cycles=activity.total_cycles,
-    )
-
-    return new_activity
 
 
 def serialize_activity(
@@ -1136,6 +871,11 @@ async def store_activity(
             detail="Error creating activity",
         )
 
+    core_logger.print_to_log(
+        f"store_activity: created activity {created_activity.id} for user {created_activity.user_id}",
+        "debug",
+    )
+
     # Parse the activity streams from the parsed info
     activity_streams = parse_activity_streams_from_file(parsed_info, created_activity.id)
 
@@ -1154,6 +894,15 @@ async def store_activity(
     if parsed_info.get("sets") is not None:
         # Create activity sets in the database
         activity_sets_crud.create_activity_sets(parsed_info["sets"], created_activity.id, db)
+
+    core_logger.print_to_log(
+        f"store_activity {created_activity.id}: streams="
+        f"{len(activity_streams) if activity_streams else 0}, "
+        f"laps={parsed_info.get('laps') is not None}, "
+        f"workout_steps={parsed_info.get('workout_steps') is not None}, "
+        f"sets={parsed_info.get('sets') is not None}",
+        "debug",
+    )
 
     # Publish the domain fact. Derived work — map-thumbnail generation today, and
     # any future computation — reacts by subscribing to `activity.created`;
@@ -1202,56 +951,6 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
         )
         for stream_type, is_set, waypoints in stream_data_list
     ]
-
-
-def calculate_activity_stats(
-    activities: list[activities_schema.Activity],
-) -> activities_schema.ActivityStats:
-    """Aggregate distance (m), time (s), and calories per sport type.
-
-    Args:
-        activities: List of Activity schema objects for the timeframe.
-
-    Returns:
-        ActivityStats with per-sport distance, time, and calories totals.
-    """
-    stats = activities_schema.ActivityStats()
-
-    if activities is None:
-        return stats
-
-    # Sport-type buckets: activity_type IDs → attribute name on ActivityStats
-    _sport_buckets: list[tuple[list[int], str]] = [
-        ([1, 2, 3, 34, 40], "run"),
-        ([4, 5, 6, 7, 27, 28, 29, 35, 36], "bike"),
-        ([8, 9], "swim"),
-        ([11, 31], "walk"),
-        ([12], "hike"),
-        ([13], "rowing"),
-        ([15, 16], "snow_ski"),
-        ([17], "snowboard"),
-        ([30], "windsurf"),
-        ([32], "stand_up_paddleboarding"),
-        ([33], "surfing"),
-        ([42], "kayaking"),
-        ([43], "sailing"),
-        ([44], "snowshoeing"),
-        ([45], "inline_skating"),
-    ]
-
-    try:
-        for activity in activities:
-            for type_ids, bucket_name in _sport_buckets:
-                if activity.activity_type in type_ids:
-                    bucket = getattr(stats, bucket_name)
-                    bucket.distance += float(activity.distance or 0)
-                    bucket.time += float(activity.total_timer_time or 0)
-                    bucket.calories += float(activity.calories or 0)
-                    break
-    except (TypeError, ValueError, AttributeError) as err:
-        core_logger.print_to_log(f"Error in calculate_activity_stats - {err!s}", "error", exc=err)
-
-    return stats
 
 
 def location_based_on_coordinates(latitude: float | None, longitude: float | None) -> dict | None:

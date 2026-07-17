@@ -1,5 +1,6 @@
 """Pydantic schemas for activity API payloads."""
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated
 
@@ -16,6 +17,19 @@ PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = Annotated[StrictStr, Field(max_length=250)]
+
+
+@dataclass(frozen=True)
+class ActivityThumbnailRef:
+    """Lightweight activity reference for thumbnail maintenance.
+
+    Carries only the fields the thumbnail subsystem needs (the activity id and
+    the stored thumbnail key) so CRUD can hand out this DTO instead of leaking an
+    ORM ``Activity`` row.
+    """
+
+    id: int
+    map_thumbnail_path: str | None = None
 
 
 class Activity(BaseModel):

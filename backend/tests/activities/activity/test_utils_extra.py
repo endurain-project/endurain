@@ -22,10 +22,10 @@ class TestTransformSchemaToModel:
         defaults.update(overrides)
         return activities_schema.Activity(**defaults)
 
-    @patch("modules.activities.activity.utils.activities_models.Activity")
-    @patch("modules.activities.activity.utils.core_sanitization")
+    @patch("modules.activities.activity.crud.activities_models.Activity")
+    @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_basic(self, mock_sanitization, mock_model):
-        from modules.activities.activity.utils import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: x
         mock_model.return_value = MagicMock()
@@ -52,10 +52,10 @@ class TestTransformSchemaToModel:
         assert kwargs["city"] == "Lisbon"
         assert kwargs["total_timer_time"] == 3500.0
 
-    @patch("modules.activities.activity.utils.activities_models.Activity")
-    @patch("modules.activities.activity.utils.core_sanitization")
+    @patch("modules.activities.activity.crud.activities_models.Activity")
+    @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_with_created_at(self, mock_sanitization, mock_model):
-        from modules.activities.activity.utils import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: x
         mock_model.return_value = MagicMock()
@@ -68,10 +68,10 @@ class TestTransformSchemaToModel:
         _, kwargs = mock_model.call_args
         assert kwargs["created_at"] == created_at
 
-    @patch("modules.activities.activity.utils.activities_models.Activity")
-    @patch("modules.activities.activity.utils.core_sanitization")
+    @patch("modules.activities.activity.crud.activities_models.Activity")
+    @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_total_timer_time_falls_back_to_elapsed(self, mock_sanitization, mock_model):
-        from modules.activities.activity.utils import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: x
         mock_model.return_value = MagicMock()
@@ -83,10 +83,10 @@ class TestTransformSchemaToModel:
         _, kwargs = mock_model.call_args
         assert kwargs["total_timer_time"] == 4000.0
 
-    @patch("modules.activities.activity.utils.activities_models.Activity")
-    @patch("modules.activities.activity.utils.core_sanitization")
+    @patch("modules.activities.activity.crud.activities_models.Activity")
+    @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_sanitizes_markdown(self, mock_sanitization, mock_model):
-        from modules.activities.activity.utils import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: f"sanitized:{x}"
         mock_model.return_value = MagicMock()
@@ -615,7 +615,7 @@ class TestSetActivityNameBasedOnActivityType:
 
 class TestActivityNameToId:
     def test_contains_known_mappings(self):
-        from modules.activities.activity.utils import ACTIVITY_NAME_TO_ID
+        from modules.activities.activity.constants import ACTIVITY_NAME_TO_ID
 
         assert ACTIVITY_NAME_TO_ID["running"] == 1
         assert ACTIVITY_NAME_TO_ID["cycling"] == 4
@@ -898,9 +898,9 @@ class TestStoreActivityExtended:
 class TestCalculateActivityStatsExtended:
     """Cover lines 1252-1253: exception handler in calculate_activity_stats."""
 
-    @patch("modules.activities.activity.utils.core_logger")
+    @patch("modules.activities.activity.stats.core_logger")
     def test_error_handling_bad_activity_type(self, mock_logger):
-        from modules.activities.activity.utils import calculate_activity_stats
+        from modules.activities.activity.stats import calculate_activity_stats
 
         bad_activity = MagicMock()
         type(bad_activity).activity_type = property(lambda self: (_ for _ in ()).throw(TypeError("bad type")))

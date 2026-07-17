@@ -26,6 +26,8 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import core.sanitization as core_sanitization
+import core.timezone as core_timezone
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.utils as activities_utils
@@ -133,6 +135,79 @@ def _internal_server_error(err: Exception, context: str) -> HTTPException:
     )
 
 
+def transform_schema_activity_to_model_activity(
+    activity: activities_schema.Activity,
+) -> activities_models.Activity:
+    # Use an explicit UTC-aware created_at when provided,
+    # otherwise let the database stamp the row with now().
+    created_date = core_timezone.to_utc_aware(activity.created_at) if activity.created_at is not None else func.now()
+
+    # Sanitize markdown fields to prevent XSS
+    sanitized_description = core_sanitization.sanitize_markdown(activity.description)
+    sanitized_private_notes = core_sanitization.sanitize_markdown(activity.private_notes)
+
+    # Create a new activity object
+    new_activity = activities_models.Activity(
+        user_id=activity.user_id,
+        description=sanitized_description,
+        private_notes=sanitized_private_notes,
+        distance=activity.distance,
+        name=activity.name,
+        activity_type=activity.activity_type,
+        start_time=core_timezone.to_utc_aware(activity.start_time),
+        end_time=core_timezone.to_utc_aware(activity.end_time),
+        timezone=activity.timezone,
+        total_elapsed_time=activity.total_elapsed_time,
+        total_timer_time=(
+            activity.total_timer_time if activity.total_timer_time is not None else activity.total_elapsed_time
+        ),
+        city=activity.city,
+        town=activity.town,
+        country=activity.country,
+        created_at=created_date,
+        elevation_gain=activity.elevation_gain,
+        elevation_loss=activity.elevation_loss,
+        pace=activity.pace,
+        average_speed=activity.average_speed,
+        max_speed=activity.max_speed,
+        average_power=activity.average_power,
+        max_power=activity.max_power,
+        normalized_power=activity.normalized_power,
+        average_hr=activity.average_hr,
+        max_hr=activity.max_hr,
+        average_cad=activity.average_cad,
+        max_cad=activity.max_cad,
+        workout_feeling=activity.workout_feeling,
+        workout_rpe=activity.workout_rpe,
+        calories=activity.calories,
+        visibility=activity.visibility,
+        gear_id=activity.gear_id,
+        strava_gear_id=activity.strava_gear_id,
+        strava_activity_id=activity.strava_activity_id,
+        garminconnect_activity_id=activity.garminconnect_activity_id,
+        garminconnect_gear_id=activity.garminconnect_gear_id,
+        import_info=activity.import_info,
+        is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
+        hide_start_time=activity.hide_start_time,
+        hide_location=activity.hide_location,
+        hide_map=activity.hide_map,
+        hide_hr=activity.hide_hr,
+        hide_power=activity.hide_power,
+        hide_cadence=activity.hide_cadence,
+        hide_elevation=activity.hide_elevation,
+        hide_speed=activity.hide_speed,
+        hide_pace=activity.hide_pace,
+        hide_laps=activity.hide_laps,
+        hide_workout_sets_steps=activity.hide_workout_sets_steps,
+        hide_gear=activity.hide_gear,
+        tracker_manufacturer=activity.tracker_manufacturer,
+        tracker_model=activity.tracker_model,
+        total_cycles=activity.total_cycles,
+    )
+
+    return new_activity
+
+
 def _serialize_and_mask(
     activities: list[activities_models.Activity],
     *,
@@ -227,6 +302,12 @@ def get_all_activities_no_serialize(
     db: Session,
 ) -> list[activities_models.Activity] | None:
     """Return all activities as raw ORM rows.
+
+    Note:
+        Intended for migration scripts only — migrations legitimately need the
+        mapped ORM rows so they can mutate and re-persist them. This is the one
+        sanctioned exception to "no ORM leaves crud"; do not call it from request
+        handlers or services.
 
     Args:
         db: Database session.
@@ -451,7 +532,7 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int,
         )
         type_ids = db.execute(stmt).scalars().all()
         return {
-            type_id: activities_utils.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
+            type_id: activities_constants.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
             for type_id in type_ids
             if type_id is not None
         }
@@ -1154,7 +1235,7 @@ async def create_activity(
         if activity_start_time_exists:
             activity.is_hidden = True
 
-        new_activity = activities_utils.transform_schema_activity_to_model_activity(activity)
+        new_activity = transform_schema_activity_to_model_activity(activity)
 
         db.add(new_activity)
         db.commit()
@@ -1162,6 +1243,12 @@ async def create_activity(
 
         activity.id = new_activity.id
         activity.created_at = new_activity.created_at
+
+        core_logger.print_to_log(
+            f"Created activity {new_activity.id} for user {activity.user_id}"
+            + (" (marked hidden: duplicate start time)" if activity_start_time_exists else ""),
+            "debug",
+        )
 
         if create_notification:
             if activity_start_time_exists:
@@ -1235,19 +1322,22 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
 
 def get_activities_with_thumbnail(
     db: Session,
-) -> list[activities_models.Activity]:
-    """Return activities that have a map thumbnail.
+) -> list[activities_schema.ActivityThumbnailRef]:
+    """Return references to activities that have a map thumbnail.
 
     Args:
         db: Database session.
 
     Returns:
-        ORM rows with ``map_thumbnail_path`` set, or
-        an empty list on error.
+        Thumbnail references (id + stored key) for rows with
+        ``map_thumbnail_path`` set, or an empty list on error.
     """
     try:
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.isnot(None))
-        return list(db.execute(stmt).scalars().all())
+        rows = db.execute(stmt).scalars().all()
+        return [
+            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+        ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_with_thumbnail: {err}",
@@ -1259,19 +1349,22 @@ def get_activities_with_thumbnail(
 
 def get_activities_without_thumbnail(
     db: Session,
-) -> list[activities_models.Activity]:
-    """Return activities that have no map thumbnail.
+) -> list[activities_schema.ActivityThumbnailRef]:
+    """Return references to activities that have no map thumbnail.
 
     Args:
         db: Database session.
 
     Returns:
-        ORM rows with ``map_thumbnail_path`` set to NULL, or
-        an empty list on error.
+        Thumbnail references (id, with a null key) for rows with
+        ``map_thumbnail_path`` set to NULL, or an empty list on error.
     """
     try:
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.is_(None))
-        return list(db.execute(stmt).scalars().all())
+        rows = db.execute(stmt).scalars().all()
+        return [
+            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+        ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_without_thumbnail: {err}",
@@ -1374,6 +1467,10 @@ def edit_activity(
 
         db.commit()
         db.refresh(db_activity)
+        core_logger.print_to_log(
+            f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})",
+            "debug",
+        )
         return activities_utils.serialize_activity(db_activity)
     except HTTPException:
         raise
@@ -1520,6 +1617,7 @@ def delete_activity(activity_id: int, db: Session) -> None:
                 detail=f"Activity with id {activity_id} not found",
             )
         db.commit()
+        core_logger.print_to_log(f"Deleted activity {activity_id}", "debug")
     except HTTPException:
         db.rollback()
         raise
