@@ -1,6 +1,6 @@
 """Pydantic schemas for activity API payloads."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Annotated
 
@@ -312,3 +312,57 @@ class ActivityEdit(BaseModel):
     hide_laps: StrictBool | None = None
     hide_workout_sets_steps: StrictBool | None = None
     hide_gear: StrictBool | None = None
+
+
+@dataclass(frozen=True)
+class ParsedStream:
+    """A single parsed activity stream (type + waypoints), before persistence.
+
+    Carries no ``activity_id`` — that is assigned by the core when the activity
+    row is created (see :func:`ingestion_service.store_parsed_activity`).
+    """
+
+    stream_type: int
+    stream_waypoints: list
+
+
+@dataclass(frozen=True)
+class ImportSource:
+    """Provenance of a parsed activity, for dedup / bookkeeping.
+
+    Attributes:
+        kind: Origin of the activity (``"upload"`` / ``"bulk_import"`` /
+            ``"strava"`` / ``"garmin"``).
+        provider_activity_id: The external provider's activity id, when known.
+        dedup_key: Optional content hash / provider id used for idempotency.
+    """
+
+    kind: str
+    provider_activity_id: int | None = None
+    dedup_key: str | None = None
+
+
+@dataclass
+class ParsedActivity:
+    """Canonical, format-agnostic parsed activity that the core stores.
+
+    Every ingestion source (the file parsers, Strava, Garmin, profile imports)
+    produces this shape; :func:`ingestion_service.store_parsed_activity` persists
+    it without any knowledge of where it came from. This is the seam that makes
+    parsing irrelevant to the activities core (plan §5).
+
+    Attributes:
+        activity: The activity row to persist (the existing read/input schema).
+        streams: Parsed streams (type + waypoints), assigned an ``activity_id``
+            at persist time.
+        laps / sets / workout_steps: Optional child collections, passed through
+            to their respective CRUD creators unchanged.
+        source: Where the activity came from.
+    """
+
+    activity: Activity
+    streams: list[ParsedStream] = field(default_factory=list)
+    laps: list | None = None
+    sets: list | None = None
+    workout_steps: list | None = None
+    source: ImportSource | None = None
