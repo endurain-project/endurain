@@ -44,7 +44,7 @@ executor = ThreadPoolExecutor(max_workers=2)
 
 
 @api_upload_router.post(
-    "/create/upload",
+    "/upload",
     status_code=201,
     response_model=list[activities_schema.Activity],
 )
@@ -87,7 +87,7 @@ async def create_activity_with_uploaded_file(
 
 
 @router.post(
-    "/create/bulkimport",
+    "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=dict[str, str],
 )

@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 def _build_app(mock_db):
     import core.database as core_db
-    import core.dependencies as core_dep
     import modules.activities.activity.dependencies as act_dep
     import modules.activities.activity.router as activity_router
     import modules.auth.dependencies as auth_deps
@@ -19,17 +18,12 @@ def _build_app(mock_db):
     def _mock():
         return None
 
-    def _uid():
-        return 1
-
     for dep in [
         auth_deps.check_scopes,
         auth_deps.get_sub_from_access_token,
         auth_deps.get_user_id_from_auth,
         auth_deps.check_auth_scopes,
-        core_dep.validate_pagination_values,
         users_dep.validate_user_id,
-        act_dep.validate_week_number,
         act_dep.validate_activity_type,
         act_dep.validate_sort_by,
         act_dep.validate_sort_order,
@@ -75,76 +69,127 @@ def _valid_activity(**kw):
     return Activity(**data)
 
 
-class TestReadActivitiesNumber:
-    def test_number_success(self, mock_db):
+class TestListOwnActivities:
+    def test_list(self, mock_db):
+        with patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m:
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get("/activities", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200
+            assert len(resp.json()) == 1
+
+    def test_count(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.get_user_activities") as m:
             m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/activities/number", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get("/activities?count=true", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200 and resp.json() == 1
 
-    def test_number_empty(self, mock_db):
+    def test_count_empty(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.get_user_activities") as m:
             m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get("/activities/number", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get("/activities?count=true", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200 and resp.json() == 0
 
 
-class TestReadWeek:
-    def test_week_success(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
-            m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/week/0", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-    def test_week_none(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
-            m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/week/0", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200 and resp.json() is None
-
-
-class TestWeekStats:
-    def test_stats_success(self, mock_db):
-        with (
-            patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m,
-            patch("modules.activities.activity.service.activities_stats.calculate_activity_stats") as s,
-        ):
-            m.return_value = [_valid_activity()]
-            s.return_value = {"bogus": {}}
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/thisweek/stats", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-    def test_stats_empty(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
-            m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/thisweek/stats", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-
-class TestMonthNumber:
+class TestTypes:
     def test_success(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
+        with patch("modules.activities.activity.router.activities_crud.get_distinct_activity_types_for_user") as m:
+            m.return_value = {1: "Run"}
+            resp = TestClient(_build_app(mock_db)).get("/activities/types", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200
+
+
+class TestFeed:
+    def test_list(self, mock_db):
+        with patch(
+            "modules.activities.activity.router.activities_crud.get_user_following_activities_with_pagination"
+        ) as m:
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200
+
+    def test_count(self, mock_db):
+        with patch("modules.activities.activity.router.activities_crud.get_user_following_activities") as m:
             m.return_value = [_valid_activity(), _valid_activity(id=2)]
             resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/thismonth/number", headers={"Authorization": "Bearer x"}
+                "/activities/feed?count=true", headers={"Authorization": "Bearer x"}
             )
             assert resp.status_code == 200 and resp.json() == 2
 
-    def test_empty(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
-            m.return_value = None
+
+class TestGear:
+    def test_list(self, mock_db):
+        with patch(
+            "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id"
+        ) as m:
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get("/activities/gears/1", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200
+
+    def test_list_paginated(self, mock_db):
+        with patch(
+            "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination"
+        ) as m:
+            m.return_value = [_valid_activity()]
             resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/thismonth/number", headers={"Authorization": "Bearer x"}
+                "/activities/gears/1?page_number=1&num_records=10", headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 200 and resp.json() == 0
+            assert resp.status_code == 200
+
+    def test_count(self, mock_db):
+        with patch("modules.activities.activity.router.activities_crud.get_gear_activities_count_by_user_id") as m:
+            m.return_value = 3
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities/gears/1?count=true", headers={"Authorization": "Bearer x"}
+            )
+            assert resp.status_code == 200 and resp.json() == 3
+
+
+class TestUserStats:
+    def test_week(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as g,
+            patch("modules.activities.activity.service.activities_stats.calculate_activity_stats") as s,
+        ):
+            g.return_value = [_valid_activity()]
+            s.return_value = {}
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities/users/1/stats?period=week", headers={"Authorization": "Bearer x"}
+            )
+            assert resp.status_code == 200
+
+    def test_month(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as g,
+            patch("modules.activities.activity.service.activities_stats.calculate_activity_stats") as s,
+        ):
+            g.return_value = [_valid_activity()]
+            s.return_value = {}
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities/users/1/stats?period=month", headers={"Authorization": "Bearer x"}
+            )
+            assert resp.status_code == 200
+
+    def test_empty(self, mock_db):
+        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as g:
+            g.return_value = None
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities/users/1/stats?period=week", headers={"Authorization": "Bearer x"}
+            )
+            assert resp.status_code == 200
+
+    def test_invalid_period(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get(
+            "/activities/users/1/stats?period=bogus", headers={"Authorization": "Bearer x"}
+        )
+        assert resp.status_code == 422
+
+
+class TestListUserActivities:
+    def test_success(self, mock_db):
+        with patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m:
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get("/activities/users/2", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200
 
 
 class TestReadByID:
@@ -173,7 +218,7 @@ class TestEdit:
         ):
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).put(
-                "/activities/edit",
+                "/activities/1",
                 headers={"Authorization": "Bearer x"},
                 json={"id": 1, "name": "Run", "activity_type": 1, "visibility": 2},
             )
@@ -186,6 +231,23 @@ class TestEdit:
                 "name",
                 "visibility",
             ]
+
+    def test_path_id_is_authoritative(self, mock_db):
+        # A body id that disagrees with the path is overridden by the path id.
+        with (
+            patch("modules.activities.activity.router.activities_crud.edit_activity") as m,
+            patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
+        ):
+            m.return_value = _valid_activity()
+            resp = TestClient(_build_app(mock_db)).put(
+                "/activities/7",
+                headers={"Authorization": "Bearer x"},
+                json={"id": 1, "name": "Run", "activity_type": 1, "visibility": 2},
+            )
+            assert resp.status_code == 200
+            # crud.edit_activity receives the attributes with the path id (7).
+            assert m.call_args.args[1].id == 7
+            assert mock_pub.publish_activity_updated.call_args.args[0] == 7
 
 
 class TestEditVisibility:
@@ -207,7 +269,7 @@ class TestDelete:
             patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
         ):
             g.return_value = act
-            resp = TestClient(_build_app(mock_db)).delete("/activities/1/delete", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             # The route publishes the fact; subsystems (thumbnails) react on their own.
             mock_pub.publish_activity_deleted.assert_called_once()
@@ -216,117 +278,5 @@ class TestDelete:
     def test_not_found(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g:
             g.return_value = None
-            resp = TestClient(_build_app(mock_db)).delete(
-                "/activities/999/delete", headers={"Authorization": "Bearer x"}
-            )
+            resp = TestClient(_build_app(mock_db)).delete("/activities/999", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 404
-
-
-class TestTypes:
-    def test_success(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_distinct_activity_types_for_user") as m:
-            m.return_value = {1: "Run"}
-            resp = TestClient(_build_app(mock_db)).get("/activities/types", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200
-
-
-class TestGear:
-    def test_list(self, mock_db):
-        with (
-            patch("modules.activities.activity.router.activities_crud.get_gear_activities_count_by_user_id") as c,
-            patch(
-                "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination"
-            ) as mock_list,
-        ):
-            c.return_value = 1
-            mock_list.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/activities/gear/1/list", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200
-
-    def test_activities(self, mock_db):
-        with patch(
-            "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id"
-        ) as m:
-            m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/activities/gear/1", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200
-
-    def test_number(self, mock_db):
-        with patch(
-            "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id"
-        ) as m:
-            m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/gear/1/number", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200 and resp.json() == 1
-
-    def test_number_empty(self, mock_db):
-        with patch(
-            "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id"
-        ) as m:
-            m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/gear/1/number", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200 and resp.json() == 0
-
-
-class TestContainName:
-    def test_success(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_activities_if_contains_name") as m:
-            m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/name/contains/Morning", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-
-class TestFollowing:
-    def test_other_user_forbidden(self, mock_db):
-        resp = TestClient(_build_app(mock_db)).get(
-            "/activities/user/2/followed/page_number/1/num_records/10", headers={"Authorization": "Bearer x"}
-        )
-        assert resp.status_code == 403
-
-
-class TestPagination:
-    def test_user(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m:
-            m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/page_number/1/num_records/10", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-    def test_gear(self, mock_db):
-        with patch(
-            "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination"
-        ) as m:
-            m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/gear/1/page_number/1/num_records/10", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-
-class TestThisMonthStats:
-    def test_success(self, mock_db):
-        with (
-            patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as g,
-            patch("modules.activities.activity.service.activities_stats.calculate_activity_stats") as s,
-        ):
-            g.return_value = [_valid_activity()]
-            s.return_value = {}
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/thismonth/stats", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200
-
-    def test_empty(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
-            m.return_value = None
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/user/1/thismonth/stats", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200

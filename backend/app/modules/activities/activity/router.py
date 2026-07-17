@@ -1,4 +1,10 @@
-"""FastAPI routes for the activities module (authenticated)."""
+"""FastAPI routes for the activities module (authenticated).
+
+RESTful surface (module rework plan §12). Route handlers are thin: they validate,
+delegate the read/stats/feed orchestration to :mod:`activity/service.py`, and
+return. Literal paths are declared before ``/{activity_id}`` so FastAPI matches
+them first.
+"""
 
 import glob
 from collections.abc import Callable
@@ -17,7 +23,6 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
-import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
@@ -32,341 +37,49 @@ import modules.strava.activity_utils as strava_activity_utils
 import modules.users.users.dependencies as users_dependencies
 import modules.websocket.manager as websocket_manager
 
+# Default page size when a list request omits pagination.
+_DEFAULT_NUM_RECORDS = 25
+
 # Define the API router
 router = APIRouter()
 
 
 @router.get(
-    "/user/{user_id}/week/{week_number}",
-    response_model=list[activities_schema.Activity] | None,
+    "",
+    response_model=list[activities_schema.Activity] | int | None,
 )
-def read_activities_user_activities_week(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    week_number: int,
-    _validate_week_number: Annotated[Callable, Depends(activities_dependencies.validate_week_number)],
+def list_own_activities(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Delegate timeframe + owner/requester scoping to the service layer.
-    return activities_service.list_week_activities(user_id, week_number, token_user_id, db)
-
-
-@router.get(
-    "/user/{user_id}/thisweek/stats",
-    response_model=activities_schema.ActivityStats,
-)
-def read_activities_user_activities_this_week_stats(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> activities_schema.ActivityStats:
-    # Delegate timeframe + scoping + aggregation to the service layer.
-    return activities_service.week_stats(user_id, token_user_id, db)
-
-
-@router.get(
-    "/user/{user_id}/thismonth/stats",
-    response_model=activities_schema.ActivityStats,
-)
-def read_activities_user_activities_this_month_stats(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> activities_schema.ActivityStats:
-    # Delegate timeframe + scoping + aggregation to the service layer.
-    return activities_service.month_stats(user_id, token_user_id, db)
-
-
-@router.get(
-    "/user/{user_id}/thismonth/number",
-    response_model=int,
-)
-def read_activities_user_activities_this_month_number(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    return activities_service.count_month_activities(user_id, token_user_id, db)
-
-
-@router.get(
-    "/gear/{gear_id}/list",
-    response_model=(activities_schema.GearActivitiesListResponse),
-    status_code=status.HTTP_200_OK,
-)
-def read_gear_activities_list(
-    gear_id: int,
-    _validate_gear_id: Annotated[
-        Callable,
-        Depends(
-            gears_dependencies.validate_gear_id,
-        ),
-    ],
-    _check_scopes: Annotated[
-        Callable,
-        Security(
-            auth_dependencies.check_scopes,
-            scopes=["activities:read"],
-        ),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(
-            auth_dependencies.get_sub_from_access_token,
-        ),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    page_number: Annotated[
-        int | None,
-        Query(
-            description="Page number",
-        ),
-    ] = None,
-    num_records: Annotated[
-        int | None,
-        Query(
-            description="Records per page",
-        ),
-    ] = None,
-) -> activities_schema.GearActivitiesListResponse:
-    """
-    Retrieve paginated gear activities with total
-    count.
-
-    Args:
-        gear_id: Gear ID.
-        _validate_gear_id: Validates gear ID exists.
-        _check_scopes: Validates activities:read.
-        token_user_id: Authenticated user ID.
-        db: Database session.
-        page_number: Optional page number.
-        num_records: Optional records per page.
-
-    Returns:
-        GearActivitiesListResponse with total count
-        and paginated records.
-    """
-    total = activities_crud.get_gear_activities_count_by_user_id(
-        token_user_id,
-        gear_id,
-        db,
-    )
-    records = activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
-        token_user_id,
-        gear_id,
-        page_number or 1,
-        num_records or 10,
-        db,
-    )
-
-    return activities_schema.GearActivitiesListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records or [],
-    )
-
-
-@router.get(
-    "/gear/{gear_id}",
-    response_model=list[activities_schema.Activity] | None,
-)
-def read_activities_gear_activities(
-    gear_id: int,
-    _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the activities for the gear
-    return activities_crud.get_user_activities_by_gear_id_and_user_id(token_user_id, gear_id, db)
-
-
-@router.get(
-    "/gear/{gear_id}/number",
-    response_model=int,
-)
-def read_activities_gear_activities_number(
-    gear_id: int,
-    _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the number of activities for the gear
-    activities = activities_crud.get_user_activities_by_gear_id_and_user_id(token_user_id, gear_id, db)
-    if activities is None:
-        return 0
-    return len(activities)
-
-
-@router.get(
-    "/gear/{gear_id}/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[activities_schema.Activity] | None,
-)
-def read_activities_gear_activities_with_pagination(
-    gear_id: int,
-    _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    page_number: int,
-    num_records: int,
-    _validate_pagination_values: Annotated[Callable, Depends(core_dependencies.validate_pagination_values)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the activities for the gear with pagination
-    return activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
-        token_user_id, gear_id, page_number, num_records, db
-    )
-
-
-@router.get(
-    "/number",
-    response_model=int,
-)
-def read_activities_user_activities_number(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    # Added dependencies for optional query parameters
-    _validate_activity_type: Annotated[Callable, Depends(activities_dependencies.validate_activity_type)],
-    # Added optional filter query parameters
-    activity_type: int | None = Query(None, alias="type"),
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
-    name_search: str | None = Query(None),
-):
-    # Get the number of activities for the user
-    activities = activities_crud.get_user_activities(
-        user_id=token_user_id,
-        db=db,
-        activity_type=activity_type,
-        start_date=start_date,
-        end_date=end_date,
-        name_search=name_search,
-    )
-
-    # Check if activities is None and return 0 if it is
-    if activities is None:
-        return 0
-
-    # Return the number of activities
-    return len(activities)
-
-
-@router.get(
-    "/types",
-    response_model=dict | None,
-)
-def read_activities_types(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    return activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
-
-
-@router.get(
-    "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[activities_schema.Activity] | None,
-)
-def read_activities_user_activities_pagination(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    page_number: int,
-    num_records: int,
-    validate_pagination_values: Annotated[Callable, Depends(core_dependencies.validate_pagination_values)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    # Added dependencies for optional query parameters
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
     _validate_activity_type: Annotated[Callable, Depends(activities_dependencies.validate_activity_type)],
     _validate_sort_by: Annotated[Callable, Depends(activities_dependencies.validate_sort_by)],
     _validate_sort_order: Annotated[Callable, Depends(activities_dependencies.validate_sort_order)],
-    # Added optional filter query parameters
-    activity_type: int | None = Query(None, alias="type"),
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
-    name_search: str | None = Query(None),
-    sort_by: str | None = Query(None),
-    sort_order: str | None = Query(None),
+    count: Annotated[bool, Query(description="Return the total count instead of the records")] = False,
+    activity_type: Annotated[int | None, Query(alias="type")] = None,
+    start_date: Annotated[date | None, Query()] = None,
+    end_date: Annotated[date | None, Query()] = None,
+    name_search: Annotated[str | None, Query(alias="name")] = None,
+    sort_by: Annotated[str | None, Query()] = None,
+    sort_order: Annotated[str | None, Query()] = None,
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1)] = None,
 ):
+    """List (or count with ``?count=true``) the authenticated user's activities."""
+    if count:
+        return activities_service.count_user_activities(
+            token_user_id,
+            db,
+            activity_type=activity_type,
+            start_date=start_date,
+            end_date=end_date,
+            name_search=name_search,
+        )
     return activities_service.list_user_activities_paginated(
-        user_id,
         token_user_id,
-        page_number,
-        num_records,
+        token_user_id,
+        page_number or 1,
+        num_records or _DEFAULT_NUM_RECORDS,
         db,
         activity_type=activity_type,
         start_date=start_date,
@@ -378,53 +91,47 @@ def read_activities_user_activities_pagination(
 
 
 @router.get(
-    "/user/{user_id}/followed/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[activities_schema.Activity] | None,  # Keep old response model for now
+    "/types",
+    response_model=dict | None,
 )
-def read_activities_followed_user_activities_pagination(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    page_number: int,
-    num_records: int,
-    _validate_pagination_values: Annotated[Callable, Depends(core_dependencies.validate_pagination_values)],
+def list_activity_types(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
 ):
-    return activities_service.get_following_feed(user_id, token_user_id, page_number, num_records, db)
+    """Return the distinct activity types the user has recorded."""
+    return activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
 
 
 @router.get(
-    "/user/{user_id}/followed/number",
-    response_model=int,
+    "/feed",
+    response_model=list[activities_schema.Activity] | int | None,
 )
-def read_activities_followed_user_activities_number(
-    user_id: int,
-    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+def list_following_feed(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    count: Annotated[bool, Query(description="Return the total count instead of the records")] = False,
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1)] = None,
 ):
-    return activities_service.count_following_feed(user_id, token_user_id, db)
+    """List (or count) the authenticated user's following feed."""
+    if count:
+        return activities_service.count_following_feed(token_user_id, token_user_id, db)
+    return activities_service.get_following_feed(
+        token_user_id,
+        token_user_id,
+        page_number or 1,
+        num_records or _DEFAULT_NUM_RECORDS,
+        db,
+    )
 
 
 @router.get(
     "/refresh",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_user_activities_refresh(
+async def refresh_activities(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[
         int,
@@ -439,6 +146,11 @@ async def read_activities_user_activities_refresh(
         Depends(websocket_manager.get_websocket_manager),
     ],
 ):
+    """Fetch the last 24h of activities from the linked providers (Strava/Garmin).
+
+    The one documented ``async`` route (plan §7.3): it awaits the provider HTTP
+    clients, which are not yet reworked.
+    """
     # Set the activities to empty list
     activities = []
 
@@ -475,85 +187,84 @@ async def read_activities_user_activities_refresh(
 
 
 @router.get(
-    "/{activity_id}",
-    response_model=activities_schema.Activity | None,
+    "/gears/{gear_id}",
+    response_model=list[activities_schema.Activity] | int | None,
 )
-def read_activities_activity_from_id(
-    activity_id: int,
-    _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
+def list_gear_activities(
+    gear_id: int,
+    _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    count: Annotated[bool, Query(description="Return the total count instead of the records")] = False,
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1)] = None,
 ):
-    # Get the activity from the database and return it
-    return activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, token_user_id, db)
+    """List (or count) the authenticated user's activities for a gear."""
+    if count:
+        return activities_service.count_gear_activities(token_user_id, gear_id, db)
+    return activities_service.list_gear_activities(token_user_id, gear_id, page_number, num_records, db)
 
 
 @router.get(
-    "/name/contains/{name}",
+    "/users/{user_id}/stats",
+    response_model=activities_schema.ActivityStats,
+)
+def read_user_activity_stats(
+    user_id: int,
+    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
+) -> activities_schema.ActivityStats:
+    """Aggregate per-sport stats for a user's current ``week`` or ``month``."""
+    return activities_service.period_stats(user_id, period, token_user_id, db)
+
+
+@router.get(
+    "/users/{user_id}",
     response_model=list[activities_schema.Activity] | None,
 )
-def read_activities_contain_name(
-    name: str,
+def list_user_activities(
+    user_id: int,
+    _validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    _validate_activity_type: Annotated[Callable, Depends(activities_dependencies.validate_activity_type)],
+    _validate_sort_by: Annotated[Callable, Depends(activities_dependencies.validate_sort_by)],
+    _validate_sort_order: Annotated[Callable, Depends(activities_dependencies.validate_sort_order)],
+    activity_type: Annotated[int | None, Query(alias="type")] = None,
+    start_date: Annotated[date | None, Query()] = None,
+    end_date: Annotated[date | None, Query()] = None,
+    name_search: Annotated[str | None, Query(alias="name")] = None,
+    sort_by: Annotated[str | None, Query()] = None,
+    sort_order: Annotated[str | None, Query()] = None,
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1)] = None,
 ):
-    # Get the activities from the database by name
-    return activities_crud.get_activities_if_contains_name(name, token_user_id, db)
-
-
-@router.put(
-    "/edit",
-    response_model=activities_schema.Activity,
-)
-def edit_activity(
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    activity_attributes: activities_schema.ActivityEdit,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Update the activity in the database
-    updated = activities_crud.edit_activity(token_user_id, activity_attributes, db)
-
-    # Publish the domain fact so subscribers can react to the edit (reindex, feed
-    # refresh, ...) without the route knowing who reacts. ``changed`` is derived
-    # from the fields the client actually submitted. Best-effort; the session
-    # enables durable outbox delivery when durable jobs are enabled.
-    changed = sorted(field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id")
-    activity_event_publishers.publish_activity_updated(
-        activity_attributes.id,
+    """List another user's activities that are visible to the requester."""
+    return activities_service.list_user_activities_paginated(
+        user_id,
         token_user_id,
-        changed=changed,
-        db=db,
+        page_number or 1,
+        num_records or _DEFAULT_NUM_RECORDS,
+        db,
+        activity_type=activity_type,
+        start_date=start_date,
+        end_date=end_date,
+        name_search=name_search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-
-    return updated
 
 
 @router.put(
     "/visibility/{visibility}",
     response_model=dict[str, str | int],
 )
-def edit_activity_visibility(
+def edit_activities_visibility(
     visibility: int,
     _validate_visibility: Annotated[Callable, Depends(activities_dependencies.validate_visibility)],
     token_user_id: Annotated[
@@ -566,18 +277,76 @@ def edit_activity_visibility(
         Depends(core_database.get_db),
     ],
 ):
-    # Update the activities in the database
+    """Set the visibility of all the authenticated user's activities."""
     updated = activities_crud.edit_user_activities_visibility(token_user_id, visibility, db)
-
-    # Return success message with rowcount
     return {
         "detail": (f"Visibility changed to {visibility} for all user activities"),
         "updated": updated or 0,
     }
 
 
+@router.get(
+    "/{activity_id}",
+    response_model=activities_schema.Activity | None,
+)
+def read_activity(
+    activity_id: int,
+    _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """Read a single activity the requester owns or is permitted to see."""
+    return activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, token_user_id, db)
+
+
+@router.put(
+    "/{activity_id}",
+    response_model=activities_schema.Activity,
+)
+def edit_activity(
+    activity_id: int,
+    _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
+    activity_attributes: activities_schema.ActivityEdit,
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """Apply partial updates to one of the authenticated user's activities."""
+    # The path id is authoritative; ignore any id sent in the body.
+    activity_attributes.id = activity_id
+
+    updated = activities_crud.edit_activity(token_user_id, activity_attributes, db)
+
+    # Publish the domain fact so subscribers can react to the edit (reindex, feed
+    # refresh, ...) without the route knowing who reacts. ``changed`` is derived
+    # from the fields the client actually submitted. Best-effort; the session
+    # enables durable outbox delivery when durable jobs are enabled.
+    changed = sorted(field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id")
+    activity_event_publishers.publish_activity_updated(
+        activity_id,
+        token_user_id,
+        changed=changed,
+        db=db,
+    )
+
+    return updated
+
+
 @router.delete(
-    "/{activity_id}/delete",
+    "/{activity_id}",
     response_model=dict[str, str],
 )
 def delete_activity(
@@ -593,6 +362,7 @@ def delete_activity(
         Depends(core_database.get_db),
     ],
 ):
+    """Delete one of the authenticated user's activities."""
     # Get the activity by id from user id
     activity = activities_crud.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
 

@@ -104,6 +104,59 @@ def count_month_activities(user_id: int, requester_user_id: int, db: Session) ->
     return len(activities) if activities else 0
 
 
+def period_stats(
+    user_id: int,
+    period: str,
+    requester_user_id: int,
+    db: Session,
+) -> activities_schema.ActivityStats:
+    """Aggregate per-sport stats for a user's ``week`` or ``month`` (default week)."""
+    if period == "month":
+        return month_stats(user_id, requester_user_id, db)
+    return week_stats(user_id, requester_user_id, db)
+
+
+def count_user_activities(
+    user_id: int,
+    db: Session,
+    *,
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+) -> int:
+    """Count a user's own activities matching the given filters."""
+    activities = activities_crud.get_user_activities(
+        user_id=user_id,
+        db=db,
+        activity_type=activity_type,
+        start_date=start_date,
+        end_date=end_date,
+        name_search=name_search,
+    )
+    return len(activities) if activities else 0
+
+
+def list_gear_activities(
+    user_id: int,
+    gear_id: int,
+    page_number: int | None,
+    num_records: int | None,
+    db: Session,
+) -> list[activities_schema.Activity] | None:
+    """List a user's activities for a gear (paginated when page/size are given)."""
+    if page_number is not None and num_records is not None:
+        return activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
+            user_id, gear_id, page_number, num_records, db
+        )
+    return activities_crud.get_user_activities_by_gear_id_and_user_id(user_id, gear_id, db)
+
+
+def count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
+    """Count a user's activities for a gear."""
+    return activities_crud.get_gear_activities_count_by_user_id(user_id, gear_id, db)
+
+
 def list_user_activities_paginated(
     user_id: int,
     requester_user_id: int,
