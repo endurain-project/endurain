@@ -212,65 +212,6 @@ class TestAppendIfNotNone:
         assert len(waypoints) == 0
 
 
-class TestParseActivityStreams:
-    def test_parse_streams_hr_set(self):
-        from modules.activities.activity.utils import parse_activity_streams_from_file
-
-        parsed_info = {
-            "is_heart_rate_set": True,
-            "hr_waypoints": [{"time": "2024-01-15T08:00:00", "hr": 145}],
-            "is_power_set": False,
-            "is_cadence_set": False,
-            "is_elevation_set": False,
-            "is_velocity_set": False,
-            "is_lat_lon_set": False,
-            "is_temperature_set": False,
-        }
-
-        result = parse_activity_streams_from_file(parsed_info, activity_id=1)
-
-        assert len(result) == 1
-        assert result[0].activity_id == 1
-        assert result[0].stream_type == 1
-
-    def test_parse_streams_multiple(self):
-        from modules.activities.activity.utils import parse_activity_streams_from_file
-
-        parsed_info = {
-            "is_heart_rate_set": True,
-            "hr_waypoints": [{"hr": 145}],
-            "is_power_set": True,
-            "power_waypoints": [{"power": 200}],
-            "is_cadence_set": False,
-            "is_elevation_set": False,
-            "is_velocity_set": False,
-            "is_lat_lon_set": True,
-            "lat_lon_waypoints": [{"lat": 38.0, "lon": -9.0}],
-            "is_temperature_set": False,
-        }
-
-        result = parse_activity_streams_from_file(parsed_info, activity_id=1)
-
-        assert len(result) == 3
-
-    def test_parse_streams_no_streams(self):
-        from modules.activities.activity.utils import parse_activity_streams_from_file
-
-        parsed_info = {
-            "is_heart_rate_set": False,
-            "is_power_set": False,
-            "is_cadence_set": False,
-            "is_elevation_set": False,
-            "is_velocity_set": False,
-            "is_lat_lon_set": False,
-            "is_temperature_set": False,
-        }
-
-        result = parse_activity_streams_from_file(parsed_info, activity_id=1)
-
-        assert len(result) == 0
-
-
 class TestLocationBasedOnCoordinates:
     @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
     @patch("modules.activities.activity.utils.core_config")

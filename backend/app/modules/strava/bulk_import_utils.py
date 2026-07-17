@@ -13,7 +13,7 @@ import core.file_uploads as file_uploads
 import core.logger as core_logger
 import core.text_imports as core_text_imports
 import modules.activities.activity.models as activities_models
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_ingestion.orchestrator as ingestion_orchestrator
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
@@ -248,7 +248,7 @@ def queue_bulk_export_activities_for_import(
             )
             # Parse and store the activity
             asyncio.run(
-                activities_utils.parse_and_store_activity_from_file(
+                ingestion_orchestrator.parse_and_store_activity_from_file(
                     token_user_id,
                     file_path,
                     websocket_manager,

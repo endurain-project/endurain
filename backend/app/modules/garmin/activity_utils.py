@@ -9,7 +9,7 @@ import core.file_uploads as file_uploads
 import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_ingestion.orchestrator as ingestion_orchestrator
 import modules.garmin.utils as garmin_utils
 import modules.notifications.utils as notifications_utils
 import modules.users.users.crud as users_crud
@@ -136,7 +136,7 @@ async def fetch_and_process_activities_by_dates(
         file_uploads.safe_remove_within(output_file, base_dir=core_config.settings.FILES_DIR)
 
         for full_file_path in extracted_paths:
-            parsed_result = await activities_utils.parse_and_store_activity_from_file(
+            parsed_result = await ingestion_orchestrator.parse_and_store_activity_from_file(
                 token_user_id=user_id,
                 file_path=str(full_file_path),
                 websocket_manager=ws_manager,
