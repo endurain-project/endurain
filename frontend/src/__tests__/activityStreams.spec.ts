@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest'
 import type { ActivityStream } from '@/features/activities/types'
 
 import {
+  availableXAxisBases,
   buildStreamChart,
   buildStreamCharts,
+  buildXAxisResolver,
+  defaultXAxisBasis,
   extractTrackPoints,
   isMetricRelevantForType,
   METRIC_PRIVACY_FIELD,
@@ -18,12 +21,11 @@ function stream(streamType: number, waypoints: ActivityStream['waypoints']): Act
 }
 
 describe('buildStreamChart', () => {
-  it('builds a heart-rate line chart with formatting, zoom and stats', () => {
-    const chart = buildStreamChart(
-      stream(1, [{ hr: 120 }, { hr: 130 }]),
-      makeActivity({ activityType: 1, distance: 10000 }),
-      'metric',
-    )
+  it('builds a heart-rate line chart with formatting, zoom and stats (distance axis)', () => {
+    const activity = makeActivity({ activityType: 1, distance: 10000 })
+    // Force the distance basis (no GPS here, so the default would be time).
+    const xAxis = buildXAxisResolver([stream(1, [])], activity, 'metric', 'distance')
+    const chart = buildStreamChart(stream(1, [{ hr: 120 }, { hr: 130 }]), activity, 'metric', xAxis)
     expect(chart).not.toBeNull()
     expect(chart?.metric).toBe('hr')
     expect(chart?.titleKey).toBe('activities.streams.heartRate')
@@ -32,9 +34,10 @@ describe('buildStreamChart', () => {
     expect(chart?.render.zoom).toBe(true)
     expect(chart?.render.series[0]?.data).toEqual([120, 130])
     expect(chart?.render.valueFormat?.(120.6)).toBe('121 bpm')
-    // Distance labels are evenly spaced across the total distance (10 km).
-    expect(chart?.render.labels).toEqual(['0.0', '10.0'])
-    expect(chart?.render.xUnit).toBe('km')
+    // Distance x-values evenly span the total distance (10 km) on a linear axis.
+    expect(chart?.render.xValues).toEqual([0, 10])
+    expect(chart?.render.xLabel).toBe('Distance (km)')
+    expect(chart?.render.xFormat?.(2.5)).toBe('2.5 km')
     // Aggregate stats are shown beneath the chart.
     expect(chart?.stats).toEqual([
       { labelKey: 'activities.metrics.avgHr', value: '150', unit: 'bpm' },
@@ -42,16 +45,17 @@ describe('buildStreamChart', () => {
     ])
   })
 
-  it('falls back to time labels when the activity has no distance (e.g. strength)', () => {
+  it('uses a synthetic elapsed-time axis when there is no distance (e.g. strength)', () => {
     const chart = buildStreamChart(
       stream(1, [{ hr: 120 }, { hr: 140 }, { hr: 130 }]),
       makeActivity({ activityType: 19, distance: 0, totalElapsedTime: 600 }),
       'metric',
     )
-    // Without distance the x-axis falls back to elapsed time; labels must be
-    // non-empty and aligned to the sample count or the line never draws.
-    expect(chart?.render.labels).toEqual(['00:00', '05:00', '10:00'])
-    expect(chart?.render.xUnit).toBe('')
+    // No distance → time basis; without per-sample timestamps the elapsed
+    // values are evenly spaced across the total (600 s).
+    expect(chart?.render.xValues).toEqual([0, 300, 600])
+    expect(chart?.render.xLabel).toBe('Time')
+    expect(chart?.render.xFormat?.(300)).toBe('05:00')
     expect(chart?.render.series[0]?.data).toEqual([120, 140, 130])
   })
 
@@ -66,7 +70,8 @@ describe('buildStreamChart', () => {
       }),
       'metric',
     )
-    expect(chart?.render.labels).toEqual(['1', '2'])
+    expect(chart?.render.xValues).toEqual([1, 2])
+    expect(chart?.render.xLabel).toBeUndefined()
   })
 
   it('renders elevation as a line (consistent fill) and converts to feet', () => {
@@ -160,6 +165,103 @@ describe('buildStreamCharts', () => {
       () => true,
     )
     expect(charts.map((chart) => chart.metric)).toEqual(['velocity'])
+  })
+
+  it('applies the requested basis and translated axis text to every chart', () => {
+    const streams = [
+      stream(1, [
+        { hr: 100, time: 0 },
+        { hr: 110, time: 60 },
+      ]),
+    ]
+    const charts = buildStreamCharts(
+      streams,
+      makeActivity({ activityType: 1, distance: 0, totalElapsedTime: 120 }),
+      'metric',
+      () => true,
+      { basis: 'time', text: { distance: 'Dist', time: 'Temps' } },
+    )
+    expect(charts[0]?.render.xLabel).toBe('Temps')
+    expect(charts[0]?.render.xValues).toEqual([0, 60])
+  })
+})
+
+describe('x-axis basis selection', () => {
+  it('lists distance and time bases from their presence', () => {
+    expect(
+      availableXAxisBases(
+        [stream(1, [{ hr: 1 }])],
+        makeActivity({ distance: 5000, totalElapsedTime: 600 }),
+      ),
+    ).toEqual(['distance', 'time'])
+    expect(
+      availableXAxisBases(
+        [stream(1, [{ hr: 1 }])],
+        makeActivity({ distance: 0, totalElapsedTime: 0, totalTimerTime: 0 }),
+      ),
+    ).toEqual([])
+  })
+
+  it('defaults to distance only when GPS makes it real, else time', () => {
+    const gps = stream(7, [{ lat: 0, lon: 0, time: '2024-05-01T07:00:00' }])
+    expect(defaultXAxisBasis([gps], makeActivity({ distance: 5000 }))).toBe('distance')
+    // Distance present but synthetic (no GPS) → time is the honest default.
+    expect(
+      defaultXAxisBasis(
+        [stream(1, [{ hr: 1 }])],
+        makeActivity({ distance: 5000, totalElapsedTime: 600 }),
+      ),
+    ).toBe('time')
+  })
+})
+
+describe('buildXAxisResolver', () => {
+  const activityNoTotals = () =>
+    makeActivity({ distance: 0, totalElapsedTime: 0, totalTimerTime: 0 })
+
+  it('builds a real elapsed-time axis from ISO timestamps', () => {
+    const s = stream(1, [
+      { hr: 100, time: '2024-05-01T07:00:00' },
+      { hr: 110, time: '2024-05-01T07:00:30' },
+      { hr: 120, time: '2024-05-01T07:02:00' },
+    ])
+    const resolver = buildXAxisResolver([s], activityNoTotals(), 'metric', 'time')
+    expect(resolver.basis).toBe('time')
+    expect(resolver.values(s.waypoints)).toEqual([0, 30, 120])
+    expect(resolver.format(90)).toBe('01:30')
+  })
+
+  it('treats numeric timestamps as second-offsets (Strava)', () => {
+    const s = stream(1, [
+      { hr: 1, time: 0 },
+      { hr: 2, time: 45 },
+      { hr: 3, time: 120 },
+    ])
+    expect(
+      buildXAxisResolver([s], activityNoTotals(), 'metric', 'time').values(s.waypoints),
+    ).toEqual([0, 45, 120])
+  })
+
+  it('derives real distance from the GPS stream (haversine), mapped by time', () => {
+    const gps = stream(7, [
+      { lat: 0, lon: 0, time: '2024-05-01T07:00:00' },
+      { lat: 0, lon: 0.001, time: '2024-05-01T07:00:30' },
+    ])
+    const hr = stream(1, [
+      { hr: 100, time: '2024-05-01T07:00:00' },
+      { hr: 120, time: '2024-05-01T07:00:30' },
+    ])
+    const resolver = buildXAxisResolver(
+      [hr, gps],
+      makeActivity({ distance: 1000 }),
+      'metric',
+      'distance',
+    )
+    const km = resolver.values(hr.waypoints)
+    expect(km[0]).toBe(0)
+    // ~111 m per 0.001° of longitude at the equator → ~0.111 km.
+    expect(km[1]).toBeCloseTo(0.111, 2)
+    expect(resolver.format(0.111)).toBe('0.1 km')
   })
 })
 

@@ -5,7 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ArrowLeft } from '@lucide/vue'
 
 import type { ActivityOwner, HrZoneBucket } from '@/features/activities/types'
-import type { StreamChart } from '@/features/activities/utils/streams'
+import type { StreamChart, XAxisBasis } from '@/features/activities/utils/streams'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -39,7 +39,13 @@ import {
   streamMetricVisibility,
 } from '@/features/activities/utils/privacy'
 import { extractHrZones } from '@/features/activities/utils/hrZones'
-import { buildStreamCharts, extractTrackPoints } from '@/features/activities/utils/streams'
+import {
+  availableXAxisBases,
+  buildStreamCharts,
+  defaultXAxisBasis,
+  extractTrackPoints,
+} from '@/features/activities/utils/streams'
+import { getStorageItem, setStorageItem } from '@/lib/storage'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -95,6 +101,33 @@ const showMap = computed(
     trackPoints.value.length > 0,
 )
 
+// X-axis basis (distance ↔ time), shared by every stream chart. The user's
+// choice is remembered on this device; it applies only when that basis is
+// available for the activity, otherwise the smart default wins (distance when
+// GPS makes it real, else time).
+const X_AXIS_STORAGE_KEY = 'activityXAxisBasis'
+const xAxisChoice = ref<XAxisBasis | null>(getStorageItem<XAxisBasis>(X_AXIS_STORAGE_KEY))
+
+const xAxisBases = computed<XAxisBasis[]>(() =>
+  activity.value ? availableXAxisBases(streams.value ?? [], activity.value) : [],
+)
+const showXAxisToggle = computed(() => xAxisBases.value.length > 1)
+
+const xAxisBasis = computed<XAxisBasis>(() => {
+  if (!activity.value) {
+    return 'time'
+  }
+  if (xAxisChoice.value && xAxisBases.value.includes(xAxisChoice.value)) {
+    return xAxisChoice.value
+  }
+  return defaultXAxisBasis(streams.value ?? [], activity.value)
+})
+
+function setXAxisBasis(basis: XAxisBasis): void {
+  xAxisChoice.value = basis
+  setStorageItem(X_AXIS_STORAGE_KEY, basis)
+}
+
 const streamCharts = computed(() => {
   if (!activity.value) {
     return []
@@ -104,6 +137,13 @@ const streamCharts = computed(() => {
     activity.value,
     units.value,
     streamMetricVisibility(activity.value, currentUserId.value),
+    {
+      basis: xAxisBasis.value,
+      text: {
+        distance: t('activities.streams.xAxis.distance'),
+        time: t('activities.streams.xAxis.time'),
+      },
+    },
   )
 })
 
@@ -297,24 +337,41 @@ const notFound = computed(() => !isPending.value && !isError.value && activity.v
 
       <ActivityGearCard v-if="isOwner" :activity="activity" />
 
-      <div v-if="chartPanels.length > 0" class="grid gap-3 lg:grid-cols-2">
-        <template v-for="panel in chartPanels" :key="panel.key">
-          <ActivityStreamChart
-            v-if="panel.kind === 'chart'"
-            :title="t(panel.chart.titleKey)"
-            :render="panel.chart.render"
-            :stats="panel.chart.stats"
-          />
-          <Card v-else class="flex min-w-0 flex-col gap-3">
-            <div class="flex items-center gap-2">
-              <span class="bg-hr size-2.5 rounded-full" aria-hidden="true" />
-              <h3 class="text-card-heading">{{ t('activities.hrZones.title') }}</h3>
-            </div>
-            <div class="flex flex-1 items-center">
-              <ActivityHrZones :zones="panel.zones" class="w-full" />
-            </div>
-          </Card>
-        </template>
+      <div v-if="chartPanels.length > 0" class="flex flex-col gap-3">
+        <div v-if="showXAxisToggle" class="flex justify-end">
+          <Tabs
+            :model-value="xAxisBasis"
+            @update:model-value="(value) => setXAxisBasis(value as XAxisBasis)"
+          >
+            <TabsList>
+              <TabsTrigger v-if="xAxisBases.includes('distance')" value="distance">
+                {{ t('activities.streams.xAxis.distance') }}
+              </TabsTrigger>
+              <TabsTrigger v-if="xAxisBases.includes('time')" value="time">
+                {{ t('activities.streams.xAxis.time') }}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <template v-for="panel in chartPanels" :key="panel.key">
+            <ActivityStreamChart
+              v-if="panel.kind === 'chart'"
+              :title="t(panel.chart.titleKey)"
+              :render="panel.chart.render"
+              :stats="panel.chart.stats"
+            />
+            <Card v-else class="flex min-w-0 flex-col gap-3">
+              <div class="flex items-center gap-2">
+                <span class="bg-hr size-2.5 rounded-full" aria-hidden="true" />
+                <h3 class="text-card-heading">{{ t('activities.hrZones.title') }}</h3>
+              </div>
+              <div class="flex flex-1 items-center">
+                <ActivityHrZones :zones="panel.zones" class="w-full" />
+              </div>
+            </Card>
+          </template>
+        </div>
       </div>
 
       <Card v-if="showLaps || showWorkout" class="flex flex-col gap-3">

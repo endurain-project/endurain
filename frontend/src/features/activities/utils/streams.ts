@@ -218,66 +218,293 @@ function valueFormatter(
   }
 }
 
-/** Builds evenly-spaced distance labels (in km/mi) aligned to the sample count. */
-function buildDistanceLabels(pointCount: number, totalMeters: number, units: Units): string[] {
-  if (pointCount <= 0 || totalMeters <= 0) {
-    return []
-  }
-  const totalDisplay = units === 'imperial' ? totalMeters / 1609.34 : totalMeters / 1000
-  const labels: string[] = []
-  for (let i = 0; i < pointCount; i += 1) {
-    const fraction = pointCount === 1 ? 0 : i / (pointCount - 1)
-    labels.push((totalDisplay * fraction).toFixed(1))
-  }
-  return labels
+/** The x-axis basis a stream chart is plotted against. */
+export type XAxisBasis = 'distance' | 'time'
+
+/** Translated words for axis titles (the builder appends the distance unit). */
+export interface XAxisText {
+  /** Word for the distance axis, e.g. "Distance". */
+  distance: string
+  /** Word for the time axis, e.g. "Time". */
+  time: string
 }
 
-/** Builds evenly-spaced elapsed-time labels (H:MM:SS) aligned to the sample count. */
-function buildTimeLabels(pointCount: number, totalSeconds: number): string[] {
-  if (pointCount <= 0 || totalSeconds <= 0) {
-    return []
+/** Fallback axis words for direct/tested calls; the view passes translations. */
+const DEFAULT_AXIS_TEXT: XAxisText = { distance: 'Distance', time: 'Time' }
+
+/**
+ * A resolved x-axis: maps a stream's waypoints to numeric x-values plus the
+ * title and tick formatter the chart renders. Numeric values drive a linear
+ * (proportional) axis so ticks land on true distance/time, not sample index.
+ */
+export interface XAxisResolver {
+  /** The basis actually used (may fall back when the request is unavailable). */
+  basis: XAxisBasis
+  /** Axis title text (empty for the index fallback). */
+  label: string
+  /** Numeric x-values for a stream's waypoints. */
+  values(waypoints: StreamWaypoint[]): number[]
+  /** Formats a numeric x-value for ticks and the tooltip. */
+  format(x: number): string
+}
+
+const EARTH_RADIUS_M = 6371000
+const METERS_PER_MILE = 1609.34
+
+/**
+ * Normalizes a heterogeneous waypoint timestamp to epoch seconds. FIT/GPX write
+ * an ISO datetime string; Strava writes an integer second-offset (which parses
+ * as-is). Returns `null` when absent or unparsable.
+ */
+function waypointSeconds(time: StreamWaypoint['time']): number | null {
+  if (typeof time === 'number') {
+    return Number.isFinite(time) ? time : null
   }
-  const labels: string[] = []
-  for (let i = 0; i < pointCount; i += 1) {
-    const fraction = pointCount === 1 ? 0 : i / (pointCount - 1)
-    labels.push(formatHmsDuration(Math.round(totalSeconds * fraction)))
+  if (typeof time === 'string') {
+    const ms = Date.parse(time)
+    return Number.isNaN(ms) ? null : ms / 1000
   }
-  return labels
+  return null
+}
+
+/** The earliest parseable waypoint time across every stream (the axis origin). */
+function firstEpochSeconds(streams: ActivityStream[]): number | null {
+  let min: number | null = null
+  for (const stream of streams) {
+    for (const waypoint of stream.waypoints) {
+      const seconds = waypointSeconds(waypoint.time)
+      if (seconds !== null && (min === null || seconds < min)) {
+        min = seconds
+      }
+    }
+  }
+  return min
+}
+
+/** Great-circle distance between two coordinates, in metres. */
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number): number => (deg * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
+/** Cumulative GPS distance sampled against elapsed seconds (both ascending). */
+interface DistanceTrack {
+  /** Elapsed seconds from the axis origin, ascending. */
+  seconds: number[]
+  /** Cumulative metres travelled at each sample. */
+  meters: number[]
+  /** Fast exact lookup for the common case of shared sample timestamps. */
+  bySecond: Map<number, number>
+}
+
+/** Whether any stream carries GPS coordinates (distance can be made real). */
+export function activityHasGps(streams: ActivityStream[]): boolean {
+  return streams.some((stream) =>
+    stream.waypoints.some(
+      (waypoint) => !Number.isNaN(num(waypoint.lat)) && !Number.isNaN(num(waypoint.lon)),
+    ),
+  )
 }
 
 /**
- * Builds the x-axis labels and their unit for a chart: distance (km/mi) when the
- * activity covers ground, otherwise elapsed time (strength/indoor sessions have
- * no distance), falling back to sample indices so a line always renders. An
- * empty label array leaves the category axis with no slots, so the line would
- * not draw at all — this is why strength activities showed an empty HR chart.
- *
- * @param pointCount - Number of samples in the series.
- * @param activity - The activity (distance / time basis).
- * @param units - The user's unit system.
- * @returns Labels of length `pointCount` and their unit suffix (`''` for
- *   self-describing axes such as time, or the index fallback).
+ * Builds a real cumulative-distance track from the GPS stream (haversine over
+ * lat/lon), keyed by elapsed seconds so any metric sample can look up the
+ * distance travelled at its timestamp. Returns `null` when no timed GPS exists.
  */
-function buildChartXAxis(
-  pointCount: number,
+function buildDistanceTrack(streams: ActivityStream[], origin: number): DistanceTrack | null {
+  const gps = streams.find((stream) =>
+    stream.waypoints.some(
+      (waypoint) =>
+        !Number.isNaN(num(waypoint.lat)) &&
+        !Number.isNaN(num(waypoint.lon)) &&
+        waypointSeconds(waypoint.time) !== null,
+    ),
+  )
+  if (!gps) {
+    return null
+  }
+  const seconds: number[] = []
+  const meters: number[] = []
+  const bySecond = new Map<number, number>()
+  let cumulative = 0
+  let prevLat: number | null = null
+  let prevLon: number | null = null
+  for (const waypoint of gps.waypoints) {
+    const lat = num(waypoint.lat)
+    const lon = num(waypoint.lon)
+    const time = waypointSeconds(waypoint.time)
+    if (Number.isNaN(lat) || Number.isNaN(lon) || time === null) {
+      continue
+    }
+    if (prevLat !== null && prevLon !== null) {
+      cumulative += haversineMeters(prevLat, prevLon, lat, lon)
+    }
+    const elapsed = time - origin
+    seconds.push(elapsed)
+    meters.push(cumulative)
+    bySecond.set(elapsed, cumulative)
+    prevLat = lat
+    prevLon = lon
+  }
+  return seconds.length > 0 ? { seconds, meters, bySecond } : null
+}
+
+/** Interpolates the cumulative metres travelled at a given elapsed second. */
+function metersAtSecond(track: DistanceTrack, elapsed: number): number {
+  const exact = track.bySecond.get(elapsed)
+  if (exact !== undefined) {
+    return exact
+  }
+  const { seconds, meters } = track
+  if (elapsed <= seconds[0]!) {
+    return meters[0]!
+  }
+  const last = seconds.length - 1
+  if (elapsed >= seconds[last]!) {
+    return meters[last]!
+  }
+  // Linear interpolation between the two straddling samples.
+  let hi = 1
+  while (hi < seconds.length && seconds[hi]! < elapsed) {
+    hi += 1
+  }
+  const lo = hi - 1
+  const span = seconds[hi]! - seconds[lo]!
+  const fraction = span === 0 ? 0 : (elapsed - seconds[lo]!) / span
+  return meters[lo]! + fraction * (meters[hi]! - meters[lo]!)
+}
+
+/** Rounds an axis value to at most one decimal, dropping a trailing `.0`. */
+function formatAxisNumber(value: number): string {
+  return String(Math.round(value * 10) / 10)
+}
+
+/** Which x-axis bases can be offered for an activity (in toggle order). */
+export function availableXAxisBases(streams: ActivityStream[], activity: Activity): XAxisBasis[] {
+  const bases: XAxisBasis[] = []
+  if (activity.distance > 0) {
+    bases.push('distance')
+  }
+  const hasTime =
+    firstEpochSeconds(streams) !== null ||
+    (activity.totalElapsedTime ?? activity.totalTimerTime ?? 0) > 0
+  if (hasTime) {
+    bases.push('time')
+  }
+  return bases
+}
+
+/**
+ * The default x-axis basis: distance only when it is *real* (GPS-derived);
+ * otherwise time, which is the honest default for a synthetic-distance workout
+ * (e.g. an indoor rower with a total but no per-sample distance).
+ */
+export function defaultXAxisBasis(streams: ActivityStream[], activity: Activity): XAxisBasis {
+  if (activity.distance > 0 && activityHasGps(streams)) {
+    return 'distance'
+  }
+  const available = availableXAxisBases(streams, activity)
+  if (available.includes('time')) {
+    return 'time'
+  }
+  return available[0] ?? 'distance'
+}
+
+/** Resolves a requested basis to one that is actually available. */
+function resolveBasis(
+  requested: XAxisBasis | undefined,
+  streams: ActivityStream[],
+  activity: Activity,
+): XAxisBasis {
+  const available = availableXAxisBases(streams, activity)
+  if (requested && available.includes(requested)) {
+    return requested
+  }
+  return defaultXAxisBasis(streams, activity)
+}
+
+/**
+ * Builds the x-axis resolver for a chosen basis. Distance uses real GPS
+ * cumulative distance when available and falls back to evenly-spaced values from
+ * the activity total; time uses real per-sample timestamps and falls back to
+ * evenly-spaced elapsed time. With no distance and no time it returns a bare
+ * sample-index axis so a line still renders.
+ *
+ * @param streams - Every stream of the activity (GPS drives real distance).
+ * @param activity - The activity domain model (totals, distance).
+ * @param units - The user's unit system.
+ * @param requested - The requested basis; coerced to an available one.
+ * @param text - Translated axis words (defaults to English for direct calls).
+ * @returns A resolver producing numeric x-values, a title and a formatter.
+ */
+export function buildXAxisResolver(
+  streams: ActivityStream[],
   activity: Activity,
   units: Units,
-): { labels: string[]; unit: string } {
-  if (activity.distance > 0) {
+  requested?: XAxisBasis,
+  text: XAxisText = DEFAULT_AXIS_TEXT,
+): XAxisResolver {
+  const available = availableXAxisBases(streams, activity)
+  if (available.length === 0) {
+    // No distance and no time: fall back to sample indices (unitless, untitled).
     return {
-      labels: buildDistanceLabels(pointCount, activity.distance, units),
-      unit: units === 'imperial' ? 'mi' : 'km',
+      basis: 'time',
+      label: '',
+      values: (waypoints) => waypoints.map((_, index) => index + 1),
+      format: (x) => String(x),
     }
   }
-  const seconds = activity.totalElapsedTime ?? activity.totalTimerTime ?? 0
-  if (seconds > 0) {
-    return { labels: buildTimeLabels(pointCount, seconds), unit: '' }
+
+  const basis = resolveBasis(requested, streams, activity)
+  const origin = firstEpochSeconds(streams) ?? 0
+
+  if (basis === 'distance') {
+    const track = buildDistanceTrack(streams, origin)
+    const divisor = units === 'imperial' ? METERS_PER_MILE : 1000
+    const unit = units === 'imperial' ? 'mi' : 'km'
+    return {
+      basis,
+      label: `${text.distance} (${unit})`,
+      values: (waypoints) => {
+        const count = waypoints.length
+        return waypoints.map((waypoint, index) => {
+          const seconds = waypointSeconds(waypoint.time)
+          const meters =
+            track && seconds !== null
+              ? metersAtSecond(track, seconds - origin)
+              : count <= 1
+                ? 0
+                : (index / (count - 1)) * activity.distance
+          return meters / divisor
+        })
+      },
+      format: (x) => `${formatAxisNumber(x)} ${unit}`,
+    }
   }
-  const labels: string[] = []
-  for (let i = 0; i < pointCount; i += 1) {
-    labels.push(String(i + 1))
+
+  // Time basis.
+  const totalSeconds = activity.totalElapsedTime ?? activity.totalTimerTime ?? 0
+  return {
+    basis,
+    label: text.time,
+    values: (waypoints) => {
+      const count = waypoints.length
+      const localOrigin = waypoints.map((w) => waypointSeconds(w.time)).find((s) => s !== null)
+      return waypoints.map((waypoint, index) => {
+        const seconds = waypointSeconds(waypoint.time)
+        if (seconds !== null && localOrigin != null) {
+          return seconds - localOrigin
+        }
+        return count <= 1 ? 0 : (index / (count - 1)) * totalSeconds
+      })
+    },
+    format: (x) => formatHmsDuration(Math.round(x)),
   }
-  return { labels, unit: '' }
 }
 
 /** A single stat shown beneath a stream chart (e.g. avg/max for that metric). */
@@ -414,12 +641,15 @@ export interface StreamChart {
  * @param stream - The metric stream.
  * @param activity - The activity domain model (type, distance, aggregate stats).
  * @param units - The user's unit system.
+ * @param xAxis - The resolved x-axis (shared across the activity's charts).
+ *   Defaults to one built from this stream alone for direct/tested calls.
  * @returns The chart model, or `null`.
  */
 export function buildStreamChart(
   stream: ActivityStream,
   activity: Activity,
   units: Units,
+  xAxis: XAxisResolver = buildXAxisResolver([stream], activity, units),
 ): StreamChart | null {
   const metric = METRIC_BY_TYPE[stream.streamType]
   if (!metric || stream.waypoints.length === 0) {
@@ -432,8 +662,6 @@ export function buildStreamChart(
     return null
   }
 
-  const xAxis = buildChartXAxis(data.length, activity, units)
-
   return {
     metric,
     titleKey: METRIC_TITLE_KEY[metric],
@@ -443,8 +671,11 @@ export function buildStreamChart(
       // other metric; the y-tick/tooltip formatter renders it as M:SS.
       kind: 'line',
       series: [{ label: METRIC_TITLE_KEY[metric], data, color: METRIC_COLOR[metric] }],
-      labels: xAxis.labels,
-      xUnit: xAxis.unit,
+      // Numeric x-values drive a proportional linear axis (true distance/time)
+      // with a titled, formatted scale; see buildXAxisResolver.
+      xValues: xAxis.values(stream.waypoints),
+      xLabel: xAxis.label || undefined,
+      xFormat: xAxis.format,
       valueFormat: valueFormatter(metric, type, units),
       zoom: true,
     },
@@ -462,6 +693,8 @@ export function buildStreamChart(
  * @param units - The user's unit system.
  * @param isMetricVisible - Predicate deciding whether a metric is visible to
  *   the current viewer (owner vs. privacy flags).
+ * @param xAxis - Optional x-axis selection shared by every chart: the requested
+ *   basis (coerced to an available one) and translated axis words.
  * @returns The ordered, visible, type-relevant chart models.
  */
 export function buildStreamCharts(
@@ -469,8 +702,12 @@ export function buildStreamCharts(
   activity: Activity,
   units: Units,
   isMetricVisible: (metric: StreamMetric) => boolean,
+  xAxis?: { basis?: XAxisBasis; text?: XAxisText },
 ): StreamChart[] {
   const type = activity.activityType
+  // One resolver for the whole page so every chart shares the same x-axis
+  // (distance derived from the GPS stream is available to metric streams).
+  const resolver = buildXAxisResolver(streams, activity, units, xAxis?.basis, xAxis?.text)
   const byMetric = new Map<StreamMetric, StreamChart>()
   for (const stream of streams) {
     const metric = METRIC_BY_TYPE[stream.streamType]
@@ -482,7 +719,7 @@ export function buildStreamCharts(
     ) {
       continue
     }
-    const chart = buildStreamChart(stream, activity, units)
+    const chart = buildStreamChart(stream, activity, units, resolver)
     if (chart) {
       byMetric.set(metric, chart)
     }
