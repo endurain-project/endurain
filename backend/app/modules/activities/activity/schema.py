@@ -328,18 +328,16 @@ class ParsedStream:
 
 @dataclass(frozen=True)
 class ImportSource:
-    """Provenance of a parsed activity, for dedup / bookkeeping.
+    """Provenance of a parsed activity, recorded for observability.
 
     Attributes:
         kind: Origin of the activity (``"upload"`` / ``"bulk_import"`` /
-            ``"strava"`` / ``"garmin"``).
+            ``"garmin"``).
         provider_activity_id: The external provider's activity id, when known.
-        dedup_key: Optional content hash / provider id used for idempotency.
     """
 
     kind: str
     provider_activity_id: int | None = None
-    dedup_key: str | None = None
 
 
 @dataclass

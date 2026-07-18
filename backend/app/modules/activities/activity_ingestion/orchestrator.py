@@ -33,6 +33,7 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.models as activities_models
+import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_file_import.utils_tcx as tcx_utils
@@ -387,6 +388,9 @@ async def parse_and_store_activity_from_file(
             # information found (specific routines depend on file type
             # .gpx/.tcx and .fit have very different needs)
             if parsed_info is not None:
+                import_source = activities_schema.ImportSource(
+                    kind="garmin" if from_garmin else "bulk_import" if is_bulk_import else "upload",
+                )
                 created_activities = []
                 ids_to_filename = ""
                 if file_extension.lower() in (
@@ -401,7 +405,7 @@ async def parse_and_store_activity_from_file(
 
                     # Store the activity in the database
                     created_activity = ingestion_service.store_parsed_activity(
-                        file_adapter.parsed_info_to_parsed_activity(parsed_info), db
+                        file_adapter.parsed_info_to_parsed_activity(parsed_info, source=import_source), db
                     )
                     created_activities.append(created_activity)
                     ids_to_filename += str(created_activity.id)
@@ -442,7 +446,7 @@ async def parse_and_store_activity_from_file(
 
                         # Store the activity in the database
                         created_activity = ingestion_service.store_parsed_activity(
-                            file_adapter.parsed_info_to_parsed_activity(activity), db
+                            file_adapter.parsed_info_to_parsed_activity(activity, source=import_source), db
                         )
 
                         created_activities.append(created_activity)
@@ -648,12 +652,13 @@ def parse_and_store_activity_from_uploaded_file(
         )
 
         if parsed_info is not None:
+            import_source = activities_schema.ImportSource(kind="upload")
             created_activities = []
             ids_to_filename = ""
             if file_extension.lower() in (".gpx", ".tcx"):
                 # Store the activity in the database
                 created_activity = ingestion_service.store_parsed_activity(
-                    file_adapter.parsed_info_to_parsed_activity(parsed_info), db
+                    file_adapter.parsed_info_to_parsed_activity(parsed_info, source=import_source), db
                 )
                 created_activities.append(created_activity)
                 ids_to_filename += str(created_activity.id)
@@ -674,7 +679,7 @@ def parse_and_store_activity_from_uploaded_file(
                 for activity in created_activities_objects:
                     # Store the activity in the database
                     created_activity = ingestion_service.store_parsed_activity(
-                        file_adapter.parsed_info_to_parsed_activity(activity), db
+                        file_adapter.parsed_info_to_parsed_activity(activity, source=import_source), db
                     )
                     created_activities.append(created_activity)
 

@@ -1378,6 +1378,12 @@ def get_activities_with_legacy_thumbnail_path(
     storage keys (e.g. ``42.webp``) never do. Ordered by id and paged via
     ``after_id`` so migration 8 can process them in bounded batches.
 
+    Note:
+        Intended for migration 8 only — it needs the mapped ORM rows to rewrite
+        each legacy path in place. Like :func:`get_all_activities_no_serialize`,
+        this is a sanctioned exception to "no ORM leaves crud"; do not call it
+        from request handlers or services.
+
     Args:
         db: Database session.
         after_id: Return only activities with ``id`` greater than this.

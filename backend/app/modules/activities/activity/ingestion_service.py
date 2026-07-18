@@ -49,8 +49,10 @@ def store_parsed_activity(
             detail="Error creating activity",
         )
 
+    source_kind = parsed.source.kind if parsed.source is not None else "unknown"
     core_logger.print_to_log(
-        f"store_parsed_activity: created activity {created_activity.id} for user {created_activity.user_id}",
+        f"store_parsed_activity: created activity {created_activity.id} "
+        f"for user {created_activity.user_id} (source={source_kind})",
         "debug",
     )
 

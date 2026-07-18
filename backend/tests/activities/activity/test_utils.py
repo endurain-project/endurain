@@ -212,36 +212,6 @@ class TestAppendIfNotNone:
         assert len(waypoints) == 0
 
 
-class TestLocationBasedOnCoordinates:
-    @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
-    @patch("modules.activities.activity.utils.core_config")
-    def test_location_missing_coords(self, mock_config):
-        from modules.activities.activity.utils import location_based_on_coordinates
-
-        result = location_based_on_coordinates(None, None)
-
-        assert result is None
-
-    @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "geocode")
-    @patch("modules.activities.activity.utils.core_config.settings.GEOCODES_MAPS_API", "changeme")
-    @patch("modules.activities.activity.utils.core_config")
-    def test_location_geocode_api_key_changeme(self, mock_config):
-        from modules.activities.activity.utils import location_based_on_coordinates
-
-        result = location_based_on_coordinates(38.0, -9.0)
-
-        assert result is None
-
-    @patch("modules.activities.activity.utils.core_config.settings.REVERSE_GEO_PROVIDER", "unsupported")
-    @patch("modules.activities.activity.utils.core_config")
-    def test_location_unsupported_provider(self, mock_config):
-        from modules.activities.activity.utils import location_based_on_coordinates
-
-        result = location_based_on_coordinates(38.0, -9.0)
-
-        assert result is None
-
-
 @pytest.mark.skip(reason="HealthFasting mapper circular import issue in test env")
 class TestTransformSchemaToModel:
     def test_transform_basic(self):

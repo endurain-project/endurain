@@ -321,8 +321,9 @@ def delete_activity(
     # jobs are enabled.
     activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db)
 
-    # This activity's own processed files are removed here, in a worker thread,
-    # to avoid blocking the event loop with potentially slow disk I/O.
+    # This activity's own processed files are removed here. The route is
+    # synchronous, so Starlette already runs it on a threadpool worker — the
+    # disk I/O never blocks the event loop.
     def _cleanup_processed_files() -> None:
         # Define the search pattern using the file ID (e.g., '1.*')
         pattern = f"{core_config.FILES_PROCESSED_DIR}/{activity_id}.*"

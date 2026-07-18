@@ -1,23 +1,20 @@
-"""Activity search, file relocation and aggregation/computation utilities.
+"""Activity search, file relocation and metric-computation helpers.
 
-File parsing and ingestion orchestration now live in
-:mod:`modules.activities.activity_ingestion`; this module keeps only the
-parser-agnostic helpers used by the activities core and by the file parsers
-(search escaping, safe file relocation, and the geo/pace/elevation/summary math).
+File parsing, ingestion orchestration, and reverse-geocoding now live in the
+ingestion / parsing layer (:mod:`modules.activities.activity_ingestion` and
+:mod:`modules.activities.activity_file_import`); this module keeps only the
+side-effect-free helpers still shared by the activities core and the file parsers
+(search escaping, safe file relocation, activity-type mapping, and the
+pace/elevation/speed/summary math). It performs no network or database I/O.
 """
 
 import statistics
-import time
 from datetime import datetime
 from statistics import mean
-from urllib.parse import urlencode
 
-import requests
 from geopy.distance import geodesic
 
-import core.config as core_config
 import core.file_uploads as core_file_uploads
-import core.logger as core_logger
 from modules.activities.activity.constants import (
     ACTIVITY_ID_TO_NAME,
     ACTIVITY_NAME_TO_ID,
@@ -58,113 +55,6 @@ def move_file(new_dir: str, new_filename: str, file_path: str) -> None:
             violations, 500 for I/O failures.
     """
     core_file_uploads.move_within(file_path, new_dir, filename=new_filename)
-
-
-def location_based_on_coordinates(latitude: float | None, longitude: float | None) -> dict | None:
-    """Reverse-geocode a (lat, lon) pair into a location dict.
-
-    Args:
-        latitude: Latitude in decimal degrees, or ``None``.
-        longitude: Longitude in decimal degrees, or ``None``.
-
-    Returns:
-        Dict with ``city``/``town``/``country`` keys (all non-None), or
-        ``None`` when no provider is configured, coordinates are missing,
-        all geocoded fields are empty, or the provider returns an error.
-    """
-    # Check if latitude and longitude are provided
-    if latitude is None or longitude is None:
-        return None
-
-    # Create a dictionary with the parameters for the request
-    if core_config.settings.REVERSE_GEO_PROVIDER == "nominatim":
-        # Create the URL for the request
-        url_params = {
-            "format": "jsonv2",
-            "lat": latitude,
-            "lon": longitude,
-        }
-        protocol = "https"
-        if not core_config.settings.NOMINATIM_API_USE_HTTPS:
-            protocol = "http"
-        url = f"{protocol}://{core_config.settings.NOMINATIM_API_HOST}/reverse?{urlencode(url_params)}"
-    elif core_config.settings.REVERSE_GEO_PROVIDER == "photon":
-        # Create the URL for the request
-        url_params = {
-            "lat": latitude,
-            "lon": longitude,
-        }
-        protocol = "https"
-        if not core_config.settings.PHOTON_API_USE_HTTPS:
-            protocol = "http"
-        url = f"{protocol}://{core_config.settings.PHOTON_API_HOST}/reverse?{urlencode(url_params)}"
-    elif core_config.settings.REVERSE_GEO_PROVIDER == "geocode":
-        # Check if the API key is set
-        if core_config.settings.GEOCODES_MAPS_API == "changeme":
-            return None
-        # Create the URL for the request
-        url_params = {
-            "lat": latitude,
-            "lon": longitude,
-            "api_key": core_config.settings.GEOCODES_MAPS_API,
-        }
-        url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
-    else:
-        # If no provider is set, return None
-        return None
-
-    # Throttle requests according to configured rate limit
-    if core_config.REVERSE_GEO_MIN_INTERVAL > 0:
-        with core_config.REVERSE_GEO_LOCK:
-            now = time.monotonic()
-            interval = core_config.REVERSE_GEO_MIN_INTERVAL - (now - core_config.REVERSE_GEO_LAST_CALL)
-            if interval > 0:
-                time.sleep(interval)
-            core_config.REVERSE_GEO_LAST_CALL = time.monotonic()
-
-    # Make the request and get the response
-    try:
-        headers = {"User-Agent": f"Endurain/{core_config.API_VERSION} (ReverseGeocoding)"}
-        # Make the request and get the response
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-
-        if core_config.settings.REVERSE_GEO_PROVIDER in ("geocode", "nominatim"):
-            # Get the data from the response
-            data = response.json().get("address", {})
-            # Return the location based on the coordinates
-            # Note: 'town' is used for district in Geocode API
-            city = data.get("city")
-            town = data.get("town")
-            country = data.get("country")
-            if any([city, town, country]):
-                return {
-                    "city": city,
-                    "town": town,
-                    "country": country,
-                }
-            return None
-
-        # Get the data from the response
-        data_root = response.json().get("features", [])
-        data = data_root[0].get("properties", {}) if data_root else {}
-        # Return the location based on the coordinates
-        # Note: 'district' is used for city and 'city' is used for town in Photon API
-        city = data.get("district")
-        town = data.get("city")
-        country = data.get("country")
-        if any([city, town, country]):
-            return {
-                "city": city,
-                "town": town,
-                "country": country,
-            }
-        return None
-    except Exception as err:
-        # Log the error; return None so the activity import can continue
-        # without location data rather than aborting the whole operation.
-        core_logger.print_to_log_and_console(f"Error in location_based_on_coordinates - {err}", "error")
-        return None
 
 
 def append_if_not_none(
