@@ -8,7 +8,7 @@ them first.
 
 import glob
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from typing import Annotated
 
 from fastapi import (
@@ -31,11 +31,8 @@ import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.service as activities_service
 import modules.auth.dependencies as auth_dependencies
-import modules.garmin.activity_utils as garmin_activity_utils
 import modules.gears.gear.dependencies as gears_dependencies
-import modules.strava.activity_utils as strava_activity_utils
 import modules.users.users.dependencies as users_dependencies
-import modules.websocket.manager as websocket_manager
 
 # Default page size when a list request omits pagination.
 _DEFAULT_NUM_RECORDS = 25
@@ -125,65 +122,6 @@ def list_following_feed(
         num_records or _DEFAULT_NUM_RECORDS,
         db,
     )
-
-
-@router.get(
-    "/refresh",
-    response_model=list[activities_schema.Activity] | None,
-)
-async def refresh_activities(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    ws_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
-):
-    """Fetch the last 24h of activities from the linked providers (Strava/Garmin).
-
-    The one documented ``async`` route (plan §7.3): it awaits the provider HTTP
-    clients, which are not yet reworked.
-    """
-    # Set the activities to empty list
-    activities = []
-
-    # Get the strava activities for the user for the last 24h
-    strava_activities = await strava_activity_utils.get_user_strava_activities_by_dates(
-        start_date=datetime.now(UTC) - timedelta(days=1),
-        end_date=datetime.now(UTC),
-        user_id=token_user_id,
-        ws_manager=ws_manager,
-        db=db,
-    )
-
-    # Get the garmin activities for the user for the last 24h
-    garmin_activities = await garmin_activity_utils.get_user_garminconnect_activities_by_dates(
-        start_date=datetime.now(UTC) - timedelta(days=1),
-        end_date=datetime.now(UTC),
-        user_id=token_user_id,
-        ws_manager=ws_manager,
-        db=db,
-    )
-
-    # Extend the activities to the list
-    if strava_activities is not None:
-        activities.extend(strava_activities)
-
-    if garmin_activities is not None:
-        activities.extend(garmin_activities)
-
-    # Filter out None values from the activities list
-    activities = [activity for activity in activities if activity is not None]
-
-    # Return the activities or None if the list is empty
-    return activities if activities else None
 
 
 @router.get(

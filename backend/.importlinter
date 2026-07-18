@@ -92,19 +92,22 @@ layers =
     providers
     events
 
-# The activities core (activity/) is parsing-agnostic: it exposes the typed
+# The activities core (activity/) is parsing- AND provider-agnostic: it exposes the typed
 # ParsedActivity contract + ingestion_service.store_parsed_activity, but never imports a
-# file parser or the Strava bulk-import glue. All format/provider knowledge lives in the
-# sibling activity_ingestion/ package, which produces the contract and calls the core
-# (module rework plan §5, leak C). Direct imports only (allow_indirect_imports) so the
-# /refresh route's legitimate provider-sync imports via strava/garmin activity_utils are
-# not swept up.
+# file parser or a provider (Strava/Garmin) client. All format/provider knowledge lives in
+# the sibling activity_ingestion/ package, which produces the contract and calls the core
+# (module rework plan §5, leak C). The provider live-refresh route was relocated there too,
+# so the core no longer needs any Strava/Garmin import — the boundary is now the whole
+# provider packages, not just the bulk-import glue. Direct imports only
+# (allow_indirect_imports): the rule is that the core must not reach for a parser/provider
+# directly, not that it must avoid transitive shared dependencies.
 [importlinter:contract:activities-parsing-boundary]
-name = Activities core must not import file parsers or Strava bulk-import glue
+name = Activities core must not import file parsers or Strava/Garmin provider clients
 type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.activities.activity
 forbidden_modules =
     modules.activities.activity_file_import
-    modules.strava.bulk_import_utils
+    modules.strava
+    modules.garmin

@@ -70,12 +70,11 @@ from modules.auth.identity_providers import (
 router = APIRouter()
 
 # Router files (alphabetical order)
-router.include_router(
-    activities_router.router,
-    prefix=core_config.ROOT_PATH + "/activities",
-    tags=["activities"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
-)
+# NOTE: the activity_ingestion routers are mounted BEFORE the activities core router on
+# purpose. They expose literal ``/activities`` paths (``/refresh``, ``/upload``,
+# ``/bulk-import``) that must be matched before the core router's dynamic
+# ``/activities/{activity_id}`` catch-all — Starlette resolves routes in registration
+# order, so a later literal would be shadowed by the earlier ``/{activity_id}``.
 router.include_router(
     activity_ingestion_router.router,
     prefix=core_config.ROOT_PATH + "/activities",
@@ -87,6 +86,12 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token_or_api_key)],
+)
+router.include_router(
+    activities_router.router,
+    prefix=core_config.ROOT_PATH + "/activities",
+    tags=["activities"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     activity_exercise_titles_router.router,

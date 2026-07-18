@@ -1,15 +1,17 @@
-"""FastAPI routes for activity ingestion (file upload + bulk import).
+"""FastAPI routes for activity ingestion (file upload, bulk import, provider refresh).
 
 These endpoints stay under the ``/activities`` prefix but live here (not in
-``activity/router.py``) because they drive the file-format-aware ingestion flow in
-:mod:`~modules.activities.activity_ingestion.orchestrator`, keeping the activities core
-router parser-agnostic.
+``activity/router.py``) because they drive the format/provider-aware ingestion flows:
+file parsing via :mod:`~modules.activities.activity_ingestion.orchestrator` and live
+provider sync via the Strava/Garmin clients. Keeping them here leaves the activities
+core router fully parser- and provider-agnostic (enforced by the import-linter contract
+``activities-parsing-boundary``).
 """
 
 import os
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import (
@@ -29,6 +31,9 @@ import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.orchestrator as orchestrator
 import modules.auth.dependencies as auth_dependencies
+import modules.garmin.activity_utils as garmin_activity_utils
+import modules.strava.activity_utils as strava_activity_utils
+import modules.websocket.manager as websocket_manager
 
 # Bulk import endpoint (JWT auth)
 router = APIRouter()
@@ -197,3 +202,64 @@ def create_activity_with_bulk_import(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+@router.get(
+    "/refresh",
+    response_model=list[activities_schema.Activity] | None,
+)
+async def refresh_activities(
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+    ws_manager: Annotated[
+        websocket_manager.WebSocketManager,
+        Depends(websocket_manager.get_websocket_manager),
+    ],
+):
+    """Fetch the last 24h of activities from the linked providers (Strava/Garmin).
+
+    The one documented ``async`` route (plan §7.3): it awaits the provider HTTP
+    clients, which are not yet reworked. It lives in the ingestion layer (not the
+    activities core) because it depends on the Strava/Garmin provider clients — the
+    core router stays provider-agnostic.
+    """
+    # Set the activities to empty list
+    activities = []
+
+    # Get the strava activities for the user for the last 24h
+    strava_activities = await strava_activity_utils.get_user_strava_activities_by_dates(
+        start_date=datetime.now(UTC) - timedelta(days=1),
+        end_date=datetime.now(UTC),
+        user_id=token_user_id,
+        ws_manager=ws_manager,
+        db=db,
+    )
+
+    # Get the garmin activities for the user for the last 24h
+    garmin_activities = await garmin_activity_utils.get_user_garminconnect_activities_by_dates(
+        start_date=datetime.now(UTC) - timedelta(days=1),
+        end_date=datetime.now(UTC),
+        user_id=token_user_id,
+        ws_manager=ws_manager,
+        db=db,
+    )
+
+    # Extend the activities to the list
+    if strava_activities is not None:
+        activities.extend(strava_activities)
+
+    if garmin_activities is not None:
+        activities.extend(garmin_activities)
+
+    # Filter out None values from the activities list
+    activities = [activity for activity in activities if activity is not None]
+
+    # Return the activities or None if the list is empty
+    return activities if activities else None
