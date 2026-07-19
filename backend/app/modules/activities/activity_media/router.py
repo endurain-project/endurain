@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
+import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity_media.crud as activity_media_crud
@@ -97,7 +98,7 @@ def read_activities_media_user(
     response_model=activity_media_schema.ActivityMedia,
     status_code=status.HTTP_201_CREATED,
 )
-async def upload_media(
+def upload_media(
     file: UploadFile,
     activity_id: int,
     _validate_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
@@ -149,8 +150,10 @@ async def upload_media(
 
     new_file_name = _build_safe_media_filename(activity_id, file.filename)
 
-    # SafeUploads validates magic number and size before writing to disk.
-    file_path = await core_file_uploads.save_validated_upload(
+    # SafeUploads validates magic number and size before writing to disk. The
+    # route is synchronous, so Starlette runs it on a threadpool worker and the
+    # blocking save never touches the event loop.
+    file_path = core_file_uploads.save_validated_upload_sync(
         file,
         kind=core_file_uploads.UploadKind.IMAGE,
         upload_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
@@ -158,11 +161,27 @@ async def upload_media(
     )
 
     try:
-        return activity_media_crud.create_activity_media(activity_id, file_path, db)
+        created = activity_media_crud.create_activity_media(activity_id, file_path, db)
     except HTTPException:
-        # Best-effort cleanup of the orphaned file on DB failure.
-        await core_file_uploads.delete_files_by_pattern(core_config.settings.ACTIVITY_MEDIA_DIR, new_file_name)
+        # Best-effort cleanup of the orphaned file on DB failure, confined to
+        # ACTIVITY_MEDIA_DIR.
+        try:
+            core_file_uploads.safe_remove_within(
+                file_path,
+                base_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
+            )
+        except HTTPException as fs_err:
+            core_logger.print_to_log(
+                f"Failed to clean up orphaned media file {new_file_name}: {fs_err.detail}",
+                "warning",
+            )
         raise
+
+    core_logger.print_to_log(
+        f"Uploaded media for activity {activity_id} by user {token_user_id}",
+        "info",
+    )
+    return created
 
 
 @router.delete(

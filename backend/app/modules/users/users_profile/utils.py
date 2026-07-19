@@ -13,6 +13,7 @@ import zipfile
 from typing import Any, TypeVar
 
 import psutil
+from pydantic import BaseModel
 
 import core.logger as core_logger
 from modules.users.users_profile.exceptions import (
@@ -88,16 +89,18 @@ class BasePerformanceConfig:
 # Export utility functions
 def sqlalchemy_obj_to_dict(obj: Any) -> dict[str, Any]:
     """
-    Convert SQLAlchemy object to dictionary.
+    Convert a SQLAlchemy model or Pydantic schema to a dictionary.
 
     Args:
-        obj: SQLAlchemy model instance or other object.
+        obj: SQLAlchemy model instance, Pydantic model, or other object.
 
     Returns:
-        Dictionary with column names and values.
+        Dictionary with column/field names and values.
     """
     if hasattr(obj, "__table__"):
         return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(mode="json")
     return obj
 
 

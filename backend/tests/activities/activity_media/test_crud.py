@@ -12,10 +12,12 @@ class TestCreateActivityMedia:
     def test_success(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
 
-        mock_media_model.return_value = MagicMock()
-        crud.create_activity_media(activity_id=1, media_path="/path/to/file.jpg", db=mock_db)
+        mock_media_model.return_value = MagicMock(id=1, activity_id=1, media_path="/path/to/file.jpg", media_type=1)
+        result = crud.create_activity_media(activity_id=1, media_path="/path/to/file.jpg", db=mock_db)
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
+        assert result.id == 1
+        assert result.media_path == "/path/to/file.jpg"
 
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_db_error(self, mock_media_model, mock_db):
@@ -35,7 +37,10 @@ class TestGetActivityMedia:
         import modules.activities.activity_media.models as am
 
         mock_get_act.return_value = MagicMock()
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.ActivityMedia, id=1, activity_id=1)])
+        setup_mock_execute(
+            mock_db,
+            return_scalars_all=[mock_model(am.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)],
+        )
         r = crud.get_activity_media(activity_id=1, token_user_id=1, db=mock_db)
         assert len(r) == 1
 
@@ -72,7 +77,10 @@ class TestGetAllActivityMedia:
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as m
 
-        setup_mock_execute(mock_db, return_scalars_all=[MagicMock(spec=m.ActivityMedia, id=1)])
+        setup_mock_execute(
+            mock_db,
+            return_scalars_all=[MagicMock(spec=m.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)],
+        )
         r = crud.get_all_activity_media(mock_db)
         assert len(r) == 1
 
@@ -99,7 +107,7 @@ class TestGetActivitiesMedia:
         import modules.activities.activity_media.models as mm
 
         mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1)
-        mock_media = MagicMock(spec=mm.ActivityMedia, id=1, activity_id=1)
+        mock_media = MagicMock(spec=mm.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)
         mock_db.scalars.return_value.all.side_effect = [
             [mock_activity],
             [mock_media],
@@ -186,12 +194,12 @@ class TestEditActivityMediaMediaPath:
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as m
 
-        mock_media = MagicMock(spec=m.ActivityMedia, id=1, media_path="/old/path")
+        mock_media = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1, media_path="/old/path", media_type=1)
         mock_db.scalars.return_value.first.return_value = mock_media
         result = crud.edit_activity_media_media_path(1, "/new/path", mock_db)
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(mock_media)
-        assert result == mock_media
+        assert result.media_path == "/new/path"
 
     def test_not_found(self, mock_db):
         import modules.activities.activity_media.crud as crud
@@ -285,4 +293,5 @@ class TestDeleteActivityMedia:
         crud.delete_activity_media(1, 1, mock_db)
         mock_db.delete.assert_called_once()
         mock_db.commit.assert_called_once()
-        mock_log.assert_called_once()
+        # delete logs a debug line on success and a warning when cleanup fails
+        assert any(call.args[1] == "warning" for call in mock_log.call_args_list)

@@ -15,10 +15,21 @@ import modules.activities.activity_media.models as activity_media_models
 import modules.activities.activity_media.schema as activity_media_schema
 
 
+def _to_read_schema(
+    orm_media: activity_media_models.ActivityMedia,
+) -> activity_media_schema.ActivityMedia:
+    """Convert an ORM ``ActivityMedia`` row to its read schema.
+
+    The single ORM→schema boundary for this module so ORM instances never leave
+    ``crud`` (module rework plan §4.2).
+    """
+    return activity_media_schema.ActivityMedia.model_validate(orm_media)
+
+
 @core_decorators.handle_db_errors
 def get_all_activity_media(
     db: Session,
-) -> list[activity_media_models.ActivityMedia]:
+) -> list[activity_media_schema.ActivityMedia]:
     """
     Retrieve every activity media record in the database.
 
@@ -26,19 +37,19 @@ def get_all_activity_media(
         db: Database session.
 
     Returns:
-        List of ActivityMedia models (empty if none exist).
+        List of ActivityMedia schemas (empty if none exist).
 
     Raises:
         HTTPException: If a database error occurs.
     """
     stmt = select(activity_media_models.ActivityMedia)
-    return list(db.scalars(stmt).all())
+    return [_to_read_schema(media) for media in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors
 def get_activity_media(
     activity_id: int, token_user_id: int, db: Session
-) -> list[activity_media_models.ActivityMedia] | None:
+) -> list[activity_media_schema.ActivityMedia] | None:
     """
     Retrieve all media records for a single activity owned by the user.
 
@@ -48,7 +59,7 @@ def get_activity_media(
         db: Database session.
 
     Returns:
-        List of ActivityMedia models, or None if the activity is not
+        List of ActivityMedia schemas, or None if the activity is not
         accessible or has no media.
 
     Raises:
@@ -66,7 +77,7 @@ def get_activity_media(
     if not activity_media:
         return None
 
-    return activity_media
+    return [_to_read_schema(media) for media in activity_media]
 
 
 @core_decorators.handle_db_errors
@@ -75,7 +86,7 @@ def get_activities_media(
     token_user_id: int,
     db: Session,
     activities: list[activity_models.Activity] | None = None,
-) -> list[activity_media_models.ActivityMedia]:
+) -> list[activity_media_schema.ActivityMedia]:
     """
     Retrieve media records for the activities owned by the user.
 
@@ -87,7 +98,7 @@ def get_activities_media(
             provided they will be fetched from the database.
 
     Returns:
-        List of ActivityMedia models for activities owned by the user
+        List of ActivityMedia schemas for activities owned by the user
         (empty if none match).
 
     Raises:
@@ -110,11 +121,11 @@ def get_activities_media(
     media_stmt = select(activity_media_models.ActivityMedia).where(
         activity_media_models.ActivityMedia.activity_id.in_(allowed_ids)
     )
-    return list(db.scalars(media_stmt).all())
+    return [_to_read_schema(media) for media in db.scalars(media_stmt).all()]
 
 
 @core_decorators.handle_db_errors
-def create_activity_media(activity_id: int, media_path: str, db: Session) -> activity_media_models.ActivityMedia:
+def create_activity_media(activity_id: int, media_path: str, db: Session) -> activity_media_schema.ActivityMedia:
     """
     Create a new activity media record.
 
@@ -124,7 +135,7 @@ def create_activity_media(activity_id: int, media_path: str, db: Session) -> act
         db: Database session.
 
     Returns:
-        The newly created ActivityMedia model instance.
+        The newly created ActivityMedia schema.
 
     Raises:
         HTTPException:
@@ -140,7 +151,11 @@ def create_activity_media(activity_id: int, media_path: str, db: Session) -> act
         db.add(db_activity_media)
         db.commit()
         db.refresh(db_activity_media)
-        return db_activity_media
+        core_logger.print_to_log(
+            f"Created activity media {db_activity_media.id} for activity {activity_id}",
+            "debug",
+        )
+        return _to_read_schema(db_activity_media)
     except IntegrityError as integrity_error:
         db.rollback()
         raise HTTPException(
@@ -189,7 +204,7 @@ def create_activity_medias(
 @core_decorators.handle_db_errors
 def edit_activity_media_media_path(
     activity_media_id: int, media_path: str, db: Session
-) -> activity_media_models.ActivityMedia:
+) -> activity_media_schema.ActivityMedia:
     """
     Update the ``media_path`` of an activity media record.
 
@@ -199,7 +214,7 @@ def edit_activity_media_media_path(
         db: Database session.
 
     Returns:
-        The refreshed ActivityMedia model instance.
+        The refreshed ActivityMedia schema.
 
     Raises:
         HTTPException:
@@ -220,7 +235,11 @@ def edit_activity_media_media_path(
     db_activity_media.media_path = media_path
     db.commit()
     db.refresh(db_activity_media)
-    return db_activity_media
+    core_logger.print_to_log(
+        f"Updated media path for activity media {activity_media_id}",
+        "debug",
+    )
+    return _to_read_schema(db_activity_media)
 
 
 @core_decorators.handle_db_errors
@@ -274,6 +293,10 @@ def delete_activity_media(activity_media_id: int, token_user_id: int, db: Sessio
 
     db.delete(activity_media)
     db.commit()
+    core_logger.print_to_log(
+        f"Deleted activity media {activity_media_id} for user {token_user_id}",
+        "debug",
+    )
 
     # Best-effort filesystem cleanup, confined to ACTIVITY_MEDIA_DIR.
     if media_path:
