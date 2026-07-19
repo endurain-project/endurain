@@ -1,11 +1,11 @@
-"""Activity search, file relocation and metric-computation helpers.
+"""Pure metric-computation helpers for the file-import parsers.
 
-File parsing, ingestion orchestration, and reverse-geocoding now live in the
-ingestion / parsing layer (:mod:`modules.activities.activity_ingestion` and
-:mod:`modules.activities.activity_file_import`); this module keeps only the
-side-effect-free helpers still shared by the activities core and the file parsers
-(search escaping, safe file relocation, activity-type mapping, and the
-pace/elevation/speed/summary math). It performs no network or database I/O.
+Relocated out of the activities core (``activity/utils.py``) so the core package
+contains no parsing-adjacent computation — it only stores an already-parsed
+activity. These helpers turn raw waypoint streams into activity metrics (speed,
+elevation, pace, averages, normalized power) and are shared by the file parsers,
+the Strava adapter, and migrations. They are side-effect-free: no network,
+database, or filesystem I/O.
 """
 
 import statistics
@@ -13,48 +13,6 @@ from datetime import datetime
 from statistics import mean
 
 from geopy.distance import geodesic
-
-import core.file_uploads as core_file_uploads
-from modules.activities.activity.constants import (
-    ACTIVITY_ID_TO_NAME,
-    ACTIVITY_NAME_TO_ID,
-)
-
-
-def escape_like(term: str) -> str:
-    """Escape SQL LIKE wildcards in a user-provided term.
-
-    Escapes ``\\``, ``%`` and ``_`` so they are matched
-    literally. Use together with ``.like(..., escape="\\\\")``.
-
-    Args:
-        term: Raw search term.
-
-    Returns:
-        Escaped search term safe for use inside a ``LIKE``
-        pattern.
-    """
-    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-def move_file(new_dir: str, new_filename: str, file_path: str) -> None:
-    """Move ``file_path`` into ``new_dir`` as ``new_filename``.
-
-    Thin compatibility wrapper around
-    :func:`core.file_uploads.move_within`. New code should call
-    ``move_within`` directly so callers benefit from path
-    containment without an intermediate hop.
-
-    Args:
-        new_dir: Destination directory (created if missing).
-        new_filename: Final filename inside ``new_dir``.
-        file_path: Source path to move.
-
-    Raises:
-        HTTPException: 400 for unsafe filename / containment
-            violations, 500 for I/O failures.
-    """
-    core_file_uploads.move_within(file_path, new_dir, filename=new_filename)
 
 
 def append_if_not_none(
@@ -283,35 +241,3 @@ def calculate_np(data: list[dict]) -> float:
     normalized_power = avg_fourth_power ** (1 / 4)
 
     return normalized_power
-
-
-def define_activity_type(activity_type_name: str) -> int:
-    """
-    Maps an activity type name (string) to its corresponding ID (integer).
-    Uses the global ACTIVITY_NAME_TO_ID dictionary.
-    Returns 10 (Workout) if the name is not found.
-    """
-    # Default value
-    default_type_id = 10
-
-    # Get the activity type ID from the global mapping (case-insensitive)
-    # Ensure input is a string before lowercasing
-    if isinstance(activity_type_name, str):
-        return ACTIVITY_NAME_TO_ID.get(activity_type_name.lower(), default_type_id)
-    else:
-        # Handle non-string input if necessary, or return default
-        return default_type_id
-
-
-def set_activity_name_based_on_activity_type(activity_type_id: int) -> str:
-    """
-    Maps an activity type ID (integer) to its corresponding name (string).
-    Uses the global ACTIVITY_ID_TO_NAME dictionary.
-    Returns "Workout" if the ID is not found or is 10.
-    Appends " workout" suffix if the name is not "Workout".
-    """
-    # Get the mapping for the activity type ID, default to "Workout"
-    mapping = ACTIVITY_ID_TO_NAME.get(activity_type_id, "Workout")
-
-    # If type is not 10 (Workout), return the mapping with " workout" suffix
-    return mapping + " workout" if mapping != "Workout" else mapping

@@ -215,9 +215,8 @@ def _compute_lap_metrics(
     Returns:
         Dict with all computed lap metrics.
     """
-    # Imported lazily to avoid a circular import: activities.activity.utils
-    # imports utils_gpx, which re-exports names from this module.
-    import modules.activities.activity.utils as activities_utils
+    # The metric helpers live in this package's dependency-free computation module.
+    import modules.activities.activity_file_import.computation as activities_computation
 
     lap_ele = filter_waypoints_by_time_range(
         ele_waypoints,
@@ -247,38 +246,38 @@ def _compute_lap_metrics(
 
     ele_gain, ele_loss = None, None
     if lap_ele:
-        ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
+        ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(
             elevations=lap_ele,
         )
 
     avg_hr, max_hr = None, None
     if lap_hr:
-        avg_hr, max_hr = activities_utils.calculate_avg_and_max(
+        avg_hr, max_hr = activities_computation.calculate_avg_and_max(
             lap_hr,
             "hr",
         )
 
     avg_cad, max_cad = None, None
     if lap_cad:
-        avg_cad, max_cad = activities_utils.calculate_avg_and_max(
+        avg_cad, max_cad = activities_computation.calculate_avg_and_max(
             lap_cad,
             "cad",
         )
 
     avg_speed, max_speed = None, None
     if lap_vel:
-        avg_speed, max_speed = activities_utils.calculate_avg_and_max(
+        avg_speed, max_speed = activities_computation.calculate_avg_and_max(
             lap_vel,
             "vel",
         )
 
     avg_power, max_power, norm_power = None, None, None
     if lap_power:
-        avg_power, max_power = activities_utils.calculate_avg_and_max(
+        avg_power, max_power = activities_computation.calculate_avg_and_max(
             lap_power,
             "power",
         )
-        norm_power = activities_utils.calculate_np(lap_power)
+        norm_power = activities_computation.calculate_np(lap_power)
 
     elapsed = (datetime.strptime(end_time, _DT_FMT) - datetime.strptime(start_time, _DT_FMT)).total_seconds()
 
@@ -589,11 +588,11 @@ def calculate_power_metrics(
         Tuple of ``(avg_power, max_power, normalized_power)``.  Any
         value may be ``None`` if the stream contains no valid readings.
     """
-    # Imported lazily to avoid a circular import (see _compute_lap_metrics).
-    import modules.activities.activity.utils as activities_utils
+    # The metric helpers live in this package's dependency-free computation module.
+    import modules.activities.activity_file_import.computation as activities_computation
 
-    avg_power, max_power = activities_utils.calculate_avg_and_max(power_waypoints, "power")
-    normalized_power = activities_utils.calculate_np(power_waypoints)
+    avg_power, max_power = activities_computation.calculate_avg_and_max(power_waypoints, "power")
+    normalized_power = activities_computation.calculate_np(power_waypoints)
     return avg_power, max_power, normalized_power
 
 

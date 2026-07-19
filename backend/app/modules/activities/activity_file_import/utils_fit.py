@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 import modules.garmin.utils as garmin_utils
@@ -55,7 +56,7 @@ def create_activity_objects(
 
             if session_record["session"]["activity_type"]:
                 # Set the activity type based on the session record
-                activity_type = activities_utils.define_activity_type(session_record["session"]["activity_type"])
+                activity_type = activities_constants.define_activity_type(session_record["session"]["activity_type"])
 
                 if gear_id is None:
                     gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
@@ -122,7 +123,7 @@ def create_activity_objects(
             session_avg_hr = session_record["session"]["avg_hr"]
             session_max_hr = session_record["session"]["max_hr"]
             if session_record.get("hr_waypoints"):
-                recomputed_avg, recomputed_max = activities_utils.calculate_avg_and_max(
+                recomputed_avg, recomputed_max = activities_computation.calculate_avg_and_max(
                     session_record["hr_waypoints"],
                     "hr",
                 )
@@ -141,7 +142,7 @@ def create_activity_objects(
                 # pace is s/m (moving_time / distance); invert to m/s.
                 avg_speed = 1 / pace
             if (avg_speed is None or max_speed is None) and session_record["vel_waypoints"]:
-                vel_avg, vel_max = activities_utils.calculate_avg_and_max(
+                vel_avg, vel_max = activities_computation.calculate_avg_and_max(
                     session_record["vel_waypoints"],
                     "vel",
                 )
@@ -155,7 +156,7 @@ def create_activity_objects(
             avg_cadence = session_record["session"]["avg_cadence"]
             max_cadence = session_record["session"]["max_cadence"]
             if (avg_cadence is None or max_cadence is None) and session_record["cad_waypoints"]:
-                cad_avg, cad_max = activities_utils.calculate_avg_and_max(
+                cad_avg, cad_max = activities_computation.calculate_avg_and_max(
                     session_record["cad_waypoints"],
                     "cad",
                 )
@@ -169,7 +170,7 @@ def create_activity_objects(
             ele_gain = session_record["session"]["ele_gain"]
             ele_loss = session_record["session"]["ele_loss"]
             if (ele_gain is None or ele_loss is None) and session_record["ele_waypoints"]:
-                computed_gain, computed_loss = activities_utils.compute_elevation_gain_and_loss(
+                computed_gain, computed_loss = activities_computation.compute_elevation_gain_and_loss(
                     elevations=session_record["ele_waypoints"],
                 )
                 if ele_gain is None and computed_gain:
@@ -665,7 +666,7 @@ def _handle_record_frame(frame, state: FitParseState) -> None:
         and longitude is not None
         and state.prev_longitude is not None
     ):
-        instant_speed = activities_utils.calculate_instant_speed(
+        instant_speed = activities_computation.calculate_instant_speed(
             state.last_waypoint_time,
             time,
             latitude,
@@ -685,13 +686,13 @@ def _handle_record_frame(frame, state: FitParseState) -> None:
         state.lat_lon_waypoints.append({"time": timestamp, "lat": latitude, "lon": longitude})
         state.is_lat_lon_set = True
 
-    activities_utils.append_if_not_none(state.ele_waypoints, timestamp, elevation, "ele")
-    activities_utils.append_if_not_none(state.hr_waypoints, timestamp, heart_rate, "hr")
-    activities_utils.append_if_not_none(state.cad_waypoints, timestamp, cadence, "cad")
-    activities_utils.append_if_not_none(state.power_waypoints, timestamp, power, "power")
-    activities_utils.append_if_not_none(state.vel_waypoints, timestamp, instant_speed, "vel")
-    activities_utils.append_if_not_none(state.pace_waypoints, timestamp, instant_pace, "pace")
-    activities_utils.append_if_not_none(state.temp_waypoints, timestamp, temperature, "temp")
+    activities_computation.append_if_not_none(state.ele_waypoints, timestamp, elevation, "ele")
+    activities_computation.append_if_not_none(state.hr_waypoints, timestamp, heart_rate, "hr")
+    activities_computation.append_if_not_none(state.cad_waypoints, timestamp, cadence, "cad")
+    activities_computation.append_if_not_none(state.power_waypoints, timestamp, power, "power")
+    activities_computation.append_if_not_none(state.vel_waypoints, timestamp, instant_speed, "vel")
+    activities_computation.append_if_not_none(state.pace_waypoints, timestamp, instant_pace, "pace")
+    activities_computation.append_if_not_none(state.temp_waypoints, timestamp, temperature, "temp")
 
     state.prev_latitude = latitude
     state.prev_longitude = longitude

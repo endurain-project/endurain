@@ -1,35 +1,35 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 
 class TestEscapeLike:
     def test_escape_percent(self):
-        from modules.activities.activity.utils import escape_like
+        from modules.activities.activity.crud import escape_like
 
         result = escape_like("100%")
         assert result == "100\\%"
 
     def test_escape_underscore(self):
-        from modules.activities.activity.utils import escape_like
+        from modules.activities.activity.crud import escape_like
 
         result = escape_like("test_name")
         assert result == "test\\_name"
 
     def test_escape_backslash(self):
-        from modules.activities.activity.utils import escape_like
+        from modules.activities.activity.crud import escape_like
 
         result = escape_like("foo\\bar")
         assert result == "foo\\\\bar"
 
     def test_no_escaping_needed(self):
-        from modules.activities.activity.utils import escape_like
+        from modules.activities.activity.crud import escape_like
 
         result = escape_like("hello")
         assert result == "hello"
 
     def test_escape_all(self):
-        from modules.activities.activity.utils import escape_like
+        from modules.activities.activity.crud import escape_like
 
         result = escape_like("a%b_c\\d")
         assert result == "a\\%b\\_c\\\\d"
@@ -179,39 +179,6 @@ class TestCalculateActivityStats:
         assert result.walk.distance == 3000.0
 
 
-class TestActivityIdToName:
-    def test_mapping_contains_common_types(self):
-        from modules.activities.activity.constants import ACTIVITY_ID_TO_NAME
-
-        assert ACTIVITY_ID_TO_NAME[1] == "Run"
-        assert ACTIVITY_ID_TO_NAME[4] == "Ride"
-        assert ACTIVITY_ID_TO_NAME[11] == "Walk"
-        assert ACTIVITY_ID_TO_NAME[19] == "Strength training"
-        assert ACTIVITY_ID_TO_NAME[47] == "Jump rope"
-
-    def test_unknown_id(self):
-        from modules.activities.activity.utils import ACTIVITY_ID_TO_NAME
-
-        assert 999 not in ACTIVITY_ID_TO_NAME
-
-
-class TestAppendIfNotNone:
-    def test_appends_when_value_not_none(self):
-        from modules.activities.activity.utils import append_if_not_none
-
-        waypoints = []
-        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=145, key="hr")
-        assert len(waypoints) == 1
-        assert waypoints[0]["hr"] == 145
-
-    def test_does_not_append_when_none(self):
-        from modules.activities.activity.utils import append_if_not_none
-
-        waypoints = []
-        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=None, key="hr")
-        assert len(waypoints) == 0
-
-
 @pytest.mark.skip(reason="HealthFasting mapper circular import issue in test env")
 class TestTransformSchemaToModel:
     def test_transform_basic(self):
@@ -219,13 +186,3 @@ class TestTransformSchemaToModel:
 
     def test_transform_with_created_at(self):
         pass
-
-
-class TestMoveFile:
-    @patch("modules.activities.activity.utils.core_file_uploads.move_within")
-    def test_move_file_calls_move_within(self, mock_move_within):
-        from modules.activities.activity.utils import move_file
-
-        move_file(new_dir="/dest", new_filename="test.fit", file_path="/src/test.fit")
-
-        mock_move_within.assert_called_once_with("/src/test.fit", "/dest", filename="test.fit")

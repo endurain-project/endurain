@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.users.users_default_gear.utils as user_default_gear_utils
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
@@ -188,7 +189,7 @@ def _extract_waypoints(
 
         timestamp = core_timezone.format_utc(time_val)
 
-        instant_speed = activities_utils.calculate_instant_speed(
+        instant_speed = activities_computation.calculate_instant_speed(
             last_time,
             time_val,
             lat,
@@ -199,13 +200,13 @@ def _extract_waypoints(
 
         instant_pace = 1 / instant_speed if instant_speed > 0 else 0
 
-        activities_utils.append_if_not_none(
+        activities_computation.append_if_not_none(
             vel_waypoints,
             timestamp,
             instant_speed,
             "vel",
         )
-        activities_utils.append_if_not_none(
+        activities_computation.append_if_not_none(
             pace_waypoints,
             timestamp,
             instant_pace,
@@ -346,7 +347,7 @@ def parse_tcx_file(
         max_power: float | None = None
         norm_power: float | None = None
 
-        activity_type = activities_utils.define_activity_type(tcx_file.activity_type)
+        activity_type = activities_constants.define_activity_type(tcx_file.activity_type)
 
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
@@ -364,7 +365,7 @@ def parse_tcx_file(
             distance = round(activity_file_import_utils.compute_distance_from_waypoints(lat_lon_wp))
 
         if lat_lon_wp:
-            pace = activities_utils.calculate_pace(
+            pace = activities_computation.calculate_pace(
                 distance,
                 trackpoints[0]["time"],
                 trackpoints[-1]["time"],
@@ -394,7 +395,7 @@ def parse_tcx_file(
         # the device-computed value from the TCX file which may include zeros.
         hr_wp = waypoints.get("hr_waypoints", [])
         if hr_wp:
-            recomputed_avg, recomputed_max = activities_utils.calculate_avg_and_max(
+            recomputed_avg, recomputed_max = activities_computation.calculate_avg_and_max(
                 hr_wp,
                 "hr",
             )

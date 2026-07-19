@@ -14,8 +14,9 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.users.users_default_gear.utils as user_default_gear_utils
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
@@ -363,7 +364,7 @@ def _process_trackpoint(
     else:
         power = None
 
-    instant_speed = activities_utils.calculate_instant_speed(
+    instant_speed = activities_computation.calculate_instant_speed(
         state.prev_waypoint_time,
         time,
         latitude,
@@ -389,37 +390,37 @@ def _process_trackpoint(
         )
         state.is_lat_lon_set = True
 
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.ele_waypoints,
         timestamp,
         elevation,
         "ele",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.hr_waypoints,
         timestamp,
         heart_rate,
         "hr",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.cad_waypoints,
         timestamp,
         cadence,
         "cad",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.power_waypoints,
         timestamp,
         power,
         "power",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.vel_waypoints,
         timestamp,
         instant_speed,
         "vel",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.pace_waypoints,
         timestamp,
         instant_pace,
@@ -449,19 +450,19 @@ def _compute_derived_metrics(
         None
     """
     if state.ele_waypoints:
-        gain, loss = activities_utils.compute_elevation_gain_and_loss(
+        gain, loss = activities_computation.compute_elevation_gain_and_loss(
             elevations=state.ele_waypoints,
         )
         state.ele_gain = gain
         state.ele_loss = loss
 
-    state.pace = activities_utils.calculate_pace(
+    state.pace = activities_computation.calculate_pace(
         state.distance,
         state.first_waypoint_time,
         state.last_waypoint_time,
     )
 
-    state.activity_type = activities_utils.define_activity_type(
+    state.activity_type = activities_constants.define_activity_type(
         str(state.activity_type),
     )
 
@@ -472,19 +473,19 @@ def _compute_derived_metrics(
     )
 
     if state.hr_waypoints:
-        state.avg_hr, state.max_hr = activities_utils.calculate_avg_and_max(
+        state.avg_hr, state.max_hr = activities_computation.calculate_avg_and_max(
             state.hr_waypoints,
             "hr",
         )
 
     if state.cad_waypoints:
-        state.avg_cadence, state.max_cadence = activities_utils.calculate_avg_and_max(
+        state.avg_cadence, state.max_cadence = activities_computation.calculate_avg_and_max(
             state.cad_waypoints,
             "cad",
         )
 
     if state.vel_waypoints:
-        state.avg_speed, state.max_speed = activities_utils.calculate_avg_and_max(
+        state.avg_speed, state.max_speed = activities_computation.calculate_avg_and_max(
             state.vel_waypoints,
             "vel",
         )

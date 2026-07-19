@@ -31,7 +31,6 @@ import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
-import modules.activities.activity.utils as activities_utils
 import modules.followers.models as followers_models
 import modules.server_settings.utils as server_settings_utils
 
@@ -57,6 +56,22 @@ _NUMERIC_SORT_COLUMNS = {
     activities_models.Activity.pace,
     activities_models.Activity.average_hr,
 }
+
+
+def escape_like(term: str) -> str:
+    """Escape SQL LIKE wildcards in a user-provided term.
+
+    Escapes ``\\``, ``%`` and ``_`` so they are matched literally. Use together
+    with ``.like(..., escape="\\\\")`` to keep user input from injecting LIKE
+    wildcards into search filters.
+
+    Args:
+        term: Raw search term.
+
+    Returns:
+        Escaped search term safe for use inside a ``LIKE`` pattern.
+    """
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _visible_to_requester_condition(requester_user_id: int | None):
@@ -259,7 +274,7 @@ def _apply_name_search(
         Updated select statement.
     """
     raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{activities_utils.escape_like(raw)}%"
+    pattern = f"%{escape_like(raw)}%"
     return stmt.where(
         or_(
             func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
@@ -1188,7 +1203,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
     """
     try:
         partial_name = unquote(name).replace("+", " ").lower()
-        pattern = f"%{activities_utils.escape_like(partial_name)}%"
+        pattern = f"%{escape_like(partial_name)}%"
         stmt = (
             select(activities_models.Activity)
             .where(

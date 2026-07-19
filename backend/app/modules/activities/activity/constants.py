@@ -198,3 +198,35 @@ ACTIVITY_NAME_TO_ID.update(
         "jumprope": 47,
     }
 )
+
+
+def define_activity_type(activity_type_name: str) -> int:
+    """Map an activity-type name to its id (case-insensitive).
+
+    Args:
+        activity_type_name: The provider/parser sport-type name.
+
+    Returns:
+        The matching activity-type id, or ``10`` (Workout) when the name is not
+        recognised or is not a string.
+    """
+    default_type_id = 10
+
+    if isinstance(activity_type_name, str):
+        return ACTIVITY_NAME_TO_ID.get(activity_type_name.lower(), default_type_id)
+    return default_type_id
+
+
+def set_activity_name_based_on_activity_type(activity_type_id: int) -> str:
+    """Map an activity-type id to a display name.
+
+    Args:
+        activity_type_id: The activity-type id.
+
+    Returns:
+        The mapped name; unknown ids and ``10`` yield ``"Workout"``, every other
+        type gets a ``" workout"`` suffix (e.g. ``"Run workout"``).
+    """
+    mapping = ACTIVITY_ID_TO_NAME.get(activity_type_id, "Workout")
+
+    return mapping + " workout" if mapping != "Workout" else mapping

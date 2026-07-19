@@ -9,10 +9,11 @@ from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 import core.logger as core_logger
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
@@ -239,7 +240,7 @@ def parse_activity(
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
     if ele_waypoints:
-        ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(ele_waypoints)
+        ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(ele_waypoints)
 
         if detailed_activity.total_elevation_gain is not None:
             ele_gain = round(detailed_activity.total_elevation_gain)
@@ -267,7 +268,7 @@ def parse_activity(
     avg_cadence, max_cadence = None, None
     # Calculate average and maximum cadence
     if cad_waypoints:
-        avg_cadence, max_cadence = activities_utils.calculate_avg_and_max(cad_waypoints, "cad")
+        avg_cadence, max_cadence = activities_computation.calculate_avg_and_max(cad_waypoints, "cad")
 
         if detailed_activity.average_cadence is not None:
             avg_cadence = detailed_activity.average_cadence
@@ -284,7 +285,7 @@ def parse_activity(
     # Calculate normalized power
     np = None
     if power_waypoints:
-        np = activities_utils.calculate_np(power_waypoints)
+        np = activities_computation.calculate_np(power_waypoints)
 
     # List of conditions, stream types, and corresponding waypoints
     stream_data = [
@@ -308,7 +309,7 @@ def parse_activity(
             gear_id = gear.id
 
     # Activity type
-    activity_type = activities_utils.define_activity_type(detailed_activity.sport_type.root)
+    activity_type = activities_constants.define_activity_type(detailed_activity.sport_type.root)
 
     if gear_id is None:
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
@@ -671,7 +672,7 @@ def fetch_and_process_activity_laps(
         )
 
         if cad_stream:
-            cad_avg, cad_max = activities_utils.calculate_avg_and_max(cad_stream, "cad")
+            cad_avg, cad_max = activities_computation.calculate_avg_and_max(cad_stream, "cad")
 
         power_stream = next(
             (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 2),
@@ -679,8 +680,8 @@ def fetch_and_process_activity_laps(
         )
 
         if power_stream:
-            power_avg, power_max = activities_utils.calculate_avg_and_max(power_stream, "power")
-            np = activities_utils.calculate_np(power_stream)
+            power_avg, power_max = activities_computation.calculate_avg_and_max(power_stream, "power")
+            np = activities_computation.calculate_np(power_stream)
 
         ele_stream = next(
             (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 4),
@@ -688,7 +689,7 @@ def fetch_and_process_activity_laps(
         )
 
         if ele_stream:
-            ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(ele_stream)
+            ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(ele_stream)
 
         laps_processed.append(
             {

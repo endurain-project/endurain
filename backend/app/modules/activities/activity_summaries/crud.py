@@ -6,11 +6,11 @@ from typing import Any
 from sqlalchemy import ColumnElement, case, extract, func, select
 from sqlalchemy.orm import Session
 
-from modules.activities.activity.constants import ACTIVITY_NAME_TO_ID
-from modules.activities.activity.models import Activity
-from modules.activities.activity.utils import (
+from modules.activities.activity.constants import (
+    ACTIVITY_NAME_TO_ID,
     set_activity_name_based_on_activity_type,
 )
+from modules.activities.activity.models import Activity
 from modules.activities.activity_summaries.schema import (
     DaySummary,
     LifetimeSummaryResponse,

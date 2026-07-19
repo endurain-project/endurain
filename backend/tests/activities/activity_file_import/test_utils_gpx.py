@@ -8,7 +8,7 @@ import gpxpy
 import pytest
 from geopy.distance import geodesic
 
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils_gpx as utils_gpx
 
 
@@ -472,7 +472,7 @@ class TestCalculateInstantSpeed:
             (0.0, 0.0001),
         ).meters
 
-        speed = activities_utils.calculate_instant_speed(
+        speed = activities_computation.calculate_instant_speed(
             start,
             end,
             0.0,

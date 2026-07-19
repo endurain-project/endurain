@@ -13,9 +13,9 @@ from stravalib.exc import AccessUnauthorized
 import core.config as core_config
 import core.cryptography as core_cryptography
 import core.database as core_database
+import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.utils as activities_utils
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.strava.activity_utils as strava_activity_utils
@@ -193,7 +193,7 @@ async def import_bikes_from_strava_export(
         bikes_file_path = os.path.join(bulk_import_dir, bikes_file_name)
 
         # Move the bikes file to the processed directory
-        activities_utils.move_file(processed_dir, bikes_file_name, bikes_file_path)
+        core_file_uploads.move_within(bikes_file_path, processed_dir, filename=bikes_file_name)
         core_logger.print_to_log_and_console(f"{bikes_file_name} moved to: {processed_dir}.")
 
         # Log completion of bike import
@@ -249,7 +249,7 @@ async def import_shoes_from_strava_export(
         shoes_file_path = os.path.join(bulk_import_dir, shoes_file_name)
 
         # Move the shoes file to the processed directory and log it.
-        activities_utils.move_file(processed_dir, shoes_file_name, shoes_file_path)
+        core_file_uploads.move_within(shoes_file_path, processed_dir, filename=shoes_file_name)
         core_logger.print_to_log_and_console(f"{shoes_file_name} moved to: {processed_dir}.")
 
         # Log completion of shoe import
