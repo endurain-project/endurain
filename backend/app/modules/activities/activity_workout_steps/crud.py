@@ -11,12 +11,19 @@ import modules.activities.activity_workout_steps.schema as activity_workout_step
 import modules.server_settings.utils as server_settings_utils
 
 
+def _to_read_schema(
+    orm_step: activity_workout_steps_models.ActivityWorkoutSteps,
+) -> activity_workout_steps_schema.ActivityWorkoutSteps:
+    """Convert an ORM row to its read schema so ORM never leaves ``crud``."""
+    return activity_workout_steps_schema.ActivityWorkoutSteps.model_validate(orm_step)
+
+
 @core_decorators.handle_db_errors
 def get_activity_workout_steps(
     activity_id: int,
     token_user_id: int,
     db: Session,
-) -> list[activity_workout_steps_models.ActivityWorkoutSteps] | None:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps] | None:
     """
     Get workout steps for a single activity.
 
@@ -48,7 +55,7 @@ def get_activity_workout_steps(
     if not workout_steps:
         return None
 
-    return workout_steps
+    return [_to_read_schema(step) for step in workout_steps]
 
 
 @core_decorators.handle_db_errors
@@ -57,7 +64,7 @@ def get_activities_workout_steps(
     token_user_id: int,
     db: Session,
     activities: (list[activity_models.Activity] | None) = None,
-) -> list[activity_workout_steps_models.ActivityWorkoutSteps]:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
     Get workout steps for multiple activities.
 
@@ -101,14 +108,14 @@ def get_activities_workout_steps(
     if not workout_steps:
         return []
 
-    return workout_steps
+    return [_to_read_schema(step) for step in workout_steps]
 
 
 @core_decorators.handle_db_errors
 def get_public_activity_workout_steps(
     activity_id: int,
     db: Session,
-) -> list[activity_workout_steps_models.ActivityWorkoutSteps] | None:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps] | None:
     """
     Get workout steps for a public activity.
 
@@ -147,7 +154,7 @@ def get_public_activity_workout_steps(
     if not workout_steps:
         return None
 
-    return workout_steps
+    return [_to_read_schema(step) for step in workout_steps]
 
 
 @core_decorators.handle_db_errors
