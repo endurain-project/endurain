@@ -395,15 +395,6 @@ def split_records_by_activity(parsed_data: dict) -> dict:
                     parsed_session["session"]["initial_latitude"] = filtered["lat_lon_waypoints"][0]["lat"]
                     parsed_session["session"]["initial_longitude"] = filtered["lat_lon_waypoints"][0]["lon"]
 
-                # Use geocoding API to get city, town, and country
-                location_data = activity_file_import_utils.resolve_location(
-                    session["initial_latitude"], session["initial_longitude"]
-                )
-                if location_data:
-                    parsed_session["session"]["city"] = location_data["city"]
-                    parsed_session["session"]["town"] = location_data["town"]
-                    parsed_session["session"]["country"] = location_data["country"]
-
         if is_elevation_set:
             activity_waypoints[i]["ele_waypoints"] = filtered["ele_waypoints"]
             if filtered["ele_waypoints"]:
@@ -582,12 +573,6 @@ def _handle_session_frame(frame, state: FitParseState) -> None:
     ) = parse_frame_session(frame)
 
     city, town, country = None, None, None
-    if initial_latitude is not None and initial_longitude is not None:
-        location_data = activity_file_import_utils.resolve_location(initial_latitude, initial_longitude)
-        if location_data:
-            city = location_data["city"]
-            town = location_data["town"]
-            country = location_data["country"]
 
     state.sessions.append(
         {

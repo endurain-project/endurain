@@ -187,6 +187,37 @@ def get_activity_stream_by_type(
     return activity_streams_utils.transform_activity_streams(activity_stream)
 
 
+def get_gps_stream_waypoints_for_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, list]:
+    """Return each activity's GPS (map) stream waypoints, keyed by activity id.
+
+    Batch helper for the reverse-geocoding backfill: it fetches only the
+    ``STREAM_TYPE_MAP`` waypoints for the given activities in one query and keeps
+    the ORM confined to this module (returning plain lists, not ORM rows).
+    Activities without a GPS stream are simply absent from the result.
+
+    Args:
+        activity_ids: Activity ids to fetch GPS waypoints for.
+        db: Database session.
+
+    Returns:
+        Mapping of ``activity_id -> waypoints`` (empty when ``activity_ids`` is
+        empty).
+    """
+    if not activity_ids:
+        return {}
+    stmt = select(
+        activity_streams_models.ActivityStreams.activity_id,
+        activity_streams_models.ActivityStreams.stream_waypoints,
+    ).where(
+        activity_streams_models.ActivityStreams.activity_id.in_(activity_ids),
+        activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_MAP,
+    )
+    return {activity_id: (waypoints or []) for activity_id, waypoints in db.execute(stmt).all()}
+
+
 @core_decorators.handle_db_errors
 def get_public_activity_stream_by_type(
     activity_id: int,

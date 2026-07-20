@@ -34,6 +34,7 @@ import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
 import modules.activities.activity.subscribers as activity_subscribers
+import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
@@ -161,6 +162,16 @@ def _backfill_missing_hr_zones() -> None:
     core_scheduler.schedule_missing_hr_zone_backfill()
 
 
+def _backfill_missing_locations() -> None:
+    """Queue reverse-geocoding backfill for activities missing a location.
+
+    Schedules a one-shot job on the background scheduler (the reconciliation net
+    for the activity.created geocoding subscriber) instead of running the
+    network-bound backfill inline, so it cannot block lifespan startup.
+    """
+    core_scheduler.schedule_missing_location_backfill()
+
+
 def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
     """Populate ``app.state.allowed_tile_domains`` for CSP.
 
@@ -282,6 +293,11 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # synchronous ingestion path; the scheduled backfill is its reconciliation net.
     activity_streams_subscribers.register_hr_zone_subscribers(platform.events)
 
+    # The geocoding subscriber reacts to activity.created to reverse-geocode the
+    # activity's location off the (now network-free) parse path; the scheduled
+    # backfill is its reconciliation net.
+    activity_geocoding_subscribers.register_geocoding_subscribers(platform.events)
+
     # Also register the thumbnail handlers as durable job subscribers. Harmless
     # when durable jobs are off (the registry is simply not consulted); when on,
     # the outbox relay fans activity events out into retryable per-subscriber
@@ -294,6 +310,9 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Also register the HR-zone handler as a durable job subscriber.
     activity_streams_subscribers.register_hr_zone_durable_handlers(jobs_registry.registry)
+
+    # Also register the geocoding handler as a durable job subscriber.
+    activity_geocoding_subscribers.register_geocoding_durable_handlers(jobs_registry.registry)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -364,6 +383,9 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     core_logger.print_to_log_and_console("Scheduling missing HR-zone backfill")
     _safe_run("backfill_missing_hr_zones", _backfill_missing_hr_zones)
+
+    core_logger.print_to_log_and_console("Scheduling missing activity location backfill")
+    _safe_run("backfill_missing_locations", _backfill_missing_locations)
 
     core_logger.print_to_log_and_console("Initializing allowed tile domains for Content Security Policy")
     _init_allowed_tile_domains(fastapi_app)

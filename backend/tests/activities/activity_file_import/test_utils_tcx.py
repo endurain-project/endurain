@@ -289,10 +289,6 @@ class TestUtilsTcx:
                 return_value=None,
             ),
             patch(
-                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
-                return_value=None,
-            ),
-            patch(
                 "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
@@ -357,10 +353,6 @@ class TestUtilsTcx:
             patch(
                 "modules.activities.activity_file_import.utils_tcx"
                 ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
-            patch(
-                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
                 return_value=None,
             ),
             patch(

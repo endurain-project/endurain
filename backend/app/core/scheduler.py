@@ -6,6 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import core.logger as core_logger
 import core.network as core_network
+import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.auth.maintenance as auth_maintenance
@@ -138,6 +139,14 @@ def start_scheduler() -> None:
     )
 
     add_scheduler_job(
+        activity_geocoding_subscribers.run_missing_location_backfill,
+        "interval",
+        60,
+        [],
+        "backfill missing activity locations (reverse-geocoding)",
+    )
+
+    add_scheduler_job(
         core_network.refresh_trusted_proxy_hostnames,
         "interval",
         1,
@@ -246,6 +255,41 @@ def schedule_missing_hr_zone_backfill() -> None:
     except Exception as err:
         core_logger.print_to_log(
             f"Failed to schedule HR-zone backfill job: {type(err).__name__}",
+            "error",
+            exc=err,
+        )
+
+
+def schedule_missing_location_backfill() -> None:
+    """
+    Queue a one-shot missing activity-location backfill job.
+
+    Used at startup so the potentially heavy, network-bound reverse-geocoding
+    backfill runs on the scheduler's own executor after the app is ready, instead
+    of blocking the lifespan startup. Repeated calls coalesce into a single
+    pending run via a fixed job id.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
+    try:
+        scheduler.add_job(
+            activity_geocoding_subscribers.run_missing_location_backfill,
+            "date",
+            id="endurain_backfill_missing_locations_oneshot",
+            replace_existing=True,
+            misfire_grace_time=None,
+        )
+        core_logger.print_to_log("Scheduled one-shot activity-location backfill job")
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Failed to schedule activity-location backfill job: {type(err).__name__}",
             "error",
             exc=err,
         )

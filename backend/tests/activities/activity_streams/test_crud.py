@@ -307,6 +307,24 @@ class TestGetActivityStreamByType:
         assert e.value.status_code == 500
 
 
+class TestGetGpsStreamWaypointsForActivities:
+    def test_empty_ids_short_circuits(self, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        assert crud.get_gps_stream_waypoints_for_activities([], mock_db) == {}
+        mock_db.execute.assert_not_called()
+
+    def test_returns_mapping_and_coalesces_none(self, mock_db):
+        import modules.activities.activity_streams.crud as crud
+
+        mock_db.execute.return_value.all.return_value = [
+            (1, [{"lat": 38.0, "lon": -9.0}]),
+            (2, None),
+        ]
+        result = crud.get_gps_stream_waypoints_for_activities([1, 2], mock_db)
+        assert result == {1: [{"lat": 38.0, "lon": -9.0}], 2: []}
+
+
 class TestGetPublicActivityStreamByType:
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.is_stream_hidden")

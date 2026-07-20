@@ -41,6 +41,18 @@ class ActivityThumbnailRef:
     map_thumbnail_path: str | None = None
 
 
+@dataclass(frozen=True)
+class ActivityLocationRef:
+    """Lightweight activity reference for the reverse-geocoding backfill.
+
+    Carries only the activity id so CRUD can hand out this DTO instead of leaking
+    an ORM ``Activity`` row when listing activities that still have no resolved
+    city/town/country.
+    """
+
+    id: int
+
+
 class Activity(BaseModel):
     """
     Schema representing a fitness activity.

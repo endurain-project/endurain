@@ -1377,6 +1377,91 @@ def set_activity_thumbnail_path(
         raise _internal_server_error(err, "set_activity_thumbnail_path") from err
 
 
+def update_activity_location(
+    activity_id: int,
+    city: str | None,
+    town: str | None,
+    country: str | None,
+    db: Session,
+) -> bool:
+    """Persist a reverse-geocoded location on an activity.
+
+    Written by the geocoding subscriber / backfill once the location for a GPS
+    activity has been resolved (geocoding no longer runs inline in the parsers).
+
+    Args:
+        activity_id: Target activity ID.
+        city: Resolved city, or None.
+        town: Resolved town, or None.
+        country: Resolved country, or None.
+        db: Database session.
+
+    Returns:
+        True when the activity existed and was updated, False when it was not
+        found.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
+        db_activity = db.execute(stmt).scalar_one_or_none()
+        if db_activity is None:
+            core_logger.print_to_log(
+                f"Activity {activity_id} not found when updating location",
+                "warning",
+            )
+            return False
+        db_activity.city = city
+        db_activity.town = town
+        db_activity.country = country
+        db.commit()
+        return True
+    except SQLAlchemyError as err:
+        db.rollback()
+        raise _internal_server_error(err, "update_activity_location") from err
+
+
+def get_activities_missing_location(
+    db: Session,
+    limit: int = 200,
+) -> list[activities_schema.ActivityLocationRef]:
+    """Return references to activities that have no resolved location.
+
+    Rows where ``city``, ``town`` and ``country`` are all NULL — candidates for
+    the reverse-geocoding backfill. Bounded by ``limit`` so a single backfill
+    pass makes at most ``limit`` (rate-limited) geocoding requests; the
+    remainder are picked up on the next scheduled run.
+
+    Args:
+        db: Database session.
+        limit: Maximum number of candidate rows to return.
+
+    Returns:
+        Location references (id only) ordered by id, or an empty list on error.
+    """
+    try:
+        stmt = (
+            select(activities_models.Activity.id)
+            .where(
+                activities_models.Activity.city.is_(None),
+                activities_models.Activity.town.is_(None),
+                activities_models.Activity.country.is_(None),
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
+        ids = db.execute(stmt).scalars().all()
+        return [activities_schema.ActivityLocationRef(id=activity_id) for activity_id in ids]
+    except SQLAlchemyError as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_missing_location: {err}",
+            "error",
+            exc=err,
+        )
+        return []
+
+
 def clear_all_activity_thumbnail_paths(db: Session) -> None:
     """Set ``map_thumbnail_path`` to NULL on every activity.
 

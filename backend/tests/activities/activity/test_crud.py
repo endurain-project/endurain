@@ -1359,6 +1359,57 @@ class TestGetActivitiesWithoutThumbnail:
         assert crud.get_activities_without_thumbnail(db=mock_db) == []
 
 
+class TestUpdateActivityLocation:
+    def test_success(self, mock_db):
+        import modules.activities.activity.crud as crud
+        import modules.activities.activity.models as am
+
+        a = mock_model(am.Activity, id=1)
+        setup_mock_execute(mock_db, return_one_or_none=a)
+        result = crud.update_activity_location(1, "Lisbon", "Belem", "Portugal", db=mock_db)
+        assert result is True
+        assert (a.city, a.town, a.country) == ("Lisbon", "Belem", "Portugal")
+        mock_db.commit.assert_called_once()
+
+    def test_not_found(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        setup_mock_execute(mock_db, return_one_or_none=None)
+        result = crud.update_activity_location(999, "Lisbon", None, "Portugal", db=mock_db)
+        assert result is False
+        mock_db.commit.assert_not_called()
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.update_activity_location(1, "Lisbon", None, "Portugal", db=mock_db)
+        assert e.value.status_code == 500
+        mock_db.rollback.assert_called_once()
+
+
+class TestGetActivitiesMissingLocation:
+    def test_success(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        setup_mock_execute(mock_db, return_scalars_all=[1, 2])
+        r = crud.get_activities_missing_location(db=mock_db)
+        assert [ref.id for ref in r] == [1, 2]
+
+    def test_empty(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        setup_mock_execute(mock_db, return_scalars_all=[])
+        assert crud.get_activities_missing_location(db=mock_db) == []
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        assert crud.get_activities_missing_location(db=mock_db) == []
+
+
 class TestEditUserActivitiesVisibility:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud

@@ -68,7 +68,6 @@ class ParseState:
     pace: float = 0
     first_waypoint_time: datetime | None = None
     last_waypoint_time: datetime | None = None
-    location_resolved: bool = False
     gear_id: int | None = None
     city: str | None = None
     town: str | None = None
@@ -340,17 +339,6 @@ def _process_trackpoint(
 
     if state.first_waypoint_time is None:
         state.first_waypoint_time = time
-
-    if not state.location_resolved:
-        location_data = activity_file_import_utils.resolve_location(
-            latitude,
-            longitude,
-        )
-        if location_data:
-            state.city = location_data["city"]
-            state.town = location_data["town"]
-            state.country = location_data["country"]
-            state.location_resolved = True
 
     heart_rate, cadence, raw_power = _extract_extension_data(point)
     power: int | None = raw_power

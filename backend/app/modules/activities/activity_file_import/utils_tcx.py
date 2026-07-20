@@ -375,16 +375,6 @@ def parse_tcx_file(
                 trackpoints[-1]["time"],
             )
 
-            location_data = activity_file_import_utils.resolve_location(
-                trackpoints[0]["latitude"],
-                trackpoints[0]["longitude"],
-            )
-
-            if location_data:
-                city = location_data["city"]
-                town = location_data["town"]
-                country = location_data["country"]
-
             timezone = activity_file_import_utils.resolve_timezone_from_lat_lon(
                 trackpoints[0]["latitude"],
                 trackpoints[0]["longitude"],
