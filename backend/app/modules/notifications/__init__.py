@@ -11,9 +11,7 @@ Exports:
         create_notification, mark_notification_as_read
     - Schemas: NotificationBase, NotificationCreate, NotificationRead
     - Constants: NotificationType
-    - Utils: create_new_activity_notification,
-        create_new_duplicate_start_time_activity_notification,
-        create_new_follower_request_notification,
+    - Utils: create_new_follower_request_notification,
         create_accepted_follower_request_notification,
         create_admin_new_sign_up_approval_request_notification
 """
@@ -34,8 +32,6 @@ from .schema import (
 from .utils import (
     create_accepted_follower_request_notification,
     create_admin_new_sign_up_approval_request_notification,
-    create_new_activity_notification,
-    create_new_duplicate_start_time_activity_notification,
     create_new_follower_request_notification,
 )
 
@@ -46,8 +42,6 @@ __all__ = [
     "NotificationType",
     "create_accepted_follower_request_notification",
     "create_admin_new_sign_up_approval_request_notification",
-    "create_new_activity_notification",
-    "create_new_duplicate_start_time_activity_notification",
     "create_new_follower_request_notification",
     "create_notification",
     "get_user_notification_by_id",

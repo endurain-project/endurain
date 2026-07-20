@@ -74,98 +74,6 @@ async def _create_and_notify(
     return notification
 
 
-async def create_new_activity_notification(
-    user_id: int,
-    activity_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
-) -> notifications_schema.NotificationRead:
-    """
-    Create a new activity notification.
-
-    Args:
-        user_id: The user ID to notify.
-        activity_id: The new activity ID.
-        websocket_manager: WebSocket manager instance.
-
-    Returns:
-        The created NotificationRead schema.
-
-    Raises:
-        HTTPException: If creation or notify fails.
-    """
-    try:
-        return await _create_and_notify(
-            notifications_schema.NotificationCreate(
-                user_id=user_id,
-                type=(notifications_constants.NotificationType.NEW_ACTIVITY),
-                options={
-                    "activity_id": activity_id,
-                },
-            ),
-            "NEW_ACTIVITY_NOTIFICATION",
-            user_id,
-            websocket_manager,
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_new_activity_notification: {err}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Internal Server Error",
-        ) from err
-
-
-async def create_new_duplicate_start_time_activity_notification(
-    user_id: int,
-    activity_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
-) -> notifications_schema.NotificationRead:
-    """
-    Create a duplicate start time notification.
-
-    Args:
-        user_id: The user ID to notify.
-        activity_id: The duplicate activity ID.
-        websocket_manager: WebSocket manager instance.
-
-    Returns:
-        The created NotificationRead schema.
-
-    Raises:
-        HTTPException: If creation or notify fails.
-    """
-    try:
-        return await _create_and_notify(
-            notifications_schema.NotificationCreate(
-                user_id=user_id,
-                type=(notifications_constants.NotificationType.DUPLICATE_ACTIVITY),
-                options={
-                    "activity_id": activity_id,
-                },
-            ),
-            "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION",
-            user_id,
-            websocket_manager,
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_new_duplicate_start_time_activity_notification: {err}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Internal Server Error",
-        ) from err
-
-
 def create_activity_created_notification(
     user_id: int,
     activity_id: int,
@@ -174,9 +82,7 @@ def create_activity_created_notification(
 ) -> tuple[notifications_schema.NotificationRead, str]:
     """Create the notification row for a newly stored activity (synchronous).
 
-    The synchronous counterpart of :func:`create_new_activity_notification` /
-    :func:`create_new_duplicate_start_time_activity_notification`, for the
-    ``activity.created`` subscriber: it only writes the row (the record) and
+    For the ``activity.created`` subscriber: it only writes the row (the record) and
     returns it together with the websocket message type, leaving the best-effort
     websocket push to the caller (dispatched onto the main loop via the async
     bridge). No websocket work happens here, so it is safe to run on a durable
