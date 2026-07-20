@@ -480,6 +480,11 @@ def location_based_on_coordinates(latitude: float | None, longitude: float | Non
         # If no provider is set, return None
         return None
 
+    core_logger.print_to_log(
+        f"Reverse-geocoding ({latitude}, {longitude}) via {core_config.settings.REVERSE_GEO_PROVIDER}",
+        "debug",
+    )
+
     # Throttle requests according to configured rate limit
     if core_config.REVERSE_GEO_MIN_INTERVAL > 0:
         with core_config.REVERSE_GEO_LOCK:

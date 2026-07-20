@@ -10,13 +10,9 @@ from timezonefinder import TimezoneFinder
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.event_publishers as activity_event_publishers
+import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_streams.crud as activity_streams_crud
-import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.gears.gear.crud as gears_crud
 import modules.strava.utils as strava_utils
 import modules.users.users.crud as users_crud
@@ -385,50 +381,51 @@ def parse_activity(
 def save_activity_streams_laps(
     activity: activities_schema.Activity,
     stream_data: list,
-    laps: dict,
+    laps: list[dict] | None,
     ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> activities_schema.Activity:
-    # Create the activity and get the ID
-    created_activity = activities_crud.create_activity(activity, db)
+    """Persist a Strava-parsed activity through the canonical ingestion seam.
 
-    if stream_data is not None:
-        # Create the empty array of activity streams
-        activity_streams = []
+    Strava is a thin adapter (module rework plan §5.2): it builds the
+    format-agnostic :class:`~modules.activities.activity.schema.ParsedActivity`
+    from the parse result and delegates persistence + ``activity.created``
+    publication to
+    :func:`~modules.activities.activity.ingestion_service.store_parsed_activity`,
+    instead of calling ``create_activity`` and the stream/lap CRUD directly. The
+    notification, thumbnail, and HR-zone subscribers react to the published event.
 
-        # Create the activity streams objects
-        for is_set, stream_type, waypoints in stream_data:
-            if is_set:
-                activity_streams.append(
-                    activity_streams_schema.ActivityStreamsCreate(
-                        activity_id=created_activity.id,
-                        stream_type=stream_type,
-                        stream_waypoints=waypoints,
-                        strava_activity_stream_id=None,
-                    )
-                )
+    Args:
+        activity: The parsed Strava activity to persist.
+        stream_data: ``(is_set, stream_type, waypoints)`` tuples; only set streams
+            are persisted.
+        laps: Parsed lap dicts, or ``None`` when the activity has no laps.
+        ws_manager: Unused; retained for call-site compatibility. Websocket
+            delivery now happens in the notification subscriber via the async
+            bridge.
+        db: Database session.
 
-        # Create the activity streams in the database
-        activity_streams_crud.create_activity_streams(activity_streams, created_activity, db)
-
-    # Append activity id to laps
-    if laps is not None:
-        # Create the laps in the database
-        activity_laps_crud.create_activity_laps(laps, created_activity.id, db)
-
-    # Publish the domain fact after the children are stored so the notification
-    # and thumbnail subscribers react (notifications are no longer emitted inline
-    # from create_activity). ``is_hidden`` is True iff the start time duplicated an
-    # existing activity, selecting the duplicate notification variant.
-    activity_event_publishers.publish_activity_created(
-        created_activity.id,
-        created_activity.user_id,
-        duplicate_start_time=created_activity.is_hidden,
-        db=db,
+    Returns:
+        The created activity schema.
+    """
+    parsed_streams = [
+        activities_schema.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
+        for is_set, stream_type, waypoints in (stream_data or [])
+        if is_set
+    ]
+    parsed = activities_schema.ParsedActivity(
+        activity=activity,
+        streams=parsed_streams,
+        laps=laps,
+        source=activities_schema.ImportSource(
+            kind="strava",
+            provider_activity_id=activity.strava_activity_id,
+        ),
     )
 
-    # return the created activity
-    return created_activity
+    # Persist + publish ``activity.created`` via the canonical seam. The seam marks
+    # duplicate start times hidden and forwards that to the notification subscriber.
+    return ingestion_service.store_parsed_activity(parsed, db)
 
 
 async def process_activity(

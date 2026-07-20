@@ -334,6 +334,10 @@ def parse_tcx_file(
             parsed or processed.
     """
     try:
+        core_logger.print_to_log(
+            f"TCX parse start: file={file}, user={user_id}",
+            "debug",
+        )
         tcx_file = tcxreader.TCXReader().read(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
@@ -427,6 +431,12 @@ def parse_tcx_file(
             "power_waypoints": power_wp,
             "lat_lon_waypoints": lat_lon_wp,
         }
+        core_logger.print_to_log(
+            f"TCX parse complete: user={user_id}, type={activity_type}, distance={distance}m, "
+            f"laps={len(laps)}, gps_points={len(lat_lon_wp)}, "
+            f"streams(hr={bool(hr_wp)}, power={bool(power_wp)})",
+            "debug",
+        )
         return activity_file_import_utils.build_activity_file_payload(activity, waypoints_combined, laps)
 
     except HTTPException as http_err:

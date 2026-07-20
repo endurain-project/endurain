@@ -598,6 +598,10 @@ def parse_gpx_file(
         HTTPException: 500 if the file cannot be read.
     """
     try:
+        core_logger.print_to_log(
+            f"GPX parse start: file={file}, user={user_id}",
+            "debug",
+        )
         state = _init_parsing_state(
             activity_name_input,
             core_config.settings.TZ,
@@ -667,6 +671,16 @@ def parse_gpx_file(
                     state.vel_waypoints,
                 )
             )
+
+        core_logger.print_to_log(
+            f"GPX parse complete: user={user_id}, type={activity.activity_type}, "
+            f"distance={activity.distance}m, segments={len(state.lat_lon_segments)}, "
+            f"laps={len(laps)}, gps_points={len(state.lat_lon_waypoints)}, "
+            f"streams(hr={bool(state.hr_waypoints)}, power={bool(state.power_waypoints)}, "
+            f"cadence={bool(state.cad_waypoints)}, elevation={bool(state.ele_waypoints)}, "
+            f"velocity={bool(state.vel_waypoints)})",
+            "debug",
+        )
 
         return ParsedGpxData(
             activity=activity,

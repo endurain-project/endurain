@@ -30,6 +30,10 @@ def create_activity_objects(
     db: Session = None,
 ) -> list:
     try:
+        core_logger.print_to_log(
+            f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}",
+            "debug",
+        )
         timezone = core_config.settings.TZ
 
         # Define variables
@@ -244,6 +248,10 @@ def create_activity_objects(
 
             activities.append(parsed_activity)
 
+        core_logger.print_to_log(
+            f"FIT: built {len(activities)} activity object(s) for user={user_id}",
+            "debug",
+        )
         return activities
     except HTTPException as http_err:
         raise http_err
@@ -741,6 +749,7 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
 
 def parse_fit_file(file: str, db: Session, activity_name_input: str | None = None) -> dict:
     try:
+        core_logger.print_to_log(f"FIT parse start: file={file}", "debug")
         state = FitParseState(
             activity_name=activity_name_input or "Workout",
         )
@@ -754,6 +763,10 @@ def parse_fit_file(file: str, db: Session, activity_name_input: str | None = Non
         if state.exercises_titles:
             activity_exercise_titles_crud.create_activity_exercise_titles(state.exercises_titles, db)
 
+        core_logger.print_to_log(
+            f"FIT parse complete: file={file}, exercise_titles={len(state.exercises_titles)}",
+            "debug",
+        )
         return state.to_payload()
     except HTTPException as http_err:
         raise http_err
