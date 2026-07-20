@@ -92,7 +92,7 @@ def get_activity_laps(
     Raises:
         HTTPException: If database error occurs.
     """
-    activity = activity_crud.get_activity_by_id(activity_id, db)
+    activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
     if not activity:
         return None

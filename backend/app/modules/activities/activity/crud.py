@@ -1016,6 +1016,51 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         raise _internal_server_error(err, "get_activity_by_id_from_user_id_or_has_visibility") from err
 
 
+def get_viewable_activity_by_id_for_user(
+    activity_id: int, user_id: int, db: Session
+) -> activities_schema.Activity | None:
+    """Return an activity (unmasked) iff the user may view it — child-resource authz gate.
+
+    Enforces the same visibility rule as
+    :func:`get_activity_by_id_from_user_id_or_has_visibility` (the requester must
+    own the activity, or it must be public, or followers-only with an accepted
+    follow — never private or hidden for a non-owner), but returns the activity
+    **without** applying the field mask so child sub-resource reads (streams /
+    laps / sets / workout-steps) can still inspect the activity's ``hide_*`` flags
+    and ``timezone`` to apply their own per-field masking.
+
+    This is the authorization gate for child sub-resources: it stops a non-owner
+    from reading a private or followers-only activity's streams/laps/sets/steps by
+    ID (OWASP A01 / IDOR). Prefer it over :func:`get_activity_by_id` (which does no
+    permission check) whenever a request-facing read is scoped to a requester.
+
+    Args:
+        activity_id: Activity ID.
+        user_id: Requesting user ID.
+        db: Database session.
+
+    Returns:
+        The activity schema when the user may view it, otherwise ``None``.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(activities_models.Activity).where(
+            or_(
+                activities_models.Activity.user_id == user_id,
+                _visible_to_requester_condition(user_id),
+            ),
+            activities_models.Activity.id == activity_id,
+        )
+        activity = db.execute(stmt).scalar_one_or_none()
+        if not activity:
+            return None
+        return activities_serializers.serialize_activity(activity)
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "get_viewable_activity_by_id_for_user") from err
+
+
 def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities_schema.Activity | None:
     """Get an activity by ID if it is publicly shareable.
 

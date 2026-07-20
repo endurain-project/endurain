@@ -65,7 +65,7 @@ class TestCreateActivityStreams:
 
 class TestGetActivityStreams:
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_success(self, mock_get_act, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
@@ -81,7 +81,7 @@ class TestGetActivityStreams:
         r = crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     @patch("modules.activities.activity_streams.crud.activity_streams_schema.ActivityStreamsRead.model_validate")
     def test_by_type(self, mock_validate, mock_get_act, mock_db):
         import modules.activities.activity_streams.crud as crud
@@ -98,7 +98,7 @@ class TestGetActivityStreams:
         r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
         assert r is not None
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_not_found(self, mock_get_act, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -107,7 +107,7 @@ class TestGetActivityStreams:
         assert r == []
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_empty(self, mock_get_act, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -118,7 +118,7 @@ class TestGetActivityStreams:
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.filter_visible_streams")
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_non_owner(self, mock_get_act, mock_transform, mock_filter, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
@@ -130,7 +130,7 @@ class TestGetActivityStreams:
         r = crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_db_error(self, mock_get_act, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -256,7 +256,7 @@ class TestGetPublicActivityStreams:
 
 class TestGetActivityStreamByType:
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_success(self, mock_get_act, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
@@ -267,7 +267,7 @@ class TestGetActivityStreamByType:
         r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
         assert r is not None
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_not_found(self, mock_get_act, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -275,7 +275,7 @@ class TestGetActivityStreamByType:
         r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_empty(self, mock_get_act, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -285,7 +285,7 @@ class TestGetActivityStreamByType:
         assert r is None
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.is_stream_hidden")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_hidden(self, mock_get_act, mock_hidden, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
@@ -296,7 +296,7 @@ class TestGetActivityStreamByType:
         r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_db_error(self, mock_get_act, mock_db):
         import modules.activities.activity_streams.crud as crud
 

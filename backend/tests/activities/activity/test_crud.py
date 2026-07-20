@@ -1056,6 +1056,128 @@ class TestGetActivityByIdIfIsPublic:
         assert crud.get_activity_by_id_if_is_public(activity_id=999, db=sqlite_session) is None
 
 
+class TestGetViewableActivityByIdForUser:
+    """Child-resource authorization gate (OWASP A01 / IDOR).
+
+    ``get_viewable_activity_by_id_for_user`` is the visibility check the child
+    sub-resource reads (streams / laps / sets / workout-steps) apply before
+    returning a parent activity's data, so a non-owner cannot read a private or
+    followers-only activity's streams/laps/sets/steps by id. The public /
+    followers / private / hidden filtering lives in the SQL ``WHERE`` clause, so
+    the access-control guarantees are exercised against a real in-memory SQLite
+    database; only the error branch stays on the mock-DB path.
+    """
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_owner_sees_own_private_activity(self, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_ser.return_value = MagicMock()
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=2, is_hidden=False))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=2, db=sqlite_session)
+
+        assert result is not None
+        # Returned unmasked (no apply_visibility_mask) so callers can read hide_* flags.
+        assert mock_ser.call_args.args[0].id == 1
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_denied_private_activity(self, mock_ser, sqlite_session):
+        """A non-owner must NOT read a private (visibility=2) activity by id."""
+        import modules.activities.activity.crud as crud
+
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=2, is_hidden=False))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_sees_public_activity(self, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_ser.return_value = MagicMock()
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=0, is_hidden=False))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is not None
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_denied_hidden_public_activity(self, mock_ser, sqlite_session):
+        """A hidden activity is never visible to a non-owner, even when public."""
+        import modules.activities.activity.crud as crud
+
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=0, is_hidden=True))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_denied_followers_only_without_follow(self, mock_ser, sqlite_session):
+        """A followers-only (visibility=1) activity is denied without an accepted follow."""
+        import modules.activities.activity.crud as crud
+
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=1, is_hidden=False))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_denied_followers_only_with_pending_follow(self, mock_ser, sqlite_session):
+        """A pending (unaccepted) follow does not grant followers-only access."""
+        import modules.activities.activity.crud as crud
+        import modules.followers.models as followers_models
+
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=1, is_hidden=False))
+        sqlite_session.add(followers_models.Follower(follower_id=1, following_id=2, is_accepted=False))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_sees_followers_only_with_accepted_follow(self, mock_ser, sqlite_session):
+        """An accepted follower may read a followers-only activity."""
+        import modules.activities.activity.crud as crud
+        import modules.followers.models as followers_models
+
+        mock_ser.return_value = MagicMock()
+        sqlite_session.add(_public_activity(id=1, user_id=2, visibility=1, is_hidden=False))
+        sqlite_session.add(followers_models.Follower(follower_id=1, following_id=2, is_accepted=True))
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is not None
+        assert mock_ser.call_args.args[0].id == 1
+
+    def test_not_found(self, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        assert crud.get_viewable_activity_by_id_for_user(activity_id=999, user_id=1, db=sqlite_session) is None
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+
+
 class TestGetActivityByStartTime:
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     def test_success_with_str(self, mock_ser, mock_db):

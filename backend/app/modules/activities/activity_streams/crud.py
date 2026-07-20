@@ -36,7 +36,9 @@ def get_activity_streams(
     Raises:
         HTTPException: On database errors.
     """
-    activity: activity_schema.Activity | None = activity_crud.get_activity_by_id(activity_id, db)
+    activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
+        activity_id, token_user_id, db
+    )
 
     if not activity:
         return []
@@ -160,7 +162,9 @@ def get_activity_stream_by_type(
     Raises:
         HTTPException: On database errors.
     """
-    activity: activity_schema.Activity | None = activity_crud.get_activity_by_id(activity_id, db)
+    activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
+        activity_id, token_user_id, db
+    )
 
     if not activity:
         return None
