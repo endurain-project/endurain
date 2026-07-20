@@ -12,7 +12,7 @@ import core.database as core_database
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import core.text_imports as core_text_imports
-import modules.activities.activity.models as activities_models
+import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.orchestrator as ingestion_orchestrator
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.auth.dependencies as auth_dependencies
@@ -436,7 +436,7 @@ def does_activity_start_time_match_the_data_in_strava_activities_csv(
 
 async def import_media_from_strava_bulk_export(
     strava_activities: dict,
-    created_activity: activities_models.Activity,
+    created_activity: activities_schema.Activity,
     file_base_name: str,
     db: Annotated[
         Session,
@@ -464,6 +464,12 @@ async def import_media_from_strava_bulk_export(
     Returns:
         None
     """
+    if created_activity.id is None:
+        core_logger.print_to_log_and_console(
+            f"Bulk file import: cannot import media for {file_base_name} - created activity has no id",
+            "warning",
+        )
+        return
     if strava_activities.get(file_base_name):
         media_string = strava_activities[file_base_name]["Media"].strip()
         media_list = []

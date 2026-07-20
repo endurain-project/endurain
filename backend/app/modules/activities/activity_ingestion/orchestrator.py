@@ -21,6 +21,7 @@ import time
 import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
@@ -32,7 +33,6 @@ import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.ingestion_service as ingestion_service
-import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
@@ -41,7 +41,7 @@ import modules.activities.activity_ingestion.file_adapter as file_adapter
 import modules.strava.bulk_import_utils as strava_bulk_import_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 # Maximum size accepted when decompressing a gzipped activity
 # upload. Mirrors core_file_uploads' activity cap; safeuploads
@@ -121,12 +121,12 @@ def handle_gzipped_file(
 
 
 def _prepare_bulk_import_activity(
-    activity: activities_models.Activity,
+    activity: dict,
     is_bulk_import: bool,
     created_activities_objects: list,
     strava_activities: dict | None,
     activity_metadata_dict: dict,
-) -> activities_models.Activity | None:
+) -> dict | None:
     """Process a single activity for bulk import.
 
     Returns the (possibly updated) activity, or None if the activity
@@ -189,7 +189,7 @@ def _cleanup_upload_artifacts(file_paths: list[str]) -> None:
 
 def parse_file(
     token_user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     file_extension: str,
     filename: str,
     db: Session,
@@ -198,15 +198,20 @@ def parse_file(
     try:
         if filename.lower() != "bulk_import/__init__.py":
             core_logger.print_to_log(f"Parsing file: {filename}")
+            parsed_info: dict[str, Any]
             # Choose the appropriate parser based on file extension
             if file_extension.lower() == ".gpx":
-                # Parse the GPX file
-                parsed_info = gpx_utils.parse_gpx_file(
-                    filename,
-                    token_user_id,
-                    user_privacy_settings,
-                    db,
-                    activity_name,
+                # Parse the GPX file. parse_gpx_file returns a ParsedGpxData
+                # TypedDict; normalize it to a plain dict so ``parsed_info`` is a
+                # single dict type across the gpx/tcx/fit branches downstream.
+                parsed_info = dict(
+                    gpx_utils.parse_gpx_file(
+                        filename,
+                        token_user_id,
+                        user_privacy_settings,
+                        db,
+                        activity_name,
+                    )
                 )
             elif file_extension.lower() == ".tcx":
                 parsed_info = tcx_utils.parse_tcx_file(

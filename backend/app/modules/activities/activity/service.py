@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
@@ -41,7 +42,13 @@ def get_activities_in_timeframe(
     Returns:
         The scoped activities, or ``None`` when there are none.
     """
-    if user_id == requester_user_id:
+    is_owner = user_id == requester_user_id
+    core_logger.print_to_log(
+        f"get_activities_in_timeframe: user {user_id} "
+        f"[{'owner' if is_owner else 'requester-scoped'}] window {start}..{end}",
+        "debug",
+    )
+    if is_owner:
         return activities_crud.get_user_activities_per_timeframe(user_id, start, end, db, True)
     return activities_crud.get_user_activities_per_timeframe(
         user_id,
@@ -111,6 +118,10 @@ def period_stats(
     db: Session,
 ) -> activities_schema.ActivityStats:
     """Aggregate per-sport stats for a user's ``week`` or ``month`` (default week)."""
+    core_logger.print_to_log(
+        f"period_stats: user {user_id} period={period!r} requester {requester_user_id}",
+        "debug",
+    )
     if period == "month":
         return month_stats(user_id, requester_user_id, db)
     return week_stats(user_id, requester_user_id, db)
@@ -177,7 +188,7 @@ def list_user_activities_paginated(
     ones visible to them (the CRUD layer applies the mask from ``user_is_owner``
     plus the requester id).
     """
-    return activities_crud.get_user_activities_with_pagination(
+    activities = activities_crud.get_user_activities_with_pagination(
         user_id=user_id,
         db=db,
         page_number=page_number,
@@ -191,11 +202,21 @@ def list_user_activities_paginated(
         user_is_owner=(user_id == requester_user_id),
         requester_user_id=requester_user_id,
     )
+    core_logger.print_to_log(
+        f"list_user_activities_paginated: user {user_id} requester {requester_user_id} "
+        f"page {page_number} size {num_records} -> {len(activities) if activities else 0} activities",
+        "debug",
+    )
+    return activities
 
 
 def _require_feed_owner(user_id: int, requester_user_id: int) -> None:
     """Enforce that the requester is reading their own following feed (OWASP A01 / IDOR)."""
     if user_id != requester_user_id:
+        core_logger.print_to_log(
+            f"Blocked following-feed access: user {requester_user_id} requested the feed of user {user_id}",
+            "warning",
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden",
@@ -211,9 +232,14 @@ def get_following_feed(
 ) -> list[activities_schema.Activity] | None:
     """Return the requester's following feed (activities of users they follow)."""
     _require_feed_owner(user_id, requester_user_id)
-    return activities_crud.get_user_following_activities_with_pagination(
+    feed = activities_crud.get_user_following_activities_with_pagination(
         requester_user_id, page_number, num_records, db
     )
+    core_logger.print_to_log(
+        f"get_following_feed: user {requester_user_id} page {page_number} -> {len(feed) if feed else 0} activities",
+        "debug",
+    )
+    return feed
 
 
 def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> int:

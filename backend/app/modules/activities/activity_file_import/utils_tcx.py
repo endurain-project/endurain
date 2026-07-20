@@ -14,7 +14,7 @@ import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 
 def _parse_lap_power(
@@ -245,7 +245,7 @@ def _build_activity(
     max_power: float | None,
     norm_power: float | None,
     gear_id: int | None,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
 ) -> activities_schema.Activity:
     """
     Construct an Activity schema from parsed TCX data.
@@ -309,7 +309,7 @@ def _build_activity(
 def parse_tcx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     db: Session,
     activity_name_input: str | None = None,
 ) -> dict:

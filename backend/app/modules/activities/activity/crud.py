@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, cast
 from urllib.parse import unquote
 
 from fastapi import HTTPException, status
@@ -1005,7 +1005,12 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         if not activity:
             return None
         schema = activities_serializers.serialize_activity(activity)
-        activities_serializers.apply_visibility_mask(schema, is_owner=(activity.user_id == user_id))
+        is_owner = activity.user_id == user_id
+        activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
+        core_logger.print_to_log(
+            f"Served activity {activity_id} to user {user_id} (owner={is_owner})",
+            "debug",
+        )
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_from_user_id_or_has_visibility") from err
@@ -1039,6 +1044,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
             return None
         schema = activities_serializers.serialize_activity(activity)
         activities_serializers.apply_visibility_mask(schema, is_owner=False)
+        core_logger.print_to_log(f"Served public activity {activity_id}", "debug")
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_if_is_public") from err
@@ -1248,7 +1254,26 @@ def create_activity(
         HTTPException: 500 on database error.
     """
     try:
-        activity_start_time_exists = get_activity_by_start_time(activity.start_time, activity.user_id, db)
+        if activity.user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Activity user_id is required",
+            )
+
+        # Normalize the start time to a UTC-aware datetime at the persistence
+        # boundary. Parsers emit naive UTC wall-clock values and providers emit
+        # ISO strings; to_utc_aware coerces both to aware UTC and returns None for
+        # a missing value, so we never persist or compare a naive/absent start
+        # time (this is also what keeps get_activity_by_start_time from being
+        # handed a None).
+        normalized_start_time = core_timezone.to_utc_aware(activity.start_time)
+        if normalized_start_time is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Activity start_time is required and must be a valid datetime",
+            )
+
+        activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
         if activity_start_time_exists:
             activity.is_hidden = True
 
@@ -1513,7 +1538,9 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
             .where(activities_models.Activity.user_id == user_id)
             .values(visibility=visibility)
         )
-        result: CursorResult[Any] = db.execute(stmt)
+        # Session.execute() is typed to return the base Result; an UPDATE/DELETE
+        # always yields a CursorResult at runtime, which is what exposes rowcount.
+        result = cast("CursorResult[Any]", db.execute(stmt))
         db.commit()
         return result.rowcount or 0
     except SQLAlchemyError as err:
@@ -1563,7 +1590,7 @@ def bulk_set_activities_gear_id(
                 )
                 .values(gear_id=gear_id)
             )
-            result: CursorResult[Any] = db.execute(stmt)
+            result = cast("CursorResult[Any]", db.execute(stmt))
             total += result.rowcount or 0
         db.commit()
         return total
@@ -1624,7 +1651,7 @@ def delete_activity(activity_id: int, db: Session) -> None:
     """
     try:
         stmt = sa_delete(activities_models.Activity).where(activities_models.Activity.id == activity_id)
-        result: CursorResult[Any] = db.execute(stmt)
+        result = cast("CursorResult[Any]", db.execute(stmt))
         if result.rowcount == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1658,7 +1685,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session) -> int:
             activities_models.Activity.user_id == user_id,
             activities_models.Activity.strava_activity_id.isnot(None),
         )
-        result: CursorResult[Any] = db.execute(stmt)
+        result = cast("CursorResult[Any]", db.execute(stmt))
         if result.rowcount:
             db.commit()
         return result.rowcount or 0

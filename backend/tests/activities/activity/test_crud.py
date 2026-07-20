@@ -227,10 +227,32 @@ class TestCreateActivity:
         mock_transform.return_value = m
         a = MagicMock()
         a.user_id = 1
-        a.start_time = None
+        a.start_time = datetime.now(UTC)
         r = crud.create_activity(activity=a, db=mock_db)
         assert r is not None
         mock_db.add.assert_called_once()
+
+    def test_missing_start_time_raises_422(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        a = MagicMock()
+        a.user_id = 1
+        a.start_time = None
+        with pytest.raises(HTTPException) as e:
+            crud.create_activity(activity=a, db=mock_db)
+        assert e.value.status_code == 422
+        mock_db.add.assert_not_called()
+
+    def test_missing_user_id_raises_422(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        a = MagicMock()
+        a.user_id = None
+        a.start_time = datetime.now(UTC)
+        with pytest.raises(HTTPException) as e:
+            crud.create_activity(activity=a, db=mock_db)
+        assert e.value.status_code == 422
+        mock_db.add.assert_not_called()
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")

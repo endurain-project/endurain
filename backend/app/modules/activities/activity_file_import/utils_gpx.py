@@ -19,7 +19,7 @@ import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 # Re-export for backwards compatibility (migration_3.py calls
 # gpx_utils.generate_activity_laps directly).
@@ -515,7 +515,7 @@ def _compute_derived_metrics(
 def _build_activity_schema(
     state: ParseState,
     user_id: int,
-    user_privacy_settings: (users_privacy_settings_models.UsersPrivacySettings),
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
 ) -> activities_schema.Activity:
     """
     Build an Activity Pydantic schema from parsed state.
@@ -574,7 +574,7 @@ def _build_activity_schema(
 def parse_gpx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: (users_privacy_settings_models.UsersPrivacySettings),
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     db: Session,
     activity_name_input: str | None = None,
 ) -> ParsedGpxData:

@@ -14,7 +14,7 @@ from timezonefinder import TimezoneFinder
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
 
 # ISO 8601 datetime format used throughout the import pipeline
@@ -40,12 +40,12 @@ STREAM_KEYS: tuple[str, ...] = (
 
 
 def build_activity_privacy_kwargs(
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
 ) -> dict[str, bool | int]:
-    """Build privacy field kwargs for Activity schema from ORM model.
+    """Build privacy field kwargs for the Activity schema from privacy settings.
 
     Args:
-        user_privacy_settings: The ORM privacy-settings record for the
+        user_privacy_settings: The user's privacy-settings DTO for the
             activity owner.
 
     Returns:

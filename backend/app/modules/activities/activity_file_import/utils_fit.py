@@ -18,13 +18,13 @@ import modules.activities.activity_workout_steps.schema as activity_workout_step
 import modules.garmin.utils as garmin_utils
 import modules.gears.gear.crud as gears_crud
 import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     garmin_activity_id: int | None = None,
     garminconnect_gear: dict | None = None,
     db: Session = None,
