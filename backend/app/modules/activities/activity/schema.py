@@ -1,8 +1,10 @@
 """Pydantic schemas for activity API payloads."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import (
     BaseModel,
@@ -12,6 +14,13 @@ from pydantic import (
     StrictInt,
     StrictStr,
 )
+
+if TYPE_CHECKING:
+    # Imported for typing only: a runtime import would be circular (the sub-module
+    # packages import activity.crud, which imports this module). These name the
+    # element types of the ingestion contract's child collections (ParsedActivity).
+    import modules.activities.activity_sets.schema as activity_sets_schema
+    import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
@@ -353,14 +362,18 @@ class ParsedActivity:
         activity: The activity row to persist (the existing read/input schema).
         streams: Parsed streams (type + waypoints), assigned an ``activity_id``
             at persist time.
-        laps / sets / workout_steps: Optional child collections, passed through
-            to their respective CRUD creators unchanged.
+        laps: Optional parsed laps — dicts keyed by the ``ActivityLapsBase`` field
+            names — passed through to ``create_activity_laps`` unchanged.
+        sets: Optional parsed workout sets (validated ``ActivitySetsCreate``
+            schemas, or the raw positional lists the FIT parser emits).
+        workout_steps: Optional parsed workout steps (validated
+            ``ActivityWorkoutSteps`` schemas).
         source: Where the activity came from.
     """
 
     activity: Activity
     streams: list[ParsedStream] = field(default_factory=list)
-    laps: list | None = None
-    sets: list | None = None
-    workout_steps: list | None = None
+    laps: list[dict[str, Any]] | None = None
+    sets: list[activity_sets_schema.ActivitySetsCreate | list] | None = None
+    workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps] | None = None
     source: ImportSource | None = None

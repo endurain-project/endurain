@@ -23,7 +23,7 @@ class TestTransformSchemaToModel:
     @patch("modules.activities.activity.crud.activities_models.Activity")
     @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_basic(self, mock_sanitization, mock_model):
-        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import _transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: x
         mock_model.return_value = MagicMock()
@@ -40,7 +40,7 @@ class TestTransformSchemaToModel:
             calories=500,
         )
 
-        transform_schema_activity_to_model_activity(activity_schema)
+        _transform_schema_activity_to_model_activity(activity_schema)
 
         mock_model.assert_called_once()
         _, kwargs = mock_model.call_args
@@ -53,7 +53,7 @@ class TestTransformSchemaToModel:
     @patch("modules.activities.activity.crud.activities_models.Activity")
     @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_with_created_at(self, mock_sanitization, mock_model):
-        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import _transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: x
         mock_model.return_value = MagicMock()
@@ -61,7 +61,7 @@ class TestTransformSchemaToModel:
         created_at = datetime(2024, 1, 10, 12, 0, 0, tzinfo=UTC)
         activity_schema = self._make_schema(created_at=created_at)
 
-        transform_schema_activity_to_model_activity(activity_schema)
+        _transform_schema_activity_to_model_activity(activity_schema)
 
         _, kwargs = mock_model.call_args
         assert kwargs["created_at"] == created_at
@@ -69,14 +69,14 @@ class TestTransformSchemaToModel:
     @patch("modules.activities.activity.crud.activities_models.Activity")
     @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_total_timer_time_falls_back_to_elapsed(self, mock_sanitization, mock_model):
-        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import _transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: x
         mock_model.return_value = MagicMock()
 
         activity_schema = self._make_schema(total_elapsed_time=4000.0, total_timer_time=None)
 
-        transform_schema_activity_to_model_activity(activity_schema)
+        _transform_schema_activity_to_model_activity(activity_schema)
 
         _, kwargs = mock_model.call_args
         assert kwargs["total_timer_time"] == 4000.0
@@ -84,7 +84,7 @@ class TestTransformSchemaToModel:
     @patch("modules.activities.activity.crud.activities_models.Activity")
     @patch("modules.activities.activity.crud.core_sanitization")
     def test_transform_sanitizes_markdown(self, mock_sanitization, mock_model):
-        from modules.activities.activity.crud import transform_schema_activity_to_model_activity
+        from modules.activities.activity.crud import _transform_schema_activity_to_model_activity
 
         mock_sanitization.sanitize_markdown.side_effect = lambda x: f"sanitized:{x}"
         mock_model.return_value = MagicMock()
@@ -94,7 +94,7 @@ class TestTransformSchemaToModel:
             private_notes="<b>secret</b>",
         )
 
-        transform_schema_activity_to_model_activity(activity_schema)
+        _transform_schema_activity_to_model_activity(activity_schema)
 
         _, kwargs = mock_model.call_args
         assert kwargs["description"] == "sanitized:<script>alert('xss')</script>"

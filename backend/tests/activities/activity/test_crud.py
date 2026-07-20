@@ -217,7 +217,7 @@ class TestGetActivityByID:
 
 class TestCreateActivity:
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
     def test_success(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -255,7 +255,7 @@ class TestCreateActivity:
         mock_db.add.assert_not_called()
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
     def test_duplicate_start_time(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -274,7 +274,7 @@ class TestCreateActivity:
         assert a.is_hidden is True
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud.transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
     def test_db_error(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 

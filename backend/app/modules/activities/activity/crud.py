@@ -149,7 +149,7 @@ def _internal_server_error(err: Exception, context: str) -> HTTPException:
     )
 
 
-def transform_schema_activity_to_model_activity(
+def _transform_schema_activity_to_model_activity(
     activity: activities_schema.Activity,
 ) -> activities_models.Activity:
     # Use an explicit UTC-aware created_at when provided,
@@ -1277,7 +1277,7 @@ def create_activity(
         if activity_start_time_exists:
             activity.is_hidden = True
 
-        new_activity = transform_schema_activity_to_model_activity(activity)
+        new_activity = _transform_schema_activity_to_model_activity(activity)
 
         db.add(new_activity)
         db.commit()

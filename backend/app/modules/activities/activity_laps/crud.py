@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_laps.models as activity_laps_models
@@ -246,3 +247,8 @@ def create_activity_laps(
 
     db.add_all(laps)
     db.commit()
+
+    core_logger.print_to_log(
+        f"Created {len(laps)} lap(s) for activity {activity_id}",
+        "debug",
+    )

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
@@ -199,3 +200,8 @@ def create_activity_workout_steps(
 
     db.add_all(workout_steps)
     db.commit()
+
+    core_logger.print_to_log(
+        f"Created {len(workout_steps)} workout step(s) for activity {activity_id}",
+        "debug",
+    )
