@@ -312,6 +312,20 @@ def parse_activity(
     if gear_id is None:
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
+    # Normalize running cadence to steps per minute (spm). Strava reports
+    # running cadence as a single-leg rate (rpm); decide once per activity from
+    # the avg and leave already-spm sources untouched. Mutating the waypoints in
+    # place keeps the stored stream and the per-lap cadence (derived from the
+    # same stream_data) consistent with the avg/max below.
+    if activities_utils.is_running_cadence_type(activity_type) and activities_utils.running_cadence_is_per_leg(
+        avg_cadence
+    ):
+        avg_cadence = activities_utils.double_running_cadence(avg_cadence)
+        max_cadence = activities_utils.double_running_cadence(max_cadence)
+        for wp in cad_waypoints:
+            if wp.get("cad") is not None:
+                wp["cad"] = round(wp["cad"] * 2)
+
     if activity_type != 3 and activity_type != 7 and is_lat_lon_set:
         timezone = tf.timezone_at(
             lat=lat_lon_waypoints[0]["lat"],

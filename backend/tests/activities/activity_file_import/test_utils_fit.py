@@ -2,8 +2,13 @@
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import activities.activity_file_import.utils_fit as utils_fit
+
+_GEAR_LOOKUP = (
+    "activities.activity_file_import.utils_fit.user_default_gear_utils.get_user_default_gear_by_activity_type"
+)
 
 
 class _MockFrame:
@@ -269,6 +274,87 @@ class TestUtilsFit:
         activity = activities_list[0]["activity"]
         assert activity.average_cad == 88
         assert activity.max_cad == 95
+
+    @patch(_GEAR_LOOKUP, return_value=None)
+    def test_create_activity_objects_normalizes_running_cadence_to_spm(self, _mock_gear):
+        """Running FIT cadence (rpm + fractional) is doubled to spm across the
+        activity, the per-record stream, and the laps."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "running"
+        record["session"]["avg_cadence"] = 85
+        record["session"]["max_cadence"] = 93
+        record["session"]["avg_fractional_cadence"] = 0.328125
+        record["session"]["max_fractional_cadence"] = 0.0
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 84},
+            {"time": "2026-06-20T08:20:10", "cad": 90},
+        ]
+        record["laps"] = [
+            {
+                "start_time": datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC),
+                "avg_cadence": 84,
+                "max_cadence": 88,
+                "avg_fractional_cadence": 0.5,
+                "max_fractional_cadence": 0.0,
+            }
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        payload = activities_list[0]
+        # (85 + 0.328125) * 2 = 170.66 -> 171 ; (93 + 0) * 2 = 186.
+        assert payload["activity"].average_cad == 171
+        assert payload["activity"].max_cad == 186
+        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [168, 180]
+        # (84 + 0.5) * 2 = 169 ; (88 + 0) * 2 = 176.
+        assert payload["laps"][0]["avg_cadence"] == 169
+        assert payload["laps"][0]["max_cadence"] == 176
+
+    @patch(_GEAR_LOOKUP, return_value=None)
+    def test_create_activity_objects_leaves_already_spm_running_cadence(self, _mock_gear):
+        """A running-type source that already stores spm (e.g. treadmill) is
+        left untouched — the rpm/spm threshold protects it from doubling."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "treadmill"
+        record["session"]["avg_cadence"] = 159
+        record["session"]["max_cadence"] = 167
+        record["cad_waypoints"] = [
+            {"time": "2026-06-20T08:20:03", "cad": 158},
+            {"time": "2026-06-20T08:20:10", "cad": 167},
+        ]
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        payload = activities_list[0]
+        assert payload["activity"].average_cad == 159
+        assert payload["activity"].max_cad == 167
+        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [158, 167]
+
+    @patch(_GEAR_LOOKUP, return_value=None)
+    def test_create_activity_objects_keeps_cycling_cadence_as_rpm(self, _mock_gear):
+        """Non-running cadence is stored verbatim (rpm), never doubled."""
+        record = _session_record(None)
+        record["session"]["activity_type"] = "cycling"
+        record["session"]["avg_cadence"] = 88
+        record["session"]["max_cadence"] = 110
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        activity = activities_list[0]["activity"]
+        assert activity.average_cad == 88
+        assert activity.max_cad == 110
 
     def test_create_activity_objects_computes_elevation_from_waypoints(self):
         """Elevation gain/loss fall back to ele_waypoints when omitted."""
