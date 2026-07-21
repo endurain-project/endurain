@@ -19,10 +19,8 @@ class TestRunWorkerProcess:
             patch("worker.core_config") as cfg,
             patch("worker.platform_container") as container,
             patch("worker.platform_runtime") as runtime,
-            patch("worker.activity_thumbnail_subscribers") as thumbnail_subscribers,
-            patch("worker.activity_subscribers") as activity_subscribers,
-            patch("worker.activity_streams_subscribers") as streams_subscribers,
-            patch("worker.activity_geocoding_subscribers") as geocoding_subscribers,
+            patch("worker.activity_subscriber_registry") as subscriber_registry,
+            patch("worker.jobs_registry") as jobs_registry,
             patch("worker.jobs_service") as service,
             patch("worker.run_worker") as run_worker_mock,
             patch("worker._install_signal_handlers") as install_signals,
@@ -33,12 +31,10 @@ class TestRunWorkerProcess:
 
         container.build_platform.assert_called_once()
         runtime.set_active_platform.assert_called_once()
-        # Every activity durable handler must be registered so the worker can
-        # resolve any claimed job (must mirror main.startup_event).
-        thumbnail_subscribers.register_thumbnail_durable_handlers.assert_called_once()
-        activity_subscribers.register_activity_notification_durable_handlers.assert_called_once()
-        streams_subscribers.register_hr_zone_durable_handlers.assert_called_once()
-        geocoding_subscribers.register_geocoding_durable_handlers.assert_called_once()
+        # Every activity durable handler must be registered via the shared surface
+        # so the worker can resolve any claimed job — the SAME call main.startup_event
+        # makes, so the two entrypoints cannot drift.
+        subscriber_registry.register_all_activity_durable_handlers.assert_called_once_with(jobs_registry.registry)
         service.build_runner.assert_called_once()
         install_signals.assert_called_once_with(stop)
         run_worker_mock.assert_called_once()

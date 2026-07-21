@@ -33,10 +33,7 @@ import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
-import modules.activities.activity.subscribers as activity_subscribers
-import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
-import modules.activities.activity_streams.subscribers as activity_streams_subscribers
-import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
+import modules.activities.subscriber_registry as activity_subscriber_registry
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
@@ -279,40 +276,17 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # websocket push — back onto it via infra.async_bridge.
     platform_async_bridge.capture_running_loop()
 
-    # Register domain subscribers before starting the bus. The thumbnail
-    # subsystem is the first real consumer of the substrate (foundations §13),
-    # reacting to both activity.created and activity.deleted.
-    activity_thumbnail_subscribers.register_thumbnail_subscribers(platform.events)
-
-    # The activity-notification subscriber reacts to activity.created (new /
-    # duplicate-start-time), replacing the inline notification that create_activity
-    # used to emit.
-    activity_subscribers.register_activity_notification_subscribers(platform.events)
-
-    # The HR-zone subscriber reacts to activity.created to score HR streams off the
-    # synchronous ingestion path; the scheduled backfill is its reconciliation net.
-    activity_streams_subscribers.register_hr_zone_subscribers(platform.events)
-
-    # The geocoding subscriber reacts to activity.created to reverse-geocode the
-    # activity's location off the (now network-free) parse path; the scheduled
-    # backfill is its reconciliation net.
-    activity_geocoding_subscribers.register_geocoding_subscribers(platform.events)
-
-    # Also register the thumbnail handlers as durable job subscribers. Harmless
-    # when durable jobs are off (the registry is simply not consulted); when on,
-    # the outbox relay fans activity events out into retryable per-subscriber
-    # jobs run by the worker instead of the inline bus path.
-    activity_thumbnail_subscribers.register_thumbnail_durable_handlers(jobs_registry.registry)
-
-    # Also register the activity-notification handler as a durable job subscriber
-    # (harmless when durable jobs are off; retryable per-subscriber delivery when on).
-    activity_subscribers.register_activity_notification_durable_handlers(jobs_registry.registry)
-
-    # Also register the HR-zone handler as a durable job subscriber.
-    activity_streams_subscribers.register_hr_zone_durable_handlers(jobs_registry.registry)
-
-    # Also register the geocoding handler as a durable job subscriber.
-    activity_geocoding_subscribers.register_geocoding_durable_handlers(jobs_registry.registry)
+    # Register every activities event-bus subscriber before starting the bus, and
+    # every activities durable-job handler on the registry — both via the single
+    # shared surface in activities.subscriber_registry so the API and the standalone
+    # worker can never drift (A8). The bus subscribers (thumbnail, notification,
+    # HR-zone, geocoding) react to activity.created / activity.deleted; the durable
+    # handlers are the same set keyed by stable subscriber id (harmless when durable
+    # jobs are off, retryable per-subscriber when on). Each durable subscriber that
+    # writes durable derived state declares a reconciliation net (scheduled backfill)
+    # in that module.
+    activity_subscriber_registry.register_all_activity_bus_subscribers(platform.events)
+    activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.

@@ -60,6 +60,16 @@ def notify_activity_created_for_event(event: Event) -> None:
 
     # Best-effort websocket push on the main loop; the row above is the record,
     # so a failed/dropped push (offline client, no loop) is not an error.
+    #
+    # KNOWN LIMITATION (distributed): get_websocket_manager() is the PROCESS-LOCAL
+    # connection registry, so this reaches only clients whose websocket is held by
+    # THIS process. In a multi-replica deployment the durable job may run on a
+    # worker/replica other than the one holding the user's socket, so the live push
+    # is silently dropped for that client. No durable state is lost — the
+    # notification ROW is written, so the client still sees it on its next fetch.
+    # The real fix (cross-replica fan-out, e.g. a Redis pub/sub relay to every
+    # replica's manager) belongs to the future websocket module rework; noted here
+    # (A8) so it is not forgotten.
     platform_async_bridge.dispatch(
         websocket_utils.notify_frontend(
             user_id,

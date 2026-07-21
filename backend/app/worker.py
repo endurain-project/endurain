@@ -20,10 +20,7 @@ import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
-import modules.activities.activity.subscribers as activity_subscribers
-import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
-import modules.activities.activity_streams.subscribers as activity_streams_subscribers
-import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
+import modules.activities.subscriber_registry as activity_subscriber_registry
 from infra.jobs.worker import run_worker
 
 
@@ -55,14 +52,11 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     platform = platform_container.build_platform(core_config.settings)
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any
-    # claimed job's subscriber_id back to a handler. Must mirror the durable
-    # registrations in main.startup_event — a handler registered there but not
-    # here would leave its jobs unresolvable (and dead-lettered) on a dedicated
-    # worker.
-    activity_thumbnail_subscribers.register_thumbnail_durable_handlers(jobs_registry.registry)
-    activity_subscribers.register_activity_notification_durable_handlers(jobs_registry.registry)
-    activity_streams_subscribers.register_hr_zone_durable_handlers(jobs_registry.registry)
-    activity_geocoding_subscribers.register_geocoding_durable_handlers(jobs_registry.registry)
+    # claimed job's subscriber_id back to a handler. Uses the SAME shared surface
+    # as main.startup_event (activities.subscriber_registry) so the two entrypoints
+    # cannot drift — a handler registered in one but not the other would leave its
+    # jobs unresolvable (and dead-lettered) on a dedicated worker.
+    activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     runner = jobs_service.build_runner()
