@@ -11,6 +11,29 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+class TestSha256File:
+    def test_matches_hashlib(self, tmp_path):
+        import hashlib
+
+        import modules.activities.activity_ingestion.orchestrator as orchestrator
+
+        path = tmp_path / "activity.gpx"
+        payload = b"<gpx>some deterministic content</gpx>"
+        path.write_bytes(payload)
+
+        assert orchestrator._sha256_file(str(path)) == hashlib.sha256(payload).hexdigest()
+
+    def test_stable_across_reads(self, tmp_path):
+        import modules.activities.activity_ingestion.orchestrator as orchestrator
+
+        path = tmp_path / "activity.fit"
+        path.write_bytes(b"\x00\x01\x02repeatable\xff")
+
+        # The same file bytes must hash identically on every read (the property
+        # that makes re-importing the same file a no-op).
+        assert orchestrator._sha256_file(str(path)) == orchestrator._sha256_file(str(path))
+
+
 class TestHandleGzippedFile:
     @patch("modules.activities.activity_ingestion.orchestrator.gzip.open")
     @patch("modules.activities.activity_ingestion.orchestrator.NamedTemporaryFile")

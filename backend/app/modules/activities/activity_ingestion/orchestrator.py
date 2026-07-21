@@ -13,6 +13,7 @@ parser-agnostic — see the ``activities-parsing-boundary`` import-linter contra
 
 import contextlib
 import gzip
+import hashlib
 import os
 import shutil
 import time
@@ -48,6 +49,22 @@ import modules.users.users_privacy_settings.schema as users_privacy_settings_sch
 _MAX_DECOMPRESSED_ACTIVITY_BYTES = 200 * 1024 * 1024
 # Chunk size used while streaming decompressed bytes to disk.
 _DECOMPRESS_CHUNK_BYTES = 1024 * 1024
+
+
+def _sha256_file(file_path: str) -> str:
+    """Return the hex SHA-256 of a file's contents (streamed in chunks).
+
+    Gives provider-less file imports (upload / bulk import) a stable idempotency
+    fingerprint: re-importing the exact same file yields the same hash, so
+    :func:`ingestion_service.store_parsed_activity` can no-op it. The file is
+    hashed after ``.gz`` decompression, so a ``.gpx`` and its ``.gpx.gz`` produce
+    the same key.
+    """
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(_DECOMPRESS_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def handle_gzipped_file(
@@ -359,8 +376,14 @@ def _store_activities_from_file(
     # Work through the parsed info; process and store any activity information
     # found (specific routines depend on file type: .gpx/.tcx and .fit have very
     # different needs).
+    # File-based sources (direct upload, generic + Strava bulk import) carry no
+    # provider activity id, so their stable identity for idempotency is the
+    # SHA-256 of the (already-decompressed) file. Garmin syncs key off the
+    # provider id instead, so skip the hash there.
+    content_hash = None if from_garmin else _sha256_file(file_path)
     import_source = activities_schema.ImportSource(
         kind="garmin" if from_garmin else "bulk_import" if is_bulk_import else "upload",
+        content_hash=content_hash,
     )
     created_activities = []
     created_activity: activities_schema.Activity | None = None

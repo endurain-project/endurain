@@ -357,16 +357,22 @@ class ImportSource:
         kind: Origin of the activity (``"upload"`` / ``"bulk_import"`` /
             ``"garmin"``).
         provider_activity_id: The external provider's activity id, when known.
-        dedup_key: Stable idempotency key for the activity (a provider-scoped id
-            like ``"strava:123"`` now, a content hash later). When set and an
-            activity with the same key already exists for the owner, re-ingestion
-            is a no-op instead of creating a duplicate. Falls back to start-time
-            deduplication when absent (e.g. plain uploads).
+        dedup_key: Explicit stable idempotency key for the activity. When set and
+            an activity with the same key already exists for the owner,
+            re-ingestion is a no-op instead of creating a duplicate. When absent,
+            the ingestion service derives one (provider id, else file
+            ``content_hash`` + start time), falling back to start-time dedup.
+        content_hash: SHA-256 of the parsed file's contents, set by the file
+            ingestion path for provider-less sources (upload / bulk import). The
+            ingestion service turns it into a ``file:{hash}:{start}`` dedup key so
+            re-importing the exact same file is a true no-op. ``None`` for
+            provider syncs (they key off the provider id).
     """
 
     kind: str
     provider_activity_id: int | None = None
     dedup_key: str | None = None
+    content_hash: str | None = None
 
 
 @dataclass

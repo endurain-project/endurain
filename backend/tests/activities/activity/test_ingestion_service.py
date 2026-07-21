@@ -209,22 +209,99 @@ class TestStoreParsedActivity:
 
         assert mock_crud.create_activity.call_args.kwargs["dedup_key"] == "garmin:456"
 
+    @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
+    @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
+    @patch("modules.activities.activity.ingestion_service.activities_crud")
+    def test_noop_on_existing_content_hash(self, mock_crud, mock_streams_crud, mock_pub):
+        import modules.activities.activity.ingestion_service as ingestion_service
+        import modules.activities.activity.schema as schema
+        from datetime import UTC, datetime
+
+        existing = MagicMock(id=99, user_id=3)
+        mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
+        mock_crud.create_activity = MagicMock()
+
+        activity = MagicMock(
+            strava_activity_id=None,
+            garminconnect_activity_id=None,
+            user_id=3,
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
+        )
+        parsed = _parsed(activity=activity, source=schema.ImportSource(kind="upload", content_hash="abc"))
+
+        result = ingestion_service.store_parsed_activity(parsed, MagicMock())
+
+        # A file-content dedup key (file:{hash}:{start}) makes re-import of the
+        # same file a true no-op — the existing activity is returned, nothing is
+        # created or published.
+        assert result is existing
+        epoch = int(datetime(2024, 1, 1, tzinfo=UTC).timestamp())
+        args = mock_crud.get_activity_by_dedup_key.call_args.args
+        assert args[0] == f"file:abc:{epoch}"
+        assert args[1] == 3
+        mock_crud.create_activity.assert_not_called()
+        mock_pub.publish_activity_created.assert_not_called()
+
 
 class TestDeriveDedupKey:
     def test_prefers_strava_over_garmin(self):
         import modules.activities.activity.ingestion_service as ingestion_service
 
         activity = MagicMock(strava_activity_id=1, garminconnect_activity_id=2)
-        assert ingestion_service._derive_dedup_key(activity) == "strava:1"
+        assert ingestion_service._derive_dedup_key(activity, None) == "strava:1"
 
     def test_falls_back_to_garmin(self):
         import modules.activities.activity.ingestion_service as ingestion_service
 
         activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=2)
-        assert ingestion_service._derive_dedup_key(activity) == "garmin:2"
+        assert ingestion_service._derive_dedup_key(activity, None) == "garmin:2"
 
-    def test_none_for_plain_upload(self):
+    def test_none_for_plain_upload_without_hash(self):
         import modules.activities.activity.ingestion_service as ingestion_service
+        import modules.activities.activity.schema as schema
 
         activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=None)
-        assert ingestion_service._derive_dedup_key(activity) is None
+        assert ingestion_service._derive_dedup_key(activity, schema.ImportSource(kind="upload")) is None
+
+    def test_content_hash_key_when_no_provider_id(self):
+        import modules.activities.activity.ingestion_service as ingestion_service
+        import modules.activities.activity.schema as schema
+        from datetime import UTC, datetime
+
+        activity = MagicMock(
+            strava_activity_id=None,
+            garminconnect_activity_id=None,
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
+        )
+        source = schema.ImportSource(kind="upload", content_hash="abc123")
+        epoch = int(datetime(2024, 1, 1, tzinfo=UTC).timestamp())
+        assert ingestion_service._derive_dedup_key(activity, source) == f"file:abc123:{epoch}"
+
+    def test_provider_id_wins_over_content_hash(self):
+        import modules.activities.activity.ingestion_service as ingestion_service
+        import modules.activities.activity.schema as schema
+
+        activity = MagicMock(strava_activity_id=9, garminconnect_activity_id=None)
+        source = schema.ImportSource(kind="upload", content_hash="abc123")
+        assert ingestion_service._derive_dedup_key(activity, source) == "strava:9"
+
+    def test_multi_activity_distinct_start_times_yield_distinct_keys(self):
+        import modules.activities.activity.ingestion_service as ingestion_service
+        import modules.activities.activity.schema as schema
+        from datetime import UTC, datetime
+
+        # Two activities parsed from the SAME multi-activity file share the file
+        # hash but differ by start time, so the start-time salt keeps their keys
+        # distinct (they must not dedup against each other).
+        source = schema.ImportSource(kind="upload", content_hash="deadbeef")
+        a1 = MagicMock(
+            strava_activity_id=None, garminconnect_activity_id=None, start_time=datetime(2024, 1, 1, 10, tzinfo=UTC)
+        )
+        a2 = MagicMock(
+            strava_activity_id=None, garminconnect_activity_id=None, start_time=datetime(2024, 1, 1, 12, tzinfo=UTC)
+        )
+        k1 = ingestion_service._derive_dedup_key(a1, source)
+        k2 = ingestion_service._derive_dedup_key(a2, source)
+        assert k1 != k2
+        assert k1.startswith("file:deadbeef:")
+        assert k2.startswith("file:deadbeef:")

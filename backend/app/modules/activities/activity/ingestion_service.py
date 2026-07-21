@@ -7,6 +7,8 @@ and persists the activity plus its streams/laps/sets/workout-steps, then publish
 or Garmin — the ``activity_ingestion`` adapters produce the contract and call here.
 """
 
+from datetime import datetime
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -22,18 +24,34 @@ import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 
 
-def _derive_dedup_key(activity: activities_schema.Activity) -> str | None:
-    """Derive a provider-scoped idempotency key from an activity's provider ids.
+def _derive_dedup_key(
+    activity: activities_schema.Activity,
+    source: activities_schema.ImportSource | None,
+) -> str | None:
+    """Derive a stable idempotency key for an activity.
 
-    Prefers the Strava id, then the Garmin Connect id — both live on the core
-    ``Activity`` schema, so this stays free of any file-format or provider-module
-    coupling. Returns ``None`` for plain uploads (no provider id), which fall
-    back to start-time deduplication in ``create_activity``.
+    Precedence:
+
+    1. **Provider id** — Strava then Garmin Connect (both on the core ``Activity``
+       schema). Provider ids are stable across server-side re-processing/edits, so
+       they are the canonical identity for provider syncs.
+    2. **File content hash** — for file-based sources (upload / bulk import) that
+       carry no provider id, ``source.content_hash`` (the SHA-256 of the parsed
+       file) plus the activity's start time. The start-time salt keeps multiple
+       activities parsed from one multi-activity ``.fit`` (which share a file
+       hash) distinct.
+    3. ``None`` — nothing to key on; ``create_activity`` falls back to start-time
+       dedup (marks a duplicate hidden rather than a no-op).
+
+    Stays free of any file-format or provider-module coupling: it reads only the
+    core schema + the ``ImportSource`` contract.
     """
     if activity.strava_activity_id is not None:
         return f"strava:{activity.strava_activity_id}"
     if activity.garminconnect_activity_id is not None:
         return f"garmin:{activity.garminconnect_activity_id}"
+    if source is not None and source.content_hash and isinstance(activity.start_time, datetime):
+        return f"file:{source.content_hash}:{int(activity.start_time.timestamp())}"
     return None
 
 
@@ -61,7 +79,9 @@ def store_parsed_activity(
         # activity without creating a duplicate row, its children, or
         # re-publishing ``activity.created``.
         source = parsed.source
-        dedup_key = source.dedup_key if source is not None and source.dedup_key else _derive_dedup_key(parsed.activity)
+        dedup_key = (
+            source.dedup_key if source is not None and source.dedup_key else _derive_dedup_key(parsed.activity, source)
+        )
 
         if dedup_key is not None and parsed.activity.user_id is not None:
             existing = activities_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
