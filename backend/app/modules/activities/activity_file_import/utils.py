@@ -10,8 +10,6 @@ from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
 
 import modules.activities.activity.schema as activities_schema
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
-import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
 
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -33,37 +31,6 @@ STREAM_KEYS: tuple[str, ...] = (
     "is_lat_lon_set",
     "lat_lon_waypoints",
 )
-
-
-def build_activity_privacy_kwargs(
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
-) -> dict[str, bool | int]:
-    """Build privacy field kwargs for the Activity schema from privacy settings.
-
-    Args:
-        user_privacy_settings: The user's privacy-settings DTO for the
-            activity owner.
-
-    Returns:
-        A dict with all 16 privacy fields ready to unpack into an
-        Activity constructor call.
-    """
-    ups = user_privacy_settings
-    return {
-        "visibility": users_privacy_settings_utils.visibility_to_int(ups.default_activity_visibility),
-        "hide_start_time": ups.hide_activity_start_time or False,
-        "hide_location": ups.hide_activity_location or False,
-        "hide_map": ups.hide_activity_map or False,
-        "hide_hr": ups.hide_activity_hr or False,
-        "hide_power": ups.hide_activity_power or False,
-        "hide_cadence": ups.hide_activity_cadence or False,
-        "hide_elevation": ups.hide_activity_elevation or False,
-        "hide_speed": ups.hide_activity_speed or False,
-        "hide_pace": ups.hide_activity_pace or False,
-        "hide_laps": ups.hide_activity_laps or False,
-        "hide_workout_sets_steps": (ups.hide_activity_workout_sets_steps or False),
-        "hide_gear": ups.hide_activity_gear or False,
-    }
 
 
 def build_activity_file_payload(

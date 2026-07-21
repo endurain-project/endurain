@@ -4,7 +4,6 @@ from typing import Any
 
 import tcxreader
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
@@ -13,8 +12,6 @@ import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
-import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 
 def _parse_lap_power(
@@ -244,11 +241,13 @@ def _build_activity(
     avg_power: float | None,
     max_power: float | None,
     norm_power: float | None,
-    gear_id: int | None,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
 ) -> activities_schema.Activity:
     """
     Construct an Activity schema from parsed TCX data.
+
+    Domain fields (privacy, gear, provider ids) are intentionally left unset —
+    the ``activity_ingestion`` enrichment seam populates them after parsing so
+    the parser stays pure (plan §18.2 / A7).
 
     Args:
         tcx_file: Parsed TCX file object.
@@ -264,9 +263,6 @@ def _build_activity(
         avg_power: Average power or None.
         max_power: Maximum power or None.
         norm_power: Normalized power or None.
-        gear_id: Gear ID or None.
-        user_privacy_settings: User privacy settings
-            ORM instance.
 
     Returns:
         Populated Activity Pydantic schema.
@@ -274,8 +270,6 @@ def _build_activity(
     elapsed = (
         (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
     )
-
-    privacy_kwargs = activity_file_import_utils.build_activity_privacy_kwargs(user_privacy_settings)
 
     return activities_schema.Activity(
         user_id=user_id,
@@ -301,16 +295,12 @@ def _build_activity(
         average_cad=(round(tcx_file.cadence_avg) if tcx_file.cadence_avg else None),
         max_cad=(round(tcx_file.cadence_max) if tcx_file.cadence_max else None),
         calories=(tcx_file.calories if tcx_file.calories else None),
-        gear_id=gear_id,
-        **privacy_kwargs,
     )
 
 
 def parse_tcx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
-    db: Session,
     activity_name_input: str | None = None,
 ) -> dict:
     """
@@ -319,9 +309,6 @@ def parse_tcx_file(
     Args:
         file: Path to the TCX file.
         user_id: ID of the owning user.
-        user_privacy_settings: User privacy settings
-            ORM instance.
-        db: Database session.
         activity_name_input: Optional custom activity
             name.
 
@@ -352,8 +339,6 @@ def parse_tcx_file(
         norm_power: float | None = None
 
         activity_type = activities_constants.define_activity_type(tcx_file.activity_type)
-
-        gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
         laps = _parse_laps(tcx_file)
         waypoints = _extract_waypoints(trackpoints, tcx_file)
@@ -412,8 +397,6 @@ def parse_tcx_file(
             avg_power=avg_power,
             max_power=max_power,
             norm_power=norm_power,
-            gear_id=gear_id,
-            user_privacy_settings=user_privacy_settings,
         )
 
         waypoints_combined = {

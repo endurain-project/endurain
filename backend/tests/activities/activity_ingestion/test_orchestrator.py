@@ -213,10 +213,8 @@ class TestParseFile:
         mock_gpx.parse_gpx_file.return_value = {"activity": "data"}
         result = parse_file(
             token_user_id=1,
-            user_privacy_settings=MagicMock(),
             file_extension=".gpx",
             filename="/path/to/file.gpx",
-            db=MagicMock(),
         )
         assert result == {"activity": "data"}
 
@@ -228,10 +226,8 @@ class TestParseFile:
         mock_tcx.parse_tcx_file.return_value = {"activity": "tcx_data"}
         result = parse_file(
             token_user_id=1,
-            user_privacy_settings=MagicMock(),
             file_extension=".tcx",
             filename="/path/to/file.tcx",
-            db=MagicMock(),
         )
         assert result == {"activity": "tcx_data"}
 
@@ -243,10 +239,8 @@ class TestParseFile:
         mock_fit.parse_fit_file.return_value = {"activity": "fit_data"}
         result = parse_file(
             token_user_id=1,
-            user_privacy_settings=MagicMock(),
             file_extension=".fit",
             filename="/path/to/file.fit",
-            db=MagicMock(),
         )
         assert result == {"activity": "fit_data"}
 
@@ -259,10 +253,8 @@ class TestParseFile:
         with pytest.raises(HTTPException) as exc:
             parse_file(
                 token_user_id=1,
-                user_privacy_settings=MagicMock(),
                 file_extension=".xyz",
                 filename="/path/to/file.xyz",
-                db=MagicMock(),
             )
         assert exc.value.status_code == 406
 
@@ -272,10 +264,8 @@ class TestParseFile:
 
         result = parse_file(
             token_user_id=1,
-            user_privacy_settings=MagicMock(),
             file_extension=".py",
             filename="bulk_import/__init__.py",
-            db=MagicMock(),
         )
         assert result is None
 
@@ -325,9 +315,7 @@ class TestParseFileError:
         with pytest.raises(HTTPException) as exc:
             parse_file(
                 token_user_id=1,
-                user_privacy_settings=MagicMock(),
                 file_extension=".gpx",
                 filename="/path/to/file.gpx",
-                db=MagicMock(),
             )
         assert exc.value.status_code == 500

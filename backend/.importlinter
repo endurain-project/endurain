@@ -111,3 +111,25 @@ forbidden_modules =
     modules.activities.activity_file_import
     modules.strava
     modules.garmin
+
+# The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
+# db, privacy, gear, provider, or exercise-title-crud coupling (plan §18.2 / A7). Every bit
+# of domain resolution they used to do inline (default/Garmin gear, privacy defaults,
+# exercise-title persistence) now lives in the sibling activity_ingestion/ enrichment seam,
+# which legitimately owns db + provider knowledge — so a parser is unit-testable with bytes
+# alone. The parsers may still import the activities SCHEMAS (activity.schema /
+# activity_exercise_titles.schema / activity_workout_steps.schema) — data shapes, not crud.
+[importlinter:contract:activity-file-import-purity]
+name = Activity file parsers must be pure (no db / domain / provider / crud imports)
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_file_import
+forbidden_modules =
+    modules.gears
+    modules.users
+    modules.garmin
+    modules.strava
+    modules.activities.*.crud
+    modules.activities.*.*.crud
+    sqlalchemy

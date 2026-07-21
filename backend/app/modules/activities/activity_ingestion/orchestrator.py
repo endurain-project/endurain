@@ -32,14 +32,15 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_file_import.utils_tcx as tcx_utils
+import modules.activities.activity_ingestion.enrichment as enrichment
 import modules.activities.activity_ingestion.file_adapter as file_adapter
 import modules.strava.bulk_import_utils as strava_bulk_import_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 # Maximum size accepted when decompressing a gzipped activity
 # upload. Mirrors core_file_uploads' activity cap; safeuploads
@@ -203,17 +204,17 @@ def _cleanup_upload_artifacts(file_paths: list[str]) -> None:
 
 def parse_file(
     token_user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     file_extension: str,
     filename: str,
-    db: Session,
     activity_name: str | None = None,
 ) -> dict | None:
     try:
         if filename.lower() != "bulk_import/__init__.py":
             core_logger.print_to_log(f"Parsing file: {filename}")
             parsed_info: dict[str, Any]
-            # Choose the appropriate parser based on file extension
+            # Choose the appropriate parser based on file extension. The parsers
+            # are pure (no db / privacy / gear / provider coupling — plan §18.2 /
+            # A7); the orchestrator re-attaches that domain context afterwards.
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file. parse_gpx_file returns a ParsedGpxData
                 # TypedDict; normalize it to a plain dict so ``parsed_info`` is a
@@ -222,8 +223,6 @@ def parse_file(
                     gpx_utils.parse_gpx_file(
                         filename,
                         token_user_id,
-                        user_privacy_settings,
-                        db,
                         activity_name,
                     )
                 )
@@ -231,13 +230,11 @@ def parse_file(
                 parsed_info = tcx_utils.parse_tcx_file(
                     filename,
                     token_user_id,
-                    user_privacy_settings,
-                    db,
                     activity_name,
                 )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
-                parsed_info = fit_utils.parse_fit_file(filename, db, activity_name)
+                parsed_info = fit_utils.parse_fit_file(filename, activity_name)
             else:
                 # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
                 raise HTTPException(
@@ -343,10 +340,8 @@ def _store_activities_from_file(
     # ``asyncio.to_thread`` from the Garmin sync), never on the main event loop.
     parsed_info = parse_file(
         token_user_id,
-        user_privacy_settings,
         file_extension,
         file_path,
-        db,
         activity_name,
     )
 
@@ -392,6 +387,18 @@ def _store_activities_from_file(
         ".gpx",
         ".tcx",
     ):
+        # Re-attach owner privacy defaults + gear (the parser is now pure) before
+        # the Strava bulk-import metadata can override the gear.
+        enrichment.enrich_parsed_activity(
+            parsed_info["activity"],
+            user_id=token_user_id,
+            user_privacy_settings=user_privacy_settings,
+            db=db,
+            from_garmin=from_garmin,
+            garminconnect_gear=garminconnect_gear,
+            garmin_connect_activity_id=int(garmin_connect_activity_id) if garmin_connect_activity_id else None,
+        )
+
         # Add import metadata and Strava activities.csv metadata to parsed_info
         if is_bulk_import:
             parsed_info = strava_bulk_import_utils.append_bulk_import_metadata_to_activity(
@@ -405,30 +412,36 @@ def _store_activities_from_file(
         created_activities.append(created_activity)
         ids_to_filename += str(created_activity.id)
     elif file_extension.lower() == ".fit":
+        # Persist the file's exercise-title reference rows (parsed as data — the
+        # parser no longer writes them; plan §18.2 / A7).
+        exercise_titles = parsed_info.get("exercise_titles")
+        if exercise_titles:
+            activity_exercise_titles_crud.create_activity_exercise_titles(exercise_titles, db)
+
         # Split the records by activity (check for multiple activities in the file)
         split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
 
-        # Create activity objects for each activity in the file
-        if from_garmin:
-            created_activities_objects = fit_utils.create_activity_objects(
-                split_records_by_activity,
-                token_user_id,
-                user_privacy_settings,
-                (int(garmin_connect_activity_id) if garmin_connect_activity_id else None),
-                garminconnect_gear if garminconnect_gear else None,
-                db,
-            )
-        else:
-            created_activities_objects = fit_utils.create_activity_objects(
-                split_records_by_activity,
-                token_user_id,
-                user_privacy_settings,
-                None,
-                None,
-                db,
+        # Create activity objects for each activity in the file (pure parse output)
+        created_activities_objects = fit_utils.create_activity_objects(
+            split_records_by_activity,
+            token_user_id,
+        )
+
+        garmin_activity_id = int(garmin_connect_activity_id) if garmin_connect_activity_id else None
+        for activity in created_activities_objects:
+            # Re-attach owner privacy defaults, gear, and Garmin ids before the
+            # Strava bulk-import metadata can override the gear (matches the old
+            # parser-then-bulk ordering).
+            enrichment.enrich_parsed_activity(
+                activity["activity"],
+                user_id=token_user_id,
+                user_privacy_settings=user_privacy_settings,
+                db=db,
+                from_garmin=from_garmin,
+                garminconnect_gear=garminconnect_gear,
+                garmin_connect_activity_id=garmin_activity_id,
             )
 
-        for activity in created_activities_objects:
             activity = _prepare_bulk_import_activity(
                 activity,
                 is_bulk_import,

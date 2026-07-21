@@ -9,7 +9,6 @@ from typing import TypedDict
 import gpxpy
 import gpxpy.gpx
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
@@ -18,8 +17,6 @@ import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
-import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 # Re-export for backwards compatibility (migration_3.py calls
 # gpx_utils.generate_activity_laps directly).
@@ -423,16 +420,12 @@ def _process_trackpoint(
 
 def _compute_derived_metrics(
     state: ParseState,
-    user_id: int,
-    db: Session,
 ) -> None:
     """
     Compute derived activity metrics and update state.
 
     Args:
         state: Mutable parse state.
-        user_id: ID of the user.
-        db: SQLAlchemy database session.
 
     Returns:
         None
@@ -452,12 +445,6 @@ def _compute_derived_metrics(
 
     state.activity_type = activities_constants.define_activity_type(
         str(state.activity_type),
-    )
-
-    state.gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(
-        user_id,
-        state.activity_type,
-        db,
     )
 
     if state.hr_waypoints:
@@ -503,20 +490,21 @@ def _compute_derived_metrics(
 def _build_activity_schema(
     state: ParseState,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
 ) -> activities_schema.Activity:
     """
     Build an Activity Pydantic schema from parsed state.
 
+    Domain fields (privacy, gear, provider ids) are intentionally left unset —
+    the ``activity_ingestion`` enrichment seam populates them after parsing so
+    the parser stays pure (plan §18.2 / A7).
+
     Args:
         state: Parsed GPX state.
         user_id: ID of the user.
-        user_privacy_settings: ORM privacy settings object.
 
     Returns:
         Populated Activity schema instance.
     """
-    privacy_kwargs = activity_file_import_utils.build_activity_privacy_kwargs(user_privacy_settings)
     if state.first_waypoint_time is None or state.last_waypoint_time is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -550,20 +538,16 @@ def _build_activity_schema(
         average_cad=(round(state.avg_cadence) if state.avg_cadence else None),
         max_cad=(round(state.max_cadence) if state.max_cadence else None),
         calories=state.calories,
-        gear_id=state.gear_id,
         strava_gear_id=None,
         strava_activity_id=None,
         garminconnect_activity_id=None,
         garminconnect_gear_id=None,
-        **privacy_kwargs,
     )
 
 
 def parse_gpx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
-    db: Session,
     activity_name_input: str | None = None,
 ) -> ParsedGpxData:
     """
@@ -572,8 +556,6 @@ def parse_gpx_file(
     Args:
         file: Path to the GPX file on disk.
         user_id: ID of the user uploading the file.
-        user_privacy_settings: ORM privacy settings for the user.
-        db: SQLAlchemy database session.
         activity_name_input: Optional override for the activity name.
 
     Returns:
@@ -643,9 +625,9 @@ def parse_gpx_file(
             for segment_waypoints in state.lat_lon_segments
         )
 
-        _compute_derived_metrics(state, user_id, db)
+        _compute_derived_metrics(state)
 
-        activity = _build_activity_schema(state, user_id, user_privacy_settings)
+        activity = _build_activity_schema(state, user_id)
 
         laps = []
         for segment_waypoints in state.lat_lon_segments:

@@ -4,51 +4,33 @@ from zoneinfo import ZoneInfo, available_timezones
 
 import fitdecode
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
-import modules.garmin.utils as garmin_utils
-import modules.gears.gear.crud as gears_crud
-import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
-    garmin_activity_id: int | None = None,
-    garminconnect_gear: dict | None = None,
-    db: Session = None,
 ) -> list:
+    """Build per-activity parsed payloads from the split FIT session records.
+
+    Pure: derives everything from the FIT bytes. Privacy defaults, gear, and the
+    Garmin provider ids are re-attached later by the ``activity_ingestion``
+    enrichment seam (plan §18.2 / A7).
+    """
     try:
         core_logger.print_to_log(
             f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}",
             "debug",
         )
         timezone = core_config.settings.TZ
-
-        # Define variables
-        gear_id = None
-
-        if garminconnect_gear:
-            user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(user_id, db)
-
-            if user_integrations.garminconnect_sync_gear:
-                # set the gear id for the activity
-                gear = gears_crud.get_gear_by_garminconnect_id_from_user_id(garminconnect_gear[0]["uuid"], user_id, db)
-
-                # set the gear id for the activity
-                if gear is not None:
-                    gear_id = gear.id
 
         activities = []
 
@@ -61,9 +43,6 @@ def create_activity_objects(
             if session_record["session"]["activity_type"]:
                 # Set the activity type based on the session record
                 activity_type = activities_constants.define_activity_type(session_record["session"]["activity_type"])
-
-                if gear_id is None:
-                    gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
             if session_record["activity_name"] and session_record["activity_name"] != "Workout":
                 activity_name = session_record["activity_name"]
@@ -118,8 +97,6 @@ def create_activity_objects(
                     max_power = calc_max
                 if np_power is None:
                     np_power = calc_np
-
-            privacy_kwargs = activity_file_import_utils.build_activity_privacy_kwargs(user_privacy_settings)
 
             # Recompute avg/max HR from waypoints, excluding zeros (zero is not a
             # valid HR value — it means the sensor was disconnected). This overrides
@@ -210,18 +187,14 @@ def create_activity_objects(
                 workout_feeling=session_record["session"]["workout_feeling"],
                 workout_rpe=session_record["session"]["workout_rpe"],
                 calories=session_record["session"]["calories"],
-                gear_id=gear_id,
                 strava_gear_id=None,
                 strava_activity_id=None,
-                garminconnect_activity_id=garmin_activity_id,
-                garminconnect_gear_id=(garminconnect_gear[0]["uuid"] if garminconnect_gear else None),
                 tracker_manufacturer=(
                     str(manufacturer)
                     if (manufacturer := session_record["file_id"].get("manufacturer")) is not None
                     else None
                 ),
                 tracker_model=(str(model) if (model := session_record["file_id"].get("product")) is not None else None),
-                **privacy_kwargs,
                 total_cycles=session_record["session"]["total_cycles"],
             )
 
@@ -522,6 +495,7 @@ class FitParseState:
             "intraday_steps": self.intraday_steps,
             "intraday_heart_rate": self.intraday_heart_rate,
             "resting_heart_rate": self.resting_heart_rate,
+            "exercise_titles": self.exercises_titles,
         }
 
 
@@ -732,7 +706,7 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
         state.resting_heart_rate = parse_frame_monitoring_hr_data(frame)
 
 
-def parse_fit_file(file: str, db: Session, activity_name_input: str | None = None) -> dict:
+def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
     try:
         core_logger.print_to_log(f"FIT parse start: file={file}", "debug")
         state = FitParseState(
@@ -744,9 +718,6 @@ def parse_fit_file(file: str, db: Session, activity_name_input: str | None = Non
             for frame in fit_data:
                 if isinstance(frame, fitdecode.FitDataMessage):
                     _dispatch_data_message(frame, state, fit_data.last_timestamp)
-
-        if state.exercises_titles:
-            activity_exercise_titles_crud.create_activity_exercise_titles(state.exercises_titles, db)
 
         core_logger.print_to_log(
             f"FIT parse complete: file={file}, exercise_titles={len(state.exercises_titles)}",

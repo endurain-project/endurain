@@ -2,33 +2,9 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import modules.activities.activity_file_import.utils_tcx as utils_tcx
-
-
-def _privacy_settings() -> SimpleNamespace:
-    """
-    Build privacy settings for parser tests.
-
-    Returns:
-        Object with the attributes expected by privacy kwarg builder.
-    """
-    return SimpleNamespace(
-        default_activity_visibility="public",
-        hide_activity_start_time=False,
-        hide_activity_location=False,
-        hide_activity_map=False,
-        hide_activity_hr=False,
-        hide_activity_power=False,
-        hide_activity_cadence=False,
-        hide_activity_elevation=False,
-        hide_activity_speed=False,
-        hide_activity_pace=False,
-        hide_activity_laps=False,
-        hide_activity_workout_sets_steps=False,
-        hide_activity_gear=False,
-    )
 
 
 class TestUtilsTcx:
@@ -107,8 +83,6 @@ class TestUtilsTcx:
             avg_power=None,
             max_power=None,
             norm_power=None,
-            gear_id=None,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert activity.start_time is None
@@ -168,8 +142,6 @@ class TestUtilsTcx:
             avg_power=None,
             max_power=None,
             norm_power=None,
-            gear_id=None,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert activity.start_time == "2026-03-28T15:19:19"
@@ -217,19 +189,12 @@ class TestUtilsTcx:
                 "modules.activities.activity_file_import.utils_tcx._extract_waypoints",
                 return_value=fake_waypoints,
             ),
-            patch(
-                "modules.activities.activity_file_import.utils_tcx"
-                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
             result = utils_tcx.parse_tcx_file(
                 file="dummy.tcx",
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         activity = result["activity"]
@@ -284,11 +249,6 @@ class TestUtilsTcx:
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.utils_tcx"
-                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
-            patch(
                 "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
@@ -298,8 +258,6 @@ class TestUtilsTcx:
             result = utils_tcx.parse_tcx_file(
                 file="dummy.tcx",
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         assert 1000 < result["activity"].distance < 1200
@@ -351,11 +309,6 @@ class TestUtilsTcx:
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.utils_tcx"
-                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
-            patch(
                 "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
@@ -365,8 +318,6 @@ class TestUtilsTcx:
             result = utils_tcx.parse_tcx_file(
                 file="dummy.tcx",
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         assert result["activity"].distance == 5000
