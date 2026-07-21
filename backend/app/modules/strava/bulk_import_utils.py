@@ -246,17 +246,19 @@ def queue_bulk_export_activities_for_import(
             core_logger.print_to_log_and_console(
                 f"Strava bulk import: Processing file {filenumber} of {number_of_importable_files} - {file_path}"
             )
-            # Parse and store the activity
-            asyncio.run(
-                ingestion_orchestrator.parse_and_store_activity_from_file(
-                    token_user_id,
-                    file_path,
-                    db,
-                    is_bulk_import=True,
-                    strava_activities=strava_activities_dict,
-                    import_initiated_time=import_time,
-                    users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
-                )
+            # Parse and store the activity. The ingestion entry is
+            # synchronous; this queue function runs on a worker thread
+            # (dispatched via ``loop.run_in_executor`` from
+            # ``strava/router.py``) with no running event loop, so the
+            # sync file-validation inside it is safe.
+            ingestion_orchestrator.parse_and_store_activity_from_file(
+                token_user_id,
+                file_path,
+                db,
+                is_bulk_import=True,
+                strava_activities=strava_activities_dict,
+                import_initiated_time=import_time,
+                users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
             )
             # Small delay between files
             time.sleep(0.1)
@@ -434,7 +436,7 @@ def does_activity_start_time_match_the_data_in_strava_activities_csv(
     return endurain_parsed_file_start_date == strava_csv_start_date
 
 
-async def import_media_from_strava_bulk_export(
+def import_media_from_strava_bulk_export(
     strava_activities: dict,
     created_activity: activities_schema.Activity,
     file_base_name: str,
@@ -483,7 +485,7 @@ async def import_media_from_strava_bulk_export(
                 strava_media_dir = core_config.STRAVA_BULK_IMPORT_MEDIA_DIR
                 _, media_file_base_name = os.path.split(media_item)
                 media_path = os.path.join(strava_media_dir, media_file_base_name)
-                await create_activity_media_from_strava_bulk_import(
+                create_activity_media_from_strava_bulk_import(
                     created_activity.id,
                     media_file_base_name,
                     media_path,
@@ -491,7 +493,7 @@ async def import_media_from_strava_bulk_export(
                 )
 
 
-async def create_activity_media_from_strava_bulk_import(
+def create_activity_media_from_strava_bulk_import(
     activity_id: int,
     media_strava_filename: str,
     media_path_from_strava: str,
@@ -520,7 +522,7 @@ async def create_activity_media_from_strava_bulk_import(
             # pipeline before relocating it into ACTIVITY_MEDIA_DIR
             # (which is served back to clients via FileResponse).
             try:
-                await file_uploads.validate_local_file(
+                file_uploads.validate_local_file_sync(
                     media_path_from_strava,
                     kind=file_uploads.UploadKind.IMAGE,
                     filename=media_strava_filename,

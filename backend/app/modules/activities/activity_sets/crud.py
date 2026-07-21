@@ -180,6 +180,8 @@ def create_activity_sets(
     activity_sets: list[activity_sets_schema.ActivitySetsCreate | list],
     activity_id: int,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> None:
     """
     Bulk create activity sets for an activity.
@@ -227,7 +229,11 @@ def create_activity_sets(
         sets.append(db_activity_set)
 
     db.add_all(sets)
-    db.commit()
+    # commit=False keeps the sets in the caller's open transaction (atomic ingestion).
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
     core_logger.print_to_log(
         f"Created {len(sets)} set(s) for activity {activity_id}",

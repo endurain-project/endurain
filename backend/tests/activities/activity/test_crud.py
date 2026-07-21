@@ -275,6 +275,23 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    def test_persists_dedup_key(self, mock_transform, mock_check, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_check.return_value = None
+        m = MagicMock()
+        m.id = 1
+        mock_transform.return_value = m
+        a = MagicMock()
+        a.user_id = 1
+        a.start_time = datetime.now(UTC)
+        crud.create_activity(activity=a, db=mock_db, dedup_key="strava:99")
+        # The idempotency key is stored on the ORM row so future re-imports of the
+        # same source can be recognised as duplicates.
+        assert m.dedup_key == "strava:99"
+
+    @patch("modules.activities.activity.crud.get_activity_by_start_time")
+    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
     def test_db_error(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -1215,6 +1232,33 @@ class TestGetActivityByStartTime:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
             crud.get_activity_by_start_time(start_time="2024-01-01T10:00:00+00:00", user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+
+
+class TestGetActivityByDedupKey:
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_success(self, mock_ser, mock_db):
+        import modules.activities.activity.crud as crud
+        import modules.activities.activity.models as am
+
+        a = mock_model(am.Activity, id=1, user_id=1, dedup_key="strava:123")
+        setup_mock_execute(mock_db, return_one_or_none=a)
+        mock_ser.return_value = MagicMock()
+        r = crud.get_activity_by_dedup_key(dedup_key="strava:123", user_id=1, db=mock_db)
+        assert r is not None
+
+    def test_not_found(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        setup_mock_execute(mock_db, return_one_or_none=None)
+        assert crud.get_activity_by_dedup_key(dedup_key="strava:999", user_id=1, db=mock_db) is None
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.get_activity_by_dedup_key(dedup_key="strava:123", user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 

@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestPublish:
     @patch("infra.publisher.core_middleware_request_id")

@@ -31,6 +31,7 @@ lost*. Channel names and payload shape stay owned by the publishing domain; this
 layer only knows the generic envelope.
 """
 
+from collections.abc import Callable
 from typing import Any
 
 import core.config as core_config
@@ -39,7 +40,18 @@ import core.middleware_request_id as core_middleware_request_id
 import infra.jobs.outbox as jobs_outbox
 import infra.jobs.registry as jobs_registry
 import infra.runtime as platform_runtime
-from infra.events import META_REQUEST_ID, new_event
+from infra.events import META_REQUEST_ID, Event, new_event
+
+
+def _mint(event_type: str, payload: dict, source: str, metadata: dict | None) -> Event:
+    """Build the event envelope, stamping the ambient request id for correlation."""
+    merged: dict = {}
+    request_id = core_middleware_request_id.get_request_id()
+    if request_id:
+        merged[META_REQUEST_ID] = request_id
+    if metadata:
+        merged.update(metadata)
+    return new_event(event_type, payload, source=source, metadata=merged)
 
 
 def publish(
@@ -69,13 +81,7 @@ def publish(
     """
     try:
         platform = platform_runtime.get_active_platform()
-        merged: dict = {}
-        request_id = core_middleware_request_id.get_request_id()
-        if request_id:
-            merged[META_REQUEST_ID] = request_id
-        if metadata:
-            merged.update(metadata)
-        event = new_event(event_type, payload, source=source, metadata=merged)
+        event = _mint(event_type, payload, source, metadata)
         if db is not None and _durable_delivery_enabled(event_type):
             # Record a terminal 'queued' row so durable events stay visible in the
             # event_log dashboard without counting as perpetually pending (the bus
@@ -92,6 +98,79 @@ def publish(
             "error",
             exc=err,
         )
+
+
+def publish_committing(
+    event_type: str,
+    payload: dict,
+    *,
+    source: str,
+    metadata: dict | None = None,
+    db: Any,
+    commit: Callable[[], None],
+) -> None:
+    """Publish a domain event atomically around the caller's domain commit.
+
+    Unlike :func:`publish` (which the caller invokes *after* it has already
+    committed its own change), this variant owns the commit ordering so durable
+    delivery can be made atomic with the domain write. ``commit`` is a zero-arg
+    callable that commits the caller's unit of work.
+
+    * **Durable delivery enabled** (durable jobs on + a durable subscriber for
+      ``event_type``): the outbox row is staged on ``db`` **without** committing,
+      then ``commit()`` flushes the domain rows and the outbox row in one
+      transaction — so the event can never be lost relative to the change that
+      produced it. A staging failure propagates (the caller's transaction is left
+      uncommitted for rollback), so the whole unit of work is all-or-nothing.
+    * **Otherwise** (best-effort bus path): ``commit()`` runs first so the domain
+      row — the source of truth — is durable regardless, then the event is
+      dispatched on the bus and any dispatch failure is logged and swallowed.
+
+    Args:
+        event_type: The domain-owned channel, e.g. ``activity.created``.
+        payload: Domain data for the event.
+        source: Origin label, e.g. ``api:store_activity``.
+        metadata: Optional correlation context; merged with the ambient request id.
+        db: The producer's SQLAlchemy session (holds the uncommitted domain change).
+        commit: Zero-arg callable that commits the caller's unit of work.
+
+    Returns:
+        None.
+    """
+    if db is not None and _durable_delivery_enabled(event_type):
+        # Atomic path: stage the outbox row inside the caller's transaction, then
+        # commit the domain change and the outbox row together. A failure here
+        # leaves the transaction uncommitted so the caller rolls back atomically
+        # (no partial activity, no orphaned event).
+        try:
+            platform = platform_runtime.get_active_platform()
+            event = _mint(event_type, payload, source, metadata)
+            if platform.recorder is not None:
+                platform.recorder.record_queued(event)
+            jobs_outbox.add_to_outbox(event, now=platform.clock.now(), db=db, commit=False)
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to stage event {event_type} in the domain transaction: {err}",
+                "error",
+                exc=err,
+            )
+            raise
+        commit()
+    else:
+        # Best-effort path: the domain row is the source of truth, so commit it
+        # first, then dispatch on the bus post-commit (swallowing failures — the
+        # subscriber's reconciliation net recovers anything dropped).
+        commit()
+        try:
+            platform = platform_runtime.get_active_platform()
+            event = _mint(event_type, payload, source, metadata)
+            platform.events.publish(event)
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to publish event {event_type}: {err}",
+                "error",
+                exc=err,
+            )
 
 
 def _durable_delivery_enabled(event_type: str) -> bool:

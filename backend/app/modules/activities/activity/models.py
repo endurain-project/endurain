@@ -87,6 +87,7 @@ class Activity(Base):
         tracker_manufacturer: Device manufacturer.
         tracker_model: Device model.
         map_thumbnail_path: Path to the static map thumbnail.
+        dedup_key: Stable idempotency key (provider id now, content hash later) used to no-op re-imports.
         users: Relationship to the owner user.
         gear: Relationship to the associated gear.
         activity_laps: Related activity laps.
@@ -350,6 +351,12 @@ class Activity(Base):
     total_cycles: Mapped[int | None] = mapped_column(
         nullable=True,
         comment=("Total number of cycles (e.g., pedal strokes) recorded"),
+    )
+    dedup_key: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment=("Stable idempotency key (provider id or content hash) to no-op re-imports"),
     )
 
     # Define a relationship to the Users model

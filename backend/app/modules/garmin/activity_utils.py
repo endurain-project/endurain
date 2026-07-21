@@ -136,7 +136,8 @@ async def fetch_and_process_activities_by_dates(
         file_uploads.safe_remove_within(output_file, base_dir=core_config.settings.FILES_DIR)
 
         for full_file_path in extracted_paths:
-            parsed_result = await ingestion_orchestrator.parse_and_store_activity_from_file(
+            parsed_result = await asyncio.to_thread(
+                ingestion_orchestrator.parse_and_store_activity_from_file,
                 token_user_id=user_id,
                 file_path=str(full_file_path),
                 db=db,

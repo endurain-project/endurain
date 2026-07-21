@@ -221,6 +221,8 @@ def create_activity_laps(
     activity_laps: list[dict],
     activity_id: int,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> None:
     """
     Bulk create activity laps for an activity.
@@ -246,7 +248,11 @@ def create_activity_laps(
     ]
 
     db.add_all(laps)
-    db.commit()
+    # commit=False keeps the laps in the caller's open transaction (atomic ingestion).
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
     core_logger.print_to_log(
         f"Created {len(laps)} lap(s) for activity {activity_id}",

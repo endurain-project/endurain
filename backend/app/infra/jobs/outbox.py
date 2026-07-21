@@ -20,19 +20,24 @@ from infra.events import Event
 from infra.jobs.models import EventOutbox
 
 
-def add_to_outbox(event: Event, *, now: datetime, db: Session) -> str:
+def add_to_outbox(event: Event, *, now: datetime, db: Session, commit: bool = True) -> str:
     """
-    Persist an event to the outbox and commit it on the caller's session.
+    Persist an event to the outbox on the caller's session.
 
-    Best-effort durability: the write commits on ``db``, but because the
-    ingestion path already committed the domain change in an earlier transaction,
-    the two are not atomic. A crash between them can drop the event; the
-    subscriber's reconciliation net is the safety net.
+    With ``commit=True`` (default) the write is committed immediately. Callers on
+    the ingestion path pass ``commit=False`` so the outbox row is only flushed and
+    joins their open transaction — the domain change and the outbox row then commit
+    together (atomic delivery; see :func:`infra.publisher.publish_committing`).
+    When committed independently (the historical best-effort seam), the outbox
+    write is *not* atomic with the domain change, so a crash between them can drop
+    the event and the subscriber's reconciliation net is the safety net.
 
     Args:
         event: The event envelope to persist.
         now: Current instant (the outbox write time).
         db: Active database session (the producer's).
+        commit: When True, commit immediately; when False, flush only and leave the
+            row in the caller's open transaction.
 
     Returns:
         The new outbox row id.
@@ -50,7 +55,10 @@ def add_to_outbox(event: Event, *, now: datetime, db: Session) -> str:
             created_at=now,
         )
     )
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return outbox_id
 
 

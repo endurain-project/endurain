@@ -357,10 +357,16 @@ class ImportSource:
         kind: Origin of the activity (``"upload"`` / ``"bulk_import"`` /
             ``"garmin"``).
         provider_activity_id: The external provider's activity id, when known.
+        dedup_key: Stable idempotency key for the activity (a provider-scoped id
+            like ``"strava:123"`` now, a content hash later). When set and an
+            activity with the same key already exists for the owner, re-ingestion
+            is a no-op instead of creating a duplicate. Falls back to start-time
+            deduplication when absent (e.g. plain uploads).
     """
 
     kind: str
     provider_activity_id: int | None = None
+    dedup_key: str | None = None
 
 
 @dataclass

@@ -411,6 +411,8 @@ def create_activity_streams(
     activity_streams: list[activity_streams_schema.ActivityStreamsCreate],
     activity: activity_schema.Activity,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> None:
     """
     Bulk create activity streams (waypoints only).
@@ -445,7 +447,12 @@ def create_activity_streams(
 
     if streams:
         db.add_all(streams)
-        db.commit()
+        # commit=False leaves the streams in the caller's open transaction so the
+        # whole activity ingestion is one atomic unit of work.
+        if commit:
+            db.commit()
+        else:
+            db.flush()
 
 
 def compute_and_store_hr_zone_percentages_for_activity(activity_id: int, user_id: int, db: Session) -> None:

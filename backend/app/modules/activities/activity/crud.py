@@ -1153,6 +1153,36 @@ def get_activity_by_start_time(
         raise _internal_server_error(err, "get_activity_by_start_time") from err
 
 
+def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> activities_schema.Activity | None:
+    """Get a user's activity by its idempotency dedup key.
+
+    Used by the ingestion seam to make re-import of an already-ingested activity
+    a no-op (plan §18.1): a provider-scoped id now, a content hash later.
+
+    Args:
+        dedup_key: Stable idempotency key (e.g. ``"strava:123"``).
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        Activity schema or None when not found.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(activities_models.Activity).where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.dedup_key == dedup_key,
+        )
+        activity = db.execute(stmt).scalars().first()
+        if not activity:
+            return None
+        return activities_serializers.serialize_activity(activity)
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "get_activity_by_dedup_key") from err
+
+
 def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
     """Get a user's activity by ID.
 
@@ -1277,6 +1307,9 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
 def create_activity(
     activity: activities_schema.Activity,
     db: Session,
+    *,
+    commit: bool = True,
+    dedup_key: str | None = None,
 ) -> activities_schema.Activity:
     """Persist a new activity; duplicate start-times are marked hidden.
 
@@ -1288,6 +1321,8 @@ def create_activity(
     Args:
         activity: Activity schema to persist.
         db: Database session.
+        dedup_key: Optional stable idempotency key stored on the row so future
+            re-imports of the same source can be recognised as duplicates.
 
     Returns:
         The provided activity schema with generated ID and ``created_at``
@@ -1323,9 +1358,19 @@ def create_activity(
             activity.is_hidden = True
 
         new_activity = _transform_schema_activity_to_model_activity(activity)
+        # Persist the idempotency key alongside the row so future re-imports of
+        # the same source can be recognised as duplicates (plan §18.1).
+        new_activity.dedup_key = dedup_key
 
         db.add(new_activity)
-        db.commit()
+        # Persist the row so its generated id / created_at are available. On the
+        # ingestion path the caller drives a single commit for the whole unit of
+        # work (activity + children + outbox row), so we only flush here; other
+        # callers keep the default commit=True.
+        if commit:
+            db.commit()
+        else:
+            db.flush()
         db.refresh(new_activity)
 
         activity.id = new_activity.id

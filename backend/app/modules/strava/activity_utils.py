@@ -432,6 +432,7 @@ def save_activity_streams_laps(
         source=activities_schema.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,
+            dedup_key=(f"strava:{activity.strava_activity_id}" if activity.strava_activity_id is not None else None),
         ),
     )
 

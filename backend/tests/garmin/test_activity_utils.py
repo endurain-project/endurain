@@ -110,7 +110,7 @@ class TestOrphanedExtractedFileCleanup:
         monkeypatch.setattr(
             activity_utils.ingestion_orchestrator,
             "parse_and_store_activity_from_file",
-            AsyncMock(return_value=None),
+            Mock(return_value=None),
         )
 
         client = _make_garminconnect_client()
@@ -133,7 +133,7 @@ class TestOrphanedExtractedFileCleanup:
         monkeypatch.setattr(
             activity_utils.ingestion_orchestrator,
             "parse_and_store_activity_from_file",
-            AsyncMock(return_value=["created-activity"]),
+            Mock(return_value=["created-activity"]),
         )
 
         client = _make_garminconnect_client()

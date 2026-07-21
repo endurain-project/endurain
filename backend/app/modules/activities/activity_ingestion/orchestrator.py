@@ -11,9 +11,7 @@ Keeping this here (rather than in ``activity/``) is what lets the activities cor
 parser-agnostic — see the ``activities-parsing-boundary`` import-linter contract.
 """
 
-import asyncio
 import contextlib
-import functools
 import gzip
 import os
 import shutil
@@ -24,7 +22,6 @@ from tempfile import NamedTemporaryFile
 from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
-from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -254,7 +251,216 @@ def parse_file(
         ) from err
 
 
-async def parse_and_store_activity_from_file(
+def _store_activities_from_file(
+    token_user_id: int,
+    file_path: str,
+    file_extension: str,
+    file_base_name: str,
+    db: Session,
+    *,
+    from_garmin: bool = False,
+    is_bulk_import: bool = False,
+    garminconnect_gear: dict | None = None,
+    strava_activities: dict | None = None,
+    import_initiated_time: str | None = None,
+    users_existing_gear_nickname_to_id: dict | None = None,
+    garmin_connect_activity_id: str | None = None,
+    activity_name: str | None = None,
+) -> list[activities_schema.Activity] | None:
+    """Parse a validated, on-disk activity file and persist its activities.
+
+    This is the single ingestion core shared by every source (direct upload,
+    Garmin sync, Strava/generic bulk import). By the time it runs the file has
+    already been validated and (if it was a ``.gz``) decompressed by the calling
+    entry point, so it only resolves the owner, parses the file, persists each
+    activity via ``ingestion_service.store_parsed_activity``, moves the file into
+    the processed directory, and imports any Strava bulk-export media.
+
+    It has a single failure contract: it **raises** on any error. The thin entry
+    points adapt that to their own contract (the upload entry cleans up and
+    re-raises; the bulk/provider entry moves the file to the error directory and
+    returns ``None``).
+
+    Args:
+        token_user_id: ID of the authenticated user performing the import.
+        file_path: Absolute path to the (already validated/decompressed) file.
+        file_extension: The file's extension (e.g. ``.gpx``/``.fit``).
+        file_base_name: Original base filename (pre-decompression) — the key into
+            the Strava bulk-import metadata dict.
+        db: SQLAlchemy database session.
+        from_garmin: Whether the file originates from a Garmin Connect sync.
+        is_bulk_import: Whether this is part of a bulk import.
+        garminconnect_gear: Garmin Connect gear metadata to associate.
+        strava_activities: Strava bulk-import metadata dict keyed by filename.
+        import_initiated_time: ISO timestamp of when the bulk import started.
+        users_existing_gear_nickname_to_id: Gear nickname -> id map (Strava bulk).
+        garmin_connect_activity_id: Garmin Connect activity id parsed from the
+            filename, when ``from_garmin``.
+        activity_name: Optional override for the activity name.
+
+    Returns:
+        List of created activity schemas, or ``None`` if the file yielded no
+        parseable activity.
+
+    Raises:
+        HTTPException: When the user (or privacy settings) cannot be found, or on
+            an internal parse/persist failure.
+    """
+    user = users_crud.get_user_by_id(token_user_id, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    user_privacy_settings = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user.id, db)
+    if user_privacy_settings is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User privacy settings not found",
+        )
+
+    # CPU-bound + sync I/O parsing (gpxpy, geopy, timezonefinder). This runs
+    # directly: every entry point reaches here on a worker thread (a sync route
+    # on Starlette's threadpool, the bulk-import ThreadPoolExecutor, or
+    # ``asyncio.to_thread`` from the Garmin sync), never on the main event loop.
+    parsed_info = parse_file(
+        token_user_id,
+        user_privacy_settings,
+        file_extension,
+        file_path,
+        db,
+        activity_name,
+    )
+
+    if parsed_info is None:
+        return None
+
+    # Gather supplemental metadata. Check if a Strava bulk import is in
+    # progress, and if so check to see if any additional information
+    # can be added to the activity.
+    activity_metadata_dict = {}
+    if strava_activities and isinstance(strava_activities, dict) and import_initiated_time and is_bulk_import:
+        # Build a metadata dict (which will also include an
+        # import_dict) based on information in the strava_activities
+        # dict.
+        activity_metadata_dict = strava_bulk_import_utils.build_metadata_dict(
+            file_base_name,
+            strava_activities,
+            import_initiated_time,
+            users_existing_gear_nickname_to_id,
+        )
+    elif import_initiated_time and is_bulk_import:
+        # Not doing a Strava bulk import, so build an import info dict
+        # that reflects the generic import.
+        import_dict = strava_bulk_import_utils.build_import_dictionary(file_base_name, import_initiated_time, False)
+        activity_metadata_dict["import_dict"] = import_dict
+
+    # Work through the parsed info; process and store any activity information
+    # found (specific routines depend on file type: .gpx/.tcx and .fit have very
+    # different needs).
+    import_source = activities_schema.ImportSource(
+        kind="garmin" if from_garmin else "bulk_import" if is_bulk_import else "upload",
+    )
+    created_activities = []
+    created_activity: activities_schema.Activity | None = None
+    ids_to_filename = ""
+    if file_extension.lower() in (
+        ".gpx",
+        ".tcx",
+    ):
+        # Add import metadata and Strava activities.csv metadata to parsed_info
+        if is_bulk_import:
+            parsed_info = strava_bulk_import_utils.append_bulk_import_metadata_to_activity(
+                parsed_info, activity_metadata_dict
+            )
+
+        # Store the activity in the database
+        created_activity = ingestion_service.store_parsed_activity(
+            file_adapter.parsed_info_to_parsed_activity(parsed_info, source=import_source), db
+        )
+        created_activities.append(created_activity)
+        ids_to_filename += str(created_activity.id)
+    elif file_extension.lower() == ".fit":
+        # Split the records by activity (check for multiple activities in the file)
+        split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
+
+        # Create activity objects for each activity in the file
+        if from_garmin:
+            created_activities_objects = fit_utils.create_activity_objects(
+                split_records_by_activity,
+                token_user_id,
+                user_privacy_settings,
+                (int(garmin_connect_activity_id) if garmin_connect_activity_id else None),
+                garminconnect_gear if garminconnect_gear else None,
+                db,
+            )
+        else:
+            created_activities_objects = fit_utils.create_activity_objects(
+                split_records_by_activity,
+                token_user_id,
+                user_privacy_settings,
+                None,
+                None,
+                db,
+            )
+
+        for activity in created_activities_objects:
+            activity = _prepare_bulk_import_activity(
+                activity,
+                is_bulk_import,
+                created_activities_objects,
+                strava_activities,
+                activity_metadata_dict,
+            )
+            if activity is None:
+                continue
+
+            # Store the activity in the database
+            created_activity = ingestion_service.store_parsed_activity(
+                file_adapter.parsed_info_to_parsed_activity(activity, source=import_source), db
+            )
+
+            created_activities.append(created_activity)
+
+        ids_to_filename = "_".join(str(activity.id) for activity in created_activities)
+    else:
+        # Should no longer get here due to screening of extensions
+        # in router.py, but why not.
+        core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
+
+    # Define the directory where the processed files will be stored
+    processed_dir = core_config.FILES_PROCESSED_DIR
+
+    # Define new file path with activity ID as filename
+    new_file_name = f"{ids_to_filename}{file_extension}"
+
+    # Move the file to the processed directory
+    core_file_uploads.move_within(file_path, processed_dir, filename=new_file_name)
+
+    # Log file move, import any associated media, and log completion.
+    if is_bulk_import:
+        core_logger.print_to_log_and_console(
+            f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}"
+        )
+
+        # Deal with Strava bulk import media.
+        # Note - even multi-activity .fit files are good with this code, as there should only be a single imported activity per file in the Strava activities file directory.
+        if strava_activities and created_activity is not None:
+            strava_bulk_import_utils.import_media_from_strava_bulk_export(
+                strava_activities,
+                created_activity,
+                file_base_name,
+                db,
+            )
+
+        core_logger.print_to_log_and_console(f"Bulk file import: Import work complete for file {file_base_name}.")
+
+    # Return the created activities
+    return created_activities
+
+
+def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,
     db: Session,
@@ -265,13 +471,20 @@ async def parse_and_store_activity_from_file(
     import_initiated_time: str | None = None,
     users_existing_gear_nickname_to_id: dict | None = None,
     activity_name: str | None = None,
-):
-    """
-    Parse an activity file and persist the result to the database.
+) -> list[activities_schema.Activity] | None:
+    """Validate an on-disk activity file and persist it (bulk/Garmin/Strava entry).
 
-    Supports .gpx, .tcx, .fit, and .gz files. Handles Garmin Connect and Strava
-    bulk imports, moves processed files to the appropriate directory, and
-    publishes ``activity.created`` (notification/thumbnail work reacts as subscribers).
+    Thin entry point for background ingestion (Garmin sync, Strava/generic bulk
+    import). Validates and (if needed) decompresses the file, then delegates to
+    the shared ``_store_activities_from_file`` core. Unlike the upload entry it
+    never raises to its caller: on failure it (for bulk imports) moves the
+    offending file to the import-error directory and returns ``None`` so the
+    batch can continue.
+
+    Supports .gpx, .tcx, .fit, and .gz files. Must be called from a worker thread
+    with no running event loop (Starlette threadpool, the bulk ThreadPoolExecutor,
+    or ``asyncio.to_thread``) because file validation runs a private event loop
+    internally.
 
     Args:
         token_user_id: ID of the authenticated user performing the import.
@@ -284,16 +497,13 @@ async def parse_and_store_activity_from_file(
             then by activities.csv column header.
         import_initiated_time: ISO timestamp of when the bulk import was
             initiated.
-        users_existing_gear_nickname_to_id: Mapping of gear nickname to
-            internal gear ID, used during Strava bulk imports.
+        users_existing_gear_nickname_to_id: Mapping of gear nickname to internal
+            gear ID, used during Strava bulk imports.
         activity_name: Optional override for the activity name.
 
     Returns:
-        List of created activity schema objects, or None if the file could not
-            be parsed.
-
-    Raises:
-        HTTPException: When the user is not found.
+        List of created activity schema objects, or None if the file could not be
+        parsed or persisted.
     """
     try:
         # Get file extension
@@ -308,18 +518,19 @@ async def parse_and_store_activity_from_file(
 
         # Defense-in-depth signature check on files queued for
         # processing (Garmin / Strava import paths).
-        await core_file_uploads.validate_local_file(
+        core_file_uploads.validate_local_file_sync(
             file_path,
             kind=(
                 core_file_uploads.UploadKind.GZIP if file_extension == ".gz" else core_file_uploads.UploadKind.ACTIVITY
             ),
         )
 
-        # Get pathless file name with extension, as this is the dictionary key for Strava's bulk import activities dictionary.
+        # The Strava bulk-import metadata dict is keyed by the original
+        # (pre-decompression) base filename, and the Garmin activity id is parsed
+        # from it — capture both before any ``.gz`` handling rewrites the path.
         _, file_base_name = os.path.split(file_path)
 
         garmin_connect_activity_id = None
-
         if from_garmin:
             garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
@@ -331,170 +542,26 @@ async def parse_and_store_activity_from_file(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=("Decompressed file extension is not supported"),
                 )
-            await core_file_uploads.validate_local_file(
+            core_file_uploads.validate_local_file_sync(
                 file_path,
                 kind=core_file_uploads.UploadKind.ACTIVITY,
             )
 
-        # Open the file and process it
-        with open(file_path, "rb"):
-            user = users_crud.get_user_by_id(token_user_id, db)
-            if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found",
-                )
-
-            user_privacy_settings = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user.id, db)
-            if user_privacy_settings is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User privacy settings not found",
-                )
-
-            # Parse the file in a thread pool to avoid
-            # blocking the event loop with CPU-bound and
-            # sync I/O work (gpxpy, geopy, timezonefinder)
-            parsed_info = await run_in_threadpool(
-                functools.partial(
-                    parse_file,
-                    token_user_id,
-                    user_privacy_settings,
-                    file_extension,
-                    file_path,
-                    db,
-                    activity_name,
-                )
-            )
-
-            # Gather supplemental metadata. Check if a Strava bulk import is in
-            # progress, and if so check to see if any additional information
-            # can be added to the activity.
-            activity_metadata_dict = {}
-            if strava_activities and isinstance(strava_activities, dict) and import_initiated_time and is_bulk_import:
-                # Build a metadata dict (which will also include an
-                # import_dict) based on information in the strava_activities
-                # dict.
-                activity_metadata_dict = strava_bulk_import_utils.build_metadata_dict(
-                    file_base_name,
-                    strava_activities,
-                    import_initiated_time,
-                    users_existing_gear_nickname_to_id,
-                )
-            elif import_initiated_time and is_bulk_import:
-                # Not doing a Strava bulk import, so build an import info dict
-                # that reflects the generic import.
-                import_dict = strava_bulk_import_utils.build_import_dictionary(
-                    file_base_name, import_initiated_time, False
-                )
-                activity_metadata_dict["import_dict"] = import_dict
-
-            # Work through the parsed info; process and store any activity
-            # information found (specific routines depend on file type
-            # .gpx/.tcx and .fit have very different needs)
-            if parsed_info is not None:
-                import_source = activities_schema.ImportSource(
-                    kind="garmin" if from_garmin else "bulk_import" if is_bulk_import else "upload",
-                )
-                created_activities = []
-                ids_to_filename = ""
-                if file_extension.lower() in (
-                    ".gpx",
-                    ".tcx",
-                ):
-                    # Add import metadata and Strava activities.csv metadata to parsed_info
-                    if is_bulk_import:
-                        parsed_info = strava_bulk_import_utils.append_bulk_import_metadata_to_activity(
-                            parsed_info, activity_metadata_dict
-                        )
-
-                    # Store the activity in the database
-                    created_activity = ingestion_service.store_parsed_activity(
-                        file_adapter.parsed_info_to_parsed_activity(parsed_info, source=import_source), db
-                    )
-                    created_activities.append(created_activity)
-                    ids_to_filename += str(created_activity.id)
-                elif file_extension.lower() == ".fit":
-                    # Split the records by activity (check for multiple activities in the file)
-                    split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
-
-                    # Create activity objects for each activity in the file
-                    if from_garmin:
-                        created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity,
-                            token_user_id,
-                            user_privacy_settings,
-                            (int(garmin_connect_activity_id) if garmin_connect_activity_id else None),
-                            garminconnect_gear if garminconnect_gear else None,
-                            db,
-                        )
-                    else:
-                        created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity,
-                            token_user_id,
-                            user_privacy_settings,
-                            None,
-                            None,
-                            db,
-                        )
-
-                    for activity in created_activities_objects:
-                        activity = _prepare_bulk_import_activity(
-                            activity,
-                            is_bulk_import,
-                            created_activities_objects,
-                            strava_activities,
-                            activity_metadata_dict,
-                        )
-                        if activity is None:
-                            continue
-
-                        # Store the activity in the database
-                        created_activity = ingestion_service.store_parsed_activity(
-                            file_adapter.parsed_info_to_parsed_activity(activity, source=import_source), db
-                        )
-
-                        created_activities.append(created_activity)
-
-                    ids_to_filename = "_".join(str(activity.id) for activity in created_activities)
-                else:
-                    # Should no longer get here due to screening of extensions
-                    # in router.py, but why not.
-                    core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
-
-                # Define the directory where the processed files will be stored
-                processed_dir = core_config.FILES_PROCESSED_DIR
-
-                # Define new file path with activity ID as filename
-                new_file_name = f"{ids_to_filename}{file_extension}"
-
-                # Move the file to the processed directory
-                core_file_uploads.move_within(file_path, processed_dir, filename=new_file_name)
-
-                # Log file move, import any associated media, and log completion.
-                if is_bulk_import:
-                    core_logger.print_to_log_and_console(
-                        f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}"
-                    )
-
-                    # Deal with Strava bulk import media.
-                    # Note - even multi-activity .fit files are good with this code, as there should only be a single imported activity per file in the Strava activities file directory.
-                    if strava_activities:
-                        await strava_bulk_import_utils.import_media_from_strava_bulk_export(
-                            strava_activities,
-                            created_activity,
-                            file_base_name,
-                            db,
-                        )
-
-                    core_logger.print_to_log_and_console(
-                        f"Bulk file import: Import work complete for file {file_base_name}."
-                    )
-
-                # Return the created activity
-                return created_activities
-            else:
-                return None
+        return _store_activities_from_file(
+            token_user_id,
+            file_path,
+            file_extension,
+            file_base_name,
+            db,
+            from_garmin=from_garmin,
+            is_bulk_import=is_bulk_import,
+            garminconnect_gear=garminconnect_gear,
+            strava_activities=strava_activities,
+            import_initiated_time=import_initiated_time,
+            users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
+            garmin_connect_activity_id=garmin_connect_activity_id,
+            activity_name=activity_name,
+        )
     except (
         HTTPException,
         OSError,
@@ -547,11 +614,14 @@ def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
     file: UploadFile,
     db: Session,
-):
+) -> list[activities_schema.Activity] | None:
     """Persist an uploaded activity file and return the result.
 
-    Validates the filename and extension, streams the upload to
-    disk in a thread pool, and delegates parsing to ``parse_file``.
+    Thin entry point for the synchronous upload route. Validates the filename and
+    extension, streams the upload to disk, decompresses ``.gz`` payloads, then
+    delegates to the shared ``_store_activities_from_file`` core. On failure it
+    removes any partial upload artifacts and raises ``HTTPException`` (the upload
+    route's contract), rather than swallowing the error like the bulk entry.
 
     Args:
         token_user_id: Authenticated user ID.
@@ -631,82 +701,20 @@ def parse_and_store_activity_from_uploaded_file(
                 kind=core_file_uploads.UploadKind.ACTIVITY,
             )
 
-        user = users_crud.get_user_by_id(token_user_id, db)
-        if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
+        _, file_base_name = os.path.split(file_path)
 
-        user_privacy_settings = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user.id, db)
-        if user_privacy_settings is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User privacy settings not found",
-            )
-
-        # CPU-bound + sync I/O parsing (gpxpy, geopy, timezonefinder). This runs
-        # directly: the route is synchronous, so Starlette already executes it on
-        # a threadpool worker — no need to offload again.
-        parsed_info = parse_file(
+        # Delegate to the shared ingestion core. The upload route is synchronous,
+        # so Starlette already runs it on a threadpool worker.
+        created_activities = _store_activities_from_file(
             token_user_id,
-            user_privacy_settings,
-            file_extension,
             file_path,
+            file_extension,
+            file_base_name,
             db,
         )
-
-        if parsed_info is not None:
-            import_source = activities_schema.ImportSource(kind="upload")
-            created_activities = []
-            ids_to_filename = ""
-            if file_extension.lower() in (".gpx", ".tcx"):
-                # Store the activity in the database
-                created_activity = ingestion_service.store_parsed_activity(
-                    file_adapter.parsed_info_to_parsed_activity(parsed_info, source=import_source), db
-                )
-                created_activities.append(created_activity)
-                ids_to_filename += str(created_activity.id)
-            elif file_extension.lower() == ".fit":
-                # Split the records by activity (check for multiple activities in the file)
-                split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
-
-                # Create activity objects for each activity in the file
-                created_activities_objects = fit_utils.create_activity_objects(
-                    split_records_by_activity,
-                    token_user_id,
-                    user_privacy_settings,
-                    None,
-                    None,
-                    db,
-                )
-
-                for activity in created_activities_objects:
-                    # Store the activity in the database
-                    created_activity = ingestion_service.store_parsed_activity(
-                        file_adapter.parsed_info_to_parsed_activity(activity, source=import_source), db
-                    )
-                    created_activities.append(created_activity)
-
-                ids_to_filename = "_".join(str(activity.id) for activity in created_activities)
-            else:
-                core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
-
-            # Define the directory where the processed files will be stored
-            processed_dir = core_config.FILES_PROCESSED_DIR
-
-            # Define new file path with activity ID as filename
-            new_file_name = f"{ids_to_filename}{file_extension}"
-
-            # Move the file to the processed directory
-            core_file_uploads.move_within(file_path, processed_dir, filename=new_file_name)
-
-            # The ingestion service already returns Activity schemas, so no
-            # further serialization is needed here.
-            return created_activities
-        else:
+        if created_activities is None:
             _cleanup_upload_artifacts(upload_artifacts)
-            return None
+        return created_activities
     except HTTPException:
         _cleanup_upload_artifacts(upload_artifacts)
         raise
@@ -752,14 +760,12 @@ def process_all_files_sync(
         total_files = len(file_paths)
         for idx, file_path in enumerate(file_paths, 1):
             core_logger.print_to_log_and_console(f"Processing file {idx}/{total_files}: {file_path}")
-            asyncio.run(
-                parse_and_store_activity_from_file(
-                    user_id,
-                    file_path,
-                    db,
-                    is_bulk_import=True,
-                    import_initiated_time=import_initiated_time,
-                )
+            parse_and_store_activity_from_file(
+                user_id,
+                file_path,
+                db,
+                is_bulk_import=True,
+                import_initiated_time=import_initiated_time,
             )
             # Small delay between files
             time.sleep(0.1)
