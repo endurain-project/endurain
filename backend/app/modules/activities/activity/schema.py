@@ -15,6 +15,8 @@ from pydantic import (
     StrictStr,
 )
 
+import core.timezone as core_timezone
+
 if TYPE_CHECKING:
     # Imported for typing only: a runtime import would be circular (the sub-module
     # packages import activity.crud, which imports this module). These name the
@@ -389,3 +391,16 @@ class ParsedActivity:
     sets: list[activity_sets_schema.ActivitySetsCreate | list] | None = None
     workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps] | None = None
     source: ImportSource | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize the activity's start/end datetimes to timezone-aware UTC.
+
+        The ingestion contract carries timezone-aware UTC datetimes so persistence
+        and serialization never handle naive values. Parsers emit naive UTC
+        wall-clock datetimes (providers may emit offset-aware ones), so this single
+        boundary attaches/normalizes UTC for every source — the core never sees a
+        naive datetime regardless of where the activity came from. Replaces the
+        previous implicit normalization that only happened later in crud.
+        """
+        self.activity.start_time = core_timezone.to_utc_aware(self.activity.start_time)
+        self.activity.end_time = core_timezone.to_utc_aware(self.activity.end_time)

@@ -6,13 +6,20 @@ The adapter builds ``ParsedStream`` objects (without an ``activity_id`` — that
 later by ``ingestion_service.store_parsed_activity``).
 """
 
+import modules.activities.activity.schema as activities_schema
+
+
+def _activity() -> activities_schema.Activity:
+    """A minimal valid Activity (the ingestion contract's activity type)."""
+    return activities_schema.Activity(distance=0, name="test", activity_type=1)
+
 
 class TestParsedInfoToParsedActivity:
     def test_parse_streams_hr_set(self):
         from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
 
         parsed_info = {
-            "activity": {"name": "test"},
+            "activity": _activity(),
             "is_heart_rate_set": True,
             "hr_waypoints": [{"time": "2024-01-15T08:00:00", "hr": 145}],
             "is_power_set": False,
@@ -33,7 +40,7 @@ class TestParsedInfoToParsedActivity:
         from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
 
         parsed_info = {
-            "activity": {"name": "test"},
+            "activity": _activity(),
             "is_heart_rate_set": True,
             "hr_waypoints": [{"hr": 145}],
             "is_power_set": True,
@@ -54,7 +61,7 @@ class TestParsedInfoToParsedActivity:
         from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
 
         parsed_info = {
-            "activity": {"name": "test"},
+            "activity": _activity(),
             "is_heart_rate_set": False,
             "is_power_set": False,
             "is_cadence_set": False,
@@ -71,7 +78,7 @@ class TestParsedInfoToParsedActivity:
     def test_carries_activity_and_children(self):
         from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
 
-        activity = {"name": "test"}
+        activity = _activity()
         parsed_info = {
             "activity": activity,
             "laps": [{"lap": 1}],

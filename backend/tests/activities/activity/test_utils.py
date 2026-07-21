@@ -114,6 +114,39 @@ class TestApplyVisibilityMask:
 
         assert result.private_notes == "visible"
 
+    def test_non_owner_masks_thumbnail_when_hide_map(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = MagicMock()
+        schema.hide_map = True
+        schema.map_thumbnail_path = "42.webp"
+
+        result = apply_visibility_mask(schema, is_owner=False)
+
+        assert result.map_thumbnail_path is None
+
+    def test_non_owner_keeps_thumbnail_when_not_hide_map(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = MagicMock()
+        schema.hide_map = False
+        schema.map_thumbnail_path = "42.webp"
+
+        result = apply_visibility_mask(schema, is_owner=False)
+
+        assert result.map_thumbnail_path == "42.webp"
+
+    def test_owner_keeps_thumbnail_even_with_hide_map(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = MagicMock()
+        schema.hide_map = True
+        schema.map_thumbnail_path = "42.webp"
+
+        result = apply_visibility_mask(schema, is_owner=True)
+
+        assert result.map_thumbnail_path == "42.webp"
+
 
 class TestCalculateActivityStats:
     def test_calculate_stats(self):

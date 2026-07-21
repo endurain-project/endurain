@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -138,6 +139,17 @@ async def fetch_and_process_activities(
     return processed_activities if processed_activities else None
 
 
+@functools.lru_cache(maxsize=1)
+def _get_timezone_finder() -> TimezoneFinder:
+    """Return a process-wide cached TimezoneFinder.
+
+    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so it
+    is built once and reused across activities instead of per parse (a single
+    instance is safe for concurrent ``timezone_at`` reads).
+    """
+    return TimezoneFinder()
+
+
 def parse_activity(
     activity,
     user_id: int,
@@ -146,8 +158,8 @@ def parse_activity(
     user_integrations: user_integrations_models.UsersIntegrations,
     db: Session,
 ) -> dict:
-    # Create an instance of TimezoneFinder
-    tf = TimezoneFinder()
+    # Reuse the process-wide cached TimezoneFinder instead of rebuilding it per activity.
+    tf = _get_timezone_finder()
     timezone = core_config.settings.TZ
 
     # Check rate limit before detailed activity fetch
