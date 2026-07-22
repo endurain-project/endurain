@@ -4,10 +4,6 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
-permissions:
-  contents: read
-  pull-requests: read
-
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.event.pull_request.number }}
   cancel-in-progress: true

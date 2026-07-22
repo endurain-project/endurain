@@ -6,10 +6,6 @@ on:
     types:
       - published
 
-permissions:
-  contents: read
-  packages: write
-
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
   cancel-in-progress: false
