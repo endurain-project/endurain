@@ -338,6 +338,8 @@ class TestStoreBulkImportFile:
     def test_propagates_failure_instead_of_swallowing(self):
         from modules.activities.activity_ingestion import orchestrator
 
-        with patch.object(orchestrator, "_validate_prepare_and_store_file", side_effect=ValueError("boom")):
-            with pytest.raises(ValueError):
-                orchestrator.store_bulk_import_file(3, "/tmp/x.gpx", "2026-07-21T00:00:00", "db")
+        with (
+            patch.object(orchestrator, "_validate_prepare_and_store_file", side_effect=ValueError("boom")),
+            pytest.raises(ValueError),
+        ):
+            orchestrator.store_bulk_import_file(3, "/tmp/x.gpx", "2026-07-21T00:00:00", "db")

@@ -126,9 +126,10 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_rolls_back_and_raises_when_child_fails(self, mock_crud, mock_streams_crud, mock_pub):
+        from sqlalchemy.exc import SQLAlchemyError
+
         import modules.activities.activity.ingestion_service as ingestion_service
         import modules.activities.activity.schema as schema
-        from sqlalchemy.exc import SQLAlchemyError
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=5, user_id=2, is_hidden=False))
         mock_streams_crud.create_activity_streams = MagicMock(side_effect=SQLAlchemyError("boom"))
@@ -213,9 +214,10 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_noop_on_existing_content_hash(self, mock_crud, mock_streams_crud, mock_pub):
+        from datetime import UTC, datetime
+
         import modules.activities.activity.ingestion_service as ingestion_service
         import modules.activities.activity.schema as schema
-        from datetime import UTC, datetime
 
         existing = MagicMock(id=99, user_id=3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
@@ -264,9 +266,10 @@ class TestDeriveDedupKey:
         assert ingestion_service._derive_dedup_key(activity, schema.ImportSource(kind="upload")) is None
 
     def test_content_hash_key_when_no_provider_id(self):
+        from datetime import UTC, datetime
+
         import modules.activities.activity.ingestion_service as ingestion_service
         import modules.activities.activity.schema as schema
-        from datetime import UTC, datetime
 
         activity = MagicMock(
             strava_activity_id=None,
@@ -286,9 +289,10 @@ class TestDeriveDedupKey:
         assert ingestion_service._derive_dedup_key(activity, source) == "strava:9"
 
     def test_multi_activity_distinct_start_times_yield_distinct_keys(self):
+        from datetime import UTC, datetime
+
         import modules.activities.activity.ingestion_service as ingestion_service
         import modules.activities.activity.schema as schema
-        from datetime import UTC, datetime
 
         # Two activities parsed from the SAME multi-activity file share the file
         # hash but differ by start time, so the start-time salt keeps their keys

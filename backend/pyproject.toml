@@ -199,7 +199,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S105", "S106"]  # allow assert and test data with password-like strings
+"tests/**/*.py" = ["S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["E402", "I001"]  # alembic migrations have specific import order
 "app/alembic/versions/v0_3_0_migration.py" = ["S105", "S106"]  # legitimate password hashes in seed migration
 "app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
