@@ -325,7 +325,7 @@ async def test_save_validated_upload_signature_mismatch_no_partial(
 def test_module_exposes_singleton_validator():
     """The application uses one shared FileValidator instance."""
     assert core_file_uploads.file_validator is not None
-    # Limits configured per the unification plan.
+    # Limits configured on the shared validator.
     limits = core_file_uploads.file_validator.config.limits
     assert limits.max_activity_file_size == 200 * 1024 * 1024
     assert limits.max_gzip_size == 200 * 1024 * 1024

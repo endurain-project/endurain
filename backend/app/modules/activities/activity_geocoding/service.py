@@ -1,7 +1,7 @@
 """Reverse-geocode activity locations off the ingestion path.
 
 Owns the network reverse-geocoding that used to run inline inside the file
-parsers (module rework plan §6.2 / A4d). Parsers now emit an activity with no
+parsers. Parsers now emit an activity with no
 ``city``/``town``/``country``; the ``activity.created`` subscriber calls in here to
 resolve and persist the location, and the scheduled backfill re-resolves any that
 were missed. Being a subscriber (not part of parsing) keeps the parse path free of

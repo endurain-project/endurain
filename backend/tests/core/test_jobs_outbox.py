@@ -50,7 +50,7 @@ class TestAddToOutbox:
     def test_commit_false_flushes_without_committing(self, db):
         # commit=False stages the row in the caller's open transaction (visible via
         # the session) but does not commit — a rollback discards it, which is what
-        # makes the ingestion outbox write atomic with the domain change (A6).
+        # makes the ingestion outbox write atomic with the domain change.
         outbox_id = jobs_outbox.add_to_outbox(_event("staged"), now=_NOW, db=db, commit=False)
         assert db.get(EventOutbox, outbox_id) is not None  # flushed, visible in-session
         db.rollback()

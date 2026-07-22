@@ -157,7 +157,7 @@ def create_activity_with_bulk_import(
                 core_logger.print_to_log_and_console(f"Queuing file for processing: {file_path}", "info")
 
         # Hand each validated file off for background processing. When durable jobs
-        # are enabled, publish one durable job per file (A9): the event is staged in
+        # are enabled, publish one durable job per file: the event is staged in
         # the transactional outbox on this request's session, then the relay fans it
         # into a retryable, dead-letterable processing_jobs row drained by the
         # in-process worker (local) or the worker fleet (distributed) — a crash
@@ -236,7 +236,7 @@ async def refresh_activities(
 ):
     """Fetch the last 24h of activities from the linked providers (Strava/Garmin).
 
-    The one documented ``async`` route (plan §7.3): it awaits the provider HTTP
+    The one documented ``async`` route: it awaits the provider HTTP
     clients, which are not yet reworked. It lives in the ingestion layer (not the
     activities core) because it depends on the Strava/Garmin provider clients — the
     core router stays provider-agnostic.

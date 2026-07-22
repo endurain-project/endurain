@@ -279,7 +279,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Register every activities event-bus subscriber before starting the bus, and
     # every activities durable-job handler on the registry — both via the single
     # shared surface in activities.subscriber_registry so the API and the standalone
-    # worker can never drift (A8). The bus subscribers (thumbnail, notification,
+    # worker can never drift. The bus subscribers (thumbnail, notification,
     # HR-zone, geocoding) react to activity.created / activity.deleted; the durable
     # handlers are the same set keyed by stable subscriber id (harmless when durable
     # jobs are off, retryable per-subscriber when on). Each durable subscriber that

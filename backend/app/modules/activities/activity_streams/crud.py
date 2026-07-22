@@ -418,7 +418,7 @@ def create_activity_streams(
     Bulk create activity streams (waypoints only).
 
     HR ``zone_percentages`` are no longer computed here: that work is decoupled to
-    the ``activity.created`` subscriber (plan §6) so ingestion stays synchronous
+    the ``activity.created`` subscriber so ingestion stays synchronous
     and fast. Streams are persisted with ``zone_percentages=None``; the subscriber
     (and the scheduled backfill reconciliation net) fill them in.
 

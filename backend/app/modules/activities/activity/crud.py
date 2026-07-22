@@ -1157,7 +1157,7 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
     """Get a user's activity by its idempotency dedup key.
 
     Used by the ingestion seam to make re-import of an already-ingested activity
-    a no-op (plan §18.1): a provider-scoped id now, a content hash later.
+    a no-op: a provider-scoped id now, a content hash later.
 
     Args:
         dedup_key: Stable idempotency key (e.g. ``"strava:123"``).
@@ -1314,7 +1314,7 @@ def create_activity(
     """Persist a new activity; duplicate start-times are marked hidden.
 
     Pure persistence: notifications and derived work (thumbnails, HR zones) are
-    decoupled to ``activity.created`` subscribers (plan §6). The caller publishes
+    decoupled to ``activity.created`` subscribers. The caller publishes
     the event after the activity's children are stored; this function only writes
     the row and flags start-time duplicates as hidden.
 
@@ -1359,7 +1359,7 @@ def create_activity(
 
         new_activity = _transform_schema_activity_to_model_activity(activity)
         # Persist the idempotency key alongside the row so future re-imports of
-        # the same source can be recognised as duplicates (plan §18.1).
+        # the same source can be recognised as duplicates.
         new_activity.dedup_key = dedup_key
 
         db.add(new_activity)

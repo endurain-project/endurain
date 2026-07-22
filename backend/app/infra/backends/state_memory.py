@@ -11,7 +11,7 @@ class MemoryState:
     """``StateProvider`` backed by a process-local dict with per-key TTL expiry.
 
     Correct for the ``local`` profile (single process). Not shared across
-    workers/replicas — the deployment fail-fast (F0) rejects using it under a
+    workers/replicas — the deployment fail-fast rejects using it under a
     distributed or multi-worker profile. Access is guarded by a lock because
     FastAPI runs sync handlers in a threadpool.
     """

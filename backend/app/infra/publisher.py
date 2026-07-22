@@ -2,7 +2,7 @@
 
 One tiny facade so no producer ever assembles an :class:`~infra.events.Event`
 or touches the active platform directly. Centralising publishing here means the
-transactional outbox (foundations plan F8) is a change to *this* function alone,
+transactional outbox is a change to *this* function alone,
 not to every call site.
 
 It resolves the active platform, stamps the ambient request id for correlation,

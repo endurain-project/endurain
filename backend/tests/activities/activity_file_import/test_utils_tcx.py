@@ -59,7 +59,7 @@ class TestUtilsTcx:
         assert all(wp["time"] == "2026-04-01T10:00:00" for wp in waypoints["lat_lon_waypoints"])
 
     def test_build_activity_rejects_missing_start_and_end_time(self):
-        """A TCX with no start/end is rejected at ActivityCore construction (A11)."""
+        """A TCX with no start/end is rejected at ActivityCore construction."""
         tcx_file = SimpleNamespace(
             start_time=None,
             end_time=None,

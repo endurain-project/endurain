@@ -8,5 +8,5 @@ through :func:`modules.activities.activity.ingestion_service.store_parsed_activi
 
 The activities core (``activity/``) stays parser-agnostic: it never imports a file parser
 or the Strava bulk-import utilities. That boundary is enforced structurally by the
-``activities-parsing-boundary`` import-linter contract (plan §5, leak C).
+``activities-parsing-boundary`` import-linter contract.
 """

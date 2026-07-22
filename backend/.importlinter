@@ -95,8 +95,8 @@ layers =
 # The activities core (activity/) is parsing- AND provider-agnostic: it exposes the typed
 # ParsedActivity contract + ingestion_service.store_parsed_activity, but never imports a
 # file parser or a provider (Strava/Garmin) client. All format/provider knowledge lives in
-# the sibling activity_ingestion/ package, which produces the contract and calls the core
-# (module rework plan §5, leak C). The provider live-refresh route was relocated there too,
+# the sibling activity_ingestion/ package, which produces the contract and calls the core.
+# The provider live-refresh route was relocated there too,
 # so the core no longer needs any Strava/Garmin import — the boundary is now the whole
 # provider packages, not just the bulk-import glue. Direct imports only
 # (allow_indirect_imports): the rule is that the core must not reach for a parser/provider
@@ -113,7 +113,7 @@ forbidden_modules =
     modules.garmin
 
 # The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
-# db, privacy, gear, provider, or exercise-title-crud coupling (plan §18.2 / A7). Every bit
+# db, privacy, gear, provider, or exercise-title-crud coupling. Every bit
 # of domain resolution they used to do inline (default/Garmin gear, privacy defaults,
 # exercise-title persistence) now lives in the sibling activity_ingestion/ enrichment seam,
 # which legitimately owns db + provider knowledge — so a parser is unit-testable with bytes

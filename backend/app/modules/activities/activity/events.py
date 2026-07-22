@@ -1,7 +1,7 @@
 """Domain event channels owned by the activities module.
 
 Channel names (``event_type`` values) are owned by the domain that publishes
-them, not by the platform substrate (foundations plan §8). ``store_activity``
+them, not by the platform substrate. ``store_activity``
 publishes the fact below; any derived work (thumbnail generation today, and
 future computations) reacts by subscribing to the same constant, so producer and
 subscribers cannot drift on the string. Convention: ``<domain>.<fact>``, past

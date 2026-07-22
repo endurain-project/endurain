@@ -139,7 +139,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
 
 
 class TestSaveActivityStreamsLaps:
-    """Strava persists through the canonical store_parsed_activity seam (plan §5.2)."""
+    """Strava persists through the canonical store_parsed_activity seam."""
 
     def test_builds_parsed_activity_and_delegates_to_seam(self, monkeypatch):
         """Only set streams are forwarded; laps and Strava provenance are carried."""

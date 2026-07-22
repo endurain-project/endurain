@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     # the deployment needs shared state even under the local profile.
     DEPLOYMENT_PROFILE: platform_profile.DeploymentProfile = platform_profile.DeploymentProfile.LOCAL
     WEB_WORKERS: int = 1
-    # Sync-route concurrency (A10). Every activities/followers route is now a sync
+    # Sync-route concurrency. Every activities/followers route is now a sync
     # ``def`` handler, so FastAPI runs it in Starlette's shared anyio worker
     # threadpool (default ~40 tokens per process). That thread count — not the event
     # loop — bounds how many requests can do blocking DB work at once, so the

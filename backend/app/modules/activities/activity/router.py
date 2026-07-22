@@ -1,6 +1,6 @@
 """FastAPI routes for the activities module (authenticated).
 
-RESTful surface (module rework plan §12). Route handlers are thin: they validate,
+RESTful surface. Route handlers are thin: they validate,
 delegate the read/stats/feed orchestration to :mod:`activity/service.py`, and
 return. Literal paths are declared before ``/{activity_id}`` so FastAPI matches
 them first.

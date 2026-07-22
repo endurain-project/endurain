@@ -322,7 +322,7 @@ class TestParseFileError:
 
 
 class TestStoreBulkImportFile:
-    """The raising per-file body for the durable bulk-import job (A9)."""
+    """The raising per-file body for the durable bulk-import job."""
 
     def test_delegates_to_raising_core_as_bulk_import(self):
         from modules.activities.activity_ingestion import orchestrator

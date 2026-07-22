@@ -4,7 +4,7 @@ Registered once at startup (before the event bus starts). In the ``local``
 profile the in-process bus runs these inline, synchronously, before the
 producing request returns — behaviourally identical to inline generation; in a
 ``distributed`` profile a Redis-Streams consumer runs them later, at-least-once,
-against object storage (foundations plan §13).
+against object storage.
 
 Two shapes of handler live here. The ``*_for_event`` cores **raise** on failure
 so the durable-job runner can retry and eventually dead-letter them (used when

@@ -23,7 +23,7 @@ def create_activity_objects(
 
     Pure: derives everything from the FIT bytes. Privacy defaults, gear, and the
     Garmin provider ids are re-attached later by the ``activity_ingestion``
-    enrichment seam (plan §18.2 / A7).
+    enrichment seam.
     """
     try:
         core_logger.print_to_log(

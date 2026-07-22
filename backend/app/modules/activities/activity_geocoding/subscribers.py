@@ -1,6 +1,6 @@
 """Event subscribers reverse-geocoding activity locations off the ingestion path.
 
-Mirrors the thumbnail / HR-zone subscriber pattern (foundations §13): a durable
+Mirrors the thumbnail / HR-zone subscriber pattern: a durable
 ``*_for_event`` core that **raises** so the durable-job runner can retry and
 eventually dead-letter, and an ``on_*`` bus subscriber that **swallows** so a
 geocoding failure never breaks activity import. The scheduled backfill

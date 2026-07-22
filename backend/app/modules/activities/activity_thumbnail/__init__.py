@@ -1,7 +1,7 @@
 """Activity map-thumbnail subsystem.
 
 Owns the thumbnail artifact end to end and reacts to the activity domain events
-``activity.created`` / ``activity.deleted`` (foundations plan §13):
+``activity.created`` / ``activity.deleted``:
 
 - :mod:`render` — pure rendering + storage addressing (key/URL) primitives.
 - :mod:`service` — generate/persist, the scheduled backfill, full regeneration,

@@ -21,7 +21,7 @@ def _to_read_schema(
     """Convert an ORM ``ActivityMedia`` row to its read schema.
 
     The single ORM→schema boundary for this module so ORM instances never leave
-    ``crud`` (module rework plan §4.2).
+    ``crud``.
     """
     return activity_media_schema.ActivityMedia.model_validate(orm_media)
 

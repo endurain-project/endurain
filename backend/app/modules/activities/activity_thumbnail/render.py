@@ -3,7 +3,7 @@
 Renders a static WebP map image (OpenStreetMap tiles + a polyline of the
 activity route) as raw bytes. Persisting the bytes, addressing them by storage
 key, and turning a key back into a servable URL all go through the platform
-``StorageProvider`` (foundations plan §13), so the same code serves local disk
+``StorageProvider``, so the same code serves local disk
 or remote object storage without change.
 """
 

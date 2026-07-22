@@ -1,11 +1,11 @@
-"""Durable-job subscriber that imports one bulk-import file per job (A9).
+"""Durable-job subscriber that imports one bulk-import file per job.
 
 Bulk import enqueues **one durable job per file** (via the transactional outbox)
 instead of a fire-and-forget threadpool task, so a crash mid-import no longer
 drops in-flight work and a failing file is retried with backoff and finally
 dead-lettered — moved to the import-error directory as the human trail — instead
 of vanishing to the error dir on the first error. The job body is the shared sync
-ingestion core (A6, :func:`orchestrator.store_bulk_import_file`); the handler
+ingestion core (:func:`orchestrator.store_bulk_import_file`); the handler
 **raises** on failure so the runner retries and eventually dead-letters.
 
 The ``activity.bulk_import_file`` channel is durable-delivery only: the route

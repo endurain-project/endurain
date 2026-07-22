@@ -2,7 +2,7 @@
 
 Pure module — the single structured shape every event travels in, so the
 pipeline can route, trace, correlate, dedup, and retry without knowing the
-domain. See the foundations plan §8 for the rationale behind each field.
+domain.
 
 Channel names (``event_type`` values) are **owned by the domain that publishes
 them**, not defined here — e.g. the activities module owns ``activity.created``.
@@ -12,7 +12,7 @@ constant so they cannot drift on the string. Convention: ``<domain>.<fact>`` in
 past tense. ``event_type`` stays a plain ``str`` on the envelope so the bus is
 open to new events with no edits here.
 
-The bus itself lands in F4; the envelope is defined now so the wire format never
+The envelope is defined ahead of the bus so the wire format never
 has to change once the first producer ships.
 """
 

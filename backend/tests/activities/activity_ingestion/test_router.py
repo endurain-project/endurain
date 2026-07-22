@@ -1,4 +1,4 @@
-"""Tests for the activity-ingestion bulk-import route branching (A9)."""
+"""Tests for the activity-ingestion bulk-import route branching."""
 
 from unittest.mock import MagicMock, patch
 

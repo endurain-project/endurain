@@ -1,4 +1,4 @@
-"""Tests for the durable bulk-import-file subscriber (A9)."""
+"""Tests for the durable bulk-import-file subscriber."""
 
 from unittest.mock import patch
 

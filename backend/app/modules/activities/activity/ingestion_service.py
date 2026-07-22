@@ -1,6 +1,6 @@
 """Core activity ingestion — persist a canonical :class:`ParsedActivity`.
 
-This is the seam that makes parsing irrelevant to the activities core (plan §5):
+This is the seam that makes parsing irrelevant to the activities core:
 it accepts a format-agnostic :class:`~modules.activities.activity.schema.ParsedActivity`
 and persists the activity plus its streams/laps/sets/workout-steps, then publishes
 ``activity.created``. It has **no** knowledge of ``.gpx``/``.tcx``/``.fit``, Strava,
@@ -72,7 +72,7 @@ def store_parsed_activity(
         HTTPException: 500 when the activity could not be created.
     """
     try:
-        # Idempotency (plan §18.1): a stable dedup_key makes re-import of an
+        # Idempotency: a stable dedup_key makes re-import of an
         # already-ingested activity a true no-op. Prefer an explicit key from the
         # source, otherwise derive one from the activity's provider ids. When a
         # key is present and already stored for this owner, return the existing

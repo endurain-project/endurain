@@ -247,7 +247,7 @@ def _build_activity(
 
     Domain fields (privacy, gear, provider ids) are intentionally left unset —
     the ``activity_ingestion`` enrichment seam populates them after parsing so
-    the parser stays pure (plan §18.2 / A7).
+    the parser stays pure.
 
     Args:
         tcx_file: Parsed TCX file object.

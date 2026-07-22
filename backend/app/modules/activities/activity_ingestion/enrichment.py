@@ -2,7 +2,7 @@
 
 The file parsers (:mod:`modules.activities.activity_file_import`) are **pure** —
 they derive only what the file bytes contain and never touch the DB, privacy
-settings, gear, or Garmin (plan §18.2 / A7). This adapter seam re-attaches the
+settings, gear, or Garmin. This adapter seam re-attaches the
 domain context the parsers used to resolve inline:
 
 * the owner's **privacy defaults** (visibility + ``hide_*`` flags),

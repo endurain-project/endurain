@@ -395,7 +395,7 @@ def save_activity_streams_laps(
 ) -> activities_schema.Activity:
     """Persist a Strava-parsed activity through the canonical ingestion seam.
 
-    Strava is a thin adapter (module rework plan §5.2): it builds the
+    Strava is a thin adapter: it builds the
     format-agnostic :class:`~modules.activities.activity.schema.ParsedActivity`
     from the parse result and delegates persistence + ``activity.created``
     publication to

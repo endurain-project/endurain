@@ -1,4 +1,4 @@
-"""Tests for the shared activities subscriber-registration surface (A8).
+"""Tests for the shared activities subscriber-registration surface.
 
 Covers the single registration surface used by both the API lifespan and the
 standalone worker, plus the reconciliation-net invariant: every durable

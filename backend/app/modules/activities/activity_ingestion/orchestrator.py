@@ -213,8 +213,8 @@ def parse_file(
             core_logger.print_to_log(f"Parsing file: {filename}")
             parsed_info: dict[str, Any]
             # Choose the appropriate parser based on file extension. The parsers
-            # are pure (no db / privacy / gear / provider coupling — plan §18.2 /
-            # A7); the orchestrator re-attaches that domain context afterwards.
+            # are pure (no db / privacy / gear / provider coupling); the
+            # orchestrator re-attaches that domain context afterwards.
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file. parse_gpx_file returns a ParsedGpxData
                 # TypedDict; normalize it to a plain dict so ``parsed_info`` is a
@@ -413,7 +413,7 @@ def _store_activities_from_file(
         ids_to_filename += str(created_activity.id)
     elif file_extension.lower() == ".fit":
         # Persist the file's exercise-title reference rows (parsed as data — the
-        # parser no longer writes them; plan §18.2 / A7).
+        # parser no longer writes them).
         exercise_titles = parsed_info.get("exercise_titles")
         if exercise_titles:
             activity_exercise_titles_crud.create_activity_exercise_titles(exercise_titles, db)
@@ -595,7 +595,7 @@ def store_bulk_import_file(
     import_initiated_time: str | None,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
-    """Import one bulk-import file, **raising** on failure (the durable job body, A9).
+    """Import one bulk-import file, **raising** on failure (the durable job body).
 
     The per-file body of the durable bulk-import job: it validates, decompresses,
     and stores the file exactly like the background entry but does **not** swallow

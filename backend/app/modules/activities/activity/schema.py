@@ -339,7 +339,7 @@ class ActivityEdit(BaseModel):
 
 
 class ActivityCore(Activity):
-    """Strict ingestion *input* schema (plan §5.1 / A11).
+    """Strict ingestion *input* schema.
 
     The tightened variant of the read :class:`Activity` that every ingestion
     producer builds — the file parsers (incl. Garmin's ``.fit`` path), the Strava
@@ -419,7 +419,7 @@ class ParsedActivity:
     Every ingestion source (the file parsers, Strava, Garmin, profile imports)
     produces this shape; :func:`ingestion_service.store_parsed_activity` persists
     it without any knowledge of where it came from. This is the seam that makes
-    parsing irrelevant to the activities core (plan §5).
+    parsing irrelevant to the activities core.
 
     Attributes:
         activity: The strict ``ActivityCore`` input schema to persist.

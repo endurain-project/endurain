@@ -4,8 +4,7 @@ Covers the provider request building (incl. the SSRF host allow-list and
 redirect hardening), response parsing, throttling, and the create-path /
 backfill store paths. Relocated from
 ``tests/activities/activity_file_import/test_geocoding.py`` when reverse-geocoding
-moved off the parse path into the ``activity_geocoding`` subscriber (module rework
-plan A4d).
+moved off the parse path into the ``activity_geocoding`` subscriber.
 """
 
 from unittest.mock import MagicMock, patch

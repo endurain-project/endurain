@@ -1,6 +1,6 @@
 """Event subscribers wiring activity notifications to activity lifecycle events.
 
-Mirrors the thumbnail subscriber pattern (foundations §13): a durable
+Mirrors the thumbnail subscriber pattern: a durable
 ``*_for_event`` core that **raises** so the durable-job runner can retry and
 eventually dead-letter, and an ``on_*`` bus subscriber that **swallows** so a
 notification failure never breaks activity import. The notification row is the
@@ -69,7 +69,7 @@ def notify_activity_created_for_event(event: Event) -> None:
     # notification ROW is written, so the client still sees it on its next fetch.
     # The real fix (cross-replica fan-out, e.g. a Redis pub/sub relay to every
     # replica's manager) belongs to the future websocket module rework; noted here
-    # (A8) so it is not forgotten.
+    # so it is not forgotten.
     platform_async_bridge.dispatch(
         websocket_utils.notify_frontend(
             user_id,

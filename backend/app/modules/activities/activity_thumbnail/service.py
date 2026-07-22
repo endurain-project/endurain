@@ -4,7 +4,7 @@ The behavioural core of the subsystem. Rendering (:mod:`render`) produces bytes;
 this module persists/removes them through the platform ``StorageProvider`` and
 records the storage *key* on the activity. It also owns the scheduled reconciling
 backfill (guarded by the ``LockProvider`` so a single replica runs it) and the
-full regeneration triggered when tile settings change (foundations plan §13).
+    full regeneration triggered when tile settings change.
 """
 
 from sqlalchemy import select
