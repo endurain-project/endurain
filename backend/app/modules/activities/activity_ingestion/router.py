@@ -29,6 +29,7 @@ import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
 import modules.activities.activity_ingestion.orchestrator as orchestrator
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.activity_utils as garmin_activity_utils
@@ -100,6 +101,7 @@ def create_activity_with_bulk_import(
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
+    db: Annotated[Session, Depends(core_database.get_db)],
 ):
     try:
         # Get time of import initiation to pass to function for recording in import_data
@@ -154,28 +156,37 @@ def create_activity_with_bulk_import(
                 # Log the file being processed
                 core_logger.print_to_log_and_console(f"Queuing file for processing: {file_path}", "info")
 
-        # Submit ONE task that processes all files on the module-level thread
-        # pool and attach a done-callback so executor exceptions are surfaced via
-        # the logger instead of being silently lost. The route is synchronous, so
-        # we submit directly to the executor (there is no running event loop to
-        # hand the work to).
-        future = executor.submit(
-            orchestrator.process_all_files_sync,
-            token_user_id,
-            files_to_process,
-            import_initiated_time=import_time,
-        )
+        # Hand each validated file off for background processing. When durable jobs
+        # are enabled, publish one durable job per file (A9): the event is staged in
+        # the transactional outbox on this request's session, then the relay fans it
+        # into a retryable, dead-letterable processing_jobs row drained by the
+        # in-process worker (local) or the worker fleet (distributed) — a crash
+        # mid-import no longer drops in-flight files, and a failing file retries then
+        # dead-letters (moved to the import-error dir) instead of vanishing on the
+        # first error. When durable jobs are off there is no worker to drain the
+        # queue, so fall back to the legacy module-level threadpool (one task
+        # processing all files, exceptions surfaced via a done-callback).
+        if core_config.settings.JOBS_ENABLED:
+            for file_path in files_to_process:
+                activity_bulk_import_subscribers.publish_bulk_import_file(file_path, token_user_id, import_time, db)
+        else:
+            future = executor.submit(
+                orchestrator.process_all_files_sync,
+                token_user_id,
+                files_to_process,
+                import_initiated_time=import_time,
+            )
 
-        def _log_bulk_import_failure(fut: Future) -> None:
-            exc = fut.exception()
-            if exc is not None and isinstance(exc, Exception):
-                core_logger.print_to_log(
-                    f"Bulk import background task failed: {exc}",
-                    "error",
-                    exc=exc,
-                )
+            def _log_bulk_import_failure(fut: Future) -> None:
+                exc = fut.exception()
+                if exc is not None and isinstance(exc, Exception):
+                    core_logger.print_to_log(
+                        f"Bulk import background task failed: {exc}",
+                        "error",
+                        exc=exc,
+                    )
 
-        future.add_done_callback(_log_bulk_import_failure)
+            future.add_done_callback(_log_bulk_import_failure)
 
         # Log a success message that explains processing will continue elsewhere.
         core_logger.print_to_log_and_console(

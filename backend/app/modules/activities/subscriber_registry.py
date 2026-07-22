@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 import modules.activities.activity.subscribers as activity_subscribers
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
+import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
@@ -70,6 +71,7 @@ def register_all_activity_durable_handlers(registry: JobHandlerRegistry) -> None
     activity_subscribers.register_activity_notification_durable_handlers(registry)
     activity_streams_subscribers.register_hr_zone_durable_handlers(registry)
     activity_geocoding_subscribers.register_geocoding_durable_handlers(registry)
+    activity_bulk_import_subscribers.register_bulk_import_durable_handlers(registry)
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,18 @@ ACTIVITY_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "the row is gone there is no create-derived state to reconcile. A stray "
             "orphaned thumbnail is harmless (and the create-path thumbnail backfill "
             "only regenerates thumbnails for activities that still exist)."
+        ),
+    ),
+    DurableSubscriberNet(
+        activity_bulk_import_subscribers.BULK_IMPORT_FILE_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The durable job IS the reliability mechanism here: each bulk-import file "
+            "is its own retryable job that dead-letters (moving the file to the "
+            "import-error directory) once its attempts are exhausted. It is a command "
+            "job, not an activity.created reaction, so there is no derived state to "
+            "re-derive on a schedule — recovering a dead-lettered file means re-adding "
+            "it to the bulk-import directory."
         ),
     ),
 )

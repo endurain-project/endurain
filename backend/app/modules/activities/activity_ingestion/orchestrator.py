@@ -496,6 +496,131 @@ def _store_activities_from_file(
     return created_activities
 
 
+def _validate_prepare_and_store_file(
+    token_user_id: int,
+    file_path: str,
+    db: Session,
+    *,
+    from_garmin: bool = False,
+    is_bulk_import: bool = False,
+    garminconnect_gear: dict | None = None,
+    strava_activities: dict | None = None,
+    import_initiated_time: str | None = None,
+    users_existing_gear_nickname_to_id: dict | None = None,
+    activity_name: str | None = None,
+) -> list[activities_schema.Activity] | None:
+    """Validate, decompress, and store one on-disk activity file — **raising** on failure.
+
+    The shared raising core behind both the swallowing background entry
+    (:func:`parse_and_store_activity_from_file`, which moves the file to the
+    error dir and returns ``None``) and the durable bulk-import job body
+    (:func:`store_bulk_import_file`, which lets the failure propagate so the job
+    runner retries and eventually dead-letters). Does no error-directory handling
+    itself — the caller owns the failure policy.
+
+    Args:
+        token_user_id: ID of the authenticated user performing the import.
+        file_path: Absolute path to the activity file to parse.
+        db: SQLAlchemy database session.
+        from_garmin: Whether the file originates from a Garmin Connect sync.
+        is_bulk_import: Whether this file is part of a bulk import.
+        garminconnect_gear: Garmin Connect gear metadata to associate.
+        strava_activities: Strava bulk-import metadata dict keyed by filename.
+        import_initiated_time: ISO timestamp of when the bulk import was initiated.
+        users_existing_gear_nickname_to_id: Gear nickname → internal id mapping.
+        activity_name: Optional override for the activity name.
+
+    Returns:
+        List of created activity schema objects.
+    """
+    # Get file extension
+    _, file_extension = os.path.splitext(file_path)
+    file_extension = file_extension.lower()
+
+    if file_extension not in core_config.SUPPORTED_FILE_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_406_NOT_ACCEPTABLE,
+            detail=("File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"),
+        )
+
+    # Defense-in-depth signature check on files queued for
+    # processing (Garmin / Strava import paths).
+    core_file_uploads.validate_local_file_sync(
+        file_path,
+        kind=(core_file_uploads.UploadKind.GZIP if file_extension == ".gz" else core_file_uploads.UploadKind.ACTIVITY),
+    )
+
+    # The Strava bulk-import metadata dict is keyed by the original
+    # (pre-decompression) base filename, and the Garmin activity id is parsed
+    # from it — capture both before any ``.gz`` handling rewrites the path.
+    _, file_base_name = os.path.split(file_path)
+
+    garmin_connect_activity_id = None
+    if from_garmin:
+        garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
+
+    if file_extension == ".gz":
+        file_path, file_extension = handle_gzipped_file(file_path)
+        file_extension = file_extension.lower()
+        if file_extension not in core_config.SUPPORTED_FILE_FORMATS or file_extension == ".gz":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=("Decompressed file extension is not supported"),
+            )
+        core_file_uploads.validate_local_file_sync(
+            file_path,
+            kind=core_file_uploads.UploadKind.ACTIVITY,
+        )
+
+    return _store_activities_from_file(
+        token_user_id,
+        file_path,
+        file_extension,
+        file_base_name,
+        db,
+        from_garmin=from_garmin,
+        is_bulk_import=is_bulk_import,
+        garminconnect_gear=garminconnect_gear,
+        strava_activities=strava_activities,
+        import_initiated_time=import_initiated_time,
+        users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
+        garmin_connect_activity_id=garmin_connect_activity_id,
+        activity_name=activity_name,
+    )
+
+
+def store_bulk_import_file(
+    user_id: int,
+    file_path: str,
+    import_initiated_time: str | None,
+    db: Session,
+) -> list[activities_schema.Activity] | None:
+    """Import one bulk-import file, **raising** on failure (the durable job body, A9).
+
+    The per-file body of the durable bulk-import job: it validates, decompresses,
+    and stores the file exactly like the background entry but does **not** swallow
+    errors or move the file — a failure propagates so the durable-job runner
+    retries with backoff and eventually dead-letters. The durable subscriber owns
+    moving a dead-lettered file to the import-error directory.
+
+    Args:
+        user_id: ID of the user performing the import.
+        file_path: Absolute path to the activity file to parse.
+        import_initiated_time: ISO timestamp of when the bulk import was initiated.
+        db: SQLAlchemy database session.
+
+    Returns:
+        List of created activity schema objects.
+    """
+    return _validate_prepare_and_store_file(
+        user_id,
+        file_path,
+        db,
+        is_bulk_import=True,
+        import_initiated_time=import_initiated_time,
+    )
+
+
 def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,
@@ -542,52 +667,9 @@ def parse_and_store_activity_from_file(
         parsed or persisted.
     """
     try:
-        # Get file extension
-        _, file_extension = os.path.splitext(file_path)
-        file_extension = file_extension.lower()
-
-        if file_extension not in core_config.SUPPORTED_FILE_FORMATS:
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail=("File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"),
-            )
-
-        # Defense-in-depth signature check on files queued for
-        # processing (Garmin / Strava import paths).
-        core_file_uploads.validate_local_file_sync(
-            file_path,
-            kind=(
-                core_file_uploads.UploadKind.GZIP if file_extension == ".gz" else core_file_uploads.UploadKind.ACTIVITY
-            ),
-        )
-
-        # The Strava bulk-import metadata dict is keyed by the original
-        # (pre-decompression) base filename, and the Garmin activity id is parsed
-        # from it — capture both before any ``.gz`` handling rewrites the path.
-        _, file_base_name = os.path.split(file_path)
-
-        garmin_connect_activity_id = None
-        if from_garmin:
-            garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
-
-        if file_extension == ".gz":
-            file_path, file_extension = handle_gzipped_file(file_path)
-            file_extension = file_extension.lower()
-            if file_extension not in core_config.SUPPORTED_FILE_FORMATS or file_extension == ".gz":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=("Decompressed file extension is not supported"),
-                )
-            core_file_uploads.validate_local_file_sync(
-                file_path,
-                kind=core_file_uploads.UploadKind.ACTIVITY,
-            )
-
-        return _store_activities_from_file(
+        return _validate_prepare_and_store_file(
             token_user_id,
             file_path,
-            file_extension,
-            file_base_name,
             db,
             from_garmin=from_garmin,
             is_bulk_import=is_bulk_import,
@@ -595,7 +677,6 @@ def parse_and_store_activity_from_file(
             strava_activities=strava_activities,
             import_initiated_time=import_initiated_time,
             users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
-            garmin_connect_activity_id=garmin_connect_activity_id,
             activity_name=activity_name,
         )
     except (

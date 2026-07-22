@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import core.scheduler as core_scheduler
 import modules.activities.activity.events as activity_events
+import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.subscriber_registry as activity_subscriber_registry
 from infra.jobs.registry import JobHandlerRegistry
 
@@ -22,6 +23,7 @@ _EXPECTED_CREATED_SUBSCRIBERS = {
     "activity_geocoding.reverse_geocode",
 }
 _EXPECTED_DELETED_SUBSCRIBERS = {"activity_thumbnail.cleanup"}
+_EXPECTED_BULK_IMPORT_SUBSCRIBERS = {"activity_ingestion.bulk_import_file"}
 
 
 def _register_durable_handlers() -> JobHandlerRegistry:
@@ -32,7 +34,11 @@ def _register_durable_handlers() -> JobHandlerRegistry:
 
 def _registered_durable_ids(registry: JobHandlerRegistry) -> set[str]:
     ids: set[str] = set()
-    for event_type in (activity_events.ACTIVITY_CREATED, activity_events.ACTIVITY_DELETED):
+    for event_type in (
+        activity_events.ACTIVITY_CREATED,
+        activity_events.ACTIVITY_DELETED,
+        ingestion_events.ACTIVITY_BULK_IMPORT_FILE,
+    ):
         ids.update(registry.subscribers_for(event_type))
     return ids
 
@@ -53,6 +59,10 @@ class TestRegisterAllActivityDurableHandlers:
         registry = _register_durable_handlers()
         assert set(registry.subscribers_for(activity_events.ACTIVITY_CREATED)) == _EXPECTED_CREATED_SUBSCRIBERS
         assert set(registry.subscribers_for(activity_events.ACTIVITY_DELETED)) == _EXPECTED_DELETED_SUBSCRIBERS
+        assert (
+            set(registry.subscribers_for(ingestion_events.ACTIVITY_BULK_IMPORT_FILE))
+            == _EXPECTED_BULK_IMPORT_SUBSCRIBERS
+        )
 
     def test_every_handler_resolves(self):
         registry = _register_durable_handlers()

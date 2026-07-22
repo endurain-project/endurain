@@ -319,3 +319,25 @@ class TestParseFileError:
                 filename="/path/to/file.gpx",
             )
         assert exc.value.status_code == 500
+
+
+class TestStoreBulkImportFile:
+    """The raising per-file body for the durable bulk-import job (A9)."""
+
+    def test_delegates_to_raising_core_as_bulk_import(self):
+        from modules.activities.activity_ingestion import orchestrator
+
+        with patch.object(orchestrator, "_validate_prepare_and_store_file", return_value=["activity"]) as helper:
+            result = orchestrator.store_bulk_import_file(3, "/tmp/x.gpx", "2026-07-21T00:00:00", "db")
+
+        helper.assert_called_once_with(
+            3, "/tmp/x.gpx", "db", is_bulk_import=True, import_initiated_time="2026-07-21T00:00:00"
+        )
+        assert result == ["activity"]
+
+    def test_propagates_failure_instead_of_swallowing(self):
+        from modules.activities.activity_ingestion import orchestrator
+
+        with patch.object(orchestrator, "_validate_prepare_and_store_file", side_effect=ValueError("boom")):
+            with pytest.raises(ValueError):
+                orchestrator.store_bulk_import_file(3, "/tmp/x.gpx", "2026-07-21T00:00:00", "db")
