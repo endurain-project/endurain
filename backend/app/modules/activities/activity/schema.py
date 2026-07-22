@@ -13,6 +13,7 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    field_validator,
 )
 
 import core.timezone as core_timezone
@@ -337,6 +338,42 @@ class ActivityEdit(BaseModel):
     hide_gear: StrictBool | None = None
 
 
+class ActivityCore(Activity):
+    """Strict ingestion *input* schema (plan §5.1 / A11).
+
+    The tightened variant of the read :class:`Activity` that every ingestion
+    producer builds — the file parsers (incl. Garmin's ``.fit`` path), the Strava
+    adapter, and the profile bulk-restore. It differs from the loose read schema in
+    two enforced ways:
+
+    * **Owner + start/end are required.** ``user_id`` is required and
+      ``start_time``/``end_time`` may not be null — a missing owner or timestamp is
+      rejected at construction (the boundary) instead of deep inside
+      ``create_activity``.
+    * **Times are normalized to UTC-aware at construction.** Parsers emit naive UTC
+      wall-clock strings and providers emit ISO strings; the validator coerces both
+      to aware UTC, relocating the normalization that used to run late in
+      ``ParsedActivity.__post_init__``. The field type stays ``datetime | str |
+      None`` so producers keep passing their string output unchanged (no call-site
+      churn), while the stored value is always an aware ``datetime``.
+    """
+
+    user_id: int = Field(ge=1)
+    # Required (no default): ingestion must provide a start/end time; the validator
+    # rejects a null/unparseable value and coerces the rest to aware UTC.
+    start_time: datetime | str | None
+    end_time: datetime | str | None
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def _require_utc_aware(cls, value: Any) -> datetime:
+        """Coerce parser/provider datetime output to aware UTC; reject null values."""
+        aware = core_timezone.to_utc_aware(value)
+        if aware is None:
+            raise ValueError("must be a valid, non-null datetime")
+        return aware
+
+
 @dataclass(frozen=True)
 class ParsedStream:
     """A single parsed activity stream (type + waypoints), before persistence.
@@ -385,7 +422,7 @@ class ParsedActivity:
     parsing irrelevant to the activities core (plan §5).
 
     Attributes:
-        activity: The activity row to persist (the existing read/input schema).
+        activity: The strict ``ActivityCore`` input schema to persist.
         streams: Parsed streams (type + waypoints), assigned an ``activity_id``
             at persist time.
         laps: Optional parsed laps — dicts keyed by the ``ActivityLapsBase`` field
@@ -397,22 +434,9 @@ class ParsedActivity:
         source: Where the activity came from.
     """
 
-    activity: Activity
+    activity: ActivityCore
     streams: list[ParsedStream] = field(default_factory=list)
     laps: list[dict[str, Any]] | None = None
     sets: list[activity_sets_schema.ActivitySetsCreate | list] | None = None
     workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps] | None = None
     source: ImportSource | None = None
-
-    def __post_init__(self) -> None:
-        """Normalize the activity's start/end datetimes to timezone-aware UTC.
-
-        The ingestion contract carries timezone-aware UTC datetimes so persistence
-        and serialization never handle naive values. Parsers emit naive UTC
-        wall-clock datetimes (providers may emit offset-aware ones), so this single
-        boundary attaches/normalizes UTC for every source — the core never sees a
-        naive datetime regardless of where the activity came from. Replaces the
-        previous implicit normalization that only happened later in crud.
-        """
-        self.activity.start_time = core_timezone.to_utc_aware(self.activity.start_time)
-        self.activity.end_time = core_timezone.to_utc_aware(self.activity.end_time)

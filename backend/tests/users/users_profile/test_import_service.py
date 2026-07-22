@@ -1251,7 +1251,15 @@ class TestImportServiceActivitiesDataBatched:
         zip_data = _make_zip_with_json(
             {
                 "data/activities.json": [
-                    {"id": 1, "gear_id": 5, "distance": 1000, "name": "Morning Run", "activity_type": 1},
+                    {
+                        "id": 1,
+                        "gear_id": 5,
+                        "distance": 1000,
+                        "name": "Morning Run",
+                        "activity_type": 1,
+                        "start_time": "2024-01-01T08:00:00",
+                        "end_time": "2024-01-01T09:00:00",
+                    },
                 ],
                 "data/activity_laps_000.json": [{"activity_id": 1, "lap_index": 1}],
                 "data/activity_sets_000.json": [
@@ -1302,7 +1310,14 @@ class TestImportServiceActivitiesDataBatched:
         zip_data = _make_zip_with_json(
             {
                 "data/activities.json": [
-                    {"distance": 1000, "name": "Test", "activity_type": 1, "gear_id": 5},
+                    {
+                        "distance": 1000,
+                        "name": "Test",
+                        "activity_type": 1,
+                        "gear_id": 5,
+                        "start_time": "2024-01-01T08:00:00",
+                        "end_time": "2024-01-01T09:00:00",
+                    },
                 ],
                 "data/activity_laps_000.json": [{"activity_id": 1, "lap_index": 1}],
                 "data/activity_sets_000.json": [],

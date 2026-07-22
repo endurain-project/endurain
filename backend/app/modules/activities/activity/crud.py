@@ -1305,7 +1305,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
 
 
 def create_activity(
-    activity: activities_schema.Activity,
+    activity: activities_schema.ActivityCore,
     db: Session,
     *,
     commit: bool = True,
@@ -1319,7 +1319,7 @@ def create_activity(
     the row and flags start-time duplicates as hidden.
 
     Args:
-        activity: Activity schema to persist.
+        activity: Strict ``ActivityCore`` ingestion schema to persist.
         db: Database session.
         dedup_key: Optional stable idempotency key stored on the row so future
             re-imports of the same source can be recognised as duplicates.

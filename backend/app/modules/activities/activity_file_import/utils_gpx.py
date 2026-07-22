@@ -511,7 +511,7 @@ def _build_activity_schema(
             detail="Missing waypoint timestamps in GPX parse state",
         )
     elapsed = (state.last_waypoint_time - state.first_waypoint_time).total_seconds()
-    return activities_schema.Activity(
+    return activities_schema.ActivityCore(
         user_id=user_id,
         name=state.activity_name,
         description=state.activity_description,

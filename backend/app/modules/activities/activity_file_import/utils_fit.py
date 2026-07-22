@@ -159,7 +159,7 @@ def create_activity_objects(
                 if ele_loss is None and computed_loss:
                     ele_loss = round(computed_loss)
 
-            activity = activities_schema.Activity(
+            activity = activities_schema.ActivityCore(
                 user_id=user_id,
                 name=activity_name,
                 distance=(round(resolved_distance) if resolved_distance else 0),

@@ -853,7 +853,7 @@ class ImportService:
                 original_activity_id = activity_data.get("id")
                 activity_data.pop("id", None)
 
-                activity = activity_schema.Activity(**activity_data)
+                activity = activity_schema.ActivityCore(**activity_data)
                 # Bulk restore intentionally persists via create_activity directly
                 # rather than the store_parsed_activity seam: it must NOT publish
                 # activity.created. Publishing per restored activity would (a) spam

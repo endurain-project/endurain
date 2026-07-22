@@ -1,6 +1,6 @@
 """Tests for GPX activity file import utilities."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import gpxpy
 import pytest
@@ -190,10 +190,10 @@ class TestParseGpxFile:
             user_id=1,
         )
 
-        # 08:19:19-07:00 == 15:19:19 UTC; the offset must be
-        # converted, not silently dropped.
-        assert result["activity"].start_time == "2026-03-28T15:19:19"
-        assert result["activity"].end_time == "2026-03-28T15:19:29"
+        # 08:19:19-07:00 == 15:19:19 UTC; the offset must be converted (not
+        # silently dropped) and ActivityCore stores it as an aware-UTC datetime.
+        assert result["activity"].start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
+        assert result["activity"].end_time == datetime(2026, 3, 28, 15, 19, 29, tzinfo=UTC)
         assert result["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
         assert result["laps"][0]["start_time"] == "2026-03-28T15:19:19"
 

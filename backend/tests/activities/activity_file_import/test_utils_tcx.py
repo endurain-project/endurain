@@ -4,6 +4,9 @@ from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 import modules.activities.activity_file_import.utils_tcx as utils_tcx
 
 
@@ -55,8 +58,8 @@ class TestUtilsTcx:
         assert len(waypoints["power_waypoints"]) == 1
         assert all(wp["time"] == "2026-04-01T10:00:00" for wp in waypoints["lat_lon_waypoints"])
 
-    def test_build_activity_handles_missing_start_and_end_time(self):
-        """Test activity schema accepts missing start/end timestamps."""
+    def test_build_activity_rejects_missing_start_and_end_time(self):
+        """A TCX with no start/end is rejected at ActivityCore construction (A11)."""
         tcx_file = SimpleNamespace(
             start_time=None,
             end_time=None,
@@ -69,26 +72,22 @@ class TestUtilsTcx:
             calories=None,
         )
 
-        activity = utils_tcx._build_activity(
-            tcx_file=tcx_file,
-            user_id=1,
-            activity_name="Indoor Session",
-            activity_type=1,
-            distance=0,
-            timezone="UTC",
-            pace=None,
-            city=None,
-            town=None,
-            country=None,
-            avg_power=None,
-            max_power=None,
-            norm_power=None,
-        )
-
-        assert activity.start_time is None
-        assert activity.end_time is None
-        assert activity.total_elapsed_time is None
-        assert activity.total_timer_time is None
+        with pytest.raises(ValidationError):
+            utils_tcx._build_activity(
+                tcx_file=tcx_file,
+                user_id=1,
+                activity_name="Indoor Session",
+                activity_type=1,
+                distance=0,
+                timezone="UTC",
+                pace=None,
+                city=None,
+                town=None,
+                country=None,
+                avg_power=None,
+                max_power=None,
+                norm_power=None,
+            )
 
     def test_extract_waypoints_converts_offset_to_utc(self):
         """Offset-bearing trackpoint times are normalized to UTC (issue #588)."""
@@ -144,8 +143,8 @@ class TestUtilsTcx:
             norm_power=None,
         )
 
-        assert activity.start_time == "2026-03-28T15:19:19"
-        assert activity.end_time == "2026-03-28T16:19:19"
+        assert activity.start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
+        assert activity.end_time == datetime(2026, 3, 28, 16, 19, 19, tzinfo=UTC)
 
     def test_parse_tcx_file_recomputes_hr_from_waypoints(self):
         """parse_tcx_file overwrites hr_avg/hr_max from hr_waypoints, dropping zeros."""

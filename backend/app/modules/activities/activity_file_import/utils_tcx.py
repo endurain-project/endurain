@@ -271,7 +271,7 @@ def _build_activity(
         (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
     )
 
-    return activities_schema.Activity(
+    return activities_schema.ActivityCore(
         user_id=user_id,
         name=activity_name,
         distance=distance,

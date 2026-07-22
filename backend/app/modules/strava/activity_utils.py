@@ -326,7 +326,7 @@ def parse_activity(
         )
 
     # Create the activity object
-    activity_to_store = activities_schema.Activity(
+    activity_to_store = activities_schema.ActivityCore(
         user_id=user_id,
         name=detailed_activity.name,
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
@@ -388,7 +388,7 @@ def parse_activity(
 
 
 def save_activity_streams_laps(
-    activity: activities_schema.Activity,
+    activity: activities_schema.ActivityCore,
     stream_data: list,
     laps: list[dict] | None,
     db: Session,
