@@ -249,7 +249,6 @@ async def refresh_activities(
         start_date=datetime.now(UTC) - timedelta(days=1),
         end_date=datetime.now(UTC),
         user_id=token_user_id,
-        ws_manager=ws_manager,
         db=db,
     )
 

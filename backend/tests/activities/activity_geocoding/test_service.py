@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 from modules.activities.activity_geocoding.service import (
     LocationResult,
     _is_valid_host,
+    _resolves_to_blocked_ip,
     backfill_missing_activity_locations,
     geocode_and_store_activity_location,
     reverse_geocode,
@@ -42,6 +43,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.NOMINATIM_API_HOST", "nominatim.openstreetmap.org")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_MIN_INTERVAL", 0)
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     def test_nominatim_success(self, mock_get):
         mock_get.return_value.json.return_value = {
@@ -55,6 +57,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.NOMINATIM_API_HOST", "nominatim.local")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_MIN_INTERVAL", 0)
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     def test_nominatim_http_protocol(self, mock_get):
         mock_get.return_value.json.return_value = {"address": {"city": "Lisbon", "country": "Portugal"}}
@@ -68,6 +71,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.NOMINATIM_API_HOST", "nominatim.openstreetmap.org")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_MIN_INTERVAL", 0)
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     def test_nominatim_empty_address_returns_none(self, mock_get):
         mock_get.return_value.json.return_value = {"address": {}}
@@ -78,6 +82,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.PHOTON_API_HOST", "photon.komoot.io")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_MIN_INTERVAL", 0)
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     def test_photon_success(self, mock_get):
         mock_get.return_value.json.return_value = {
@@ -91,6 +96,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.PHOTON_API_HOST", "photon.komoot.io")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_MIN_INTERVAL", 0)
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     def test_photon_no_features_returns_none(self, mock_get):
         mock_get.return_value.json.return_value = {"features": []}
@@ -111,6 +117,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.NOMINATIM_API_HOST", "nominatim.openstreetmap.org")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_MIN_INTERVAL", 0)
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     def test_http_error_returns_none(self, mock_get):
         mock_get.side_effect = Exception("Connection error")
@@ -121,6 +128,7 @@ class TestReverseGeocode:
     @patch(f"{_SVC}.core_config.settings.NOMINATIM_API_HOST", "nominatim.openstreetmap.org")
     @patch(f"{_SVC}.core_config.API_VERSION", "1.0")
     @patch(f"{_SVC}.core_config.REVERSE_GEO_LOCK")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: False)
     @patch(f"{_SVC}.requests.get")
     @patch(f"{_SVC}.time.sleep")
     @patch(f"{_SVC}.time.monotonic")
@@ -161,6 +169,15 @@ class TestReverseGeocode:
         assert reverse_geocode(38.0, -9.0) is None
         mock_get.assert_not_called()
 
+    @patch(f"{_SVC}.core_config.settings.REVERSE_GEO_PROVIDER", "nominatim")
+    @patch(f"{_SVC}.core_config.settings.NOMINATIM_API_HOST", "nominatim.internal")
+    @patch(f"{_SVC}._resolves_to_blocked_ip", lambda host: True)
+    @patch(f"{_SVC}.requests.get")
+    def test_nominatim_blocked_ip_skips_request(self, mock_get):
+        """SSRF A10: a host resolving to a private/loopback IP is rejected without a request."""
+        assert reverse_geocode(38.0, -9.0) is None
+        mock_get.assert_not_called()
+
 
 class TestIsValidHost:
     """The SSRF host allow-list predicate."""
@@ -178,6 +195,40 @@ class TestIsValidHost:
         assert not _is_valid_host("host/reverse")
         assert not _is_valid_host("user@host")
         assert not _is_valid_host("host name")
+
+
+class TestResolvesToBlockedIp:
+    """The SSRF IP-range denylist (resolve + reject private/loopback/link-local)."""
+
+    def test_none_host_is_blocked(self):
+        assert _resolves_to_blocked_ip(None) is True
+
+    @patch(f"{_SVC}.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("10.0.0.1", 0))])
+    def test_private_ip_is_blocked(self, _gai):
+        assert _resolves_to_blocked_ip("nominatim.internal") is True
+
+    @patch(f"{_SVC}.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("169.254.169.254", 0))])
+    def test_link_local_metadata_is_blocked(self, _gai):
+        assert _resolves_to_blocked_ip("metadata") is True
+
+    @patch(f"{_SVC}.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("127.0.0.1", 0))])
+    def test_loopback_is_blocked(self, _gai):
+        assert _resolves_to_blocked_ip("localhost:8080") is True
+
+    @patch(f"{_SVC}.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("8.8.8.8", 0))])
+    def test_public_ip_is_allowed(self, _gai):
+        assert _resolves_to_blocked_ip("nominatim.openstreetmap.org") is False
+
+    @patch(f"{_SVC}.socket.getaddrinfo", side_effect=OSError("nxdomain"))
+    def test_unresolvable_host_is_blocked(self, _gai):
+        assert _resolves_to_blocked_ip("does.not.exist") is True
+
+    @patch(
+        f"{_SVC}.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("8.8.8.8", 0)), (2, 1, 6, "", ("10.0.0.1", 0))],
+    )
+    def test_blocked_when_any_resolved_ip_is_private(self, _gai):
+        assert _resolves_to_blocked_ip("mixed.example.com") is True
 
 
 class TestGeocodeAndStore:

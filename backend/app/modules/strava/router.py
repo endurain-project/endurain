@@ -109,10 +109,6 @@ async def strava_retrieve_activities_days(
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
     # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
@@ -125,7 +121,6 @@ async def strava_retrieve_activities_days(
         start_datetime,
         end_datetime,
         token_user_id,
-        websocket_manager,
     )
 
     # Return success message and status code 202

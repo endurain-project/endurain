@@ -4,7 +4,6 @@ import datetime
 from typing import overload
 
 import numpy as np
-from fastapi.concurrency import run_in_threadpool
 
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
@@ -197,46 +196,3 @@ def compute_hr_zone_breakdown_sync(
         "zone_4": {"percent": zone_percentages[3], "hr": zone_hr["zone_4"], "time_seconds": zone_time_seconds[3]},
         "zone_5": {"percent": zone_percentages[4], "hr": zone_hr["zone_5"], "time_seconds": zone_time_seconds[4]},
     }
-
-
-async def compute_hr_zone_breakdown(
-    waypoints: list[dict],
-    max_heart_rate: int,
-    total_timer_time: float | None,
-) -> dict | None:
-    """
-    Compute the HR zone breakdown off the event loop.
-
-    Args:
-        waypoints: List of waypoint dicts (each may contain an "hr" key).
-        max_heart_rate: The user's max heart rate.
-        total_timer_time: Activity total timer time in seconds (may be falsy).
-
-    Returns:
-        A dict of zone_1..zone_5 entries, or None if it cannot be computed.
-    """
-    return await run_in_threadpool(compute_hr_zone_breakdown_sync, waypoints, max_heart_rate, total_timer_time)
-
-
-async def build_zone_percentages(
-    user: users_schema.UsersRead, activity: activity_schema.Activity, waypoints: list[dict]
-) -> dict[str, dict] | None:
-    """
-    Build the metric-keyed zone_percentages payload for a stream.
-
-    Args:
-        user: The user ORM instance.
-        activity: The activity schema instance.
-        waypoints: The HR stream waypoints.
-
-    Returns:
-        {"hr": {...}} when HR zones can be computed, otherwise None.
-    """
-    max_heart_rate = resolve_max_heart_rate(user)
-    if not max_heart_rate:
-        return None
-    total_timer_time = activity.total_timer_time
-    hr_block: dict | None = await compute_hr_zone_breakdown(waypoints, max_heart_rate, total_timer_time)
-    if hr_block is None:
-        return None
-    return {"hr": hr_block}

@@ -22,7 +22,6 @@ import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
 import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
-import modules.websocket.manager as websocket_manager
 from core.database import SessionLocal
 
 
@@ -32,7 +31,6 @@ async def fetch_and_process_activities(
     end_date: datetime,
     user_id: int,
     user_integrations: user_integrations_models.UsersIntegrations,
-    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
     is_startup: bool = False,
 ) -> int:
@@ -130,7 +128,6 @@ async def fetch_and_process_activities(
                 user_privacy_settings,
                 strava_client,
                 user_integrations,
-                ws_manager,
                 db,
             )
         )
@@ -394,7 +391,6 @@ def save_activity_streams_laps(
     activity: activities_schema.Activity,
     stream_data: list,
     laps: list[dict] | None,
-    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> activities_schema.Activity:
     """Persist a Strava-parsed activity through the canonical ingestion seam.
@@ -412,9 +408,6 @@ def save_activity_streams_laps(
         stream_data: ``(is_set, stream_type, waypoints)`` tuples; only set streams
             are persisted.
         laps: Parsed lap dicts, or ``None`` when the activity has no laps.
-        ws_manager: Unused; retained for call-site compatibility. Websocket
-            delivery now happens in the notification subscriber via the async
-            bridge.
         db: Database session.
 
     Returns:
@@ -447,7 +440,6 @@ async def process_activity(
     user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     strava_client: Client,
     user_integrations: user_integrations_models.UsersIntegrations,
-    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     # Get the activity by Strava ID from the user
@@ -478,7 +470,6 @@ async def process_activity(
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],
-        ws_manager,
         db,
     )
 
@@ -761,7 +752,6 @@ async def retrieve_strava_users_activities_for_days(days: int, is_startup: bool 
                             calculated_end_date,
                             user.id,
                             None,
-                            None,
                             is_startup,
                         )
                     except HTTPException as err:
@@ -816,7 +806,6 @@ async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    ws_manager: websocket_manager.WebSocketManager | None = None,
     db: Session = None,
     is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:
@@ -825,10 +814,6 @@ async def get_user_strava_activities_by_dates(
         # Create a new database session
         db = SessionLocal()
         close_session = True
-
-    if ws_manager is None:
-        # Get the websocket manager instance
-        ws_manager = websocket_manager.get_websocket_manager()
 
     try:
         # Get the user integrations by user ID
@@ -852,7 +837,6 @@ async def get_user_strava_activities_by_dates(
                 end_date,
                 user_id,
                 user_integrations,
-                ws_manager,
                 db,
                 is_startup,
             )

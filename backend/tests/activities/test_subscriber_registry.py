@@ -97,7 +97,9 @@ class TestReconciliationNetInvariant:
         with patch.object(core_scheduler, "scheduler", fake_scheduler):
             core_scheduler.start_scheduler()
 
-        nets_with_backfill = [net for net in activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS if net.backfill]
+        nets_with_backfill = [
+            net for net in activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS if net.backfill
+        ]
         assert nets_with_backfill  # sanity: the create-derived subscribers have nets
         for net in nets_with_backfill:
             assert net.backfill in scheduled_funcs, net.subscriber_id

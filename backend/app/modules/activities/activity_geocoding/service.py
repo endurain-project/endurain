@@ -9,11 +9,15 @@ network I/O and lets the work run durably/async when durable jobs are enabled.
 
 Security (OWASP A10 — SSRF): the provider host is operator-configured, so this
 module validates it is a bare ``host[:port]`` authority (no scheme, path, or
-credentials) and disables HTTP redirects, so a misconfigured or compromised
-provider cannot pivot the request onto an internal target.
+credentials), rejects hosts that resolve to a private/loopback/link-local/reserved
+address (e.g. the cloud metadata endpoint 169.254.169.254), and disables HTTP
+redirects, so a misconfigured or compromised provider cannot pivot the request
+onto an internal target.
 """
 
+import ipaddress
 import re
+import socket
 import time
 from dataclasses import dataclass
 from urllib.parse import urlencode
@@ -50,6 +54,47 @@ def _is_valid_host(host: str | None) -> bool:
     return host is not None and _HOST_RE.match(host) is not None
 
 
+def _resolves_to_blocked_ip(host: str | None) -> bool:
+    """Return True when ``host`` resolves to a non-public-unicast address (SSRF denylist).
+
+    Defense in depth (OWASP A10) on top of the bare-authority format check and
+    ``allow_redirects=False``: resolve the operator-configured provider host and
+    reject it when any resolved address is private (RFC1918), loopback,
+    link-local (incl. the cloud metadata endpoint 169.254.169.254), reserved,
+    multicast, or unspecified. Fails closed — a host that cannot be resolved (or
+    yields an unparseable address) is treated as blocked.
+
+    Args:
+        host: The bare ``host[:port]`` authority to resolve, or None.
+
+    Returns:
+        True when the host should be blocked, False when it resolves only to
+        public unicast addresses.
+    """
+    if host is None:
+        return True
+    hostname = host.rsplit(":", 1)[0]
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except OSError:
+        return True
+    for info in addr_infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return True
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return True
+    return False
+
+
 def _build_geocode_request(latitude: float, longitude: float) -> tuple[str, str] | None:
     """Build the ``(url, provider)`` for the configured provider, or None to skip.
 
@@ -73,6 +118,12 @@ def _build_geocode_request(latitude: float, longitude: float) -> tuple[str, str]
                 "warning",
             )
             return None
+        if _resolves_to_blocked_ip(host):
+            core_logger.print_to_log(
+                f"NOMINATIM_API_HOST {host!r} resolves to a private/loopback/link-local address; skipping reverse-geocoding",
+                "warning",
+            )
+            return None
         protocol = "https" if core_config.settings.NOMINATIM_API_USE_HTTPS else "http"
         params = urlencode({"format": "jsonv2", "lat": latitude, "lon": longitude})
         return f"{protocol}://{host}/reverse?{params}", provider
@@ -81,6 +132,12 @@ def _build_geocode_request(latitude: float, longitude: float) -> tuple[str, str]
         if not _is_valid_host(host):
             core_logger.print_to_log(
                 f"Invalid PHOTON_API_HOST {host!r}; skipping reverse-geocoding",
+                "warning",
+            )
+            return None
+        if _resolves_to_blocked_ip(host):
+            core_logger.print_to_log(
+                f"PHOTON_API_HOST {host!r} resolves to a private/loopback/link-local address; skipping reverse-geocoding",
                 "warning",
             )
             return None

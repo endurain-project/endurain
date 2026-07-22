@@ -165,7 +165,7 @@ class TestSaveActivityStreamsLaps:
         laps = [{"pace": 5.0}]
         db = Mock()
 
-        result = activity_utils.save_activity_streams_laps(activity, stream_data, laps, Mock(), db)
+        result = activity_utils.save_activity_streams_laps(activity, stream_data, laps, db)
 
         assert result.id == 42
         parsed = captured["parsed"]
@@ -188,7 +188,7 @@ class TestSaveActivityStreamsLaps:
         monkeypatch.setattr(activity_utils.ingestion_service, "store_parsed_activity", _fake_store)
 
         activity = activities_schema.Activity(user_id=1, distance=0, name="X", activity_type=1)
-        activity_utils.save_activity_streams_laps(activity, [], None, Mock(), Mock())
+        activity_utils.save_activity_streams_laps(activity, [], None, Mock())
 
         parsed = captured["parsed"]
         assert parsed.streams == []

@@ -85,6 +85,20 @@ class Settings(BaseSettings):
     # the deployment needs shared state even under the local profile.
     DEPLOYMENT_PROFILE: platform_profile.DeploymentProfile = platform_profile.DeploymentProfile.LOCAL
     WEB_WORKERS: int = 1
+    # Sync-route concurrency (A10). Every activities/followers route is now a sync
+    # ``def`` handler, so FastAPI runs it in Starlette's shared anyio worker
+    # threadpool (default ~40 tokens per process). That thread count — not the event
+    # loop — bounds how many requests can do blocking DB work at once, so the
+    # practical per-process ceiling under sustained load is roughly the smaller of
+    # the ~40 anyio threads and the SQLAlchemy pool (60 = pool_size 20 + overflow 40,
+    # see core/database.py). Recommendation: the ~40 default threads sit safely under
+    # that 60-connection pool, so leave both as-is for typical self-host use, and
+    # scale out with WEB_WORKERS (each worker gets its own threadpool + pool) rather
+    # than inflating a single threadpool. If you raise the anyio token count
+    # (``anyio.to_thread.current_default_thread_limiter().total_tokens`` at startup),
+    # raise the DB pool to match — extra threads contending for the same 60
+    # connections just trade event-loop blocking for pool-checkout latency. Monitor
+    # DB pool-checkout wait time and threadpool saturation before tuning either.
 
     # --- Host / redirects ---
     ENDURAIN_HOST: str = "http://localhost:8080"
