@@ -1,5 +1,7 @@
 """Activity sets CRUD operations."""
 
+from collections.abc import Sequence
+
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -78,7 +80,7 @@ def get_activities_sets(
     activity_ids: list[int],
     token_user_id: int,
     db: Session,
-    activities: list[activity_models.Activity] | None = None,
+    activities: Sequence[activity_models.Activity] | None = None,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """
     Retrieve sets for multiple activities.

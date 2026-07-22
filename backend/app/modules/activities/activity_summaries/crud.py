@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, case, extract, func, select
+from sqlalchemy import ColumnElement, Select, case, extract, func, select
 from sqlalchemy.orm import Session
 
 from modules.activities.activity.constants import (
@@ -26,9 +26,9 @@ from modules.activities.activity_summaries.schema import (
 
 
 def _apply_activity_type_filter(
-    stmt: select,
+    stmt: Select[Any],
     activity_type: str | None,
-) -> tuple[select, int | None]:
+) -> tuple[Select[Any], int | None]:
     """
     Apply activity type name filter to a statement.
 

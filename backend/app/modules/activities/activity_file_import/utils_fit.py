@@ -16,7 +16,7 @@ import modules.activities.activity_workout_steps.schema as activity_workout_step
 
 
 def create_activity_objects(
-    sessions_records: dict,
+    sessions_records: list[dict],
     user_id: int,
 ) -> list:
     """Build per-activity parsed payloads from the split FIT session records.
@@ -238,7 +238,7 @@ def create_activity_objects(
         ) from err
 
 
-def split_records_by_activity(parsed_data: dict) -> dict:
+def split_records_by_activity(parsed_data: dict) -> list[dict]:
     sessions = parsed_data["sessions"]
     lat_lon_waypoints = parsed_data["lat_lon_waypoints"]
     ele_waypoints = parsed_data.get("ele_waypoints", [])
@@ -259,7 +259,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
     is_temperature_set = parsed_data.get("is_temperature_set", False)
 
     # Dictionary to hold split waypoints per activity
-    activity_waypoints = {
+    activity_waypoints: dict[int, dict[str, list[dict] | None]] = {
         i: {
             "lat_lon_waypoints": [] if is_lat_lon_set else None,
             "ele_waypoints": [] if is_elevation_set else None,
@@ -273,7 +273,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
         for i in range(len(sessions))
     }
 
-    sessions_records = []
+    sessions_records: list[dict] = []
 
     # Convert session times to datetime objects for easier comparison
     for i, session in enumerate(sessions):

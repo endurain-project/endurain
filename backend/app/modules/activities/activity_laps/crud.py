@@ -1,5 +1,7 @@
 """Activity laps CRUD operations."""
 
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -138,7 +140,7 @@ def get_activities_laps(
     if not activity_ids:
         return []
 
-    activities_list = prefetched_activities
+    activities_list: Sequence[activity_models.Activity] | None = prefetched_activities
     if not activities_list:
         stmt = select(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids))
         activities_list = db.scalars(stmt).all()
@@ -153,10 +155,10 @@ def get_activities_laps(
     if not allowed_ids:
         return []
 
-    stmt = select(activity_laps_models.ActivityLaps).where(
+    laps_stmt = select(activity_laps_models.ActivityLaps).where(
         activity_laps_models.ActivityLaps.activity_id.in_(allowed_ids)
     )
-    activity_laps = db.scalars(stmt).all()
+    activity_laps = db.scalars(laps_stmt).all()
 
     if not activity_laps:
         return []

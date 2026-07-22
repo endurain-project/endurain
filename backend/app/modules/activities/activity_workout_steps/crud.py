@@ -1,5 +1,7 @@
 """Activity workout steps CRUD operations."""
 
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -64,7 +66,7 @@ def get_activities_workout_steps(
     activity_ids: list[int],
     token_user_id: int,
     db: Session,
-    activities: (list[activity_models.Activity] | None) = None,
+    activities: Sequence[activity_models.Activity] | None = None,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
     Get workout steps for multiple activities.
