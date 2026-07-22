@@ -1,12 +1,12 @@
 # Privacy Policy
 
-**Effective date:** July 12, 2026
+**Effective date:** July 22, 2026
 
 Endurain (the "App") is the official mobile companion for Endurain, a self-hosted fitness tracking service. This Privacy Policy explains how the App handles information when you use it.
 
 ## Summary
 
-The App is designed to work with an Endurain server selected by you. The App does not include advertising SDKs, behavioral analytics, or third-party crash-reporting services. It does not automatically upload its local diagnostic reports.
+The App is designed to work with an Endurain server selected by you. The App does not include advertising SDKs or behavioral analytics. Local diagnostic reports are never uploaded automatically. If you separately opt in to remote crash reporting, sanitized error reports are sent only to Endurain's own managed diagnostics endpoint, never to a third party, as described below.
 
 Your selected Endurain server operator is responsible for its own server-side data handling. Review that operator's privacy policy before creating an account or connecting the App to its server.
 
@@ -19,7 +19,9 @@ Depending on the features you use, the App processes the following information:
 - **Activity information:** activity type, timestamps, elapsed time, distance, speed, route points, and GPX files created by the App.
 - **Health information:** if you enable health synchronization, workout, exercise route, heart-rate, distance, calorie, and step information that you authorize the App to read through Apple HealthKit or Android Health Connect.
 - **App diagnostics:** privacy-filtered error and lifecycle information stored locally to help you investigate a problem. Diagnostics intentionally exclude raw GPS coordinates and sanitize token-like values, paths, and coordinate-looking strings.
+- **Optional remote crash reports:** if you enable remote crash reporting in Settings, sanitized exception details (with GPS coordinates, tokens, and file paths redacted) are sent to Endurain's managed diagnostics endpoint (diagnostics.endurain.com) using the Sentry protocol. This is off by default, independent of local diagnostics, and does not include breadcrumbs or personally-identifying information, though basic non-identifying metadata (app version, OS name/version) is included per the Sentry protocol.
 - **Preferences:** language, display, map, and feature settings that you choose in the App.
+- **External sensor information:** if you pair a Bluetooth Low Energy heart-rate, power, or cadence sensor, the App reads live physiological/performance readings from it and stamps them onto your recorded GPX track points. Paired-sensor identifiers are stored locally so the App can reconnect automatically.
 
 ## How Information Is Used
 
@@ -50,6 +52,8 @@ When you sign in or choose to upload an activity, the App sends the necessary ac
 - **Single sign-on:** if your Endurain server offers an SSO provider, the provider handles authentication according to its own privacy policy.
 - **System share sheet:** when you export a GPX file, the App passes the file to the destination application you choose. That application's privacy policy applies to its handling of the file.
 - **Apple HealthKit and Android Health Connect:** these platforms provide data only after you grant permission. Their respective platform terms and privacy policies apply.
+- **Bluetooth sensors:** the App connects directly to a sensor you pair; no sensor data is sent anywhere except embedded in your recorded activity when uploaded to your selected Endurain server.
+- **Remote crash reporting (opt-in):** if enabled, sanitized crash reports are sent only to Endurain's managed diagnostics service, never to a third party. Because reports aren't retained on-device after transmission, deleting a sent report requires contacting Endurain's team directly.
 
 ## Health Information
 
@@ -58,6 +62,10 @@ Health information is optional. The App accesses only the HealthKit or Health Co
 The App does not use health information for advertising or marketing. It does not provide health information to data brokers. Health information is sent to your selected Endurain server only when you choose to import or upload the related activity through the App.
 
 You can revoke the App's health permissions at any time in Apple Health or Android Health Connect. You can remove imported activities from the App's local history and manage server-side copies through your Endurain server.
+
+## External Sensors
+
+Bluetooth access is optional and used only to discover and connect to the heart-rate, power, or cadence sensor you choose to pair. You can revoke Bluetooth permission in your device settings, or unpair a sensor in the App's Sensors settings to remove its locally stored identifier at any time.
 
 ## Location Information
 
