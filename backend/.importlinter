@@ -133,3 +133,21 @@ forbidden_modules =
     modules.activities.*.crud
     modules.activities.*.*.crud
     sqlalchemy
+
+# The provider (integration) modules — Strava and Garmin — must not reach into the
+# activities CRUD directly. They go through the curated activity integration_service
+# interface (activity/integration_service.py) for the handful of read / gear / delete
+# operations they need, the read/gear/delete counterpart to the ingestion seam they
+# already use to STORE activities. allow_indirect_imports keeps this to DIRECT imports:
+# the interface itself legitimately imports crud (it is inside activities), so the
+# transitive strava/garmin -> integration_service -> crud path is fine — only a bare
+# `import modules.activities.activity.crud` in a provider module is rejected.
+[importlinter:contract:provider-activities-boundary]
+name = Provider modules must use the activities integration service, not activities CRUD directly
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.strava
+    modules.garmin
+forbidden_modules =
+    modules.activities.activity.crud

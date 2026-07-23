@@ -39,8 +39,8 @@ async def _call(client: Mock, user_id: int = 1) -> list | None:
 def _patch_common(monkeypatch):
     """Patch dependencies shared by every test in this module."""
     monkeypatch.setattr(
-        activity_utils.activities_crud,
-        "get_activity_by_garminconnect_id_from_user_id",
+        activity_utils.activities_integration,
+        "get_activity_by_garminconnect_id",
         Mock(return_value=None),
     )
     monkeypatch.setattr(

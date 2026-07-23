@@ -15,7 +15,7 @@ import core.cryptography as core_cryptography
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.integration_service as activities_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.strava.activity_utils as strava_activity_utils
@@ -420,7 +420,7 @@ async def strava_unlink(
     gears_crud.delete_all_strava_gear_for_user(token_user_id, db)
 
     # delete all strava activities for user
-    activities_crud.delete_all_strava_activities_for_user(token_user_id, db)
+    activities_integration.delete_all_strava_activities(token_user_id, db)
 
     # unlink strava account
     user_integrations_crud.unlink_strava_account(token_user_id, db)
