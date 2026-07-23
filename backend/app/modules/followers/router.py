@@ -10,6 +10,7 @@ import core.database as core_database
 import modules.auth.dependencies as auth_dependencies
 import modules.followers.crud as followers_crud
 import modules.followers.schema as followers_schema
+import modules.followers.service as followers_service
 import modules.users.users.dependencies as users_dependencies
 import modules.websocket.manager as websocket_manager
 
@@ -26,10 +27,15 @@ async def get_user_follower_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[followers_schema.Follower]:
-    """Return every follower record where the user is being followed."""
-    return followers_crud.get_all_followers_by_user_id(user_id, db)
+    """Return every follower record where the user is being followed.
+
+    Enforces the target's profile privacy: only the user themselves, an accepted
+    follower, or anyone when the profile is public may list the followers.
+    """
+    return followers_service.list_followers(user_id, token_user_id, db)
 
 
 @router.get(
@@ -41,10 +47,11 @@ async def get_user_follower_count_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> int:
     """Return the total number of followers for a user."""
-    return followers_crud.count_followers_by_user_id(user_id, db)
+    return followers_service.count_followers(user_id, token_user_id, db)
 
 
 @router.get(
@@ -56,10 +63,11 @@ async def get_user_follower_count(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> int:
     """Return the number of accepted followers for a user."""
-    return followers_crud.count_followers_by_user_id(user_id, db, accepted_only=True)
+    return followers_service.count_followers(user_id, token_user_id, db, accepted_only=True)
 
 
 @router.get(
@@ -71,10 +79,15 @@ async def get_user_following_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[followers_schema.Follower]:
-    """Return every follow record where the user is the follower."""
-    return followers_crud.get_all_following_by_user_id(user_id, db)
+    """Return every follow record where the user is the follower.
+
+    Enforces the target's profile privacy: only the user themselves, an accepted
+    follower, or anyone when the profile is public may list the following set.
+    """
+    return followers_service.list_following(user_id, token_user_id, db)
 
 
 @router.get(
@@ -86,10 +99,11 @@ async def get_user_following_count_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> int:
     """Return the total number of users a given user is following."""
-    return followers_crud.count_following_by_user_id(user_id, db)
+    return followers_service.count_following(user_id, token_user_id, db)
 
 
 @router.get(
@@ -101,10 +115,11 @@ async def get_user_following_count(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> int:
     """Return the number of accepted follow relationships for a user."""
-    return followers_crud.count_following_by_user_id(user_id, db, accepted_only=True)
+    return followers_service.count_following(user_id, token_user_id, db, accepted_only=True)
 
 
 @router.get(
@@ -118,10 +133,15 @@ async def read_followers_user_specific_user(
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _validate_target_user_id: Annotated[None, Depends(users_dependencies.validate_target_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.Follower | None:
-    """Return the follow relationship between two specific users, if any."""
-    return followers_crud.get_follower_for_user_id_and_target_user_id(user_id, target_user_id, db)
+    """Return the follow relationship between two specific users, if any.
+
+    Only a participant in the relationship (the requester must be one of the two
+    users) may query it, preventing arbitrary probing of who follows whom.
+    """
+    return followers_service.get_relationship(user_id, target_user_id, token_user_id, db)
 
 
 @router.post(

@@ -28,29 +28,54 @@ def _build_app(mock_db):
 
 
 class TestGetUserFollowers:
-    @patch("modules.followers.router.followers_crud.get_all_followers_by_user_id")
-    def test_all_success(self, mock_get, mock_db):
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    def test_all_self_success(self, mock_get, mock_db):
         from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
+        mock_get.return_value = [Follower(follower_id=3, following_id=1, is_accepted=True)]
 
+        # Requester (1) == target (1): always allowed.
         response = client.get("/user/1/followers/all", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 200
+
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_all_stranger_forbidden(self, mock_rel, mock_get, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_rel.return_value = None  # requester is not an accepted follower of the target
+
+        response = client.get("/user/2/followers/all", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_all_accepted_follower_allowed(self, mock_rel, mock_get, mock_db):
+        from modules.followers.schema import Follower
+
+        client = TestClient(_build_app(mock_db))
+        # Requester (1) is an accepted follower of target (2).
+        mock_rel.return_value = Follower(follower_id=1, following_id=2, is_accepted=True)
+        mock_get.return_value = []
+
+        response = client.get("/user/2/followers/all", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
 
 class TestGetUserFollowerCount:
-    @patch("modules.followers.router.followers_crud.count_followers_by_user_id")
-    def test_count_all(self, mock_count, mock_db):
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    def test_count_all_self(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 5
 
+        # Requester (1) == target (1): always allowed.
         response = client.get("/user/1/followers/count/all", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json() == 5
 
-    @patch("modules.followers.router.followers_crud.count_followers_by_user_id")
-    def test_count_accepted(self, mock_count, mock_db):
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    def test_count_accepted_self(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 3
 
@@ -58,22 +83,45 @@ class TestGetUserFollowerCount:
         assert response.status_code == 200
         assert response.json() == 3
 
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_count_stranger_forbidden(self, mock_rel, mock_count, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_rel.return_value = None
+
+        response = client.get("/user/2/followers/count/all", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_count.assert_not_called()
+
 
 class TestGetUserFollowing:
-    @patch("modules.followers.router.followers_crud.get_all_following_by_user_id")
-    def test_all_success(self, mock_get, mock_db):
+    @patch("modules.followers.crud.get_all_following_by_user_id")
+    def test_all_self_success(self, mock_get, mock_db):
         from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
 
+        # Requester (1) == target (1): always allowed.
         response = client.get("/user/1/following/all", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
+    @patch("modules.followers.crud.get_all_following_by_user_id")
+    @patch("modules.users.users_privacy_settings.crud.get_user_privacy_settings_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_all_stranger_private_forbidden(self, mock_rel, mock_privacy, mock_get, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_rel.return_value = None
+        mock_privacy.return_value = None
+
+        response = client.get("/user/2/following/all", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
 
 class TestGetUserFollowingCount:
-    @patch("modules.followers.router.followers_crud.count_following_by_user_id")
-    def test_count_all(self, mock_count, mock_db):
+    @patch("modules.followers.crud.count_following_by_user_id")
+    def test_count_all_self(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 5
 
@@ -81,8 +129,8 @@ class TestGetUserFollowingCount:
         assert response.status_code == 200
         assert response.json() == 5
 
-    @patch("modules.followers.router.followers_crud.count_following_by_user_id")
-    def test_count_accepted(self, mock_count, mock_db):
+    @patch("modules.followers.crud.count_following_by_user_id")
+    def test_count_accepted_self(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 3
 
@@ -90,19 +138,30 @@ class TestGetUserFollowingCount:
         assert response.status_code == 200
         assert response.json() == 3
 
+    @patch("modules.followers.crud.count_following_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_count_stranger_forbidden(self, mock_rel, mock_count, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_rel.return_value = None
+
+        response = client.get("/user/2/following/count/all", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_count.assert_not_called()
+
 
 class TestReadFollowerSpecificUser:
-    @patch("modules.followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
-    def test_success(self, mock_get, mock_db):
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_success_as_participant(self, mock_get, mock_db):
         from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = Follower(follower_id=1, following_id=2, is_accepted=True)
 
+        # Requester (1) is a participant (user_id == 1).
         response = client.get("/user/1/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("modules.followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -110,6 +169,15 @@ class TestReadFollowerSpecificUser:
         response = client.get("/user/1/targetUser/999", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json() is None
+
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_non_participant_forbidden(self, mock_get, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        # Requester (1) is neither user 2 nor user 3.
+        response = client.get("/user/2/targetUser/3", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
 
 
 class TestCreateFollow:
