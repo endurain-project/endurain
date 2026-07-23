@@ -312,31 +312,38 @@ def get_all_activities(
         raise _internal_server_error(err, "get_all_activities") from err
 
 
-def get_all_activities_no_serialize(
+def get_all_activities_for_migration(
     db: Session,
-) -> list[activities_models.Activity] | None:
-    """Return all activities as raw ORM rows.
+) -> list[activities_schema.ActivityMigrationRef]:
+    """Return a lightweight reference for every activity (migration use only).
 
-    Note:
-        Intended for migration scripts only — migrations legitimately need the
-        mapped ORM rows so they can mutate and re-persist them. This is the one
-        sanctioned exception to "no ORM leaves crud"; do not call it from request
-        handlers or services.
+    Projects only the identity, owner, provider ids, and time bounds the
+    data-backfill migrations read, so no ORM row leaves the CRUD layer.
 
     Args:
         db: Database session.
 
     Returns:
-        List of ORM Activity rows or None when empty.
+        A migration reference per activity, or an empty list when there are none.
 
     Raises:
         HTTPException: 500 on database error.
     """
     try:
         activities = db.execute(select(activities_models.Activity)).scalars().all()
-        return list(activities) if activities else None
+        return [
+            activities_schema.ActivityMigrationRef(
+                id=activity.id,
+                user_id=activity.user_id,
+                start_time=activity.start_time,
+                end_time=activity.end_time,
+                strava_activity_id=activity.strava_activity_id,
+                garminconnect_activity_id=activity.garminconnect_activity_id,
+            )
+            for activity in activities
+        ]
     except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_all_activities_no_serialize") from err
+        raise _internal_server_error(err, "get_all_activities_for_migration") from err
 
 
 def get_user_activities(
@@ -1586,18 +1593,13 @@ def get_activities_with_legacy_thumbnail_path(
     db: Session,
     after_id: int = 0,
     limit: int = 200,
-) -> list[activities_models.Activity]:
-    """Return activities whose thumbnail value is a legacy filesystem path.
+) -> list[activities_schema.ActivityThumbnailRef]:
+    """Return references to activities whose thumbnail value is a legacy filesystem path.
 
     Legacy values are absolute paths (they contain a ``/`` separator); the new
     storage keys (e.g. ``42.webp``) never do. Ordered by id and paged via
-    ``after_id`` so migration 8 can process them in bounded batches.
-
-    Note:
-        Intended for migration 8 only — it needs the mapped ORM rows to rewrite
-        each legacy path in place. Like :func:`get_all_activities_no_serialize`,
-        this is a sanctioned exception to "no ORM leaves crud"; do not call it
-        from request handlers or services.
+    ``after_id`` so migration 8 can process them in bounded batches (migration
+    use only).
 
     Args:
         db: Database session.
@@ -1605,7 +1607,8 @@ def get_activities_with_legacy_thumbnail_path(
         limit: Maximum number of rows to return.
 
     Returns:
-        ORM rows with a legacy thumbnail path, or an empty list on error.
+        Thumbnail references (id + stored key) for rows with a legacy thumbnail
+        path, or an empty list on error.
     """
     try:
         stmt = (
@@ -1618,7 +1621,10 @@ def get_activities_with_legacy_thumbnail_path(
             .order_by(activities_models.Activity.id)
             .limit(limit)
         )
-        return list(db.execute(stmt).scalars().all())
+        rows = db.execute(stmt).scalars().all()
+        return [
+            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+        ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_with_legacy_thumbnail_path: {err}",

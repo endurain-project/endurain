@@ -56,6 +56,32 @@ class ActivityLocationRef:
     id: int
 
 
+@dataclass(frozen=True)
+class ActivityMigrationRef:
+    """Lightweight activity projection for data-backfill migrations.
+
+    Carries only the identity, owner, provider ids, and time bounds the backfill
+    migrations read (they never mutate the row), so CRUD can hand out this DTO
+    instead of leaking an ORM ``Activity`` row when a migration iterates every
+    activity.
+
+    Attributes:
+        id: Activity id.
+        user_id: Owning user id.
+        start_time: Activity start (timezone-aware UTC).
+        end_time: Activity end (timezone-aware UTC).
+        strava_activity_id: Strava provider id, when imported from Strava.
+        garminconnect_activity_id: Garmin Connect provider id, when applicable.
+    """
+
+    id: int
+    user_id: int
+    start_time: datetime
+    end_time: datetime
+    strava_activity_id: int | None = None
+    garminconnect_activity_id: int | None = None
+
+
 class Activity(BaseModel):
     """
     Schema representing a fitness activity.

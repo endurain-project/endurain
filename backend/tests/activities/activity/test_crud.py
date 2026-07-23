@@ -580,27 +580,28 @@ class TestActivityByStravaGarmin:
         assert e.value.status_code == 500
 
 
-class TestGetAllActivitiesNoSerialize:
+class TestGetAllActivitiesForMigration:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
         import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        r = crud.get_all_activities_no_serialize(db=mock_db)
-        assert r is not None and len(r) == 1
+        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=2)])
+        refs = crud.get_all_activities_for_migration(db=mock_db)
+        assert len(refs) == 1
+        assert refs[0].id == 1 and refs[0].user_id == 2
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_all_activities_no_serialize(db=mock_db) is None
+        assert crud.get_all_activities_for_migration(db=mock_db) == []
 
     def test_db_error(self, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
-            crud.get_all_activities_no_serialize(db=mock_db)
+            crud.get_all_activities_for_migration(db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -1516,13 +1517,15 @@ class TestDeleteAllStravaActivitiesForUser:
 
 
 class TestGetActivitiesWithLegacyThumbnailPath:
-    def test_returns_rows(self, mock_db):
+    def test_returns_refs(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        row = MagicMock()
+        row = MagicMock(id=7, map_thumbnail_path="/data/x/7.png")
         setup_mock_execute(mock_db, return_scalars_all=[row])
         result = crud.get_activities_with_legacy_thumbnail_path(mock_db)
-        assert result == [row]
+        assert len(result) == 1
+        assert result[0].id == 7
+        assert result[0].map_thumbnail_path == "/data/x/7.png"
 
     def test_returns_empty_on_error(self, mock_db):
         import modules.activities.activity.crud as crud
