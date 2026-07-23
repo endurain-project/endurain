@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.followers.crud as followers_crud
-import modules.followers.models as followers_models
+import modules.followers.schema as followers_schema
 
 
 def requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
@@ -56,7 +56,7 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
         )
 
 
-def list_followers(target_user_id: int, requester_user_id: int, db: Session) -> list[followers_models.Follower]:
+def list_followers(target_user_id: int, requester_user_id: int, db: Session) -> list[followers_schema.Follower]:
     """List the target's followers, enforcing profile privacy.
 
     Args:
@@ -74,7 +74,7 @@ def list_followers(target_user_id: int, requester_user_id: int, db: Session) -> 
     return followers_crud.get_all_followers_by_user_id(target_user_id, db)
 
 
-def list_following(target_user_id: int, requester_user_id: int, db: Session) -> list[followers_models.Follower]:
+def list_following(target_user_id: int, requester_user_id: int, db: Session) -> list[followers_schema.Follower]:
     """List who the target follows, enforcing profile privacy.
 
     Args:
@@ -132,7 +132,7 @@ def count_following(target_user_id: int, requester_user_id: int, db: Session, *,
 
 def get_relationship(
     user_id: int, target_user_id: int, requester_user_id: int, db: Session
-) -> followers_models.Follower | None:
+) -> followers_schema.Follower | None:
     """Return the follow relationship between two users, restricted to participants.
 
     A relationship's status may only be queried by one of the two users it

@@ -23,7 +23,7 @@ router = APIRouter()
     response_model=list[followers_schema.Follower],
     status_code=status.HTTP_200_OK,
 )
-async def get_user_follower_all(
+def get_user_follower_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
@@ -43,7 +43,7 @@ async def get_user_follower_all(
     response_model=int,
     status_code=status.HTTP_200_OK,
 )
-async def get_user_follower_count_all(
+def get_user_follower_count_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
@@ -59,7 +59,7 @@ async def get_user_follower_count_all(
     response_model=int,
     status_code=status.HTTP_200_OK,
 )
-async def get_user_follower_count(
+def get_user_follower_count(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
@@ -75,7 +75,7 @@ async def get_user_follower_count(
     response_model=list[followers_schema.Follower],
     status_code=status.HTTP_200_OK,
 )
-async def get_user_following_all(
+def get_user_following_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
@@ -95,7 +95,7 @@ async def get_user_following_all(
     response_model=int,
     status_code=status.HTTP_200_OK,
 )
-async def get_user_following_count_all(
+def get_user_following_count_all(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
@@ -111,7 +111,7 @@ async def get_user_following_count_all(
     response_model=int,
     status_code=status.HTTP_200_OK,
 )
-async def get_user_following_count(
+def get_user_following_count(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
@@ -127,7 +127,7 @@ async def get_user_following_count(
     response_model=followers_schema.Follower | None,
     status_code=status.HTTP_200_OK,
 )
-async def read_followers_user_specific_user(
+def read_followers_user_specific_user(
     user_id: int,
     target_user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
@@ -190,7 +190,7 @@ async def accept_follow(
     response_model=followers_schema.MessageResponse,
     status_code=status.HTTP_200_OK,
 )
-async def delete_follower(
+def delete_follower(
     target_user_id: int,
     _validate_target_user_id: Annotated[None, Depends(users_dependencies.validate_target_user_id)],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
@@ -207,7 +207,7 @@ async def delete_follower(
     response_model=followers_schema.MessageResponse,
     status_code=status.HTTP_200_OK,
 )
-async def delete_following(
+def delete_following(
     target_user_id: int,
     _validate_target_user_id: Annotated[None, Depends(users_dependencies.validate_target_user_id)],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
