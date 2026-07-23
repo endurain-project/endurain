@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.followers.crud as followers_crud
+import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
 
 
@@ -160,3 +161,66 @@ def get_relationship(
             detail="You may only query follow relationships you are part of",
         )
     return followers_crud.get_follower_for_user_id_and_target_user_id(user_id, target_user_id, db)
+
+
+def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> followers_schema.Follower:
+    """Create a follow request and publish ``follower.requested``.
+
+    The CRUD row write is the source of truth; the notification is produced by the
+    ``follower.requested`` subscriber reacting to the published event, so the
+    request succeeds even if notification delivery later fails.
+
+    Args:
+        requester_user_id: The authenticated user requesting to follow.
+        target_user_id: The user to follow.
+        db: Database session.
+
+    Returns:
+        The newly created follow relationship as a DTO.
+    """
+    follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
+    followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db)
+    return follower
+
+
+def accept_follow_request(accepter_user_id: int, requester_user_id: int, db: Session) -> None:
+    """Accept a pending follow request and publish ``follower.accepted``.
+
+    Args:
+        accepter_user_id: The authenticated user accepting the request.
+        requester_user_id: The user whose pending request is being accepted.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    followers_crud.accept_follower(accepter_user_id, requester_user_id, db)
+    followers_event_publishers.publish_follower_accepted(accepter_user_id, requester_user_id, db)
+
+
+def unfollow_user(requester_user_id: int, target_user_id: int, db: Session) -> None:
+    """Stop following a user (the requester unfollows the target).
+
+    Args:
+        requester_user_id: The authenticated user who is unfollowing.
+        target_user_id: The user being unfollowed.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    followers_crud.delete_follower(requester_user_id, target_user_id, db)
+
+
+def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
+    """Remove one of the authenticated user's followers.
+
+    Args:
+        user_id: The authenticated user removing a follower.
+        follower_user_id: The follower to remove.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    followers_crud.delete_follower(follower_user_id, user_id, db)

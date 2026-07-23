@@ -11,8 +11,6 @@ import core.decorators as core_decorators
 import core.logger as core_logger
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
-import modules.notifications.utils as notifications_utils
-import modules.websocket.manager as websocket_manager
 
 
 def _transform_follower(follower: followers_models.Follower) -> followers_schema.Follower:
@@ -180,23 +178,25 @@ def get_follower_for_user_id_and_target_user_id(
     return _transform_follower(follower) if follower is not None else None
 
 
-async def create_follower(
+def create_follower(
     user_id: int,
     target_user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> followers_schema.Follower:
     """
     Create a new follow request between two users.
 
+    Side-effect-free: the resulting follower notification (and its websocket push)
+    is produced by the ``follower.requested`` subscriber, which the follow service
+    triggers after this row is committed.
+
     Args:
         user_id: ID of the follower user.
         target_user_id: ID of the user being followed.
-        websocket_manager: WebSocket manager for live notifications.
         db: Database session.
 
     Returns:
-        The newly created Follower record.
+        The newly created Follower relationship as a DTO.
 
     Raises:
         HTTPException: 400 if attempting to follow self, 409 if relationship
@@ -252,24 +252,24 @@ async def create_follower(
             detail="Database error occurred",
         ) from err
 
-    await notifications_utils.create_new_follower_request_notification(user_id, target_user_id, websocket_manager, db)
-
     return _transform_follower(new_follow)
 
 
-async def accept_follower(
+def accept_follower(
     user_id: int,
     target_user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
 ) -> None:
     """
     Accept a pending follow request from another user.
 
+    Side-effect-free: the acceptance notification (and its websocket push) is
+    produced by the ``follower.accepted`` subscriber, which the follow service
+    triggers after this row is committed.
+
     Args:
         user_id: ID of the user accepting the request (the followed user).
         target_user_id: ID of the user whose follow request is accepted.
-        websocket_manager: WebSocket manager for live notifications.
         db: Database session.
 
     Returns:
@@ -309,10 +309,6 @@ async def accept_follower(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",
         ) from err
-
-    await notifications_utils.create_accepted_follower_request_notification(
-        user_id, target_user_id, websocket_manager, db
-    )
 
 
 @core_decorators.handle_db_errors

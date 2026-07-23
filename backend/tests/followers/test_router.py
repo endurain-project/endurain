@@ -181,40 +181,42 @@ class TestReadFollowerSpecificUser:
 
 
 class TestCreateFollow:
-    @patch("modules.followers.router.websocket_manager.get_websocket_manager")
-    @patch("modules.followers.router.followers_crud.create_follower")
-    async def test_create_success(self, mock_create, mock_ws, mock_db):
+    @patch("modules.followers.service.follow_user")
+    def test_create_success(self, mock_follow, mock_db):
         from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
-        mock_create.return_value = Follower(follower_id=1, following_id=2, is_accepted=False)
+        mock_follow.return_value = Follower(follower_id=1, following_id=2, is_accepted=False)
 
         response = client.post("/create/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 201
+        mock_follow.assert_called_once_with(1, 2, mock_db)
 
 
 class TestAcceptFollow:
-    @patch("modules.followers.router.websocket_manager.get_websocket_manager")
-    @patch("modules.followers.router.followers_crud.accept_follower")
-    async def test_accept_success(self, mock_accept, mock_ws, mock_db):
+    @patch("modules.followers.service.accept_follow_request")
+    def test_accept_success(self, mock_accept, mock_db):
         client = TestClient(_build_app(mock_db))
 
         response = client.put("/accept/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json()["detail"] == "Follower accepted successfully"
+        mock_accept.assert_called_once_with(1, 2, mock_db)
 
 
 class TestDeleteFollower:
-    @patch("modules.followers.router.followers_crud.delete_follower")
-    def test_delete_follower_success(self, mock_delete, mock_db):
+    @patch("modules.followers.service.unfollow_user")
+    def test_delete_follower_success(self, mock_unfollow, mock_db):
         client = TestClient(_build_app(mock_db))
 
         response = client.delete("/delete/follower/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        mock_unfollow.assert_called_once_with(1, 2, mock_db)
 
-    @patch("modules.followers.router.followers_crud.delete_follower")
-    def test_delete_following_success(self, mock_delete, mock_db):
+    @patch("modules.followers.service.remove_follower")
+    def test_delete_following_success(self, mock_remove, mock_db):
         client = TestClient(_build_app(mock_db))
 
         response = client.delete("/delete/following/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        mock_remove.assert_called_once_with(1, 2, mock_db)

@@ -78,8 +78,7 @@ class TestCreateActivityCreatedNotification:
 
 
 class TestCreateNewFollowerRequestNotification:
-    @pytest.mark.asyncio
-    async def test_success(self):
+    def test_success(self):
         import modules.notifications.constants as c
         import modules.notifications.models as m
         import modules.users.users.models as u_models
@@ -88,7 +87,6 @@ class TestCreateNewFollowerRequestNotification:
         mock_user = MagicMock(spec=u_models.Users, id=5, username="follower_user")
         mock_user.name = "Follower"
         mock_notification = MagicMock(spec=m.Notification, id=1)
-        mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
         with (
@@ -96,17 +94,15 @@ class TestCreateNewFollowerRequestNotification:
             patch(
                 "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
-            result = await create_new_follower_request_notification(
-                user_id=5,
+            notification, ws_message = create_new_follower_request_notification(
+                requester_user_id=5,
                 target_user_id=10,
-                websocket_manager=mock_ws_manager,
                 db=mock_db,
             )
 
-        assert result is mock_notification
-        mock_notify.assert_awaited_once()
+        assert notification is mock_notification
+        assert ws_message == "NEW_FOLLOWER_REQUEST_NOTIFICATION"
         created = mock_create.call_args[0][0]
         assert created.user_id == 10
         assert created.type == c.NotificationType.NEW_FOLLOWER_REQUEST
@@ -116,31 +112,26 @@ class TestCreateNewFollowerRequestNotification:
             "user_username": "follower_user",
         }
 
-    @pytest.mark.asyncio
-    async def test_user_not_found_raises_404(self):
+    def test_user_not_found_raises_404(self):
         from modules.notifications.utils import create_new_follower_request_notification
 
-        mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
         with patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=None):
             with pytest.raises(HTTPException) as e:
-                await create_new_follower_request_notification(
-                    user_id=999,
+                create_new_follower_request_notification(
+                    requester_user_id=999,
                     target_user_id=10,
-                    websocket_manager=mock_ws_manager,
                     db=mock_db,
                 )
             assert e.value.status_code == 404
 
-    @pytest.mark.asyncio
-    async def test_http_exception_propagates(self):
+    def test_http_exception_propagates(self):
         import modules.users.users.models as u_models
         from modules.notifications.utils import create_new_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="follower_user")
         mock_user.name = "Follower"
-        mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
         with (
@@ -151,43 +142,16 @@ class TestCreateNewFollowerRequestNotification:
             ),
         ):
             with pytest.raises(HTTPException) as e:
-                await create_new_follower_request_notification(
-                    user_id=5,
+                create_new_follower_request_notification(
+                    requester_user_id=5,
                     target_user_id=10,
-                    websocket_manager=mock_ws_manager,
                     db=mock_db,
                 )
             assert e.value.status_code == 409
 
-    @pytest.mark.asyncio
-    async def test_generic_exception_raises_500(self):
-        import modules.users.users.models as u_models
-        from modules.notifications.utils import create_new_follower_request_notification
-
-        mock_user = MagicMock(spec=u_models.Users, id=5, username="follower_user")
-        mock_user.name = "Follower"
-        mock_ws_manager = MagicMock()
-        mock_db = MagicMock()
-
-        with (
-            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
-            patch(
-                "modules.notifications.utils.notifications_crud.create_notification", side_effect=KeyError("missing")
-            ),
-        ):
-            with pytest.raises(HTTPException) as e:
-                await create_new_follower_request_notification(
-                    user_id=5,
-                    target_user_id=10,
-                    websocket_manager=mock_ws_manager,
-                    db=mock_db,
-                )
-            assert e.value.status_code == 500
-
 
 class TestCreateAcceptedFollowerRequestNotification:
-    @pytest.mark.asyncio
-    async def test_success(self):
+    def test_success(self):
         import modules.notifications.constants as c
         import modules.notifications.models as m
         import modules.users.users.models as u_models
@@ -196,7 +160,6 @@ class TestCreateAcceptedFollowerRequestNotification:
         mock_user = MagicMock(spec=u_models.Users, id=5, username="accepter_user")
         mock_user.name = "Accepter"
         mock_notification = MagicMock(spec=m.Notification, id=1)
-        mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
         with (
@@ -204,17 +167,15 @@ class TestCreateAcceptedFollowerRequestNotification:
             patch(
                 "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
             ) as mock_create,
-            patch("modules.notifications.utils.websocket_utils.notify_frontend", new_callable=AsyncMock) as mock_notify,
         ):
-            result = await create_accepted_follower_request_notification(
-                user_id=5,
-                target_user_id=10,
-                websocket_manager=mock_ws_manager,
+            notification, ws_message = create_accepted_follower_request_notification(
+                accepter_user_id=5,
+                requester_user_id=10,
                 db=mock_db,
             )
 
-        assert result is mock_notification
-        mock_notify.assert_awaited_once()
+        assert notification is mock_notification
+        assert ws_message == "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION"
         created = mock_create.call_args[0][0]
         assert created.user_id == 10
         assert created.type == c.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED
@@ -224,31 +185,26 @@ class TestCreateAcceptedFollowerRequestNotification:
             "user_username": "accepter_user",
         }
 
-    @pytest.mark.asyncio
-    async def test_user_not_found_raises_404(self):
+    def test_user_not_found_raises_404(self):
         from modules.notifications.utils import create_accepted_follower_request_notification
 
-        mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
         with patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=None):
             with pytest.raises(HTTPException) as e:
-                await create_accepted_follower_request_notification(
-                    user_id=999,
-                    target_user_id=10,
-                    websocket_manager=mock_ws_manager,
+                create_accepted_follower_request_notification(
+                    accepter_user_id=999,
+                    requester_user_id=10,
                     db=mock_db,
                 )
             assert e.value.status_code == 404
 
-    @pytest.mark.asyncio
-    async def test_http_exception_propagates(self):
+    def test_http_exception_propagates(self):
         import modules.users.users.models as u_models
         from modules.notifications.utils import create_accepted_follower_request_notification
 
         mock_user = MagicMock(spec=u_models.Users, id=5, username="accepter_user")
         mock_user.name = "Accepter"
-        mock_ws_manager = MagicMock()
         mock_db = MagicMock()
 
         with (
@@ -259,36 +215,12 @@ class TestCreateAcceptedFollowerRequestNotification:
             ),
         ):
             with pytest.raises(HTTPException) as e:
-                await create_accepted_follower_request_notification(
-                    user_id=5,
-                    target_user_id=10,
-                    websocket_manager=mock_ws_manager,
+                create_accepted_follower_request_notification(
+                    accepter_user_id=5,
+                    requester_user_id=10,
                     db=mock_db,
                 )
             assert e.value.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_generic_exception_raises_500(self):
-        import modules.users.users.models as u_models
-        from modules.notifications.utils import create_accepted_follower_request_notification
-
-        mock_user = MagicMock(spec=u_models.Users, id=5, username="accepter_user")
-        mock_user.name = "Accepter"
-        mock_ws_manager = MagicMock()
-        mock_db = MagicMock()
-
-        with (
-            patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
-            patch("modules.notifications.utils.notifications_crud.create_notification", side_effect=ValueError("bad")),
-        ):
-            with pytest.raises(HTTPException) as e:
-                await create_accepted_follower_request_notification(
-                    user_id=5,
-                    target_user_id=10,
-                    websocket_manager=mock_ws_manager,
-                    db=mock_db,
-                )
-            assert e.value.status_code == 500
 
 
 class TestCreateAdminNewSignUpApprovalRequestNotification:

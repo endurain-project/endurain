@@ -39,6 +39,7 @@ import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
+import modules.followers.subscribers as followers_subscribers
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.garmin.health_utils as garmin_health_utils
 import modules.server_settings.schema as server_settings_schema
@@ -287,6 +288,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # in that module.
     activity_subscriber_registry.register_all_activity_bus_subscribers(platform.events)
     activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
+    followers_subscribers.register_follower_notification_subscribers(platform.events)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.

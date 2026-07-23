@@ -8,11 +8,9 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import modules.auth.dependencies as auth_dependencies
-import modules.followers.crud as followers_crud
 import modules.followers.schema as followers_schema
 import modules.followers.service as followers_service
 import modules.users.users.dependencies as users_dependencies
-import modules.websocket.manager as websocket_manager
 
 # Define the API router
 router = APIRouter()
@@ -149,19 +147,15 @@ def read_followers_user_specific_user(
     response_model=followers_schema.Follower,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_follow(
+def create_follow(
     target_user_id: int,
     _validate_target_user_id: Annotated[None, Depends(users_dependencies.validate_target_user_id)],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
-    websocket_mgr: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.Follower:
     """Create a new follow request from the authenticated user."""
-    return await followers_crud.create_follower(token_user_id, target_user_id, websocket_mgr, db)
+    return followers_service.follow_user(token_user_id, target_user_id, db)
 
 
 @router.put(
@@ -169,19 +163,15 @@ async def create_follow(
     response_model=followers_schema.MessageResponse,
     status_code=status.HTTP_200_OK,
 )
-async def accept_follow(
+def accept_follow(
     target_user_id: int,
     _validate_target_user_id: Annotated[None, Depends(users_dependencies.validate_target_user_id)],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
-    websocket_mgr: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.MessageResponse:
     """Accept a pending follow request from the target user."""
-    await followers_crud.accept_follower(token_user_id, target_user_id, websocket_mgr, db)
+    followers_service.accept_follow_request(token_user_id, target_user_id, db)
     return followers_schema.MessageResponse(detail="Follower accepted successfully")
 
 
@@ -198,7 +188,7 @@ def delete_follower(
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.MessageResponse:
     """Remove a user the authenticated user is following."""
-    followers_crud.delete_follower(token_user_id, target_user_id, db)
+    followers_service.unfollow_user(token_user_id, target_user_id, db)
     return followers_schema.MessageResponse(detail="Follower record deleted successfully")
 
 
@@ -215,5 +205,5 @@ def delete_following(
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.MessageResponse:
     """Remove a follower of the authenticated user."""
-    followers_crud.delete_follower(target_user_id, token_user_id, db)
+    followers_service.remove_follower(token_user_id, target_user_id, db)
     return followers_schema.MessageResponse(detail="Follower record deleted successfully")
