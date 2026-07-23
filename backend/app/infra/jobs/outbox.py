@@ -13,7 +13,7 @@ that makes concurrent relayers safe and re-relaying a row harmless.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from infra.events import Event
@@ -97,3 +97,46 @@ def mark_relayed(outbox_id: str, *, now: datetime, db: Session) -> None:
     """
     db.execute(update(EventOutbox).where(EventOutbox.id == outbox_id).values(relayed_at=now))
     db.commit()
+
+
+# Rows deleted per batch when pruning; bounded so each delete transaction stays
+# short and never blocks the relay for long.
+_PRUNE_BATCH_SIZE = 1000
+_PRUNE_MAX_BATCHES = 10_000
+
+
+def delete_relayed_before(cutoff: datetime, *, db: Session, batch_size: int = _PRUNE_BATCH_SIZE) -> int:
+    """
+    Delete relayed outbox rows older than ``cutoff``, in bounded batches.
+
+    Only rows that have been relayed (``relayed_at`` set) and whose relay is older
+    than ``cutoff`` are removed; unrelayed rows are pending work and are never
+    touched. A relayed row's only remaining value is audit — the per-subscriber
+    jobs it fanned out into are the source of truth — so it is safe to prune.
+
+    Args:
+        cutoff: Delete rows whose ``relayed_at`` is strictly before this instant.
+        db: Active database session.
+        batch_size: Maximum rows deleted per batch.
+
+    Returns:
+        The total number of rows deleted.
+    """
+    total = 0
+    for _ in range(_PRUNE_MAX_BATCHES):
+        id_stmt = (
+            select(EventOutbox.id)
+            .where(EventOutbox.relayed_at.is_not(None), EventOutbox.relayed_at < cutoff)
+            .limit(batch_size)
+        )
+        if db.bind is not None and db.bind.dialect.name == "postgresql":
+            id_stmt = id_stmt.with_for_update(skip_locked=True)  # pragma: no cover - Postgres-only path
+        ids = list(db.execute(id_stmt).scalars().all())
+        if not ids:
+            break
+        db.execute(delete(EventOutbox).where(EventOutbox.id.in_(ids)))
+        db.commit()
+        total += len(ids)
+        if len(ids) < batch_size:
+            break
+    return total

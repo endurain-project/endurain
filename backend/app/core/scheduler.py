@@ -6,6 +6,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import core.logger as core_logger
 import core.network as core_network
+import infra.retention as platform_retention
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
@@ -153,6 +154,35 @@ def start_scheduler() -> None:
         [],
         "refresh trusted proxy hostname resolutions",
     )
+
+    # Prune the substrate's append-only bookkeeping tables (event_log, relayed
+    # outbox rows, completed jobs) so they don't grow without bound. Self-gated by
+    # EVENT_LOG_RETENTION_DAYS / JOBS_RETENTION_DAYS and single-runner via the
+    # platform lock. The daily interval keeps them trimmed; the one-shot below
+    # clears any backlog promptly and keeps frequently-restarted deployments from
+    # starving the daily run.
+    add_scheduler_job(
+        platform_retention.prune_expired_records,
+        "interval",
+        1440,
+        [],
+        "prune expired platform bookkeeping records",
+    )
+    try:
+        scheduler.add_job(
+            platform_retention.prune_expired_records,
+            "date",
+            id="endurain_prune_expired_records_oneshot",
+            replace_existing=True,
+            misfire_grace_time=None,
+        )
+        core_logger.print_to_log("Scheduled one-shot retention prune")
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Failed to schedule one-shot retention prune: {type(err).__name__}",
+            "error",
+            exc=err,
+        )
 
 
 def schedule_thumbnail_regeneration() -> None:

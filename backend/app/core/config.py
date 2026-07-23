@@ -32,7 +32,7 @@ import infra.capabilities as platform_capabilities
 import infra.profile as platform_profile
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.19.0-beta6"
+API_VERSION = "v0.20.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
@@ -176,6 +176,11 @@ class Settings(BaseSettings):
     # it can be queried and summarized in the admin dashboard. Disable to skip the
     # per-event database writes if the extra import-path latency ever matters.
     EVENT_LOG_ENABLED: bool = True
+    # Age in days after which ``event_log`` rows are pruned by a scheduled cleanup
+    # (daily, plus once at startup). event_log is a best-effort, safe-to-lose
+    # observability trail, so every row past this age is removed regardless of
+    # status. Set to 0 (or negative) to disable pruning and keep rows forever.
+    EVENT_LOG_RETENTION_DAYS: int = 90
 
     # --- Coordination lock (scheduler/backfill single-runner) ---
     # noop:// always acquires (single process); postgres-advisory:// uses
@@ -210,6 +215,13 @@ class Settings(BaseSettings):
     # single-node deployments; turn off when running dedicated worker processes
     # (APP_ROLE=worker) so the API only publishes and schedules maintenance.
     JOBS_RUN_IN_PROCESS_WORKER: bool = True
+    # Age in days after which completed durable-job bookkeeping is pruned by a
+    # scheduled cleanup (daily, plus once at startup): relayed ``event_outbox``
+    # rows and ``completed`` ``processing_jobs`` rows. In-flight and
+    # human-actionable rows are never pruned — unrelayed outbox rows (pending
+    # relay), pending/claimed jobs (in-flight work), and dead-lettered jobs (kept
+    # for operator review). Set to 0 (or negative) to disable pruning.
+    JOBS_RETENTION_DAYS: int = 90
 
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.

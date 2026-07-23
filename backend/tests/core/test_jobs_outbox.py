@@ -78,3 +78,38 @@ class TestMarkRelayed:
         jobs_outbox.mark_relayed(outbox_id, now=_NOW, db=db)
         assert db.get(EventOutbox, outbox_id).relayed_at is not None
         assert jobs_outbox.list_unrelayed(limit=10, db=db) == []
+
+
+class TestDeleteRelayedBefore:
+    @staticmethod
+    def _add(db, outbox_id, *, relayed_at, created_at=_NOW):
+        db.add(
+            EventOutbox(
+                id=outbox_id,
+                event_id=f"ev-{outbox_id}",
+                event_type="activity.created",
+                source="api:test",
+                timestamp="2026-07-14T12:00:00+00:00",
+                payload={},
+                created_at=created_at,
+                relayed_at=relayed_at,
+            )
+        )
+        db.commit()
+
+    def test_deletes_old_relayed_only(self, db):
+        cutoff = _NOW - timedelta(days=90)
+        self._add(db, "old-relayed", relayed_at=_NOW - timedelta(days=100))
+        self._add(db, "recent-relayed", relayed_at=_NOW)
+
+        assert jobs_outbox.delete_relayed_before(cutoff, db=db) == 1
+        assert db.get(EventOutbox, "old-relayed") is None
+        assert db.get(EventOutbox, "recent-relayed") is not None
+
+    def test_never_deletes_unrelayed(self, db):
+        cutoff = _NOW - timedelta(days=90)
+        # An unrelayed row is pending work — never pruned, however old.
+        self._add(db, "unrelayed", relayed_at=None, created_at=_NOW - timedelta(days=100))
+
+        assert jobs_outbox.delete_relayed_before(cutoff, db=db) == 0
+        assert db.get(EventOutbox, "unrelayed") is not None
