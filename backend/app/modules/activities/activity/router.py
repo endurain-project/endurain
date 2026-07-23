@@ -264,18 +264,6 @@ def edit_activity(
 
     updated = activities_crud.edit_activity(token_user_id, activity_attributes, db)
 
-    # Publish the domain fact so subscribers can react to the edit (reindex, feed
-    # refresh, ...) without the route knowing who reacts. ``changed`` is derived
-    # from the fields the client actually submitted. Best-effort; the session
-    # enables durable outbox delivery when durable jobs are enabled.
-    changed = sorted(field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id")
-    activity_event_publishers.publish_activity_updated(
-        activity_id,
-        token_user_id,
-        changed=changed,
-        db=db,
-    )
-
     return updated
 
 

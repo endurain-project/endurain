@@ -211,11 +211,8 @@ class TestReadByID:
 
 
 class TestEdit:
-    def test_success_publishes_updated(self, mock_db):
-        with (
-            patch("modules.activities.activity.router.activities_crud.edit_activity") as m,
-            patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
-        ):
+    def test_success(self, mock_db):
+        with patch("modules.activities.activity.router.activities_crud.edit_activity") as m:
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).put(
                 "/activities/1",
@@ -223,21 +220,10 @@ class TestEdit:
                 json={"id": 1, "name": "Run", "activity_type": 1, "visibility": 2},
             )
             assert resp.status_code == 200
-            # The route publishes the fact with the changed field names (excluding id).
-            mock_pub.publish_activity_updated.assert_called_once()
-            assert mock_pub.publish_activity_updated.call_args.args[0] == 1
-            assert mock_pub.publish_activity_updated.call_args.kwargs["changed"] == [
-                "activity_type",
-                "name",
-                "visibility",
-            ]
 
     def test_path_id_is_authoritative(self, mock_db):
         # A body id that disagrees with the path is overridden by the path id.
-        with (
-            patch("modules.activities.activity.router.activities_crud.edit_activity") as m,
-            patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
-        ):
+        with patch("modules.activities.activity.router.activities_crud.edit_activity") as m:
             m.return_value = _valid_activity()
             resp = TestClient(_build_app(mock_db)).put(
                 "/activities/7",
@@ -247,7 +233,6 @@ class TestEdit:
             assert resp.status_code == 200
             # crud.edit_activity receives the attributes with the path id (7).
             assert m.call_args.args[1].id == 7
-            assert mock_pub.publish_activity_updated.call_args.args[0] == 7
 
 
 class TestEditVisibility:

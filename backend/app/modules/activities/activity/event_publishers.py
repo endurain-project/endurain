@@ -79,40 +79,6 @@ def publish_activity_created(
         )
 
 
-def publish_activity_updated(
-    activity_id: int,
-    user_id: int | None,
-    changed: list[str] | None = None,
-    db: Session | None = None,
-) -> None:
-    """Publish ``activity.updated`` after an activity's metadata was edited.
-
-    Args:
-        activity_id: The edited activity's ID.
-        user_id: The owning user's ID. Carried in the payload (a subscriber may
-            need the owner to load the activity) and mirrored into the metadata
-            for event-log correlation.
-        changed: The names of the fields the edit changed (best-effort; the edit
-            route derives them from the submitted payload). Carried so subscribers
-            can react selectively (reindex, feed refresh, ...).
-        db: The producer's DB session, used for durable outbox delivery when
-            durable jobs are enabled.
-
-    Returns:
-        None.
-    """
-    platform_publisher.publish(
-        activity_events.ACTIVITY_UPDATED,
-        {"activity_id": activity_id, "user_id": user_id, "changed": changed},
-        source="api:edit_activity",
-        metadata={
-            platform_events.META_ACTIVITY_ID: activity_id,
-            platform_events.META_USER_ID: user_id,
-        },
-        db=db,
-    )
-
-
 def publish_activity_deleted(activity_id: int, user_id: int | None, db: Session | None = None) -> None:
     """Publish ``activity.deleted`` after an activity row has been removed.
 
