@@ -11,6 +11,7 @@ Key Features:
 - Memory and timeout monitoring
 """
 
+import asyncio
 import json
 import os
 import time
@@ -24,10 +25,12 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
+import infra.runtime as platform_runtime
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
@@ -1078,16 +1081,17 @@ class ImportService:
 
                     new_file_name = f"{new_id}{ext}"
 
-                    # Read bytes from ZIP and save through the
-                    # unified validated-write pipeline so the entry
-                    # is re-checked as an activity file.
+                    # Read bytes from ZIP, validate as an activity file, then
+                    # persist through the platform StorageProvider (the same store
+                    # the ingestion path writes to) rather than the local
+                    # processed directory. The blocking save is offloaded so it
+                    # never stalls the import's event loop.
                     activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
                     file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=activity_limit)
                     try:
-                        await file_uploads.save_validated_bytes(
+                        await file_uploads.validate_bytes(
                             file_bytes,
                             kind=file_uploads.UploadKind.ACTIVITY,
-                            upload_dir=core_config.FILES_PROCESSED_DIR,
                             filename=new_file_name,
                         )
                     except HTTPException as err:
@@ -1096,6 +1100,13 @@ class ImportService:
                             "warning",
                         )
                         continue
+                    await asyncio.to_thread(
+                        activity_file_storage_service.store_activity_file,
+                        new_id,
+                        ext,
+                        file_bytes,
+                        platform_runtime.get_active_platform().storage,
+                    )
                     self.counts["activity_files"] += 1
                 except ValueError:
                     # Skip files that don't have numeric activity IDs

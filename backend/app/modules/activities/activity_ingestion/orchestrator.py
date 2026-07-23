@@ -30,12 +30,14 @@ import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import infra.runtime as platform_runtime
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_file_import.utils_tcx as tcx_utils
+import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_ingestion.enrichment as enrichment
 import modules.activities.activity_ingestion.file_adapter as file_adapter
 import modules.strava.bulk_import_utils as strava_bulk_import_utils
@@ -120,7 +122,12 @@ def handle_gzipped_file(
             f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}"
         )
 
-        core_file_uploads.move_within(str(path), core_config.FILES_PROCESSED_DIR, filename=path.name)
+        # The original .gz is consumed once decompressed: the decompressed file
+        # is what gets retained in storage (keyed by activity id) downstream, so
+        # remove the staging .gz. Previously it was moved into the processed
+        # directory, but keeping a redundant compressed copy is no longer needed.
+        with contextlib.suppress(OSError):
+            os.remove(str(path))
 
         return temp_file_path, inner_file_extension
     except HTTPException:
@@ -465,19 +472,31 @@ def _store_activities_from_file(
         # in router.py, but why not.
         core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
 
-    # Define the directory where the processed files will be stored
-    processed_dir = core_config.FILES_PROCESSED_DIR
+    # Persist the retained source file through the platform StorageProvider — the
+    # same abstraction thumbnails use — so file-based ingestion works unchanged on
+    # local disk or object storage instead of being pinned to this node's disk.
+    # Each created activity owns its own copy keyed by id, so its lifecycle
+    # (profile export, deletion) is independent, including the several activities
+    # parsed from a single multi-activity .fit. The staging/temp input is consumed
+    # (removed) afterwards, exactly as the previous move-into-processed did.
+    activity_ids = [activity.id for activity in created_activities if activity.id is not None]
+    if activity_ids:
+        with open(file_path, "rb") as source_file:
+            file_bytes = source_file.read()
+        activity_file_storage_service.store_activity_file_for_ids(
+            activity_ids,
+            file_extension,
+            file_bytes,
+            platform_runtime.get_active_platform().storage,
+        )
 
-    # Define new file path with activity ID as filename
-    new_file_name = f"{ids_to_filename}{file_extension}"
+    with contextlib.suppress(OSError):
+        os.remove(file_path)
 
-    # Move the file to the processed directory
-    core_file_uploads.move_within(file_path, processed_dir, filename=new_file_name)
-
-    # Log file move, import any associated media, and log completion.
+    # Import any associated media and log completion.
     if is_bulk_import:
         core_logger.print_to_log_and_console(
-            f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}"
+            f"Bulk file import: file {file_base_name} successfully processed and stored for activities {ids_to_filename}"
         )
 
         # Deal with Strava bulk import media.
@@ -794,15 +813,11 @@ def parse_and_store_activity_from_uploaded_file(
         upload_artifacts.append(file_path)
 
         if file_extension.lower() == ".gz":
-            original_file_path = file_path
             file_path, file_extension = handle_gzipped_file(file_path)
+            # ``handle_gzipped_file`` consumes (removes) the staging .gz and
+            # returns the decompressed temp file; track it so a later failure
+            # cleans it up.
             upload_artifacts.append(file_path)
-            upload_artifacts.append(
-                os.path.join(
-                    core_config.FILES_PROCESSED_DIR,
-                    os.path.basename(original_file_path),
-                )
-            )
             # Re-validate after decompression so the inner payload
             # still matches one of the supported activity formats.
             if file_extension.lower() not in core_config.SUPPORTED_FILE_FORMATS or file_extension.lower() == ".gz":

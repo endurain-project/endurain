@@ -525,14 +525,19 @@ class TestExportServiceCollectUserSettings:
 
 
 class TestExportServiceActivityFiles:
-    def test_add_activity_files_missing_dir(self) -> None:
+    def test_add_activity_files_none_stored(self) -> None:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with patch("os.path.exists", return_value=False):
+            with patch(
+                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                return_value=None,
+            ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts.get("activity_files", 0) == 0
 
     def test_add_activity_files_no_activities(self) -> None:
         buf = io.BytesIO()
@@ -549,16 +554,16 @@ class TestExportServiceActivityFiles:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
-                patch.object(z, "write"),
+            with patch(
+                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                return_value=("1.gpx", b"<gpx></gpx>"),
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts["activity_files"] == 1
+        buf.seek(0)
+        with zipfile.ZipFile(buf, "r") as z:
+            assert "activity_files/1.gpx" in z.namelist()
 
 
 class TestExportServiceActivityMedia:
@@ -1200,74 +1205,41 @@ class TestExportServiceCollectUserSettingsEdgeCases:
 
 
 class TestExportServiceActivityFilesEdgeCases:
-    """Cover lines 802-803, 812-829 of add_activity_files_to_zip."""
+    """Cover the storage-backed add_activity_files_to_zip edge cases."""
 
-    def test_file_not_found_skipped(self) -> None:
-        """os.path.isfile returns False -> skip file (lines 802-803)."""
+    def test_activity_without_stored_file_skipped(self) -> None:
+        """An activity with no retained source file is skipped (get returns None)."""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=False),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
+            with patch(
+                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                return_value=None,
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts.get("activity_files", 0) == 0
 
-    def test_oserror_during_add_continues(self) -> None:
-        """OSError from zipf.write caught and loop continues (lines 812-818)."""
+    def test_read_error_continues(self) -> None:
+        """An OSError reading one activity's file is caught and the loop continues."""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
-                patch.object(z, "write", side_effect=OSError("disk full")),
+            with patch(
+                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                side_effect=[OSError("read failed"), ("2.gpx", b"<gpx></gpx>")],
             ):
-                service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
+                service.add_activity_files_to_zip(z, [_make_activity_mock(1), _make_activity_mock(2)])
 
-        assert service.counts.get("activity_files", 0) == 0
-
-    def test_unexpected_error_during_add_continues(self) -> None:
-        """Generic exception from zipf.write caught and loop continues (lines 819-825)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
-                patch.object(z, "write", side_effect=ValueError("unexpected")),
-            ):
-                service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
-
-        assert service.counts.get("activity_files", 0) == 0
-
-    def test_outer_os_error_raises_file_system_error(self) -> None:
-        """OSError from os.walk raises FileSystemError (lines 827-829)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", side_effect=OSError("permission denied")),
-                pytest.raises(FileSystemError),
-            ):
-                service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
+        # The first activity errored and was skipped; the second still exported.
+        assert service.counts["activity_files"] == 1
+        buf.seek(0)
+        with zipfile.ZipFile(buf, "r") as z:
+            assert "activity_files/2.gpx" in z.namelist()
 
 
 class TestExportServiceActivityMediaEdgeCases:

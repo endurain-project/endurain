@@ -41,6 +41,12 @@ class LocalStorage:
         path.write_bytes(data)
         return key
 
+    def get(self, area: str, key: str) -> bytes | None:
+        path = self._resolve(area, key)
+        if not path.is_file():
+            return None
+        return path.read_bytes()
+
     def exists(self, area: str, key: str) -> bool:
         return self._resolve(area, key).is_file()
 

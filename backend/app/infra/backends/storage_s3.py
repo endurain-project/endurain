@@ -69,6 +69,16 @@ class S3Storage:
         self._client.put_object(Bucket=self._bucket, Key=self._object_key(area, key), Body=data, **extra)
         return key
 
+    def get(self, area: str, key: str) -> bytes | None:
+        try:
+            response = self._client.get_object(Bucket=self._bucket, Key=self._object_key(area, key))
+        except ClientError as error:
+            if error.response.get("Error", {}).get("Code") in _MISSING_OBJECT_CODES:
+                return None
+            raise
+        body: bytes = response["Body"].read()
+        return body
+
     def exists(self, area: str, key: str) -> bool:
         try:
             self._client.head_object(Bucket=self._bucket, Key=self._object_key(area, key))

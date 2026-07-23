@@ -22,7 +22,7 @@ _EXPECTED_CREATED_SUBSCRIBERS = {
     "activity_streams.compute_hr_zones",
     "activity_geocoding.reverse_geocode",
 }
-_EXPECTED_DELETED_SUBSCRIBERS = {"activity_thumbnail.cleanup"}
+_EXPECTED_DELETED_SUBSCRIBERS = {"activity_thumbnail.cleanup", "activity_file_storage.cleanup"}
 _EXPECTED_BULK_IMPORT_SUBSCRIBERS = {"activity_ingestion.bulk_import_file"}
 
 
@@ -49,9 +49,9 @@ class TestRegisterAllActivityBusSubscribers:
         activity_subscriber_registry.register_all_activity_bus_subscribers(events)
         subscribed_event_types = [c.args[0] for c in events.subscribe.call_args_list]
         # thumbnail(generate), notify, hr-zones, geocoding react to created;
-        # thumbnail(cleanup) reacts to deleted.
+        # thumbnail(cleanup) and source-file(cleanup) react to deleted.
         assert subscribed_event_types.count(activity_events.ACTIVITY_CREATED) == 4
-        assert subscribed_event_types.count(activity_events.ACTIVITY_DELETED) == 1
+        assert subscribed_event_types.count(activity_events.ACTIVITY_DELETED) == 2
 
 
 class TestRegisterAllActivityDurableHandlers:

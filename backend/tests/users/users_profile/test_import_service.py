@@ -1375,9 +1375,10 @@ class TestImportServiceAddActivityFiles:
         mock_validator.config.limits.max_activity_file_size = 1000000
         with (
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
             patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
-            ),
+                "modules.users.users_profile.import_service.activity_file_storage_service.store_activity_file"
+            ) as mock_store,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_files_from_zip(
@@ -1387,6 +1388,7 @@ class TestImportServiceAddActivityFiles:
             )
 
         assert service.counts["activity_files"] == 1
+        mock_store.assert_called_once()
 
     async def test_add_activity_files_from_zip_no_mapping(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1405,8 +1407,8 @@ class TestImportServiceAddActivityFiles:
 
         with (
             patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
-            ) as mock_save,
+                "modules.users.users_profile.import_service.activity_file_storage_service.store_activity_file"
+            ) as mock_store,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_files_from_zip(
@@ -1415,7 +1417,7 @@ class TestImportServiceAddActivityFiles:
                 {1: 10},
             )
 
-        mock_save.assert_not_called()
+        mock_store.assert_not_called()
         assert service.counts.get("activity_files", 0) == 0
 
     async def test_add_activity_files_from_zip_http_exception(self) -> None:
@@ -1438,7 +1440,7 @@ class TestImportServiceAddActivityFiles:
         with (
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.validate_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid file"),
             ),

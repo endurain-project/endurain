@@ -6,7 +6,6 @@ return. Literal paths are declared before ``/{activity_id}`` so FastAPI matches
 them first.
 """
 
-import glob
 from collections.abc import Callable
 from datetime import date
 from typing import Annotated
@@ -21,10 +20,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.database as core_database
-import core.file_uploads as core_file_uploads
-import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.event_publishers as activity_event_publishers
@@ -314,32 +310,12 @@ def delete_activity(
     # Delete the activity
     activities_crud.delete_activity(activity_id, db)
 
-    # Publish the domain fact so each subsystem removes the artifacts it owns
-    # (the map thumbnail today; media/search-index/... later). The route stays
-    # ignorant of who reacts and publishing is best-effort — it never blocks or
-    # fails the delete. The session enables durable outbox delivery when durable
-    # jobs are enabled.
+    # Publish the domain fact so each subsystem removes the artifacts it owns:
+    # the map thumbnail and the retained source file today; media/search-index/…
+    # later. The route stays ignorant of who reacts and publishing is best-effort
+    # — it never blocks or fails the delete. The session enables durable outbox
+    # delivery when durable jobs are enabled.
     activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db)
-
-    # This activity's own processed files are removed here. The route is
-    # synchronous, so Starlette already runs it on a threadpool worker — the
-    # disk I/O never blocks the event loop.
-    def _cleanup_processed_files() -> None:
-        # Define the search pattern using the file ID (e.g., '1.*')
-        pattern = f"{core_config.FILES_PROCESSED_DIR}/{activity_id}.*"
-        for file in glob.glob(pattern):
-            # Path-bounded removal — refuses to delete anything that
-            # resolves outside FILES_PROCESSED_DIR (defense in depth
-            # against crafted activity IDs or symlinks).
-            try:
-                core_file_uploads.safe_remove_within(file, base_dir=core_config.FILES_PROCESSED_DIR)
-            except HTTPException as fs_err:
-                core_logger.print_to_log(
-                    f"Refused to delete file outside processed dir {file}: {fs_err.detail}",
-                    "warning",
-                )
-
-    _cleanup_processed_files()
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}
