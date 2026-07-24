@@ -11,7 +11,7 @@ import { apiFetch } from '@/services/http'
 const UPLOAD_FIELD = 'file'
 
 /** Activity-file upload endpoint, relative to the API base URL. */
-const UPLOAD_PATH = '/activities/create/upload'
+const UPLOAD_PATH = '/activities/upload'
 
 /**
  * Extracts a lowercase extension from a filename for the allowlist check.

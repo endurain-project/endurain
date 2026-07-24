@@ -112,7 +112,7 @@ describe('uploadActivityFile', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce()
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-    expect(url).toContain('/activities/create/upload')
+    expect(url).toContain('/activities/upload')
     expect(init.method).toBe('POST')
 
     const body = init.body
@@ -139,7 +139,7 @@ describe('uploadActivityFile', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     // The endpoint is a fixed path; the filename only rides along as the
     // multipart part name (the server generates the stored filename).
-    expect(url).toBe('/activities/create/upload')
+    expect(url).toBe('/activities/upload')
     const part = (init.body as FormData).get('file')
     expect((part as File).name).toBe('../../../etc/passwd.gpx')
   })

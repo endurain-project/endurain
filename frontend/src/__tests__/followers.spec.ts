@@ -26,24 +26,24 @@ describe('mapFollowStatus', () => {
   })
 
   it('returns pending for an unaccepted relationship', () => {
-    expect(mapFollowStatus({ follower_id: 1, following_id: 2, is_accepted: false })).toBe('pending')
+    expect(mapFollowStatus({ follower_id: 1, followee_id: 2, status: 'pending' })).toBe('pending')
   })
 
   it('returns accepted for an accepted relationship', () => {
-    expect(mapFollowStatus({ follower_id: 1, following_id: 2, is_accepted: true })).toBe('accepted')
+    expect(mapFollowStatus({ follower_id: 1, followee_id: 2, status: 'accepted' })).toBe('accepted')
   })
 })
 
 describe('fetchFollowers', () => {
   it('maps the *follower* (other user) from follower_id', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([
-      { follower_id: 3, following_id: 9, is_accepted: true },
-      { follower_id: 4, following_id: 9, is_accepted: false },
+      { follower_id: 3, followee_id: 9, status: 'accepted' },
+      { follower_id: 4, followee_id: 9, status: 'pending' },
     ])
 
     const edges = await fetchFollowers(9)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/user/9/followers/all', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/followers', { signal: undefined })
     expect(edges).toEqual([
       { userId: 3, isAccepted: true },
       { userId: 4, isAccepted: false },
@@ -57,14 +57,14 @@ describe('fetchFollowers', () => {
 })
 
 describe('fetchFollowing', () => {
-  it('maps the *followed* (other user) from following_id', async () => {
+  it('maps the *followed* (other user) from followee_id', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([
-      { follower_id: 9, following_id: 5, is_accepted: true },
+      { follower_id: 9, followee_id: 5, status: 'accepted' },
     ])
 
     const edges = await fetchFollowing(9)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/user/9/following/all', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/following', { signal: undefined })
     expect(edges).toEqual([{ userId: 5, isAccepted: true }])
   })
 })
@@ -74,7 +74,7 @@ describe('follower counts', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(12)
 
     expect(await fetchFollowersCount(9)).toBe(12)
-    expect(apiFetch).toHaveBeenCalledWith('/followers/user/9/followers/count/accepted', {
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/followers/count?accepted_only=true', {
       signal: undefined,
     })
   })
@@ -83,69 +83,68 @@ describe('follower counts', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(7)
 
     expect(await fetchFollowingCount(9)).toBe(7)
-    expect(apiFetch).toHaveBeenCalledWith('/followers/user/9/following/count/accepted', {
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/following/count?accepted_only=true', {
       signal: undefined,
     })
   })
 })
 
 describe('fetchFollowStatus', () => {
-  it('maps the viewer→target relationship to a status', async () => {
+  it('maps the viewer’s outgoing relationship to a status', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      follower_id: 1,
-      following_id: 2,
-      is_accepted: false,
+      outgoing: { follower_id: 1, followee_id: 2, status: 'pending' },
+      incoming: null,
     })
 
-    const status = await fetchFollowStatus(1, 2)
+    const status = await fetchFollowStatus(2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/user/1/targetUser/2', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/2/relationship', { signal: undefined })
     expect(status).toBe('pending')
   })
 
   it('returns none when there is no relationship', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchFollowStatus(1, 2)).toBe('none')
+    expect(await fetchFollowStatus(2)).toBe('none')
   })
 })
 
 describe('follow-graph mutations', () => {
-  it('follows via POST on the create path', async () => {
+  it('follows via POST on the follow path', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       follower_id: 1,
-      following_id: 2,
-      is_accepted: false,
+      followee_id: 2,
+      status: 'pending',
     })
 
     await followUser(2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/create/targetUser/2', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/2/follow', { method: 'POST' })
   })
 
-  it('accepts a pending request via PUT', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ message: 'ok' })
+  it('accepts a pending request via POST', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'ok' })
 
     await acceptFollower(3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/accept/targetUser/3', { method: 'PUT' })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/3/follow/accept', { method: 'POST' })
   })
 
-  it('unfollows (or cancels a request) via DELETE on the follower path', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ message: 'ok' })
+  it('unfollows (or cancels a request) via DELETE on the follow path', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'ok' })
 
     await unfollowUser(4)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/delete/follower/targetUser/4', {
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/4/follow', {
       method: 'DELETE',
     })
   })
 
-  it('removes (or declines) a follower via DELETE on the following path', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ message: 'ok' })
+  it('removes (or declines) a follower via DELETE on the follower path', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'ok' })
 
     await removeFollower(5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/delete/following/targetUser/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/5/follower', {
       method: 'DELETE',
     })
   })

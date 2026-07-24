@@ -8,7 +8,7 @@ import { apiFetch } from '@/services/http'
  * @throws {HttpError} When the request fails.
  */
 export async function bulkImportActivities(): Promise<void> {
-  await apiFetch('/activities/create/bulkimport', { method: 'POST', responseType: 'void' })
+  await apiFetch('/activities/bulk-import', { method: 'POST', responseType: 'void' })
 }
 
 /**
