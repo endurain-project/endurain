@@ -224,3 +224,19 @@ def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
         None.
     """
     followers_crud.delete_follower(follower_user_id, user_id, db)
+
+
+def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
+    """List the ids of users the given user follows (accepted only).
+
+    The clean read interface the activities feed and visibility filter consume so
+    the activities module never touches the followers table directly.
+
+    Args:
+        user_id: The follower whose accepted followees to list.
+        db: Database session.
+
+    Returns:
+        The accepted followee user ids (empty list if none).
+    """
+    return followers_crud.list_accepted_followee_ids(user_id, db)

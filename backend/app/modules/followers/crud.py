@@ -178,6 +178,30 @@ def get_follower_for_user_id_and_target_user_id(
     return _transform_follower(follower) if follower is not None else None
 
 
+@core_decorators.handle_db_errors
+def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
+    """List the ids of users the given user follows with an accepted relationship.
+
+    This is the clean read interface the activities feed and visibility filter
+    consume instead of reaching into the followers table directly.
+
+    Args:
+        user_id: The follower whose accepted followees to list.
+        db: Database session.
+
+    Returns:
+        The followee user ids (empty list if none).
+
+    Raises:
+        HTTPException: If a database error occurs.
+    """
+    stmt = select(followers_models.Follower.following_id).where(
+        followers_models.Follower.follower_id == user_id,
+        followers_models.Follower.is_accepted.is_(True),
+    )
+    return list(db.scalars(stmt).all())
+
+
 def create_follower(
     user_id: int,
     target_user_id: int,

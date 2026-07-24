@@ -31,7 +31,7 @@ import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
-import modules.followers.models as followers_models
+import modules.followers.service as followers_service
 import modules.server_settings.utils as server_settings_utils
 
 # Mapping from frontend sort keys to model columns
@@ -74,12 +74,14 @@ def escape_like(term: str) -> str:
     return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _visible_to_requester_condition(requester_user_id: int | None):
+def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     """Build the non-owner activity visibility condition.
 
     Args:
         requester_user_id: Requesting user ID, or None for an
             anonymous/public-only read.
+        db: Database session, used to resolve the requester's accepted
+            followees through the followers service interface.
 
     Returns:
         SQLAlchemy condition limiting rows to public or accepted
@@ -87,21 +89,14 @@ def _visible_to_requester_condition(requester_user_id: int | None):
     """
     visibility_conditions = [activities_models.Activity.visibility == 0]
     if requester_user_id is not None:
-        accepted_follower_exists = (
-            select(followers_models.Follower.follower_id)
-            .where(
-                followers_models.Follower.follower_id == requester_user_id,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-                followers_models.Follower.is_accepted.is_(True),
+        followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+        if followee_ids:
+            visibility_conditions.append(
+                and_(
+                    activities_models.Activity.visibility == 1,
+                    activities_models.Activity.user_id.in_(followee_ids),
+                )
             )
-            .exists()
-        )
-        visibility_conditions.append(
-            and_(
-                activities_models.Activity.visibility == 1,
-                accepted_follower_exists,
-            )
-        )
 
     return and_(
         activities_models.Activity.is_hidden.is_(False),
@@ -114,6 +109,7 @@ def _apply_activity_visibility_filter(
     *,
     user_is_owner: bool,
     requester_user_id: int | None,
+    db: Session,
 ):
     """Apply non-owner visibility filtering to an activity query.
 
@@ -122,6 +118,8 @@ def _apply_activity_visibility_filter(
         user_is_owner: Whether the requester owns all candidate
             rows.
         requester_user_id: Requesting user ID for follower checks.
+        db: Database session, used to resolve the requester's accepted
+            followees through the followers service interface.
 
     Returns:
         The original statement for owner reads, otherwise a
@@ -129,7 +127,7 @@ def _apply_activity_visibility_filter(
     """
     if user_is_owner:
         return stmt
-    return stmt.where(_visible_to_requester_condition(requester_user_id))
+    return stmt.where(_visible_to_requester_condition(requester_user_id, db))
 
 
 def _internal_server_error(err: Exception, context: str) -> HTTPException:
@@ -382,6 +380,7 @@ def get_user_activities(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -489,6 +488,7 @@ def get_user_activities_with_pagination(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -601,6 +601,7 @@ def get_user_activities_per_timeframe(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -657,6 +658,7 @@ def get_user_activities_per_timeframe_and_activity_type(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -721,6 +723,7 @@ def get_user_activities_per_timeframe_and_activity_types(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -758,17 +761,13 @@ def get_user_following_activities_per_timeframe(
         HTTPException: 500 on database error.
     """
     try:
+        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+        if not followee_ids:
+            return None
         stmt = (
             select(activities_models.Activity)
-            .join(
-                followers_models.Follower,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-            )
             .where(
-                and_(
-                    followers_models.Follower.follower_id == user_id,
-                    followers_models.Follower.is_accepted,
-                ),
+                activities_models.Activity.user_id.in_(followee_ids),
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
                 activities_models.Activity.strava_activity_id.is_(None),
@@ -803,17 +802,13 @@ def get_user_following_activities_with_pagination(
         HTTPException: 500 on database error.
     """
     try:
+        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+        if not followee_ids:
+            return None
         stmt = (
             select(activities_models.Activity)
-            .join(
-                followers_models.Follower,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-            )
             .where(
-                and_(
-                    followers_models.Follower.follower_id == user_id,
-                    followers_models.Follower.is_accepted,
-                ),
+                activities_models.Activity.user_id.in_(followee_ids),
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
                 activities_models.Activity.strava_activity_id.is_(None),
@@ -844,21 +839,14 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         HTTPException: 500 on database error.
     """
     try:
-        stmt = (
-            select(activities_models.Activity)
-            .join(
-                followers_models.Follower,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-            )
-            .where(
-                and_(
-                    followers_models.Follower.follower_id == user_id,
-                    followers_models.Follower.is_accepted,
-                ),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
-            )
+        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+        if not followee_ids:
+            return None
+        stmt = select(activities_models.Activity).where(
+            activities_models.Activity.user_id.in_(followee_ids),
+            activities_models.Activity.visibility.in_([0, 1]),
+            activities_models.Activity.is_hidden.is_(False),
+            activities_models.Activity.strava_activity_id.is_(None),
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -1004,7 +992,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         stmt = select(activities_models.Activity).where(
             or_(
                 activities_models.Activity.user_id == user_id,
-                _visible_to_requester_condition(user_id),
+                _visible_to_requester_condition(user_id, db),
             ),
             activities_models.Activity.id == activity_id,
         )
@@ -1056,7 +1044,7 @@ def get_viewable_activity_by_id_for_user(
         stmt = select(activities_models.Activity).where(
             or_(
                 activities_models.Activity.user_id == user_id,
-                _visible_to_requester_condition(user_id),
+                _visible_to_requester_condition(user_id, db),
             ),
             activities_models.Activity.id == activity_id,
         )

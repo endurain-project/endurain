@@ -477,7 +477,8 @@ class TestFollowing:
         setup_mock_execute(mock_db, return_scalars_all=[])
         assert crud.get_user_following_activities(user_id=1, db=mock_db) is None
 
-    def test_db_error(self, mock_db):
+    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
+    def test_db_error(self, _mock_followees, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
@@ -791,7 +792,8 @@ class TestGetUserFollowingActivitiesPerTimeframe:
             is None
         )
 
-    def test_db_error(self, mock_db):
+    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
+    def test_db_error(self, _mock_followees, mock_db):
         from datetime import UTC, datetime
 
         import modules.activities.activity.crud as crud
@@ -827,7 +829,8 @@ class TestGetUserFollowingActivitiesWithPagination:
             is None
         )
 
-    def test_db_error(self, mock_db):
+    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
+    def test_db_error(self, _mock_followees, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")

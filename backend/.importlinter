@@ -151,3 +151,22 @@ source_modules =
     modules.garmin
 forbidden_modules =
     modules.activities.activity.crud
+
+# The activities core consumes the followers "following feed" through the curated
+# followers.service interface (list_accepted_followee_ids) — used by both the feed
+# routes and the non-owner visibility filter — never by reaching into the followers
+# ORM/CRUD directly. This inverts the old coupling where the feed + visibility filter
+# read the followers table (followers.models). allow_indirect_imports keeps this to
+# DIRECT imports: followers.service legitimately imports followers.crud/models, so the
+# transitive activities -> followers.service -> followers.crud -> followers.models path
+# is fine — only a bare `import modules.followers.models` / `.crud` in the activities
+# core is rejected.
+[importlinter:contract:activities-followers-boundary]
+name = Activities core must use the followers service interface, not the followers ORM/CRUD
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity
+forbidden_modules =
+    modules.followers.models
+    modules.followers.crud

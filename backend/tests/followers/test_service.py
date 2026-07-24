@@ -54,3 +54,17 @@ class TestRemoveFollower:
         remove_follower(1, 2, db)
 
         mock_crud.delete_follower.assert_called_once_with(2, 1, db)
+
+
+class TestListAcceptedFolloweeIds:
+    @patch("modules.followers.service.followers_crud")
+    def test_delegates_to_crud(self, mock_crud):
+        from modules.followers.service import list_accepted_followee_ids
+
+        db = MagicMock()
+        mock_crud.list_accepted_followee_ids.return_value = [2, 3]
+
+        result = list_accepted_followee_ids(1, db)
+
+        assert result == [2, 3]
+        mock_crud.list_accepted_followee_ids.assert_called_once_with(1, db)

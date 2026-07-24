@@ -202,6 +202,29 @@ class TestGetFollowerForUserIdAndTargetUserId:
         assert e.value.status_code == 500
 
 
+class TestListAcceptedFolloweeIds:
+    def test_success(self, mock_db):
+        import modules.followers.crud as crud
+
+        mock_db.scalars.return_value.all.return_value = [2, 3]
+        r = crud.list_accepted_followee_ids(user_id=1, db=mock_db)
+        assert r == [2, 3]
+
+    def test_empty(self, mock_db):
+        import modules.followers.crud as crud
+
+        mock_db.scalars.return_value.all.return_value = []
+        assert crud.list_accepted_followee_ids(user_id=1, db=mock_db) == []
+
+    def test_db_error(self, mock_db):
+        import modules.followers.crud as crud
+
+        mock_db.scalars.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.list_accepted_followee_ids(user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+
+
 class TestCreateFollower:
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     def test_success(self, mock_get_follow, mock_db):
