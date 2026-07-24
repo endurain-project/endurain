@@ -18,6 +18,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Request,
     Security,
     UploadFile,
     status,
@@ -28,6 +29,7 @@ import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import core.rate_limit as core_rate_limit
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
 import modules.activities.activity_ingestion.orchestrator as orchestrator
@@ -52,7 +54,9 @@ executor = ThreadPoolExecutor(max_workers=2)
     status_code=201,
     response_model=list[activities_schema.Activity],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_uploaded_file(
+    request: Request,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_user_id_from_auth),
@@ -95,7 +99,9 @@ def create_activity_with_uploaded_file(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=dict[str, str],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_bulk_import(
+    request: Request,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
@@ -217,12 +223,12 @@ def create_activity_with_bulk_import(
         ) from err
 
 
-@router.get(
+@router.post(
     "/refresh",
     response_model=list[activities_schema.Activity] | None,
 )
 async def refresh_activities(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),

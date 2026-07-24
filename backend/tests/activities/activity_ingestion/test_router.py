@@ -6,7 +6,9 @@ import modules.activities.activity_ingestion.router as router
 
 
 def _run_route(db):
-    return router.create_activity_with_bulk_import(token_user_id=3, _check_scopes=None, db=db)
+    return router.create_activity_with_bulk_import(
+        request=MagicMock(), token_user_id=3, _check_scopes=None, db=db
+    )
 
 
 class TestBulkImportRoute:
@@ -71,6 +73,7 @@ class TestUploadRoute:
         with patch.object(router.orchestrator, "parse_and_store_activity_from_uploaded_file") as store:
             store.return_value = ["activity"]
             result = router.create_activity_with_uploaded_file(
+                request=MagicMock(),
                 token_user_id=7,
                 file=file,
                 _check_scopes=None,
