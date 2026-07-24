@@ -15,6 +15,7 @@ from staticmap import CircleMarker, Line, StaticMap
 import core.config as core_config
 import core.logger as core_logger
 import infra.runtime as platform_runtime
+import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
 # The storage area (domain-owned namespace) activity thumbnails live under.
 THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
@@ -54,27 +55,36 @@ def thumbnail_key(activity_id: int) -> str:
     return f"{activity_id}.webp"
 
 
-def thumbnail_url(key: str | None) -> str | None:
-    """Resolve a stored thumbnail *key* to a servable URL.
+def thumbnail_url(key: str | None, activity_id: int) -> str | None:
+    """Resolve a stored thumbnail to a signed, ``<img>``-compatible URL.
 
-    Uses the process-wide ``StorageProvider`` so the URL is a same-origin path
-    for local disk (``/activity_thumbnails/42.webp``) or a presigned URL for
-    object storage. Falls back to the local static path when the platform is not
-    initialised (e.g. isolated unit tests).
+    Object storage keeps its presigned, expiring URL (already access-controlled
+    and usable in an ``<img>`` tag). Local disk is served by the token-gated
+    thumbnail route instead of a public static path, so the blob is only reachable
+    with a valid signed token — minted here and handed only to permitted viewers
+    via visibility masking, so a non-owner of a ``hide_map`` activity can neither
+    receive nor forge one. The activity owner keeps their map.
 
     Args:
         key: The stored storage key, or ``None``.
+        activity_id: The owning activity's id, bound into the signed token.
 
     Returns:
         A servable URL, or ``None`` when ``key`` is falsy.
     """
     if not key:
         return None
-    try:
-        storage = platform_runtime.get_active_platform().storage
-    except RuntimeError:
-        return f"/{THUMBNAIL_STORAGE_AREA}/{key}"
-    return storage.url(THUMBNAIL_STORAGE_AREA, key)
+    # Object storage already serves via presigned, expiring, <img>-compatible
+    # URLs; use them directly to avoid round-tripping every thumbnail through the
+    # app.
+    if core_config.settings.resolved_storage_uri.startswith("s3"):
+        try:
+            return platform_runtime.get_active_platform().storage.url(THUMBNAIL_STORAGE_AREA, key)
+        except RuntimeError:
+            pass
+    # Local disk: a signed, token-gated app URL (no public static mount).
+    token = activity_thumbnail_signing.sign_thumbnail_token(activity_id)
+    return f"{core_config.ROOT_PATH}/activities/{activity_id}/thumbnail?t={token}"
 
 
 def _normalise_tile_url(url: str) -> str:

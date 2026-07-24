@@ -6,9 +6,7 @@ import modules.activities.activity_ingestion.router as router
 
 
 def _run_route(db):
-    return router.create_activity_with_bulk_import(
-        request=MagicMock(), token_user_id=3, _check_scopes=None, db=db
-    )
+    return router.create_activity_with_bulk_import(request=MagicMock(), token_user_id=3, _check_scopes=None, db=db)
 
 
 class TestBulkImportRoute:

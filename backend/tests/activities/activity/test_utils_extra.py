@@ -128,7 +128,7 @@ class TestSerializeActivity:
         assert result.start_time_tz_applied == "2024-01-15T09:00:00"
         assert result.start_time == "2024-01-15T08:00:00"
         assert result.map_thumbnail_path == "/activity_thumbnails/1.webp"
-        mock_thumbnail.thumbnail_url.assert_called_once_with("1.webp")
+        mock_thumbnail.thumbnail_url.assert_called_once_with("1.webp", activity.id)
         mock_schema_cls.model_validate.assert_called_once_with(activity)
 
 

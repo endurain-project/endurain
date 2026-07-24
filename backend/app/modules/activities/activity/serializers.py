@@ -32,8 +32,10 @@ def serialize_activity(
     schema = activities_schema.Activity.model_validate(activity)
 
     # The DB stores the thumbnail's storage key; resolve it to a servable URL
-    # (a same-origin path locally, or a presigned URL for object storage).
-    schema.map_thumbnail_path = activity_thumbnail_render.thumbnail_url(activity.map_thumbnail_path)
+    # (a signed, token-gated app route locally, or a presigned URL for object
+    # storage). Visibility masking below strips this for non-owners of a hidden
+    # map, so only permitted viewers ever receive the signed token.
+    schema.map_thumbnail_path = activity_thumbnail_render.thumbnail_url(activity.map_thumbnail_path, activity.id)
 
     tz_name = activity.timezone
     schema.start_time_tz_applied = core_timezone.format_aware_datetime(activity.start_time, tz_name)

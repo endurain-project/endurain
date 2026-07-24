@@ -16,6 +16,7 @@ import modules.activities.activity_sets.public_router as activity_sets_public_ro
 import modules.activities.activity_sets.router as activity_sets_router
 import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_summaries.router as activity_summaries_router
+import modules.activities.activity_thumbnail.router as activity_thumbnail_router
 import modules.auth.api_keys.router as auth_api_keys_router
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.router as identity_providers_router
@@ -86,6 +87,15 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token_or_api_key)],
+)
+# The thumbnail route is intentionally UNAUTHENTICATED: its access control is the
+# signed ``?t=`` token in the URL (see activity_thumbnail.signing), which lets it
+# be used in an ``<img src>`` tag. Mounted before the core activities router so
+# its ``/{activity_id}/thumbnail`` path is matched ahead of the dynamic routes.
+router.include_router(
+    activity_thumbnail_router.router,
+    prefix=core_config.ROOT_PATH + "/activities",
+    tags=["activities"],
 )
 router.include_router(
     activities_router.router,
