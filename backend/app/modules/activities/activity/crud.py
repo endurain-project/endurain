@@ -1719,6 +1719,7 @@ def get_activities_with_legacy_thumbnail_path(
 
 def edit_activity(
     user_id: int,
+    activity_id: int,
     activity_attributes: activities_schema.ActivityEdit | activities_schema.Activity,
     db: Session,
 ) -> activities_schema.Activity:
@@ -1726,8 +1727,9 @@ def edit_activity(
 
     Args:
         user_id: Owner user ID.
-        activity_attributes: Pydantic model or object with the
-            attributes to update; ``id`` must be set.
+        activity_id: ID of the activity to update (from the request path).
+        activity_attributes: Pydantic model carrying the fields to update;
+            only the fields explicitly set are applied.
         db: Database session.
 
     Returns:
@@ -1740,7 +1742,7 @@ def edit_activity(
     try:
         stmt = select(activities_models.Activity).where(
             activities_models.Activity.user_id == user_id,
-            activities_models.Activity.id == activity_attributes.id,
+            activities_models.Activity.id == activity_id,
         )
         db_activity = db.execute(stmt).scalar_one_or_none()
         if db_activity is None:

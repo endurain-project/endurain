@@ -222,25 +222,45 @@ class TestEdit:
     def test_success(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.edit_activity") as m:
             m.return_value = _valid_activity()
-            resp = TestClient(_build_app(mock_db)).put(
+            resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
                 headers={"Authorization": "Bearer x"},
-                json={"id": 1, "name": "Run", "activity_type": 1, "visibility": 2},
+                json={"name": "Run", "activity_type": 1, "visibility": 2},
             )
             assert resp.status_code == 200
 
-    def test_path_id_is_authoritative(self, mock_db):
-        # A body id that disagrees with the path is overridden by the path id.
+    def test_partial_update_single_field(self, mock_db):
+        # A true PATCH: only the sent field is forwarded to crud.
         with patch("modules.activities.activity.router.activities_crud.edit_activity") as m:
             m.return_value = _valid_activity()
-            resp = TestClient(_build_app(mock_db)).put(
-                "/activities/7",
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities/1",
                 headers={"Authorization": "Bearer x"},
-                json={"id": 1, "name": "Run", "activity_type": 1, "visibility": 2},
+                json={"visibility": 2},
             )
             assert resp.status_code == 200
-            # crud.edit_activity receives the attributes with the path id (7).
-            assert m.call_args.args[1].id == 7
+
+    def test_path_id_is_passed_to_crud(self, mock_db):
+        # The activity id comes from the path (not the body) and is passed to crud.
+        with patch("modules.activities.activity.router.activities_crud.edit_activity") as m:
+            m.return_value = _valid_activity()
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities/7",
+                headers={"Authorization": "Bearer x"},
+                json={"name": "Run", "visibility": 2},
+            )
+            assert resp.status_code == 200
+            # edit_activity(token_user_id, activity_id, activity_attributes, db)
+            assert m.call_args.args[1] == 7
+
+    def test_rejects_id_in_body(self, mock_db):
+        # id is not a body field; extra="forbid" rejects it.
+        resp = TestClient(_build_app(mock_db)).patch(
+            "/activities/1",
+            headers={"Authorization": "Bearer x"},
+            json={"id": 1, "name": "Run"},
+        )
+        assert resp.status_code == 422
 
 
 class TestEditVisibility:

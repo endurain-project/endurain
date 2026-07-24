@@ -323,7 +323,7 @@ class TestEditActivity:
             id: int = 1
             name: str = "U"
 
-        r = crud.edit_activity(user_id=1, activity_attributes=A(), db=mock_db)
+        r = crud.edit_activity(user_id=1, activity_id=1, activity_attributes=A(), db=mock_db)
         assert r is not None
 
     def test_not_found(self, mock_db):
@@ -338,7 +338,7 @@ class TestEditActivity:
             name: str = "U"
 
         with pytest.raises(HTTPException) as e:
-            crud.edit_activity(user_id=1, activity_attributes=A(), db=mock_db)
+            crud.edit_activity(user_id=1, activity_id=999, activity_attributes=A(), db=mock_db)
         assert e.value.status_code == 404
 
     def test_invalid_type(self, mock_db):
@@ -346,7 +346,7 @@ class TestEditActivity:
 
         setup_mock_execute(mock_db, return_one_or_none=MagicMock())
         with pytest.raises(TypeError, match="Pydantic"):
-            crud.edit_activity(user_id=1, activity_attributes=type("Nope", (), {"id": 1})(), db=mock_db)
+            crud.edit_activity(user_id=1, activity_id=1, activity_attributes=type("Nope", (), {"id": 1})(), db=mock_db)
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.core_sanitization.sanitize_markdown")
@@ -360,8 +360,8 @@ class TestEditActivity:
         db_act.id = 1
         setup_mock_execute(mock_db, return_one_or_none=db_act)
 
-        attrs = s.ActivityEdit(id=1, name="test", activity_type=1, description="desc", private_notes="notes")
-        crud.edit_activity(user_id=1, activity_attributes=attrs, db=mock_db)
+        attrs = s.ActivityEdit(name="test", activity_type=1, description="desc", private_notes="notes")
+        crud.edit_activity(user_id=1, activity_id=1, activity_attributes=attrs, db=mock_db)
         assert mock_sanitize.call_count == 2
 
     def test_db_error(self, mock_db):
@@ -379,7 +379,7 @@ class TestEditActivity:
 
         mock_db.commit.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
-            crud.edit_activity(user_id=1, activity_attributes=A(), db=mock_db)
+            crud.edit_activity(user_id=1, activity_id=1, activity_attributes=A(), db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 

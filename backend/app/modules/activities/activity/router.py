@@ -243,7 +243,7 @@ def read_activity(
     return activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, token_user_id, db)
 
 
-@router.put(
+@router.patch(
     "/{activity_id}",
     response_model=activities_schema.Activity,
 )
@@ -262,12 +262,7 @@ def edit_activity(
     ],
 ):
     """Apply partial updates to one of the authenticated user's activities."""
-    # The path id is authoritative; ignore any id sent in the body.
-    activity_attributes.id = activity_id
-
-    updated = activities_crud.edit_activity(token_user_id, activity_attributes, db)
-
-    return updated
+    return activities_crud.edit_activity(token_user_id, activity_id, activity_attributes, db)
 
 
 @router.delete(

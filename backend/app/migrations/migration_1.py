@@ -128,7 +128,7 @@ def process_migration_1(db: Session) -> None:
                 activity.max_cad = _optional_float_to_int(metrics["max_cadence"])
 
                 # Update the activity in the database
-                activities_crud.edit_activity(activity.user_id, activity, db)
+                activities_crud.edit_activity(activity.user_id, activity.id, activity, db)
                 core_logger.print_to_log_and_console(
                     f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
                 )

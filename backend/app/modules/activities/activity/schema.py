@@ -315,10 +315,13 @@ class GearActivitiesListResponse(BaseModel):
 
 class ActivityEdit(BaseModel):
     """
-    Schema for partial updates to an activity.
+    Schema for partial (PATCH) updates to an activity.
+
+    Every field is optional: only the fields present in the request body are
+    applied (``exclude_unset``), and unknown fields are rejected
+    (``extra="forbid"``). The activity id comes from the path, not the body.
 
     Attributes:
-        id: Activity identifier to update.
         description: Public activity description.
         private_notes: Private notes (owner only).
         name: Activity name.
@@ -342,11 +345,10 @@ class ActivityEdit(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: PositiveInt
     description: LongText | None = None
     private_notes: LongText | None = None
-    name: ActivityName
-    activity_type: PositiveInt
+    name: ActivityName | None = None
+    activity_type: PositiveInt | None = None
     visibility: VisibilityValue | None = None
     is_hidden: StrictBool | None = None
     gear_id: PositiveInt | None = None

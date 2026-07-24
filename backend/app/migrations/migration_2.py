@@ -92,7 +92,7 @@ def process_migration_2(db: Session) -> None:
                 activity.timezone = timezone
 
                 # Update the activity in the database
-                activities_crud.edit_activity(activity.user_id, activity, db)
+                activities_crud.edit_activity(activity.user_id, activity.id, activity, db)
 
                 core_logger.print_to_log_and_console(
                     f"Migration 2 - Processed activity: {activity.id} - {activity.name}"
