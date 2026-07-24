@@ -1,6 +1,6 @@
 """CRUD operations for follower relationships."""
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy import CursorResult, delete, func, select
@@ -356,7 +356,7 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
         followers_models.Follower.follower_id == user_id,
         followers_models.Follower.followee_id == target_user_id,
     )
-    result: CursorResult[Any] = db.execute(stmt)
+    result = cast("CursorResult[Any]", db.execute(stmt))
 
     if result.rowcount == 0:
         # Roll back so the no-op transaction does not stay open.

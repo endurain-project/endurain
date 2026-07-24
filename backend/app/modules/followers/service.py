@@ -135,36 +135,25 @@ def count_following(target_user_id: int, requester_user_id: int, db: Session, *,
     return followers_crud.count_following_by_user_id(target_user_id, db, accepted_only=accepted_only)
 
 
-def get_relationship(
-    user_id: int, target_user_id: int, requester_user_id: int, db: Session
-) -> followers_schema.FollowRelationship | None:
-    """Return the follow relationship between two users, restricted to participants.
+def get_user_relationship(other_user_id: int, requester_user_id: int, db: Session) -> followers_schema.RelationshipView:
+    """Return the authenticated user's relationship with another user (both directions).
 
-    A relationship's status may only be queried by one of the two users it
-    concerns, preventing arbitrary probing of who follows whom.
+    Only ever reports relationships the requester is part of — their outgoing
+    follow of ``other_user_id`` and ``other_user_id``'s incoming follow of them —
+    so there is no way to probe arbitrary pairs.
 
     Args:
-        user_id: The prospective follower in the relationship.
-        target_user_id: The prospective followee in the relationship.
+        other_user_id: The other user in the relationship.
         requester_user_id: The authenticated requester.
         db: Database session.
 
     Returns:
-        The follow relationship record if present, otherwise None.
-
-    Raises:
-        HTTPException: 403 when the requester is not part of the relationship.
+        The requester's outgoing and incoming follow relationships with the other
+        user (either may be None).
     """
-    if requester_user_id not in (user_id, target_user_id):
-        core_logger.print_to_log(
-            f"User {requester_user_id} attempted to read the relationship between users {user_id} and {target_user_id}",
-            "warning",
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You may only query follow relationships you are part of",
-        )
-    return followers_crud.get_follower_for_user_id_and_target_user_id(user_id, target_user_id, db)
+    outgoing = followers_crud.get_follower_for_user_id_and_target_user_id(requester_user_id, other_user_id, db)
+    incoming = followers_crud.get_follower_for_user_id_and_target_user_id(other_user_id, requester_user_id, db)
+    return followers_schema.RelationshipView(outgoing=outgoing, incoming=incoming)
 
 
 def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> followers_schema.FollowRelationship:

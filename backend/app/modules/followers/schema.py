@@ -27,6 +27,20 @@ class FollowRelationship(BaseModel):
     status: FollowStatus
 
 
+class RelationshipView(BaseModel):
+    """The authenticated user's relationship with another user, both directions.
+
+    Attributes:
+        outgoing: The authenticated user's follow of the other user, if any.
+        incoming: The other user's follow of the authenticated user, if any.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    outgoing: FollowRelationship | None = None
+    incoming: FollowRelationship | None = None
+
+
 class MessageResponse(BaseModel):
     """Generic message response for follower mutation endpoints."""
 
