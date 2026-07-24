@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+from pydantic import ValidationError
+
 import modules.activities.activity.events as activity_events
 from infra.events import new_event
 
@@ -12,10 +15,11 @@ def _deleted_event(payload):
 
 class TestCleanupActivityFileForEvent:
     @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
-    def test_noop_for_non_int_activity_id(self, mock_runtime):
+    def test_raises_for_non_int_activity_id(self, mock_runtime):
         from modules.activities.activity_file_storage.subscribers import cleanup_activity_file_for_event
 
-        cleanup_activity_file_for_event(_deleted_event({"activity_id": "x"}))
+        with pytest.raises(ValidationError):
+            cleanup_activity_file_for_event(_deleted_event({"activity_id": "x"}))
 
         mock_runtime.get_active_platform.assert_not_called()
 

@@ -28,11 +28,13 @@ class TestReadPublicActivityStreams:
     @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
     def test_all_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+        # The "all" endpoint returns a list; not-found is an empty list, never None
+        # (the response_model is list[...], so None would fail response validation).
+        mock_get.return_value = []
 
         response = client.get("/public/activities_streams/activity_id/999/all")
         assert response.status_code == 200
-        assert response.json() is None
+        assert response.json() == []
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
     def test_by_type_success(self, mock_get, mock_db):

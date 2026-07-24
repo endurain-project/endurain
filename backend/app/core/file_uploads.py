@@ -1248,6 +1248,26 @@ def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
     return resolved
 
 
+def ensure_within(path: str | os.PathLike, base_dir: str | os.PathLike) -> Path:
+    """Resolve ``path`` and verify it is contained under ``base_dir``.
+
+    Public containment guard for callers that receive a filesystem path from
+    an untrusted or replayable source (e.g. a durable-job payload) and must
+    confirm it has not escaped a trusted base directory before using it.
+
+    Args:
+        path: Filesystem path to verify.
+        base_dir: Trusted base directory.
+
+    Returns:
+        The resolved path, guaranteed to be inside ``base_dir``.
+
+    Raises:
+        HTTPException: 400 when the resolved path escapes ``base_dir``.
+    """
+    return _resolve_within(path, Path(os.fspath(base_dir)).resolve())
+
+
 def move_within(
     src: str | os.PathLike,
     dest_dir: str | os.PathLike,

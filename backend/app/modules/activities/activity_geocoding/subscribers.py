@@ -37,12 +37,11 @@ def geocode_activity_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    activity_id = event.payload.get("activity_id")
-    user_id = event.payload.get("user_id")
-    if not isinstance(activity_id, int) or not isinstance(user_id, int):
-        return
+    payload = activity_events.ActivityCreatedPayload.model_validate(event.payload)
     with core_database.SessionLocal() as db:
-        activity_geocoding_service.geocode_and_store_activity_location(activity_id, user_id, db)
+        activity_geocoding_service.geocode_and_store_activity_location(
+            payload.activity_id, payload.user_id, db
+        )
 
 
 def on_activity_created_geocode(event: Event) -> None:

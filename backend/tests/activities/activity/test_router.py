@@ -78,14 +78,14 @@ class TestListOwnActivities:
             assert len(resp.json()) == 1
 
     def test_count(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities") as m:
-            m.return_value = [_valid_activity()]
+        with patch("modules.activities.activity.router.activities_crud.count_user_activities") as m:
+            m.return_value = 1
             resp = TestClient(_build_app(mock_db)).get("/activities?count=true", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200 and resp.json() == 1
 
     def test_count_empty(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities") as m:
-            m.return_value = None
+        with patch("modules.activities.activity.router.activities_crud.count_user_activities") as m:
+            m.return_value = 0
             resp = TestClient(_build_app(mock_db)).get("/activities?count=true", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200 and resp.json() == 0
 
@@ -108,8 +108,8 @@ class TestFeed:
             assert resp.status_code == 200
 
     def test_count(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_following_activities") as m:
-            m.return_value = [_valid_activity(), _valid_activity(id=2)]
+        with patch("modules.activities.activity.router.activities_crud.count_user_following_activities") as m:
+            m.return_value = 2
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/feed?count=true", headers={"Authorization": "Bearer x"}
             )
@@ -250,15 +250,18 @@ class TestDelete:
         act = MagicMock()
         with (
             patch("modules.activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g,
-            patch("modules.activities.activity.router.activities_crud.delete_activity"),
+            patch("modules.activities.activity.router.activities_crud.delete_activity") as mock_del,
             patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
         ):
             g.return_value = act
             resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
-            # The route publishes the fact; subsystems (thumbnails) react on their own.
+            # The delete is staged (commit=False) and the publish owns the single
+            # commit, so the row delete + activity.deleted outbox row are atomic.
+            assert mock_del.call_args.kwargs.get("commit") is False
             mock_pub.publish_activity_deleted.assert_called_once()
             assert mock_pub.publish_activity_deleted.call_args.args[0] == 1
+            assert mock_pub.publish_activity_deleted.call_args.kwargs.get("commit") is not None
 
     def test_not_found(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g:

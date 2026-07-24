@@ -33,6 +33,7 @@ from core.file_uploads import (
     _resolve_upload_path,
     _stream_to_path,
     _to_http_exception,
+    ensure_within,
     extract_validated_zip,
     move_within,
     resolve_storage_path,
@@ -665,6 +666,28 @@ def test_move_within_rejects_source_outside_base(tmp_path: Path):
         )
     assert exc.value.status_code == 400
     assert outside.exists()
+
+
+def test_ensure_within_returns_resolved_inside(tmp_path: Path):
+    """A path inside the base dir resolves and is returned."""
+    base = tmp_path / "base"
+    base.mkdir()
+    target = base / "sub" / "file.bin"
+
+    resolved = ensure_within(target, base)
+
+    assert resolved == target.resolve()
+
+
+def test_ensure_within_rejects_escape(tmp_path: Path):
+    """A path outside the base dir is rejected with HTTP 400."""
+    base = tmp_path / "base"
+    base.mkdir()
+    outside = tmp_path / "outside.bin"
+
+    with pytest.raises(HTTPException) as exc:
+        ensure_within(outside, base)
+    assert exc.value.status_code == 400
 
 
 def test_safe_remove_within_removes_inside(tmp_path: Path):

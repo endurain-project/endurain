@@ -44,17 +44,13 @@ def notify_activity_created_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    activity_id = event.payload.get("activity_id")
-    user_id = event.payload.get("user_id")
-    if not isinstance(activity_id, int) or not isinstance(user_id, int):
-        return
-    duplicate_start_time = bool(event.payload.get("duplicate_start_time", False))
+    payload = activity_events.ActivityCreatedPayload.model_validate(event.payload)
 
     with core_database.SessionLocal() as db:
         notification, ws_message = notifications_utils.create_activity_created_notification(
-            user_id,
-            activity_id,
-            duplicate_start_time,
+            payload.user_id,
+            payload.activity_id,
+            payload.duplicate_start_time,
             db,
         )
 
@@ -72,7 +68,7 @@ def notify_activity_created_for_event(event: Event) -> None:
     # so it is not forgotten.
     platform_async_bridge.dispatch(
         websocket_utils.notify_frontend(
-            user_id,
+            payload.user_id,
             websocket_manager.get_websocket_manager(),
             {"message": ws_message, "notification_id": notification.id},
         )

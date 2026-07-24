@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from infra.events import new_event
 
@@ -96,10 +97,13 @@ class TestNotifyActivityCreatedForEvent:
     """The durable core: propagates errors so the job runner can retry."""
 
     @patch("modules.activities.activity.subscribers.notifications_utils")
-    def test_noop_without_ids(self, mock_notif):
+    def test_raises_on_missing_ids(self, mock_notif):
         from modules.activities.activity.subscribers import notify_activity_created_for_event
 
-        notify_activity_created_for_event(_event({"activity_id": 1}))
+        # A malformed payload (missing user_id) raises so the durable job surfaces
+        # it via retry / dead-letter instead of silently completing.
+        with pytest.raises(ValidationError):
+            notify_activity_created_for_event(_event({"activity_id": 1}))
 
         mock_notif.create_activity_created_notification.assert_not_called()
 

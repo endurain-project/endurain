@@ -8,6 +8,8 @@ subscribers cannot drift on the string. Convention: ``<domain>.<fact>``, past
 tense.
 """
 
+from pydantic import BaseModel, ConfigDict
+
 # Published by ``store_activity`` after an activity (and its streams/laps) has
 # been persisted, for every ingestion path (upload, Strava, Garmin, bulk).
 ACTIVITY_CREATED = "activity.created"
@@ -17,3 +19,36 @@ ACTIVITY_CREATED = "activity.created"
 # artifacts it owns — the map thumbnail today, media/search-index/... later —
 # without the route knowing who reacts.
 ACTIVITY_DELETED = "activity.deleted"
+
+
+class ActivityCreatedPayload(BaseModel):
+    """Validated payload for the ``activity.created`` event.
+
+    Durable subscribers validate the event payload against this schema, so a
+    malformed payload raises (surfacing via retry / dead-letter) instead of
+    silently marking the job complete.
+
+    Attributes:
+        activity_id: The stored activity's ID.
+        user_id: The owning user's ID (subscribers load the owner's data).
+        duplicate_start_time: Whether the activity duplicated an existing
+            activity's start time (marked hidden on store).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    activity_id: int
+    user_id: int
+    duplicate_start_time: bool = False
+
+
+class ActivityDeletedPayload(BaseModel):
+    """Validated payload for the ``activity.deleted`` event.
+
+    Attributes:
+        activity_id: The removed activity's ID.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    activity_id: int

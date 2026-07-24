@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from infra.events import new_event
 
@@ -62,10 +63,11 @@ class TestGeocodeActivityForEvent:
     """The durable core: propagates errors so the job runner can retry."""
 
     @patch(f"{_SUB}.activity_geocoding_service")
-    def test_noop_without_ids(self, mock_service):
+    def test_raises_on_missing_ids(self, mock_service):
         from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
 
-        geocode_activity_for_event(_event({"activity_id": 1}))
+        with pytest.raises(ValidationError):
+            geocode_activity_for_event(_event({"activity_id": 1}))
 
         mock_service.geocode_and_store_activity_location.assert_not_called()
 

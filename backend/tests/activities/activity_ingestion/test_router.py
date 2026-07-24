@@ -62,3 +62,49 @@ class TestBulkImportRoute:
             _run_route(db)
 
         publish.assert_not_called()
+
+
+class TestUploadRoute:
+    def test_delegates_to_orchestrator(self):
+        db = MagicMock()
+        file = MagicMock()
+        with patch.object(router.orchestrator, "parse_and_store_activity_from_uploaded_file") as store:
+            store.return_value = ["activity"]
+            result = router.create_activity_with_uploaded_file(
+                token_user_id=7,
+                file=file,
+                _check_scopes=None,
+                db=db,
+            )
+
+        store.assert_called_once_with(7, file, db)
+        assert result == ["activity"]
+
+    def test_http_upload_success(self):
+        import core.database as core_db
+        import modules.auth.dependencies as auth_dependencies
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        db = MagicMock()
+        app = FastAPI()
+        app.include_router(router.api_upload_router, prefix="/activities")
+        app.dependency_overrides[core_db.get_db] = lambda: db
+        app.dependency_overrides[auth_dependencies.get_user_id_from_auth] = lambda: 7
+        app.dependency_overrides[auth_dependencies.check_auth_scopes] = lambda: None
+
+        with patch.object(
+            router.orchestrator,
+            "parse_and_store_activity_from_uploaded_file",
+            return_value=[],
+        ) as store:
+            client = TestClient(app)
+            response = client.post(
+                "/activities/upload",
+                files={"file": ("ride.gpx", b"<gpx/>", "application/gpx+xml")},
+            )
+
+        assert response.status_code == 201
+        assert response.json() == []
+        # The activity is attributed to the authenticated user, not any body field.
+        assert store.call_args.args[0] == 7

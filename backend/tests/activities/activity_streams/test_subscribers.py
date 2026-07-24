@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from infra.events import new_event
 
@@ -60,10 +61,11 @@ class TestComputeHrZonesForEvent:
     """The durable core: propagates errors so the job runner can retry."""
 
     @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
-    def test_noop_without_ids(self, mock_crud):
+    def test_raises_on_missing_ids(self, mock_crud):
         from modules.activities.activity_streams.subscribers import compute_hr_zones_for_event
 
-        compute_hr_zones_for_event(_event({"activity_id": 1}))
+        with pytest.raises(ValidationError):
+            compute_hr_zones_for_event(_event({"activity_id": 1}))
 
         mock_crud.compute_and_store_hr_zone_percentages_for_activity.assert_not_called()
 

@@ -37,12 +37,11 @@ def compute_hr_zones_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    activity_id = event.payload.get("activity_id")
-    user_id = event.payload.get("user_id")
-    if not isinstance(activity_id, int) or not isinstance(user_id, int):
-        return
+    payload = activity_events.ActivityCreatedPayload.model_validate(event.payload)
     with core_database.SessionLocal() as db:
-        activity_streams_crud.compute_and_store_hr_zone_percentages_for_activity(activity_id, user_id, db)
+        activity_streams_crud.compute_and_store_hr_zone_percentages_for_activity(
+            payload.activity_id, payload.user_id, db
+        )
 
 
 def on_activity_created_compute_hr_zones(event: Event) -> None:

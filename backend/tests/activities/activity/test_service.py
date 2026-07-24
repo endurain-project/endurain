@@ -99,8 +99,8 @@ class TestFollowingFeed:
         assert exc.value.status_code == 403
 
     @patch(
-        "modules.activities.activity.service.activities_crud.get_user_following_activities",
-        return_value=[MagicMock(), MagicMock()],
+        "modules.activities.activity.service.activities_crud.count_user_following_activities",
+        return_value=2,
     )
     def test_count_owner(self, mock_following):
         from modules.activities.activity import service

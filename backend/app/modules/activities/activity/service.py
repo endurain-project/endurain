@@ -137,7 +137,7 @@ def count_user_activities(
     name_search: str | None = None,
 ) -> int:
     """Count a user's own activities matching the given filters."""
-    activities = activities_crud.get_user_activities(
+    return activities_crud.count_user_activities(
         user_id=user_id,
         db=db,
         activity_type=activity_type,
@@ -145,7 +145,6 @@ def count_user_activities(
         end_date=end_date,
         name_search=name_search,
     )
-    return len(activities) if activities else 0
 
 
 def list_gear_activities(
@@ -245,5 +244,4 @@ def get_following_feed(
 def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> int:
     """Count the requester's following-feed activities."""
     _require_feed_owner(user_id, requester_user_id)
-    activities = activities_crud.get_user_following_activities(requester_user_id, db)
-    return len(activities) if activities else 0
+    return activities_crud.count_user_following_activities(requester_user_id, db)

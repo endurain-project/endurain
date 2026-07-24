@@ -36,11 +36,9 @@ def cleanup_activity_file_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    activity_id = event.payload.get("activity_id")
-    if not isinstance(activity_id, int):
-        return
+    payload = activity_events.ActivityDeletedPayload.model_validate(event.payload)
     storage = platform_runtime.get_active_platform().storage
-    activity_file_storage_service.delete_activity_file(activity_id, storage)
+    activity_file_storage_service.delete_activity_file(payload.activity_id, storage)
 
 
 def on_activity_deleted_cleanup_file(event: Event) -> None:

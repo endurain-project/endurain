@@ -404,6 +404,65 @@ def get_user_activities(
         raise _internal_server_error(err, "get_user_activities") from err
 
 
+def count_user_activities(
+    user_id: int,
+    db: Session,
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+    user_is_owner: bool = True,
+    requester_user_id: int | None = None,
+) -> int:
+    """Count activities owned by a user (with optional filters).
+
+    Mirrors :func:`get_user_activities`' filters with a SQL
+    ``COUNT(*)`` so counting never loads or serializes rows.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+        activity_type: Optional activity type filter.
+        start_date: Optional inclusive start date filter.
+        end_date: Optional inclusive end date filter.
+        name_search: Optional case-insensitive name search.
+        user_is_owner: When False, private (visibility=2) and
+            hidden activities are excluded from the count.
+        requester_user_id: Requesting user ID used to authorize
+            followers-only rows when ``user_is_owner`` is False.
+
+    Returns:
+        Number of matching activities.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = (
+            select(func.count())
+            .select_from(activities_models.Activity)
+            .where(activities_models.Activity.user_id == user_id)
+        )
+        stmt = _apply_activity_visibility_filter(
+            stmt,
+            user_is_owner=user_is_owner,
+            requester_user_id=requester_user_id,
+            db=db,
+        )
+        if activity_type:
+            stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
+        if start_date:
+            stmt = stmt.where(func.date(activities_models.Activity.start_time) >= start_date)
+        if end_date:
+            stmt = stmt.where(func.date(activities_models.Activity.start_time) <= end_date)
+        if name_search:
+            stmt = _apply_name_search(stmt, name_search)
+        count = db.execute(stmt).scalar()
+        return count or 0
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "count_user_activities") from err
+
+
 def get_user_activities_by_user_id_and_garminconnect_gear_set(
     user_id: int, db: Session
 ) -> list[activities_schema.Activity] | None:
@@ -854,6 +913,42 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         return [activities_serializers.serialize_activity(a) for a in activities]
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_user_following_activities") from err
+
+
+def count_user_following_activities(user_id: int, db: Session) -> int:
+    """Count activities from users a user follows.
+
+    Mirrors :func:`get_user_following_activities`' filter with a SQL
+    ``COUNT(*)`` so counting never loads or serializes rows.
+
+    Args:
+        user_id: Requesting user ID.
+        db: Database session.
+
+    Returns:
+        Number of following-feed activities.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+        if not followee_ids:
+            return 0
+        stmt = (
+            select(func.count())
+            .select_from(activities_models.Activity)
+            .where(
+                activities_models.Activity.user_id.in_(followee_ids),
+                activities_models.Activity.visibility.in_([0, 1]),
+                activities_models.Activity.is_hidden.is_(False),
+                activities_models.Activity.strava_activity_id.is_(None),
+            )
+        )
+        count = db.execute(stmt).scalar()
+        return count or 0
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "count_user_following_activities") from err
 
 
 def get_gear_activities_count_by_user_id(
@@ -1804,12 +1899,16 @@ def update_activity_gear_id(
         raise _internal_server_error(err, "update_activity_gear_id") from err
 
 
-def delete_activity(activity_id: int, db: Session) -> None:
+def delete_activity(activity_id: int, db: Session, commit: bool = True) -> None:
     """Delete an activity by ID.
 
     Args:
         activity_id: Activity ID.
         db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            delete in the caller's unit of work so ``activity.deleted`` can be
+            published atomically with it (the durable outbox row joins the same
+            transaction via ``publish_committing``).
 
     Returns:
         None
@@ -1826,7 +1925,8 @@ def delete_activity(activity_id: int, db: Session) -> None:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Activity with id {activity_id} not found",
             )
-        db.commit()
+        if commit:
+            db.commit()
         core_logger.print_to_log(f"Deleted activity {activity_id}", "debug")
     except HTTPException:
         db.rollback()

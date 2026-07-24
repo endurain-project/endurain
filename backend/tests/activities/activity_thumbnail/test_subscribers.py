@@ -161,11 +161,15 @@ class TestRegisterThumbnailSubscribers:
 
 class TestDurableThumbnailHandlers:
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_generate_core_noops_without_owner(self, mock_runtime):
+    def test_generate_core_raises_without_owner(self, mock_runtime):
+        from pydantic import ValidationError
+
         from modules.activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
 
-        # No user_id -> nothing to do; the core returns (job completes, not fails).
-        generate_activity_thumbnail_for_event(new_event("activity.created", {"activity_id": 1}, source="test"))
+        # A malformed payload (missing user_id) raises so the durable job surfaces
+        # it via retry / dead-letter instead of silently completing.
+        with pytest.raises(ValidationError):
+            generate_activity_thumbnail_for_event(new_event("activity.created", {"activity_id": 1}, source="test"))
 
         mock_runtime.get_active_platform.assert_not_called()
 

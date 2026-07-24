@@ -73,14 +73,16 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    file_path = event.payload.get("file_path")
-    user_id = event.payload.get("user_id")
-    import_initiated_time = event.payload.get("import_initiated_time")
-    if not isinstance(file_path, str) or not isinstance(user_id, int):
-        return
+    payload = ingestion_events.BulkImportFilePayload.model_validate(event.payload)
+    # The file path arrives in the (durable, replayable) event payload; re-verify
+    # it still resolves under the trusted bulk-import directory before touching the
+    # file, so a corrupted or forged job cannot read or move an arbitrary path.
+    file_path = str(core_file_uploads.ensure_within(payload.file_path, core_config.FILES_BULK_IMPORT_DIR))
     try:
         with core_database.SessionLocal() as db:
-            orchestrator.store_bulk_import_file(user_id, file_path, import_initiated_time, db)
+            orchestrator.store_bulk_import_file(
+                payload.user_id, file_path, payload.import_initiated_time, db
+            )
     except Exception:
         # ``retry_count`` is the (claim-incremented) attempt number; when it has
         # reached the ceiling this failure dead-letters the job, so move the file
@@ -95,7 +97,12 @@ def _move_to_error_dir(file_path: str) -> None:
     try:
         error_dir = core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
         os.makedirs(error_dir, exist_ok=True)
-        core_file_uploads.move_within(file_path, error_dir, filename=os.path.basename(file_path))
+        core_file_uploads.move_within(
+            file_path,
+            error_dir,
+            filename=os.path.basename(file_path),
+            src_base_dir=core_config.FILES_BULK_IMPORT_DIR,
+        )
         core_logger.print_to_log_and_console(
             f"Bulk import: dead-lettered file {file_path} moved to {error_dir}",
             "error",

@@ -32,6 +32,9 @@ import modules.users.users.dependencies as users_dependencies
 
 # Default page size when a list request omits pagination.
 _DEFAULT_NUM_RECORDS = 25
+# Hard cap on the client-requested page size, bounding query and
+# serialization cost per request (defense against resource exhaustion).
+_MAX_NUM_RECORDS = 200
 
 # Define the API router
 router = APIRouter()
@@ -56,7 +59,7 @@ def list_own_activities(
     sort_by: Annotated[str | None, Query()] = None,
     sort_order: Annotated[str | None, Query()] = None,
     page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
     """List (or count with ``?count=true``) the authenticated user's activities."""
     if count:
@@ -106,7 +109,7 @@ def list_following_feed(
     db: Annotated[Session, Depends(core_database.get_db)],
     count: Annotated[bool, Query(description="Return the total count instead of the records")] = False,
     page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
     """List (or count) the authenticated user's following feed."""
     if count:
@@ -132,7 +135,7 @@ def list_gear_activities(
     db: Annotated[Session, Depends(core_database.get_db)],
     count: Annotated[bool, Query(description="Return the total count instead of the records")] = False,
     page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
     """List (or count) the authenticated user's activities for a gear."""
     if count:
@@ -176,7 +179,7 @@ def list_user_activities(
     sort_by: Annotated[str | None, Query()] = None,
     sort_order: Annotated[str | None, Query()] = None,
     page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
     """List another user's activities that are visible to the requester."""
     return activities_service.list_user_activities_paginated(
@@ -295,15 +298,15 @@ def delete_activity(
             detail=f"Activity ID {activity_id} for user {token_user_id} not found",
         )
 
-    # Delete the activity
-    activities_crud.delete_activity(activity_id, db)
-
-    # Publish the domain fact so each subsystem removes the artifacts it owns:
-    # the map thumbnail and the retained source file today; media/search-index/…
-    # later. The route stays ignorant of who reacts and publishing is best-effort
-    # — it never blocks or fails the delete. The session enables durable outbox
-    # delivery when durable jobs are enabled.
-    activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db)
+    # Delete the activity and publish ``activity.deleted`` atomically: the delete
+    # is staged (commit=False) and the publisher owns the single commit, so when
+    # durable jobs are enabled the outbox row is written in the *same* transaction
+    # as the delete. A crash can no longer leave the row deleted but the cleanup
+    # event unpublished (which would orphan the thumbnail / source-file blobs).
+    # The route stays ignorant of who reacts; on the best-effort (no durable jobs)
+    # path the commit runs first and any bus-dispatch failure is swallowed.
+    activities_crud.delete_activity(activity_id, db, commit=False)
+    activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db, commit=db.commit)
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

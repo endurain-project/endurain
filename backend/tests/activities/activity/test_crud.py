@@ -394,6 +394,15 @@ class TestDelete:
         crud.delete_activity(activity_id=1, db=mock_db)
         mock_db.commit.assert_called_once()
 
+    def test_success_no_commit_stages_only(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.rowcount = 1
+        mock_db.execute.return_value = r
+        crud.delete_activity(activity_id=1, db=mock_db, commit=False)
+        mock_db.commit.assert_not_called()
+
     def test_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -484,6 +493,52 @@ class TestFollowing:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
             crud.get_user_following_activities(user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+
+
+class TestCountUserActivities:
+    def test_success(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.scalar.return_value = 4
+        assert crud.count_user_activities(user_id=1, db=mock_db) == 4
+
+    def test_none(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.scalar.return_value = None
+        assert crud.count_user_activities(user_id=1, db=mock_db) == 0
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.count_user_activities(user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+
+
+class TestCountFollowing:
+    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
+    def test_success(self, _mock_followees, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.scalar.return_value = 3
+        assert crud.count_user_following_activities(user_id=1, db=mock_db) == 3
+
+    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[])
+    def test_no_followees(self, _mock_followees, mock_db):
+        import modules.activities.activity.crud as crud
+
+        assert crud.count_user_following_activities(user_id=1, db=mock_db) == 0
+
+    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
+    def test_db_error(self, _mock_followees, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.count_user_following_activities(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
