@@ -313,6 +313,16 @@ class GearActivitiesListResponse(BaseModel):
     )
 
 
+class CountResponse(BaseModel):
+    """Envelope returned by activity count endpoints.
+
+    Attributes:
+        count: Number of matching activities.
+    """
+
+    count: int
+
+
 class ActivityEdit(BaseModel):
     """
     Schema for partial (PATCH) updates to an activity.

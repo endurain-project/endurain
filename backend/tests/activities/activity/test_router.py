@@ -80,14 +80,14 @@ class TestListOwnActivities:
     def test_count(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.count_user_activities") as m:
             m.return_value = 1
-            resp = TestClient(_build_app(mock_db)).get("/activities?count=true", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == 1
+            resp = TestClient(_build_app(mock_db)).get("/activities/count", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200 and resp.json() == {"count": 1}
 
     def test_count_empty(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.count_user_activities") as m:
             m.return_value = 0
-            resp = TestClient(_build_app(mock_db)).get("/activities?count=true", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == 0
+            resp = TestClient(_build_app(mock_db)).get("/activities/count", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200 and resp.json() == {"count": 0}
 
 
 class TestTypes:
@@ -119,9 +119,9 @@ class TestFeed:
             f.list_accepted_followee_ids.return_value = [5]
             m.return_value = 2
             resp = TestClient(_build_app(mock_db)).get(
-                "/activities/feed?count=true", headers={"Authorization": "Bearer x"}
+                "/activities/feed/count", headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 200 and resp.json() == 2
+            assert resp.status_code == 200 and resp.json() == {"count": 2}
 
 
 class TestGear:
@@ -147,9 +147,9 @@ class TestGear:
         with patch("modules.activities.activity.router.activities_crud.get_gear_activities_count_by_user_id") as m:
             m.return_value = 3
             resp = TestClient(_build_app(mock_db)).get(
-                "/activities/gears/1?count=true", headers={"Authorization": "Bearer x"}
+                "/activities/gears/1/count", headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 200 and resp.json() == 3
+            assert resp.status_code == 200 and resp.json() == {"count": 3}
 
 
 class TestUserStats:
@@ -215,7 +215,7 @@ class TestReadByID:
         ) as m:
             m.return_value = None
             resp = TestClient(_build_app(mock_db)).get("/activities/999", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() is None
+            assert resp.status_code == 404
 
 
 class TestEdit:
