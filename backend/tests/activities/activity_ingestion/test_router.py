@@ -81,10 +81,11 @@ class TestUploadRoute:
         assert result == ["activity"]
 
     def test_http_upload_success(self):
-        import core.database as core_db
-        import modules.auth.dependencies as auth_dependencies
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+
+        import core.database as core_db
+        import modules.auth.dependencies as auth_dependencies
 
         db = MagicMock()
         app = FastAPI()

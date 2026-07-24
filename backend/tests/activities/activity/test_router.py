@@ -100,15 +100,23 @@ class TestTypes:
 
 class TestFeed:
     def test_list(self, mock_db):
-        with patch(
-            "modules.activities.activity.router.activities_crud.get_user_following_activities_with_pagination"
-        ) as m:
+        with (
+            patch("modules.activities.activity.service.followers_service") as f,
+            patch(
+                "modules.activities.activity.router.activities_crud.get_user_following_activities_with_pagination"
+            ) as m,
+        ):
+            f.list_accepted_followee_ids.return_value = [5]
             m.return_value = [_valid_activity()]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
 
     def test_count(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.count_user_following_activities") as m:
+        with (
+            patch("modules.activities.activity.service.followers_service") as f,
+            patch("modules.activities.activity.router.activities_crud.count_user_following_activities") as m,
+        ):
+            f.list_accepted_followee_ids.return_value = [5]
             m.return_value = 2
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/feed?count=true", headers={"Authorization": "Bearer x"}

@@ -18,6 +18,7 @@ import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
+import modules.followers.service as followers_service
 
 
 def get_activities_in_timeframe(
@@ -231,9 +232,8 @@ def get_following_feed(
 ) -> list[activities_schema.Activity] | None:
     """Return the requester's following feed (activities of users they follow)."""
     _require_feed_owner(user_id, requester_user_id)
-    feed = activities_crud.get_user_following_activities_with_pagination(
-        requester_user_id, page_number, num_records, db
-    )
+    followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+    feed = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
     core_logger.print_to_log(
         f"get_following_feed: user {requester_user_id} page {page_number} -> {len(feed) if feed else 0} activities",
         "debug",
@@ -244,4 +244,5 @@ def get_following_feed(
 def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> int:
     """Count the requester's following-feed activities."""
     _require_feed_owner(user_id, requester_user_id)
-    return activities_crud.count_user_following_activities(requester_user_id, db)
+    followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+    return activities_crud.count_user_following_activities(followee_ids, db)

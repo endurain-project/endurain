@@ -7,7 +7,6 @@ backfill (guarded by the ``LockProvider`` so a single replica runs it) and the
     full regeneration triggered when tile settings change.
 """
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
@@ -16,8 +15,7 @@ import core.logger as core_logger
 import infra.providers as platform_providers
 import infra.runtime as platform_runtime
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.models as activity_streams_models
+import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.server_settings.crud as server_settings_crud
 
@@ -221,28 +219,20 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
         tile_url, background_color, api_key = resolve_tile_settings(db)
 
         activity_ids = [activity.id for activity in activities_without_thumbnail]
-        gps_streams = (
-            db.execute(
-                select(activity_streams_models.ActivityStreams).where(
-                    activity_streams_models.ActivityStreams.activity_id.in_(activity_ids),
-                    activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_MAP,
-                )
-            )
-            .scalars()
-            .all()
-        )
-        gps_streams_by_activity_id = {stream.activity_id: stream for stream in gps_streams}
+        # Batch-load MAP-stream waypoints through the streams CRUD (the ORM stays
+        # confined there) as an {activity_id: waypoints} mapping.
+        waypoints_by_activity_id = activity_streams_crud.get_gps_stream_waypoints_for_activities(activity_ids, db)
 
         generated = 0
         for activity in activities_without_thumbnail:
-            gps_stream = gps_streams_by_activity_id.get(activity.id)
+            waypoints = waypoints_by_activity_id.get(activity.id)
 
-            if not gps_stream or not gps_stream.stream_waypoints:
+            if not waypoints:
                 continue
 
             key = generate_and_store_thumbnail(
                 activity.id,
-                gps_stream.stream_waypoints,
+                waypoints,
                 storage,
                 db,
                 tile_url=tile_url,

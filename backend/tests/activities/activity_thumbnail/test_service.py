@@ -215,10 +215,11 @@ class TestGenerateMissingThumbnails:
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_generates_thumbnail_for_activity_with_gps(
-        self, mock_logger, mock_runtime, mock_crud, mock_session, mock_resolve, mock_generate
+        self, mock_logger, mock_runtime, mock_streams_crud, mock_crud, mock_session, mock_resolve, mock_generate
     ):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -233,12 +234,9 @@ class TestGenerateMissingThumbnails:
         mock_resolve.return_value = ("https://tiles/{z}/{x}/{y}.png", "#fff", None)
         mock_generate.return_value = "1.webp"
 
-        stream = MagicMock()
-        stream.activity_id = 1
-        stream.stream_waypoints = [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
-        result = MagicMock()
-        result.scalars.return_value.all.return_value = [stream]
-        mock_db.execute.return_value = result
+        mock_streams_crud.get_gps_stream_waypoints_for_activities.return_value = {
+            1: [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
+        }
 
         generate_missing_activity_thumbnails()
 
@@ -251,10 +249,11 @@ class TestGenerateMissingThumbnails:
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_skips_activity_without_gps_stream(
-        self, mock_logger, mock_runtime, mock_crud, mock_session, mock_resolve, mock_generate
+        self, mock_logger, mock_runtime, mock_streams_crud, mock_crud, mock_session, mock_resolve, mock_generate
     ):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -270,12 +269,8 @@ class TestGenerateMissingThumbnails:
         mock_resolve.return_value = ("url", "#fff", None)
         mock_generate.return_value = "1.webp"
 
-        stream1 = MagicMock()
-        stream1.activity_id = 1
-        stream1.stream_waypoints = [{"lat": 38.0, "lon": -9.0}]
-        result = MagicMock()
-        result.scalars.return_value.all.return_value = [stream1]
-        mock_db.execute.return_value = result
+        # Only activity 1 has a GPS stream; activity 2 is skipped.
+        mock_streams_crud.get_gps_stream_waypoints_for_activities.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
 
         generate_missing_activity_thumbnails()
 

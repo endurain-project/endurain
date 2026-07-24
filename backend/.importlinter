@@ -170,3 +170,27 @@ source_modules =
 forbidden_modules =
     modules.followers.models
     modules.followers.crud
+
+# ORM ownership: the activities ORM models are owned by their subpackage's models.py
+# and touched only by the persistence layer — crud.py (the single ORM surface) and the
+# ORM->schema transformation helpers (activity/serializers.py, activity_streams/utils.py,
+# which receive ORM rows FROM crud and return schemas/primitives). The application layers
+# — service, router, public_router, subscribers, event_publishers, stats — must never
+# reach for an ORM model directly; they go through crud (which returns schemas/DTOs). This
+# is what caught the thumbnail service loading stream ORM rows directly instead of via a
+# streams CRUD projection. allow_indirect_imports keeps this to DIRECT imports: a service
+# importing crud (which imports models) is fine; a bare `import modules.activities.X.models`
+# in a consumer layer is rejected.
+[importlinter:contract:activities-orm-ownership]
+name = Activities ORM models stay in the persistence layer — application layers must not import them
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.*.service
+    modules.activities.*.subscribers
+    modules.activities.*.router
+    modules.activities.*.public_router
+    modules.activities.*.event_publishers
+    modules.activities.*.stats
+forbidden_modules =
+    modules.activities.*.models

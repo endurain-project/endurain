@@ -50,16 +50,20 @@ class TestProcessBulkImportFileForEvent:
 
     def test_raises_on_missing_file_path(self):
         event = _event({"user_id": 3})
-        with patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store:
-            with pytest.raises(ValidationError):
-                bulk_import_subscribers.process_bulk_import_file_for_event(event)
+        with (
+            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            pytest.raises(ValidationError),
+        ):
+            bulk_import_subscribers.process_bulk_import_file_for_event(event)
         store.assert_not_called()
 
     def test_raises_on_non_int_user(self):
         event = _event({"file_path": "/tmp/x.gpx", "user_id": None})
-        with patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store:
-            with pytest.raises(ValidationError):
-                bulk_import_subscribers.process_bulk_import_file_for_event(event)
+        with (
+            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            pytest.raises(ValidationError),
+        ):
+            bulk_import_subscribers.process_bulk_import_file_for_event(event)
         store.assert_not_called()
 
     def test_reraises_without_moving_before_last_attempt(self):
@@ -99,9 +103,11 @@ class TestProcessBulkImportFileForEvent:
         # rejected before any file access (defense in depth against replayed job
         # data), so ingestion is never attempted.
         event = _event({"file_path": "/etc/passwd", "user_id": 3, "import_initiated_time": "2026"})
-        with patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store:
-            with pytest.raises(HTTPException):
-                bulk_import_subscribers.process_bulk_import_file_for_event(event)
+        with (
+            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            pytest.raises(HTTPException),
+        ):
+            bulk_import_subscribers.process_bulk_import_file_for_event(event)
         store.assert_not_called()
 
 

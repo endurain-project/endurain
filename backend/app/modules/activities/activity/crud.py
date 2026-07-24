@@ -844,12 +844,14 @@ def get_user_following_activities_per_timeframe(
 
 
 def get_user_following_activities_with_pagination(
-    user_id: int, page_number: int, num_records: int, db: Session
+    followee_ids: list[int], page_number: int, num_records: int, db: Session
 ) -> list[activities_schema.Activity] | None:
-    """Get a page of activities from users a user follows.
+    """Get a page of activities from a set of followed users.
 
     Args:
-        user_id: Requesting user ID.
+        followee_ids: The requester's accepted-followee user ids, resolved by the
+            caller through the followers service interface (kept out of the ORM
+            layer so the feed's cross-domain dependency lives in the service).
         page_number: 1-based page number.
         num_records: Records per page.
         db: Database session.
@@ -861,7 +863,6 @@ def get_user_following_activities_with_pagination(
         HTTPException: 500 on database error.
     """
     try:
-        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
         if not followee_ids:
             return None
         stmt = (
@@ -915,14 +916,14 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         raise _internal_server_error(err, "get_user_following_activities") from err
 
 
-def count_user_following_activities(user_id: int, db: Session) -> int:
-    """Count activities from users a user follows.
+def count_user_following_activities(followee_ids: list[int], db: Session) -> int:
+    """Count activities from a set of followed users.
 
-    Mirrors :func:`get_user_following_activities`' filter with a SQL
-    ``COUNT(*)`` so counting never loads or serializes rows.
+    Uses a SQL ``COUNT(*)`` so counting never loads or serializes rows.
 
     Args:
-        user_id: Requesting user ID.
+        followee_ids: The requester's accepted-followee user ids, resolved by the
+            caller through the followers service interface.
         db: Database session.
 
     Returns:
@@ -932,7 +933,6 @@ def count_user_following_activities(user_id: int, db: Session) -> int:
         HTTPException: 500 on database error.
     """
     try:
-        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
         if not followee_ids:
             return 0
         stmt = (

@@ -80,9 +80,7 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     file_path = str(core_file_uploads.ensure_within(payload.file_path, core_config.FILES_BULK_IMPORT_DIR))
     try:
         with core_database.SessionLocal() as db:
-            orchestrator.store_bulk_import_file(
-                payload.user_id, file_path, payload.import_initiated_time, db
-            )
+            orchestrator.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
     except Exception:
         # ``retry_count`` is the (claim-incremented) attempt number; when it has
         # reached the ceiling this failure dead-letters the job, so move the file

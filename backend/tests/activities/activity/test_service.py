@@ -83,13 +83,17 @@ class TestPeriodStats:
 
 
 class TestFollowingFeed:
+    @patch("modules.activities.activity.service.followers_service")
     @patch("modules.activities.activity.service.activities_crud")
-    def test_owner_gets_feed(self, mock_crud):
+    def test_owner_gets_feed(self, mock_crud, mock_followers):
         from modules.activities.activity import service
 
         db = MagicMock()
+        mock_followers.list_accepted_followee_ids.return_value = [5, 6]
         service.get_following_feed(1, 1, 2, 10, db)
-        mock_crud.get_user_following_activities_with_pagination.assert_called_once_with(1, 2, 10, db)
+        # The service resolves the followees, then the crud query filters by them.
+        mock_followers.list_accepted_followee_ids.assert_called_once_with(1, db)
+        mock_crud.get_user_following_activities_with_pagination.assert_called_once_with([5, 6], 2, 10, db)
 
     def test_feed_other_user_forbidden(self):
         from modules.activities.activity import service
@@ -98,14 +102,18 @@ class TestFollowingFeed:
             service.get_following_feed(2, 1, 1, 10, MagicMock())
         assert exc.value.status_code == 403
 
+    @patch("modules.activities.activity.service.followers_service")
     @patch(
         "modules.activities.activity.service.activities_crud.count_user_following_activities",
         return_value=2,
     )
-    def test_count_owner(self, mock_following):
+    def test_count_owner(self, mock_count, mock_followers):
         from modules.activities.activity import service
 
-        assert service.count_following_feed(1, 1, MagicMock()) == 2
+        db = MagicMock()
+        mock_followers.list_accepted_followee_ids.return_value = [5]
+        assert service.count_following_feed(1, 1, db) == 2
+        mock_count.assert_called_once_with([5], db)
 
     def test_count_other_user_forbidden(self):
         from modules.activities.activity import service
