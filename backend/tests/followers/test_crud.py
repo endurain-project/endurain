@@ -9,12 +9,12 @@ class TestGetAllFollowersByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, follower_id=2, following_id=1, is_accepted=True)
+        f = MagicMock(spec=m.Follower, follower_id=2, followee_id=1, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_all_followers_by_user_id(user_id=1, db=mock_db)
-        assert r == [Follower(follower_id=2, following_id=1, is_accepted=True)]
+        assert r == [FollowRelationship(follower_id=2, followee_id=1, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -36,12 +36,12 @@ class TestGetAcceptedFollowersByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, follower_id=2, following_id=1, is_accepted=True)
+        f = MagicMock(spec=m.Follower, follower_id=2, followee_id=1, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_accepted_followers_by_user_id(user_id=1, db=mock_db)
-        assert r == [Follower(follower_id=2, following_id=1, is_accepted=True)]
+        assert r == [FollowRelationship(follower_id=2, followee_id=1, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -63,12 +63,12 @@ class TestGetAllFollowingByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, follower_id=1, following_id=2, is_accepted=True)
+        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_all_following_by_user_id(user_id=1, db=mock_db)
-        assert r == [Follower(follower_id=1, following_id=2, is_accepted=True)]
+        assert r == [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -90,12 +90,12 @@ class TestGetAcceptedFollowingByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, follower_id=1, following_id=2, is_accepted=True)
+        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_accepted_following_by_user_id(user_id=1, db=mock_db)
-        assert r == [Follower(follower_id=1, following_id=2, is_accepted=True)]
+        assert r == [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -179,12 +179,12 @@ class TestGetFollowerForUserIdAndTargetUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, follower_id=1, following_id=2, is_accepted=False)
+        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="pending")
         mock_db.scalars.return_value.first.return_value = f
         r = crud.get_follower_for_user_id_and_target_user_id(user_id=1, target_user_id=2, db=mock_db)
-        assert r == Follower(follower_id=1, following_id=2, is_accepted=False)
+        assert r == FollowRelationship(follower_id=1, followee_id=2, status="pending")
 
     def test_not_found(self, mock_db):
         import modules.followers.crud as crud
@@ -230,15 +230,15 @@ class TestCreateFollower:
     def test_success(self, mock_get_follow, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         mock_get_follow.return_value = None
-        new_follow = MagicMock(spec=m.Follower, follower_id=1, following_id=2, is_accepted=False)
+        new_follow = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="pending")
         mock_db.refresh.side_effect = lambda x: None
 
         with patch.object(crud.followers_models, "Follower", return_value=new_follow):
             r = crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
-        assert r == Follower(follower_id=1, following_id=2, is_accepted=False)
+        assert r == FollowRelationship(follower_id=1, followee_id=2, status="pending")
         mock_db.add.assert_called_once_with(new_follow)
         mock_db.commit.assert_called_once()
 
@@ -298,11 +298,11 @@ class TestAcceptFollower:
         import modules.followers.crud as crud
         import modules.followers.models as m
 
-        accept_follow = MagicMock(spec=m.Follower, id=1, follower_id=2, following_id=1, is_accepted=False)
+        accept_follow = MagicMock(spec=m.Follower, id=1, follower_id=2, followee_id=1, status="pending")
         mock_db.scalars.return_value.first.return_value = accept_follow
 
         crud.accept_follower(user_id=1, target_user_id=2, db=mock_db)
-        assert accept_follow.is_accepted is True
+        assert accept_follow.status == "accepted"
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(accept_follow)
 
@@ -319,7 +319,7 @@ class TestAcceptFollower:
         import modules.followers.crud as crud
         import modules.followers.models as m
 
-        accept_follow = MagicMock(spec=m.Follower, id=1, is_accepted=False)
+        accept_follow = MagicMock(spec=m.Follower, id=1, status="pending")
         mock_db.scalars.return_value.first.return_value = accept_follow
         mock_db.commit.side_effect = SQLAlchemyError("db error")
 

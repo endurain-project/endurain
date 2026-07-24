@@ -41,7 +41,7 @@ def requester_may_view_network(target_user_id: int, requester_user_id: int, db: 
         return True
 
     relationship = followers_crud.get_follower_for_user_id_and_target_user_id(requester_user_id, target_user_id, db)
-    return relationship is not None and relationship.is_accepted
+    return relationship is not None and relationship.status == followers_schema.FollowStatus.ACCEPTED
 
 
 def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> None:
@@ -57,7 +57,9 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
         )
 
 
-def list_followers(target_user_id: int, requester_user_id: int, db: Session) -> list[followers_schema.Follower]:
+def list_followers(
+    target_user_id: int, requester_user_id: int, db: Session
+) -> list[followers_schema.FollowRelationship]:
     """List the target's followers, enforcing profile privacy.
 
     Args:
@@ -75,7 +77,9 @@ def list_followers(target_user_id: int, requester_user_id: int, db: Session) -> 
     return followers_crud.get_all_followers_by_user_id(target_user_id, db)
 
 
-def list_following(target_user_id: int, requester_user_id: int, db: Session) -> list[followers_schema.Follower]:
+def list_following(
+    target_user_id: int, requester_user_id: int, db: Session
+) -> list[followers_schema.FollowRelationship]:
     """List who the target follows, enforcing profile privacy.
 
     Args:
@@ -133,7 +137,7 @@ def count_following(target_user_id: int, requester_user_id: int, db: Session, *,
 
 def get_relationship(
     user_id: int, target_user_id: int, requester_user_id: int, db: Session
-) -> followers_schema.Follower | None:
+) -> followers_schema.FollowRelationship | None:
     """Return the follow relationship between two users, restricted to participants.
 
     A relationship's status may only be queried by one of the two users it
@@ -163,7 +167,7 @@ def get_relationship(
     return followers_crud.get_follower_for_user_id_and_target_user_id(user_id, target_user_id, db)
 
 
-def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> followers_schema.Follower:
+def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> followers_schema.FollowRelationship:
     """Create a follow request and publish ``follower.requested``.
 
     The CRUD row write is the source of truth; the notification is produced by the

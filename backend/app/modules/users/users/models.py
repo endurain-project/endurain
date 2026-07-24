@@ -232,9 +232,9 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     followers: Mapped[list["Follower"]] = relationship(
-        back_populates="following",
+        back_populates="followee",
         cascade="all, delete-orphan",
-        foreign_keys="Follower.following_id",
+        foreign_keys="Follower.followee_id",
     )
     following: Mapped[list["Follower"]] = relationship(
         back_populates="follower",

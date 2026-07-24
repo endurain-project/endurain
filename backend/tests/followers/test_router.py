@@ -30,10 +30,10 @@ def _build_app(mock_db):
 class TestGetUserFollowers:
     @patch("modules.followers.crud.get_all_followers_by_user_id")
     def test_all_self_success(self, mock_get, mock_db):
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [Follower(follower_id=3, following_id=1, is_accepted=True)]
+        mock_get.return_value = [FollowRelationship(follower_id=3, followee_id=1, status="accepted")]
 
         # Requester (1) == target (1): always allowed.
         response = client.get("/user/1/followers/all", headers={"Authorization": "Bearer x"})
@@ -52,11 +52,11 @@ class TestGetUserFollowers:
     @patch("modules.followers.crud.get_all_followers_by_user_id")
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     def test_all_accepted_follower_allowed(self, mock_rel, mock_get, mock_db):
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
         # Requester (1) is an accepted follower of target (2).
-        mock_rel.return_value = Follower(follower_id=1, following_id=2, is_accepted=True)
+        mock_rel.return_value = FollowRelationship(follower_id=1, followee_id=2, status="accepted")
         mock_get.return_value = []
 
         response = client.get("/user/2/followers/all", headers={"Authorization": "Bearer x"})
@@ -97,10 +97,10 @@ class TestGetUserFollowerCount:
 class TestGetUserFollowing:
     @patch("modules.followers.crud.get_all_following_by_user_id")
     def test_all_self_success(self, mock_get, mock_db):
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
+        mock_get.return_value = [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
 
         # Requester (1) == target (1): always allowed.
         response = client.get("/user/1/following/all", headers={"Authorization": "Bearer x"})
@@ -152,10 +152,10 @@ class TestGetUserFollowingCount:
 class TestReadFollowerSpecificUser:
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     def test_success_as_participant(self, mock_get, mock_db):
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = Follower(follower_id=1, following_id=2, is_accepted=True)
+        mock_get.return_value = FollowRelationship(follower_id=1, followee_id=2, status="accepted")
 
         # Requester (1) is a participant (user_id == 1).
         response = client.get("/user/1/targetUser/2", headers={"Authorization": "Bearer x"})
@@ -183,10 +183,10 @@ class TestReadFollowerSpecificUser:
 class TestCreateFollow:
     @patch("modules.followers.service.follow_user")
     def test_create_success(self, mock_follow, mock_db):
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_follow.return_value = Follower(follower_id=1, following_id=2, is_accepted=False)
+        mock_follow.return_value = FollowRelationship(follower_id=1, followee_id=2, status="pending")
 
         response = client.post("/create/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 201

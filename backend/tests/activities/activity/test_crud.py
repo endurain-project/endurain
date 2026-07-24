@@ -1161,7 +1161,7 @@ class TestGetViewableActivityByIdForUser:
         import modules.followers.models as followers_models
 
         sqlite_session.add(_public_activity(id=1, user_id=2, visibility=1, is_hidden=False))
-        sqlite_session.add(followers_models.Follower(follower_id=1, following_id=2, is_accepted=False))
+        sqlite_session.add(followers_models.Follower(follower_id=1, followee_id=2, status="pending"))
         sqlite_session.commit()
 
         result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
@@ -1177,7 +1177,7 @@ class TestGetViewableActivityByIdForUser:
 
         mock_ser.return_value = MagicMock()
         sqlite_session.add(_public_activity(id=1, user_id=2, visibility=1, is_hidden=False))
-        sqlite_session.add(followers_models.Follower(follower_id=1, following_id=2, is_accepted=True))
+        sqlite_session.add(followers_models.Follower(follower_id=1, followee_id=2, status="accepted"))
         sqlite_session.commit()
 
         result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)

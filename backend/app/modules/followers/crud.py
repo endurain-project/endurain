@@ -13,13 +13,13 @@ import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
 
 
-def _transform_follower(follower: followers_models.Follower) -> followers_schema.Follower:
+def _transform_follower(follower: followers_models.Follower) -> followers_schema.FollowRelationship:
     """Convert a Follower ORM row into its serialized DTO."""
-    return followers_schema.Follower.model_validate(follower)
+    return followers_schema.FollowRelationship.model_validate(follower)
 
 
 @core_decorators.handle_db_errors
-def get_all_followers_by_user_id(user_id: int, db: Session) -> list[followers_schema.Follower]:
+def get_all_followers_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
     """
     Retrieve all follower records where the user is being followed.
 
@@ -33,12 +33,12 @@ def get_all_followers_by_user_id(user_id: int, db: Session) -> list[followers_sc
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.following_id == user_id)
+    stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors
-def get_accepted_followers_by_user_id(user_id: int, db: Session) -> list[followers_schema.Follower]:
+def get_accepted_followers_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
     """
     Retrieve accepted follower records where the user is being followed.
 
@@ -53,14 +53,14 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session) -> list[followe
         HTTPException: If a database error occurs.
     """
     stmt = select(followers_models.Follower).where(
-        followers_models.Follower.following_id == user_id,
-        followers_models.Follower.is_accepted.is_(True),
+        followers_models.Follower.followee_id == user_id,
+        followers_models.Follower.status == "accepted",
     )
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors
-def get_all_following_by_user_id(user_id: int, db: Session) -> list[followers_schema.Follower]:
+def get_all_following_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
     """
     Retrieve all follow records where the user is the follower.
 
@@ -79,7 +79,7 @@ def get_all_following_by_user_id(user_id: int, db: Session) -> list[followers_sc
 
 
 @core_decorators.handle_db_errors
-def get_accepted_following_by_user_id(user_id: int, db: Session) -> list[followers_schema.Follower]:
+def get_accepted_following_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
     """
     Retrieve accepted follow records where the user is the follower.
 
@@ -95,7 +95,7 @@ def get_accepted_following_by_user_id(user_id: int, db: Session) -> list[followe
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.is_accepted.is_(True),
+        followers_models.Follower.status == "accepted",
     )
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
@@ -119,10 +119,10 @@ def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool
     stmt = (
         select(func.count())
         .select_from(followers_models.Follower)
-        .where(followers_models.Follower.following_id == user_id)
+        .where(followers_models.Follower.followee_id == user_id)
     )
     if accepted_only:
-        stmt = stmt.where(followers_models.Follower.is_accepted.is_(True))
+        stmt = stmt.where(followers_models.Follower.status == "accepted")
     return db.scalar(stmt) or 0
 
 
@@ -148,14 +148,14 @@ def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool
         .where(followers_models.Follower.follower_id == user_id)
     )
     if accepted_only:
-        stmt = stmt.where(followers_models.Follower.is_accepted.is_(True))
+        stmt = stmt.where(followers_models.Follower.status == "accepted")
     return db.scalar(stmt) or 0
 
 
 @core_decorators.handle_db_errors
 def get_follower_for_user_id_and_target_user_id(
     user_id: int, target_user_id: int, db: Session
-) -> followers_schema.Follower | None:
+) -> followers_schema.FollowRelationship | None:
     """
     Retrieve a single follow relationship between two users.
 
@@ -172,7 +172,7 @@ def get_follower_for_user_id_and_target_user_id(
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.following_id == target_user_id,
+        followers_models.Follower.followee_id == target_user_id,
     )
     follower = db.scalars(stmt).first()
     return _transform_follower(follower) if follower is not None else None
@@ -195,9 +195,9 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = select(followers_models.Follower.following_id).where(
+    stmt = select(followers_models.Follower.followee_id).where(
         followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.is_accepted.is_(True),
+        followers_models.Follower.status == "accepted",
     )
     return list(db.scalars(stmt).all())
 
@@ -206,7 +206,7 @@ def create_follower(
     user_id: int,
     target_user_id: int,
     db: Session,
-) -> followers_schema.Follower:
+) -> followers_schema.FollowRelationship:
     """
     Create a new follow request between two users.
 
@@ -245,8 +245,8 @@ def create_follower(
 
     new_follow = followers_models.Follower(
         follower_id=user_id,
-        following_id=target_user_id,
-        is_accepted=False,
+        followee_id=target_user_id,
+        status="pending",
     )
 
     try:
@@ -305,8 +305,8 @@ def accept_follower(
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == target_user_id,
-        followers_models.Follower.following_id == user_id,
-        followers_models.Follower.is_accepted.is_(False),
+        followers_models.Follower.followee_id == user_id,
+        followers_models.Follower.status == "pending",
     )
 
     try:
@@ -317,7 +317,7 @@ def accept_follower(
                 detail="Follower record not found",
             )
 
-        accept_follow.is_accepted = True
+        accept_follow.status = "accepted"
         db.commit()
         db.refresh(accept_follow)
     except HTTPException:
@@ -354,7 +354,7 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
     """
     stmt = delete(followers_models.Follower).where(
         followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.following_id == target_user_id,
+        followers_models.Follower.followee_id == target_user_id,
     )
     result: CursorResult[Any] = db.execute(stmt)
 

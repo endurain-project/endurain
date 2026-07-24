@@ -10,7 +10,7 @@ Exports:
       count_followers_by_user_id, count_following_by_user_id,
       get_follower_for_user_id_and_target_user_id,
       create_follower, accept_follower, delete_follower
-    - Schemas: Follower, MessageResponse
+    - Schemas: FollowRelationship, FollowStatus, MessageResponse
     - Models: Follower (ORM model)
 """
 
@@ -27,11 +27,12 @@ from .crud import (
     get_follower_for_user_id_and_target_user_id,
 )
 from .models import Follower as FollowerModel
-from .schema import Follower, MessageResponse
+from .schema import FollowRelationship, FollowStatus, MessageResponse
 
 __all__ = [
     # Pydantic schemas
-    "Follower",
+    "FollowRelationship",
+    "FollowStatus",
     # Database model
     "FollowerModel",
     "MessageResponse",

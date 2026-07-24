@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get(
     "/user/{user_id}/followers/all",
-    response_model=list[followers_schema.Follower],
+    response_model=list[followers_schema.FollowRelationship],
     status_code=status.HTTP_200_OK,
 )
 def get_user_follower_all(
@@ -27,11 +27,11 @@ def get_user_follower_all(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[followers_schema.Follower]:
+) -> list[followers_schema.FollowRelationship]:
     """Return every follower record where the user is being followed.
 
-    Enforces the target's profile privacy: only the user themselves, an accepted
-    follower, or anyone when the profile is public may list the followers.
+    Enforces the target's profile privacy: only the user themselves or an accepted
+    follower may list the followers.
     """
     return followers_service.list_followers(user_id, token_user_id, db)
 
@@ -70,7 +70,7 @@ def get_user_follower_count(
 
 @router.get(
     "/user/{user_id}/following/all",
-    response_model=list[followers_schema.Follower],
+    response_model=list[followers_schema.FollowRelationship],
     status_code=status.HTTP_200_OK,
 )
 def get_user_following_all(
@@ -79,11 +79,11 @@ def get_user_following_all(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[followers_schema.Follower]:
+) -> list[followers_schema.FollowRelationship]:
     """Return every follow record where the user is the follower.
 
-    Enforces the target's profile privacy: only the user themselves, an accepted
-    follower, or anyone when the profile is public may list the following set.
+    Enforces the target's profile privacy: only the user themselves or an accepted
+    follower may list the following set.
     """
     return followers_service.list_following(user_id, token_user_id, db)
 
@@ -122,7 +122,7 @@ def get_user_following_count(
 
 @router.get(
     "/user/{user_id}/targetUser/{target_user_id}",
-    response_model=followers_schema.Follower | None,
+    response_model=followers_schema.FollowRelationship | None,
     status_code=status.HTTP_200_OK,
 )
 def read_followers_user_specific_user(
@@ -133,7 +133,7 @@ def read_followers_user_specific_user(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> followers_schema.Follower | None:
+) -> followers_schema.FollowRelationship | None:
     """Return the follow relationship between two specific users, if any.
 
     Only a participant in the relationship (the requester must be one of the two
@@ -144,7 +144,7 @@ def read_followers_user_specific_user(
 
 @router.post(
     "/create/targetUser/{target_user_id}",
-    response_model=followers_schema.Follower,
+    response_model=followers_schema.FollowRelationship,
     status_code=status.HTTP_201_CREATED,
 )
 def create_follow(
@@ -153,7 +153,7 @@ def create_follow(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> followers_schema.Follower:
+) -> followers_schema.FollowRelationship:
     """Create a new follow request from the authenticated user."""
     return followers_service.follow_user(token_user_id, target_user_id, db)
 

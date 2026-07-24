@@ -7,11 +7,11 @@ class TestFollowUser:
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
     def test_creates_and_publishes(self, mock_crud, mock_pub):
-        from modules.followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
         from modules.followers.service import follow_user
 
         db = MagicMock()
-        mock_crud.create_follower.return_value = Follower(follower_id=1, following_id=2, is_accepted=False)
+        mock_crud.create_follower.return_value = FollowRelationship(follower_id=1, followee_id=2, status="pending")
 
         result = follow_user(1, 2, db)
 
