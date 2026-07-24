@@ -20,7 +20,6 @@ import time
 import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -34,9 +33,8 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
+import modules.activities.activity_file_import.registry as parser_registry
 import modules.activities.activity_file_import.utils_fit as fit_utils
-import modules.activities.activity_file_import.utils_gpx as gpx_utils
-import modules.activities.activity_file_import.utils_tcx as tcx_utils
 import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_ingestion.enrichment as enrichment
 import modules.activities.activity_ingestion.file_adapter as file_adapter
@@ -217,38 +215,18 @@ def parse_file(
 ) -> dict | None:
     try:
         if filename.lower() != "bulk_import/__init__.py":
-            core_logger.print_to_log(f"Parsing file: {filename}")
-            parsed_info: dict[str, Any]
-            # Choose the appropriate parser based on file extension. The parsers
+            core_logger.print_to_log(f"Parsing file: {Path(filename).name}")
+            # Dispatch to the parser registered for this extension. The parsers
             # are pure (no db / privacy / gear / provider coupling); the
             # orchestrator re-attaches that domain context afterwards.
-            if file_extension.lower() == ".gpx":
-                # Parse the GPX file. parse_gpx_file returns a ParsedGpxData
-                # TypedDict; normalize it to a plain dict so ``parsed_info`` is a
-                # single dict type across the gpx/tcx/fit branches downstream.
-                parsed_info = dict(
-                    gpx_utils.parse_gpx_file(
-                        filename,
-                        token_user_id,
-                        activity_name,
-                    )
-                )
-            elif file_extension.lower() == ".tcx":
-                parsed_info = tcx_utils.parse_tcx_file(
-                    filename,
-                    token_user_id,
-                    activity_name,
-                )
-            elif file_extension.lower() == ".fit":
-                # Parse the FIT file
-                parsed_info = fit_utils.parse_fit_file(filename, activity_name)
-            else:
-                # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
+            parser = parser_registry.get_parser(file_extension)
+            if parser is None:
+                supported = ", ".join(parser_registry.supported_extensions())
                 raise HTTPException(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                    detail="File extension not supported. Supported file extensions are .gpx, .fit and .tcx",
+                    detail=f"File extension not supported. Supported file extensions are {supported}",
                 )
-            return parsed_info
+            return parser(filename, token_user_id, activity_name)
         else:
             return None
     except HTTPException as http_err:
@@ -891,7 +869,7 @@ def process_all_files_sync(
     try:
         total_files = len(file_paths)
         for idx, file_path in enumerate(file_paths, 1):
-            core_logger.print_to_log_and_console(f"Processing file {idx}/{total_files}: {file_path}")
+            core_logger.print_to_log_and_console(f"Processing file {idx}/{total_files}: {Path(file_path).name}")
             parse_and_store_activity_from_file(
                 user_id,
                 file_path,

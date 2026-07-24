@@ -173,6 +173,10 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
     """
     follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
     followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db)
+    core_logger.print_to_log(
+        f"User {requester_user_id} requested to follow user {target_user_id}",
+        "debug",
+    )
     return follower
 
 
@@ -189,6 +193,10 @@ def accept_follow_request(accepter_user_id: int, requester_user_id: int, db: Ses
     """
     followers_crud.accept_follower(accepter_user_id, requester_user_id, db)
     followers_event_publishers.publish_follower_accepted(accepter_user_id, requester_user_id, db)
+    core_logger.print_to_log(
+        f"User {accepter_user_id} accepted the follow request from user {requester_user_id}",
+        "debug",
+    )
 
 
 def unfollow_user(requester_user_id: int, target_user_id: int, db: Session) -> None:
@@ -203,6 +211,10 @@ def unfollow_user(requester_user_id: int, target_user_id: int, db: Session) -> N
         None.
     """
     followers_crud.delete_follower(requester_user_id, target_user_id, db)
+    core_logger.print_to_log(
+        f"User {requester_user_id} unfollowed user {target_user_id}",
+        "debug",
+    )
 
 
 def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
@@ -217,6 +229,10 @@ def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
         None.
     """
     followers_crud.delete_follower(follower_user_id, user_id, db)
+    core_logger.print_to_log(
+        f"User {user_id} removed follower {follower_user_id}",
+        "debug",
+    )
 
 
 def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:

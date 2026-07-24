@@ -205,7 +205,7 @@ class TestPrepareBulkImportActivity:
 
 
 class TestParseFile:
-    @patch("modules.activities.activity_ingestion.orchestrator.gpx_utils")
+    @patch("modules.activities.activity_file_import.registry.gpx_utils")
     @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
     def test_parse_gpx(self, mock_logger, mock_gpx):
         from modules.activities.activity_ingestion.orchestrator import parse_file
@@ -218,7 +218,7 @@ class TestParseFile:
         )
         assert result == {"activity": "data"}
 
-    @patch("modules.activities.activity_ingestion.orchestrator.tcx_utils")
+    @patch("modules.activities.activity_file_import.registry.tcx_utils")
     @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
     def test_parse_tcx(self, mock_logger, mock_tcx):
         from modules.activities.activity_ingestion.orchestrator import parse_file
@@ -231,7 +231,7 @@ class TestParseFile:
         )
         assert result == {"activity": "tcx_data"}
 
-    @patch("modules.activities.activity_ingestion.orchestrator.fit_utils")
+    @patch("modules.activities.activity_file_import.registry.fit_utils")
     @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
     def test_parse_fit(self, mock_logger, mock_fit):
         from modules.activities.activity_ingestion.orchestrator import parse_file
@@ -303,7 +303,7 @@ class TestHandleGzippedFileCleanup:
 class TestParseFileError:
     """Exception handler in parse_file."""
 
-    @patch("modules.activities.activity_ingestion.orchestrator.gpx_utils")
+    @patch("modules.activities.activity_file_import.registry.gpx_utils")
     @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
     def test_raises_500_on_parse_error(self, mock_logger, mock_gpx):
         from fastapi import HTTPException

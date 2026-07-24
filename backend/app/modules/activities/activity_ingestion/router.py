@@ -154,7 +154,9 @@ def create_activity_with_bulk_import(
 
                 files_to_process.append(file_path)
                 # Log the file being processed
-                core_logger.print_to_log_and_console(f"Queuing file for processing: {file_path}", "info")
+                core_logger.print_to_log_and_console(
+                    f"Queuing file for processing: {os.path.basename(file_path)}", "info"
+                )
 
         # Hand each validated file off for background processing. When durable jobs
         # are enabled, publish one durable job per file: the event is staged in

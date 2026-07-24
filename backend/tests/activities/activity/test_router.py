@@ -118,9 +118,7 @@ class TestFeed:
         ):
             f.list_accepted_followee_ids.return_value = [5]
             m.return_value = 2
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/feed/count", headers={"Authorization": "Bearer x"}
-            )
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed/count", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200 and resp.json() == {"count": 2}
 
 
