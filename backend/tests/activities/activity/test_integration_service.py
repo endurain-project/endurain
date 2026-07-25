@@ -75,9 +75,30 @@ class TestIntegrationService:
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        mock_crud.delete_all_strava_activities_for_user.return_value = 5
+        mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
 
-        result = integration_service.delete_all_strava_activities(3, db)
+        with patch("modules.activities.activity.integration_service.activity_event_publishers") as mock_pub:
+            result = integration_service.delete_all_strava_activities(3, db)
 
         assert result == 5
-        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db)
+        # Staged (commit=False) so the deletes and their cleanup events are atomic.
+        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, commit=False)
+        mock_pub.publish_activities_deleted.assert_called_once()
+        assert mock_pub.publish_activities_deleted.call_args.args[0] == [11, 12, 13, 14, 15]
+
+    @patch("modules.activities.activity.integration_service.activities_crud")
+    def test_delete_all_activities_for_user_publishes_cleanup_events(self, mock_crud):
+        """Account deletion must emit activity.deleted so stored blobs are reclaimed."""
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_crud.delete_all_activities_for_user.return_value = [1, 2]
+
+        with patch("modules.activities.activity.integration_service.activity_event_publishers") as mock_pub:
+            result = integration_service.delete_all_activities_for_user(7, db)
+
+        assert result == 2
+        mock_crud.delete_all_activities_for_user.assert_called_once_with(7, db, commit=False)
+        mock_pub.publish_activities_deleted.assert_called_once()
+        assert mock_pub.publish_activities_deleted.call_args.args[0] == [1, 2]
+        assert mock_pub.publish_activities_deleted.call_args.args[1] == 7

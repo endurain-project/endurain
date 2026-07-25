@@ -391,7 +391,7 @@ class TestDelete:
         r = MagicMock()
         r.rowcount = 1
         mock_db.execute.return_value = r
-        crud.delete_activity(activity_id=1, db=mock_db)
+        crud.delete_activity(activity_id=1, user_id=7, db=mock_db)
         mock_db.commit.assert_called_once()
 
     def test_success_no_commit_stages_only(self, mock_db):
@@ -400,7 +400,7 @@ class TestDelete:
         r = MagicMock()
         r.rowcount = 1
         mock_db.execute.return_value = r
-        crud.delete_activity(activity_id=1, db=mock_db, commit=False)
+        crud.delete_activity(activity_id=1, user_id=7, db=mock_db, commit=False)
         mock_db.commit.assert_not_called()
 
     def test_not_found(self, mock_db):
@@ -410,15 +410,27 @@ class TestDelete:
         r.rowcount = 0
         mock_db.execute.return_value = r
         with pytest.raises(HTTPException) as e:
-            crud.delete_activity(activity_id=999, db=mock_db)
+            crud.delete_activity(activity_id=999, user_id=7, db=mock_db)
         assert e.value.status_code == 404
+
+    def test_non_owner_is_404(self, mock_db):
+        """A delete that matches no owned row must 404, never delete another user's activity."""
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.rowcount = 0
+        mock_db.execute.return_value = r
+        with pytest.raises(HTTPException) as e:
+            crud.delete_activity(activity_id=1, user_id=999, db=mock_db)
+        assert e.value.status_code == 404
+        mock_db.commit.assert_not_called()
 
     def test_db_error(self, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
-            crud.delete_activity(activity_id=1, db=mock_db)
+            crud.delete_activity(activity_id=1, user_id=7, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 
@@ -1133,6 +1145,80 @@ class TestGetActivityByIdIfIsPublic:
         assert crud.get_activity_by_id_if_is_public(activity_id=999, db=sqlite_session) is None
 
 
+class TestGetPublicActivityForChildRead:
+    """The single public gate for activity sub-resources (laps / sets / workout steps).
+
+    Regression guard for the leak this function was introduced to close: each
+    child CRUD used to hand-roll the public check and every copy omitted
+    ``is_hidden``, so a hidden activity returned ``null`` from the public activity
+    endpoint while still serving its laps, sets and workout steps anonymously.
+    The gate now composes ``get_activity_by_id_if_is_public`` (which enforces the
+    server setting, ``visibility == 0`` **and** ``is_hidden is False``) with the
+    per-resource ``hide_*`` flag.
+    """
+
+    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
+    def test_excludes_hidden_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+        """A hidden activity must not expose its child resources publicly."""
+        import modules.activities.activity.crud as crud
+
+        mock_settings.return_value.public_shareable_links = True
+        sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=True))
+        sqlite_session.commit()
+
+        result = crud.get_public_activity_for_child_read(1, sqlite_session, hide_attr="hide_laps")
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
+    def test_excludes_non_public_visibility(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_settings.return_value.public_shareable_links = True
+        sqlite_session.add(_public_activity(id=1, visibility=1, is_hidden=False))
+        sqlite_session.commit()
+
+        assert crud.get_public_activity_for_child_read(1, sqlite_session, hide_attr="hide_laps") is None
+
+    @patch("modules.activities.activity.crud.get_activity_by_id_if_is_public")
+    def test_disabled_public_links(self, mock_public, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_public.return_value = None
+        assert crud.get_public_activity_for_child_read(1, mock_db, hide_attr="hide_laps") is None
+
+    @patch("modules.activities.activity.crud.get_activity_by_id_if_is_public")
+    def test_hide_attr_set(self, mock_public, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_public.return_value = MagicMock(hide_laps=True)
+        assert crud.get_public_activity_for_child_read(1, mock_db, hide_attr="hide_laps") is None
+
+    @patch("modules.activities.activity.crud.get_activity_by_id_if_is_public")
+    def test_returns_activity_when_permitted(self, mock_public, mock_db):
+        import modules.activities.activity.crud as crud
+
+        activity = MagicMock(hide_laps=False)
+        mock_public.return_value = activity
+        assert crud.get_public_activity_for_child_read(1, mock_db, hide_attr="hide_laps") is activity
+
+    @patch("modules.activities.activity.crud.get_activity_by_id_if_is_public")
+    def test_hide_attr_is_per_resource(self, mock_public, mock_db):
+        """A flag hiding one child resource must not gate a different one."""
+        import modules.activities.activity.crud as crud
+
+        activity = MagicMock(hide_laps=True, hide_workout_sets_steps=False)
+        mock_public.return_value = activity
+
+        assert crud.get_public_activity_for_child_read(1, mock_db, hide_attr="hide_laps") is None
+        assert crud.get_public_activity_for_child_read(1, mock_db, hide_attr="hide_workout_sets_steps") is activity
+
+
 class TestGetViewableActivityByIdForUser:
     """Child-resource authorization gate (OWASP A01 / IDOR).
 
@@ -1545,24 +1631,33 @@ class TestEditUserActivitiesVisibility:
 
 
 class TestDeleteAllStravaActivitiesForUser:
-    def test_success(self, mock_db):
+    def test_returns_deleted_ids(self, mock_db):
         import modules.activities.activity.crud as crud
 
         r = MagicMock()
-        r.rowcount = 2
+        r.all.return_value = [(11,), (12,)]
         mock_db.execute.return_value = r
         result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
-        assert result == 2
+        assert result == [11, 12]
         mock_db.commit.assert_called_once()
 
     def test_no_deletions(self, mock_db):
         import modules.activities.activity.crud as crud
 
         r = MagicMock()
-        r.rowcount = 0
+        r.all.return_value = []
         mock_db.execute.return_value = r
         result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
-        assert result == 0
+        assert result == []
+
+    def test_no_commit_stages_only(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.all.return_value = [(11,)]
+        mock_db.execute.return_value = r
+        result = crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db, commit=False)
+        assert result == [11]
         mock_db.commit.assert_not_called()
 
     def test_db_error(self, mock_db):
@@ -1571,6 +1666,37 @@ class TestDeleteAllStravaActivitiesForUser:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
             crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+        mock_db.rollback.assert_called_once()
+
+
+class TestDeleteAllActivitiesForUser:
+    def test_returns_deleted_ids(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.all.return_value = [(1,), (2,), (3,)]
+        mock_db.execute.return_value = r
+        result = crud.delete_all_activities_for_user(user_id=1, db=mock_db)
+        assert result == [1, 2, 3]
+        mock_db.commit.assert_called_once()
+
+    def test_no_commit_stages_only(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.all.return_value = [(1,)]
+        mock_db.execute.return_value = r
+        result = crud.delete_all_activities_for_user(user_id=1, db=mock_db, commit=False)
+        assert result == [1]
+        mock_db.commit.assert_not_called()
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.delete_all_activities_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 

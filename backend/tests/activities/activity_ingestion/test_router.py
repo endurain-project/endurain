@@ -2,6 +2,10 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
+
 import modules.activities.activity_ingestion.router as router
 
 
@@ -18,18 +22,39 @@ class TestBulkImportRoute:
             patch.object(router.os, "listdir", return_value=["a.gpx", "b.fit"]),
             patch.object(router.os.path, "isfile", return_value=True),
             patch.object(router.core_file_uploads, "validate_local_file_sync"),
-            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_file") as publish,
+            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
             patch.object(router, "executor") as executor,
         ):
             result = _run_route(db)
 
         assert result["detail"]
-        assert publish.call_count == 2
-        # Each call publishes (file_path, user_id, import_time, db).
-        for call in publish.call_args_list:
-            assert call.args[1] == 3
-            assert call.args[3] is db
+        # One batched publish for every file, staged in a single transaction.
+        publish.assert_called_once()
+        assert len(publish.call_args.args[0]) == 2
+        assert publish.call_args.args[1] == 3
+        assert publish.call_args.args[3] is db
         executor.submit.assert_not_called()
+
+    def test_enqueue_failure_surfaces_as_500(self):
+        """A failed enqueue must not answer 202 for files that were never queued."""
+        db = MagicMock()
+        with (
+            patch.object(router.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(router.os, "makedirs"),
+            patch.object(router.os, "listdir", return_value=["a.gpx"]),
+            patch.object(router.os.path, "isfile", return_value=True),
+            patch.object(router.core_file_uploads, "validate_local_file_sync"),
+            patch.object(
+                router.activity_bulk_import_subscribers,
+                "publish_bulk_import_files",
+                side_effect=SQLAlchemyError("outbox down"),
+            ),
+            patch.object(router, "executor"),
+            pytest.raises(HTTPException) as exc,
+        ):
+            _run_route(db)
+
+        assert exc.value.status_code == 500
 
     def test_falls_back_to_threadpool_when_jobs_disabled(self):
         db = MagicMock()
@@ -39,7 +64,7 @@ class TestBulkImportRoute:
             patch.object(router.os, "listdir", return_value=["a.gpx"]),
             patch.object(router.os.path, "isfile", return_value=True),
             patch.object(router.core_file_uploads, "validate_local_file_sync"),
-            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_file") as publish,
+            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
             patch.object(router, "executor") as executor,
         ):
             result = _run_route(db)
@@ -56,12 +81,14 @@ class TestBulkImportRoute:
             patch.object(router.os, "listdir", return_value=["notes.txt"]),
             patch.object(router.os.path, "isfile", return_value=True),
             patch.object(router.core_file_uploads, "validate_local_file_sync"),
-            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_file") as publish,
+            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
             patch.object(router, "executor"),
         ):
             _run_route(db)
 
-        publish.assert_not_called()
+        # Nothing valid to queue -> an empty batch is still published so the
+        # request commits exactly once either way.
+        assert publish.call_args.args[0] == []
 
 
 class TestUploadRoute:

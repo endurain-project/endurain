@@ -1185,6 +1185,63 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
         raise _internal_server_error(err, "get_activity_by_id_if_is_public") from err
 
 
+def get_public_activity_for_child_read(
+    activity_id: int,
+    db: Session,
+    *,
+    hide_attr: str,
+) -> activities_schema.Activity | None:
+    """Return a publicly readable activity for an unauthenticated child-resource read.
+
+    The single public gate for activity sub-resources (laps / sets / workout
+    steps / streams). It composes the two checks that must *both* hold before any
+    child rows are served anonymously:
+
+    1. The activity itself is publicly shareable — delegated to
+       :func:`get_activity_by_id_if_is_public`, which enforces the server-wide
+       ``public_shareable_links`` setting, ``visibility == 0`` **and**
+       ``is_hidden is False``.
+    2. The per-activity privacy flag guarding this particular child resource
+       (e.g. ``hide_laps``, ``hide_workout_sets_steps``) is not set.
+
+    Each child CRUD previously hand-rolled step 1, and every copy omitted the
+    ``is_hidden`` check — so a hidden (duplicate-start-time) activity returned
+    ``null`` from the public activity endpoint while still serving its laps, sets
+    and workout steps to anonymous callers (OWASP A01: broken access control).
+    Routing every child through this one function makes that divergence
+    impossible to reintroduce by copy-paste.
+
+    Args:
+        activity_id: Activity ID being read.
+        db: Database session.
+        hide_attr: Name of the boolean ``hide_*`` attribute on the activity
+            schema that gates this child resource.
+
+    Returns:
+        The public activity schema when the child rows may be served anonymously,
+        otherwise ``None``.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    activity = get_activity_by_id_if_is_public(activity_id, db)
+    if activity is None:
+        core_logger.print_to_log(
+            f"Public child read denied for activity {activity_id} ({hide_attr}): not publicly shareable",
+            "debug",
+        )
+        return None
+
+    if getattr(activity, hide_attr):
+        core_logger.print_to_log(
+            f"Public child read denied for activity {activity_id}: {hide_attr} is set",
+            "debug",
+        )
+        return None
+
+    return activity
+
+
 def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity | None:
     """Get an activity by ID without permission checks.
 
@@ -1901,11 +1958,19 @@ def update_activity_gear_id(
         raise _internal_server_error(err, "update_activity_gear_id") from err
 
 
-def delete_activity(activity_id: int, db: Session, commit: bool = True) -> None:
-    """Delete an activity by ID.
+def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = True) -> None:
+    """Delete an activity owned by ``user_id``.
+
+    Ownership is part of the ``WHERE`` clause rather than a precondition the
+    caller is trusted to have checked: a delete that does not match the owner
+    affects zero rows and raises 404, so a caller that forgets to pre-fetch the
+    activity cannot turn this into an IDOR (OWASP A01). The 404 is deliberately
+    indistinguishable from "no such activity" so it does not disclose the
+    existence of another user's activity.
 
     Args:
         activity_id: Activity ID.
+        user_id: ID of the user that must own the activity.
         db: Database session.
         commit: When True (default) commit immediately. Pass False to stage the
             delete in the caller's unit of work so ``activity.deleted`` can be
@@ -1916,11 +1981,14 @@ def delete_activity(activity_id: int, db: Session, commit: bool = True) -> None:
         None
 
     Raises:
-        HTTPException: 404 when the activity is missing or
-            500 on database error.
+        HTTPException: 404 when the activity is missing or not owned by
+            ``user_id``, or 500 on database error.
     """
     try:
-        stmt = sa_delete(activities_models.Activity).where(activities_models.Activity.id == activity_id)
+        stmt = sa_delete(activities_models.Activity).where(
+            activities_models.Activity.id == activity_id,
+            activities_models.Activity.user_id == user_id,
+        )
         result = cast("CursorResult[Any]", db.execute(stmt))
         if result.rowcount == 0:
             raise HTTPException(
@@ -1929,7 +1997,7 @@ def delete_activity(activity_id: int, db: Session, commit: bool = True) -> None:
             )
         if commit:
             db.commit()
-        core_logger.print_to_log(f"Deleted activity {activity_id}", "debug")
+        core_logger.print_to_log(f"Deleted activity {activity_id} for user {user_id}", "debug")
     except HTTPException:
         db.rollback()
         raise
@@ -1938,28 +2006,80 @@ def delete_activity(activity_id: int, db: Session, commit: bool = True) -> None:
         raise _internal_server_error(err, "delete_activity") from err
 
 
-def delete_all_strava_activities_for_user(user_id: int, db: Session) -> int:
+def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: bool = True) -> list[int]:
     """Delete every Strava-synced activity owned by a user.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            deletes in the caller's unit of work so one ``activity.deleted`` per
+            removed row can be published atomically with them.
 
     Returns:
-        Number of activities deleted.
+        The IDs of the deleted activities, so the caller can publish the cleanup
+        events that reclaim each activity's thumbnail and stored source file.
 
     Raises:
         HTTPException: 500 on database error.
     """
     try:
-        stmt = sa_delete(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.strava_activity_id.isnot(None),
+        stmt = (
+            sa_delete(activities_models.Activity)
+            .where(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.strava_activity_id.isnot(None),
+            )
+            .returning(activities_models.Activity.id)
         )
-        result = cast("CursorResult[Any]", db.execute(stmt))
-        if result.rowcount:
+        deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
+        if commit:
             db.commit()
-        return result.rowcount or 0
+        core_logger.print_to_log(
+            f"Deleted {len(deleted_ids)} Strava activity/activities for user {user_id}",
+            "info",
+        )
+        return deleted_ids
     except SQLAlchemyError as err:
         db.rollback()
         raise _internal_server_error(err, "delete_all_strava_activities_for_user") from err
+
+
+def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = True) -> list[int]:
+    """Delete every activity owned by a user.
+
+    Used by account deletion, which previously relied on the database FK cascade
+    from ``users``. The cascade removes the rows but tells nobody, so each
+    activity's thumbnail and stored source file were left behind — deleting them
+    explicitly here yields the IDs needed to publish the cleanup events, making
+    account deletion erase the user's stored artifacts too.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            deletes in the caller's unit of work.
+
+    Returns:
+        The IDs of the deleted activities.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = (
+            sa_delete(activities_models.Activity)
+            .where(activities_models.Activity.user_id == user_id)
+            .returning(activities_models.Activity.id)
+        )
+        deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
+        if commit:
+            db.commit()
+        core_logger.print_to_log(
+            f"Deleted {len(deleted_ids)} activity/activities for user {user_id}",
+            "info",
+        )
+        return deleted_ids
+    except SQLAlchemyError as err:
+        db.rollback()
+        raise _internal_server_error(err, "delete_all_activities_for_user") from err

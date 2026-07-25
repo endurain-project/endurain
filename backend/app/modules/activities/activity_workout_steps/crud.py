@@ -11,7 +11,6 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
-import modules.server_settings.utils as server_settings_utils
 
 
 def _to_read_schema(
@@ -133,20 +132,9 @@ def get_public_activity_workout_steps(
     Raises:
         HTTPException: If database error occurs.
     """
-    activity = activity_crud.get_activity_by_id(activity_id, db)
+    activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
 
     if not activity:
-        return None
-
-    if activity.hide_workout_sets_steps:
-        return None
-
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-    if not server_settings.public_shareable_links:
-        return None
-
-    if activity.visibility != 0:
         return None
 
     stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(

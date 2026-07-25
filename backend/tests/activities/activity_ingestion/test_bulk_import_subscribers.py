@@ -1,6 +1,6 @@
 """Tests for the durable bulk-import-file subscriber."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -25,15 +25,34 @@ def _event(payload: dict, retry_count: int = 1) -> Event:
 
 
 class TestPublishBulkImportFile:
-    def test_publishes_durable_event(self):
-        with patch.object(bulk_import_subscribers.platform_publisher, "publish") as publish:
-            bulk_import_subscribers.publish_bulk_import_file("/tmp/x.gpx", 3, "2026-07-21", "db")
+    def test_publishes_durable_events_in_one_transaction(self):
+        db = MagicMock()
+        with patch.object(bulk_import_subscribers.platform_publisher, "publish_many_committing") as publish:
+            bulk_import_subscribers.publish_bulk_import_files(["/tmp/x.gpx", "/tmp/y.fit"], 3, "2026-07-21", db)
         publish.assert_called_once()
         args, kwargs = publish.call_args
         assert args[0] == ingestion_events.ACTIVITY_BULK_IMPORT_FILE
-        assert args[1] == {"file_path": "/tmp/x.gpx", "user_id": 3, "import_initiated_time": "2026-07-21"}
+        assert args[1] == [
+            {"file_path": "/tmp/x.gpx", "user_id": 3, "import_initiated_time": "2026-07-21"},
+            {"file_path": "/tmp/y.fit", "user_id": 3, "import_initiated_time": "2026-07-21"},
+        ]
         assert kwargs["source"] == "api:bulk_import"
-        assert kwargs["db"] == "db"
+        assert kwargs["db"] is db
+        # One commit for the whole batch, not one per file.
+        assert kwargs["commit"] == db.commit
+
+    def test_staging_failure_propagates(self):
+        """This event *is* the work: a swallowed failure would silently drop the import."""
+        db = MagicMock()
+        with (
+            patch.object(
+                bulk_import_subscribers.platform_publisher,
+                "publish_many_committing",
+                side_effect=RuntimeError("outbox down"),
+            ),
+            pytest.raises(RuntimeError),
+        ):
+            bulk_import_subscribers.publish_bulk_import_files(["/tmp/x.gpx"], 3, "2026-07-21", db)
 
 
 class TestProcessBulkImportFileForEvent:

@@ -1,6 +1,6 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 
@@ -273,15 +273,16 @@ class TestEditVisibility:
 
 class TestDelete:
     def test_success(self, mock_db):
-        act = MagicMock()
         with (
-            patch("modules.activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g,
             patch("modules.activities.activity.router.activities_crud.delete_activity") as mock_del,
             patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
         ):
-            g.return_value = act
             resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            # Ownership is in the delete's WHERE clause, so the route passes the
+            # requester through instead of pre-fetching (no read-then-delete gap).
+            assert mock_del.call_args.args[0] == 1
+            assert mock_del.call_args.args[1] == mock_pub.publish_activity_deleted.call_args.args[1]
             # The delete is staged (commit=False) and the publish owns the single
             # commit, so the row delete + activity.deleted outbox row are atomic.
             assert mock_del.call_args.kwargs.get("commit") is False
@@ -290,7 +291,12 @@ class TestDelete:
             assert mock_pub.publish_activity_deleted.call_args.kwargs.get("commit") is not None
 
     def test_not_found(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_activity_by_id_from_user_id") as g:
-            g.return_value = None
+        """A missing activity — or one owned by someone else — 404s from the CRUD."""
+        with (
+            patch("modules.activities.activity.router.activities_crud.delete_activity") as mock_del,
+            patch("modules.activities.activity.router.activity_event_publishers") as mock_pub,
+        ):
+            mock_del.side_effect = HTTPException(status_code=404, detail="Activity with id 999 not found")
             resp = TestClient(_build_app(mock_db)).delete("/activities/999", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 404
+            mock_pub.publish_activity_deleted.assert_not_called()

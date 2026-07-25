@@ -160,125 +160,51 @@ class TestGetActivitiesSets:
 
 
 class TestGetPublicActivitySets:
+    """The public gate itself lives in activity_crud.get_public_activity_for_child_read.
+
+    These assert only that this CRUD delegates to it and honours its verdict; the
+    gate's own rules (public_shareable_links, visibility, is_hidden, hide_*) are
+    covered once in tests/activities/activity/test_crud.py.
+    """
+
     @patch("modules.activities.activity_sets.crud._to_read_schema")
-    @patch("modules.activities.activity_sets.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_success(self, mock_get_act, mock_settings, mock_to_read, mock_db):
+    @patch("modules.activities.activity_sets.crud.activity_crud.get_public_activity_for_child_read")
+    def test_success(self, mock_gate, mock_to_read, mock_db):
         import modules.activities.activity_sets.crud as crud
         import modules.activities.activity_sets.models as m
 
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
+        mock_gate.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
         mock_to_read.return_value = MagicMock()
         mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivitySets, id=1, activity_id=1)]
         r = crud.get_public_activity_sets(activity_id=1, db=mock_db)
         assert len(r) == 1
+        mock_gate.assert_called_once_with(1, mock_db, hide_attr="hide_workout_sets_steps")
 
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_not_found(self, mock_get_act, mock_db):
+    @patch("modules.activities.activity_sets.crud.activity_crud.get_public_activity_for_child_read")
+    def test_gate_denied_returns_none(self, mock_gate, mock_db):
+        """Gate says no (not public, hidden, or hide_workout_sets_steps set) -> no rows are read at all."""
         import modules.activities.activity_sets.crud as crud
 
-        mock_get_act.return_value = None
+        mock_gate.return_value = None
         r = crud.get_public_activity_sets(activity_id=1, db=mock_db)
         assert r is None
+        mock_db.scalars.assert_not_called()
 
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_hidden(self, mock_get_act, mock_db):
+    @patch("modules.activities.activity_sets.crud.activity_crud.get_public_activity_for_child_read")
+    def test_no_sets(self, mock_gate, mock_db):
         import modules.activities.activity_sets.crud as crud
 
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=True)
-        r = crud.get_public_activity_sets(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_sets.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_no_public_links(self, mock_get_act, mock_settings, mock_db):
-        import modules.activities.activity_sets.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False)
-        mock_settings.return_value = MagicMock(public_shareable_links=False)
-        r = crud.get_public_activity_sets(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_sets.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_not_public(self, mock_get_act, mock_settings, mock_db):
-        import modules.activities.activity_sets.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=2)
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        r = crud.get_public_activity_sets(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_sets.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_no_sets(self, mock_get_act, mock_settings, mock_db):
-        import modules.activities.activity_sets.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
+        mock_gate.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
         mock_db.scalars.return_value.all.return_value = []
         r = crud.get_public_activity_sets(activity_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_sets.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("modules.activities.activity_sets.crud.activity_crud.get_activity_by_id")
-    def test_db_error(self, mock_get_act, mock_settings, mock_db):
+    @patch("modules.activities.activity_sets.crud.activity_crud.get_public_activity_for_child_read")
+    def test_db_error(self, mock_gate, mock_db):
         import modules.activities.activity_sets.crud as crud
 
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
+        mock_gate.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
             crud.get_public_activity_sets(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
-
-
-class TestCreateActivitySetsWithList:
-    @patch("modules.activities.activity_sets.crud.activity_sets_models.ActivitySets")
-    def test_with_list_input(self, mock_sets_model, mock_db):
-        import modules.activities.activity_sets.crud as crud
-
-        mock_sets_model.return_value = MagicMock()
-        raw_sets = [
-            [300.0, 10, 50.0, "interval", "2024-01-15T08:00:00", 5, 3],
-        ]
-        crud.create_activity_sets(raw_sets, 1, mock_db)
-        mock_db.add_all.assert_called_once()
-        mock_db.commit.assert_called_once()
-
-
-class TestExtractValue:
-    def test_none(self):
-        import modules.activities.activity_sets.crud as crud
-
-        assert crud._extract_value(None) is None
-
-    def test_tuple_with_value(self):
-        import modules.activities.activity_sets.crud as crud
-
-        assert crud._extract_value((5,)) == 5
-
-    def test_tuple_with_none(self):
-        import modules.activities.activity_sets.crud as crud
-
-        assert crud._extract_value((None,)) is None
-
-    def test_scalar(self):
-        import modules.activities.activity_sets.crud as crud
-
-        assert crud._extract_value(42) == 42
-
-
-class TestToReadSchemaSets:
-    @patch("modules.activities.activity_sets.crud.activity_sets_schema.ActivitySetsRead.model_validate")
-    def test_success(self, mock_validate):
-        import modules.activities.activity_sets.crud as crud
-
-        mock_schema = MagicMock()
-        mock_validate.return_value = mock_schema
-        orm_set = MagicMock()
-        result = crud._to_read_schema(orm_set, "Europe/Berlin")
-        mock_validate.assert_called_once_with(orm_set)
-        assert mock_schema.timezone == "Europe/Berlin"
-        assert result == mock_schema

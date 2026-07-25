@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 import core.decorators as core_decorators
+import modules.activities.activity.integration_service as activities_integration
 import modules.auth.password_policy as auth_password_policy
 import modules.health.health_weight.utils as health_weight_utils
 import modules.server_settings.schema as server_settings_schema
@@ -186,6 +187,13 @@ def _delete_user_row(user_id: int, db: Session) -> None:
         HTTPException: 404 if the user does not exist.
     """
     db_users = _get_user_model_by_id_or_404(user_id, db)
+    # Remove the user's activities explicitly instead of letting the database FK
+    # cascade drop them silently: the cascade tells nobody, so every thumbnail and
+    # stored source file the user produced would be orphaned in storage forever
+    # (an incomplete erasure). Going through the activities integration service
+    # publishes one ``activity.deleted`` per row, and the cleanup subscribers
+    # reclaim the blobs.
+    activities_integration.delete_all_activities_for_user(user_id, db)
     db.delete(db_users)
     db.commit()
 

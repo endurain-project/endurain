@@ -48,3 +48,49 @@ class TestPublishActivityDeleted:
         assert args[1] == {"activity_id": 9}
         assert kwargs["commit"] is commit
         assert kwargs["db"] is db
+
+
+class TestPublishActivitiesDeleted:
+    """Bulk removals must emit the same fact as the single-activity delete route.
+
+    Without it, unlinking Strava or deleting an account removed the rows silently
+    and the thumbnail / source-file cleanup subscribers never ran, orphaning every
+    blob those activities owned.
+    """
+
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
+    def test_emits_one_event_per_activity_in_one_transaction(self, mock_publisher):
+        from modules.activities.activity.event_publishers import publish_activities_deleted
+
+        db = object()
+        commit = MagicMock()
+        publish_activities_deleted([4, 5, 6], 2, db, commit, source="api:delete_user")
+
+        mock_publisher.publish_many_committing.assert_called_once()
+        args, kwargs = mock_publisher.publish_many_committing.call_args
+        assert args[0] == "activity.deleted"
+        assert args[1] == [{"activity_id": 4}, {"activity_id": 5}, {"activity_id": 6}]
+        assert kwargs["source"] == "api:delete_user"
+        assert kwargs["db"] is db
+        assert kwargs["commit"] is commit
+
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
+    def test_metadata_is_per_activity(self, mock_publisher):
+        from modules.activities.activity.event_publishers import publish_activities_deleted
+
+        publish_activities_deleted([4, 5], 2, object(), MagicMock(), source="api:delete_user")
+
+        metadata_for = mock_publisher.publish_many_committing.call_args.kwargs["metadata_for"]
+        assert metadata_for({"activity_id": 4}) == {"activity_id": 4, "user_id": 2}
+        assert metadata_for({"activity_id": 5}) == {"activity_id": 5, "user_id": 2}
+
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
+    def test_empty_batch_still_commits_once(self, mock_publisher):
+        from modules.activities.activity.event_publishers import publish_activities_deleted
+
+        commit = MagicMock()
+        publish_activities_deleted([], 2, object(), commit, source="api:delete_user")
+
+        args, kwargs = mock_publisher.publish_many_committing.call_args
+        assert args[1] == []
+        assert kwargs["commit"] is commit

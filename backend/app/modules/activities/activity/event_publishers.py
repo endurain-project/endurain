@@ -11,7 +11,7 @@ delivery (best-effort at the seam; the subscriber's reconciliation net is the
 safety net).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -124,3 +124,50 @@ def publish_activity_deleted(
             metadata=metadata,
             db=db,
         )
+
+
+def publish_activities_deleted(
+    activity_ids: Sequence[int],
+    user_id: int | None,
+    db: Session,
+    commit: Callable[[], None],
+    *,
+    source: str,
+) -> None:
+    """Publish one ``activity.deleted`` per activity removed by a bulk delete.
+
+    Bulk removals (unlinking Strava, deleting a user account) used to delete rows
+    without publishing anything, so the thumbnail and source-file cleanup
+    subscribers never ran and their blobs were orphaned forever — and because both
+    subscribers are deliberately reconciliation-net exempt (a teardown has no
+    create-derived state to re-derive), nothing else ever reclaimed them. Emitting
+    the same fact the single-activity delete route emits keeps every consumer's
+    contract identical regardless of how the rows were removed, which also makes
+    account deletion actually erase the user's stored artifacts.
+
+    The whole batch is staged in the caller's transaction and committed once via
+    :func:`infra.publisher.publish_many_committing`, so the deletes and their
+    events are atomic rather than one commit per activity.
+
+    Args:
+        activity_ids: IDs of the removed activities. May be empty, in which case
+            ``commit`` still runs exactly once.
+        user_id: The owning user's ID, attached as correlation metadata.
+        db: The producer's DB session holding the staged deletes.
+        commit: Zero-arg callable that commits the caller's unit of work.
+        source: Origin label identifying the bulk operation.
+
+    Returns:
+        None.
+    """
+    platform_publisher.publish_many_committing(
+        activity_events.ACTIVITY_DELETED,
+        [{"activity_id": activity_id} for activity_id in activity_ids],
+        source=source,
+        metadata_for=lambda payload: {
+            platform_events.META_ACTIVITY_ID: payload["activity_id"],
+            platform_events.META_USER_ID: user_id,
+        },
+        db=db,
+        commit=commit,
+    )

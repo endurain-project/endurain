@@ -154,3 +154,146 @@ class TestDurableRouting:
 
         mock_outbox.add_to_outbox.assert_not_called()
         platform.events.publish.assert_called_once()
+
+
+class TestPublishManyCommitting:
+    """Batch counterpart of publish_committing, for bulk deletes / bulk enqueues.
+
+    The point is one commit for the whole batch (not one per event) and, on the
+    durable path, propagating staging failures instead of swallowing them.
+    """
+
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
+    def test_stages_all_events_then_commits_once(
+        self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox
+    ):
+        from infra.publisher import publish_many_committing
+
+        mock_runtime.get_active_platform.return_value = MagicMock()
+        mock_req_id.get_request_id.return_value = ""
+        mock_config.settings.JOBS_ENABLED = True
+        mock_registry.registry.subscribers_for.return_value = ("thumb.cleanup",)
+        commit = MagicMock()
+
+        publish_many_committing(
+            "activity.deleted",
+            [{"activity_id": 1}, {"activity_id": 2}, {"activity_id": 3}],
+            source="api:test",
+            db=MagicMock(),
+            commit=commit,
+        )
+
+        assert mock_outbox.add_to_outbox.call_count == 3
+        # Every row is staged uncommitted so it joins the caller's transaction.
+        for call in mock_outbox.add_to_outbox.call_args_list:
+            assert call.kwargs["commit"] is False
+        commit.assert_called_once()
+
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
+    def test_applies_per_payload_metadata(self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox):
+        from infra.publisher import publish_many_committing
+
+        mock_runtime.get_active_platform.return_value = MagicMock()
+        mock_req_id.get_request_id.return_value = ""
+        mock_config.settings.JOBS_ENABLED = True
+        mock_registry.registry.subscribers_for.return_value = ("thumb.cleanup",)
+
+        publish_many_committing(
+            "activity.deleted",
+            [{"activity_id": 1}, {"activity_id": 2}],
+            source="api:test",
+            metadata_for=lambda payload: {"activity_id": payload["activity_id"], "user_id": 9},
+            db=MagicMock(),
+            commit=MagicMock(),
+        )
+
+        staged = [call.args[0] for call in mock_outbox.add_to_outbox.call_args_list]
+        assert [event.metadata["activity_id"] for event in staged] == [1, 2]
+        assert all(event.metadata["user_id"] == 9 for event in staged)
+
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
+    def test_staging_failure_propagates_and_skips_commit(
+        self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox
+    ):
+        """A failed stage must not commit — the caller rolls the whole unit back."""
+        import pytest
+
+        from infra.publisher import publish_many_committing
+
+        mock_runtime.get_active_platform.return_value = MagicMock()
+        mock_req_id.get_request_id.return_value = ""
+        mock_config.settings.JOBS_ENABLED = True
+        mock_registry.registry.subscribers_for.return_value = ("thumb.cleanup",)
+        mock_outbox.add_to_outbox.side_effect = RuntimeError("outbox down")
+        commit = MagicMock()
+
+        with pytest.raises(RuntimeError):
+            publish_many_committing(
+                "activity.deleted",
+                [{"activity_id": 1}],
+                source="api:test",
+                db=MagicMock(),
+                commit=commit,
+            )
+
+        commit.assert_not_called()
+
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
+    def test_best_effort_path_commits_first_then_dispatches(
+        self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox
+    ):
+        from infra.publisher import publish_many_committing
+
+        platform = MagicMock()
+        mock_runtime.get_active_platform.return_value = platform
+        mock_req_id.get_request_id.return_value = ""
+        mock_config.settings.JOBS_ENABLED = False
+        mock_registry.registry.subscribers_for.return_value = ()
+        commit = MagicMock()
+
+        publish_many_committing(
+            "activity.deleted",
+            [{"activity_id": 1}, {"activity_id": 2}],
+            source="api:test",
+            db=MagicMock(),
+            commit=commit,
+        )
+
+        commit.assert_called_once()
+        mock_outbox.add_to_outbox.assert_not_called()
+        assert platform.events.publish.call_count == 2
+
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
+    def test_empty_batch_still_commits_once(self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox):
+        from infra.publisher import publish_many_committing
+
+        mock_runtime.get_active_platform.return_value = MagicMock()
+        mock_req_id.get_request_id.return_value = ""
+        mock_config.settings.JOBS_ENABLED = True
+        mock_registry.registry.subscribers_for.return_value = ("thumb.cleanup",)
+        commit = MagicMock()
+
+        publish_many_committing("activity.deleted", [], source="api:test", db=MagicMock(), commit=commit)
+
+        mock_outbox.add_to_outbox.assert_not_called()
+        commit.assert_called_once()
