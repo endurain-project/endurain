@@ -9,10 +9,34 @@ database, or filesystem I/O.
 """
 
 import statistics
-from datetime import datetime
+from datetime import UTC, datetime
 from statistics import mean
 
 from geopy.distance import geodesic
+
+
+def _elapsed_seconds(start: datetime, end: datetime) -> float:
+    """Return real elapsed seconds between two timestamps.
+
+    Both bounds are converted to UTC first. Subtracting them as-is is not enough:
+    when two aware datetimes share a ``tzinfo`` **object**, Python documents that
+    the offsets are ignored and the result is a plain wall-clock difference — so
+    an activity spanning a DST transition reported an hour more (or less) than it
+    actually took. Naive inputs are assumed UTC, which is the convention every
+    parser writes timestamps in.
+
+    Args:
+        start: Start timestamp.
+        end: End timestamp.
+
+    Returns:
+        Elapsed seconds.
+    """
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=UTC)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=UTC)
+    return (end.astimezone(UTC) - start.astimezone(UTC)).total_seconds()
 
 
 def append_if_not_none(
@@ -161,12 +185,7 @@ def calculate_pace(
     if distance == 0:
         return 0
 
-    # Convert the time strings to datetime objects
-    start_datetime = datetime.fromisoformat(first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
-    end_datetime = datetime.fromisoformat(last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
-
-    # Calculate the time difference in seconds
-    total_time_in_seconds = (end_datetime - start_datetime).total_seconds()
+    total_time_in_seconds = _elapsed_seconds(first_waypoint_time, last_waypoint_time)
 
     # Calculate pace in seconds per meter
     pace_seconds_per_meter = total_time_in_seconds / distance

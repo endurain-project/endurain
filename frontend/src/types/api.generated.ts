@@ -12591,6 +12591,8 @@ export interface operations {
         parameters: {
             query?: {
                 period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to the server's UTC date, which is one day off for callers far enough east or west. */
+                date?: string | null;
             };
             header?: never;
             path: {

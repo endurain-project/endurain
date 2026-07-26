@@ -8,6 +8,7 @@ import {
   editActivity,
   fetchActivity,
   fetchActivityLaps,
+  fetchActivityStats,
   fetchActivityStreams,
   fetchUserActivitiesPage,
   fetchUserActivityTypeCodes,
@@ -485,5 +486,60 @@ describe('fetchUserActivityTypeMap', () => {
   it('returns an empty map when the body is null', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     await expect(fetchUserActivityTypeMap()).resolves.toEqual(new Map())
+  })
+})
+
+describe('local-calendar period anchoring', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sends the viewer local date so the backend resolves the right week/month', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({})
+    await fetchActivityStats(7, 'week')
+
+    const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+    const sentDate = new URLSearchParams(url.split('?')[1]).get('date')
+    const now = new Date()
+    const localToday = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+
+    expect(sentDate).toBe(localToday)
+  })
+
+  it('derives the week range from the local calendar, not UTC', async () => {
+    // 2026-01-05T13:30:00Z is Monday the 5th in UTC but already Tuesday the 6th
+    // for a viewer at UTC+13 — either way the range must start on a Monday and
+    // span exactly seven days in the viewer's own calendar.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-01-05T13:30:00Z'))
+      vi.mocked(apiFetch).mockResolvedValueOnce([])
+      await fetchUserWeekActivities(7, 0)
+
+      const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+      const params = new URLSearchParams(url.split('?')[1])
+      const start = params.get('start_date') as string
+      const end = params.get('end_date') as string
+
+      const [sy, sm, sd] = start.split('-').map(Number)
+      const startLocal = new Date(sy as number, (sm as number) - 1, sd as number)
+      expect(startLocal.getDay()).toBe(1) // Monday in the viewer's calendar
+
+      const [ey, em, ed] = end.split('-').map(Number)
+      const endLocal = new Date(ey as number, (em as number) - 1, ed as number)
+      expect((endLocal.getTime() - startLocal.getTime()) / 86_400_000).toBe(6)
+
+      // The anchor day itself must fall inside the returned week.
+      const now = new Date()
+      const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      expect(todayLocal.getTime()).toBeGreaterThanOrEqual(startLocal.getTime())
+      expect(todayLocal.getTime()).toBeLessThanOrEqual(endLocal.getTime())
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

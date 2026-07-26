@@ -1,6 +1,7 @@
 import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
+import { todayIsoDate } from '@/utils/datetime'
 
 import type {
   ActivitiesPage,
@@ -276,34 +277,39 @@ export async function fetchFollowersActivities(
   return (dtos ?? []).map(mapActivity)
 }
 
-/** Formats a `Date` as a `YYYY-MM-DD` string in UTC. */
+/** Formats a `Date` as a `YYYY-MM-DD` string using its local calendar fields. */
 function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 /**
- * Computes the inclusive Monday–Sunday date range (UTC) for an ISO-week offset,
- * where `0` is the current week and each increment steps one week into the past.
+ * Computes the inclusive Monday–Sunday date range for an ISO-week offset, where
+ * `0` is the current week and each increment steps one week into the past.
+ *
+ * Uses the viewer's **local** calendar. Reading UTC fields meant a user far
+ * enough east or west was shown the neighbouring week for part of every day —
+ * for someone at UTC+13, all of Monday morning belonged to "last week".
  */
 function weekDateRange(weekOffset: number): { startDate: string; endDate: string } {
   const now = new Date()
-  const mondayIndex = (now.getUTCDay() + 6) % 7 // 0 = Monday
+  const mondayIndex = (now.getDay() + 6) % 7 // 0 = Monday
   const monday = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - mondayIndex - weekOffset * 7,
-    ),
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - mondayIndex - weekOffset * 7,
   )
   const sunday = new Date(monday)
-  sunday.setUTCDate(monday.getUTCDate() + 6)
+  sunday.setDate(monday.getDate() + 6)
   return { startDate: isoDate(monday), endDate: isoDate(sunday) }
 }
 
-/** Computes the inclusive first-of-month → today date range (UTC). */
+/** Computes the inclusive first-of-month → today date range in the viewer's local calendar. */
 function currentMonthRange(): { startDate: string; endDate: string } {
   const now = new Date()
-  const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+  const first = new Date(now.getFullYear(), now.getMonth(), 1)
   return { startDate: isoDate(first), endDate: isoDate(now) }
 }
 
@@ -486,6 +492,9 @@ export async function fetchUserActivityTypeCodes(signal?: AbortSignal): Promise<
  * Fetches a user's per-sport aggregated stats for the current week or month,
  * powering the home dashboard's distance/time/calories summary.
  *
+ * Sends the viewer's local calendar date so the backend resolves "this week" /
+ * "this month" against their calendar rather than the server's UTC one.
+ *
  * @param userId - The user whose stats to fetch.
  * @param timeframe - `week` (this week) or `month` (this month).
  * @param signal - Optional abort signal for cancellation.
@@ -497,7 +506,7 @@ export async function fetchActivityStats(
   timeframe: ActivityStatsTimeframe,
   signal?: AbortSignal,
 ): Promise<ActivityStats> {
-  const params = new URLSearchParams({ period: timeframe })
+  const params = new URLSearchParams({ period: timeframe, date: todayIsoDate() })
   const stats = await apiFetch<ActivityStats | null>(
     `/activities/users/${userId}/stats?${params.toString()}`,
     { signal },

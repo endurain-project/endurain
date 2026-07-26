@@ -200,9 +200,20 @@ def read_user_activity_stats(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
     period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
+    anchor_date: Annotated[
+        date | None,
+        Query(
+            alias="date",
+            description=(
+                "The caller's local calendar date, used to decide which week or month "
+                "is current. Defaults to the server's UTC date, which is one day off "
+                "for callers far enough east or west."
+            ),
+        ),
+    ] = None,
 ) -> activities_schema.ActivityStats:
     """Aggregate per-sport stats for a user's current ``week`` or ``month``."""
-    return activities_service.period_stats(user_id, period, token_user_id, db)
+    return activities_service.period_stats(user_id, period, token_user_id, db, anchor_date)
 
 
 @router.get(

@@ -106,9 +106,28 @@ def resolve_max_heart_rate(user: users_schema.UsersRead) -> int | None:
     if user.max_heart_rate:
         return user.max_heart_rate
     if user.birthdate:
-        current_year = datetime.datetime.now(datetime.UTC).year
-        return _DEFAULT_MAX_HEART_RATE - (current_year - user.birthdate.year)
+        return _DEFAULT_MAX_HEART_RATE - _age_in_years(user.birthdate)
     return None
+
+
+def _age_in_years(birthdate: datetime.date) -> int:
+    """Return completed years lived, as of today.
+
+    Subtracting birth years alone counts someone born in December as a year older
+    for the eleven months before their birthday, which skews the ``220 - age``
+    fallback by a full year. Comparing (month, day) fixes that; the remaining
+    timezone sensitivity is one day around the birthday itself, which is inherent
+    to a request that carries no timezone.
+
+    Args:
+        birthdate: The user's date of birth.
+
+    Returns:
+        Completed years since ``birthdate``.
+    """
+    today = datetime.datetime.now(datetime.UTC).date()
+    had_birthday = (today.month, today.day) >= (birthdate.month, birthdate.day)
+    return today.year - birthdate.year - (0 if had_birthday else 1)
 
 
 def compute_hr_zone_breakdown_sync(

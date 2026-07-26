@@ -128,6 +128,23 @@ class LapMetrics(TypedDict):
     enhanced_max_speed: float | None
 
 
+def _parse_utc(time_str: str) -> datetime:
+    """Parse a parser-emitted timestamp as a UTC-aware datetime.
+
+    Every parser writes timestamps through ``core_timezone.format_utc``, which
+    emits a UTC wall clock with no offset. Attaching UTC here makes that
+    convention explicit at the point of use, so comparisons and subtractions are
+    aware-to-aware instead of relying on both sides happening to be naive.
+
+    Args:
+        time_str: Timestamp string in ``%Y-%m-%dT%H:%M:%S`` form.
+
+    Returns:
+        The parsed instant, as UTC-aware.
+    """
+    return datetime.strptime(time_str, _DT_FMT).replace(tzinfo=UTC)
+
+
 def filter_waypoints_by_time_range(
     waypoints: list[dict],
     start_time: str,
@@ -144,9 +161,9 @@ def filter_waypoints_by_time_range(
     Returns:
         Filtered list of waypoint dicts.
     """
-    start_dt = datetime.strptime(start_time, _DT_FMT)
-    end_dt = datetime.strptime(end_time, _DT_FMT)
-    return [wp for wp in waypoints if start_dt <= datetime.strptime(wp["time"], _DT_FMT) <= end_dt]
+    start_dt = _parse_utc(start_time)
+    end_dt = _parse_utc(end_time)
+    return [wp for wp in waypoints if start_dt <= _parse_utc(wp["time"]) <= end_dt]
 
 
 def _compute_lap_metrics(
@@ -242,7 +259,7 @@ def _compute_lap_metrics(
         )
         norm_power = activities_computation.calculate_np(lap_power)
 
-    elapsed = (datetime.strptime(end_time, _DT_FMT) - datetime.strptime(start_time, _DT_FMT)).total_seconds()
+    elapsed = (_parse_utc(end_time) - _parse_utc(start_time)).total_seconds()
 
     return {
         "start_time": start_time,
@@ -375,10 +392,7 @@ def filter_streams_by_time_range(
         end_time = end_time.replace(tzinfo=UTC)
 
     def _parse_wp_time(time_str: str) -> datetime:
-        dt = datetime.strptime(time_str, _DT_FMT)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
+        return _parse_utc(time_str)
 
     return {
         key: [wp for wp in waypoints if start_time <= _parse_wp_time(wp["time"]) <= end_time]

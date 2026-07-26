@@ -228,3 +228,48 @@ class TestAppendIfNotNone:
         waypoints = []
         append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=None, key="hr")
         assert len(waypoints) == 0
+
+
+class TestCalculatePaceAcrossDstAndOffsets:
+    """Duration math must run on the aware instants, not on stripped wall clocks.
+
+    Reformatting both bounds through ``strftime``/``fromisoformat`` dropped their
+    offsets purely to make them subtractable, which silently produced the wrong
+    elapsed time whenever the two carried different offsets.
+    """
+
+    def test_duration_is_correct_across_a_dst_transition(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        import modules.activities.activity_file_import.computation as computation
+
+        lisbon = ZoneInfo("Europe/Lisbon")
+        # Lisbon springs forward 01:00 -> 02:00 on 2024-03-31: the wall clock
+        # advances 2h while only 1h of real time elapses.
+        start = datetime(2024, 3, 31, 0, 30, tzinfo=lisbon)
+        end = datetime(2024, 3, 31, 2, 30, tzinfo=lisbon)
+
+        pace = computation.calculate_pace(1000, start, end)
+
+        assert pace == 3600 / 1000  # one real hour, not two
+
+    def test_duration_is_correct_for_mixed_offsets(self):
+        from datetime import UTC, datetime, timedelta, timezone
+
+        import modules.activities.activity_file_import.computation as computation
+
+        start = datetime(2024, 1, 15, 10, 0, tzinfo=timezone(timedelta(hours=2)))
+        end = datetime(2024, 1, 15, 8, 30, tzinfo=UTC)  # 30 minutes after 08:00Z
+
+        pace = computation.calculate_pace(600, start, end)
+
+        assert pace == 1800 / 600
+
+    def test_zero_distance_returns_zero(self):
+        from datetime import UTC, datetime
+
+        import modules.activities.activity_file_import.computation as computation
+
+        now = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
+        assert computation.calculate_pace(0, now, now) == 0

@@ -179,3 +179,67 @@ class TestPeriodBounds:
         # window because the bound carried the current time of day.
         assert (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0)
         assert end.day == calendar.monthrange(start.year, start.month)[1]
+
+
+class TestAnchoredPeriodBounds:
+    """The caller supplies its local date so "this week/month" matches its calendar.
+
+    The request carries no timezone, so without an anchor the server can only use
+    its own UTC date - a day behind for callers far east, a day ahead for callers
+    far west, which lands them in the neighbouring week or month at the edges.
+    """
+
+    def test_week_bounds_use_the_supplied_anchor(self):
+        from datetime import date
+
+        import modules.activities.activity.service as service
+
+        # Thu 2026-01-01; the ISO week runs Mon 2025-12-29 .. Sun 2026-01-04.
+        start, end = service._week_bounds(0, date(2026, 1, 1))
+
+        assert start.date() == date(2025, 12, 29)
+        assert end.date() == date(2026, 1, 4)
+
+    def test_week_anchor_at_a_year_boundary_beats_the_server_clock(self):
+        from datetime import date
+
+        import modules.activities.activity.service as service
+
+        # A caller at UTC+13 is already on Mon 2026-01-05 while the server's UTC
+        # date is still Sun 2026-01-04; the anchor must win.
+        anchored, _ = service._week_bounds(0, date(2026, 1, 5))
+        server_side, _ = service._week_bounds(0, date(2026, 1, 4))
+
+        assert anchored.date() == date(2026, 1, 5)
+        assert server_side.date() == date(2025, 12, 29)
+
+    def test_month_bounds_use_the_supplied_anchor(self):
+        from datetime import date
+
+        import modules.activities.activity.service as service
+
+        start, end = service._month_bounds(date(2026, 2, 17))
+
+        assert start.date() == date(2026, 2, 1)
+        assert end.date() == date(2026, 2, 28)
+
+    def test_falls_back_to_the_server_date_when_no_anchor(self):
+        from datetime import UTC, datetime
+
+        import modules.activities.activity.service as service
+
+        start, _ = service._week_bounds()
+
+        assert start.tzinfo is not None
+        assert start.date() <= datetime.now(UTC).date()
+
+    def test_period_stats_forwards_the_anchor(self):
+        from datetime import date
+        from unittest.mock import patch
+
+        import modules.activities.activity.service as service
+
+        with patch.object(service, "month_stats") as month_stats:
+            service.period_stats(1, "month", 1, "db", date(2026, 2, 17))
+
+        month_stats.assert_called_once_with(1, 1, "db", date(2026, 2, 17))
