@@ -13,7 +13,8 @@ const activityDto: GearActivityDto = {
   id: 11,
   name: 'Morning Ride',
   activity_type: 1,
-  start_time: '2024-03-01T07:00:00',
+  start_time: '2024-03-01T07:00:00Z',
+  timezone: 'Europe/Lisbon',
   distance: 25_000,
   total_timer_time: 3600,
   is_hidden: false,
@@ -23,7 +24,8 @@ const mappedActivity: GearActivity = {
   id: 11,
   name: 'Morning Ride',
   activityType: 1,
-  startTime: '2024-03-01T07:00:00',
+  startTime: '2024-03-01T07:00:00Z',
+  timezone: 'Europe/Lisbon',
   distance: 25_000,
   totalTimerTime: 3600,
 }
@@ -41,6 +43,7 @@ describe('mapGearActivity', () => {
       name: 'Run',
       activityType: 2,
       startTime: null,
+      timezone: null,
       distance: 5000,
       totalTimerTime: null,
     })

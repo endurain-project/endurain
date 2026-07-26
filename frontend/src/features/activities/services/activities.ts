@@ -55,7 +55,12 @@ export function mapActivity(dto: ActivityDto): Activity {
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
 
-    startTime: dto.start_time_tz_applied ?? dto.start_time ?? null,
+    // The raw UTC instant plus the recording timezone, so views can format in
+    // the activity's own zone. The pre-localized `start_time_tz_applied` is a
+    // wall clock with no offset, which only renders correctly by accident (the
+    // browser reinterprets it in the viewer's zone) and breaks across DST.
+    startTime: dto.start_time ?? null,
+    timezone: dto.timezone ?? null,
     city: dto.city ?? null,
     town: dto.town ?? null,
     country: dto.country ?? null,

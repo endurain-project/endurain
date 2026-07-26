@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useGearActivitiesQuery } from '@/features/gears/composables/useGearActivities'
+import { formatZonedDateTime } from '@/utils/datetime'
 
 /**
  * The activities section of the gear detail page: a read-only, paginated list
@@ -45,14 +46,10 @@ const { totalPages: activitiesTotalPages } = useListPagination(
 )
 
 /** Formats an activity start time as a localized medium date. */
-function formatActivityDate(startTime: string | null): string {
-  if (!startTime) {
-    return ''
-  }
-  const date = new Date(startTime)
-  return Number.isNaN(date.getTime())
-    ? ''
-    : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(date)
+function formatActivityDate(activity: GearActivity): string {
+  return formatZonedDateTime(activity.startTime, activity.timezone, locale.value, {
+    dateStyle: 'medium',
+  })
 }
 </script>
 
@@ -96,7 +93,7 @@ function formatActivityDate(startTime: string | null): string {
         >
           <span class="min-w-0 flex-1 truncate text-body">{{ row.activity.name }}</span>
           <span class="shrink-0 text-hint tabular-nums">{{
-            formatActivityDate(row.activity.startTime)
+            formatActivityDate(row.activity)
           }}</span>
         </RouterLink>
       </li>
