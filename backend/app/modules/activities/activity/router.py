@@ -206,8 +206,7 @@ def read_user_activity_stats(
             alias="date",
             description=(
                 "The caller's local calendar date, used to decide which week or month "
-                "is current. Defaults to the server's UTC date, which is one day off "
-                "for callers far enough east or west."
+                "is current. Defaults to today in the caller's configured timezone."
             ),
         ),
     ] = None,

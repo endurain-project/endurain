@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
@@ -151,6 +152,21 @@ class TestGear:
 
 
 class TestUserStats:
+    @pytest.fixture(autouse=True)
+    def _stub_user_local_today(self):
+        """Pin the fallback anchor.
+
+        Without a ``date`` query param the service resolves today in the
+        requester's timezone, which is a DB read the mocked session cannot serve.
+        """
+        from datetime import date
+
+        with patch(
+            "modules.activities.activity.service.users_utils.user_local_today",
+            return_value=date(2026, 3, 12),
+        ):
+            yield
+
     def test_week(self, mock_db):
         with (
             patch("modules.activities.activity.router.activities_crud.get_user_activities_per_timeframe") as g,

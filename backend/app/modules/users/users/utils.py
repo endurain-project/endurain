@@ -198,12 +198,25 @@ async def delete_user_photo_filesystem(user_id: int) -> None:
     await core_file_uploads.delete_files_by_pattern(core_config.USER_IMAGES_DIR, f"{user_id}.*")
 
 
-def resolve_user_timezone(user_id: int, db: Session) -> str:
-    """Return the athlete's IANA timezone, falling back to the server's.
+def timezone_or_default(timezone: str | None) -> str:
+    """Return ``timezone`` if set, else the server default.
 
     ``users.timezone`` is nullable: accounts that predate the setting (and users
     who never opened their profile) have none, in which case the server default
-    is the only answer available.
+    is the only answer available. Callers that already hold a user object should
+    use this rather than re-reading the row via :func:`resolve_user_timezone`.
+
+    Args:
+        timezone: An IANA timezone name, or None.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return timezone or core_config.settings.TZ
+
+
+def resolve_user_timezone(user_id: int, db: Session) -> str:
+    """Return the athlete's IANA timezone, falling back to the server's.
 
     Args:
         user_id: The user whose timezone to resolve.
@@ -213,9 +226,7 @@ def resolve_user_timezone(user_id: int, db: Session) -> str:
         An IANA timezone name.
     """
     user = users_crud.get_user_by_id(user_id, db)
-    if user is not None and user.timezone:
-        return user.timezone
-    return core_config.settings.TZ
+    return timezone_or_default(user.timezone if user is not None else None)
 
 
 def user_local_today(user_id: int, db: Session) -> datetime_date:

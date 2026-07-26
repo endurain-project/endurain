@@ -19,6 +19,7 @@ import modules.activities.activity_summaries.crud as summary_crud
 import modules.activities.activity_summaries.dependencies as summary_deps
 import modules.activities.activity_summaries.schema as summary_schema
 import modules.auth.dependencies as auth_dependencies
+import modules.users.users.utils as users_utils
 
 router = APIRouter()
 
@@ -152,9 +153,9 @@ def read_activity_summary(
     """
     # Server-side fallback anchor for callers that omit ``date``/``year``. The
     # web client always sends its own local date (the request carries no
-    # timezone, so the server cannot derive it), which is what makes the
-    # week/month views line up with the user's calendar.
-    today = datetime.now(UTC).date()
+    # timezone, so the server cannot derive it); when it does not, the caller's
+    # configured timezone is the same frame of reference it would have sent.
+    today = users_utils.user_local_today(token_user_id, db)
 
     if view_type == "week":
         current_date = _parse_target_date(target_date_str, today)

@@ -1,8 +1,23 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(autouse=True)
+def stub_user_local_today():
+    """Pin the fallback anchor.
+
+    Callers that omit ``date``/``year`` fall back to today in the *user's*
+    timezone, which is a DB read the mocked session cannot serve.
+    """
+    with patch(
+        "modules.activities.activity_summaries.router.users_utils.user_local_today",
+        return_value=date(2026, 3, 12),
+    ) as mock:
+        yield mock
 
 
 def _build_app(mock_db):

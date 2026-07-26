@@ -1,9 +1,27 @@
 """Tests for the activities read/stats/feed service orchestration."""
 
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+
+# A Thursday, so week bounds straddle a month boundary in neither direction.
+_TODAY = date(2026, 3, 12)
+
+
+@pytest.fixture(autouse=True)
+def stub_user_local_today():
+    """Pin "today".
+
+    The service resolves the anchor in the *requester's* timezone, which is a DB
+    read; without this the bounds tests would also drift with the wall clock.
+    """
+    with patch(
+        "modules.activities.activity.service.users_utils.user_local_today",
+        return_value=_TODAY,
+    ) as mock:
+        yield mock
 
 
 class TestGetActivitiesInTimeframe:
@@ -150,7 +168,7 @@ class TestPeriodBounds:
     def test_week_bounds_are_midnight_aligned(self):
         import modules.activities.activity.service as service
 
-        start, end = service._week_bounds()
+        start, end = service._week_bounds(1, MagicMock())
 
         assert (start.hour, start.minute, start.second, start.microsecond) == (0, 0, 0, 0)
         assert (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0)
@@ -160,8 +178,8 @@ class TestPeriodBounds:
     def test_week_bounds_walk_back_whole_weeks(self):
         import modules.activities.activity.service as service
 
-        this_week, _ = service._week_bounds()
-        last_week, _ = service._week_bounds(1)
+        this_week, _ = service._week_bounds(1, MagicMock())
+        last_week, _ = service._week_bounds(1, MagicMock(), 1)
 
         assert (this_week - last_week).days == 7
         assert last_week.weekday() == 0
@@ -171,7 +189,7 @@ class TestPeriodBounds:
 
         import modules.activities.activity.service as service
 
-        start, end = service._month_bounds()
+        start, end = service._month_bounds(1, MagicMock())
 
         assert start.day == 1
         assert (start.hour, start.minute, start.second, start.microsecond) == (0, 0, 0, 0)
@@ -184,59 +202,63 @@ class TestPeriodBounds:
 class TestAnchoredPeriodBounds:
     """The caller supplies its local date so "this week/month" matches its calendar.
 
-    The request carries no timezone, so without an anchor the server can only use
-    its own UTC date - a day behind for callers far east, a day ahead for callers
-    far west, which lands them in the neighbouring week or month at the edges.
+    The request carries no timezone, so the date has to come from somewhere: the
+    client's own anchor when it sends one, otherwise the requester's configured
+    timezone. The server's UTC date is a day behind for callers far east and a
+    day ahead for callers far west, landing them in the neighbouring week or
+    month at the edges.
     """
 
     def test_week_bounds_use_the_supplied_anchor(self):
-        from datetime import date
-
         import modules.activities.activity.service as service
 
         # Thu 2026-01-01; the ISO week runs Mon 2025-12-29 .. Sun 2026-01-04.
-        start, end = service._week_bounds(0, date(2026, 1, 1))
+        start, end = service._week_bounds(1, MagicMock(), 0, date(2026, 1, 1))
 
         assert start.date() == date(2025, 12, 29)
         assert end.date() == date(2026, 1, 4)
 
     def test_week_anchor_at_a_year_boundary_beats_the_server_clock(self):
-        from datetime import date
-
         import modules.activities.activity.service as service
 
         # A caller at UTC+13 is already on Mon 2026-01-05 while the server's UTC
         # date is still Sun 2026-01-04; the anchor must win.
-        anchored, _ = service._week_bounds(0, date(2026, 1, 5))
-        server_side, _ = service._week_bounds(0, date(2026, 1, 4))
+        anchored, _ = service._week_bounds(1, MagicMock(), 0, date(2026, 1, 5))
+        server_side, _ = service._week_bounds(1, MagicMock(), 0, date(2026, 1, 4))
 
         assert anchored.date() == date(2026, 1, 5)
         assert server_side.date() == date(2025, 12, 29)
 
     def test_month_bounds_use_the_supplied_anchor(self):
-        from datetime import date
-
         import modules.activities.activity.service as service
 
-        start, end = service._month_bounds(date(2026, 2, 17))
+        start, end = service._month_bounds(1, MagicMock(), date(2026, 2, 17))
 
         assert start.date() == date(2026, 2, 1)
         assert end.date() == date(2026, 2, 28)
 
-    def test_falls_back_to_the_server_date_when_no_anchor(self):
-        from datetime import UTC, datetime
-
+    def test_falls_back_to_the_requesters_timezone_when_no_anchor(self, stub_user_local_today):
+        """No anchor must mean the requester's calendar, never the server's."""
         import modules.activities.activity.service as service
 
-        start, _ = service._week_bounds()
+        db = MagicMock()
+        start, end = service._week_bounds(7, db)
 
+        stub_user_local_today.assert_called_once_with(7, db)
+        # _TODAY is Thu 2026-03-12 -> Mon 2026-03-09 .. Sun 2026-03-15.
+        assert start.date() == date(2026, 3, 9)
+        assert end.date() == date(2026, 3, 15)
         assert start.tzinfo is not None
-        assert start.date() <= datetime.now(UTC).date()
+
+    def test_an_anchor_does_not_hit_the_database(self, stub_user_local_today):
+        """The client's own date is authoritative; no need to resolve a timezone."""
+        import modules.activities.activity.service as service
+
+        service._week_bounds(1, MagicMock(), 0, date(2026, 1, 1))
+
+        stub_user_local_today.assert_not_called()
 
     def test_period_stats_forwards_the_anchor(self):
-        from datetime import date
-        from unittest.mock import patch
-
         import modules.activities.activity.service as service
 
         with patch.object(service, "month_stats") as month_stats:
