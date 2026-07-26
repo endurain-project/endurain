@@ -204,7 +204,6 @@ class TestToReadSchema:
         mock_schema = MagicMock()
         mock_validate.return_value = mock_schema
         orm_lap = MagicMock()
-        result = crud._to_read_schema(orm_lap, "Europe/London")
+        result = crud._to_read_schema(orm_lap)
         mock_validate.assert_called_once_with(orm_lap)
-        assert mock_schema.timezone == "Europe/London"
         assert result == mock_schema

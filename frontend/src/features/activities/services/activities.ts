@@ -55,10 +55,9 @@ export function mapActivity(dto: ActivityDto): Activity {
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
 
-    // The raw UTC instant plus the recording timezone, so views can format in
-    // the activity's own zone. The pre-localized `start_time_tz_applied` is a
-    // wall clock with no offset, which only renders correctly by accident (the
-    // browser reinterprets it in the viewer's zone) and breaks across DST.
+    // The UTC instant plus the recording timezone. Views localize for display
+    // via `formatZonedDateTime`, so the athlete's own wall clock is shown to
+    // every viewer regardless of where they are.
     startTime: dto.start_time ?? null,
     timezone: dto.timezone ?? null,
     city: dto.city ?? null,

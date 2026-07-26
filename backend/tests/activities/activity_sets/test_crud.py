@@ -57,7 +57,6 @@ class TestGetActivitySets:
             duration=300.0,
             set_type="interval",
             start_time=MagicMock(),
-            timezone="UTC",
         )
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(m.ActivitySets, id=1, activity_id=1)])
         r = crud.get_activity_sets(activity_id=1, token_user_id=1, db=mock_db)

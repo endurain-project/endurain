@@ -54,22 +54,17 @@ _LAP_COLUMNS: tuple[str, ...] = (
 
 def _to_read_schema(
     orm_lap: activity_laps_models.ActivityLaps,
-    timezone: str | None,
 ) -> activity_laps_schema.ActivityLapsRead:
     """
-    Convert an ORM ActivityLaps to a Read schema.
+    Convert an ORM row to its Read schema.
 
     Args:
         orm_lap: The ORM model instance.
-        timezone: IANA timezone name from the
-            parent activity.
 
     Returns:
-        An ActivityLapsRead schema instance.
+        A ActivityLapsRead schema instance.
     """
-    schema = activity_laps_schema.ActivityLapsRead.model_validate(orm_lap)
-    schema.timezone = timezone
-    return schema
+    return activity_laps_schema.ActivityLapsRead.model_validate(orm_lap)
 
 
 @core_decorators.handle_db_errors
@@ -109,7 +104,7 @@ def get_activity_laps(
     if not activity_laps:
         return None
 
-    return [_to_read_schema(lap, activity.timezone) for lap in activity_laps]
+    return [_to_read_schema(lap) for lap in activity_laps]
 
 
 @core_decorators.handle_db_errors
@@ -147,8 +142,6 @@ def get_activities_laps(
     if not activities_list:
         return []
 
-    activity_map = {activity.id: activity for activity in activities_list}
-
     allowed_ids = [activity.id for activity in activities_list if activity.user_id == token_user_id]
 
     if not allowed_ids:
@@ -162,13 +155,7 @@ def get_activities_laps(
     if not activity_laps:
         return []
 
-    return [
-        _to_read_schema(
-            lap,
-            activity_map[lap.activity_id].timezone,
-        )
-        for lap in activity_laps
-    ]
+    return [_to_read_schema(lap) for lap in activity_laps]
 
 
 @core_decorators.handle_db_errors
@@ -203,7 +190,7 @@ def get_public_activity_laps(
     if not activity_laps:
         return None
 
-    return [_to_read_schema(lap, activity.timezone) for lap in activity_laps]
+    return [_to_read_schema(lap) for lap in activity_laps]
 
 
 @core_decorators.handle_db_errors

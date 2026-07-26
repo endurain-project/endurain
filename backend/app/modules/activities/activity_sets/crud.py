@@ -16,22 +16,17 @@ import modules.activities.activity_sets.schema as activity_sets_schema
 
 def _to_read_schema(
     orm_set: activity_sets_models.ActivitySets,
-    timezone: str | None,
 ) -> activity_sets_schema.ActivitySetsRead:
     """
-    Convert an ORM ActivitySets to a Read schema.
+    Convert an ORM row to its Read schema.
 
     Args:
         orm_set: The ORM model instance.
-        timezone: IANA timezone name from the
-            parent activity.
 
     Returns:
-        An ActivitySetsRead schema instance.
+        A ActivitySetsRead schema instance.
     """
-    schema = activity_sets_schema.ActivitySetsRead.model_validate(orm_set)
-    schema.timezone = timezone
-    return schema
+    return activity_sets_schema.ActivitySetsRead.model_validate(orm_set)
 
 
 @core_decorators.handle_db_errors
@@ -71,7 +66,7 @@ def get_activity_sets(
     if not activity_sets:
         return None
 
-    return [_to_read_schema(s, activity.timezone) for s in activity_sets]
+    return [_to_read_schema(s) for s in activity_sets]
 
 
 @core_decorators.handle_db_errors
@@ -106,8 +101,6 @@ def get_activities_sets(
     if not activities:
         return []
 
-    activity_map = {activity.id: activity for activity in activities}
-
     allowed_ids = [activity.id for activity in activities if activity.user_id == token_user_id]
 
     if not allowed_ids:
@@ -121,13 +114,7 @@ def get_activities_sets(
     if not activity_sets:
         return []
 
-    return [
-        _to_read_schema(
-            s,
-            activity_map[s.activity_id].timezone,
-        )
-        for s in activity_sets
-    ]
+    return [_to_read_schema(s) for s in activity_sets]
 
 
 @core_decorators.handle_db_errors
@@ -162,7 +149,7 @@ def get_public_activity_sets(
     if not activity_sets:
         return None
 
-    return [_to_read_schema(s, activity.timezone) for s in activity_sets]
+    return [_to_read_schema(s) for s in activity_sets]
 
 
 @core_decorators.handle_db_errors

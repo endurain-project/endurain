@@ -105,13 +105,9 @@ class TestTransformSchemaToModel:
 class TestSerializeActivity:
     @patch("modules.activities.activity.serializers.activity_thumbnail_render")
     @patch("modules.activities.activity.serializers.activities_schema.Activity")
-    @patch("modules.activities.activity.serializers.core_timezone")
-    def test_serialize_basic(self, mock_tz, mock_schema_cls, mock_thumbnail):
+    def test_serialize_basic(self, mock_schema_cls, mock_thumbnail):
         from modules.activities.activity.serializers import serialize_activity
 
-        mock_tz.format_aware_datetime.side_effect = lambda dt, tz: (
-            "2024-01-15T08:00:00" if tz is None else "2024-01-15T09:00:00"
-        )
         mock_schema = MagicMock()
         mock_schema_cls.model_validate.return_value = mock_schema
         mock_thumbnail.thumbnail_url.return_value = "/activity_thumbnails/1.webp"
@@ -119,24 +115,16 @@ class TestSerializeActivity:
         activity = MagicMock()
         activity.timezone = "Europe/Lisbon"
         activity.map_thumbnail_path = "1.webp"
-        activity.start_time = datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
-        activity.end_time = datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
-        activity.created_at = datetime(2024, 1, 15, 7, 0, 0, tzinfo=UTC)
 
         result = serialize_activity(activity)
 
-        # Only the three *_tz_applied display fields are formatted; the raw
-        # datetimes keep the aware UTC values validated off the ORM row.
-        assert mock_tz.format_aware_datetime.call_count == 3
-        assert all(call.args[1] == "Europe/Lisbon" for call in mock_tz.format_aware_datetime.call_args_list)
-        assert result.start_time_tz_applied == "2024-01-15T09:00:00"
         assert result.map_thumbnail_path == "/activity_thumbnails/1.webp"
         mock_thumbnail.thumbnail_url.assert_called_once_with("1.webp", activity.id)
         mock_schema_cls.model_validate.assert_called_once_with(activity)
 
     @patch("modules.activities.activity.serializers.activity_thumbnail_render")
-    def test_raw_datetimes_stay_aware_utc(self, mock_thumbnail):
-        """The API must emit a real instant, not a server-local wall clock."""
+    def test_datetimes_are_aware_utc_instants(self, mock_thumbnail):
+        """The API emits real instants; localizing for display is the client's job."""
         from modules.activities.activity.serializers import serialize_activity
 
         mock_thumbnail.thumbnail_url.return_value = None
@@ -147,10 +135,9 @@ class TestSerializeActivity:
         assert result.start_time == datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
         assert result.end_time == datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
         assert result.created_at == datetime(2024, 1, 15, 7, 0, 0, tzinfo=UTC)
-        # ...while the display fields are localized to the activity's timezone
-        # (Asia/Tokyo is UTC+9, so 08:00Z is 17:00 local).
-        assert result.start_time_tz_applied == "2024-01-15T17:00:00"
-        assert result.end_time_tz_applied == "2024-01-15T18:00:00"
+        # The zone travels alongside, so a client can render the athlete's local
+        # wall clock without the server pre-formatting anything.
+        assert result.timezone == "Asia/Tokyo"
 
 
 def _activity_orm_stub():
@@ -176,8 +163,7 @@ def _activity_orm_stub():
 
 
 class TestApplyVisibilityMask:
-    def test_hide_start_time_also_clears_localized_fields(self):
-        """The *_tz_applied fields carry the same instant, so they must be masked too."""
+    def test_hide_start_time_clears_both_timestamps(self):
         from modules.activities.activity.schema import Activity
         from modules.activities.activity.serializers import apply_visibility_mask
 
@@ -186,9 +172,7 @@ class TestApplyVisibilityMask:
             name="Ride",
             activity_type=5,
             start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
-            start_time_tz_applied="2024-01-15T09:00:00",
             end_time=datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC),
-            end_time_tz_applied="2024-01-15T10:00:00",
             hide_start_time=True,
         )
 
@@ -196,8 +180,6 @@ class TestApplyVisibilityMask:
 
         assert schema.start_time is None
         assert schema.end_time is None
-        assert schema.start_time_tz_applied is None
-        assert schema.end_time_tz_applied is None
 
     def test_owner_keeps_everything(self):
         from modules.activities.activity.schema import Activity
@@ -207,13 +189,13 @@ class TestApplyVisibilityMask:
             distance=1000,
             name="Ride",
             activity_type=5,
-            start_time_tz_applied="2024-01-15T09:00:00",
+            start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
             hide_start_time=True,
         )
 
         apply_visibility_mask(schema, is_owner=True)
 
-        assert schema.start_time_tz_applied == "2024-01-15T09:00:00"
+        assert schema.start_time == datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
 
 
 class TestCalculateActivityStatsExtended:

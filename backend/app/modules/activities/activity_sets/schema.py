@@ -5,14 +5,10 @@ from datetime import datetime
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     StrictFloat,
     StrictInt,
     StrictStr,
-    field_serializer,
 )
-
-import core.timezone as core_timezone
 
 
 class ActivitySetsBase(BaseModel):
@@ -58,34 +54,23 @@ class ActivitySetsRead(ActivitySetsBase):
     """
     Schema for reading activity workout sets.
 
+    ``start_time`` crosses the API as a timezone-aware UTC instant, matching the
+    parent activity. Clients localize it for display using that activity's
+    ``timezone`` — the server no longer ships a pre-formatted wall clock, which
+    carried no offset and so could not be converted or round-tripped.
+
     Attributes:
         id: Activity set primary key.
         activity_id: Parent activity ID.
-        start_time: Set start time as datetime.
-        timezone: Activity timezone for
-            serialization (excluded from output).
+        start_time: Set start as a timezone-aware UTC instant.
     """
 
     id: StrictInt
     activity_id: StrictInt
     start_time: datetime  # type: ignore[assignment]
-    timezone: StrictStr | None = Field(default=None, exclude=True)
 
     model_config = ConfigDict(
         from_attributes=True,
         extra="forbid",
         validate_assignment=True,
     )
-
-    @field_serializer("start_time")
-    def serialize_start_time(self, value: datetime) -> str:
-        """
-        Format start_time with activity timezone.
-
-        Args:
-            value: The datetime value to serialize.
-
-        Returns:
-            Formatted datetime string.
-        """
-        return core_timezone.format_aware_datetime(value, self.timezone)
