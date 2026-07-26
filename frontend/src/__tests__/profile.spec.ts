@@ -87,6 +87,16 @@ describe('mapProfileDetails', () => {
     expect(profile.privacy.hideStartTime).toBe(true)
     expect(profile.privacy.hideGear).toBe(true)
   })
+
+  it('maps the athlete timezone, defaulting to null when unset', () => {
+    expect(mapProfileDetails(makeProfileDto({ timezone: 'America/Los_Angeles' })).timezone).toBe(
+      'America/Los_Angeles',
+    )
+    // Accounts that predate the setting have no value; null means "fall back to
+    // the server timezone" for GPS-less activities.
+    expect(mapProfileDetails(makeProfileDto({ timezone: null })).timezone).toBeNull()
+    expect(mapProfileDetails(makeProfileDto()).timezone).toBeNull()
+  })
 })
 
 describe('mapPrivacySettings', () => {
@@ -132,6 +142,7 @@ describe('profile service requests', () => {
       maxHeartRate: 188,
       preferredLanguage: 'pt-PT',
       firstDayOfWeek: 'sunday',
+      timezone: 'America/Los_Angeles',
     }
 
     await updateProfile(input)
@@ -150,6 +161,7 @@ describe('profile service requests', () => {
       max_heart_rate: 188,
       preferred_language: 'pt-PT',
       first_day_of_week: 'sunday',
+      timezone: 'America/Los_Angeles',
     })
   })
 

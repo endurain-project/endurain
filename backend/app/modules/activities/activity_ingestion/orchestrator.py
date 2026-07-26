@@ -212,13 +212,15 @@ def parse_file(
     file_extension: str,
     filename: str,
     activity_name: str | None = None,
+    default_timezone: str | None = None,
 ) -> dict | None:
     try:
         if filename.lower() != "bulk_import/__init__.py":
             core_logger.print_to_log(f"Parsing file: {Path(filename).name}")
             # Dispatch to the parser registered for this extension. The parsers
             # are pure (no db / privacy / gear / provider coupling); the
-            # orchestrator re-attaches that domain context afterwards.
+            # orchestrator re-attaches that domain context afterwards — including
+            # the owner's timezone, which the parsers cannot look up themselves.
             parser = parser_registry.get_parser(file_extension)
             if parser is None:
                 supported = ", ".join(parser_registry.supported_extensions())
@@ -226,7 +228,7 @@ def parse_file(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
                     detail=f"File extension not supported. Supported file extensions are {supported}",
                 )
-            return parser(filename, token_user_id, activity_name)
+            return parser(filename, token_user_id, activity_name, default_timezone)
         else:
             return None
     except HTTPException as http_err:
@@ -328,6 +330,10 @@ def _store_activities_from_file(
         file_extension,
         file_path,
         activity_name,
+        # Only consulted when the file yields no timezone of its own. Without it
+        # a GPS-less activity (treadmill, turbo, pool) inherits the *server's*
+        # timezone, which is meaningless for an athlete on another continent.
+        user.timezone,
     )
 
     if parsed_info is None:
@@ -410,6 +416,7 @@ def _store_activities_from_file(
         created_activities_objects = fit_utils.create_activity_objects(
             split_records_by_activity,
             token_user_id,
+            user.timezone,
         )
 
         garmin_activity_id = int(garmin_connect_activity_id) if garmin_connect_activity_id else None

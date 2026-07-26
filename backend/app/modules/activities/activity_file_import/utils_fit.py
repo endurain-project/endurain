@@ -18,6 +18,7 @@ import modules.activities.activity_workout_steps.schema as activity_workout_step
 def create_activity_objects(
     sessions_records: list[dict],
     user_id: int,
+    default_timezone: str | None = None,
 ) -> list:
     """Build per-activity parsed payloads from the split FIT session records.
 
@@ -30,7 +31,9 @@ def create_activity_objects(
             f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}",
             "debug",
         )
-        timezone = core_config.settings.TZ
+        # Fallback for sessions with neither a GPS track nor a reported UTC
+        # offset (indoor rides, treadmill runs, pool swims).
+        timezone = default_timezone or core_config.settings.TZ
 
         activities = []
 

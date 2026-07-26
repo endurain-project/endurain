@@ -61,6 +61,29 @@ interface ProfileFormValues {
   maxHeartRate: number | null
   preferredLanguage: Schemas['Language']
   firstDayOfWeek: Schemas['WeekDay']
+  timezone: string
+}
+
+/**
+ * IANA timezone names the browser knows about, for the profile picker.
+ *
+ * `Intl.supportedValuesOf` is available in every browser this app targets but is
+ * not in the configured TypeScript lib, hence the narrow cast. Fall back to the
+ * detected zone alone rather than rendering an empty select if it is missing.
+ */
+const TIMEZONE_OPTIONS: readonly string[] = (() => {
+  const supportedValuesOf = (Intl as { supportedValuesOf?: (key: string) => string[] })
+    .supportedValuesOf
+  try {
+    return supportedValuesOf?.('timeZone') ?? [detectBrowserTimezone()]
+  } catch {
+    return [detectBrowserTimezone()]
+  }
+})()
+
+/** The viewer's own timezone, used to seed the field when the profile has none. */
+function detectBrowserTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
 /**
@@ -84,6 +107,7 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     maxHeartRate: values.maxHeartRate,
     preferredLanguage: values.preferredLanguage,
     firstDayOfWeek: values.firstDayOfWeek,
+    timezone: values.timezone || null,
   }
   try {
     await updateMutation.mutateAsync(input)
@@ -121,6 +145,7 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
       maxHeartRate: null,
       preferredLanguage: 'en',
       firstDayOfWeek: 'monday',
+      timezone: detectBrowserTimezone(),
     },
     validators: {
       name: compose(
@@ -180,6 +205,9 @@ function populate(): void {
   values.maxHeartRate = profile.maxHeartRate
   values.preferredLanguage = profile.preferredLanguage
   values.firstDayOfWeek = profile.firstDayOfWeek
+  // Seed from the browser when the account predates this setting, so saving the
+  // form once stops GPS-less activities inheriting the server's timezone.
+  values.timezone = profile.timezone ?? detectBrowserTimezone()
   if (profile.height !== null) {
     const { feet, inches } = cmToFeetInches(profile.height)
     values.heightFeet = feet
@@ -312,6 +340,19 @@ watch(open, (isOpen) => {
           <Select :id="fieldId" v-model="values.firstDayOfWeek" :disabled="isSubmitting">
             <option v-for="day in WEEKDAY_OPTIONS" :key="day" :value="day">
               {{ t(`settings.users.form.weekdays.${day}`) }}
+            </option>
+          </Select>
+        </template>
+      </FormField>
+
+      <FormField
+        :label="t('settings.users.form.timezone')"
+        :hint="t('settings.users.form.timezoneHint')"
+      >
+        <template #default="{ fieldId }">
+          <Select :id="fieldId" v-model="values.timezone" :disabled="isSubmitting">
+            <option v-for="zone in TIMEZONE_OPTIONS" :key="zone" :value="zone">
+              {{ zone }}
             </option>
           </Select>
         </template>

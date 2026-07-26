@@ -483,3 +483,38 @@ class TestPerSessionTimezone:
         activities = utils_fit.create_activity_objects([record], user_id=1)
 
         assert activities[0]["activity"].timezone == core_config.settings.TZ
+
+
+class TestOwnerTimezoneFallback:
+    """A GPS-less session falls back to the athlete's timezone, not the server's.
+
+    Indoor rides, treadmill runs and pool swims carry no GPS track, so there is
+    nothing in the file to resolve a zone from. Defaulting to the server's TZ
+    stamped a US athlete's treadmill run with the host's European timezone, which
+    then drove both its displayed start time and which day it was summarised into.
+    """
+
+    def test_uses_the_owner_timezone_when_the_session_has_no_gps(self):
+        record = _session_record("garmin")
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "America/Los_Angeles"
+
+    def test_falls_back_to_the_server_timezone_when_the_owner_has_none(self):
+        import core.config as core_config
+
+        record = _session_record("garmin")
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone=None)
+
+        assert activities[0]["activity"].timezone == core_config.settings.TZ
+
+    def test_the_files_own_offset_still_wins_over_the_owner_timezone(self):
+        """What the device recorded beats a profile default."""
+        record = _session_record("garmin")
+        record["time_offset"] = 9 * 3600
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"

@@ -9682,6 +9682,7 @@ export interface components {
          *         max_heart_rate: Maximum heart rate in bpm.
          *         first_day_of_week: First day of the week.
          *         currency: Preferred currency.
+         *         timezone: IANA timezone the athlete lives in.
          *         photo_path: Server-issued photo path. Validated to
          *             stay within the user's own photo directory.
          */
@@ -9704,6 +9705,8 @@ export interface components {
             /** Photo Path */
             photo_path?: string | null;
             preferred_language?: components["schemas"]["Language"] | null;
+            /** Timezone */
+            timezone?: string | null;
             units?: components["schemas"]["Units"] | null;
             /** Username */
             username?: string | null;
@@ -10715,6 +10718,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11502,6 +11510,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11700,6 +11713,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11841,6 +11859,11 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
             /**
              * @description User units (metric, imperial)
              * @default metric

@@ -48,6 +48,7 @@ def _make_mock_user(user_id, **overrides):
     user.max_heart_rate = overrides.get("max_heart_rate")
     user.first_day_of_week = overrides.get("first_day_of_week", "monday")
     user.currency = overrides.get("currency", "euro")
+    user.timezone = overrides.get("timezone")
     user.photo_path = overrides.get("photo_path")
     user.active = overrides.get("active", True)
     user.access_type = overrides.get("access_type", "regular")

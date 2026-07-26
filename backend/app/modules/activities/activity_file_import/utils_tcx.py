@@ -302,6 +302,7 @@ def parse_tcx_file(
     file: str,
     user_id: int,
     activity_name_input: str | None = None,
+    default_timezone: str | None = None,
 ) -> dict:
     """
     Parse a TCX file and return activity data.
@@ -328,7 +329,8 @@ def parse_tcx_file(
         tcx_file = tcxreader.TCXReader().read(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
-        timezone = core_config.settings.TZ
+        # Only used when the file carries no GPS track to resolve a zone from.
+        timezone = default_timezone or core_config.settings.TZ
         pace: float | None = None
         city: str | None = None
         town: str | None = None

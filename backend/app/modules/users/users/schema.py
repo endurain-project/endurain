@@ -2,6 +2,7 @@
 
 from datetime import date as datetime_date
 from enum import Enum
+from zoneinfo import available_timezones
 
 from pydantic import (
     BaseModel,
@@ -172,6 +173,7 @@ class UsersBase(BaseModel):
         max_heart_rate: Maximum heart rate in bpm (30-250).
         first_day_of_week: First day of the week.
         currency: User currency (euro, dollar, pound).
+        timezone: IANA timezone the athlete lives in.
     """
 
     name: StrictStr = Field(
@@ -233,8 +235,41 @@ class UsersBase(BaseModel):
         default=server_settings_schema.Currency.EURO,
         description="User currency (euro, dollar, pound)",
     )
+    timezone: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description=(
+            "IANA timezone the athlete lives in. Used as the fallback for activities "
+            "imported without a GPS track, which would otherwise inherit the server's "
+            "timezone. Null means not set."
+        ),
+    )
 
     model_config = ConfigDict(use_enum_values=True)
+
+    @field_validator("timezone")
+    @classmethod
+    def _validate_timezone(cls, value: str | None) -> str | None:
+        """Reject anything that is not a known IANA timezone name.
+
+        The value is stored and later handed to ``ZoneInfo`` on the backend and
+        ``Intl.DateTimeFormat`` in the browser, so an unknown name would surface
+        as a runtime error far from the setting that caused it.
+
+        Args:
+            value: Candidate timezone name, or None.
+
+        Returns:
+            The validated timezone name, or None.
+
+        Raises:
+            ValueError: When the name is not a known IANA timezone.
+        """
+        if value is None:
+            return None
+        if value not in available_timezones():
+            raise ValueError(f"Unknown IANA timezone: {value}")
+        return value
 
     @field_validator("birthdate", mode="before")
     @classmethod
@@ -560,6 +595,7 @@ class ProfileUpdate(BaseModel):
         max_heart_rate: Maximum heart rate in bpm.
         first_day_of_week: First day of the week.
         currency: Preferred currency.
+        timezone: IANA timezone the athlete lives in.
         photo_path: Server-issued photo path. Validated to
             stay within the user's own photo directory.
     """
@@ -581,6 +617,7 @@ class ProfileUpdate(BaseModel):
     max_heart_rate: StrictInt | None = Field(default=None, ge=30, le=250)
     first_day_of_week: WeekDay | None = None
     currency: server_settings_schema.Currency | None = None
+    timezone: StrictStr | None = Field(default=None, max_length=250)
     photo_path: StrictStr | None = Field(default=None, max_length=250)
 
     model_config = ConfigDict(
@@ -597,6 +634,30 @@ class ProfileUpdate(BaseModel):
             return None
         if isinstance(value, datetime_date):
             return value.isoformat()
+        return value
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, value: str | None) -> str | None:
+        """Reject anything that is not a known IANA timezone name.
+
+        Mirrors the check on :class:`UsersBase`: the value is later handed to
+        ``ZoneInfo`` when stamping GPS-less activities, so an unknown name would
+        surface as a runtime error far from the setting that caused it.
+
+        Args:
+            value: Candidate timezone name, or None.
+
+        Returns:
+            The validated timezone name, or None.
+
+        Raises:
+            ValueError: When the name is not a known IANA timezone.
+        """
+        if value is None:
+            return None
+        if value not in available_timezones():
+            raise ValueError(f"Unknown IANA timezone: {value}")
         return value
 
 
