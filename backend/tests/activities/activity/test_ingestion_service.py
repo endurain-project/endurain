@@ -258,6 +258,49 @@ class TestDeriveDedupKey:
         activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=2)
         assert ingestion_service._derive_dedup_key(activity, None) == "garmin:2"
 
+    def test_garmin_key_is_salted_with_start_time(self):
+        """One multi-activity Garmin .fit yields several activities sharing an id.
+
+        Without the salt every activity after the first collided with the first
+        one's key and was silently discarded as already-ingested.
+        """
+        from datetime import UTC, datetime
+
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        first = MagicMock(
+            strava_activity_id=None,
+            garminconnect_activity_id=999,
+            start_time=datetime(2024, 1, 1, 10, tzinfo=UTC),
+        )
+        second = MagicMock(
+            strava_activity_id=None,
+            garminconnect_activity_id=999,
+            start_time=datetime(2024, 1, 1, 12, tzinfo=UTC),
+        )
+
+        k1 = ingestion_service._derive_dedup_key(first, None)
+        k2 = ingestion_service._derive_dedup_key(second, None)
+        assert k1 != k2
+        assert k1.startswith("garmin:999:")
+        assert k2.startswith("garmin:999:")
+
+    def test_garmin_key_is_stable_for_the_same_activity(self):
+        from datetime import UTC, datetime
+
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        def _activity():
+            return MagicMock(
+                strava_activity_id=None,
+                garminconnect_activity_id=999,
+                start_time=datetime(2024, 1, 1, 10, tzinfo=UTC),
+            )
+
+        assert ingestion_service._derive_dedup_key(_activity(), None) == ingestion_service._derive_dedup_key(
+            _activity(), None
+        )
+
     def test_none_for_plain_upload_without_hash(self):
         import modules.activities.activity.ingestion_service as ingestion_service
         import modules.activities.activity.schema as schema

@@ -94,12 +94,12 @@ class Activity(BaseModel):
         distance: Total distance in meters.
         name: Activity name.
         activity_type: Numeric code for the sport type.
-        start_time: Activity start time (UTC) — may be a
-            pre-formatted string after serialization.
-        start_time_tz_applied: Start time with timezone applied.
-        end_time: Activity end time (UTC) — may be a
-            pre-formatted string after serialization.
-        end_time_tz_applied: End time with timezone applied.
+        start_time: Activity start as a timezone-aware UTC instant.
+        start_time_tz_applied: Start time formatted in the activity's own
+            timezone, for display.
+        end_time: Activity end as a timezone-aware UTC instant.
+        end_time_tz_applied: End time formatted in the activity's own
+            timezone, for display.
         timezone: IANA timezone string.
         total_elapsed_time: Total elapsed wall-clock time in
             seconds.
@@ -107,10 +107,9 @@ class Activity(BaseModel):
         city: City where the activity took place.
         town: Town where the activity took place.
         country: Country where the activity took place.
-        created_at: Record creation timestamp (UTC) — may be a
-            pre-formatted string after serialization.
-        created_at_tz_applied: Creation time with timezone
-            applied.
+        created_at: Record creation as a timezone-aware UTC instant.
+        created_at_tz_applied: Creation time formatted in the activity's
+            own timezone, for display.
         elevation_gain: Total elevation gain in meters.
         elevation_loss: Total elevation loss in meters.
         pace: Average pace in seconds per kilometer.

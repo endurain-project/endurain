@@ -62,15 +62,26 @@ def get_activities_in_timeframe(
 
 
 def _week_bounds(week_number: int = 0) -> tuple[datetime, datetime]:
-    """Return the (start, end) of the week ``week_number`` weeks ago (0 = current)."""
-    today = datetime.now(UTC)
+    """Return the (start, end) of the week ``week_number`` weeks ago (0 = current).
+
+    Both bounds are midnight-aligned so the window is a real calendar week
+    (Monday 00:00 through Sunday, inclusive). They previously carried the current
+    time of day, which made "this week" a rolling span anchored on *now* rather
+    than on the week's boundaries.
+    """
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
     return start_of_week, start_of_week + timedelta(days=6)
 
 
 def _month_bounds() -> tuple[datetime, datetime]:
-    """Return the (start, end) of the current calendar month."""
-    today = datetime.now(UTC)
+    """Return the (start, end) of the current calendar month.
+
+    Midnight-aligned for the same reason as :func:`_week_bounds`: keeping the
+    current time of day meant activities recorded on the 1st before "now" fell
+    outside the month window.
+    """
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     start_of_month = today.replace(day=1)
     end_of_month = start_of_month.replace(day=calendar.monthrange(today.year, today.month)[1])
     return start_of_month, end_of_month

@@ -23,7 +23,11 @@ export function mapGearActivity(dto: GearActivityDto): GearActivity {
     id: dto.id ?? 0,
     name: dto.name,
     activityType: dto.activity_type,
-    startTime: dto.start_time ?? null,
+    // Prefer the value already localized to the activity's own timezone (as the
+    // main activities list does). `start_time` is a UTC instant, so using it
+    // directly would render the activity in the viewer's timezone instead of the
+    // one it was recorded in.
+    startTime: dto.start_time_tz_applied ?? dto.start_time ?? null,
     distance: dto.distance,
     totalTimerTime: dto.total_timer_time ?? null,
   }

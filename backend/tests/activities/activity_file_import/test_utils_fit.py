@@ -415,3 +415,71 @@ class TestParseFrameSession:
     def test_unknown_sub_sport_falls_through(self):
         """Unmapped sub_sport returns the sub_sport string."""
         assert self._activity_type(sport="running", sub_sport="ultramarathon") == "ultramarathon"
+
+
+class TestFindTimezoneName:
+    """A bare UTC offset does not identify a zone, so the answer must be honest.
+
+    Scanning ``available_timezones()`` and returning the first match was a lottery
+    (``+00:00`` could yield ``Africa/Abidjan``) and the winning name carried that
+    zone's DST rules for every other date of the year.
+    """
+
+    _REF = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
+
+    def test_whole_hour_offset_maps_to_a_fixed_offset_zone(self):
+        # POSIX sign inversion: Etc/GMT-9 is UTC+9.
+        assert utils_fit.find_timezone_name(9 * 3600, self._REF) == "Etc/GMT-9"
+        assert utils_fit.find_timezone_name(-5 * 3600, self._REF) == "Etc/GMT+5"
+
+    def test_zero_offset_is_utc(self):
+        assert utils_fit.find_timezone_name(0, self._REF) == "UTC"
+
+    def test_result_is_deterministic(self):
+        first = utils_fit.find_timezone_name(2 * 3600, self._REF)
+        second = utils_fit.find_timezone_name(2 * 3600, self._REF)
+        assert first == second
+
+    def test_resolved_zone_reproduces_the_offset(self):
+        from zoneinfo import ZoneInfo
+
+        name = utils_fit.find_timezone_name(9 * 3600, self._REF)
+        assert self._REF.astimezone(ZoneInfo(name)).utcoffset().total_seconds() == 9 * 3600
+
+    def test_half_hour_offset_falls_back_to_a_named_zone(self):
+        from zoneinfo import ZoneInfo
+
+        # India (+05:30) has no Etc/GMT equivalent.
+        name = utils_fit.find_timezone_name(5 * 3600 + 1800, self._REF)
+        assert name is not None
+        assert self._REF.astimezone(ZoneInfo(name)).utcoffset().total_seconds() == 5 * 3600 + 1800
+
+    def test_impossible_offset_returns_none(self):
+        assert utils_fit.find_timezone_name(1234, self._REF) is None
+
+
+class TestPerSessionTimezone:
+    """Each session in a multi-activity .fit resolves its own timezone."""
+
+    def test_session_without_offset_does_not_inherit_the_previous_one(self):
+        import core.config as core_config
+
+        with_offset = _session_record("garmin")
+        with_offset["time_offset"] = 9 * 3600
+        without_offset = _session_record("garmin")
+
+        activities = utils_fit.create_activity_objects([with_offset, without_offset], user_id=1)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+        # Previously this inherited "Etc/GMT-9" from the session before it.
+        assert activities[1]["activity"].timezone == core_config.settings.TZ
+
+    def test_unresolvable_offset_keeps_the_server_default(self):
+        import core.config as core_config
+
+        record = _session_record("garmin")
+        record["time_offset"] = 1234  # no zone has this offset
+
+        activities = utils_fit.create_activity_objects([record], user_id=1)
+
+        assert activities[0]["activity"].timezone == core_config.settings.TZ

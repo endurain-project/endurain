@@ -142,3 +142,40 @@ class TestListUserActivitiesPaginated:
         kwargs = mock_crud.get_user_activities_with_pagination.call_args.kwargs
         assert kwargs["user_is_owner"] is False
         assert kwargs["requester_user_id"] == 2
+
+
+class TestPeriodBounds:
+    """Week/month windows must be real calendar boundaries, not rolling spans."""
+
+    def test_week_bounds_are_midnight_aligned(self):
+        import modules.activities.activity.service as service
+
+        start, end = service._week_bounds()
+
+        assert (start.hour, start.minute, start.second, start.microsecond) == (0, 0, 0, 0)
+        assert (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0)
+        assert start.weekday() == 0  # Monday
+        assert (end - start).days == 6  # inclusive Sunday
+
+    def test_week_bounds_walk_back_whole_weeks(self):
+        import modules.activities.activity.service as service
+
+        this_week, _ = service._week_bounds()
+        last_week, _ = service._week_bounds(1)
+
+        assert (this_week - last_week).days == 7
+        assert last_week.weekday() == 0
+
+    def test_month_bounds_cover_the_whole_month(self):
+        import calendar
+
+        import modules.activities.activity.service as service
+
+        start, end = service._month_bounds()
+
+        assert start.day == 1
+        assert (start.hour, start.minute, start.second, start.microsecond) == (0, 0, 0, 0)
+        # An activity recorded at 00:05 on the 1st used to fall outside the
+        # window because the bound carried the current time of day.
+        assert (end.hour, end.minute, end.second, end.microsecond) == (0, 0, 0, 0)
+        assert end.day == calendar.monthrange(start.year, start.month)[1]

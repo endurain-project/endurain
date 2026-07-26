@@ -1,6 +1,7 @@
 """Tests for uncovered utility functions in activities.activity.utils."""
 
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 
@@ -124,12 +125,95 @@ class TestSerializeActivity:
 
         result = serialize_activity(activity)
 
-        assert mock_tz.format_aware_datetime.call_count == 6
+        # Only the three *_tz_applied display fields are formatted; the raw
+        # datetimes keep the aware UTC values validated off the ORM row.
+        assert mock_tz.format_aware_datetime.call_count == 3
+        assert all(call.args[1] == "Europe/Lisbon" for call in mock_tz.format_aware_datetime.call_args_list)
         assert result.start_time_tz_applied == "2024-01-15T09:00:00"
-        assert result.start_time == "2024-01-15T08:00:00"
         assert result.map_thumbnail_path == "/activity_thumbnails/1.webp"
         mock_thumbnail.thumbnail_url.assert_called_once_with("1.webp", activity.id)
         mock_schema_cls.model_validate.assert_called_once_with(activity)
+
+    @patch("modules.activities.activity.serializers.activity_thumbnail_render")
+    def test_raw_datetimes_stay_aware_utc(self, mock_thumbnail):
+        """The API must emit a real instant, not a server-local wall clock."""
+        from modules.activities.activity.serializers import serialize_activity
+
+        mock_thumbnail.thumbnail_url.return_value = None
+        activity = _activity_orm_stub()
+
+        result = serialize_activity(activity)
+
+        assert result.start_time == datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
+        assert result.end_time == datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC)
+        assert result.created_at == datetime(2024, 1, 15, 7, 0, 0, tzinfo=UTC)
+        # ...while the display fields are localized to the activity's timezone
+        # (Asia/Tokyo is UTC+9, so 08:00Z is 17:00 local).
+        assert result.start_time_tz_applied == "2024-01-15T17:00:00"
+        assert result.end_time_tz_applied == "2024-01-15T18:00:00"
+
+
+def _activity_orm_stub():
+    """An ORM-shaped object carrying only the attributes the serializer reads.
+
+    A ``SimpleNamespace`` rather than a ``MagicMock`` so ``model_validate`` sees
+    real values (a MagicMock hands back child mocks for every optional field and
+    fails validation), and rather than a real ORM row so the test does not need
+    the whole mapper registry configured.
+    """
+    return SimpleNamespace(
+        id=1,
+        user_id=1,
+        distance=1000,
+        name="Ride",
+        activity_type=5,
+        timezone="Asia/Tokyo",
+        map_thumbnail_path=None,
+        start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
+        end_time=datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC),
+        created_at=datetime(2024, 1, 15, 7, 0, 0, tzinfo=UTC),
+    )
+
+
+class TestApplyVisibilityMask:
+    def test_hide_start_time_also_clears_localized_fields(self):
+        """The *_tz_applied fields carry the same instant, so they must be masked too."""
+        from modules.activities.activity.schema import Activity
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = Activity(
+            distance=1000,
+            name="Ride",
+            activity_type=5,
+            start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
+            start_time_tz_applied="2024-01-15T09:00:00",
+            end_time=datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC),
+            end_time_tz_applied="2024-01-15T10:00:00",
+            hide_start_time=True,
+        )
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert schema.start_time is None
+        assert schema.end_time is None
+        assert schema.start_time_tz_applied is None
+        assert schema.end_time_tz_applied is None
+
+    def test_owner_keeps_everything(self):
+        from modules.activities.activity.schema import Activity
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = Activity(
+            distance=1000,
+            name="Ride",
+            activity_type=5,
+            start_time_tz_applied="2024-01-15T09:00:00",
+            hide_start_time=True,
+        )
+
+        apply_visibility_mask(schema, is_owner=True)
+
+        assert schema.start_time_tz_applied == "2024-01-15T09:00:00"
 
 
 class TestCalculateActivityStatsExtended:

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -1717,3 +1717,90 @@ class TestGetActivitiesWithLegacyThumbnailPath:
 
         mock_db.execute.side_effect = SQLAlchemyError("boom")
         assert crud.get_activities_with_legacy_thumbnail_path(mock_db) == []
+
+
+class TestLocalTimeBucketing:
+    """Date filtering must answer in the activity's timezone, not the session's.
+
+    ``start_time`` is a ``timestamptz`` and the session runs in UTC, so comparing
+    or truncating it directly bucketed every activity by UTC — putting an early
+    morning ride in UTC+9 on the previous day and a late-night one in UTC-5 on the
+    next. These lock in the conversion through the activity's own IANA timezone.
+    """
+
+    @staticmethod
+    def _pg_db():
+        db = MagicMock()
+        db.get_bind.return_value.dialect.name = "postgresql"
+        return db
+
+    @staticmethod
+    def _sql(expr):
+        from sqlalchemy.dialects import postgresql
+
+        return str(expr.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    def test_expression_converts_through_activity_timezone(self):
+        import modules.activities.activity.crud as crud
+
+        sql = self._sql(crud.local_start_time_expression(self._pg_db()))
+
+        assert "timezone(" in sql
+        assert "coalesce(activities.timezone, 'UTC')" in sql
+        assert "activities.start_time" in sql
+
+    def test_falls_back_to_raw_column_off_postgres(self):
+        import modules.activities.activity.crud as crud
+        import modules.activities.activity.models as am
+
+        db = MagicMock()
+        db.get_bind.return_value.dialect.name = "sqlite"
+
+        assert crud.local_start_time_expression(db) is am.Activity.start_time
+
+    def test_inclusive_end_covers_the_whole_end_day(self):
+        import modules.activities.activity.crud as crud
+
+        conditions = crud.local_date_range_conditions(
+            self._pg_db(), date(2024, 5, 1), date(2024, 5, 31), end_exclusive=False
+        )
+        sql = " ".join(self._sql(c) for c in conditions)
+
+        # The exclusive upper bound is the day AFTER the requested end date.
+        assert "'2024-06-01 00:00:00'" in sql
+        assert "'2024-05-01 00:00:00'" in sql
+
+    def test_exclusive_end_uses_the_end_date_itself(self):
+        import modules.activities.activity.crud as crud
+
+        conditions = crud.local_date_range_conditions(
+            self._pg_db(), date(2024, 5, 1), date(2024, 6, 1), end_exclusive=True
+        )
+        sql = " ".join(self._sql(c) for c in conditions)
+
+        assert "'2024-06-01 00:00:00'" in sql
+
+    def test_pairs_an_indexable_prefilter_with_the_exact_predicate(self):
+        """The functional expression is unindexable, so a widened raw-column bound rides along."""
+        import modules.activities.activity.crud as crud
+
+        conditions = crud.local_date_range_conditions(
+            self._pg_db(), date(2024, 5, 1), date(2024, 5, 1), end_exclusive=True
+        )
+        sql = [self._sql(c) for c in conditions]
+
+        prefilters = [s for s in sql if "timezone(" not in s]
+        exact = [s for s in sql if "timezone(" in s]
+        assert len(prefilters) == 2
+        assert len(exact) == 2
+        # Widened by the maximum real UTC offset (+/-14h) so it can never exclude
+        # a row the exact local-time predicate would keep.
+        assert "'2024-04-30 10:00:00+00:00'" in prefilters[0]
+        assert "'2024-05-01 14:00:00+00:00'" in prefilters[1]
+
+    def test_open_ended_bounds_emit_no_conditions(self):
+        import modules.activities.activity.crud as crud
+
+        assert crud.local_date_range_conditions(self._pg_db(), None, None, end_exclusive=False) == []
+        assert len(crud.local_date_range_conditions(self._pg_db(), date(2024, 5, 1), None, end_exclusive=False)) == 2
+        assert len(crud.local_date_range_conditions(self._pg_db(), None, date(2024, 5, 1), end_exclusive=False)) == 2

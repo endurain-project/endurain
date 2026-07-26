@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -60,6 +60,11 @@ class ActivitySets(Base):
         comment="Workout set type",
     )
     start_time: Mapped[datetime] = mapped_column(
+        # The column is TIMESTAMP WITH TIME ZONE in the database (see the
+        # v0_18_0 migration); without an explicit type SQLAlchemy infers a naive
+        # DateTime, which both loses the offset on load and makes Alembic
+        # autogenerate keep proposing a downgrade back to naive.
+        DateTime(timezone=True),
         comment="Workout set start date",
     )
     category: Mapped[int | None] = mapped_column(

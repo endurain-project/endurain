@@ -42,9 +42,14 @@ def serialize_activity(
     schema.end_time_tz_applied = core_timezone.format_aware_datetime(activity.end_time, tz_name)
     schema.created_at_tz_applied = core_timezone.format_aware_datetime(activity.created_at, tz_name)
 
-    schema.start_time = core_timezone.format_aware_datetime(activity.start_time, None)
-    schema.end_time = core_timezone.format_aware_datetime(activity.end_time, None)
-    schema.created_at = core_timezone.format_aware_datetime(activity.created_at, None)
+    # ``start_time`` / ``end_time`` / ``created_at`` stay the aware UTC values
+    # loaded from the database, so the API emits a real instant (ISO-8601 with an
+    # offset) that a client can convert to any timezone and feed straight back.
+    # They used to be reformatted through ``settings.TZ`` without an offset, which
+    # made the response depend on the server's configuration and round-trip
+    # incorrectly (``_require_utc_aware`` re-read the server-local wall clock as
+    # UTC, shifting the instant). The localized display values already live in the
+    # sibling ``*_tz_applied`` fields, resolved from the activity's own timezone.
 
     return schema
 
@@ -77,6 +82,11 @@ def apply_visibility_mask(
     if schema.hide_start_time:
         schema.start_time = None
         schema.end_time = None
+        # The ``*_tz_applied`` fields carry the same instant in the activity's
+        # timezone, so clearing only the raw values would still hand a non-owner
+        # the start time the flag exists to hide.
+        schema.start_time_tz_applied = None
+        schema.end_time_tz_applied = None
     if schema.hide_location:
         schema.city = None
         schema.town = None

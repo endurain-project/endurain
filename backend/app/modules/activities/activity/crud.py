@@ -1,7 +1,7 @@
 """CRUD operations for activities."""
 
 from collections import defaultdict
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, cast
 from urllib.parse import unquote
 
@@ -128,6 +128,86 @@ def _apply_activity_visibility_filter(
     if user_is_owner:
         return stmt
     return stmt.where(_visible_to_requester_condition(requester_user_id, db))
+
+
+# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). Used to widen the
+# indexable pre-filter on the raw UTC column so it can never exclude a row that
+# the exact local-time predicate would keep.
+_MAX_UTC_OFFSET = timedelta(hours=14)
+
+
+def local_start_time_expression(db: Session):
+    """``Activity.start_time`` as a naive wall clock in the activity's own timezone.
+
+    "Which day did this activity happen on?" is a *local* question: a 07:00 ride
+    in UTC+9 belongs to that local day, not to the previous UTC one. ``start_time``
+    is stored as ``timestamptz`` and the session runs in UTC, so comparing or
+    truncating it directly (``func.date(...)``, ``extract(...)``) silently answers
+    in UTC — which put early-morning activities in eastern timezones and late-night
+    ones in western timezones into the wrong day, week, month and year.
+
+    Converting through the activity's stored IANA ``timezone`` first makes date
+    filters and summary buckets match what the athlete actually experienced.
+    Activities with no stored timezone (indoor imports that carried no GPS) fall
+    back to UTC.
+
+    Args:
+        db: Database session, used to detect the dialect.
+
+    Returns:
+        A SQL expression yielding each activity's local wall clock.
+    """
+    if db.get_bind().dialect.name == "postgresql":
+        # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
+        return func.timezone(
+            func.coalesce(activities_models.Activity.timezone, "UTC"),
+            activities_models.Activity.start_time,
+        )
+    # Production is Postgres-only (see core/database.py); other engines appear
+    # only in tests, so fall back to the raw UTC value rather than emitting SQL
+    # the engine cannot run.
+    return activities_models.Activity.start_time
+
+
+def local_date_range_conditions(
+    db: Session,
+    start_date: date | None,
+    end_date: date | None,
+    *,
+    end_exclusive: bool,
+) -> list:
+    """Restrict rows to a date range evaluated in each activity's *local* timezone.
+
+    Pairs the exact local-time predicate with an indexable pre-filter on the raw
+    ``start_time`` column, widened by the maximum real UTC offset so it can never
+    exclude a row the exact predicate would keep. Without the pre-filter the
+    functional timezone expression would stop the query using the ``start_time``
+    index at all.
+
+    Args:
+        db: Database session.
+        start_date: Inclusive local start of the range, or ``None`` for open-ended.
+        end_date: End of the local range, or ``None`` for open-ended.
+        end_exclusive: Whether ``end_date`` is excluded from the range.
+
+    Returns:
+        The conditions to apply to the statement. Empty when both bounds are
+        ``None``.
+    """
+    local = local_start_time_expression(db)
+    conditions: list = []
+
+    if start_date is not None:
+        start_dt = datetime.combine(start_date, time.min)
+        conditions.append(activities_models.Activity.start_time >= start_dt.replace(tzinfo=UTC) - _MAX_UTC_OFFSET)
+        conditions.append(local >= start_dt)
+
+    if end_date is not None:
+        end_dt = datetime.combine(end_date if end_exclusive else end_date + timedelta(days=1), time.min)
+        conditions.append(activities_models.Activity.start_time < end_dt.replace(tzinfo=UTC) + _MAX_UTC_OFFSET)
+        conditions.append(local < end_dt)
+
+    return conditions
 
 
 def _internal_server_error(err: Exception, context: str) -> HTTPException:
@@ -384,10 +464,9 @@ def get_user_activities(
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
-        if start_date:
-            stmt = stmt.where(func.date(activities_models.Activity.start_time) >= start_date)
-        if end_date:
-            stmt = stmt.where(func.date(activities_models.Activity.start_time) <= end_date)
+        # Date filters are evaluated in each activity's own timezone, so a
+        # user filtering "1 May" gets their 1 May, not UTC's.
+        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
         if name_search:
             stmt = _apply_name_search(stmt, name_search)
         stmt = stmt.order_by(desc(activities_models.Activity.start_time))
@@ -451,10 +530,9 @@ def count_user_activities(
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
-        if start_date:
-            stmt = stmt.where(func.date(activities_models.Activity.start_time) >= start_date)
-        if end_date:
-            stmt = stmt.where(func.date(activities_models.Activity.start_time) <= end_date)
+        # Date filters are evaluated in each activity's own timezone, so a
+        # user filtering "1 May" gets their 1 May, not UTC's.
+        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
         if name_search:
             stmt = _apply_name_search(stmt, name_search)
         count = db.execute(stmt).scalar()
@@ -551,10 +629,9 @@ def get_user_activities_with_pagination(
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
-        if start_date:
-            stmt = stmt.where(func.date(activities_models.Activity.start_time) >= start_date)
-        if end_date:
-            stmt = stmt.where(func.date(activities_models.Activity.start_time) <= end_date)
+        # Date filters are evaluated in each activity's own timezone, so a
+        # user filtering "1 May" gets their 1 May, not UTC's.
+        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
         if name_search:
             stmt = _apply_name_search(stmt, name_search)
 
@@ -651,8 +728,7 @@ def get_user_activities_per_timeframe(
             select(activities_models.Activity)
             .where(
                 activities_models.Activity.user_id == user_id,
-                func.date(activities_models.Activity.start_time) >= start.date(),
-                func.date(activities_models.Activity.start_time) <= end.date(),
+                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
             )
             .order_by(desc(activities_models.Activity.start_time))
         )
@@ -708,8 +784,7 @@ def get_user_activities_per_timeframe_and_activity_type(
             .where(
                 activities_models.Activity.user_id == user_id,
                 activities_models.Activity.activity_type == activity_type,
-                func.date(activities_models.Activity.start_time) >= start.date(),
-                func.date(activities_models.Activity.start_time) <= end.date(),
+                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
             )
             .order_by(desc(activities_models.Activity.start_time))
         )
@@ -771,8 +846,7 @@ def get_user_activities_per_timeframe_and_activity_types(
             .where(
                 activities_models.Activity.user_id == user_id,
                 activities_models.Activity.activity_type.in_(activity_types),
-                func.date(activities_models.Activity.start_time) >= start.date(),
-                func.date(activities_models.Activity.start_time) <= end.date(),
+                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
             )
             .order_by(desc(activities_models.Activity.start_time))
         )
@@ -830,8 +904,7 @@ def get_user_following_activities_per_timeframe(
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
                 activities_models.Activity.strava_activity_id.is_(None),
-                func.date(activities_models.Activity.start_time) >= start.date(),
-                func.date(activities_models.Activity.start_time) <= end.date(),
+                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
             )
             .order_by(desc(activities_models.Activity.start_time))
         )
