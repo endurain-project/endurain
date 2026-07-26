@@ -518,3 +518,64 @@ class TestOwnerTimezoneFallback:
         activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+
+class TestOffsetVersusAthleteTimezone:
+    """A reported UTC offset is evidence of *where*, not of *which zone*.
+
+    Turning it straight into a fixed-offset ``Etc/GMT+-H`` name is DST-free, so
+    the same athlete's indoor rides would be stamped differently in winter and
+    summer. When the offset agrees with their configured zone, that zone is the
+    stable, DST-correct name for the same instant.
+    """
+
+    @staticmethod
+    def _record(offset_seconds: int, when: datetime) -> dict:
+        record = _session_record("garmin")
+        record["time_offset"] = offset_seconds
+        record["session"]["first_waypoint_time"] = when
+        record["session"]["last_waypoint_time"] = when
+        return record
+
+    def test_prefers_the_athlete_zone_when_the_offset_agrees(self):
+        # Los Angeles is UTC-8 in January.
+        record = self._record(-8 * 3600, datetime(2024, 1, 15, 17, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "America/Los_Angeles"
+
+    def test_same_athlete_gets_the_same_zone_across_dst(self):
+        """The whole point: winter and summer indoor rides agree."""
+        winter = self._record(-8 * 3600, datetime(2024, 1, 15, 17, 0, tzinfo=UTC))
+        # Los Angeles is UTC-7 in July, so the device reports a different offset.
+        summer = self._record(-7 * 3600, datetime(2024, 7, 15, 16, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects(
+            [winter, summer], user_id=1, default_timezone="America/Los_Angeles"
+        )
+
+        zones = [a["activity"].timezone for a in activities]
+        assert zones == ["America/Los_Angeles", "America/Los_Angeles"]
+
+    def test_falls_back_to_a_fixed_offset_when_the_athlete_was_travelling(self):
+        """A mismatch means they were not at home; trust the device."""
+        record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+    def test_uses_a_fixed_offset_when_the_athlete_has_no_zone(self):
+        record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone=None)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+    def test_an_unusable_athlete_zone_does_not_break_resolution(self):
+        record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="Not/AZone")
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
