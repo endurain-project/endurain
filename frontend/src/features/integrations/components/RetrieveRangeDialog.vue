@@ -9,6 +9,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
 import { daysAgoRange } from '@/features/integrations/utils/dateRange'
+import { todayIsoDate } from '@/utils/datetime'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -31,7 +32,9 @@ const days = ref('7')
 const startDate = ref('')
 const endDate = ref('')
 
-const today = computed(() => new Date().toISOString().slice(0, 10))
+// The viewer's local calendar day: bounding the pickers by the UTC day stopped
+// users east of UTC selecting today, and let those far west select tomorrow.
+const today = computed(() => todayIsoDate())
 
 const canSubmit = computed(() => {
   if (mode.value === 'days') {

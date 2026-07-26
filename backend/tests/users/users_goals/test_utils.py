@@ -57,13 +57,17 @@ class TestCalculateUserGoals:
         # Assert
         assert result is None
 
+    @patch("modules.users.users_goals.utils.users_utils.user_local_today")
     @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
-    def test_calculate_user_goals_no_date(self, mock_get_goals):
-        """Test calculation uses current date when None provided."""
+    def test_calculate_user_goals_no_date(self, mock_get_goals, mock_today):
+        """Omitting the date anchors the period on the athlete's own calendar day."""
         # Arrange
+        from datetime import date as date_type
+
         user_id = 1
         mock_db = MagicMock(spec=Session)
         mock_get_goals.return_value = []
+        mock_today.return_value = date_type(2024, 1, 15)
 
         # Act
         result = user_goals_utils.calculate_user_goals(user_id, None, mock_db)
@@ -71,6 +75,8 @@ class TestCalculateUserGoals:
         # Assert
         assert result is None
         mock_get_goals.assert_called_once()
+        # Resolved from the user's timezone, not the server's UTC clock.
+        mock_today.assert_called_once_with(user_id, mock_db)
 
     @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_value_error(self, mock_get_goals):

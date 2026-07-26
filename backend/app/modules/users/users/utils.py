@@ -1,4 +1,5 @@
 import os
+from datetime import date as datetime_date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.file_uploads as core_file_uploads
+import core.timezone as core_timezone
 import modules.health.health_targets.crud as health_targets_crud
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
@@ -194,3 +196,42 @@ async def delete_user_photo_filesystem(user_id: int) -> None:
         None
     """
     await core_file_uploads.delete_files_by_pattern(core_config.USER_IMAGES_DIR, f"{user_id}.*")
+
+
+def resolve_user_timezone(user_id: int, db: Session) -> str:
+    """Return the athlete's IANA timezone, falling back to the server's.
+
+    ``users.timezone`` is nullable: accounts that predate the setting (and users
+    who never opened their profile) have none, in which case the server default
+    is the only answer available.
+
+    Args:
+        user_id: The user whose timezone to resolve.
+        db: Database session.
+
+    Returns:
+        An IANA timezone name.
+    """
+    user = users_crud.get_user_by_id(user_id, db)
+    if user is not None and user.timezone:
+        return user.timezone
+    return core_config.settings.TZ
+
+
+def user_local_today(user_id: int, db: Session) -> datetime_date:
+    """Return today's calendar date in the athlete's own timezone.
+
+    Everything that answers "what did I do *today*?" — the health dashboard,
+    streaks, interval windows, goal periods — must use this rather than
+    ``date.today()`` (the container's zone) or ``datetime.now(UTC).date()``.
+    Both of those put an athlete in UTC+13 a day behind for 13 hours out of
+    every 24, and one in UTC-11 a day ahead for 11.
+
+    Args:
+        user_id: The user whose "today" to resolve.
+        db: Database session.
+
+    Returns:
+        The user's current calendar date.
+    """
+    return core_timezone.today_in(resolve_user_timezone(user_id, db))

@@ -1,9 +1,10 @@
-from datetime import date, timedelta
+from datetime import timedelta
 from itertools import pairwise
 
 from sqlalchemy.orm import Session
 
 import modules.health.health_fasting.crud as health_fasting_crud
+import modules.users.users.utils as users_utils
 
 
 def calculate_streaks(user_id: int, db: Session) -> tuple[int, int]:
@@ -34,7 +35,10 @@ def calculate_streaks(user_id: int, db: Session) -> tuple[int, int]:
         longest_streak = max(longest_streak, run)
 
     # The current streak only counts if the latest fast was today or yesterday.
-    today = date.today()
+    # "Today" is the athlete's, in the same timezone the fast dates were bucketed
+    # in — comparing a UTC-bucketed date against the server's local today mixed
+    # two different day definitions in one calculation.
+    today = users_utils.user_local_today(user_id, db)
     current_streak = run if dates[-1] in (today, today - one_day) else 0
 
     return current_streak, longest_streak

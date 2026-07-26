@@ -17,6 +17,7 @@ import modules.health.constants as health_constants
 import modules.health.health_poop.models as health_poop_models
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.utils as health_utils
+import modules.users.users.utils as users_utils
 
 # Private internal helpers
 
@@ -116,7 +117,8 @@ def get_health_poop_number_by_user_id(
 
     if interval is not None:
         stmt = stmt.where(
-            health_poop_models.HealthPoop.date_time >= health_utils.get_start_date_for_interval(interval.value)
+            health_poop_models.HealthPoop.date_time
+            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     return db.execute(stmt).scalar_one()
@@ -176,7 +178,8 @@ def get_health_poop_by_user_id(
 
     if interval is not None:
         stmt = stmt.where(
-            health_poop_models.HealthPoop.date_time >= health_utils.get_start_date_for_interval(interval.value)
+            health_poop_models.HealthPoop.date_time
+            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     stmt = stmt.order_by(desc(health_poop_models.HealthPoop.date_time))
@@ -213,7 +216,12 @@ def get_health_poop_by_date_and_user_id(
     stmt = (
         select(health_poop_models.HealthPoop)
         .where(
-            func.date(health_poop_models.HealthPoop.date_time) == func.date(date),
+            health_utils.local_date_expression(
+                health_poop_models.HealthPoop.date_time,
+                users_utils.resolve_user_timezone(user_id, db),
+                db,
+            )
+            == func.date(date),
             health_poop_models.HealthPoop.user_id == user_id,
         )
         .order_by(desc(health_poop_models.HealthPoop.date_time))

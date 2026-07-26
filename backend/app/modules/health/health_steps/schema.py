@@ -3,6 +3,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
+import core.config as core_config
+import core.timezone as core_timezone
 import modules.health.schema as health_schema
 
 
@@ -61,11 +63,17 @@ class HealthStepsCreate(HealthStepsBase):
         """
         Set date to today if not provided.
 
+        Clients should always send their own local date — the request carries no
+        timezone, so this fallback can only use the server's configured zone and
+        will file an entry logged near local midnight under the wrong day for an
+        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
+        than ``date.today()``, which silently depends on the container's clock.
+
         Returns:
             The validated model instance with date set.
         """
         if self.date is None:
-            self.date = datetime_date.today()
+            self.date = core_timezone.today_in(core_config.settings.TZ)
         return self
 
 

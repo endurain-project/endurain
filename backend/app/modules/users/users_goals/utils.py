@@ -1,12 +1,13 @@
 """User goals utility functions for progress calculation."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
+import modules.users.users.utils as users_utils
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.schema as user_goals_schema
 
@@ -41,7 +42,11 @@ def calculate_user_goals(
         HTTPException: If database error occurs.
     """
     if not date:
-        date = datetime.now(UTC).strftime("%Y-%m-%d")
+        # The athlete's own calendar day, not the server's. Anchoring on
+        # ``datetime.now(UTC)`` rolled daily goals over at UTC midnight and
+        # flipped weekly/monthly/yearly windows up to a day early or late, so
+        # progress bars visibly reset at the wrong time for anyone off UTC.
+        date = users_utils.user_local_today(user_id, db).strftime("%Y-%m-%d")
     try:
         goals: list[user_goals_schema.UsersGoalRead] = user_goals_crud.get_user_goals_by_user_id(user_id, db)
 

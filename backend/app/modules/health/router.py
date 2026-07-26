@@ -6,7 +6,6 @@ multiple health modules for efficient dashboard display.
 """
 
 from collections.abc import Callable
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Security, status
@@ -21,6 +20,7 @@ import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.schema as health_schema
+import modules.users.users.utils as users_utils
 
 # Define the API router
 router = APIRouter()
@@ -64,7 +64,7 @@ def read_health_daily_stats(
     Raises:
         HTTPException: If the user lacks required 'health:read' scope.
     """
-    today = str(date.today())
+    today = str(users_utils.user_local_today(token_user_id, db))
 
     # Get today's sleep
     today_sleep = health_sleep_crud.get_health_sleep_by_date_and_user_id(token_user_id, today, db)

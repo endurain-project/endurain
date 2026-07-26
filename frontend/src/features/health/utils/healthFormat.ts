@@ -220,3 +220,76 @@ export function fastingElapsedSeconds(fasting: FastingSnapshot, now: number = Da
   }
   return fasting.actualDurationSeconds ?? 0
 }
+
+/**
+ * Current local time as a `yyyy-mm-ddTHH:mm` value for `<input type="datetime-local">`.
+ *
+ * The input element speaks local wall clock, so the UTC offset is subtracted
+ * before slicing the ISO string.
+ *
+ * @returns The current local wall clock in `datetime-local` form.
+ */
+export function nowDateTimeLocalInput(): string {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
+/**
+ * Converts a stored UTC instant to the `datetime-local` value for the viewer.
+ *
+ * @param value - ISO 8601 instant from the API.
+ * @returns The local wall clock in `datetime-local` form, or `''` when unparseable.
+ */
+export function toDateTimeLocalInput(value: string | null): string {
+  if (!value) {
+    return ''
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
+/**
+ * Converts a `datetime-local` value back to an unambiguous UTC ISO instant.
+ *
+ * `<input type="datetime-local">` yields an offset-less string; sending it as-is
+ * makes the backend read the viewer's wall clock as if it were UTC, storing an
+ * instant that is wrong by their offset. `new Date(local)` parses the
+ * offset-less form as local time (per spec), which is exactly what is wanted.
+ *
+ * @param local - The `yyyy-mm-ddTHH:mm` input value.
+ * @returns A UTC ISO string, or `null` when empty/unparseable.
+ */
+export function dateTimeLocalToIso(local: string): string | null {
+  if (!local) {
+    return null
+  }
+  const ms = new Date(local).getTime()
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString()
+}
+
+/**
+ * The viewer's local calendar day (`yyyy-mm-dd`) for a stored UTC instant.
+ *
+ * Slicing the ISO string yields the **UTC** day, which puts a late-evening entry
+ * in an eastern timezone on tomorrow and an early-morning one in a western
+ * timezone on yesterday. Used for grouping entries into daily buckets.
+ *
+ * @param iso - ISO 8601 instant from the API.
+ * @returns The local `yyyy-mm-dd`, or `null` when unparseable.
+ */
+export function localDayOf(iso: string | null): string | null {
+  if (!iso) {
+    return null
+  }
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}

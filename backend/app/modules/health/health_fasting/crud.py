@@ -15,10 +15,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.timezone as core_timezone
 import modules.health.constants as health_constants
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.utils as health_utils
+import modules.users.users.utils as users_utils
 
 # Private internal helpers
 
@@ -117,7 +119,7 @@ def get_health_fasting_number_by_user_id(
     if interval is not None:
         stmt = stmt.where(
             health_fasting_models.HealthFasting.fast_start_time
-            >= health_utils.get_start_date_for_interval(interval.value)
+            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     return db.execute(stmt).scalar_one()
@@ -186,7 +188,7 @@ def get_health_fasting_by_user_id(
     if interval is not None:
         stmt = stmt.where(
             health_fasting_models.HealthFasting.fast_start_time
-            >= health_utils.get_start_date_for_interval(interval.value)
+            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     stmt = stmt.order_by(desc(health_fasting_models.HealthFasting.fast_start_time))
@@ -321,7 +323,11 @@ def get_completed_fasting_dates_by_user_id(user_id: int, db: Session) -> list[da
     Raises:
         HTTPException: If database error occurs.
     """
-    fast_date = func.date(health_fasting_models.HealthFasting.fast_start_time)
+    fast_date = health_utils.local_date_expression(
+        health_fasting_models.HealthFasting.fast_start_time,
+        users_utils.resolve_user_timezone(user_id, db),
+        db,
+    )
     stmt = (
         select(fast_date)
         .where(
@@ -441,15 +447,19 @@ def complete_health_fasting(
             detail="Fasting session is not in progress",
         )
 
-    # Calculate actual duration
-    start_time = db_health_fasting.fast_start_time
-    end_time = complete_data.fast_end_time
+    # Calculate actual duration. Normalize the client-supplied end time to
+    # aware UTC first: a payload without an offset yields a naive datetime, and
+    # subtracting it from the aware value loaded from the timestamptz column
+    # raises TypeError — which ``handle_db_errors`` does not catch, so it
+    # surfaced as an unhandled 500.
+    start_time = core_timezone.to_utc_aware(db_health_fasting.fast_start_time)
+    end_time = core_timezone.to_utc_aware(complete_data.fast_end_time)
 
     # Calculate actual_duration in seconds
     actual_duration = int((end_time - start_time).total_seconds())
 
     # Update the record
-    db_health_fasting.fast_end_time = complete_data.fast_end_time
+    db_health_fasting.fast_end_time = end_time
     db_health_fasting.status = complete_data.status.value
     db_health_fasting.actual_duration_seconds = actual_duration
     if complete_data.notes:

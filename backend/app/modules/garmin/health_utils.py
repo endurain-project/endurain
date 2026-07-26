@@ -225,6 +225,18 @@ def fetch_and_process_sleep_by_dates(
             if sleep_dto.get("sleepEndTimestampGMT")
             else None
         )
+        # NOTE: Garmin's ``*TimestampLocal`` epochs are already offset-shifted —
+        # they encode the sleeper's WALL CLOCK, not an instant. Reading them with
+        # ``tz=UTC`` therefore yields a datetime whose UTC components equal the
+        # local wall clock, which is what every consumer of these two columns
+        # wants (the edit form renders them straight into ``datetime-local``
+        # inputs). The true instants live in the ``*_gmt`` pair above.
+        #
+        # This is the same "wall clock wearing an instant's clothes" shape that
+        # was removed from activities: the columns are ``timestamptz`` but do not
+        # hold a meaningful instant. Deriving them from the GMT pair plus the
+        # recording offset (which is exactly ``local - gmt``) would remove the
+        # ambiguity; until then, do not convert or compare these values.
         sleep_start_local = (
             datetime.fromtimestamp(
                 sleep_dto["sleepStartTimestampLocal"] / 1000,

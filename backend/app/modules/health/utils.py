@@ -2,8 +2,11 @@
 
 from datetime import date, timedelta
 
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-def get_start_date_for_interval(interval: str) -> date:
+
+def get_start_date_for_interval(interval: str, today: date) -> date:
     """
     Calculate the start date based on the specified time interval.
 
@@ -15,12 +18,15 @@ def get_start_date_for_interval(interval: str) -> date:
             - "last_year": Returns date from 365 days ago
             - "all_time": Returns the minimum date (earliest possible date)
             - Any other value defaults to 7 days ago
+        today (date): The athlete's current calendar date, resolved from their
+            own timezone. Passed in rather than read from the server clock:
+            ``date.today()`` answers in the container's zone, which puts a user
+            in UTC+13 a day behind for 13 hours out of every 24 and silently
+            shifts every interval window by a day.
 
     Returns:
         date: The calculated start date for the given interval.
     """
-    today = date.today()
-
     if interval == "last_30_days":
         return today - timedelta(days=30)
     elif interval == "last_90_days":
@@ -31,3 +37,32 @@ def get_start_date_for_interval(interval: str) -> date:
         return date.min
     else:
         return today - timedelta(days=7)
+
+
+def local_date_expression(column, tz_name: str, db: Session):
+    """Return ``column`` (a ``timestamptz``) truncated to a calendar date in ``tz_name``.
+
+    ``func.date()`` on a ``timestamptz`` truncates in the *session* timezone,
+    which is pinned to UTC — so a 22:00 local entry in UTC+9 is filed under the
+    previous day, and a 20:00 local entry in UTC-5 under the next. Converting
+    through the athlete's own zone first makes the day match the one they
+    experienced.
+
+    Mirrors ``modules.activities.activity.crud.local_start_time_expression``,
+    which does the same for activity start times.
+
+    Args:
+        column: A timezone-aware datetime column.
+        tz_name: IANA timezone to resolve the calendar date in.
+        db: Database session, used to detect the dialect.
+
+    Returns:
+        A SQL expression yielding the local calendar date.
+    """
+    if db.get_bind().dialect.name == "postgresql":
+        # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
+        return func.date(func.timezone(tz_name, column))
+    # Production is Postgres-only (see core/database.py); other engines appear
+    # only in tests, so fall back to the raw value rather than emitting SQL the
+    # engine cannot run.
+    return func.date(column)
