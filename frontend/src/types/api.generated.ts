@@ -94,7 +94,7 @@ export interface paths {
         };
         /**
          * List Own Activities
-         * @description List the authenticated user's activities.
+         * @description List the authenticated user's activities, with the matching total.
          */
         get: operations["list_own_activities_api_v1_activities_get"];
         put?: never;
@@ -122,26 +122,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count Own Activities
-         * @description Count the authenticated user's activities matching the given filters.
-         */
-        get: operations["count_own_activities_api_v1_activities_count_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/activities/feed": {
         parameters: {
             query?: never;
@@ -151,29 +131,9 @@ export interface paths {
         };
         /**
          * List Following Feed
-         * @description List the authenticated user's following feed.
+         * @description List the authenticated user's following feed, with the matching total.
          */
         get: operations["list_following_feed_api_v1_activities_feed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/feed/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count Following Feed
-         * @description Count the authenticated user's following-feed activities.
-         */
-        get: operations["count_following_feed_api_v1_activities_feed_count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -191,29 +151,9 @@ export interface paths {
         };
         /**
          * List Gear Activities
-         * @description List the authenticated user's activities for a gear.
+         * @description List the authenticated user's activities for a gear, with the matching total.
          */
         get: operations["list_gear_activities_api_v1_activities_gears__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gears/{gear_id}/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count Gear Activities
-         * @description Count the authenticated user's activities for a gear.
-         */
-        get: operations["count_gear_activities_api_v1_activities_gears__gear_id__count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -310,7 +250,7 @@ export interface paths {
         };
         /**
          * List User Activities
-         * @description List another user's activities that are visible to the requester.
+         * @description List another user's visible activities, with the matching total.
          */
         get: operations["list_user_activities_api_v1_activities_users__user_id__get"];
         put?: never;
@@ -5708,6 +5648,36 @@ export interface components {
             detail: string;
         };
         /**
+         * ActivityPage
+         * @description One page of activities plus everything needed to paginate.
+         *
+         *     Replaces the previous "fetch the list, then fetch ``/count`` separately"
+         *     pattern: every list endpoint returned a bare array, so a client that wanted
+         *     to render "showing 20 of 340" or decide whether a next page existed had to
+         *     make a second request with the same filters. Two round trips, two chances for
+         *     the filters to disagree, and the count could change between them.
+         *
+         *     Attributes:
+         *         items: The activities on this page.
+         *         total: Total matching activities across all pages, with the same filters
+         *             and the same visibility scoping applied to ``items``.
+         *         page: The 1-based page number these items came from.
+         *         num_records: The page size used.
+         *         next: The next page number, or ``None`` when this is the last page.
+         */
+        ActivityPage: {
+            /** Items */
+            items: components["schemas"]["Activity"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /**
          * ActivitySetsRead
          * @description Schema for reading activity workout sets.
          *
@@ -5996,17 +5966,6 @@ export interface components {
          * @enum {string}
          */
         Color: "brown" | "dark_brown" | "light_brown" | "yellow" | "green" | "black" | "red" | "white";
-        /**
-         * CountResponse
-         * @description Envelope returned by activity count endpoints.
-         *
-         *     Attributes:
-         *         count: Number of matching activities.
-         */
-        CountResponse: {
-            /** Count */
-            count: number;
-        };
         /**
          * Currency
          * @description An enumeration representing supported currencies.
@@ -12315,7 +12274,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12349,41 +12308,6 @@ export interface operations {
             };
         };
     };
-    count_own_activities_api_v1_activities_count_get: {
-        parameters: {
-            query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name?: string | null;
-                activity_type?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CountResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_following_feed_api_v1_activities_feed_get: {
         parameters: {
             query?: {
@@ -12402,7 +12326,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12412,26 +12336,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    count_following_feed_api_v1_activities_feed_count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CountResponse"];
                 };
             };
         };
@@ -12456,38 +12360,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    count_gear_activities_api_v1_activities_gears__gear_id__count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CountResponse"];
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12605,7 +12478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */

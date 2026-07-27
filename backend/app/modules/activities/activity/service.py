@@ -311,3 +311,123 @@ def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> i
     _require_feed_owner(user_id, requester_user_id)
     followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
     return activities_crud.count_user_following_activities(followee_ids, db)
+
+
+# ---------------------------------------------------------------------------
+# Paged reads
+#
+# Each of these resolves a page and its total together so the API can answer in
+# one round trip. The two queries still run, but the client no longer has to
+# repeat its filters on a second request and hope the count still matches.
+# ---------------------------------------------------------------------------
+
+
+def page_user_activities(
+    user_id: int,
+    requester_user_id: int,
+    page_number: int,
+    num_records: int,
+    db: Session,
+    *,
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str | None = None,
+) -> activities_schema.ActivityPage:
+    """Return one page of a user's activities together with the matching total.
+
+    Args:
+        user_id: The owner whose activities to list.
+        requester_user_id: The authenticated caller, used to scope visibility.
+        page_number: 1-based page number.
+        num_records: Page size.
+        db: Database session.
+        activity_type: Optional sport-type filter.
+        start_date: Optional inclusive start date filter.
+        end_date: Optional inclusive end date filter.
+        name_search: Optional case-insensitive name search.
+        sort_by: Optional sort field.
+        sort_order: Optional sort direction.
+
+    Returns:
+        The page envelope. ``total`` carries the same filters and the same
+        visibility scoping as ``items``.
+    """
+    items = list_user_activities_paginated(
+        user_id,
+        requester_user_id,
+        page_number,
+        num_records,
+        db,
+        activity_type=activity_type,
+        start_date=start_date,
+        end_date=end_date,
+        name_search=name_search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+    total = activities_crud.count_user_activities(
+        user_id=user_id,
+        db=db,
+        activity_type=activity_type,
+        start_date=start_date,
+        end_date=end_date,
+        name_search=name_search,
+        user_is_owner=(user_id == requester_user_id),
+        requester_user_id=requester_user_id,
+    )
+    return activities_schema.ActivityPage.build(items, total, page_number, num_records)
+
+
+def page_following_feed(
+    user_id: int,
+    requester_user_id: int,
+    page_number: int,
+    num_records: int,
+    db: Session,
+) -> activities_schema.ActivityPage:
+    """Return one page of the requester's following feed with the matching total.
+
+    Args:
+        user_id: The feed owner (must be the requester).
+        requester_user_id: The authenticated caller.
+        page_number: 1-based page number.
+        num_records: Page size.
+        db: Database session.
+
+    Returns:
+        The page envelope.
+    """
+    # Ownership is enforced once here; the followee lookup is then shared by the
+    # page and the count rather than resolved twice.
+    _require_feed_owner(user_id, requester_user_id)
+    followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+    items = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
+    total = activities_crud.count_user_following_activities(followee_ids, db)
+    return activities_schema.ActivityPage.build(items, total, page_number, num_records)
+
+
+def page_gear_activities(
+    user_id: int,
+    gear_id: int,
+    page_number: int,
+    num_records: int,
+    db: Session,
+) -> activities_schema.ActivityPage:
+    """Return one page of a user's activities for a gear with the matching total.
+
+    Args:
+        user_id: The owner whose activities to list.
+        gear_id: The gear to filter by.
+        page_number: 1-based page number.
+        num_records: Page size.
+        db: Database session.
+
+    Returns:
+        The page envelope.
+    """
+    items = list_gear_activities(user_id, gear_id, page_number, num_records, db)
+    total = count_gear_activities(user_id, gear_id, db)
+    return activities_schema.ActivityPage.build(items, total, page_number, num_records)

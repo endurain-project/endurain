@@ -42,7 +42,7 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=list[activities_schema.Activity],
+    response_model=activities_schema.ActivityPage,
 )
 def list_own_activities(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -60,49 +60,20 @@ def list_own_activities(
     page_number: Annotated[int | None, Query(ge=1)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
-    """List the authenticated user's activities."""
-    return (
-        activities_service.list_user_activities_paginated(
-            token_user_id,
-            token_user_id,
-            page_number or 1,
-            num_records or _DEFAULT_NUM_RECORDS,
-            db,
-            activity_type=activity_type,
-            start_date=start_date,
-            end_date=end_date,
-            name_search=name_search,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
-        or []
-    )
-
-
-@router.get(
-    "/count",
-    response_model=activities_schema.CountResponse,
-)
-def count_own_activities(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    _validate_activity_type: Annotated[Callable, Depends(activities_dependencies.validate_activity_type)],
-    activity_type: Annotated[int | None, Query(alias="type")] = None,
-    start_date: Annotated[date | None, Query()] = None,
-    end_date: Annotated[date | None, Query()] = None,
-    name_search: Annotated[str | None, Query(alias="name")] = None,
-):
-    """Count the authenticated user's activities matching the given filters."""
-    total = activities_service.count_user_activities(
+    """List the authenticated user's activities, with the matching total."""
+    return activities_service.page_user_activities(
         token_user_id,
+        token_user_id,
+        page_number or 1,
+        num_records or _DEFAULT_NUM_RECORDS,
         db,
         activity_type=activity_type,
         start_date=start_date,
         end_date=end_date,
         name_search=name_search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    return activities_schema.CountResponse(count=total)
 
 
 @router.get(
@@ -120,7 +91,7 @@ def list_activity_types(
 
 @router.get(
     "/feed",
-    response_model=list[activities_schema.Activity],
+    response_model=activities_schema.ActivityPage,
 )
 def list_following_feed(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
@@ -129,36 +100,19 @@ def list_following_feed(
     page_number: Annotated[int | None, Query(ge=1)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
-    """List the authenticated user's following feed."""
-    return (
-        activities_service.get_following_feed(
-            token_user_id,
-            token_user_id,
-            page_number or 1,
-            num_records or _DEFAULT_NUM_RECORDS,
-            db,
-        )
-        or []
+    """List the authenticated user's following feed, with the matching total."""
+    return activities_service.page_following_feed(
+        token_user_id,
+        token_user_id,
+        page_number or 1,
+        num_records or _DEFAULT_NUM_RECORDS,
+        db,
     )
 
 
 @router.get(
-    "/feed/count",
-    response_model=activities_schema.CountResponse,
-)
-def count_following_feed(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-):
-    """Count the authenticated user's following-feed activities."""
-    total = activities_service.count_following_feed(token_user_id, token_user_id, db)
-    return activities_schema.CountResponse(count=total)
-
-
-@router.get(
     "/gears/{gear_id}",
-    response_model=list[activities_schema.Activity],
+    response_model=activities_schema.ActivityPage,
 )
 def list_gear_activities(
     gear_id: int,
@@ -169,24 +123,14 @@ def list_gear_activities(
     page_number: Annotated[int | None, Query(ge=1)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
-    """List the authenticated user's activities for a gear."""
-    return activities_service.list_gear_activities(token_user_id, gear_id, page_number, num_records, db) or []
-
-
-@router.get(
-    "/gears/{gear_id}/count",
-    response_model=activities_schema.CountResponse,
-)
-def count_gear_activities(
-    gear_id: int,
-    _validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-):
-    """Count the authenticated user's activities for a gear."""
-    total = activities_service.count_gear_activities(token_user_id, gear_id, db)
-    return activities_schema.CountResponse(count=total)
+    """List the authenticated user's activities for a gear, with the matching total."""
+    return activities_service.page_gear_activities(
+        token_user_id,
+        gear_id,
+        page_number or 1,
+        num_records or _DEFAULT_NUM_RECORDS,
+        db,
+    )
 
 
 @router.get(
@@ -217,7 +161,7 @@ def read_user_activity_stats(
 
 @router.get(
     "/users/{user_id}",
-    response_model=list[activities_schema.Activity] | None,
+    response_model=activities_schema.ActivityPage,
 )
 def list_user_activities(
     user_id: int,
@@ -237,8 +181,8 @@ def list_user_activities(
     page_number: Annotated[int | None, Query(ge=1)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
-    """List another user's activities that are visible to the requester."""
-    return activities_service.list_user_activities_paginated(
+    """List another user's visible activities, with the matching total."""
+    return activities_service.page_user_activities(
         user_id,
         token_user_id,
         page_number or 1,

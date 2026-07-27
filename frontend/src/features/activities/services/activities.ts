@@ -271,10 +271,10 @@ export async function fetchFollowersActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities/feed?${params.toString()}`, {
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities/feed?${params.toString()}`, {
     signal,
   })
-  return (dtos ?? []).map(mapActivity)
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** Formats a `Date` as a `YYYY-MM-DD` string using its local calendar fields. */
@@ -336,11 +336,11 @@ export async function fetchUserWeekActivities(
     end_date: endDate,
     num_records: '200',
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(
+  const page_ = await apiFetch<Schemas['ActivityPage']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )
-  return (dtos ?? []).map(mapActivity)
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** Backend-validated sortable columns for the user activities list. */
@@ -412,14 +412,14 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
 
 /**
  * Fetches one filtered, sorted page of a user's own activities together with the
- * total matching count, powering the activities list view. The list and count
- * requests run in parallel and share the same filters; only the list request
- * carries the paging and sort parameters. Authenticated-only.
+ * total matching count, powering the activities list view. The backend returns
+ * both in a single page envelope, so the filters cannot drift between a list and
+ * a separate count request. Authenticated-only.
  *
  * @param params - The list owner, page, size, filters, and sort.
  * @param signal - Optional abort signal for cancellation.
  * @returns The page's activities (mapped) plus the total matching count.
- * @throws {HttpError} When either request fails.
+ * @throws {HttpError} When the request fails.
  */
 export async function fetchUserActivitiesPage(
   { page, numRecords, filters, sortBy, sortOrder }: ActivityListParams,
@@ -432,19 +432,11 @@ export async function fetchUserActivitiesPage(
   listParams.set('page_number', String(page))
   listParams.set('num_records', String(numRecords))
 
-  const countParams = new URLSearchParams()
-  appendActivityFilters(countParams, filters)
-  const countQuery = countParams.toString()
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${listParams.toString()}`, {
+    signal,
+  })
 
-  const [dtos, countResponse] = await Promise.all([
-    apiFetch<ActivityDto[] | null>(`/activities?${listParams.toString()}`, { signal }),
-    apiFetch<Schemas['CountResponse']>(
-      countQuery ? `/activities/count?${countQuery}` : '/activities/count',
-      { signal },
-    ),
-  ])
-
-  return { records: (dtos ?? []).map(mapActivity), total: countResponse.count }
+  return { records: (page_.items ?? []).map(mapActivity), total: page_.total }
 }
 
 /**
@@ -533,11 +525,14 @@ export async function fetchUserThisMonthActivityCount(
     end_date: endDate,
     num_records: '200',
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(
+  const page_ = await apiFetch<Schemas['ActivityPage']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )
-  return dtos?.length ?? 0
+  // The envelope's total is the real match count. This previously returned the
+  // length of the returned page, so any week with more than num_records
+  // activities under-reported.
+  return page_.total
 }
 
 /**
