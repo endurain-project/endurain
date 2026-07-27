@@ -194,7 +194,13 @@ describe('fetchActivity', () => {
 
 describe('searchActivitiesByName', () => {
   it('encodes the name search term and maps the results', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto])
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [activityDto],
+      total: 1,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     const result = await searchActivitiesByName('morning run')
     expect(apiFetch).toHaveBeenCalledWith(
       '/activities?name=morning+run',
@@ -204,8 +210,14 @@ describe('searchActivitiesByName', () => {
     expect(result[0]?.id).toBe(5)
   })
 
-  it('treats a null search body as no matches', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+  it('treats an empty page as no matches', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     await expect(searchActivitiesByName('x')).resolves.toEqual([])
   })
 })

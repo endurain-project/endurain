@@ -222,8 +222,10 @@ export async function searchActivitiesByName(
   signal?: AbortSignal,
 ): Promise<Activity[]> {
   const params = new URLSearchParams({ name })
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities?${params.toString()}`, { signal })
-  return (dtos ?? []).map(mapActivity)
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${params.toString()}`, {
+    signal,
+  })
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** A timeframe accepted by the activity stats endpoints. */
@@ -248,8 +250,10 @@ export async function fetchUserActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities?${params.toString()}`, { signal })
-  return (dtos ?? []).map(mapActivity)
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${params.toString()}`, {
+    signal,
+  })
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /**
