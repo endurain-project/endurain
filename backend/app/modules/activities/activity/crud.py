@@ -26,6 +26,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.decorators as core_decorators
 import core.logger as core_logger
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
@@ -141,23 +142,6 @@ _MAX_UTC_OFFSET = activities_query.MAX_UTC_OFFSET
 
 local_start_time_expression = activities_query.local_start_time_expression
 local_date_range_conditions = activities_query.local_date_range_conditions
-
-
-def _internal_server_error(err: Exception, context: str) -> HTTPException:
-    """Build a logged HTTP 500 error from an exception.
-
-    Args:
-        err: The original exception.
-        context: Function name used in the log message.
-
-    Returns:
-        HTTPException with a 500 status code.
-    """
-    logger.error(f"Error in {context}: {err}", exc_info=err)
-    return HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Internal Server Error",
-    )
 
 
 def _transform_schema_activity_to_model_activity(
@@ -296,6 +280,7 @@ def _apply_name_search(
     )
 
 
+@core_decorators.handle_db_errors
 def get_all_activities(
     db: Session,
 ) -> list[activities_schema.Activity] | None:
@@ -314,15 +299,13 @@ def get_all_activities(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        activities = db.execute(select(activities_models.Activity)).scalars().all()
-        if not activities:
-            return None
-        return [activities_serializers.serialize_activity(a) for a in activities]
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_all_activities") from err
+    activities = db.execute(select(activities_models.Activity)).scalars().all()
+    if not activities:
+        return None
+    return [activities_serializers.serialize_activity(a) for a in activities]
 
 
+@core_decorators.handle_db_errors
 def get_all_activities_for_migration(
     db: Session,
 ) -> list[activities_contracts.ActivityMigrationRef]:
@@ -340,23 +323,21 @@ def get_all_activities_for_migration(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        activities = db.execute(select(activities_models.Activity)).scalars().all()
-        return [
-            activities_contracts.ActivityMigrationRef(
-                id=activity.id,
-                user_id=activity.user_id,
-                start_time=activity.start_time,
-                end_time=activity.end_time,
-                strava_activity_id=activity.strava_activity_id,
-                garminconnect_activity_id=activity.garminconnect_activity_id,
-            )
-            for activity in activities
-        ]
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_all_activities_for_migration") from err
+    activities = db.execute(select(activities_models.Activity)).scalars().all()
+    return [
+        activities_contracts.ActivityMigrationRef(
+            id=activity.id,
+            user_id=activity.user_id,
+            start_time=activity.start_time,
+            end_time=activity.end_time,
+            strava_activity_id=activity.strava_activity_id,
+            garminconnect_activity_id=activity.garminconnect_activity_id,
+        )
+        for activity in activities
+    ]
 
 
+@core_decorators.handle_db_errors
 def get_user_activities(
     user_id: int,
     db: Session,
@@ -387,35 +368,33 @@ def get_user_activities(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.user_id == user_id)
-        stmt = _apply_activity_visibility_filter(
-            stmt,
-            user_is_owner=user_is_owner,
-            requester_user_id=requester_user_id,
-            db=db,
-        )
-        if activity_type:
-            stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
-        # Date filters are evaluated in each activity's own timezone, so a
-        # user filtering "1 May" gets their 1 May, not UTC's.
-        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
-        if name_search:
-            stmt = _apply_name_search(stmt, name_search)
-        stmt = stmt.order_by(desc(activities_models.Activity.start_time))
+    stmt = select(activities_models.Activity).where(activities_models.Activity.user_id == user_id)
+    stmt = _apply_activity_visibility_filter(
+        stmt,
+        user_is_owner=user_is_owner,
+        requester_user_id=requester_user_id,
+        db=db,
+    )
+    if activity_type:
+        stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
+    # Date filters are evaluated in each activity's own timezone, so a
+    # user filtering "1 May" gets their 1 May, not UTC's.
+    stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
+    if name_search:
+        stmt = _apply_name_search(stmt, name_search)
+    stmt = stmt.order_by(desc(activities_models.Activity.start_time))
 
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id if user_is_owner else None,
-            force_non_owner=not user_is_owner,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_activities") from err
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id if user_is_owner else None,
+        force_non_owner=not user_is_owner,
+    )
 
 
+@core_decorators.handle_db_errors
 def count_user_activities(
     user_id: int,
     db: Session,
@@ -449,31 +428,29 @@ def count_user_activities(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(func.count())
-            .select_from(activities_models.Activity)
-            .where(activities_models.Activity.user_id == user_id)
-        )
-        stmt = _apply_activity_visibility_filter(
-            stmt,
-            user_is_owner=user_is_owner,
-            requester_user_id=requester_user_id,
-            db=db,
-        )
-        if activity_type:
-            stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
-        # Date filters are evaluated in each activity's own timezone, so a
-        # user filtering "1 May" gets their 1 May, not UTC's.
-        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
-        if name_search:
-            stmt = _apply_name_search(stmt, name_search)
-        count = db.execute(stmt).scalar()
-        return count or 0
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "count_user_activities") from err
+    stmt = (
+        select(func.count())
+        .select_from(activities_models.Activity)
+        .where(activities_models.Activity.user_id == user_id)
+    )
+    stmt = _apply_activity_visibility_filter(
+        stmt,
+        user_is_owner=user_is_owner,
+        requester_user_id=requester_user_id,
+        db=db,
+    )
+    if activity_type:
+        stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
+    # Date filters are evaluated in each activity's own timezone, so a
+    # user filtering "1 May" gets their 1 May, not UTC's.
+    stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
+    if name_search:
+        stmt = _apply_name_search(stmt, name_search)
+    count = db.execute(stmt).scalar()
+    return count or 0
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_by_user_id_and_garminconnect_gear_set(
     user_id: int, db: Session
 ) -> list[activities_schema.Activity] | None:
@@ -489,29 +466,24 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.garminconnect_gear_id.isnot(None),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.garminconnect_gear_id.isnot(None),
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(
-            err,
-            "get_user_activities_by_user_id_and_garminconnect_gear_set",
-        ) from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id,
+    )
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_with_pagination(
     user_id: int,
     db: Session,
@@ -550,56 +522,54 @@ def get_user_activities_with_pagination(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-        )
-        stmt = _apply_activity_visibility_filter(
-            stmt,
-            user_is_owner=user_is_owner,
-            requester_user_id=requester_user_id,
-            db=db,
-        )
-        if activity_type:
-            stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
-        # Date filters are evaluated in each activity's own timezone, so a
-        # user filtering "1 May" gets their 1 May, not UTC's.
-        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
-        if name_search:
-            stmt = _apply_name_search(stmt, name_search)
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+    )
+    stmt = _apply_activity_visibility_filter(
+        stmt,
+        user_is_owner=user_is_owner,
+        requester_user_id=requester_user_id,
+        db=db,
+    )
+    if activity_type:
+        stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
+    # Date filters are evaluated in each activity's own timezone, so a
+    # user filtering "1 May" gets their 1 May, not UTC's.
+    stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
+    if name_search:
+        stmt = _apply_name_search(stmt, name_search)
 
-        sort_ascending = bool(sort_order and sort_order.lower() == "asc")
+    sort_ascending = bool(sort_order and sort_order.lower() == "asc")
 
-        if sort_by == "location":
-            location_cols = [
-                func.coalesce(activities_models.Activity.country, ""),
-                func.coalesce(activities_models.Activity.city, ""),
-                func.coalesce(activities_models.Activity.town, ""),
-            ]
-            order_cols = [col.asc() if sort_ascending else col.desc() for col in location_cols]
-            stmt = stmt.order_by(*order_cols)
+    if sort_by == "location":
+        location_cols = [
+            func.coalesce(activities_models.Activity.country, ""),
+            func.coalesce(activities_models.Activity.city, ""),
+            func.coalesce(activities_models.Activity.town, ""),
+        ]
+        order_cols = [col.asc() if sort_ascending else col.desc() for col in location_cols]
+        stmt = stmt.order_by(*order_cols)
+    else:
+        sort_column = SORT_MAP.get(sort_by or "", activities_models.Activity.start_time)
+        if sort_column in _NUMERIC_SORT_COLUMNS:
+            ordered = func.coalesce(sort_column, -999999)
+            stmt = stmt.order_by(ordered.asc() if sort_ascending else ordered.desc())
         else:
-            sort_column = SORT_MAP.get(sort_by or "", activities_models.Activity.start_time)
-            if sort_column in _NUMERIC_SORT_COLUMNS:
-                ordered = func.coalesce(sort_column, -999999)
-                stmt = stmt.order_by(ordered.asc() if sort_ascending else ordered.desc())
-            else:
-                stmt = stmt.order_by(sort_column.asc() if sort_ascending else sort_column.desc())
+            stmt = stmt.order_by(sort_column.asc() if sort_ascending else sort_column.desc())
 
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
+    stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
 
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id if user_is_owner else None,
-            force_non_owner=not user_is_owner,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_activities_with_pagination") from err
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id if user_is_owner else None,
+        force_non_owner=not user_is_owner,
+    )
 
 
+@core_decorators.handle_db_errors
 def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int, str]:
     """Map distinct activity types owned by a user to names.
 
@@ -613,23 +583,21 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int,
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity.activity_type)
-            .where(activities_models.Activity.user_id == user_id)
-            .distinct()
-            .order_by(activities_models.Activity.activity_type)
-        )
-        type_ids = db.execute(stmt).scalars().all()
-        return {
-            type_id: activities_constants.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
-            for type_id in type_ids
-            if type_id is not None
-        }
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_distinct_activity_types_for_user") from err
+    stmt = (
+        select(activities_models.Activity.activity_type)
+        .where(activities_models.Activity.user_id == user_id)
+        .distinct()
+        .order_by(activities_models.Activity.activity_type)
+    )
+    type_ids = db.execute(stmt).scalars().all()
+    return {
+        type_id: activities_constants.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
+        for type_id in type_ids
+        if type_id is not None
+    }
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_per_timeframe(
     user_id: int,
     start: datetime,
@@ -656,33 +624,31 @@ def get_user_activities_per_timeframe(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
         )
-        stmt = _apply_activity_visibility_filter(
-            stmt,
-            user_is_owner=user_is_owner,
-            requester_user_id=requester_user_id,
-            db=db,
-        )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id if user_is_owner else None,
-            force_non_owner=not user_is_owner,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_activities_per_timeframe") from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    stmt = _apply_activity_visibility_filter(
+        stmt,
+        user_is_owner=user_is_owner,
+        requester_user_id=requester_user_id,
+        db=db,
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id if user_is_owner else None,
+        force_non_owner=not user_is_owner,
+    )
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_per_timeframe_and_activity_type(
     user_id: int,
     activity_type: int,
@@ -711,37 +677,32 @@ def get_user_activities_per_timeframe_and_activity_type(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.activity_type == activity_type,
-                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.activity_type == activity_type,
+            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
         )
-        stmt = _apply_activity_visibility_filter(
-            stmt,
-            user_is_owner=user_is_owner,
-            requester_user_id=requester_user_id,
-            db=db,
-        )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id if user_is_owner else None,
-            force_non_owner=not user_is_owner,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(
-            err,
-            "get_user_activities_per_timeframe_and_activity_type",
-        ) from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    stmt = _apply_activity_visibility_filter(
+        stmt,
+        user_is_owner=user_is_owner,
+        requester_user_id=requester_user_id,
+        db=db,
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id if user_is_owner else None,
+        force_non_owner=not user_is_owner,
+    )
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_per_timeframe_and_activity_types(
     user_id: int,
     activity_types: list[int],
@@ -773,39 +734,34 @@ def get_user_activities_per_timeframe_and_activity_types(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.activity_type.in_(activity_types),
-                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.activity_type.in_(activity_types),
+            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
         )
-        if exclude_hidden:
-            stmt = stmt.where(activities_models.Activity.is_hidden.is_(False))
-        stmt = _apply_activity_visibility_filter(
-            stmt,
-            user_is_owner=user_is_owner,
-            requester_user_id=requester_user_id,
-            db=db,
-        )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return []
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id if user_is_owner else None,
-            force_non_owner=not user_is_owner,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(
-            err,
-            "get_user_activities_per_timeframe_and_activity_types",
-        ) from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    if exclude_hidden:
+        stmt = stmt.where(activities_models.Activity.is_hidden.is_(False))
+    stmt = _apply_activity_visibility_filter(
+        stmt,
+        user_is_owner=user_is_owner,
+        requester_user_id=requester_user_id,
+        db=db,
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return []
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id if user_is_owner else None,
+        force_non_owner=not user_is_owner,
+    )
 
 
+@core_decorators.handle_db_errors
 def get_user_following_activities_per_timeframe(
     user_id: int,
     start: datetime,
@@ -826,29 +782,27 @@ def get_user_following_activities_per_timeframe(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
-        if not followee_ids:
-            return None
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id.in_(followee_ids),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
-                *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+    if not followee_ids:
+        return None
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id.in_(followee_ids),
+            activities_models.Activity.visibility.in_([0, 1]),
+            activities_models.Activity.is_hidden.is_(False),
+            activities_models.Activity.strava_activity_id.is_(None),
+            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(list(activities), force_non_owner=True)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_following_activities_per_timeframe") from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(list(activities), force_non_owner=True)
 
 
+@core_decorators.handle_db_errors
 def get_user_following_activities_with_pagination(
     followee_ids: list[int], page_number: int, num_records: int, db: Session
 ) -> list[activities_schema.Activity] | None:
@@ -868,29 +822,27 @@ def get_user_following_activities_with_pagination(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        if not followee_ids:
-            return None
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id.in_(followee_ids),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
+    if not followee_ids:
+        return None
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id.in_(followee_ids),
+            activities_models.Activity.visibility.in_([0, 1]),
+            activities_models.Activity.is_hidden.is_(False),
+            activities_models.Activity.strava_activity_id.is_(None),
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(list(activities), force_non_owner=True)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_following_activities_with_pagination") from err
+        .order_by(desc(activities_models.Activity.start_time))
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(list(activities), force_non_owner=True)
 
 
+@core_decorators.handle_db_errors
 def get_user_following_activities(user_id: int, db: Session) -> list[activities_schema.Activity] | None:
     """Get all activities from users a user follows.
 
@@ -904,24 +856,22 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
-        if not followee_ids:
-            return None
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id.in_(followee_ids),
-            activities_models.Activity.visibility.in_([0, 1]),
-            activities_models.Activity.is_hidden.is_(False),
-            activities_models.Activity.strava_activity_id.is_(None),
-        )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return [activities_serializers.serialize_activity(a) for a in activities]
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_following_activities") from err
+    followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+    if not followee_ids:
+        return None
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id.in_(followee_ids),
+        activities_models.Activity.visibility.in_([0, 1]),
+        activities_models.Activity.is_hidden.is_(False),
+        activities_models.Activity.strava_activity_id.is_(None),
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return [activities_serializers.serialize_activity(a) for a in activities]
 
 
+@core_decorators.handle_db_errors
 def count_user_following_activities(followee_ids: list[int], db: Session) -> int:
     """Count activities from a set of followed users.
 
@@ -938,25 +888,23 @@ def count_user_following_activities(followee_ids: list[int], db: Session) -> int
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        if not followee_ids:
-            return 0
-        stmt = (
-            select(func.count())
-            .select_from(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id.in_(followee_ids),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
-            )
+    if not followee_ids:
+        return 0
+    stmt = (
+        select(func.count())
+        .select_from(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id.in_(followee_ids),
+            activities_models.Activity.visibility.in_([0, 1]),
+            activities_models.Activity.is_hidden.is_(False),
+            activities_models.Activity.strava_activity_id.is_(None),
         )
-        count = db.execute(stmt).scalar()
-        return count or 0
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "count_user_following_activities") from err
+    )
+    count = db.execute(stmt).scalar()
+    return count or 0
 
 
+@core_decorators.handle_db_errors
 def get_gear_activities_count_by_user_id(
     user_id: int,
     gear_id: int,
@@ -975,21 +923,19 @@ def get_gear_activities_count_by_user_id(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(func.count())
-            .select_from(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.gear_id == gear_id,
-            )
+    stmt = (
+        select(func.count())
+        .select_from(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.gear_id == gear_id,
         )
-        count = db.execute(stmt).scalar()
-        return count or 0
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_gear_activities_count_by_user_id") from err
+    )
+    count = db.execute(stmt).scalar()
+    return count or 0
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_by_gear_id_and_user_id(
     user_id: int, gear_id: int, db: Session
 ) -> list[activities_schema.Activity] | None:
@@ -1006,26 +952,24 @@ def get_user_activities_by_gear_id_and_user_id(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.gear_id == gear_id,
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.gear_id == gear_id,
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_activities_by_gear_id_and_user_id") from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id,
+    )
 
 
+@core_decorators.handle_db_errors
 def get_user_activities_by_gear_id_and_user_id_with_pagination(
     user_id: int,
     gear_id: int,
@@ -1048,31 +992,26 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.gear_id == gear_id,
-            )
-            .order_by(desc(activities_models.Activity.start_time))
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.gear_id == gear_id,
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(
-            err,
-            "get_user_activities_by_gear_id_and_user_id_with_pagination",
-        ) from err
+        .order_by(desc(activities_models.Activity.start_time))
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id,
+    )
 
 
+@core_decorators.handle_db_errors
 def sum_gear_usage(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
     """Total distance and moving time recorded against a gear.
 
@@ -1089,17 +1028,15 @@ def sum_gear_usage(gear_id: int, db: Session) -> activities_contracts.ActivityUs
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(
-            func.coalesce(func.sum(activities_models.Activity.distance), 0),
-            func.coalesce(func.sum(activities_models.Activity.total_timer_time), 0),
-        ).where(activities_models.Activity.gear_id == gear_id)
-        distance, moving_time = db.execute(stmt).one()
-        return activities_contracts.ActivityUsageTotals(distance=float(distance), time=float(moving_time))
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "sum_gear_usage") from err
+    stmt = select(
+        func.coalesce(func.sum(activities_models.Activity.distance), 0),
+        func.coalesce(func.sum(activities_models.Activity.total_timer_time), 0),
+    ).where(activities_models.Activity.gear_id == gear_id)
+    distance, moving_time = db.execute(stmt).one()
+    return activities_contracts.ActivityUsageTotals(distance=float(distance), time=float(moving_time))
 
 
+@core_decorators.handle_db_errors
 def sum_gear_usage_by_window(
     gear_id: int,
     windows: Sequence[activities_contracts.GearUsageWindow],
@@ -1128,33 +1065,31 @@ def sum_gear_usage_by_window(
     if not windows:
         return {}
 
-    try:
-        local_date = func.date(activities_query.local_start_time_expression(db))
+    local_date = func.date(activities_query.local_start_time_expression(db))
 
-        columns = []
-        for window in windows:
-            in_window = local_date >= window.start_date
-            if window.end_date is not None:
-                in_window = and_(in_window, local_date <= window.end_date)
-            columns.append(func.coalesce(func.sum(case((in_window, activities_models.Activity.distance), else_=0)), 0))
-            columns.append(
-                func.coalesce(func.sum(case((in_window, activities_models.Activity.total_timer_time), else_=0)), 0)
-            )
+    columns = []
+    for window in windows:
+        in_window = local_date >= window.start_date
+        if window.end_date is not None:
+            in_window = and_(in_window, local_date <= window.end_date)
+        columns.append(func.coalesce(func.sum(case((in_window, activities_models.Activity.distance), else_=0)), 0))
+        columns.append(
+            func.coalesce(func.sum(case((in_window, activities_models.Activity.total_timer_time), else_=0)), 0)
+        )
 
-        stmt = select(*columns).where(activities_models.Activity.gear_id == gear_id)
-        row = db.execute(stmt).one()
+    stmt = select(*columns).where(activities_models.Activity.gear_id == gear_id)
+    row = db.execute(stmt).one()
 
-        return {
-            window.key: activities_contracts.ActivityUsageTotals(
-                distance=float(row[index * 2]),
-                time=float(row[index * 2 + 1]),
-            )
-            for index, window in enumerate(windows)
-        }
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "sum_gear_usage_by_window") from err
+    return {
+        window.key: activities_contracts.ActivityUsageTotals(
+            distance=float(row[index * 2]),
+            time=float(row[index * 2 + 1]),
+        )
+        for index, window in enumerate(windows)
+    }
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_id_from_user_id_or_has_visibility(
     activity_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity | None:
@@ -1171,26 +1106,24 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            or_(
-                activities_models.Activity.user_id == user_id,
-                _visible_to_requester_condition(user_id, db),
-            ),
-            activities_models.Activity.id == activity_id,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        schema = activities_serializers.serialize_activity(activity)
-        is_owner = activity.user_id == user_id
-        activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
-        logger.debug(f"Served activity {activity_id} to user {user_id} (owner={is_owner})")
-        return schema
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_id_from_user_id_or_has_visibility") from err
+    stmt = select(activities_models.Activity).where(
+        or_(
+            activities_models.Activity.user_id == user_id,
+            _visible_to_requester_condition(user_id, db),
+        ),
+        activities_models.Activity.id == activity_id,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    schema = activities_serializers.serialize_activity(activity)
+    is_owner = activity.user_id == user_id
+    activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
+    logger.debug(f"Served activity {activity_id} to user {user_id} (owner={is_owner})")
+    return schema
 
 
+@core_decorators.handle_db_errors
 def get_viewable_activity_by_id_for_user(
     activity_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity | None:
@@ -1220,22 +1153,20 @@ def get_viewable_activity_by_id_for_user(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            or_(
-                activities_models.Activity.user_id == user_id,
-                _visible_to_requester_condition(user_id, db),
-            ),
-            activities_models.Activity.id == activity_id,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_viewable_activity_by_id_for_user") from err
+    stmt = select(activities_models.Activity).where(
+        or_(
+            activities_models.Activity.user_id == user_id,
+            _visible_to_requester_condition(user_id, db),
+        ),
+        activities_models.Activity.id == activity_id,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities_schema.Activity | None:
     """Get an activity by ID if it is publicly shareable.
 
@@ -1249,25 +1180,22 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        server_settings = server_settings_utils.get_server_settings_or_404(db)
-        if not server_settings.public_shareable_links:
-            return None
+    server_settings = server_settings_utils.get_server_settings_or_404(db)
+    if not server_settings.public_shareable_links:
+        return None
 
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.visibility == 0,
-            activities_models.Activity.is_hidden.is_(False),
-            activities_models.Activity.id == activity_id,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        schema = activities_serializers.serialize_activity(activity)
-        activities_serializers.apply_visibility_mask(schema, is_owner=False)
-        logger.debug(f"Served public activity {activity_id}")
-        return schema
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_id_if_is_public") from err
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.visibility == 0,
+        activities_models.Activity.is_hidden.is_(False),
+        activities_models.Activity.id == activity_id,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    schema = activities_serializers.serialize_activity(activity)
+    activities_serializers.apply_visibility_mask(schema, is_owner=False)
+    logger.debug(f"Served public activity {activity_id}")
+    return schema
 
 
 def get_public_activity_for_child_read(
@@ -1321,6 +1249,7 @@ def get_public_activity_for_child_read(
     return activity
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity | None:
     """Get an activity by ID without permission checks.
 
@@ -1334,18 +1263,16 @@ def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activ
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.id == activity_id,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_id") from err
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.id == activity_id,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_start_time(
     start_time: str | datetime, user_id: int, db: Session
 ) -> activities_schema.Activity | None:
@@ -1362,23 +1289,21 @@ def get_activity_by_start_time(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        if isinstance(start_time, str):
-            start_time = datetime.fromisoformat(start_time)
-        if start_time.tzinfo is None:
-            start_time = start_time.replace(tzinfo=UTC)
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.start_time == start_time,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_start_time") from err
+    if isinstance(start_time, str):
+        start_time = datetime.fromisoformat(start_time)
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=UTC)
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.start_time == start_time,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> activities_schema.Activity | None:
     """Get a user's activity by its idempotency dedup key.
 
@@ -1396,19 +1321,17 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.dedup_key == dedup_key,
-        )
-        activity = db.execute(stmt).scalars().first()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_dedup_key") from err
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.dedup_key == dedup_key,
+    )
+    activity = db.execute(stmt).scalars().first()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
     """Get a user's activity by ID.
 
@@ -1423,19 +1346,17 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.id == activity_id,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_id_from_user_id") from err
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.id == activity_id,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_strava_id_from_user_id(
     activity_strava_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity | None:
@@ -1452,19 +1373,17 @@ def get_activity_by_strava_id_from_user_id(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.strava_activity_id == activity_strava_id,
-        )
-        activity = db.execute(stmt).scalar_one_or_none()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_strava_id_from_user_id") from err
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.strava_activity_id == activity_strava_id,
+    )
+    activity = db.execute(stmt).scalar_one_or_none()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activity_by_garminconnect_id_from_user_id(
     activity_garminconnect_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity | None:
@@ -1481,19 +1400,17 @@ def get_activity_by_garminconnect_id_from_user_id(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.garminconnect_activity_id == activity_garminconnect_id,
-        )
-        activity = db.execute(stmt).scalars().first()
-        if not activity:
-            return None
-        return activities_serializers.serialize_activity(activity)
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activity_by_garminconnect_id_from_user_id") from err
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.garminconnect_activity_id == activity_garminconnect_id,
+    )
+    activity = db.execute(stmt).scalars().first()
+    if not activity:
+        return None
+    return activities_serializers.serialize_activity(activity)
 
 
+@core_decorators.handle_db_errors
 def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> list[activities_schema.Activity] | None:
     """Search a user's activities by partial name match.
 
@@ -1508,28 +1425,26 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        partial_name = unquote(name).replace("+", " ").lower()
-        pattern = f"%{escape_like(partial_name)}%"
-        stmt = (
-            select(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
-            )
-            .order_by(desc(activities_models.Activity.start_time))
+    partial_name = unquote(name).replace("+", " ").lower()
+    pattern = f"%{escape_like(partial_name)}%"
+    stmt = (
+        select(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return _serialize_and_mask(
-            list(activities),
-            requester_user_id=user_id,
-        )
-    except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_activities_if_contains_name") from err
+        .order_by(desc(activities_models.Activity.start_time))
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return None
+    return _serialize_and_mask(
+        list(activities),
+        requester_user_id=user_id,
+    )
 
 
+@core_decorators.handle_db_errors
 def create_activity(
     activity: activities_contracts.ActivityCore,
     db: Session,
@@ -1559,60 +1474,57 @@ def create_activity(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        if activity.user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Activity user_id is required",
-            )
-
-        # Normalize the start time to a UTC-aware datetime at the persistence
-        # boundary. Parsers emit naive UTC wall-clock values and providers emit
-        # ISO strings; to_utc_aware coerces both to aware UTC and returns None for
-        # a missing value, so we never persist or compare a naive/absent start
-        # time (this is also what keeps get_activity_by_start_time from being
-        # handed a None).
-        normalized_start_time = core_timezone.to_utc_aware(activity.start_time)
-        if normalized_start_time is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Activity start_time is required and must be a valid datetime",
-            )
-
-        activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
-        if activity_start_time_exists:
-            activity.is_hidden = True
-
-        new_activity = _transform_schema_activity_to_model_activity(activity)
-        # Persist the idempotency key alongside the row so future re-imports of
-        # the same source can be recognised as duplicates.
-        new_activity.dedup_key = dedup_key
-
-        db.add(new_activity)
-        # Persist the row so its generated id / created_at are available. On the
-        # ingestion path the caller drives a single commit for the whole unit of
-        # work (activity + children + outbox row), so we only flush here; other
-        # callers keep the default commit=True.
-        if commit:
-            db.commit()
-        else:
-            db.flush()
-        db.refresh(new_activity)
-
-        activity.id = new_activity.id
-        activity.created_at = new_activity.created_at
-
-        logger.debug(
-            f"Created activity {new_activity.id} for user {activity.user_id}"
-            + (" (marked hidden: duplicate start time)" if activity_start_time_exists else "")
+    if activity.user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Activity user_id is required",
         )
 
-        return activity
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "create_activity") from err
+    # Normalize the start time to a UTC-aware datetime at the persistence
+    # boundary. Parsers emit naive UTC wall-clock values and providers emit
+    # ISO strings; to_utc_aware coerces both to aware UTC and returns None for
+    # a missing value, so we never persist or compare a naive/absent start
+    # time (this is also what keeps get_activity_by_start_time from being
+    # handed a None).
+    normalized_start_time = core_timezone.to_utc_aware(activity.start_time)
+    if normalized_start_time is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Activity start_time is required and must be a valid datetime",
+        )
+
+    activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
+    if activity_start_time_exists:
+        activity.is_hidden = True
+
+    new_activity = _transform_schema_activity_to_model_activity(activity)
+    # Persist the idempotency key alongside the row so future re-imports of
+    # the same source can be recognised as duplicates.
+    new_activity.dedup_key = dedup_key
+
+    db.add(new_activity)
+    # Persist the row so its generated id / created_at are available. On the
+    # ingestion path the caller drives a single commit for the whole unit of
+    # work (activity + children + outbox row), so we only flush here; other
+    # callers keep the default commit=True.
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+    db.refresh(new_activity)
+
+    activity.id = new_activity.id
+    activity.created_at = new_activity.created_at
+
+    logger.debug(
+        f"Created activity {new_activity.id} for user {activity.user_id}"
+        + (" (marked hidden: duplicate start time)" if activity_start_time_exists else "")
+    )
+
+    return activity
 
 
+@core_decorators.handle_db_errors
 def set_activity_thumbnail_path(
     activity_id: int,
     thumbnail_path: str | None,
@@ -1631,19 +1543,16 @@ def set_activity_thumbnail_path(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
-        db_activity = db.execute(stmt).scalar_one_or_none()
-        if db_activity is None:
-            logger.warning(f"Activity {activity_id} not found when setting thumbnail path")
-            return
-        db_activity.map_thumbnail_path = thumbnail_path
-        db.commit()
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "set_activity_thumbnail_path") from err
+    stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
+    db_activity = db.execute(stmt).scalar_one_or_none()
+    if db_activity is None:
+        logger.warning(f"Activity {activity_id} not found when setting thumbnail path")
+        return
+    db_activity.map_thumbnail_path = thumbnail_path
+    db.commit()
 
 
+@core_decorators.handle_db_errors
 def update_activity_location(
     activity_id: int,
     city: str | None,
@@ -1670,20 +1579,16 @@ def update_activity_location(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
-        db_activity = db.execute(stmt).scalar_one_or_none()
-        if db_activity is None:
-            logger.warning(f"Activity {activity_id} not found when updating location")
-            return False
-        db_activity.city = city
-        db_activity.town = town
-        db_activity.country = country
-        db.commit()
-        return True
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "update_activity_location") from err
+    stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
+    db_activity = db.execute(stmt).scalar_one_or_none()
+    if db_activity is None:
+        logger.warning(f"Activity {activity_id} not found when updating location")
+        return False
+    db_activity.city = city
+    db_activity.town = town
+    db_activity.country = country
+    db.commit()
+    return True
 
 
 def get_activities_missing_location(
@@ -1718,7 +1623,7 @@ def get_activities_missing_location(
         ids = db.execute(stmt).scalars().all()
         return [activities_contracts.ActivityLocationRef(id=activity_id) for activity_id in ids]
     except SQLAlchemyError as err:
-        logger.error(f"Error in get_activities_missing_location: {err}", exc_info=err)
+        logger.error(f"Database error in get_activities_missing_location: {type(err).__name__}", exc_info=err)
         return []
 
 
@@ -1736,7 +1641,7 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
         db.commit()
     except SQLAlchemyError as err:
         db.rollback()
-        logger.error(f"Error in clear_all_activity_thumbnail_paths: {err}", exc_info=err)
+        logger.error(f"Database error in clear_all_activity_thumbnail_paths: {type(err).__name__}", exc_info=err)
 
 
 def get_activities_with_thumbnail(
@@ -1759,7 +1664,7 @@ def get_activities_with_thumbnail(
             for row in rows
         ]
     except SQLAlchemyError as err:
-        logger.error(f"Error in get_activities_with_thumbnail: {err}", exc_info=err)
+        logger.error(f"Database error in get_activities_with_thumbnail: {type(err).__name__}", exc_info=err)
         return []
 
 
@@ -1783,7 +1688,7 @@ def get_activities_without_thumbnail(
             for row in rows
         ]
     except SQLAlchemyError as err:
-        logger.error(f"Error in get_activities_without_thumbnail: {err}", exc_info=err)
+        logger.error(f"Database error in get_activities_without_thumbnail: {type(err).__name__}", exc_info=err)
         return []
 
 
@@ -1825,10 +1730,11 @@ def get_activities_with_legacy_thumbnail_path(
             for row in rows
         ]
     except SQLAlchemyError as err:
-        logger.error(f"Error in get_activities_with_legacy_thumbnail_path: {err}", exc_info=err)
+        logger.error(f"Database error in get_activities_with_legacy_thumbnail_path: {type(err).__name__}", exc_info=err)
         return []
 
 
+@core_decorators.handle_db_errors
 def edit_activity(
     user_id: int,
     activity_id: int,
@@ -1851,48 +1757,43 @@ def edit_activity(
         HTTPException: 404 when the activity is missing or
             500 on database error.
     """
-    try:
-        stmt = select(activities_models.Activity).where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.id == activity_id,
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.id == activity_id,
+    )
+    db_activity = db.execute(stmt).scalar_one_or_none()
+    if db_activity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity not found",
         )
-        db_activity = db.execute(stmt).scalar_one_or_none()
-        if db_activity is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Activity not found",
-            )
 
-        # Both `Activity` and `ActivityEdit` are Pydantic models;
-        # `exclude_unset=True` lets callers explicitly clear nullable
-        # fields (e.g. private_notes=None) without being silently
-        # discarded as the previous `vars()` filter did.
-        if not isinstance(activity_attributes, BaseModel):
-            raise TypeError("activity_attributes must be a Pydantic model")
-        activity_data = activity_attributes.model_dump(exclude_unset=True)
+    # Both `Activity` and `ActivityEdit` are Pydantic models;
+    # `exclude_unset=True` lets callers explicitly clear nullable
+    # fields (e.g. private_notes=None) without being silently
+    # discarded as the previous `vars()` filter did.
+    if not isinstance(activity_attributes, BaseModel):
+        raise TypeError("activity_attributes must be a Pydantic model")
+    activity_data = activity_attributes.model_dump(exclude_unset=True)
 
-        if "description" in activity_data:
-            activity_data["description"] = core_sanitization.sanitize_markdown(activity_data["description"])
-        if "private_notes" in activity_data:
-            activity_data["private_notes"] = core_sanitization.sanitize_markdown(activity_data["private_notes"])
+    if "description" in activity_data:
+        activity_data["description"] = core_sanitization.sanitize_markdown(activity_data["description"])
+    if "private_notes" in activity_data:
+        activity_data["private_notes"] = core_sanitization.sanitize_markdown(activity_data["private_notes"])
 
-        # ``id`` is the primary key — never overwrite it
-        activity_data.pop("id", None)
+    # ``id`` is the primary key — never overwrite it
+    activity_data.pop("id", None)
 
-        for key, value in activity_data.items():
-            setattr(db_activity, key, value)
+    for key, value in activity_data.items():
+        setattr(db_activity, key, value)
 
-        db.commit()
-        db.refresh(db_activity)
-        logger.debug(f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})")
-        return activities_serializers.serialize_activity(db_activity)
-    except HTTPException:
-        raise
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "edit_activity") from err
+    db.commit()
+    db.refresh(db_activity)
+    logger.debug(f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})")
+    return activities_serializers.serialize_activity(db_activity)
 
 
+@core_decorators.handle_db_errors
 def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) -> int:
     """Bulk-update the visibility for every activity of a user.
 
@@ -1907,22 +1808,19 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            sa_update(activities_models.Activity)
-            .where(activities_models.Activity.user_id == user_id)
-            .values(visibility=visibility)
-        )
-        # Session.execute() is typed to return the base Result; an UPDATE/DELETE
-        # always yields a CursorResult at runtime, which is what exposes rowcount.
-        result = cast("CursorResult[Any]", db.execute(stmt))
-        db.commit()
-        return result.rowcount or 0
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "edit_user_activities_visibility") from err
+    stmt = (
+        sa_update(activities_models.Activity)
+        .where(activities_models.Activity.user_id == user_id)
+        .values(visibility=visibility)
+    )
+    # Session.execute() is typed to return the base Result; an UPDATE/DELETE
+    # always yields a CursorResult at runtime, which is what exposes rowcount.
+    result = cast("CursorResult[Any]", db.execute(stmt))
+    db.commit()
+    return result.rowcount or 0
 
 
+@core_decorators.handle_db_errors
 def bulk_set_activities_gear_id(
     user_id: int,
     gear_assignments: dict[int, int | None],
@@ -1950,30 +1848,27 @@ def bulk_set_activities_gear_id(
     """
     if not gear_assignments:
         return 0
-    try:
-        by_gear: dict[int | None, list[int]] = defaultdict(list)
-        for activity_id, gear_id in gear_assignments.items():
-            by_gear[gear_id].append(activity_id)
+    by_gear: dict[int | None, list[int]] = defaultdict(list)
+    for activity_id, gear_id in gear_assignments.items():
+        by_gear[gear_id].append(activity_id)
 
-        total = 0
-        for gear_id, activity_ids in by_gear.items():
-            stmt = (
-                sa_update(activities_models.Activity)
-                .where(
-                    activities_models.Activity.user_id == user_id,
-                    activities_models.Activity.id.in_(activity_ids),
-                )
-                .values(gear_id=gear_id)
+    total = 0
+    for gear_id, activity_ids in by_gear.items():
+        stmt = (
+            sa_update(activities_models.Activity)
+            .where(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.id.in_(activity_ids),
             )
-            result = cast("CursorResult[Any]", db.execute(stmt))
-            total += result.rowcount or 0
-        db.commit()
-        return total
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "bulk_set_activities_gear_id") from err
+            .values(gear_id=gear_id)
+        )
+        result = cast("CursorResult[Any]", db.execute(stmt))
+        total += result.rowcount or 0
+    db.commit()
+    return total
 
 
+@core_decorators.handle_db_errors
 def update_activity_gear_id(
     activity_id: int,
     user_id: int,
@@ -1994,22 +1889,19 @@ def update_activity_gear_id(
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            sa_update(activities_models.Activity)
-            .where(
-                activities_models.Activity.id == activity_id,
-                activities_models.Activity.user_id == user_id,
-            )
-            .values(gear_id=gear_id)
+    stmt = (
+        sa_update(activities_models.Activity)
+        .where(
+            activities_models.Activity.id == activity_id,
+            activities_models.Activity.user_id == user_id,
         )
-        db.execute(stmt)
-        db.commit()
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "update_activity_gear_id") from err
+        .values(gear_id=gear_id)
+    )
+    db.execute(stmt)
+    db.commit()
 
 
+@core_decorators.handle_db_errors
 def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = True) -> None:
     """Delete an activity owned by ``user_id``.
 
@@ -2051,13 +1943,16 @@ def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = 
             db.commit()
         logger.debug(f"Deleted activity {activity_id} for user {user_id}")
     except HTTPException:
+        # Kept rather than delegated: the 404 above is raised *after* the DELETE
+        # has been staged, and the decorator does not roll back for an
+        # HTTPException. Callers pass ``commit=False`` to stage the delete in
+        # their own unit of work, so without this the aborted delete would linger
+        # in their transaction.
         db.rollback()
         raise
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "delete_activity") from err
 
 
+@core_decorators.handle_db_errors
 def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: bool = True) -> list[int]:
     """Delete every Strava-synced activity owned by a user.
 
@@ -2075,25 +1970,22 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: boo
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            sa_delete(activities_models.Activity)
-            .where(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.strava_activity_id.isnot(None),
-            )
-            .returning(activities_models.Activity.id)
+    stmt = (
+        sa_delete(activities_models.Activity)
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.strava_activity_id.isnot(None),
         )
-        deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
-        if commit:
-            db.commit()
-        logger.info(f"Deleted {len(deleted_ids)} Strava activity/activities for user {user_id}")
-        return deleted_ids
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "delete_all_strava_activities_for_user") from err
+        .returning(activities_models.Activity.id)
+    )
+    deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
+    if commit:
+        db.commit()
+    logger.info(f"Deleted {len(deleted_ids)} Strava activity/activities for user {user_id}")
+    return deleted_ids
 
 
+@core_decorators.handle_db_errors
 def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = True) -> list[int]:
     """Delete every activity owned by a user.
 
@@ -2115,17 +2007,13 @@ def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = Tru
     Raises:
         HTTPException: 500 on database error.
     """
-    try:
-        stmt = (
-            sa_delete(activities_models.Activity)
-            .where(activities_models.Activity.user_id == user_id)
-            .returning(activities_models.Activity.id)
-        )
-        deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
-        if commit:
-            db.commit()
-        logger.info(f"Deleted {len(deleted_ids)} activity/activities for user {user_id}")
-        return deleted_ids
-    except SQLAlchemyError as err:
-        db.rollback()
-        raise _internal_server_error(err, "delete_all_activities_for_user") from err
+    stmt = (
+        sa_delete(activities_models.Activity)
+        .where(activities_models.Activity.user_id == user_id)
+        .returning(activities_models.Activity.id)
+    )
+    deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
+    if commit:
+        db.commit()
+    logger.info(f"Deleted {len(deleted_ids)} activity/activities for user {user_id}")
+    return deleted_ids
