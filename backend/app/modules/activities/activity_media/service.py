@@ -9,7 +9,7 @@ places at once.
 """
 
 import uuid
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
@@ -219,3 +219,52 @@ def delete_activity_media(media_id: int, user_id: int, db: Session) -> None:
         "Deleted activity media",
         extra=core_logger.context(media_id=media_id, user_id=user_id),
     )
+
+
+def delete_media_files_for_activity(activity_id: int) -> int:
+    """Remove every stored media file belonging to one activity.
+
+    Used by the ``activity.deleted`` cleanup subscriber. It works from the
+    activity id alone and never touches the database, which is the only thing
+    that *can* work here: ``activity_media`` rows are ``ON DELETE CASCADE``, so by
+    the time the event is handled the rows carrying ``media_path`` are already
+    gone. Stored filenames are ``{activity_id}_{uuid}{ext}``, so the id is enough
+    to find them.
+
+    Idempotent, and safe to run for an activity that never had media.
+
+    Args:
+        activity_id: The deleted activity whose media files to remove.
+
+    Returns:
+        The number of files removed.
+    """
+    media_dir = Path(core_config.settings.ACTIVITY_MEDIA_DIR)
+    if not media_dir.is_dir():
+        return 0
+
+    base = media_dir.resolve()
+    removed = 0
+    # ``activity_id`` is an int, so the pattern cannot contain glob or traversal
+    # metacharacters. The trailing underscore keeps activity 42 from matching
+    # activity 421's files.
+    for candidate in media_dir.glob(f"{activity_id}_*"):
+        resolved = candidate.resolve()
+        # Defence in depth: never follow a symlink out of the media directory.
+        if not resolved.is_relative_to(base) or not resolved.is_file():
+            continue
+        try:
+            resolved.unlink()
+            removed += 1
+        except OSError as err:
+            logger.warning(
+                f"Failed to remove activity media file {candidate.name}: {err}",
+                extra=core_logger.context(activity_id=activity_id),
+            )
+
+    if removed:
+        logger.info(
+            f"Removed {removed} media file(s) for deleted activity {activity_id}",
+            extra=core_logger.context(activity_id=activity_id),
+        )
+    return removed

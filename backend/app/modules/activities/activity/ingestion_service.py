@@ -10,7 +10,7 @@ or Garmin — the ``activity_ingestion`` adapters produce the contract and call 
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -80,6 +80,8 @@ def store_parsed_activity(
     Raises:
         HTTPException: 500 when the activity could not be created.
     """
+    # Bound before the try so the IntegrityError handler can always read it.
+    dedup_key: str | None = None
     try:
         # Idempotency: a stable dedup_key makes re-import of an
         # already-ingested activity a true no-op. Prefer an explicit key from the
@@ -167,6 +169,36 @@ def store_parsed_activity(
         )
 
         return created_activity
+    except IntegrityError as err:
+        # The pre-insert dedup check above is read-then-write, so a concurrent
+        # import of the same activity can pass it and both inserts race. The
+        # unique index on (user_id, dedup_key) is what actually guarantees
+        # idempotency; losing that race means the other worker stored it, which
+        # is precisely the outcome the caller wanted. Roll back and return the
+        # winner rather than surfacing a 500 for a successful import.
+        db.rollback()
+        if dedup_key is None or parsed.activity.user_id is None:
+            logger.error(f"Error in store_parsed_activity - {err}", exc_info=err)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error creating activity",
+            ) from err
+
+        winner = activities_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
+        if winner is None:
+            # The integrity error was not the dedup race (some other constraint).
+            logger.error(f"Error in store_parsed_activity - {err}", exc_info=err)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error creating activity",
+            ) from err
+
+        logger.info(
+            f"store_parsed_activity: lost the insert race for dedup_key {dedup_key}; "
+            f"activity {winner.id} was stored concurrently for user {parsed.activity.user_id} "
+            "(treating re-import as a no-op)."
+        )
+        return winner
     except HTTPException:
         # Roll back the in-flight unit of work so no partial rows survive and the
         # session stays clean for the caller (bulk import reuses one session).

@@ -175,6 +175,84 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
+    def test_losing_the_insert_race_returns_the_winner(self, mock_crud, mock_streams_crud, mock_pub):
+        """The pre-insert dedup check is read-then-write, so concurrent imports race.
+
+        The unique index on ``(user_id, dedup_key)`` is what actually guarantees
+        idempotency. Losing the race means the other worker stored the activity —
+        exactly the outcome the caller wanted — so it must be a no-op, not a 500.
+        """
+        import sqlalchemy.exc
+
+        import modules.activities.activity.contracts as schema
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        winner = MagicMock(id=42, user_id=3)
+        # Not found before the insert, found after the conflict — the race.
+        mock_crud.get_activity_by_dedup_key = MagicMock(side_effect=[None, winner])
+        mock_crud.create_activity = MagicMock(
+            side_effect=sqlalchemy.exc.IntegrityError("INSERT", {}, Exception("duplicate key"))
+        )
+        db = MagicMock()
+
+        parsed = _parsed(source=schema.ImportSource(kind="strava", dedup_key="strava:123"))
+
+        result = ingestion_service.store_parsed_activity(parsed, db)
+
+        assert result is winner
+        db.rollback.assert_called_once()
+        mock_pub.publish_activity_created.assert_not_called()
+
+    @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
+    @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
+    @patch("modules.activities.activity.ingestion_service.activities_crud")
+    def test_an_unrelated_integrity_error_still_fails(self, mock_crud, mock_streams_crud, mock_pub):
+        """A constraint violation that is not the dedup race must not be swallowed."""
+        import sqlalchemy.exc
+
+        import modules.activities.activity.contracts as schema
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        # Nothing found on the retry -> this was not a dedup conflict.
+        mock_crud.get_activity_by_dedup_key = MagicMock(side_effect=[None, None])
+        mock_crud.create_activity = MagicMock(
+            side_effect=sqlalchemy.exc.IntegrityError("INSERT", {}, Exception("fk violation"))
+        )
+        db = MagicMock()
+
+        parsed = _parsed(source=schema.ImportSource(kind="strava", dedup_key="strava:123"))
+
+        with pytest.raises(HTTPException) as exc:
+            ingestion_service.store_parsed_activity(parsed, db)
+
+        assert exc.value.status_code == 500
+        db.rollback.assert_called_once()
+
+    @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
+    @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
+    @patch("modules.activities.activity.ingestion_service.activities_crud")
+    def test_integrity_error_without_a_dedup_key_still_fails(self, mock_crud, mock_streams_crud, mock_pub):
+        """With no dedup key there is no race to recover from."""
+        import sqlalchemy.exc
+
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
+        mock_crud.create_activity = MagicMock(
+            side_effect=sqlalchemy.exc.IntegrityError("INSERT", {}, Exception("boom"))
+        )
+        activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=3)
+        db = MagicMock()
+
+        with pytest.raises(HTTPException) as exc:
+            ingestion_service.store_parsed_activity(_parsed(activity=activity), db)
+
+        assert exc.value.status_code == 500
+        db.rollback.assert_called_once()
+
+    @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
+    @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
+    @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_derives_and_passes_strava_dedup_key(self, mock_crud, mock_streams_crud, mock_pub):
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service

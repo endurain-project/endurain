@@ -452,8 +452,14 @@ async def process_activity(
         db,
     )
 
-    # Save the activity and streams to the database
-    return save_activity_streams_laps(
+    # Save the activity and streams to the database — also on a worker thread.
+    # This is not just a DB write: ``store_parsed_activity`` publishes
+    # ``activity.created``, and the in-process bus runs subscribers *inline on
+    # the calling thread*. That means map-thumbnail rendering (staticmap + PIL)
+    # and HR-zone computation would otherwise execute on the event loop, stalling
+    # every other request for the duration — for each activity in the sync.
+    return await asyncio.to_thread(
+        save_activity_streams_laps,
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],
