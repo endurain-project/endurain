@@ -147,7 +147,7 @@ class TestExportServiceCollectUserActivities:
         mock_activity = _make_activity_mock(1)
 
         with patch(
-            "modules.users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
+            "modules.users.users_profile.export_service.activities_integration.list_user_activities_page",
             return_value=[mock_activity],
         ):
             result = service._get_activities_batch(0, 10)
@@ -161,7 +161,7 @@ class TestExportServiceCollectUserActivities:
 
         with (
             patch(
-                "modules.users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
+                "modules.users.users_profile.export_service.activities_integration.list_user_activities_page",
                 side_effect=Exception("db error"),
             ),
             pytest.raises(Exception, match="db error"),

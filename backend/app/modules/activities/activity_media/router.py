@@ -1,64 +1,24 @@
-"""API routes for activity media uploads and management."""
+"""API routes for activity media uploads and management.
 
-import uuid
+Thin HTTP adapter: authorization, storage naming and file cleanup live in
+:mod:`modules.activities.activity_media.service`.
+"""
+
 from collections.abc import Callable
-from pathlib import PurePosixPath
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Security, UploadFile, status
+from fastapi import APIRouter, Depends, Security, UploadFile, status
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.database as core_database
-import core.file_uploads as core_file_uploads
-import core.logger as core_logger
-import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.dependencies as activities_dependencies
-import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.dependencies as activities_media_dependencies
 import modules.activities.activity_media.schema as activity_media_schema
+import modules.activities.activity_media.service as activity_media_service
 import modules.auth.dependencies as auth_dependencies
-
-logger = core_logger.get_logger(__name__)
 
 # Define the API router
 router = APIRouter()
-
-# Allow-list of safe image extensions for activity media uploads.
-_ALLOWED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"})
-
-
-def _build_safe_media_filename(activity_id: int, original_name: str | None) -> str:
-    """
-    Build a path-traversal-safe storage filename for an uploaded media file.
-
-    The original filename is reduced to its basename, sanitized, and its
-    extension validated against an allow-list. A random suffix is appended
-    to avoid collisions and information disclosure of the original name.
-
-    Args:
-        activity_id: ID of the activity the media belongs to.
-        original_name: Original ``UploadFile.filename`` value.
-
-    Returns:
-        Safe filename of the form ``"{activity_id}_{uuid}{ext}"``.
-
-    Raises:
-        HTTPException:
-            - 415 Unsupported Media Type: If the extension is not allowed.
-    """
-    # Strip any directory components (defends against "../", absolute
-    # paths, and Windows-style paths that may slip through).
-    base_name = PurePosixPath(original_name or "").name
-    ext = PurePosixPath(base_name).suffix.lower()
-
-    if ext not in _ALLOWED_MEDIA_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Unsupported media file type",
-        )
-
-    return f"{activity_id}_{uuid.uuid4().hex}{ext}"
 
 
 @router.get(
@@ -92,7 +52,7 @@ def read_activities_media_user(
         List of ActivityMedia records, or None if there are no media or
         the activity is not accessible to the user.
     """
-    return activity_media_crud.get_activity_media(activity_id, token_user_id, db)
+    return activity_media_service.list_activity_media(activity_id, token_user_id, db)
 
 
 @router.post(
@@ -143,41 +103,7 @@ def upload_media(
             - 409 Conflict: If a media with the same path already exists.
             - 500 Internal Server Error: For unexpected I/O or DB errors.
     """
-    activity = activity_crud.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
-    if activity is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found",
-        )
-
-    new_file_name = _build_safe_media_filename(activity_id, file.filename)
-
-    # SafeUploads validates magic number and size before writing to disk. The
-    # route is synchronous, so Starlette runs it on a threadpool worker and the
-    # blocking save never touches the event loop.
-    file_path = core_file_uploads.save_validated_upload_sync(
-        file,
-        kind=core_file_uploads.UploadKind.IMAGE,
-        upload_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
-        filename=new_file_name,
-    )
-
-    try:
-        created = activity_media_crud.create_activity_media(activity_id, file_path, db)
-    except HTTPException:
-        # Best-effort cleanup of the orphaned file on DB failure, confined to
-        # ACTIVITY_MEDIA_DIR.
-        try:
-            core_file_uploads.safe_remove_within(
-                file_path,
-                base_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
-            )
-        except HTTPException as fs_err:
-            logger.warning(f"Failed to clean up orphaned media file {new_file_name}: {fs_err.detail}")
-        raise
-
-    logger.info(f"Uploaded media for activity {activity_id} by user {token_user_id}")
-    return created
+    return activity_media_service.store_activity_media(activity_id, token_user_id, file, db)
 
 
 @router.delete(
@@ -213,8 +139,8 @@ def delete_activity_media(
 
     Raises:
         HTTPException:
-            - 404 Not Found: If the media or owning activity is missing.
-            - 403 Forbidden: If the user does not own the activity.
+            - 404 Not Found: If the media is missing or its owning activity is
+              not the user's.
             - 500 Internal Server Error: For database errors.
     """
-    activity_media_crud.delete_activity_media(media_id, token_user_id, db)
+    activity_media_service.delete_activity_media(media_id, token_user_id, db)

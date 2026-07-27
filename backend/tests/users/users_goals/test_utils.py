@@ -100,7 +100,7 @@ class TestCalculateGoalProgressByActivityType:
     Test suite for calculate_goal_progress_by_activity_type.
     """
 
-    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.activities_integration.list_user_activities_in_timeframe_by_types")
     @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_calories_goal(self, mock_get_dates, mock_get_activities):
         """Test calculation for calories goal."""
@@ -134,7 +134,7 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_calories == 1500
         assert result.percentage_completed == 30
 
-    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.activities_integration.list_user_activities_in_timeframe_by_types")
     @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_distance_goal(self, mock_get_dates, mock_get_activities):
         """Test calculation for distance goal."""
@@ -168,7 +168,7 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_distance == 10000
         assert result.percentage_completed == 20
 
-    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.activities_integration.list_user_activities_in_timeframe_by_types")
     @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_activities_goal(self, mock_get_dates, mock_get_activities):
         """Test calculation for activities count goal."""
@@ -199,7 +199,7 @@ class TestCalculateGoalProgressByActivityType:
         assert result.total_activities_number == 2
         assert result.percentage_completed == 40
 
-    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.activities_integration.list_user_activities_in_timeframe_by_types")
     @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_caps_at_100_percent(self, mock_get_dates, mock_get_activities):
         """Test percentage is capped at 100."""
@@ -231,7 +231,7 @@ class TestCalculateGoalProgressByActivityType:
         # Assert
         assert result.percentage_completed == 100
 
-    @patch("modules.users.users_goals.utils.activity_crud.get_user_activities_per_timeframe_and_activity_types")
+    @patch("modules.users.users_goals.utils.activities_integration.list_user_activities_in_timeframe_by_types")
     @patch("modules.users.users_goals.utils.get_start_end_date_by_interval")
     def test_calculate_progress_excludes_hidden_activities(self, mock_get_dates, mock_get_activities):
         """Test that hidden activities are excluded from goal progress."""

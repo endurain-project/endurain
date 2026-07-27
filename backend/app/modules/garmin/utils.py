@@ -13,7 +13,7 @@ import core.cryptography as core_cryptography
 import core.logger as core_logger
 import modules.garmin.mfa_code_store as garmin_mfa_code_store
 import modules.users.users_integrations.crud as user_integrations_crud
-import modules.users.users_integrations.models as user_integrations_models
+import modules.users.users_integrations.schema as user_integrations_schema
 import modules.websocket.manager as websocket_manager
 import modules.websocket.utils as websocket_utils
 
@@ -195,7 +195,7 @@ def deserialize_garmin_token(data: dict) -> str:
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> user_integrations_models.UsersIntegrations | None:
+) -> user_integrations_schema.UsersIntegrationsRead | None:
     # Get the user integrations by user ID
     user_integrations = user_integrations_crud.get_user_integrations_by_user_id(user_id, db)
 

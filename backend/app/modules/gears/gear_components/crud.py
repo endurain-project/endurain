@@ -3,12 +3,12 @@
 from typing import overload
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.models as activity_models
+import modules.activities.activity.contracts as activities_contracts
+import modules.activities.activity.integration_service as activities_integration
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
 
@@ -298,47 +298,27 @@ def get_components_activity_stats(
     Raises:
         HTTPException: On database error.
     """
-    comp = (
-        select(
-            gear_components_models.GearComponents.id.label("comp_id"),
-            gear_components_models.GearComponents.purchase_date,
-            gear_components_models.GearComponents.retired_date,
-        )
-        .where(
-            gear_components_models.GearComponents.gear_id == gear_id,
-        )
-        .subquery()
+    comp_stmt = select(
+        gear_components_models.GearComponents.id,
+        gear_components_models.GearComponents.purchase_date,
+        gear_components_models.GearComponents.retired_date,
+    ).where(
+        gear_components_models.GearComponents.gear_id == gear_id,
     )
-
-    activity_local_date = func.date(activities_crud.local_start_time_expression(db))
-
-    stmt = (
-        select(
-            comp.c.comp_id,
-            func.coalesce(
-                func.sum(activity_models.Activity.distance),
-                0,
-            ).label("distance"),
-            func.coalesce(
-                func.sum(activity_models.Activity.total_timer_time),
-                0,
-            ).label("time"),
+    windows = [
+        activities_contracts.GearUsageWindow(
+            key=row.id,
+            start_date=row.purchase_date,
+            end_date=row.retired_date,
         )
-        .select_from(comp)
-        .outerjoin(
-            activity_models.Activity,
-            (activity_models.Activity.gear_id == gear_id)
-            & (activity_local_date >= comp.c.purchase_date)
-            & ((comp.c.retired_date.is_(None)) | (activity_local_date <= comp.c.retired_date)),
-        )
-        .group_by(comp.c.comp_id)
-    )
+        for row in db.execute(comp_stmt).all()
+    ]
 
-    rows = db.execute(stmt).all()
+    totals = activities_integration.get_gear_usage_totals_by_window(gear_id, windows, db)
     return {
-        row.comp_id: {
-            "distance": float(row.distance),
-            "time": float(row.time),
+        key: {
+            "distance": usage.distance,
+            "time": usage.time,
         }
-        for row in rows
+        for key, usage in totals.items()
     }

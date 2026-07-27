@@ -134,23 +134,68 @@ forbidden_modules =
     modules.activities.*.*.crud
     sqlalchemy
 
-# The provider (integration) modules — Strava and Garmin — must not reach into the
-# activities CRUD directly. They go through the curated activity integration_service
-# interface (activity/integration_service.py) for the handful of read / gear / delete
-# operations they need, the read/gear/delete counterpart to the ingestion seam they
-# already use to STORE activities. allow_indirect_imports keeps this to DIRECT imports:
-# the interface itself legitimately imports crud (it is inside activities), so the
-# transitive strava/garmin -> integration_service -> crud path is fine — only a bare
-# `import modules.activities.activity.crud` in a provider module is rejected.
-[importlinter:contract:provider-activities-boundary]
-name = Provider modules must use the activities integration service, not activities CRUD directly
+# The consumer modules — the providers (Strava, Garmin), gears, and users — must not
+# reach into the activities CRUD or its ORM directly. They go through the curated
+# activity integration_service interface (activity/integration_service.py), the
+# read/gear/aggregate/delete counterpart to the ingestion seam they already use to
+# STORE activities. Going through the interface is what keeps the activities table
+# queried only by its owner, and what makes bulk deletes emit the cleanup events
+# that reclaim thumbnails and stored source files.
+# allow_indirect_imports keeps this to DIRECT imports: the interface itself
+# legitimately imports crud (it is inside activities), so the transitive
+# consumer -> integration_service -> crud path is fine — only a bare
+# `import modules.activities.activity.crud` in a consumer module is rejected.
+[importlinter:contract:consumer-activities-boundary]
+name = Consumer modules must use the activities integration service, not activities CRUD
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.strava
+    modules.garmin
+    modules.gears
+    modules.users
+forbidden_modules =
+    modules.activities.activity.crud
+    modules.activities.activity.query
+
+# The companion ORM rule, stated structurally so it can exclude one thing: ORM
+# models legitimately reference each other across modules, because SQLAlchemy
+# relationships share a single registry and are typed with TYPE_CHECKING imports
+# (``Gear`` <-> ``Activity`` <-> ``Users``). What must NOT happen is a consumer's
+# *behaviour* layer querying the activities table itself — which is exactly how
+# the gear and gear-component usage totals used to be computed, complete with
+# their own copy of the local-timezone date rule. Those aggregations now live in
+# the activities module and are reached through the integration service.
+[importlinter:contract:consumer-activities-orm]
+name = Consumer behaviour layers must not query the activities ORM directly
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.strava
+    modules.garmin
+    modules.gears.*.crud
+    modules.gears.*.service
+    modules.users.*.crud
+    modules.users.*.utils
+    modules.users.users_profile.export_service
+    modules.users.users_profile.import_service
+forbidden_modules =
+    modules.activities.activity.models
+
+# Provider modules describe users data with the read schemas the users CRUD actually
+# returns, never the ORM models. The annotations used to name the ORM classes even
+# though the runtime value was already a DTO, which kept a users-ORM import alive
+# inside Strava/Garmin for no reason.
+[importlinter:contract:providers-no-users-orm]
+name = Provider modules must not import the users ORM models
 type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.strava
     modules.garmin
 forbidden_modules =
-    modules.activities.activity.crud
+    modules.users.users_integrations.models
+    modules.users.users_privacy_settings.models
 
 # The activities core consumes the followers "following feed" through the curated
 # followers.service interface (list_accepted_followee_ids) — used by both the feed

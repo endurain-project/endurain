@@ -25,18 +25,19 @@ def _build_app(mock_db, with_media=None):
 
 
 class TestReadActivityMedia:
-    @patch("modules.activities.activity_media.router.activity_media_crud.get_activity_media")
-    def test_read_media_success(self, mock_get, mock_db):
+    @patch("modules.activities.activity_media.router.activity_media_service.list_activity_media")
+    def test_read_media_success(self, mock_list, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_list.return_value = []
 
         response = client.get("/activities_media/activity_id/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        mock_list.assert_called_once()
 
-    @patch("modules.activities.activity_media.router.activity_media_crud.get_activity_media")
-    def test_read_media_not_found(self, mock_get, mock_db):
+    @patch("modules.activities.activity_media.router.activity_media_service.list_activity_media")
+    def test_read_media_not_found(self, mock_list, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+        mock_list.return_value = None
 
         response = client.get("/activities_media/activity_id/999", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -44,12 +45,12 @@ class TestReadActivityMedia:
 
 
 class TestUploadActivityMedia:
-    @patch("modules.activities.activity_media.router.activity_crud.get_activity_by_id_from_user_id")
-    @patch("modules.activities.activity_media.router.activity_media_crud.create_activity_media")
-    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload_sync")
-    def test_upload_rejects_activity_owned_by_another_user(self, mock_save, mock_create, mock_get_activity, mock_db):
+    @patch("modules.activities.activity_media.router.activity_media_service.store_activity_media")
+    def test_upload_propagates_service_rejection(self, mock_store, mock_db):
+        from fastapi import HTTPException
+
         client = TestClient(_build_app(mock_db))
-        mock_get_activity.return_value = None
+        mock_store.side_effect = HTTPException(status_code=404, detail="Activity not found")
 
         response = client.post(
             "/activities_media/upload/activity_id/2",
@@ -58,19 +59,13 @@ class TestUploadActivityMedia:
         )
 
         assert response.status_code == 404
-        mock_save.assert_not_called()
-        mock_create.assert_not_called()
 
-    @patch("modules.activities.activity_media.router.activity_crud.get_activity_by_id_from_user_id")
-    @patch("modules.activities.activity_media.router.activity_media_crud.create_activity_media")
-    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload_sync")
-    def test_upload_success(self, mock_save, mock_create, mock_get_activity, mock_db):
+    @patch("modules.activities.activity_media.router.activity_media_service.store_activity_media")
+    def test_upload_success(self, mock_store, mock_db):
         from modules.activities.activity_media.schema import ActivityMedia
 
         client = TestClient(_build_app(mock_db))
-        mock_get_activity.return_value = object()
-        mock_save.return_value = "test.jpg"
-        mock_create.return_value = ActivityMedia(id=1, activity_id=1, media_path="test.jpg", media_type=1)
+        mock_store.return_value = ActivityMedia(id=1, activity_id=1, media_path="test.jpg", media_type=1)
 
         response = client.post(
             "/activities_media/upload/activity_id/1",
@@ -79,30 +74,13 @@ class TestUploadActivityMedia:
         )
         assert response.status_code == 201
         assert response.json()["id"] == 1
-
-    @patch("modules.activities.activity_media.router.activity_crud.get_activity_by_id_from_user_id")
-    @patch("modules.activities.activity_media.router.activity_media_crud.create_activity_media")
-    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload_sync")
-    def test_upload_and_cleanup_on_failure(self, mock_save, mock_create, mock_get_activity, mock_db):
-        from fastapi import HTTPException
-
-        client = TestClient(_build_app(mock_db))
-        mock_get_activity.return_value = object()
-        mock_save.return_value = "test.jpg"
-        mock_create.side_effect = HTTPException(status_code=409, detail="Conflict")
-
-        with patch("modules.activities.activity_media.router.core_file_uploads.safe_remove_within") as mock_cleanup:
-            response = client.post(
-                "/activities_media/upload/activity_id/1",
-                files={"file": ("test.jpg", b"fake-image-data", "image/jpeg")},
-                headers={"Authorization": "Bearer x"},
-            )
-            assert response.status_code == 409
-            mock_cleanup.assert_called_once()
+        # The route passes the path activity id and the token user through unchanged.
+        assert mock_store.call_args.args[0] == 1
+        assert mock_store.call_args.args[1] == 1
 
 
 class TestDeleteActivityMedia:
-    @patch("modules.activities.activity_media.router.activity_media_crud.delete_activity_media")
+    @patch("modules.activities.activity_media.router.activity_media_service.delete_activity_media")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_delete.return_value = None

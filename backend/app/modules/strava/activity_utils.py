@@ -19,9 +19,9 @@ import modules.gears.gear.crud as gears_crud
 import modules.strava.utils as strava_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_integrations.models as user_integrations_models
+import modules.users.users_integrations.schema as user_integrations_schema
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
 from core.database import SessionLocal
 
@@ -33,7 +33,7 @@ async def fetch_and_process_activities(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    user_integrations: user_integrations_models.UsersIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrationsRead,
     db: Session,
     is_startup: bool = False,
 ) -> int:
@@ -140,9 +140,9 @@ def _get_timezone_finder() -> TimezoneFinder:
 def parse_activity(
     activity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     strava_client: Client,
-    user_integrations: user_integrations_models.UsersIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrationsRead,
     db: Session,
 ) -> dict:
     # Reuse the process-wide cached TimezoneFinder instead of rebuilding it per activity.
@@ -424,9 +424,9 @@ def save_activity_streams_laps(
 async def process_activity(
     activity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     strava_client: Client,
-    user_integrations: user_integrations_models.UsersIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrationsRead,
     db: Session,
 ):
     # Get the activity by Strava ID from the user

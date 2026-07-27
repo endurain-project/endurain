@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -323,29 +324,37 @@ class TestDeleteGearComponent:
 
 
 class TestGetComponentsActivityStats:
-    def test_success(self, mock_db):
+    @patch("modules.gears.gear_components.crud.activities_integration")
+    def test_success(self, mock_activities, mock_db):
+        import modules.activities.activity.contracts as activities_contracts
         import modules.gears.gear_components.crud as crud
 
-        row1 = MagicMock()
-        row1.comp_id = 1
-        row1.distance = 10000.0
-        row1.time = 3600.0
-        row2 = MagicMock()
-        row2.comp_id = 2
-        row2.distance = 5000.0
-        row2.time = 1800.0
-        mock_db.execute.return_value.all.return_value = [row1, row2]
+        comp1 = MagicMock(id=1, purchase_date=date(2024, 1, 1), retired_date=None)
+        comp2 = MagicMock(id=2, purchase_date=date(2024, 6, 1), retired_date=date(2024, 9, 1))
+        mock_db.execute.return_value.all.return_value = [comp1, comp2]
+        mock_activities.get_gear_usage_totals_by_window.return_value = {
+            1: activities_contracts.ActivityUsageTotals(distance=10000.0, time=3600.0),
+            2: activities_contracts.ActivityUsageTotals(distance=5000.0, time=1800.0),
+        }
 
         r = crud.get_components_activity_stats(gear_id=1, db=mock_db)
+
         assert r == {
             1: {"distance": 10000.0, "time": 3600.0},
             2: {"distance": 5000.0, "time": 1800.0},
         }
+        # Each component becomes one window; the activities module owns the join.
+        windows = mock_activities.get_gear_usage_totals_by_window.call_args.args[1]
+        assert [w.key for w in windows] == [1, 2]
+        assert windows[0].end_date is None
+        assert windows[1].end_date == date(2024, 9, 1)
 
-    def test_empty(self, mock_db):
+    @patch("modules.gears.gear_components.crud.activities_integration")
+    def test_empty(self, mock_activities, mock_db):
         import modules.gears.gear_components.crud as crud
 
         mock_db.execute.return_value.all.return_value = []
+        mock_activities.get_gear_usage_totals_by_window.return_value = {}
         r = crud.get_components_activity_stats(gear_id=1, db=mock_db)
         assert r == {}
 
@@ -365,49 +374,26 @@ class TestComponentWindowIsLocal:
     raw ``start_time`` instant put the boundary at UTC midnight: at UTC-8 an
     evening ride the day *before* a purchase counted towards the new component,
     and at UTC+13 a morning ride *on* the purchase day did not count at all.
+
+    The aggregation itself now lives in the activities module, which owns the
+    local-date rule — see
+    ``tests/activities/activity/test_crud.py::TestSumGearUsageByWindow``. What is
+    still this module's responsibility is handing over the component bounds
+    unchanged, which is asserted here.
     """
 
-    @staticmethod
-    def _emitted_sql(gear_id: int = 1) -> str:
-        # Compiling an ORM statement configures the whole mapper registry, and
-        # relationships use string targets — so every related model has to be
-        # imported first or the compile fails on an unresolved name.
+    @patch("modules.gears.gear_components.crud.activities_integration")
+    def test_component_bounds_are_passed_through_as_calendar_dates(self, mock_activities):
         import modules.gears.gear_components.crud as crud
-        from tests._helpers.db import _import_all_models
-
-        _import_all_models()
 
         db = MagicMock()
-        db.get_bind.return_value.dialect.name = "postgresql"
-        db.execute.return_value.all.return_value = []
+        db.execute.return_value.all.return_value = [
+            MagicMock(id=7, purchase_date=date(2024, 3, 4), retired_date=date(2024, 5, 6)),
+        ]
+        mock_activities.get_gear_usage_totals_by_window.return_value = {}
 
-        crud.get_components_activity_stats(gear_id=gear_id, db=db)
+        crud.get_components_activity_stats(gear_id=1, db=db)
 
-        from sqlalchemy.dialects import postgresql
-
-        statement = db.execute.call_args.args[0]
-        return str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
-
-    def test_window_compares_the_activitys_local_date(self):
-        sql = self._emitted_sql()
-
-        # The activity side of the join is converted through its own IANA zone
-        # and truncated to a date before being compared to the component bounds.
-        assert "coalesce(activities.timezone, 'UTC')" in sql
-        assert "date(timezone(" in sql
-
-    def test_window_does_not_compare_the_raw_instant(self):
-        """The regression itself: a bare ``start_time`` bound is the UTC-midnight bug."""
-        sql = self._emitted_sql().replace("\n", " ")
-
-        assert ">= anon_1.purchase_date" in sql
-        # ``start_time`` may only appear wrapped in the timezone conversion.
-        assert "activities.start_time >=" not in sql
-        assert "activities.start_time <=" not in sql
-
-    def test_retired_date_is_inclusive_and_nullable(self):
-        """A component still in use has no upper bound; one retired today keeps that day."""
-        sql = self._emitted_sql().replace("\n", " ")
-
-        assert "anon_1.retired_date IS NULL" in sql
-        assert "<= anon_1.retired_date" in sql
+        window = mock_activities.get_gear_usage_totals_by_window.call_args.args[1][0]
+        assert window.start_date == date(2024, 3, 4)
+        assert window.end_date == date(2024, 5, 6)

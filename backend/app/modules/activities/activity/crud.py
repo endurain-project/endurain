@@ -1,7 +1,8 @@
 """CRUD operations for activities."""
 
 from collections import defaultdict
-from datetime import UTC, date, datetime, time, timedelta
+from collections.abc import Sequence
+from datetime import UTC, date, datetime
 from typing import Any, cast
 from urllib.parse import unquote
 
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import (
     CursorResult,
     and_,
+    case,
     desc,
     func,
     or_,
@@ -30,6 +32,7 @@ import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.models as activities_models
+import modules.activities.activity.query as activities_query
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
 import modules.followers.service as followers_service
@@ -64,9 +67,8 @@ _NUMERIC_SORT_COLUMNS = {
 def escape_like(term: str) -> str:
     """Escape SQL LIKE wildcards in a user-provided term.
 
-    Escapes ``\\``, ``%`` and ``_`` so they are matched literally. Use together
-    with ``.like(..., escape="\\\\")`` to keep user input from injecting LIKE
-    wildcards into search filters.
+    Thin re-export of :func:`modules.activities.activity.query.escape_like`, kept
+    so existing CRUD callers keep one import.
 
     Args:
         term: Raw search term.
@@ -74,7 +76,7 @@ def escape_like(term: str) -> str:
     Returns:
         Escaped search term safe for use inside a ``LIKE`` pattern.
     """
-    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return activities_query.escape_like(term)
 
 
 def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
@@ -133,84 +135,12 @@ def _apply_activity_visibility_filter(
     return stmt.where(_visible_to_requester_condition(requester_user_id, db))
 
 
-# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). Used to widen the
-# indexable pre-filter on the raw UTC column so it can never exclude a row that
-# the exact local-time predicate would keep.
-_MAX_UTC_OFFSET = timedelta(hours=14)
+# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). Re-exported from the
+# shared query module so existing CRUD references keep working.
+_MAX_UTC_OFFSET = activities_query.MAX_UTC_OFFSET
 
-
-def local_start_time_expression(db: Session):
-    """``Activity.start_time`` as a naive wall clock in the activity's own timezone.
-
-    "Which day did this activity happen on?" is a *local* question: a 07:00 ride
-    in UTC+9 belongs to that local day, not to the previous UTC one. ``start_time``
-    is stored as ``timestamptz`` and the session runs in UTC, so comparing or
-    truncating it directly (``func.date(...)``, ``extract(...)``) silently answers
-    in UTC — which put early-morning activities in eastern timezones and late-night
-    ones in western timezones into the wrong day, week, month and year.
-
-    Converting through the activity's stored IANA ``timezone`` first makes date
-    filters and summary buckets match what the athlete actually experienced.
-    Activities with no stored timezone (indoor imports that carried no GPS) fall
-    back to UTC.
-
-    Args:
-        db: Database session, used to detect the dialect.
-
-    Returns:
-        A SQL expression yielding each activity's local wall clock.
-    """
-    if db.get_bind().dialect.name == "postgresql":
-        # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
-        return func.timezone(
-            func.coalesce(activities_models.Activity.timezone, "UTC"),
-            activities_models.Activity.start_time,
-        )
-    # Production is Postgres-only (see core/database.py); other engines appear
-    # only in tests, so fall back to the raw UTC value rather than emitting SQL
-    # the engine cannot run.
-    return activities_models.Activity.start_time
-
-
-def local_date_range_conditions(
-    db: Session,
-    start_date: date | None,
-    end_date: date | None,
-    *,
-    end_exclusive: bool,
-) -> list:
-    """Restrict rows to a date range evaluated in each activity's *local* timezone.
-
-    Pairs the exact local-time predicate with an indexable pre-filter on the raw
-    ``start_time`` column, widened by the maximum real UTC offset so it can never
-    exclude a row the exact predicate would keep. Without the pre-filter the
-    functional timezone expression would stop the query using the ``start_time``
-    index at all.
-
-    Args:
-        db: Database session.
-        start_date: Inclusive local start of the range, or ``None`` for open-ended.
-        end_date: End of the local range, or ``None`` for open-ended.
-        end_exclusive: Whether ``end_date`` is excluded from the range.
-
-    Returns:
-        The conditions to apply to the statement. Empty when both bounds are
-        ``None``.
-    """
-    local = local_start_time_expression(db)
-    conditions: list = []
-
-    if start_date is not None:
-        start_dt = datetime.combine(start_date, time.min)
-        conditions.append(activities_models.Activity.start_time >= start_dt.replace(tzinfo=UTC) - _MAX_UTC_OFFSET)
-        conditions.append(local >= start_dt)
-
-    if end_date is not None:
-        end_dt = datetime.combine(end_date if end_exclusive else end_date + timedelta(days=1), time.min)
-        conditions.append(activities_models.Activity.start_time < end_dt.replace(tzinfo=UTC) + _MAX_UTC_OFFSET)
-        conditions.append(local < end_dt)
-
-    return conditions
+local_start_time_expression = activities_query.local_start_time_expression
+local_date_range_conditions = activities_query.local_date_range_conditions
 
 
 def _internal_server_error(err: Exception, context: str) -> HTTPException:
@@ -1141,6 +1071,88 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
             err,
             "get_user_activities_by_gear_id_and_user_id_with_pagination",
         ) from err
+
+
+def sum_gear_usage(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
+    """Total distance and moving time recorded against a gear.
+
+    Lives here rather than in the gears module so the activities table is only
+    ever queried by its owner.
+
+    Args:
+        gear_id: The gear to accumulate usage for.
+        db: Database session.
+
+    Returns:
+        The gear's totals; zeroes when it has no activities.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(
+            func.coalesce(func.sum(activities_models.Activity.distance), 0),
+            func.coalesce(func.sum(activities_models.Activity.total_timer_time), 0),
+        ).where(activities_models.Activity.gear_id == gear_id)
+        distance, moving_time = db.execute(stmt).one()
+        return activities_contracts.ActivityUsageTotals(distance=float(distance), time=float(moving_time))
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "sum_gear_usage") from err
+
+
+def sum_gear_usage_by_window(
+    gear_id: int,
+    windows: Sequence[activities_contracts.GearUsageWindow],
+    db: Session,
+) -> dict[int, activities_contracts.ActivityUsageTotals]:
+    """Total distance and moving time per date window for one gear.
+
+    Answers "how far has each component of this gear been ridden?" in a single
+    pass over the gear's activities: each window contributes a pair of conditional
+    sums, so adding a component costs two more aggregate expressions rather than
+    another round trip. Windows are matched against each activity's **local** date
+    (see :class:`~modules.activities.activity.contracts.GearUsageWindow`).
+
+    Args:
+        gear_id: The gear whose activities to accumulate.
+        windows: The date windows to accumulate over, keyed by the caller.
+        db: Database session.
+
+    Returns:
+        Totals per window key. Windows with no matching activity report zeroes,
+        so every requested key is always present.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    if not windows:
+        return {}
+
+    try:
+        local_date = func.date(activities_query.local_start_time_expression(db))
+
+        columns = []
+        for window in windows:
+            in_window = local_date >= window.start_date
+            if window.end_date is not None:
+                in_window = and_(in_window, local_date <= window.end_date)
+            columns.append(func.coalesce(func.sum(case((in_window, activities_models.Activity.distance), else_=0)), 0))
+            columns.append(
+                func.coalesce(func.sum(case((in_window, activities_models.Activity.total_timer_time), else_=0)), 0)
+            )
+
+        stmt = select(*columns).where(activities_models.Activity.gear_id == gear_id)
+        row = db.execute(stmt).one()
+
+        return {
+            window.key: activities_contracts.ActivityUsageTotals(
+                distance=float(row[index * 2]),
+                time=float(row[index * 2 + 1]),
+            )
+            for index, window in enumerate(windows)
+        }
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "sum_gear_usage_by_window") from err
 
 
 def get_activity_by_id_from_user_id_or_has_visibility(

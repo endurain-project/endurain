@@ -1279,7 +1279,7 @@ class TestImportServiceActivitiesDataBatched:
 
         with (
             patch(
-                "modules.users.users_profile.import_service.activities_crud.create_activity",
+                "modules.users.users_profile.import_service.activities_integration.restore_activity",
                 return_value=mock_new_activity,
             ),
             patch.object(service, "collect_and_import_activity_components", new_callable=AsyncMock),
@@ -1335,7 +1335,7 @@ class TestImportServiceActivitiesDataBatched:
 
         with (
             patch(
-                "modules.users.users_profile.import_service.activities_crud.create_activity",
+                "modules.users.users_profile.import_service.activities_integration.restore_activity",
                 return_value=mock_new_activity,
             ),
             patch.object(service, "collect_and_import_activity_components", new_callable=AsyncMock) as mock_components,
