@@ -7,8 +7,76 @@ from unittest.mock import Mock
 
 from fastapi import HTTPException
 
+import modules.activities.activity.contracts as activities_contracts
 import modules.strava.bulk_import_utils as bulk_import_utils
 from core.file_uploads import UploadKind
+
+
+def _activity(start_time: str) -> activities_contracts.ActivityCore:
+    """An ActivityCore as the FIT parser produces it (start_time coerced to aware UTC)."""
+    return activities_contracts.ActivityCore(
+        user_id=1,
+        name="Workout",
+        distance=1000,
+        activity_type=1,
+        start_time=start_time,
+        end_time="2023-10-21T08:41:47",
+    )
+
+
+class TestDoesActivityStartTimeMatchTheCsv:
+    """Selects which activity of a multi-activity .fit a Strava CSV row refers to."""
+
+    def test_matching_start_times_are_recognised(self):
+        # Regression: ActivityCore coerces start_time to an aware datetime at
+        # construction, but this comparison parsed it as an ISO *string*. That
+        # raised TypeError for every multi-activity .fit in a Strava export,
+        # which the bulk entry caught and turned into "move the whole file to
+        # the import-error directory" — so none of its activities imported.
+        assert (
+            bulk_import_utils.does_activity_start_time_match_the_data_in_strava_activities_csv(
+                _activity("2023-10-21T07:41:47"),
+                {"activity date": "Oct 21, 2023, 7:41:47 AM"},
+            )
+            is True
+        )
+
+    def test_differing_start_times_are_rejected(self):
+        assert (
+            bulk_import_utils.does_activity_start_time_match_the_data_in_strava_activities_csv(
+                _activity("2023-10-21T07:41:47"),
+                {"activity date": "Oct 21, 2023, 8:13:28 AM"},
+            )
+            is False
+        )
+
+
+class TestApplyBulkImportMetadata:
+    def test_csv_values_take_precedence_over_the_parsed_file(self):
+        activity = _activity("2023-10-21T07:41:47")
+
+        bulk_import_utils.apply_bulk_import_metadata(
+            activity,
+            {
+                "name": "Morning Ride",
+                "description": "Felt good",
+                "gear_id": 4,
+                "import_dict": {"import_ISO_time": "2026-07-21T00:00:00"},
+            },
+        )
+
+        assert activity.name == "Morning Ride"
+        assert activity.description == "Felt good"
+        assert activity.gear_id == 4
+        assert activity.import_info == {"import_ISO_time": "2026-07-21T00:00:00"}
+
+    def test_absent_metadata_leaves_the_parsed_values_alone(self):
+        activity = _activity("2023-10-21T07:41:47")
+
+        bulk_import_utils.apply_bulk_import_metadata(activity, {})
+
+        assert activity.name == "Workout"
+        assert activity.gear_id is None
 
 
 class _MockGear:

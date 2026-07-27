@@ -12,8 +12,11 @@ import core.database as core_database
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import core.text_imports as core_text_imports
+import core.timezone as core_timezone
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.orchestrator as ingestion_orchestrator
+import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
+import modules.activities.activity_ingestion.sources as ingestion_sources
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
@@ -258,14 +261,15 @@ def queue_bulk_export_activities_for_import(
             # (dispatched via ``loop.run_in_executor`` from
             # ``strava/router.py``) with no running event loop, so the
             # sync file-validation inside it is safe.
-            ingestion_orchestrator.parse_and_store_activity_from_file(
+            ingestion_bulk_entry.store_activity_file(
                 token_user_id,
                 file_path,
                 db,
-                is_bulk_import=True,
-                strava_activities=strava_activities_dict,
-                import_initiated_time=import_time,
-                users_existing_gear_nickname_to_id=users_existing_gear_nickname_to_id,
+                source=ingestion_sources.BulkImportSource(
+                    import_initiated_time=import_time,
+                    strava_activities=strava_activities_dict,
+                    gear_nickname_to_id=users_existing_gear_nickname_to_id,
+                ),
             )
             # Small delay between files
             time.sleep(0.1)
@@ -379,12 +383,12 @@ def build_import_dictionary(
     return import_dict
 
 
-def append_bulk_import_metadata_to_activity(
-    activity: dict,  # A parsed activity file ready to be added to Endurain
+def apply_bulk_import_metadata(
+    activity: activities_contracts.ActivityCore,  # A parsed activity about to be added to Endurain
     activity_metadata_dict: dict,  # A dictionary containing parsed information from a Strava activities.csv file
-) -> dict:
+) -> None:
     """
-    Function adds metadata to a parsed activity file that is about to be imported via the parse_and_store_activity_from_file() import routine.
+    Function adds metadata to a parsed activity that is about to be imported via the bulk ingestion entry.
 
     The function's primary purpose (i.e., why it was created) is to add metadata from a Strava activities.csv file to a parsed activity file from a Strava bulk import activity that is about to be imported.
 
@@ -395,13 +399,13 @@ def append_bulk_import_metadata_to_activity(
     The function presumes that anything stored in the activities.csv file takes preference over contents of the parsed activity file.  This could be changed in the future (possibly a target for a user-selected option?)
         This decision was made becuase Joao's sample .fit files still contain a very generic title in the .fit files, but had a much more detailed name in Strava.
         # Code to give preference to items in the parsed activity file, should we ever want such a thing:
-        #    if activity["activity"].name is None and activity_metadata_dict.get("name"):
-        #    if activity["activity"].description is None and activity_metadata_dict.get("description"):
-        #    if activity["activity"].gear_id is None and activity_metadata_dict.get("gear_id"):
-        #    if activity["activity"].import_info is None and activity_metadata_dict.get("import_dict"):
+        #    if activity.name is None and activity_metadata_dict.get("name"):
+        #    if activity.description is None and activity_metadata_dict.get("description"):
+        #    if activity.gear_id is None and activity_metadata_dict.get("gear_id"):
+        #    if activity.import_info is None and activity_metadata_dict.get("import_dict"):
     Note that basic bulk imports will not have many of these field names in activity_metadata_dict, so ensure that they are checked for existence before value checking.
 
-    Returns the activity (as a dictionary)
+    Mutates the activity in place.
     """
     logger.debug(
         "Applying Strava bulk-import metadata to a parsed activity",
@@ -409,26 +413,25 @@ def append_bulk_import_metadata_to_activity(
     )
     applied = []
     if activity_metadata_dict.get("name"):
-        activity["activity"].name = activity_metadata_dict["name"]
+        activity.name = activity_metadata_dict["name"]
         applied.append("name")
     if activity_metadata_dict.get("description"):
-        activity["activity"].description = activity_metadata_dict["description"]
+        activity.description = activity_metadata_dict["description"]
         applied.append("description")
     if activity_metadata_dict.get("gear_id"):
-        activity["activity"].gear_id = activity_metadata_dict["gear_id"]
+        activity.gear_id = activity_metadata_dict["gear_id"]
         applied.append("gear_id")
     if activity_metadata_dict.get("import_dict"):
-        activity["activity"].import_info = activity_metadata_dict["import_dict"]
+        activity.import_info = activity_metadata_dict["import_dict"]
         applied.append("import_info")
     logger.debug(
         "Applied Strava bulk-import metadata",
         extra=core_logger.context(applied=applied),
     )
-    return activity
 
 
 def does_activity_start_time_match_the_data_in_strava_activities_csv(
-    activity: dict,  # A parsed activity file ready to be added to Endurain
+    activity: activities_contracts.ActivityCore,  # A parsed activity about to be added to Endurain
     activity_metadata_dict: dict,  # A dictionary containing parsed information from a Strava activities.csv file
 ) -> bool:
     """
@@ -442,13 +445,18 @@ def does_activity_start_time_match_the_data_in_strava_activities_csv(
 
     Returns: True if the start times match.  False if they do not.
     """
-    endurain_parsed_file_start_date = datetime.fromisoformat(activity["activity"].start_time)
+    # ``ActivityCore`` normalizes start_time to an aware UTC datetime at
+    # construction, but accepts a string — go through the shared coercion rather
+    # than assuming either. Parsing this as a string unconditionally raised
+    # TypeError once the contract started coercing, which failed the whole file
+    # and sent every multi-activity .fit in a Strava export to the error dir.
+    endurain_parsed_file_start_date = core_timezone.to_utc_aware(activity.start_time)
+    if endurain_parsed_file_start_date is None:
+        return False
     strava_csv_start_date = datetime.strptime(activity_metadata_dict["activity date"], "%b %d, %Y, %-I:%-M:%-S %p")
     # Ensure both are tz-aware (or both naive) for comparison
     if strava_csv_start_date.tzinfo is None:
         strava_csv_start_date = strava_csv_start_date.replace(tzinfo=UTC)
-    if endurain_parsed_file_start_date.tzinfo is None:
-        endurain_parsed_file_start_date = endurain_parsed_file_start_date.replace(tzinfo=UTC)
     return endurain_parsed_file_start_date == strava_csv_start_date
 
 

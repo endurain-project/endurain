@@ -5,7 +5,7 @@ instead of a fire-and-forget threadpool task, so a crash mid-import no longer
 drops in-flight work and a failing file is retried with backoff and finally
 dead-lettered — moved to the import-error directory as the human trail — instead
 of vanishing to the error dir on the first error. The job body is the shared sync
-ingestion core (:func:`orchestrator.store_bulk_import_file`); the handler
+ingestion core (:func:`bulk_entry.store_bulk_import_file`); the handler
 **raises** on failure so the runner retries and eventually dead-letters.
 
 The ``activity.bulk_import_file`` channel is durable-delivery only: the route
@@ -25,8 +25,8 @@ import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import infra.publisher as platform_publisher
+import modules.activities.activity_ingestion.bulk_entry as bulk_entry
 import modules.activities.activity_ingestion.events as ingestion_events
-import modules.activities.activity_ingestion.orchestrator as orchestrator
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 
@@ -109,7 +109,7 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     file_path = str(core_file_uploads.ensure_within(payload.file_path, core_config.FILES_BULK_IMPORT_DIR))
     try:
         with core_database.SessionLocal() as db:
-            orchestrator.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
+            bulk_entry.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
     except Exception:
         # ``retry_count`` is the (claim-incremented) attempt number; when it has
         # reached the ceiling this failure dead-letters the job, so move the file

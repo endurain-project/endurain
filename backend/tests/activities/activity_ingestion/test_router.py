@@ -92,10 +92,10 @@ class TestBulkImportRoute:
 
 
 class TestUploadRoute:
-    def test_delegates_to_orchestrator(self):
+    def test_delegates_to_upload_entry(self):
         db = MagicMock()
         file = MagicMock()
-        with patch.object(router.orchestrator, "parse_and_store_activity_from_uploaded_file") as store:
+        with patch.object(router.upload_entry, "store_uploaded_activity_file") as store:
             store.return_value = ["activity"]
             result = router.create_activity_with_uploaded_file(
                 request=MagicMock(),
@@ -123,8 +123,8 @@ class TestUploadRoute:
         app.dependency_overrides[auth_dependencies.check_auth_scopes] = lambda: None
 
         with patch.object(
-            router.orchestrator,
-            "parse_and_store_activity_from_uploaded_file",
+            router.upload_entry,
+            "store_uploaded_activity_file",
             return_value=[],
         ) as store:
             client = TestClient(app)

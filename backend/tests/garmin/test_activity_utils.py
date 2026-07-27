@@ -108,8 +108,8 @@ class TestOrphanedExtractedFileCleanup:
             AsyncMock(return_value=[extracted_path]),
         )
         monkeypatch.setattr(
-            activity_utils.ingestion_orchestrator,
-            "parse_and_store_activity_from_file",
+            activity_utils.ingestion_bulk_entry,
+            "store_activity_file",
             Mock(return_value=None),
         )
 
@@ -131,8 +131,8 @@ class TestOrphanedExtractedFileCleanup:
             AsyncMock(return_value=[extracted_path]),
         )
         monkeypatch.setattr(
-            activity_utils.ingestion_orchestrator,
-            "parse_and_store_activity_from_file",
+            activity_utils.ingestion_bulk_entry,
+            "store_activity_file",
             Mock(return_value=["created-activity"]),
         )
 

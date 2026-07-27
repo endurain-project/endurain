@@ -1,7 +1,7 @@
-"""Tests for the activity_ingestion file adapter (parser dict -> ParsedActivity).
+"""Tests for the activity_file_import adapter (parser dict -> ParsedActivity).
 
 Moved from ``tests/activities/activity/test_utils.py`` when ``parse_activity_streams_from_file``
-was replaced by :func:`~modules.activities.activity_ingestion.file_adapter.parsed_info_to_parsed_activity`.
+was replaced by :func:`~modules.activities.activity_file_import.adapter.parsed_info_to_parsed_activity`.
 The adapter builds ``ParsedStream`` objects (without an ``activity_id`` — that is assigned
 later by ``ingestion_service.store_parsed_activity``).
 """
@@ -16,7 +16,7 @@ def _activity() -> activities_schema.Activity:
 
 class TestParsedInfoToParsedActivity:
     def test_parse_streams_hr_set(self):
-        from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
+        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 
         parsed_info = {
             "activity": _activity(),
@@ -37,7 +37,7 @@ class TestParsedInfoToParsedActivity:
         assert result[0].stream_waypoints == [{"time": "2024-01-15T08:00:00", "hr": 145}]
 
     def test_parse_streams_multiple(self):
-        from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
+        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 
         parsed_info = {
             "activity": _activity(),
@@ -58,7 +58,7 @@ class TestParsedInfoToParsedActivity:
         assert len(result) == 3
 
     def test_parse_streams_no_streams(self):
-        from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
+        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 
         parsed_info = {
             "activity": _activity(),
@@ -76,7 +76,7 @@ class TestParsedInfoToParsedActivity:
         assert len(result) == 0
 
     def test_carries_activity_and_children(self):
-        from modules.activities.activity_ingestion.file_adapter import parsed_info_to_parsed_activity
+        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 
         activity = _activity()
         parsed_info = {
