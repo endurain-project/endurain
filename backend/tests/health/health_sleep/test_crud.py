@@ -243,8 +243,14 @@ class TestCreateHealthSleep:
 
             # Assert
             assert result.id == 1
-            # Schema validator should have set today's date
-            assert health_sleep.date == datetime_date.today()
+            # The schema validator fills in "today" in the *server's configured*
+            # timezone, not the container's. Asserting against ``date.today()``
+            # made this test fail whenever the two disagreed — for UTC+1 that is
+            # the hour after local midnight.
+            import core.config as core_config
+            import core.timezone as core_timezone
+
+            assert health_sleep.date == core_timezone.today_in(core_config.settings.TZ)
 
     def test_create_health_sleep_duplicate_entry(self, mock_db):
         """

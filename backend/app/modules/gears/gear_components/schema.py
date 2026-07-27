@@ -1,6 +1,6 @@
 """Gear components schema definitions."""
 
-from datetime import datetime as datetime_type
+from datetime import date
 
 from pydantic import (
     BaseModel,
@@ -105,8 +105,8 @@ class GearComponentBase(BaseModel):
         type: Type of gear component.
         brand: Gear component brand.
         model: Gear component model name.
-        purchase_date: Purchase date.
-        retired_date: Retired date.
+        purchase_date: Purchase date (calendar date, no time of day).
+        retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
         expected_kms: Expected kilometers.
         purchase_value: Purchase value.
@@ -131,11 +131,11 @@ class GearComponentBase(BaseModel):
         max_length=250,
         description="Gear component model",
     )
-    purchase_date: datetime_type | None = Field(
+    purchase_date: date | None = Field(
         default=None,
         description="Purchase date",
     )
-    retired_date: datetime_type | None = Field(
+    retired_date: date | None = Field(
         default=None,
         description="Retired date",
     )

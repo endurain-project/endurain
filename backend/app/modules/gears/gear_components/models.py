@@ -1,11 +1,11 @@
 """Gear components database models."""
 
-from datetime import datetime as datetime_type
+from datetime import date as date_type
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    DateTime,
+    Date,
     ForeignKey,
     Numeric,
     String,
@@ -35,8 +35,8 @@ class GearComponents(Base):
         type: Type of gear component.
         brand: Gear component brand.
         model: Gear component model.
-        purchase_date: Purchase date.
-        retired_date: Retired date.
+        purchase_date: Purchase date (calendar date, no time of day).
+        retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
         expected_kms: Expected kilometers.
         purchase_value: Purchase value.
@@ -76,16 +76,16 @@ class GearComponents(Base):
         nullable=False,
         comment=("Gear component model (May include spaces)"),
     )
-    purchase_date: Mapped[datetime_type] = mapped_column(
-        DateTime(timezone=True),
+    purchase_date: Mapped[date_type] = mapped_column(
+        Date(),
         nullable=False,
-        default=func.now(),
-        comment=("Gear component purchase date (DateTime)"),
+        default=func.current_date(),
+        comment=("Gear component purchase date (Date)"),
     )
-    retired_date: Mapped[datetime_type | None] = mapped_column(
-        DateTime(timezone=True),
+    retired_date: Mapped[date_type | None] = mapped_column(
+        Date(),
         nullable=True,
-        comment=("Gear component retired date (DateTime)"),
+        comment=("Gear component retired date (Date)"),
     )
     active: Mapped[bool] = mapped_column(
         nullable=False,
