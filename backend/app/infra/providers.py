@@ -144,3 +144,37 @@ class ClockProvider(Protocol):
 
     def now(self) -> datetime: ...
     def monotonic(self) -> float: ...
+
+
+@dataclass(frozen=True)
+class GeocodedPlace:
+    """A place resolved from coordinates. Any field may be ``None``.
+
+    Attributes:
+        city: Populated place name, when the provider resolved one.
+        town: Sub-locality (district/town), when the provider resolved one.
+        country: Country name, when the provider resolved one.
+    """
+
+    city: str | None = None
+    town: str | None = None
+    country: str | None = None
+
+
+@runtime_checkable
+class GeocodingProvider(Protocol):
+    """Reverse-geocoding — turn a coordinate into a place name.
+
+    The one seam through which domain code performs reverse geocoding, so a
+    caller never knows which upstream service is configured, nor that a network
+    call happens at all. That matters more here than for the other providers:
+    this is the platform's only *outbound* call to a third party, so the
+    egress hardening it needs (host validation, address denylist, no redirects,
+    rate limiting) lives behind this interface instead of in a domain module.
+
+    Implementations must not raise for an upstream failure — geocoding is
+    best-effort enrichment, and a provider outage must never fail the import or
+    backfill that triggered it. Return ``None`` when nothing resolves.
+    """
+
+    def reverse(self, latitude: float, longitude: float) -> GeocodedPlace | None: ...

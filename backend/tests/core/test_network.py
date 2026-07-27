@@ -470,3 +470,97 @@ class TestRejectPrivateUrl:
             core_network.reject_private_url("http://internal.example.com", purpose="test")
             mock_log.info.assert_called_once()
             assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
+
+
+class TestHostRejectionReason:
+    """The host-authority SSRF guard, for config-supplied ``host[:port]`` values.
+
+    Shares its address denylist and allowlist with ``reject_private_url``; the
+    difference is that it *returns* a reason so a caller can disable an optional
+    feature rather than fail a request.
+    """
+
+    def _public(self):
+        return patch(
+            "core.network.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("8.8.8.8", 0))],
+        )
+
+    def _resolving_to(self, ip):
+        return patch(
+            "core.network.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 0, "", (ip, 0))],
+        )
+
+    def test_accepts_bare_hosts(self):
+        with self._public():
+            assert core_network.host_rejection_reason("nominatim.openstreetmap.org") is None
+            assert core_network.host_rejection_reason("nominatim.local") is None
+            assert core_network.host_rejection_reason("nominatim:8080") is None
+
+    def test_rejects_ssrf_shapes_without_resolving(self):
+        # A configured value carrying a scheme/path/credentials would be
+        # interpolated into a URL by the caller and redirect the request.
+        with patch("core.network.socket.getaddrinfo") as mock_gai:
+            for value in (None, "", "http://host", "host/reverse", "user@host", "host name", "host:notaport"):
+                assert core_network.host_rejection_reason(value) is not None
+            mock_gai.assert_not_called()
+
+    def test_private_ip_is_rejected(self):
+        with (
+            self._resolving_to("10.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("nominatim.internal")
+
+    def test_link_local_metadata_is_rejected(self):
+        with (
+            self._resolving_to("169.254.169.254"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("metadata")
+
+    def test_loopback_is_rejected(self):
+        with (
+            self._resolving_to("127.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("localhost:8080")
+
+    def test_unresolvable_host_is_rejected(self):
+        with patch("core.network.socket.getaddrinfo", side_effect=socket.gaierror("nxdomain")):
+            assert "resolved" in core_network.host_rejection_reason("does.not.exist")
+
+    def test_rejected_when_any_resolved_address_is_private(self):
+        # DNS-rebinding shape: a name answering with both a public and a private
+        # address must not be treated as public.
+        with (
+            patch(
+                "core.network.socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("8.8.8.8", 0)),
+                    (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 0)),
+                ],
+            ),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("mixed.example.com")
+
+    def test_allowlisted_private_host_is_permitted(self):
+        # A self-hosted service on a private network is a supported deployment;
+        # the operator opts in through SSRF_ALLOWED_HOSTS.
+        with (
+            self._resolving_to("10.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
+        ):
+            assert core_network.host_rejection_reason("nominatim.internal") is None
+
+    def test_allowlisted_private_host_is_audited(self):
+        with (
+            self._resolving_to("10.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
+            patch.object(core_network, "logger") as mock_log,
+        ):
+            core_network.host_rejection_reason("nominatim.internal", purpose="reverse_geocoding")
+            assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
+            assert "reverse_geocoding" in mock_log.info.call_args[0][0]

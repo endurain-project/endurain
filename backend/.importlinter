@@ -134,6 +134,29 @@ forbidden_modules =
     modules.activities.*.*.crud
     sqlalchemy
 
+# The activities module performs no raw network egress. Reverse geocoding was the
+# one exception: it built provider URLs, resolved and denylisted the configured
+# host against SSRF (OWASP A10), and spoke HTTP — none of which is a fact about
+# activities, and all of which protected exactly one call site. That now sits
+# behind the platform GeocodingProvider, with the host checks in infra.egress
+# where a future outbound integration inherits them instead of reimplementing
+# them. This contract is what stops the egress code drifting back into the domain:
+# an outbound call from activities must be added as a platform provider.
+# Note: ``urllib`` is deliberately not listed. import-linter cannot forbid a
+# single subpackage of an external/stdlib package, and activities legitimately
+# uses ``urllib.parse`` for URL decoding — banning the parent would reject that
+# too. The HTTP clients actually in use here are covered.
+[importlinter:contract:activities-no-raw-egress]
+name = The activities module must not make raw network calls
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities
+forbidden_modules =
+    requests
+    httpx
+    socket
+
 # The consumer modules — the providers (Strava, Garmin), gears, and users — must not
 # reach into the activities CRUD or its ORM directly. They go through the curated
 # activity integration_service interface (activity/integration_service.py), the

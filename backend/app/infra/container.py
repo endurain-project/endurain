@@ -19,9 +19,12 @@ profile just picks memory-vs-Redis and local-fs-vs-S3 defaults.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import core.config as core_config
+import core.logger as core_logger
 from infra.backends.clock_system import SystemClock
 from infra.backends.events_inprocess import InProcessEventBus
 from infra.backends.events_redis import RedisStreamEventBus
+from infra.backends.geocoding_http import HttpGeocoding, NullGeocoding, build_reverse_endpoint
 from infra.backends.lock_noop import NoopLock
 from infra.backends.lock_pg import PgAdvisoryLock
 from infra.backends.state_memory import MemoryState
@@ -32,6 +35,7 @@ from infra.providers import (
     ClockProvider,
     EventBusProvider,
     EventRecorder,
+    GeocodingProvider,
     LockProvider,
     StateProvider,
     StorageProvider,
@@ -39,6 +43,11 @@ from infra.providers import (
 
 if TYPE_CHECKING:
     from core.config import Settings
+
+logger = core_logger.get_logger(__name__)
+
+#: Reverse-geocoding services this build knows how to talk to.
+_GEOCODING_SERVICES = ("nominatim", "photon", "geocode")
 
 
 @dataclass(frozen=True)
@@ -52,6 +61,9 @@ class Platform:
         events: Publish/subscribe provider.
         lock: Coordination-lock provider.
         clock: Time-source provider.
+        geocoding: Reverse-geocoding provider. Always present — when geocoding is
+            unconfigured or misconfigured this is a no-op backend, so callers
+            never branch on whether the capability exists.
         recorder: Event-log recorder, or ``None`` when event logging is disabled.
             Shared by the event bus (best-effort delivery) and the publish facade
             (durable delivery) so both paths land in the event_log dashboard.
@@ -63,6 +75,7 @@ class Platform:
     events: EventBusProvider
     lock: LockProvider
     clock: ClockProvider
+    geocoding: GeocodingProvider
     recorder: EventRecorder | None
 
 
@@ -92,6 +105,7 @@ def build_platform(settings: "Settings") -> Platform:
         events=_build_events(settings, recorder),
         lock=_build_lock(settings),
         clock=SystemClock(),
+        geocoding=_build_geocoding(settings),
         recorder=recorder,
     )
 
@@ -150,3 +164,73 @@ def _build_lock(settings: "Settings") -> LockProvider:
     if scheme == "postgres-advisory":
         return PgAdvisoryLock.from_main_database()
     raise ValueError(f"Unsupported LOCK_URI scheme: {scheme or lock_uri!r}")
+
+
+def _build_geocoding(settings: "Settings") -> GeocodingProvider:
+    """Resolve the reverse-geocoding backend, falling back to a no-op.
+
+    Unlike the other capabilities this never raises on a bad configuration:
+    geocoding is optional enrichment, so an unsupported provider, an unset API
+    key, or a host that fails SSRF validation disables the capability rather than
+    preventing the application from starting.
+
+    Because a disabled capability is otherwise invisible — activities simply have
+    no city/town/country and nothing says why — every outcome is logged at
+    startup, including the successful one. An operator who set the config and saw
+    no locations appear can tell from one line whether the setting was rejected
+    and for what reason.
+
+    Args:
+        settings: The application settings.
+
+    Returns:
+        The configured :class:`HttpGeocoding`, or :class:`NullGeocoding` when
+        geocoding is unconfigured or misconfigured.
+    """
+    min_interval = 1.0 / settings.REVERSE_GEO_RATE_LIMIT if settings.REVERSE_GEO_RATE_LIMIT > 0 else 0.0
+    user_agent = f"Endurain/{core_config.API_VERSION} (ReverseGeocoding)"
+    provider = settings.REVERSE_GEO_PROVIDER
+
+    if provider not in _GEOCODING_SERVICES:
+        logger.warning(
+            f"REVERSE_GEO_PROVIDER {provider!r} is not a supported service "
+            f"(expected one of: {', '.join(_GEOCODING_SERVICES)}); "
+            "reverse geocoding is disabled and activities will have no location",
+            extra=core_logger.context(console=True),
+        )
+        return NullGeocoding()
+
+    if provider == "geocode":
+        if settings.GEOCODES_MAPS_API == "changeme":
+            logger.warning(
+                "REVERSE_GEO_PROVIDER is 'geocode' but GEOCODES_MAPS_API is still the "
+                "'changeme' placeholder; reverse geocoding is disabled and activities "
+                "will have no location",
+                extra=core_logger.context(console=True),
+            )
+            return NullGeocoding()
+        # Fixed, vendor-operated host — nothing operator-supplied to validate.
+        base_url = "https://geocode.maps.co/reverse"
+        api_key = settings.GEOCODES_MAPS_API
+    else:
+        if provider == "nominatim":
+            host, use_https = settings.NOMINATIM_API_HOST, settings.NOMINATIM_API_USE_HTTPS
+        else:
+            host, use_https = settings.PHOTON_API_HOST, settings.PHOTON_API_USE_HTTPS
+        # Logs its own reason when it rejects the host.
+        base_url = build_reverse_endpoint(host, use_https=use_https)
+        if base_url is None:
+            return NullGeocoding()
+        api_key = None
+
+    logger.info(
+        f"Reverse geocoding enabled via {provider} ({base_url}), rate limit {settings.REVERSE_GEO_RATE_LIMIT}/s",
+        extra=core_logger.context(console=True),
+    )
+    return HttpGeocoding(
+        provider,
+        base_url,
+        api_key=api_key,
+        min_interval_seconds=min_interval,
+        user_agent=user_agent,
+    )
