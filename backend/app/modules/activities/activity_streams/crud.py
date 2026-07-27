@@ -15,6 +15,8 @@ import modules.activities.activity_streams.utils as activity_streams_utils
 import modules.server_settings.utils as server_settings_utils
 import modules.users.users.crud as users_crud
 
+logger = core_logger.get_logger(__name__)
+
 
 @core_decorators.handle_db_errors
 def get_activity_streams(
@@ -310,10 +312,10 @@ def backfill_zone_percentages_for_missing_hr_streams(
     try:
         db.commit()
     except Exception as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Failed to backfill zone_percentages for HR streams: {err}",
-            "error",
-            exc=err,
+            exc_info=err,
+            extra=core_logger.context(console=True),
         )
 
 
@@ -399,10 +401,10 @@ def recompute_hr_zone_percentages_for_user(user_id: int, db: Session) -> None:
             db.commit()
     except Exception as err:
         db.rollback()
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Failed to recompute HR zone_percentages for user {user_id}: {err}",
-            "error",
-            exc=err,
+            exc_info=err,
+            extra=core_logger.context(console=True),
         )
 
 
@@ -428,9 +430,9 @@ def create_activity_streams(
         db: Database session.
     """
     if activity.user_id is None:
-        core_logger.print_to_log_and_console(
+        logger.warning(
             f"Failed to create activity streams: activity {activity.id} has no user_id",
-            "warning",
+            extra=core_logger.context(console=True),
         )
         return
 

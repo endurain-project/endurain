@@ -11,6 +11,8 @@ import modules.users.users.utils as users_utils
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.schema as user_goals_schema
 
+logger = core_logger.get_logger(__name__)
+
 _ACTIVITY_TYPE_MAP: dict[str, list[int]] = {
     user_goals_schema.ActivityType.RUN.value: [1, 2, 3, 34, 40],
     user_goals_schema.ActivityType.BIKE.value: [4, 5, 6, 7, 27, 28, 29, 35, 36],
@@ -58,11 +60,7 @@ def calculate_user_goals(
         raise http_err
     except (ValueError, TypeError) as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in calculate_user_goals: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in calculate_user_goals: {err}", exc_info=err)
         # Raise an HTTPException with a 400 status code
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,11 +68,7 @@ def calculate_user_goals(
         ) from err
     except Exception as err:
         # Log unexpected exceptions
-        core_logger.print_to_log(
-            f"Unexpected error in calculate_user_goals: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Unexpected error in calculate_user_goals: {err}", exc_info=err)
         # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -176,11 +170,7 @@ def calculate_goal_progress_by_activity_type(
         raise http_err
     except (ValueError, TypeError) as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in calculate_goal_progress_by_activity_type: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in calculate_goal_progress_by_activity_type: {err}", exc_info=err)
         # Raise an HTTPException with a 400 status code
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -188,11 +178,7 @@ def calculate_goal_progress_by_activity_type(
         ) from err
     except Exception as err:
         # Log unexpected exceptions
-        core_logger.print_to_log(
-            f"Unexpected error in calculate_goal_progress_by_activity_type: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Unexpected error in calculate_goal_progress_by_activity_type: {err}", exc_info=err)
         # Raise an HTTPException with a 500 status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

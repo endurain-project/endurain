@@ -20,6 +20,8 @@ import modules.auth.identity_providers.links.schema as auth_identity_links_schem
 import modules.auth.identity_providers.links.utils as auth_identity_links_utils
 import modules.users.users.schema as users_schema
 
+logger = core_logger.get_logger(__name__)
+
 if TYPE_CHECKING:
     from modules.auth.identity_service import IdentityService
 
@@ -69,10 +71,7 @@ def generate_link_token(
         db=db,
     )
 
-    core_logger.print_to_log(
-        f"Generated link token for user {token_user_id}, idp_id={idp_id} ({idp.name})",
-        "debug",
-    )
+    logger.debug(f"Generated link token for user {token_user_id}, idp_id={idp_id} ({idp.name})")
 
     return link_token
 
@@ -137,9 +136,7 @@ def delete_identity_provider_link(
             detail="Failed to unlink identity provider",
         )
 
-    core_logger.print_to_log(
-        f"User {token_user_id} unlinked IdP: idp_id={idp_id} ({idp.name})",
-    )
+    logger.info(f"User {token_user_id} unlinked IdP: idp_id={idp_id} ({idp.name})")
 
 
 def admin_delete_identity_provider_link(
@@ -206,9 +203,7 @@ def admin_delete_identity_provider_link(
             detail="Failed to unlink identity provider",
         )
 
-    core_logger.print_to_log(
-        f"Admin unlinked IdP for user {user_id}: idp_id={idp_id} ({idp.name})",
-    )
+    logger.info(f"Admin unlinked IdP for user {user_id}: idp_id={idp_id} ({idp.name})")
 
 
 def get_user_identity_provider_links(
@@ -255,20 +250,14 @@ def validate_and_claim_browser_link_token(
         )
 
     if db_token.idp_id != idp_id:
-        core_logger.print_to_log(
-            f"Link token IdP mismatch: token idp_id={db_token.idp_id}, requested idp_id={idp_id}",
-            "warning",
-        )
+        logger.warning(f"Link token IdP mismatch: token idp_id={db_token.idp_id}, requested idp_id={idp_id}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid link token for this identity provider",
         )
 
     if db_token.ip_address and client_ip and db_token.ip_address != client_ip:
-        core_logger.print_to_log(
-            f"Link token IP mismatch: token ip={db_token.ip_address}, request ip={client_ip}",
-            "warning",
-        )
+        logger.warning(f"Link token IP mismatch: token ip={db_token.ip_address}, request ip={client_ip}")
         # Soft check — log but don't fail (NAT, proxies, etc.)
 
     token_user_id = db_token.user_id
@@ -282,10 +271,7 @@ def validate_and_claim_browser_link_token(
         )
 
     if not idp_link_token_crud.mark_token_as_used(link_token_hash, db):
-        core_logger.print_to_log(
-            f"IdP link token replay/race rejected for user {token_user_id}: token row {db_token.id}",
-            "warning",
-        )
+        logger.warning(f"IdP link token replay/race rejected for user {token_user_id}: token row {db_token.id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired link token",

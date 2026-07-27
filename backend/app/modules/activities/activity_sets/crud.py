@@ -13,6 +13,8 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity_sets.models as activity_sets_models
 import modules.activities.activity_sets.schema as activity_sets_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 def _to_read_schema(
     orm_set: activity_sets_models.ActivitySets,
@@ -212,10 +214,7 @@ def create_activity_sets(
     else:
         db.flush()
 
-    core_logger.print_to_log(
-        f"Created {len(sets)} set(s) for activity {activity_id}",
-        "debug",
-    )
+    logger.debug(f"Created {len(sets)} set(s) for activity {activity_id}")
 
 
 def _extract_value(

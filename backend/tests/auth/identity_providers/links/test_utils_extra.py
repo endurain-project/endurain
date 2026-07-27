@@ -132,7 +132,7 @@ class TestEnrichUserIdentityProviders:
             patch(
                 "modules.auth.identity_providers.links.utils.idp_crud.get_identity_providers_by_ids"
             ) as mock_get_idps,
-            patch("modules.auth.identity_providers.links.utils.core_logger.print_to_log") as mock_logger,
+            patch("modules.auth.identity_providers.links.utils.logger") as mock_logger,
         ):
             mock_get_idps.return_value = [mock_idp1]
 
@@ -142,7 +142,7 @@ class TestEnrichUserIdentityProviders:
         # Assert
         assert len(result) == 1
         assert result[0].idp_name == "Strava"
-        mock_logger.assert_called_once()  # Warning logged for missing IdP
+        assert len(mock_logger.method_calls) == 1  # Warning logged for missing IdP
 
     def test_enrich_user_identity_providers_no_results(self, mock_db):
         """Test enriching when no IdPs are found.
@@ -166,7 +166,7 @@ class TestEnrichUserIdentityProviders:
             patch(
                 "modules.auth.identity_providers.links.utils.idp_crud.get_identity_providers_by_ids"
             ) as mock_get_idps,
-            patch("modules.auth.identity_providers.links.utils.core_logger.print_to_log") as mock_logger,
+            patch("modules.auth.identity_providers.links.utils.logger") as mock_logger,
         ):
             mock_get_idps.return_value = []
 
@@ -175,7 +175,7 @@ class TestEnrichUserIdentityProviders:
 
         # Assert
         assert result == []
-        mock_logger.assert_called_once()
+        assert len(mock_logger.method_calls) == 1
 
 
 class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:

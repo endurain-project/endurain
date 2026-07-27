@@ -12,6 +12,8 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 def _to_read_schema(
     orm_step: activity_workout_steps_models.ActivityWorkoutSteps,
@@ -197,7 +199,4 @@ def create_activity_workout_steps(
     else:
         db.flush()
 
-    core_logger.print_to_log(
-        f"Created {len(workout_steps)} workout step(s) for activity {activity_id}",
-        "debug",
-    )
+    logger.debug(f"Created {len(workout_steps)} workout step(s) for activity {activity_id}")

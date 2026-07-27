@@ -42,6 +42,8 @@ import infra.jobs.registry as jobs_registry
 import infra.runtime as platform_runtime
 from infra.events import META_REQUEST_ID, Event, new_event
 
+logger = core_logger.get_logger(__name__)
+
 
 def _mint(event_type: str, payload: dict, source: str, metadata: dict | None) -> Event:
     """Build the event envelope, stamping the ambient request id for correlation."""
@@ -93,11 +95,7 @@ def publish(
         else:
             platform.events.publish(event)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to publish event {event_type}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to publish event {event_type}: {err}", exc_info=err)
 
 
 def publish_committing(
@@ -149,11 +147,7 @@ def publish_committing(
                 platform.recorder.record_queued(event)
             jobs_outbox.add_to_outbox(event, now=platform.clock.now(), db=db, commit=False)
         except Exception as err:
-            core_logger.print_to_log(
-                f"Failed to stage event {event_type} in the domain transaction: {err}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"Failed to stage event {event_type} in the domain transaction: {err}", exc_info=err)
             raise
         commit()
     else:
@@ -166,11 +160,7 @@ def publish_committing(
             event = _mint(event_type, payload, source, metadata)
             platform.events.publish(event)
         except Exception as err:
-            core_logger.print_to_log(
-                f"Failed to publish event {event_type}: {err}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"Failed to publish event {event_type}: {err}", exc_info=err)
 
 
 def _durable_delivery_enabled(event_type: str) -> bool:
@@ -222,10 +212,8 @@ def publish_many_committing(
                     platform.recorder.record_queued(event)
                 jobs_outbox.add_to_outbox(event, now=now, db=db, commit=False)
         except Exception as err:
-            core_logger.print_to_log(
-                f"Failed to stage {len(payloads)} {event_type} event(s) in the domain transaction: {err}",
-                "error",
-                exc=err,
+            logger.error(
+                f"Failed to stage {len(payloads)} {event_type} event(s) in the domain transaction: {err}", exc_info=err
             )
             raise
         commit()
@@ -239,8 +227,4 @@ def publish_many_committing(
                 event = _mint(event_type, payload, source, metadata_for(payload) if metadata_for else None)
                 platform.events.publish(event)
             except Exception as err:
-                core_logger.print_to_log(
-                    f"Failed to publish event {event_type}: {err}",
-                    "error",
-                    exc=err,
-                )
+                logger.error(f"Failed to publish event {event_type}: {err}", exc_info=err)

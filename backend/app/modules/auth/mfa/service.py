@@ -34,6 +34,8 @@ import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.schema as mfa_schema
 import modules.users.users.utils as users_utils
 
+logger = core_logger.get_logger(__name__)
+
 if TYPE_CHECKING:
     import modules.auth.identity_service as auth_identity_service
 
@@ -256,16 +258,16 @@ def verify_user_mfa(
         try:
             secret = core_cryptography.decrypt_token_fernet(mfa_row.mfa_secret)
             if not secret:
-                core_logger.print_to_log("Failed to decrypt MFA secret", "error")
+                logger.error("Failed to decrypt MFA secret")
                 return False
 
             if verify_totp(secret, normalized_code):
-                core_logger.print_to_log(f"User {user_id} verified MFA with TOTP", "debug")
+                logger.debug(f"User {user_id} verified MFA with TOTP")
                 return True
         except ValueError as err:
             # Covers binascii.Error (non-base32 secret) and any other value
             # error from the pyotp stack; treat as verification failure.
-            core_logger.print_to_log(f"Error in TOTP verification: {err}", "error", exc=err)
+            logger.error(f"Error in TOTP verification: {err}", exc_info=err)
             return False
         # Unexpected errors (I/O, crypto infrastructure failures, etc.) are
         # intentionally left unhandled so they surface to the global handler

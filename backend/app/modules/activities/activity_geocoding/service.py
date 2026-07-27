@@ -16,6 +16,7 @@ onto an internal target.
 """
 
 import ipaddress
+import logging
 import re
 import socket
 import time
@@ -30,6 +31,8 @@ import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.crud as activity_streams_crud
+
+logger = core_logger.get_logger(__name__)
 
 # Egress timeout for a single reverse-geocode request (seconds).
 _GEOCODE_TIMEOUT_SECONDS = 10
@@ -113,15 +116,11 @@ def _build_geocode_request(latitude: float, longitude: float) -> tuple[str, str]
     if provider == "nominatim":
         host = core_config.settings.NOMINATIM_API_HOST
         if not _is_valid_host(host):
-            core_logger.print_to_log(
-                f"Invalid NOMINATIM_API_HOST {host!r}; skipping reverse-geocoding",
-                "warning",
-            )
+            logger.warning(f"Invalid NOMINATIM_API_HOST {host!r}; skipping reverse-geocoding")
             return None
         if _resolves_to_blocked_ip(host):
-            core_logger.print_to_log(
-                f"NOMINATIM_API_HOST {host!r} resolves to a private/loopback/link-local address; skipping reverse-geocoding",
-                "warning",
+            logger.warning(
+                f"NOMINATIM_API_HOST {host!r} resolves to a private/loopback/link-local address; skipping reverse-geocoding"
             )
             return None
         protocol = "https" if core_config.settings.NOMINATIM_API_USE_HTTPS else "http"
@@ -130,15 +129,11 @@ def _build_geocode_request(latitude: float, longitude: float) -> tuple[str, str]
     if provider == "photon":
         host = core_config.settings.PHOTON_API_HOST
         if not _is_valid_host(host):
-            core_logger.print_to_log(
-                f"Invalid PHOTON_API_HOST {host!r}; skipping reverse-geocoding",
-                "warning",
-            )
+            logger.warning(f"Invalid PHOTON_API_HOST {host!r}; skipping reverse-geocoding")
             return None
         if _resolves_to_blocked_ip(host):
-            core_logger.print_to_log(
-                f"PHOTON_API_HOST {host!r} resolves to a private/loopback/link-local address; skipping reverse-geocoding",
-                "warning",
+            logger.warning(
+                f"PHOTON_API_HOST {host!r} resolves to a private/loopback/link-local address; skipping reverse-geocoding"
             )
             return None
         protocol = "https" if core_config.settings.PHOTON_API_USE_HTTPS else "http"
@@ -218,10 +213,7 @@ def reverse_geocode(latitude: float | None, longitude: float | None) -> Location
         return None
     url, provider = built
 
-    core_logger.print_to_log(
-        f"Reverse-geocoding ({latitude}, {longitude}) via {provider}",
-        "debug",
-    )
+    logger.debug(f"Reverse-geocoding ({latitude}, {longitude}) via {provider}")
 
     _throttle()
 
@@ -240,7 +232,7 @@ def reverse_geocode(latitude: float | None, longitude: float | None) -> Location
     except Exception as err:
         # Log and return None so a geocoding failure never aborts the caller
         # (activity import / backfill); the backfill retries later.
-        core_logger.print_to_log_and_console(f"Error in reverse_geocode - {err}", "error")
+        logger.error(f"Error in reverse_geocode - {err}", extra=core_logger.context(console=True))
         return None
 
 
@@ -280,10 +272,7 @@ def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Sess
         location.country,
         db,
     )
-    core_logger.print_to_log(
-        f"Stored location for activity {activity_id}: {location.city} / {location.town} / {location.country}",
-        "debug",
-    )
+    logger.debug(f"Stored location for activity {activity_id}: {location.city} / {location.town} / {location.country}")
     return True
 
 
@@ -303,7 +292,7 @@ def backfill_missing_activity_locations(db: Session) -> int:
     """
     candidates = activities_crud.get_activities_missing_location(db)
     if not candidates:
-        core_logger.print_to_log("Geocoding scheduler: no activities missing location", "debug")
+        logger.debug("Geocoding scheduler: no activities missing location")
         return 0
 
     candidate_ids = [ref.id for ref in candidates]
@@ -326,9 +315,9 @@ def backfill_missing_activity_locations(db: Session) -> int:
         )
         stored += 1
 
-    core_logger.print_to_log(
+    logger.log(
+        logging.INFO if stored else logging.DEBUG,
         f"Geocoding scheduler: stored location for {stored} activity(ies) "
         f"out of {len(waypoints_by_activity)} GPS candidate(s)",
-        "info" if stored else "debug",
     )
     return stored

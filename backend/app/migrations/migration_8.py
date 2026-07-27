@@ -24,6 +24,8 @@ import modules.activities.activity.crud as activities_crud
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
+logger = core_logger.get_logger(__name__)
+
 # Rows processed per DB round-trip; keeps memory bounded on large libraries.
 _BATCH_SIZE = 200
 _WEBP_QUALITY = 75
@@ -49,10 +51,7 @@ def _reencode_to_webp(source: Path) -> bytes | None:
             resized.save(buffer, "WEBP", quality=_WEBP_QUALITY, method=_WEBP_METHOD)
             return buffer.getvalue()
     except (OSError, ValueError) as err:
-        core_logger.print_to_log(
-            f"Migration 8 - could not re-encode {source}: {err}",
-            "warning",
-        )
+        logger.warning(f"Migration 8 - could not re-encode {source}: {err}")
         return None
 
 
@@ -65,7 +64,7 @@ def process_migration_8(db: Session) -> None:
     Returns:
         None.
     """
-    core_logger.print_to_log_and_console("Started migration 8")
+    logger.info("Started migration 8", extra=core_logger.context(console=True))
 
     storage = platform_runtime.get_active_platform().storage
     processed_with_no_errors = True
@@ -77,10 +76,8 @@ def process_migration_8(db: Session) -> None:
         try:
             batch = activities_crud.get_activities_with_legacy_thumbnail_path(db, after_id=last_id, limit=_BATCH_SIZE)
         except Exception as err:
-            core_logger.print_to_log_and_console(
-                f"Migration 8 - Error fetching activities: {err}",
-                "error",
-                exc=err,
+            logger.error(
+                f"Migration 8 - Error fetching activities: {err}", exc_info=err, extra=core_logger.context(console=True)
             )
             return
 
@@ -115,26 +112,28 @@ def process_migration_8(db: Session) -> None:
                     cleared += 1
             except Exception as err:
                 processed_with_no_errors = False
-                core_logger.print_to_log_and_console(
+                logger.error(
                     f"Migration 8 - Error processing activity {activity.id}: {err}",
-                    "error",
-                    exc=err,
+                    exc_info=err,
+                    extra=core_logger.context(console=True),
                 )
 
     if processed_with_no_errors:
         try:
             migrations_crud.set_migration_as_executed(8, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Migration 8 - Failed to set migration as executed: {err}",
-                "error",
-                exc=err,
+                exc_info=err,
+                extra=core_logger.context(console=True),
             )
             return
     else:
-        core_logger.print_to_log_and_console(
+        logger.error(
             "Migration 8 failed to process all thumbnails. Will try again later.",
-            "error",
+            extra=core_logger.context(console=True),
         )
 
-    core_logger.print_to_log_and_console(f"Finished migration 8 (converted {converted}, cleared {cleared})")
+    logger.info(
+        f"Finished migration 8 (converted {converted}, cleared {cleared})", extra=core_logger.context(console=True)
+    )

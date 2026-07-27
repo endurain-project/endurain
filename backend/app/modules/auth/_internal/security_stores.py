@@ -18,6 +18,8 @@ import core.logger as core_logger
 import infra.runtime as platform_runtime
 from infra.providers import StateBackendUnavailableError, StateProvider
 
+logger = core_logger.get_logger(__name__)
+
 _AUTH_KEY_PREFIX = "endurain:auth"
 
 
@@ -41,7 +43,7 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     Raises:
         AuthSecurityStoreUnavailableError: Always raised.
     """
-    core_logger.print_to_log(f"Auth security storage failed: {operation}", "error", exc=err)
+    logger.error(f"Auth security storage failed: {operation}", exc_info=err)
     raise AuthSecurityStoreUnavailableError("auth security storage is unavailable") from err
 
 
@@ -122,15 +124,11 @@ def _log_lockout(display_name: str, duration_label: str, username: str, failed_c
     Raises:
         None.
     """
-    core_logger.print_to_log(
+    logger.warning(
         f"{display_name} lockout ({duration_label}) applied to user "
         f"{username_log_identifier(username)} after {failed_count} "
         "failed attempts",
-        "warning",
-        context={
-            "username_hash": _username_digest(username),
-            "failed_attempts": failed_count,
-        },
+        extra=core_logger.context(username_hash=_username_digest(username), failed_attempts=failed_count),
     )
 
 
@@ -579,9 +577,8 @@ def clear_pending_mfa_for_user(user_id: int) -> int:
     try:
         return pending_mfa_store.clear_for_user(user_id)
     except AuthSecurityStoreUnavailableError as err:
-        core_logger.print_to_log(
+        logger.warning(
             "Failed to clear pending MFA entries during password change; entries will expire naturally via TTL",
-            "warning",
-            exc=err,
+            exc_info=err,
         )
         return 0

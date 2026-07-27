@@ -13,6 +13,8 @@ import core.logger as core_logger
 import infra.runtime as platform_runtime
 from infra.providers import StateBackendUnavailableError, StateProvider
 
+logger = core_logger.get_logger(__name__)
+
 TICKET_TTL_SECONDS = 30
 _TICKET_KEY_PREFIX = "ws:ticket:"
 
@@ -37,7 +39,7 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     Raises:
         WsTicketStoreUnavailableError: Always raised.
     """
-    core_logger.print_to_log(f"WS ticket storage failed: {operation}", "error", exc=err)
+    logger.error(f"WS ticket storage failed: {operation}", exc_info=err)
     raise WsTicketStoreUnavailableError("WS ticket storage is unavailable") from err
 
 
@@ -129,10 +131,7 @@ class WsTicketStore:
         try:
             return int(value.decode())
         except (ValueError, TypeError):
-            core_logger.print_to_log(
-                "Unexpected non-integer value in WS ticket store",
-                "warning",
-            )
+            logger.warning("Unexpected non-integer value in WS ticket store")
             return None
 
 

@@ -19,6 +19,8 @@ from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
 
+logger = core_logger.get_logger(__name__)
+
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
 GEOCODING_SUBSCRIBER_ID = "activity_geocoding.reverse_geocode"
@@ -99,10 +101,7 @@ def run_missing_location_backfill() -> None:
     platform = platform_runtime.get_active_platform()
     with platform.lock.try_acquire("location_backfill") as acquired:
         if not acquired:
-            core_logger.print_to_log(
-                "Geocoding scheduler: another replica holds the backfill lock; skipping",
-                "debug",
-            )
+            logger.debug("Geocoding scheduler: another replica holds the backfill lock; skipping")
             return
         with core_database.SessionLocal() as db:
             activity_geocoding_service.backfill_missing_activity_locations(db)

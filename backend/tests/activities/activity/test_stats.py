@@ -66,7 +66,7 @@ class TestCalculateActivityStats:
         assert result.swim.distance == 1500.0
         assert result.walk.distance == 3000.0
 
-    @patch("modules.activities.activity.stats.core_logger")
+    @patch("modules.activities.activity.stats.logger")
     def test_error_handling_bad_activity_type(self, mock_logger):
         """A malformed activity is logged and skipped rather than aborting the aggregate."""
         from modules.activities.activity.stats import calculate_activity_stats
@@ -76,4 +76,4 @@ class TestCalculateActivityStats:
 
         calculate_activity_stats([bad_activity])
 
-        mock_logger.print_to_log.assert_called_once()
+        mock_logger.error.assert_called_once()

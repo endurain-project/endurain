@@ -14,6 +14,8 @@ import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 
+logger = core_logger.get_logger(__name__)
+
 
 def _parse_lap_power(
     lap: Any,
@@ -323,10 +325,7 @@ def parse_tcx_file(
             parsed or processed.
     """
     try:
-        core_logger.print_to_log(
-            f"TCX parse start: file={file}, user={user_id}",
-            "debug",
-        )
+        logger.debug(f"TCX parse start: file={file}, user={user_id}")
         tcx_file = tcxreader.TCXReader().read(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
@@ -407,22 +406,17 @@ def parse_tcx_file(
             "power_waypoints": power_wp,
             "lat_lon_waypoints": lat_lon_wp,
         }
-        core_logger.print_to_log(
+        logger.debug(
             f"TCX parse complete: user={user_id}, type={activity_type}, distance={distance}m, "
             f"laps={len(laps)}, gps_points={len(lat_lon_wp)}, "
-            f"streams(hr={bool(hr_wp)}, power={bool(power_wp)})",
-            "debug",
+            f"streams(hr={bool(hr_wp)}, power={bool(power_wp)})"
         )
         return activity_file_import_utils.build_activity_file_payload(activity, waypoints_combined, laps)
 
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in parse_tcx_file - {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in parse_tcx_file - {err}", exc_info=err)
         raise HTTPException(
             status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
             detail=(f"Can't open TCX file: {err}"),

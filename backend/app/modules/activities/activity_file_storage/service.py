@@ -16,6 +16,8 @@ file is only consumed in-process (profile export) and on cleanup, never served.
 import core.logger as core_logger
 import infra.providers as platform_providers
 
+logger = core_logger.get_logger(__name__)
+
 # Domain-owned storage namespace for retained activity source files. For the
 # ``local`` backend this maps to ``{DATA_DIR}/activity_files/processed`` — the
 # exact directory the files were previously moved to — so existing self-host
@@ -62,10 +64,7 @@ def store_activity_file(
     """
     key = activity_file_key(activity_id, extension)
     storage.save(ACTIVITY_FILE_STORAGE_AREA, key, data)
-    core_logger.print_to_log(
-        f"Stored activity source file for activity {activity_id} as {key}",
-        "debug",
-    )
+    logger.debug(f"Stored activity source file for activity {activity_id} as {key}")
     return key
 
 

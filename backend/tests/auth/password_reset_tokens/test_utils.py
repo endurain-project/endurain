@@ -442,7 +442,7 @@ class TestDeleteInvalidTokensFromDb:
         # Assert
         mock_delete.assert_called_once_with(mock_db)
 
-    @patch("modules.auth.password_reset_tokens.utils.core_logger.print_to_log_and_console")
+    @patch("modules.auth.password_reset_tokens.utils.logger")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.delete_expired_password_reset_tokens")
     @patch("modules.auth.password_reset_tokens.utils.SessionLocal")
     def test_logs_when_expired_tokens_deleted(self, mock_session_local, mock_delete, mock_log):
@@ -459,11 +459,11 @@ class TestDeleteInvalidTokensFromDb:
         password_reset_tokens_utils.delete_invalid_tokens_from_db()
 
         # Assert
-        mock_log.assert_called_once()
-        log_msg = mock_log.call_args.args[0]
+        assert len(mock_log.method_calls) == 1
+        log_msg = mock_log.info.call_args.args[0]
         assert "3" in log_msg
 
-    @patch("modules.auth.password_reset_tokens.utils.core_logger.print_to_log_and_console")
+    @patch("modules.auth.password_reset_tokens.utils.logger")
     @patch("modules.auth.password_reset_tokens.utils.password_reset_tokens_crud.delete_expired_password_reset_tokens")
     @patch("modules.auth.password_reset_tokens.utils.SessionLocal")
     def test_does_not_log_when_nothing_deleted(self, mock_session_local, mock_delete, mock_log):

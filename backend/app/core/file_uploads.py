@@ -60,6 +60,8 @@ from safeuploads.exceptions import (
 
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 # ---------------------------------------------------------------------------
 # Module-level configuration and shared validator
 # ---------------------------------------------------------------------------
@@ -226,11 +228,7 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     try:
         await validator(file)
     except FileSecurityError as err:
-        core_logger.print_to_log(
-            f"Upload validation failed: kind={kind.value} type={type(err).__name__}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"Upload validation failed: kind={kind.value} type={type(err).__name__}", exc_info=err)
         raise _to_http_exception(err) from err
 
 
@@ -428,20 +426,13 @@ async def save_file(
         async with aiofiles.open(file_path, "wb") as save_file:
             await save_file.write(content)
 
-        core_logger.print_to_log(
-            f"File saved successfully: {file_path}",
-            "debug",
-        )
+        logger.debug(f"File saved successfully: {file_path}")
 
         return str(file_path)
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_file: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_file: {type(err).__name__}", exc_info=err)
 
         # Remove the file if it was created
         if file_path and await aiofiles.os.path.exists(file_path):
@@ -625,11 +616,7 @@ async def save_validated_upload(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_validated_upload: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_validated_upload: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -682,11 +669,7 @@ def save_validated_upload_sync(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_validated_upload_sync: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_validated_upload_sync: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -731,19 +714,11 @@ async def delete_files_by_pattern(directory: str, pattern: str) -> None:
                 if await aiofiles.os.path.exists(file_path):
                     await aiofiles.os.remove(file_path)
 
-                core_logger.print_to_log(f"File deleted successfully: {file_path}", "debug")
+                logger.debug(f"File deleted successfully: {file_path}")
             except OSError as err:
-                core_logger.print_to_log(
-                    f"Failed to delete file {file_path}: {err}",
-                    "warning",
-                    exc=err,
-                )
+                logger.warning(f"Failed to delete file {file_path}: {err}", exc_info=err)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error deleting files matching pattern {pattern}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error deleting files matching pattern {pattern}: {err}", exc_info=err)
 
 
 # ---------------------------------------------------------------------------
@@ -812,11 +787,7 @@ async def save_validated_bytes(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"save_validated_bytes failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"save_validated_bytes failed: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -1155,11 +1126,7 @@ async def extract_validated_zip(
     except HTTPException:
         raise
     except (zipfile.BadZipFile, OSError) as err:
-        core_logger.print_to_log(
-            f"extract_validated_zip failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"extract_validated_zip failed: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -1181,10 +1148,7 @@ async def extract_validated_zip(
                 except HTTPException:
                     with contextlib.suppress(OSError):
                         staged_entry.unlink(missing_ok=True)
-                    core_logger.print_to_log(
-                        f"extract_validated_zip dropped invalid entry: {final_entry.name}",
-                        "warning",
-                    )
+                    logger.warning(f"extract_validated_zip dropped invalid entry: {final_entry.name}")
                     continue
                 kept.append((staged_entry, final_entry))
             extracted = kept
@@ -1198,11 +1162,7 @@ async def extract_validated_zip(
         except HTTPException:
             raise
         except OSError as err:
-            core_logger.print_to_log(
-                f"extract_validated_zip promotion failed: {type(err).__name__}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"extract_validated_zip promotion failed: {type(err).__name__}", exc_info=err)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
@@ -1326,11 +1286,7 @@ def move_within(
     except HTTPException:
         raise
     except (OSError, shutil.Error) as err:
-        core_logger.print_to_log(
-            f"move_within failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"move_within failed: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -1371,11 +1327,7 @@ def safe_remove_within(
     except FileNotFoundError:
         return False
     except OSError as err:
-        core_logger.print_to_log(
-            f"safe_remove_within failed for {target.name}: {type(err).__name__}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"safe_remove_within failed for {target.name}: {type(err).__name__}", exc_info=err)
         return False
 
 
@@ -1421,11 +1373,7 @@ def remove_files(file_paths: Iterable[str | os.PathLike]) -> None:
             if os.path.isfile(file_path):
                 os.remove(file_path)
         except OSError as err:
-            core_logger.print_to_log(
-                f"Failed to clean up file {os.fspath(file_path)}: {err}",
-                "warning",
-                exc=err,
-            )
+            logger.warning(f"Failed to clean up file {os.fspath(file_path)}: {err}", exc_info=err)
 
 
 def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
@@ -1477,8 +1425,9 @@ def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
                 temp_file.write(chunk)
             temp_file.flush()
 
-        core_logger.print_to_log_and_console(
-            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}"
+        logger.info(
+            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}",
+            extra=core_logger.context(console=True),
         )
 
         # The original .gz is consumed once decompressed: the decompressed file is

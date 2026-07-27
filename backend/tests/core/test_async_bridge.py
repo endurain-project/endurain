@@ -65,7 +65,7 @@ class TestSetGetLoop:
 
 
 class TestDispatchWithoutLoop:
-    @patch("infra.async_bridge.core_logger")
+    @patch("infra.async_bridge.logger")
     def test_returns_none_logs_and_closes_coroutine(self, mock_logger):
         state = {"ran": False}
 
@@ -76,12 +76,12 @@ class TestDispatchWithoutLoop:
         result = async_bridge.dispatch(coro)
 
         assert result is None
-        mock_logger.print_to_log.assert_called_once()
+        mock_logger.warning.assert_called_once()
         # The coroutine was closed (never scheduled), not executed.
         assert state["ran"] is False
         assert coro.cr_frame is None
 
-    @patch("infra.async_bridge.core_logger")
+    @patch("infra.async_bridge.logger")
     def test_treats_closed_loop_as_no_loop(self, mock_logger):
         loop = asyncio.new_event_loop()
         loop.close()
@@ -91,7 +91,7 @@ class TestDispatchWithoutLoop:
 
         coro = _work()
         assert async_bridge.dispatch(coro) is None
-        mock_logger.print_to_log.assert_called_once()
+        mock_logger.warning.assert_called_once()
         assert coro.cr_frame is None
 
 
@@ -116,7 +116,7 @@ class TestDispatchWithLoop:
             async_bridge.set_main_loop(None)
             _stop_loop(loop, thread)
 
-    @patch("infra.async_bridge.core_logger")
+    @patch("infra.async_bridge.logger")
     def test_logs_failure_from_coroutine(self, mock_logger):
         loop, thread = _run_loop_in_thread()
         try:
@@ -135,8 +135,7 @@ class TestDispatchWithLoop:
             with pytest.raises(ValueError):
                 future.result(timeout=5)
             assert logged.wait(timeout=5)
-            mock_logger.print_to_log.assert_called_once()
-            assert mock_logger.print_to_log.call_args.args[1] == "error"
+            mock_logger.error.assert_called_once()
         finally:
             async_bridge.set_main_loop(None)
             _stop_loop(loop, thread)

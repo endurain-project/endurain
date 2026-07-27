@@ -32,10 +32,10 @@ class TestRecordPublished:
     def test_storage_error_is_swallowed_and_logged(self):
         with (
             patch("infra.event_log.recorder.SessionLocal", side_effect=RuntimeError("db down")),
-            patch("infra.event_log.recorder.core_logger.print_to_log") as log,
+            patch("infra.event_log.recorder.logger") as log,
         ):
             EventLogRecorder().record_published(_event())  # must not raise
-        log.assert_called_once()
+        assert len(log.method_calls) == 1
 
 
 class TestRecordQueued:
@@ -50,7 +50,7 @@ class TestRecordQueued:
     def test_storage_error_is_swallowed(self):
         with (
             patch("infra.event_log.recorder.SessionLocal", side_effect=RuntimeError("db down")),
-            patch("infra.event_log.recorder.core_logger.print_to_log"),
+            patch("infra.event_log.recorder.logger"),
         ):
             EventLogRecorder().record_queued(_event())  # must not raise
 
@@ -109,7 +109,7 @@ class TestTrack:
     def test_completion_storage_error_does_not_break_processing(self):
         with (
             patch("infra.event_log.recorder.SessionLocal", side_effect=RuntimeError("db down")),
-            patch("infra.event_log.recorder.core_logger.print_to_log"),
+            patch("infra.event_log.recorder.logger"),
         ):
             recorder = EventLogRecorder()
             with recorder.track(_event(), worker_id="w", handler_name="h"):

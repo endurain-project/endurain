@@ -196,8 +196,8 @@ class TestAuthRouterErrors:
             lambda *args: False,
         )
         monkeypatch.setattr(
-            auth_router.core_logger,
-            "print_to_log",
+            auth_router.logger,
+            "warning",
             capture_log,
         )
 

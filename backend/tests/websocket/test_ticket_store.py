@@ -72,10 +72,10 @@ class TestWsTicketStore:
     def test_consume_corrupt_value_returns_none_and_does_not_leak(self):
         state = MagicMock()
         state.get_and_delete.return_value = b"not-an-int"
-        with patch("modules.websocket.ticket_store.core_logger.print_to_log") as mock_log:
+        with patch("modules.websocket.ticket_store.logger") as mock_log:
             assert WsTicketStore(state=state).consume_ticket("secret-ticket-abc") is None
-        mock_log.assert_called_once()
-        warning_msg = mock_log.call_args.args[0]
+        assert len(mock_log.method_calls) == 1
+        warning_msg = mock_log.warning.call_args.args[0]
         assert "secret-ticket-abc" not in warning_msg
         assert "ws:ticket:" not in warning_msg
 

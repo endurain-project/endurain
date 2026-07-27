@@ -15,6 +15,8 @@ from staticmap import CircleMarker, Line, StaticMap
 import core.config as core_config
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 # Thumbnail geometry and encoding. Kept at 1200x400 so the map stays crisp in
 # the large desktop feed/detail cards; WebP at quality 75 keeps the file far
 # smaller than the previous 1200x400 PNG.
@@ -114,9 +116,9 @@ def render_activity_thumbnail(
         None — errors are logged and None is returned.
     """
     if not waypoints or len(waypoints) < 2:
-        core_logger.print_to_log_and_console(
+        logger.debug(
             f"Activity {activity_id}: skipping thumbnail (fewer than 2 waypoints)",
-            "debug",
+            extra=core_logger.context(console=True),
         )
         return None
 
@@ -132,11 +134,11 @@ def render_activity_thumbnail(
             "User-Agent": f"Endurain {core_config.API_VERSION} - StaticMap backend thumbnail generator"
         }
         if not api_key and "stadiamaps.com" in normalised_url:
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 f"Activity {activity_id}: warning — tile URL looks like "
                 f"Stadia Maps but no API key provided; API KEY is required "
                 "and will skip thumbnail generation",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return None
         if api_key and "stadiamaps.com" in normalised_url:
@@ -169,16 +171,16 @@ def render_activity_thumbnail(
         buffer = BytesIO()
         image.save(buffer, "WEBP", quality=_THUMBNAIL_QUALITY, method=_THUMBNAIL_METHOD)
 
-        core_logger.print_to_log_and_console(
+        logger.info(
             f"Activity {activity_id}: thumbnail rendered ({width}x{height} WebP)",
-            "info",
+            extra=core_logger.context(console=True),
         )
 
         return buffer.getvalue()
 
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
-        core_logger.print_to_log_and_console(
+        logger.warning(
             f"Activity {activity_id}: thumbnail generation failed — {type(exc).__name__}: {exc}",
-            "warning",
+            extra=core_logger.context(console=True),
         )
         return None

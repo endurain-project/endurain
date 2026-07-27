@@ -17,6 +17,8 @@ import modules.server_settings.utils as server_settings_utils
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 
+logger = core_logger.get_logger(__name__)
+
 if TYPE_CHECKING:
     from modules.auth.identity_service import IdentityService
 
@@ -27,10 +29,7 @@ def get_user_sessions(
 ) -> list[auth_sessions_schema.UsersSessionsRead]:
     """Retrieve active sessions for the authenticated user."""
     if core_config.settings.ENVIRONMENT == "demo":
-        core_logger.print_to_log(
-            "Session retrieval attempted in demo environment - returning empty list",
-            "info",
-        )
+        logger.info("Session retrieval attempted in demo environment - returning empty list")
         return []
 
     return auth_sessions_crud.get_user_sessions(token_user_id, db)
@@ -70,10 +69,7 @@ def delete_other_user_sessions(
         db,
         exclude_session_id=current_session_id,
     )
-    core_logger.print_to_log(
-        f"User {token_user_id} revoked {revoked} other session(s)",
-        "info",
-    )
+    logger.info(f"User {token_user_id} revoked {revoked} other session(s)")
     return revoked
 
 
@@ -139,15 +135,9 @@ def change_own_password(
             db,
             exclude_session_id=current_session_id,
         )
-        core_logger.print_to_log(
-            f"User {user_id} revoked {revoked} other session(s) after password change",
-            "info",
-        )
+        logger.info(f"User {user_id} revoked {revoked} other session(s) after password change")
 
-    core_logger.print_to_log(
-        f"User {user_id} changed password (step-up verified)",
-        "info",
-    )
+    logger.info(f"User {user_id} changed password (step-up verified)")
 
 
 def change_managed_user_password(

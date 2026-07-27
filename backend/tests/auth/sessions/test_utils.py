@@ -691,7 +691,7 @@ class TestCleanupIdleSessions:
     @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
     @patch("modules.auth.sessions.utils.SessionLocal")
     @patch("modules.auth.sessions.utils.auth_sessions_crud.delete_idle_sessions")
-    @patch("modules.auth.sessions.utils.core_logger.print_to_log")
+    @patch("modules.auth.sessions.utils.logger")
     def test_cleanup_idle_sessions_error_handling(self, mock_logger, mock_delete_idle, mock_session_local):
         """
         Test error handling in cleanup.
@@ -705,7 +705,7 @@ class TestCleanupIdleSessions:
         users_session_utils.cleanup_idle_sessions()
 
         # Assert
-        mock_logger.assert_called()
+        assert mock_logger.method_calls
 
 
 _TEST_SECRET = "test-secret-key-for-testing-purposes-minimum-32-characters-long"

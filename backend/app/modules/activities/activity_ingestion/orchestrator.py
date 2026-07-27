@@ -40,6 +40,8 @@ import modules.strava.bulk_import_utils as strava_bulk_import_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 
+logger = core_logger.get_logger(__name__)
+
 
 def _prepare_bulk_import_activity(
     activity: dict,
@@ -70,12 +72,12 @@ def _prepare_bulk_import_activity(
         )
     ):
         # This activity does not match the Strava CSV entry — skip import.
-        core_logger.print_to_log_and_console(
+        logger.debug(
             "Bulk activity import of multi-activity .fit file: "
             "skipping likely duplicate import. "
             "Start time does not align with start time for this .fit file "
             "in the Strava activities.csv file.",
-            "debug",
+            extra=core_logger.context(console=True),
         )
         return None
 
@@ -93,7 +95,7 @@ def parse_file(
 ) -> dict | None:
     try:
         if filename.lower() != "bulk_import/__init__.py":
-            core_logger.print_to_log(f"Parsing file: {Path(filename).name}")
+            logger.info(f"Parsing file: {Path(filename).name}")
             # Dispatch to the parser registered for this extension. The parsers
             # are pure (no db / privacy / gear / provider coupling); the
             # orchestrator re-attaches that domain context afterwards — including
@@ -122,7 +124,7 @@ def parse_file(
     ) as err:
         # Log the exception with full traceback but return a generic
         # error message to the caller to avoid internal info disclosure.
-        core_logger.print_to_log(f"Error in parse_file - {err}", "error", exc=err)
+        logger.error(f"Error in parse_file - {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
@@ -332,7 +334,7 @@ def _store_activities_from_file(
     else:
         # Should no longer get here due to screening of extensions
         # in router.py, but why not.
-        core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
+        logger.error(f"File extension not supported: {file_extension}", extra=core_logger.context(console=True))
 
     # Persist the retained source file through the platform StorageProvider — the
     # same abstraction thumbnails use — so file-based ingestion works unchanged on
@@ -357,8 +359,9 @@ def _store_activities_from_file(
 
     # Import any associated media and log completion.
     if is_bulk_import:
-        core_logger.print_to_log_and_console(
-            f"Bulk file import: file {file_base_name} successfully processed and stored for activities {ids_to_filename}"
+        logger.info(
+            f"Bulk file import: file {file_base_name} successfully processed and stored for activities {ids_to_filename}",
+            extra=core_logger.context(console=True),
         )
 
         # Deal with Strava bulk import media.
@@ -371,7 +374,10 @@ def _store_activities_from_file(
                 db,
             )
 
-        core_logger.print_to_log_and_console(f"Bulk file import: Import work complete for file {file_base_name}.")
+        logger.info(
+            f"Bulk file import: Import work complete for file {file_base_name}.",
+            extra=core_logger.context(console=True),
+        )
 
     # Return the created activities
     return created_activities
@@ -574,10 +580,10 @@ def parse_and_store_activity_from_file(
     ) as err:
         if is_bulk_import:
             # Log the exception
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Bulk file import: Error while parsing {file_path} in parse_and_store_activity_from_file - {err!s}",
-                "error",
-                exc=err,
+                exc_info=err,
+                extra=core_logger.context(console=True),
             )
             try:
                 # Move the exception-causing file to an import errors directory.
@@ -589,19 +595,19 @@ def parse_and_store_activity_from_file(
                     error_file_dir = core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
                 os.makedirs(error_file_dir, exist_ok=True)
                 core_file_uploads.move_within(file_path, error_file_dir, filename=os.path.basename(file_path))
-                core_logger.print_to_log_and_console(
+                logger.error(
                     f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}",
-                    "error",
+                    extra=core_logger.context(console=True),
                 )
             except OSError:
-                core_logger.print_to_log_and_console(
+                logger.error(
                     f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.",
-                    "error",
+                    extra=core_logger.context(console=True),
                 )
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Error in parse_and_store_activity_from_file - {err}",
-            "error",
-            exc=err,
+            exc_info=err,
+            extra=core_logger.context(console=True),
         )
         # Background-task callers expect ``None`` on failure rather
         # than re-raising; make that contract explicit.
@@ -724,11 +730,7 @@ def parse_and_store_activity_from_uploaded_file(
         TypeError,
     ) as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in parse_and_store_activity_from_uploaded_file - {err!s}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in parse_and_store_activity_from_uploaded_file - {err!s}", exc_info=err)
         core_file_uploads.remove_files(upload_artifacts)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -753,7 +755,9 @@ def process_all_files_sync(
     try:
         total_files = len(file_paths)
         for idx, file_path in enumerate(file_paths, 1):
-            core_logger.print_to_log_and_console(f"Processing file {idx}/{total_files}: {Path(file_path).name}")
+            logger.info(
+                f"Processing file {idx}/{total_files}: {Path(file_path).name}", extra=core_logger.context(console=True)
+            )
             parse_and_store_activity_from_file(
                 user_id,
                 file_path,
@@ -762,6 +766,9 @@ def process_all_files_sync(
                 import_initiated_time=import_initiated_time,
             )
 
-        core_logger.print_to_log_and_console(f"Bulk import completed: {total_files} files processed for user {user_id}")
+        logger.info(
+            f"Bulk import completed: {total_files} files processed for user {user_id}",
+            extra=core_logger.context(console=True),
+        )
     finally:
         db.close()

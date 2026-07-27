@@ -7,6 +7,8 @@ import core.logger as core_logger
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.schema as users_default_gear_schema
 
+logger = core_logger.get_logger(__name__)
+
 # Activity type to gear attribute mapping
 ACTIVITY_TYPE_TO_GEAR_ATTR: dict[int, str] = {
     1: "run_gear_id",
@@ -65,9 +67,5 @@ def get_user_default_gear_by_activity_type(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in get_user_default_gear_by_activity_type: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in get_user_default_gear_by_activity_type: {err}", exc_info=err)
         raise

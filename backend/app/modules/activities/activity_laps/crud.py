@@ -12,6 +12,8 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity_laps.models as activity_laps_models
 import modules.activities.activity_laps.schema as activity_laps_schema
 
+logger = core_logger.get_logger(__name__)
+
 _LAP_COLUMNS: tuple[str, ...] = (
     "start_time",
     "start_position_lat",
@@ -231,7 +233,4 @@ def create_activity_laps(
     else:
         db.flush()
 
-    core_logger.print_to_log(
-        f"Created {len(laps)} lap(s) for activity {activity_id}",
-        "debug",
-    )
+    logger.debug(f"Created {len(laps)} lap(s) for activity {activity_id}")

@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 import core.config as core_config
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 
 def create_fernet_cipher() -> Fernet:
     """
@@ -23,11 +25,7 @@ def create_fernet_cipher() -> Fernet:
             raise ValueError("FERNET_KEY not found in environment or secrets file")
         return Fernet(key.encode())
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_fernet_cipher: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in create_fernet_cipher: {type(err).__name__}", exc_info=err)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -59,11 +57,7 @@ def encrypt_token_fernet(token: object | None) -> str | None:
 
         return cipher.encrypt(token.encode()).decode()
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in encrypt_token_fernet: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in encrypt_token_fernet: {type(err).__name__}", exc_info=err)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -92,11 +86,7 @@ def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
 
         return cipher.decrypt(encrypted_token.encode()).decode()
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in decrypt_token_fernet: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in decrypt_token_fernet: {type(err).__name__}", exc_info=err)
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

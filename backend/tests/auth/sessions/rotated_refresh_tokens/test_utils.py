@@ -348,7 +348,7 @@ class TestCleanupExpiredRotatedTokens:
 
     @patch("modules.auth.sessions.rotated_refresh_tokens.utils.SessionLocal")
     @patch("modules.auth.sessions.rotated_refresh_tokens.utils.rotated_token_crud")
-    @patch("modules.auth.sessions.rotated_refresh_tokens.utils.core_logger")
+    @patch("modules.auth.sessions.rotated_refresh_tokens.utils.logger")
     def test_cleanup_expired_rotated_tokens_error_handling(self, mock_logger, mock_crud, mock_session_local):
         """
         Test error handling in cleanup.
@@ -362,7 +362,7 @@ class TestCleanupExpiredRotatedTokens:
         rotated_token_utils.cleanup_expired_rotated_tokens()
 
         # Assert
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
 
 class TestTokenReuseGracePeriod:

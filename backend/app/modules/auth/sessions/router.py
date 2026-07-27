@@ -18,6 +18,8 @@ import modules.auth.dependencies as auth_dependencies
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.schema as auth_sessions_schema
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -49,10 +51,7 @@ async def read_sessions_user(
     if core_config.settings.ENVIRONMENT != "demo":
         return auth_sessions_crud.get_user_sessions(user_id, db)
     else:
-        core_logger.print_to_log(
-            "Session retrieval in demo environment - returning empty",
-            "info",
-        )
+        logger.info("Session retrieval in demo environment - returning empty")
         return []
 
 

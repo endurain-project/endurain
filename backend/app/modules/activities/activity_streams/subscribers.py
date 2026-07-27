@@ -9,6 +9,8 @@ create-path handler misses (e.g. delivery dropped on the best-effort bus, or the
 owner's max heart rate was set only later).
 """
 
+import logging
+
 import core.database as core_database
 import core.logger as core_logger
 import infra.runtime as platform_runtime
@@ -18,6 +20,8 @@ from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
+
+logger = core_logger.get_logger(__name__)
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -100,14 +104,11 @@ def run_missing_hr_zone_backfill() -> None:
     platform = platform_runtime.get_active_platform()
     with platform.lock.try_acquire("hr_zone_backfill") as acquired:
         if not acquired:
-            core_logger.print_to_log(
-                "HR-zone scheduler: another replica holds the backfill lock; skipping",
-                "debug",
-            )
+            logger.debug("HR-zone scheduler: another replica holds the backfill lock; skipping")
             return
         with core_database.SessionLocal() as db:
             updated = activity_streams_crud.backfill_missing_hr_zone_percentages(db)
-        core_logger.print_to_log(
+        logger.log(
+            logging.INFO if updated else logging.DEBUG,
             f"HR-zone scheduler: backfilled zone percentages for {updated} stream(s)",
-            "info" if updated else "debug",
         )

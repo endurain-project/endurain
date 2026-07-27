@@ -70,6 +70,8 @@ from modules.users.users_profile.exceptions import (
     JSONParseError,
 )
 
+logger = core_logger.get_logger(__name__)
+
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
     """
@@ -171,13 +173,12 @@ class ImportService:
             performance_config or ImportPerformanceConfig.get_auto_config()
         )
 
-        core_logger.print_to_log(
+        logger.info(
             f"ImportService initialized with performance config: "
             f"batch_size={self.performance_config.batch_size}, "
             f"max_memory_mb={self.performance_config.max_memory_mb}, "
             f"max_file_size_mb={self.performance_config.max_file_size_mb}, "
-            f"timeout_seconds={self.performance_config.timeout_seconds}",
-            "info",
+            f"timeout_seconds={self.performance_config.timeout_seconds}"
         )
 
     async def import_from_zip_data(self, zip_data: bytes) -> dict[str, Any]:
@@ -312,25 +313,16 @@ class ImportService:
         try:
             file_list = set(zipf.namelist())
             if filename not in file_list:
-                core_logger.print_to_log(
-                    f"Expected data file {filename} not found in ZIP archive",
-                    "warning",
-                )
+                logger.warning(f"Expected data file {filename} not found in ZIP archive")
                 return []
 
             data = json.loads(self._read_zip_entry(zipf, filename))
 
             if not isinstance(data, list):
-                core_logger.print_to_log(
-                    f"Expected list in {filename}, got {type(data).__name__}, returning empty list",
-                    "warning",
-                )
+                logger.warning(f"Expected list in {filename}, got {type(data).__name__}, returning empty list")
                 return []
 
-            core_logger.print_to_log(
-                f"Loaded {len(data)} items from {filename}",
-                "debug",
-            )
+            logger.debug(f"Loaded {len(data)} items from {filename}")
 
             if check_memory:
                 profile_utils.check_memory_usage(
@@ -342,7 +334,7 @@ class ImportService:
             return data
         except json.JSONDecodeError as err:
             error_msg = f"Failed to parse JSON from {filename}: {err}"
-            core_logger.print_to_log(error_msg, "error")
+            logger.error(error_msg)
             raise JSONParseError(error_msg) from err
 
     def _read_zip_entry(
@@ -407,7 +399,7 @@ class ImportService:
         gears_id_mapping: dict[int, int] = {}
 
         if not gears_data:
-            core_logger.print_to_log("No gears data to import", "info")
+            logger.info("No gears data to import")
             return gears_id_mapping
 
         for gear_data in gears_data:
@@ -420,7 +412,7 @@ class ImportService:
             gears_id_mapping[original_id] = new_gear.id
             self.counts["gears"] += 1
 
-        core_logger.print_to_log(f"Imported {self.counts['gears']} gears", "info")
+        logger.info(f"Imported {self.counts['gears']} gears")
         return gears_id_mapping
 
     async def collect_and_import_gear_components_data(
@@ -434,7 +426,7 @@ class ImportService:
             gears_id_mapping: Mapping of old to new gear IDs.
         """
         if not gear_components_data:
-            core_logger.print_to_log("No gear components data to import", "info")
+            logger.info("No gear components data to import")
             return
 
         for gear_component_data in gear_components_data:
@@ -450,7 +442,7 @@ class ImportService:
             gear_components_crud.create_gear_component(gear_component, self.user_id, self.db)
             self.counts["gear_components"] += 1
 
-        core_logger.print_to_log(f"Imported {self.counts['gear_components']} gear components", "info")
+        logger.info(f"Imported {self.counts['gear_components']} gear components")
 
     async def collect_and_import_user_data(
         self,
@@ -497,7 +489,7 @@ class ImportService:
             await users_crud.edit_profile_user(self.user_id, profile_payload, self.db)
             self.counts["user"] += 1
         else:
-            core_logger.print_to_log("No user data to import, but continuing with sub-settings", "info")
+            logger.info("No user data to import, but continuing with sub-settings")
 
         # Import user-related settings — always attempt, even if
         # user_data was empty, so that sub-setting data loaded from
@@ -518,13 +510,13 @@ class ImportService:
             gears_id_mapping: Mapping of old to new gear IDs.
         """
         if not user_default_gear_data:
-            core_logger.print_to_log("No user default gear data to import", "info")
+            logger.info("No user default gear data to import")
             return
 
         current_user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(self.user_id, self.db)
 
         if current_user_default_gear is None:
-            core_logger.print_to_log("No existing user default gear, creating new record", "info")
+            logger.info("No existing user default gear, creating new record")
             current_user_default_gear = user_default_gear_crud.create_user_default_gear(self.user_id, self.db)
 
         gear_data = user_default_gear_data[0]
@@ -556,7 +548,7 @@ class ImportService:
 
         user_default_gear = user_default_gear_schema.UsersDefaultGearUpdate(**gear_data)
         user_default_gear_crud.edit_user_default_gear(user_default_gear, self.user_id, self.db)
-        core_logger.print_to_log("Imported user default gear", "info")
+        logger.info("Imported user default gear")
         self.counts["user_default_gear"] += 1
 
     async def collect_and_import_user_integrations(self, user_integrations_data: list[Any]) -> None:
@@ -567,7 +559,7 @@ class ImportService:
             user_integrations_data: Integration data.
         """
         if not user_integrations_data:
-            core_logger.print_to_log("No user integrations data to import", "info")
+            logger.info("No user integrations data to import")
             return
 
         integrations_data = user_integrations_data[0]
@@ -576,7 +568,7 @@ class ImportService:
 
         user_integrations = users_integrations_schema.UsersIntegrationsUpdate(**integrations_data)
         user_integrations_crud.edit_user_integrations(user_integrations, self.user_id, self.db)
-        core_logger.print_to_log("Imported user integrations", "info")
+        logger.info("Imported user integrations")
         self.counts["user_integrations"] += 1
 
     async def collect_and_import_user_goals(self, user_goals_data: list[Any]) -> None:
@@ -587,7 +579,7 @@ class ImportService:
             user_goals_data: List of user goal dictionaries.
         """
         if not user_goals_data:
-            core_logger.print_to_log("No user goals data to import", "info")
+            logger.info("No user goals data to import")
             return
 
         for goal_data in user_goals_data:
@@ -598,7 +590,7 @@ class ImportService:
             user_goals_crud.create_user_goal(self.user_id, goal, self.db)
             self.counts["user_goals"] += 1
 
-        core_logger.print_to_log(f"Imported {self.counts['user_goals']} user goals", "info")
+        logger.info(f"Imported {self.counts['user_goals']} user goals")
 
     async def collect_and_import_user_privacy_settings(self, user_privacy_settings_data: list[Any]) -> None:
         """
@@ -608,7 +600,7 @@ class ImportService:
             user_privacy_settings_data: Privacy settings data.
         """
         if not user_privacy_settings_data:
-            core_logger.print_to_log("No user privacy settings data to import", "info")
+            logger.info("No user privacy settings data to import")
             return
 
         privacy_data = user_privacy_settings_data[0]
@@ -617,7 +609,7 @@ class ImportService:
 
         user_privacy_settings = users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
         users_privacy_settings_crud.edit_user_privacy_settings(self.user_id, user_privacy_settings, self.db)
-        core_logger.print_to_log("Imported user privacy settings", "info")
+        logger.info("Imported user privacy settings")
         self.counts["user_privacy_settings"] += 1
 
     async def collect_and_import_activity_components(
@@ -724,10 +716,7 @@ class ImportService:
                 if old_path:
                     filename = os.path.basename(str(old_path).replace("\\", "/"))
                     if "_" not in filename:
-                        core_logger.print_to_log(
-                            f"Skipping activity media with invalid path: {old_path}",
-                            "warning",
-                        )
+                        logger.warning(f"Skipping activity media with invalid path: {old_path}")
                         continue
                     suffix = filename.split("_", 1)[1]
                     new_file_name = f"{new_activity.id}_{suffix}"
@@ -739,10 +728,7 @@ class ImportService:
                             )
                         )
                     except HTTPException as err:
-                        core_logger.print_to_log(
-                            f"Skipping activity media with unsafe path {old_path}: {err.detail}",
-                            "warning",
-                        )
+                        logger.warning(f"Skipping activity media with unsafe path {old_path}: {err.detail}")
                         continue
 
                 media_item = activity_media_schema.ActivityMedia(**media_data)
@@ -798,7 +784,7 @@ class ImportService:
         # Load activities list
         activities_data = self._load_single_json(zipf, "data/activities.json")
         if not activities_data:
-            core_logger.print_to_log("No activities data to import", "info")
+            logger.info("No activities data to import")
             return activities_id_mapping
 
         # Check activity count limit
@@ -822,10 +808,7 @@ class ImportService:
         sets_files = self._get_split_files_list(file_list, "data/activity_sets")
         streams_files = self._get_split_files_list(file_list, "data/activity_streams")
 
-        core_logger.print_to_log(
-            f"Importing {len(activities_data)} activities with batched component loading",
-            "info",
-        )
+        logger.info(f"Importing {len(activities_data)} activities with batched component loading")
 
         # Process activities in batches
         batch_size = self.performance_config.batch_size
@@ -835,9 +818,8 @@ class ImportService:
             batch_end = min(batch_start + batch_size, len(activities_data))
             activities_batch = activities_data[batch_start:batch_end]
 
-            core_logger.print_to_log(
-                f"Processing activities batch {batch_start // batch_size + 1}: activities {batch_start}-{batch_end}",
-                "info",
+            logger.info(
+                f"Processing activities batch {batch_start // batch_size + 1}: activities {batch_start}-{batch_end}"
             )
 
             # Load components for this batch only
@@ -894,7 +876,7 @@ class ImportService:
                 self.performance_config.enable_memory_monitoring,
             )
 
-        core_logger.print_to_log(f"Imported {self.counts['activities']} activities", "info")
+        logger.info(f"Imported {self.counts['activities']} activities")
         return activities_id_mapping
 
     def _get_split_files_list(self, file_list: set[str], base_filename: str) -> list[str]:
@@ -953,14 +935,11 @@ class ImportService:
                 all_components.extend(filtered)
 
                 if filtered:
-                    core_logger.print_to_log(
-                        f"Loaded {len(filtered)}/{len(components)} {component_name} from {filename} for batch",
-                        "debug",
-                    )
+                    logger.debug(f"Loaded {len(filtered)}/{len(components)} {component_name} from {filename} for batch")
             except json.JSONDecodeError as err:
-                core_logger.print_to_log(f"Failed to parse {filename}: {err}", "warning")
+                logger.warning(f"Failed to parse {filename}: {err}")
             except (FileFormatError, FileSizeError, OSError) as err:
-                core_logger.print_to_log(f"Error loading {filename}: {err}", "warning")
+                logger.warning(f"Error loading {filename}: {err}")
 
         return all_components
 
@@ -1009,9 +988,9 @@ class ImportService:
                 data = health_weight_schema.HealthWeightCreate(**health_weight)
                 health_weight_crud.create_health_weight(self.user_id, data, self.db)
                 self.counts["health_weight"] += 1
-            core_logger.print_to_log(f"Imported {self.counts['health_weight']} health weight records", "info")
+            logger.info(f"Imported {self.counts['health_weight']} health weight records")
         else:
-            core_logger.print_to_log("No health weight data to import", "debug")
+            logger.debug("No health weight data to import")
 
         # Import health targets
         if health_targets_data:
@@ -1042,9 +1021,9 @@ class ImportService:
                 target = health_targets_schema.HealthTargetsUpdate(**target_data)
                 health_targets_crud.edit_health_target(target, self.user_id, self.db)
                 self.counts["health_targets"] += 1
-            core_logger.print_to_log(f"Imported {self.counts['health_targets']} health targets", "info")
+            logger.info(f"Imported {self.counts['health_targets']} health targets")
         else:
-            core_logger.print_to_log("No health targets to import", "debug")
+            logger.debug("No health targets to import")
 
     async def add_activity_files_from_zip(
         self,
@@ -1096,10 +1075,7 @@ class ImportService:
                             filename=new_file_name,
                         )
                     except HTTPException as err:
-                        core_logger.print_to_log(
-                            f"Profile import dropped invalid activity file {new_file_name}: {err.detail}",
-                            "warning",
-                        )
+                        logger.warning(f"Profile import dropped invalid activity file {new_file_name}: {err.detail}")
                         continue
                     await asyncio.to_thread(
                         activity_file_storage_service.store_activity_file,
@@ -1165,9 +1141,8 @@ class ImportService:
                                 filename=new_file_name,
                             )
                         except HTTPException as err:
-                            core_logger.print_to_log(
-                                f"Profile import dropped invalid activity media {new_file_name}: {err.detail}",
-                                "warning",
+                            logger.warning(
+                                f"Profile import dropped invalid activity media {new_file_name}: {err.detail}"
                             )
                             continue
                         self.counts["media"] += 1
@@ -1198,7 +1173,7 @@ class ImportService:
 
             # Import user images
             if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith("user_images/"):
-                core_logger.print_to_log(f"Processing user image file: {file_path}", "debug")
+                logger.debug(f"Processing user image file: {file_path}")
                 ext = os.path.splitext(path)[1]
                 new_file_name = f"{self.user_id}{ext}"
 
@@ -1215,9 +1190,6 @@ class ImportService:
                         filename=new_file_name,
                     )
                 except HTTPException as err:
-                    core_logger.print_to_log(
-                        f"Profile import dropped invalid user image {new_file_name}: {err.detail}",
-                        "warning",
-                    )
+                    logger.warning(f"Profile import dropped invalid user image {new_file_name}: {err.detail}")
                     continue
                 self.counts["user_images"] += 1

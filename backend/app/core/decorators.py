@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 
 def _find_db_session(*args, **kwargs) -> Session | None:
     """
@@ -44,11 +46,7 @@ def _rollback_session(func_name: str, db_session: Session | None) -> None:
         try:
             db_session.rollback()
         except Exception as rollback_err:
-            core_logger.print_to_log(
-                f"Rollback failed in {func_name}: {type(rollback_err).__name__}",
-                "error",
-                exc=rollback_err,
-            )
+            logger.error(f"Rollback failed in {func_name}: {type(rollback_err).__name__}", exc_info=rollback_err)
 
 
 def _handle_db_error(db_err: SQLAlchemyError, func_name: str, db_session: Session | None) -> NoReturn:
@@ -70,11 +68,7 @@ def _handle_db_error(db_err: SQLAlchemyError, func_name: str, db_session: Sessio
     # Log only the exception class name — SQLAlchemy error strings
     # frequently embed the offending SQL statement and parameter values,
     # which can leak PII / credentials into logs (OWASP A09).
-    core_logger.print_to_log(
-        f"Database error in {func_name}: {type(db_err).__name__}",
-        "error",
-        exc=db_err,
-    )
+    logger.error(f"Database error in {func_name}: {type(db_err).__name__}", exc_info=db_err)
 
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

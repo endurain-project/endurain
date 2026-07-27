@@ -68,7 +68,7 @@ class TestWebSocketEndpoint:
         assert exc_info.value.code == 1008
         mock_manager.connect.assert_not_awaited()
 
-    @patch("modules.websocket.router.core_logger.print_to_log")
+    @patch("modules.websocket.router.logger")
     async def test_websocket_endpoint_normal_operation(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint normal operation until disconnect."""
         user_id = 1
@@ -96,7 +96,7 @@ class TestWebSocketEndpoint:
         # No error logs for valid JSON
         mock_log.assert_not_called()
 
-    @patch("modules.websocket.router.core_logger.print_to_log")
+    @patch("modules.websocket.router.logger")
     async def test_websocket_endpoint_malformed_json(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint handling malformed JSON."""
         user_id = 1
@@ -113,10 +113,10 @@ class TestWebSocketEndpoint:
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
         mock_manager.connect.assert_awaited_once_with(user_id, mock_websocket)
-        mock_log.assert_called_once_with(f"Received malformed JSON from user {user_id}", "warning")
+        mock_log.warning.assert_called_once_with(f"Received malformed JSON from user {user_id}")
         mock_manager.disconnect.assert_called_once_with(user_id)
 
-    @patch("modules.websocket.router.core_logger.print_to_log")
+    @patch("modules.websocket.router.logger")
     async def test_websocket_endpoint_multiple_malformed_json(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint handling multiple malformed JSON messages."""
         user_id = 1
@@ -133,10 +133,10 @@ class TestWebSocketEndpoint:
 
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
-        assert mock_log.call_count == 3
-        mock_log.assert_called_with(f"Received malformed JSON from user {user_id}", "warning")
+        assert len(mock_log.method_calls) == 3
+        mock_log.warning.assert_called_with(f"Received malformed JSON from user {user_id}")
 
-    @patch("modules.websocket.router.core_logger.print_to_log")
+    @patch("modules.websocket.router.logger")
     async def test_websocket_endpoint_immediate_disconnect(self, mock_log, mock_websocket, mock_manager):
         """Test WebSocket endpoint with immediate disconnect."""
         user_id = 1
@@ -151,8 +151,7 @@ class TestWebSocketEndpoint:
         mock_manager.disconnect.assert_called_once_with(user_id)
         mock_log.assert_not_called()
 
-    @patch("modules.websocket.router.core_logger.print_to_log")
-    async def test_websocket_endpoint_different_users(self, mock_log, mock_manager):
+    async def test_websocket_endpoint_different_users(self, mock_manager):
         """Test WebSocket endpoint with different user IDs."""
         store = WsTicketStore()
         ticket1 = store.create_ticket(user_id=1)

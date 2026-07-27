@@ -32,6 +32,8 @@ import modules.auth.utils as auth_utils
 import modules.users.users.crud as users_crud
 import modules.users.users.utils as users_utils
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -83,11 +85,7 @@ def _raise_auth_security_store_unavailable(
     Raises:
         HTTPException: Always raised with a 503 status.
     """
-    core_logger.print_to_log(
-        "Auth security storage unavailable during authentication",
-        "error",
-        exc=err,
-    )
+    logger.error("Auth security storage unavailable during authentication", exc_info=err)
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="Authentication temporarily unavailable",
@@ -362,10 +360,7 @@ async def verify_mfa_and_login(
         # an Argon2 verify). Without this, an attacker could enumerate
         # which usernames are mid-login by measuring response time.
         password_hasher.dummy_verify()
-        core_logger.print_to_log(
-            f"No pending MFA login found for {username_log_id}",
-            "warning",
-        )
+        logger.warning(f"No pending MFA login found for {username_log_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No pending MFA login found for this username",
@@ -378,10 +373,7 @@ async def verify_mfa_and_login(
             failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
         except auth_security_stores.AuthSecurityStoreUnavailableError as err:
             _raise_auth_security_store_unavailable(err)
-        core_logger.print_to_log(
-            f"Invalid MFA code for {username_log_id}. Failed attempts: {failed_count}",
-            "warning",
-        )
+        logger.warning(f"Invalid MFA code for {username_log_id}. Failed attempts: {failed_count}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid MFA code, backup code or backup code already used.",
@@ -392,10 +384,7 @@ async def verify_mfa_and_login(
     except auth_security_stores.AuthSecurityStoreUnavailableError as err:
         _raise_auth_security_store_unavailable(err)
     if claimed_user_id != user_id:
-        core_logger.print_to_log(
-            f"Pending MFA login for {username_log_id} was missing or already claimed",
-            "warning",
-        )
+        logger.warning(f"Pending MFA login for {username_log_id} was missing or already claimed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No pending MFA login found for this username",
@@ -404,7 +393,7 @@ async def verify_mfa_and_login(
     # Get the user and complete login
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
-        core_logger.print_to_log(f"User ID {user_id} not found during MFA verification", "warning")
+        logger.warning(f"User ID {user_id} not found during MFA verification")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unable to authenticate",
@@ -527,9 +516,8 @@ async def refresh_token(
     # the implicit binding) if a token's `sub`/`sid` claims are ever
     # decoupled from the persisted session.
     if session.user_id != token_user_id:
-        core_logger.print_to_log(
-            f"Refresh token session owner mismatch: token sub={token_user_id}, session user_id={session.user_id}",
-            "warning",
+        logger.warning(
+            f"Refresh token session owner mismatch: token sub={token_user_id}, session user_id={session.user_id}"
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -614,10 +602,7 @@ async def refresh_token(
         replay_user = users_crud.get_user_by_id(token_user_id, db)
 
         if replay_user is None:
-            core_logger.print_to_log(
-                f"User ID {token_user_id} not found during token refresh replay",
-                "warning",
-            )
+            logger.warning(f"User ID {token_user_id} not found during token refresh replay")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Unable to authenticate",
@@ -663,7 +648,7 @@ async def refresh_token(
     user = users_crud.get_user_by_id(token_user_id, db)
 
     if user is None:
-        core_logger.print_to_log(f"User ID {token_user_id} not found during token refresh", "warning")
+        logger.warning(f"User ID {token_user_id} not found during token refresh")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unable to authenticate",

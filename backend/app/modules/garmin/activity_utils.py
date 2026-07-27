@@ -17,6 +17,8 @@ import modules.users.users_integrations.crud as user_integrations_crud
 import modules.websocket.manager as websocket_manager
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 async def fetch_and_process_activities_by_dates(
     garminconnect_client: garminconnect.Garmin,
@@ -36,26 +38,25 @@ async def fetch_and_process_activities_by_dates(
             str(end_date.date()),
         )
     except garminconnect.GarminConnectAuthenticationError as err:
-        core_logger.print_to_log(
+        logger.error(
             f"Garmin Connect token expired for user {user_id}. Unlinking account. User must re-link: {err}",
-            "error",
-            exc=err,
+            exc_info=err,
         )
         user_integrations_crud.unlink_garminconnect_account(user_id, db)
         await notifications_utils.create_garmin_token_expired_notification(user_id, ws_manager)
         return None
     except Exception as err:
-        core_logger.print_to_log(
+        logger.error(
             f"Error fetching activities for user {user_id} between {start_date.date()} and {end_date.date()}: {err}",
-            "error",
-            exc=err,
+            exc_info=err,
         )
         return None
 
     if garmin_activities is None:
         # Log an informational event if no activities were found
-        core_logger.print_to_log_and_console(
-            f"User {user_id}: No new Garmin Connect activities found between {start_date.date()} and {end_date.date()}: garmin_activities is None"
+        logger.info(
+            f"User {user_id}: No new Garmin Connect activities found between {start_date.date()} and {end_date.date()}: garmin_activities is None",
+            extra=core_logger.context(console=True),
         )
         # Return 0 to indicate no activities were processed
         return None
@@ -73,10 +74,10 @@ async def fetch_and_process_activities_by_dates(
 
         if activity_db:
             # Log an informational event if the activity is already stored
-            core_logger.print_to_log(f"User {user_id}: Activity {activity_id} already stored in the database")
+            logger.info(f"User {user_id}: Activity {activity_id} already stored in the database")
             continue
 
-        core_logger.print_to_log(f"User {user_id}: Processing activity {activity_id}")
+        logger.info(f"User {user_id}: Processing activity {activity_id}")
 
         # Get activity gear — offload to thread pool to avoid blocking event loop
         activity_gear = await asyncio.to_thread(garminconnect_client.get_activity_gear, activity_id)
@@ -100,10 +101,9 @@ async def fetch_and_process_activities_by_dates(
                 filename=zip_filename,
             )
         except Exception as err:
-            core_logger.print_to_log(
+            logger.warning(
                 f"User {user_id}: Garmin ZIP for activity {activity_id} failed validation: {type(err).__name__}",
-                "warning",
-                exc=err,
+                exc_info=err,
             )
             continue
 
@@ -124,11 +124,10 @@ async def fetch_and_process_activities_by_dates(
             # "HTTPException", making root-cause diagnosis impossible
             # without reproduction (#749).
             err_detail = getattr(err, "detail", None)
-            core_logger.print_to_log(
+            logger.warning(
                 f"User {user_id}: Garmin ZIP extraction failed for activity {activity_id}: "
                 f"{type(err).__name__}" + (f" - {err_detail}" if err_detail is not None else ""),
-                "warning",
-                exc=err,
+                exc_info=err,
             )
             file_uploads.safe_remove_within(output_file, base_dir=core_config.settings.FILES_DIR)
             continue
@@ -156,11 +155,10 @@ async def fetch_and_process_activities_by_dates(
                 # activity and extraction fails with
                 # ZIP_TARGET_EXISTS forever (#750). Clean it up here
                 # so the activity can be retried.
-                core_logger.print_to_log(
+                logger.warning(
                     f"User {user_id}: Failed to parse Garmin activity {activity_id} file "
                     f"{full_file_path.name}; removing it to avoid a perpetual "
-                    "ZIP_TARGET_EXISTS failure loop on the next sync",
-                    "warning",
+                    "ZIP_TARGET_EXISTS failure loop on the next sync"
                 )
                 file_uploads.safe_remove_within(full_file_path, base_dir=core_config.settings.FILES_DIR)
 
@@ -193,16 +191,13 @@ async def retrieve_garminconnect_users_activities_for_days(days: int):
                     )
                 except Exception as err:
                     # Log specific errors for each user
-                    core_logger.print_to_log(
+                    logger.error(
                         f"Error processing activities for user {user.id} in retrieve_garminconnect_users_activities_for_days: {err}",
-                        "error",
-                        exc=err,
+                        exc_info=err,
                     )
         except Exception as err:
-            core_logger.print_to_log(
-                f"Error getting users in retrieve_garminconnect_users_activities_for_days: {err}",
-                "error",
-                exc=err,
+            logger.error(
+                f"Error getting users in retrieve_garminconnect_users_activities_for_days: {err}", exc_info=err
             )
 
 
@@ -212,7 +207,7 @@ def get_user_garminconnect_client(user_id: int, db: Session):
         user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(user_id, db)
 
         if user_integrations is None:
-            core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
+            logger.info(f"User {user_id}: Garmin Connect not linked")
             return None
 
         # Create a Garmin Connect client with the user's access token
@@ -224,7 +219,7 @@ def get_user_garminconnect_client(user_id: int, db: Session):
         return garminconnect_client
     except Exception as err:
         # Log specific errors during getting the Garmin Connect client
-        core_logger.print_to_log(f"Error in get_user_garminconnect_client: {err}", "error", exc=err)
+        logger.error(f"Error in get_user_garminconnect_client: {err}", exc_info=err)
 
         # Return None if the client cannot be created
         return None
@@ -253,12 +248,12 @@ async def get_user_garminconnect_activities_by_dates(
             )
 
             # Log the start of the activities processing
-            core_logger.print_to_log(
+            logger.info(
                 f"User {user_id}: Started Garmin Connect activities processing for date range {start_date.date()} to {end_date.date()}"
             )
 
             # Log an informational event for tracing
-            core_logger.print_to_log(
+            logger.info(
                 f"User {user_id}: {len(garminconnect_activities_processed) if garminconnect_activities_processed else 0} Garmin Connect activities processed"
             )
 
@@ -268,9 +263,5 @@ async def get_user_garminconnect_activities_by_dates(
         return None
     except Exception as err:
         # Log specific errors during Garmin Connect processing
-        core_logger.print_to_log(
-            f"Error in get_user_garminconnect_activities_by_dates: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in get_user_garminconnect_activities_by_dates: {err}", exc_info=err)
         return None

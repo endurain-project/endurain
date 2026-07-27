@@ -28,7 +28,7 @@ class TestWebSocketManager:
         assert isinstance(manager.active_connections, dict)
         assert len(manager.active_connections) == 0
 
-    @patch("modules.websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.logger")
     async def test_connect(self, mock_log, manager, mock_websocket):
         """Test connecting a WebSocket."""
         user_id = 1
@@ -43,10 +43,9 @@ class TestWebSocketManager:
         assert manager.active_connections[user_id] == mock_websocket
 
         # Verify logging
-        mock_log.assert_called_once_with(f"WebSocket connected for user {user_id}", "debug")
+        mock_log.debug.assert_called_once_with(f"WebSocket connected for user {user_id}")
 
-    @patch("modules.websocket.manager.core_logger.print_to_log")
-    async def test_connect_multiple_users(self, mock_log, manager):
+    async def test_connect_multiple_users(self, manager):
         """Test connecting multiple WebSocket connections."""
         ws1 = AsyncMock()
         ws1.accept = AsyncMock()
@@ -60,7 +59,7 @@ class TestWebSocketManager:
         assert manager.active_connections[1] == ws1
         assert manager.active_connections[2] == ws2
 
-    @patch("modules.websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.logger")
     async def test_disconnect(self, mock_log, manager, mock_websocket):
         """Test disconnecting a WebSocket."""
         user_id = 1
@@ -72,10 +71,10 @@ class TestWebSocketManager:
         assert user_id not in manager.active_connections
 
         # Verify logging
-        assert mock_log.call_count == 2  # connect + disconnect
-        mock_log.assert_any_call(f"WebSocket disconnected for user {user_id}", "debug")
+        assert len(mock_log.method_calls) == 2  # connect + disconnect
+        mock_log.debug.assert_any_call(f"WebSocket disconnected for user {user_id}")
 
-    @patch("modules.websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.logger")
     def test_disconnect_nonexistent_user(self, mock_log, manager):
         """Test disconnecting a non-existent user (no error)."""
         manager.disconnect(999)

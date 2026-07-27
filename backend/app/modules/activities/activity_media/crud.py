@@ -14,6 +14,8 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity_media.models as activity_media_models
 import modules.activities.activity_media.schema as activity_media_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 def _to_read_schema(
     orm_media: activity_media_models.ActivityMedia,
@@ -151,10 +153,7 @@ def create_activity_media(activity_id: int, media_path: str, db: Session) -> act
         db.add(db_activity_media)
         db.commit()
         db.refresh(db_activity_media)
-        core_logger.print_to_log(
-            f"Created activity media {db_activity_media.id} for activity {activity_id}",
-            "debug",
-        )
+        logger.debug(f"Created activity media {db_activity_media.id} for activity {activity_id}")
         return _to_read_schema(db_activity_media)
     except IntegrityError as integrity_error:
         db.rollback()
@@ -235,10 +234,7 @@ def edit_activity_media_media_path(
     db_activity_media.media_path = media_path
     db.commit()
     db.refresh(db_activity_media)
-    core_logger.print_to_log(
-        f"Updated media path for activity media {activity_media_id}",
-        "debug",
-    )
+    logger.debug(f"Updated media path for activity media {activity_media_id}")
     return _to_read_schema(db_activity_media)
 
 
@@ -293,10 +289,7 @@ def delete_activity_media(activity_media_id: int, token_user_id: int, db: Sessio
 
     db.delete(activity_media)
     db.commit()
-    core_logger.print_to_log(
-        f"Deleted activity media {activity_media_id} for user {token_user_id}",
-        "debug",
-    )
+    logger.debug(f"Deleted activity media {activity_media_id} for user {token_user_id}")
 
     # Best-effort filesystem cleanup, confined to ACTIVITY_MEDIA_DIR.
     if media_path:
@@ -306,7 +299,6 @@ def delete_activity_media(activity_media_id: int, token_user_id: int, db: Sessio
                 base_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
             )
         except HTTPException as fs_err:
-            core_logger.print_to_log(
-                f"Refused to remove activity media outside media dir for id {activity_media_id}: {fs_err.detail}",
-                "warning",
+            logger.warning(
+                f"Refused to remove activity media outside media dir for id {activity_media_id}: {fs_err.detail}"
             )

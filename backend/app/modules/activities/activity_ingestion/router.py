@@ -39,6 +39,8 @@ import modules.garmin.activity_utils as garmin_activity_utils
 import modules.strava.activity_utils as strava_activity_utils
 import modules.websocket.manager as websocket_manager
 
+logger = core_logger.get_logger(__name__)
+
 # Bulk import endpoint (JWT auth)
 router = APIRouter()
 
@@ -111,7 +113,7 @@ def create_activity_with_bulk_import(
         # Get time of import initiation to pass to function for recording in import_data
         import_time = datetime.now(UTC).isoformat()
 
-        core_logger.print_to_log_and_console(f"Bulk import initiated at {import_time}.", "info")
+        logger.info(f"Bulk import initiated at {import_time}.", extra=core_logger.context(console=True))
 
         # Ensure the 'bulk_import' directory exists
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
@@ -129,8 +131,9 @@ def create_activity_with_bulk_import(
             _, file_extension = os.path.splitext(file_path)
             file_extension = file_extension.lower()
             if file_extension not in supported_file_formats:
-                core_logger.print_to_log_and_console(
-                    f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}."
+                logger.info(
+                    f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}.",
+                    extra=core_logger.context(console=True),
                 )
                 # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
                 continue
@@ -150,16 +153,14 @@ def create_activity_with_bulk_import(
                         kind=validate_kind,
                     )
                 except HTTPException as err:
-                    core_logger.print_to_log_and_console(
-                        f"Skipping file {file_path}: {err.detail}",
-                        "warning",
-                    )
+                    logger.warning(f"Skipping file {file_path}: {err.detail}", extra=core_logger.context(console=True))
                     continue
 
                 files_to_process.append(file_path)
                 # Log the file being processed
-                core_logger.print_to_log_and_console(
-                    f"Queuing file for processing: {os.path.basename(file_path)}", "info"
+                logger.info(
+                    f"Queuing file for processing: {os.path.basename(file_path)}",
+                    extra=core_logger.context(console=True),
                 )
 
         # Hand each validated file off for background processing. When durable jobs
@@ -180,8 +181,9 @@ def create_activity_with_bulk_import(
             activity_ingestion_background.submit_bulk_import(token_user_id, files_to_process, import_time)
 
         # Log a success message that explains processing will continue elsewhere.
-        core_logger.print_to_log_and_console(
-            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."
+        logger.info(
+            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background.",
+            extra=core_logger.context(console=True),
         )
 
         # Return a success message
@@ -194,11 +196,7 @@ def create_activity_with_bulk_import(
         )
     except (OSError, RuntimeError, SQLAlchemyError) as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in create_activity_with_bulk_import: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in create_activity_with_bulk_import: {err}", exc_info=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

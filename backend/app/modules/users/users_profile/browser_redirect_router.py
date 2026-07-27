@@ -24,6 +24,8 @@ import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.oauth_state.utils as oauth_state_utils
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -130,7 +132,7 @@ async def link_identity_provider(
         )
 
         # Audit logging
-        core_logger.print_to_log(f"User {token_user_id} initiated IdP link: idp_id={idp_id} ({idp.name})")
+        logger.info(f"User {token_user_id} initiated IdP link: idp_id={idp_id} ({idp.name})")
 
         return RedirectResponse(
             url=authorization_url,
@@ -144,11 +146,7 @@ async def link_identity_provider(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error initiating IdP link for user {token_user_id}, idp_id={idp_id}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error initiating IdP link for user {token_user_id}, idp_id={idp_id}: {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to initiate identity provider linking",

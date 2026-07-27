@@ -16,6 +16,8 @@ import modules.garmin.health_utils as garmin_health_utils
 import modules.strava.activity_utils as strava_activity_utils
 import modules.strava.utils as strava_utils
 
+logger = core_logger.get_logger(__name__)
+
 scheduler = AsyncIOScheduler()
 
 
@@ -176,13 +178,9 @@ def start_scheduler() -> None:
             replace_existing=True,
             misfire_grace_time=None,
         )
-        core_logger.print_to_log("Scheduled one-shot retention prune")
+        logger.info("Scheduled one-shot retention prune")
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to schedule one-shot retention prune: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to schedule one-shot retention prune: {type(err).__name__}", exc_info=err)
 
 
 def schedule_thumbnail_regeneration() -> None:
@@ -210,13 +208,9 @@ def schedule_thumbnail_regeneration() -> None:
             replace_existing=True,
             misfire_grace_time=None,
         )
-        core_logger.print_to_log("Scheduled one-shot thumbnail regeneration job")
+        logger.info("Scheduled one-shot thumbnail regeneration job")
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to schedule thumbnail regeneration job: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to schedule thumbnail regeneration job: {type(err).__name__}", exc_info=err)
 
 
 def schedule_missing_thumbnail_generation() -> None:
@@ -246,13 +240,9 @@ def schedule_missing_thumbnail_generation() -> None:
             replace_existing=True,
             misfire_grace_time=None,
         )
-        core_logger.print_to_log("Scheduled one-shot missing thumbnail generation job")
+        logger.info("Scheduled one-shot missing thumbnail generation job")
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to schedule missing thumbnail generation job: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to schedule missing thumbnail generation job: {type(err).__name__}", exc_info=err)
 
 
 def schedule_missing_hr_zone_backfill() -> None:
@@ -281,13 +271,9 @@ def schedule_missing_hr_zone_backfill() -> None:
             replace_existing=True,
             misfire_grace_time=None,
         )
-        core_logger.print_to_log("Scheduled one-shot HR-zone backfill job")
+        logger.info("Scheduled one-shot HR-zone backfill job")
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to schedule HR-zone backfill job: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to schedule HR-zone backfill job: {type(err).__name__}", exc_info=err)
 
 
 def schedule_missing_location_backfill() -> None:
@@ -316,13 +302,9 @@ def schedule_missing_location_backfill() -> None:
             replace_existing=True,
             misfire_grace_time=None,
         )
-        core_logger.print_to_log("Scheduled one-shot activity-location backfill job")
+        logger.info("Scheduled one-shot activity-location backfill job")
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to schedule activity-location backfill job: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to schedule activity-location backfill job: {type(err).__name__}", exc_info=err)
 
 
 def _scheduler_job_id(description: str) -> str:
@@ -365,7 +347,7 @@ def add_scheduler_job(
         None.
     """
     try:
-        core_logger.print_to_log(f"Added scheduler job to {description} every {minutes} minutes")
+        logger.info(f"Added scheduler job to {description} every {minutes} minutes")
         scheduler.add_job(
             func,
             interval,
@@ -375,11 +357,7 @@ def add_scheduler_job(
             replace_existing=True,
         )
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to add scheduler job to {description}: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to add scheduler job to {description}: {type(err).__name__}", exc_info=err)
 
 
 def stop_scheduler() -> None:

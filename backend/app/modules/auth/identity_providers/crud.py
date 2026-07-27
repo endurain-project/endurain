@@ -11,6 +11,8 @@ import modules.auth.identity_providers.links.crud as auth_identity_links_crud
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.schema as idp_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 @core_decorators.handle_db_errors
 def get_identity_provider(idp_id: int, db: Session) -> idp_models.IdentityProvider | None:
@@ -174,7 +176,7 @@ def create_identity_provider(idp_data: idp_schema.IdentityProviderCreate, db: Se
     db.commit()
     db.refresh(db_idp)
 
-    core_logger.print_to_log(f"Created identity provider: {db_idp.name} (ID: {db_idp.id})", "info")
+    logger.info(f"Created identity provider: {db_idp.name} (ID: {db_idp.id})")
 
     return db_idp
 
@@ -235,7 +237,7 @@ def update_identity_provider(
     db.commit()
     db.refresh(db_idp)
 
-    core_logger.print_to_log(f"Updated identity provider: {db_idp.name} (ID: {db_idp.id})", "info")
+    logger.info(f"Updated identity provider: {db_idp.name} (ID: {db_idp.id})")
 
     return db_idp
 
@@ -274,4 +276,4 @@ def delete_identity_provider(idp_id: int, db: Session) -> None:
     db.delete(db_idp)
     db.commit()
 
-    core_logger.print_to_log(f"Deleted identity provider: {db_idp.name} (ID: {idp_id})", "info")
+    logger.info(f"Deleted identity provider: {db_idp.name} (ID: {idp_id})")

@@ -24,6 +24,8 @@ import modules.auth.token_hashing as token_hashing
 import modules.users.users.schema as users_schema
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 class DeviceType(Enum):
     """
@@ -405,10 +407,6 @@ def cleanup_idle_sessions() -> None:
             deleted_count = auth_sessions_crud.delete_idle_sessions(cutoff_time, db)
 
             if deleted_count > 0:
-                core_logger.print_to_log(f"Cleaned up {deleted_count} idle sessions", "info")
+                logger.info(f"Cleaned up {deleted_count} idle sessions")
         except Exception as err:
-            core_logger.print_to_log(
-                f"Error in cleanup_idle_sessions: {err}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"Error in cleanup_idle_sessions: {err}", exc_info=err)

@@ -13,6 +13,8 @@ import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.api_keys.utils as api_keys_utils
 
+logger = core_logger.get_logger(__name__)
+
 
 @core_decorators.handle_db_errors
 def get_api_keys_by_user_id(
@@ -144,15 +146,7 @@ def create_api_key(
     db.commit()
     db.refresh(db_api_key)
 
-    core_logger.print_to_log(
-        "API key created",
-        "info",
-        context={
-            "user_id": user_id,
-            "key_prefix": key_prefix,
-            "name": data.name,
-        },
-    )
+    logger.info("API key created", extra=core_logger.context(user_id=user_id, key_prefix=key_prefix, name=data.name))
 
     return db_api_key, raw_key
 
@@ -219,14 +213,7 @@ def revoke_api_key(
     db_api_key.is_active = False
     db.commit()
 
-    core_logger.print_to_log(
-        "API key revoked",
-        "info",
-        context={
-            "api_key_id": api_key_id,
-            "user_id": user_id,
-        },
-    )
+    logger.info("API key revoked", extra=core_logger.context(api_key_id=api_key_id, user_id=user_id))
 
 
 @core_decorators.handle_db_errors
@@ -262,11 +249,4 @@ def delete_api_key(
     db.delete(db_api_key)
     db.commit()
 
-    core_logger.print_to_log(
-        "API key deleted",
-        "info",
-        context={
-            "api_key_id": api_key_id,
-            "user_id": user_id,
-        },
-    )
+    logger.info("API key deleted", extra=core_logger.context(api_key_id=api_key_id, user_id=user_id))

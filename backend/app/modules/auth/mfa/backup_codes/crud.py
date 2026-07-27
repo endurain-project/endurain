@@ -15,6 +15,8 @@ import modules.auth.mfa.backup_codes.models as mfa_backup_codes_models
 import modules.auth.mfa.backup_codes.utils as mfa_backup_codes_utils
 from modules.auth._internal.password_hasher import SupportsHashPassword
 
+logger = core_logger.get_logger(__name__)
+
 
 @core_decorators.handle_db_errors
 def get_user_backup_codes(user_id: int, db: Session) -> list[mfa_backup_codes_models.MFABackupCode]:
@@ -110,7 +112,7 @@ def create_backup_codes(
 
     db.commit()
 
-    core_logger.print_to_log(f"Created backup codes for user ID {user_id}", "info")
+    logger.info(f"Created backup codes for user ID {user_id}")
 
     return plaintext_codes
 
@@ -132,10 +134,7 @@ def mark_backup_code_as_used(code_id: int, user_id: int, db: Session) -> None:
     db_code = db.get(mfa_backup_codes_models.MFABackupCode, code_id)
 
     if db_code is None or db_code.user_id != user_id or db_code.used:
-        core_logger.print_to_log(
-            f"No unused backup code found to mark as used for user ID {user_id}",
-            "warning",
-        )
+        logger.warning(f"No unused backup code found to mark as used for user ID {user_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Backup code not found or already used",
@@ -146,7 +145,7 @@ def mark_backup_code_as_used(code_id: int, user_id: int, db: Session) -> None:
     db.commit()
     db.refresh(db_code)
 
-    core_logger.print_to_log(f"Marked backup code as used for user ID {user_id}", "info")
+    logger.info(f"Marked backup code as used for user ID {user_id}")
 
 
 @core_decorators.handle_db_errors
@@ -168,6 +167,6 @@ def delete_user_backup_codes(user_id: int, db: Session) -> int:
     db.commit()
 
     num_deleted = result.rowcount or 0
-    core_logger.print_to_log(f"Deleted {num_deleted} backup codes for user ID: {user_id}", "info")
+    logger.info(f"Deleted {num_deleted} backup codes for user ID: {user_id}")
 
     return num_deleted

@@ -12,6 +12,8 @@ import core.logger as core_logger
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 def _transform_follower(follower: followers_models.Follower) -> followers_schema.FollowRelationship:
     """Convert a Follower ORM row into its serialized DTO."""
@@ -255,22 +257,14 @@ def create_follower(
         db.refresh(new_follow)
     except IntegrityError as err:
         db.rollback()
-        core_logger.print_to_log(
-            f"Integrity error in create_follower: {type(err).__name__}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"Integrity error in create_follower: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Follow relationship already exists",
         ) from err
     except SQLAlchemyError as err:
         db.rollback()
-        core_logger.print_to_log(
-            f"Database error in create_follower: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Database error in create_follower: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",
@@ -324,11 +318,7 @@ def accept_follower(
         raise
     except SQLAlchemyError as err:
         db.rollback()
-        core_logger.print_to_log(
-            f"Database error in accept_follower: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Database error in accept_follower: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred",

@@ -21,6 +21,8 @@ import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 def create_sign_up_token(user_id: int, db: Session) -> str:
     """
@@ -237,11 +239,7 @@ def use_sign_up_token(token: str, db: Session) -> int:
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in use_sign_up_token: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in use_sign_up_token: {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
@@ -265,4 +263,4 @@ def delete_invalid_tokens_from_db() -> None:
 
         # Log the number of deleted tokens
         if num_deleted > 0:
-            core_logger.print_to_log_and_console(f"Deleted {num_deleted} expired sign up tokens", "info")
+            logger.info(f"Deleted {num_deleted} expired sign up tokens", extra=core_logger.context(console=True))

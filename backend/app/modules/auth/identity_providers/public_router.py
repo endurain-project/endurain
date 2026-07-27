@@ -27,6 +27,8 @@ import modules.auth.utils as auth_utils
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -197,10 +199,7 @@ async def initiate_login(
             code_challenge_method=code_challenge_method,
         )
 
-        core_logger.print_to_log(
-            f"OAuth state created: {state_id} for IdP {idp.slug} (client_type={client_type})",
-            "debug",
-        )
+        logger.debug(f"OAuth state created: {state_id} for IdP {idp.slug} (client_type={client_type})")
 
         # Initiate the OAuth flow with database state ID (no cookies)
         authorization_url = await idp_service.idp_service.initiate_login(
@@ -211,7 +210,7 @@ async def initiate_login(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(f"Error in initiate_login: {err}", "error", exc=err)
+        logger.error(f"Error in initiate_login: {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to initiate login",
@@ -280,10 +279,7 @@ async def handle_callback(
         oauth_state = oauth_state_crud.get_oauth_state_by_id_and_not_used(state, db)
 
         if not oauth_state:
-            core_logger.print_to_log(
-                f"OAuth state not found in database: {state[:8]}...",
-                "warning",
-            )
+            logger.warning(f"OAuth state not found in database: {state[:8]}...")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state",
@@ -299,10 +295,9 @@ async def handle_callback(
         # IdP's JWKS), but asserting the binding here fails fast and protects
         # deployments where two IdP entries share an authorization server.
         if oauth_state.idp_id is not None and oauth_state.idp_id != idp.id:
-            core_logger.print_to_log(
+            logger.warning(
                 f"OAuth state IdP mismatch for state {state[:8]}...: "
-                f"state.idp_id={oauth_state.idp_id}, callback idp.id={idp.id}",
-                "warning",
+                f"state.idp_id={oauth_state.idp_id}, callback idp.id={idp.id}"
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -316,19 +311,13 @@ async def handle_callback(
         # races (replays, double-submits) abort here with a generic 400 so we
         # do not leak whether the state existed but was already consumed.
         if not oauth_state_crud.mark_oauth_state_used(state, db):
-            core_logger.print_to_log(
-                f"OAuth state replay/race rejected: {state[:8]}...",
-                "warning",
-            )
+            logger.warning(f"OAuth state replay/race rejected: {state[:8]}...")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state",
             )
 
-        core_logger.print_to_log(
-            f"OAuth callback received for state {state[:8]}... (client_type={oauth_state.client_type})",
-            "debug",
-        )
+        logger.debug(f"OAuth callback received for state {state[:8]}... (client_type={oauth_state.client_type})")
 
         # Process the OAuth callback (service will handle both DB and cookie state)
         result = await idp_service.idp_service.handle_callback(
@@ -343,7 +332,7 @@ async def handle_callback(
         if is_link_mode:
             redirect_url = _build_link_result_url(oauth_state.redirect_path, idp.name, success=True)
 
-            core_logger.print_to_log(f"IdP link successful for user {user.username}, IdP {idp.name}", "info")
+            logger.info(f"IdP link successful for user {user.username}, IdP {idp.name}")
 
             return RedirectResponse(
                 url=redirect_url,
@@ -391,10 +380,7 @@ async def handle_callback(
             if is_custom_scheme:
                 redirect_url += "&external_redirect=true"
 
-        core_logger.print_to_log(
-            f"SSO login successful for user {user.username} via {idp.name} (session_id={session_id})",
-            "info",
-        )
+        logger.info(f"SSO login successful for user {user.username} via {idp.name} (session_id={session_id})")
 
         return RedirectResponse(
             url=redirect_url,
@@ -404,7 +390,7 @@ async def handle_callback(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(f"Error in SSO callback: {err}", "error", exc=err)
+        logger.error(f"Error in SSO callback: {err}", exc_info=err)
 
         # A failed LINK returns the browser to its originating page with an error
         # flag; a failed LOGIN falls back to the login page. Link attempts are
@@ -477,10 +463,7 @@ async def exchange_tokens_for_session(
         session_with_state = auth_sessions_crud.get_session_with_oauth_state(session_id, db)
 
         if not session_with_state:
-            core_logger.print_to_log(
-                f"Token exchange failed: session {session_id[:8]}... not found",
-                "warning",
-            )
+            logger.warning(f"Token exchange failed: session {session_id[:8]}... not found")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found or not eligible for token exchange",
@@ -490,10 +473,7 @@ async def exchange_tokens_for_session(
 
         # Verify session is linked to an OAuth state (mobile flow)
         if not oauth_state:
-            core_logger.print_to_log(
-                f"Token exchange failed: session {session_id[:8]}... has no OAuth state",
-                "warning",
-            )
+            logger.warning(f"Token exchange failed: session {session_id[:8]}... has no OAuth state")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not eligible for PKCE token exchange",
@@ -505,10 +485,7 @@ async def exchange_tokens_for_session(
         # closes a TOCTOU race that two concurrent exchanges with the
         # same code_verifier would otherwise win.
         if session_obj.tokens_exchanged:
-            core_logger.print_to_log(
-                f"Token exchange replay attempt for session {session_id[:8]}...",
-                "warning",
-            )
+            logger.warning(f"Token exchange replay attempt for session {session_id[:8]}...")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Tokens already exchanged for this session",
@@ -516,10 +493,7 @@ async def exchange_tokens_for_session(
 
         # Verify PKCE code_verifier matches code_challenge
         if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
-            core_logger.print_to_log(
-                f"Token exchange failed: OAuth state {oauth_state.id[:8]}... missing PKCE data",
-                "error",
-            )
+            logger.error(f"Token exchange failed: OAuth state {oauth_state.id[:8]}... missing PKCE data")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="OAuth state missing PKCE data",
@@ -568,11 +542,10 @@ async def exchange_tokens_for_session(
             # a misbehaving client or an attacker trying to flip the
             # response shape. We do NOT silently downgrade.
             if header_client_type is not None and header_client_type != stored_client_type:
-                core_logger.print_to_log(
+                logger.warning(
                     "Token exchange client_type mismatch for session "
                     f"{session_id[:8]}...: stored={stored_client_type}, "
-                    f"header={header_client_type}",
-                    "warning",
+                    f"header={header_client_type}"
                 )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -623,10 +596,7 @@ async def exchange_tokens_for_session(
             db,
         )
         if not claimed:
-            core_logger.print_to_log(
-                f"Token exchange lost race for session {session_id[:8]}...",
-                "warning",
-            )
+            logger.warning(f"Token exchange lost race for session {session_id[:8]}...")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Tokens already exchanged for this session",
@@ -647,9 +617,8 @@ async def exchange_tokens_for_session(
         # needed here. The atomic claim also detached the OAuth
         # state row for cleanup.
 
-        core_logger.print_to_log(
-            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={client_type})",
-            "info",
+        logger.info(
+            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={client_type})"
         )
 
         # Return response based on client type (matches complete_login behavior)
@@ -677,11 +646,7 @@ async def exchange_tokens_for_session(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in token exchange for session {session_id[:8]}...: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in token exchange for session {session_id[:8]}...: {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to exchange tokens",

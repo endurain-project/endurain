@@ -15,6 +15,8 @@ import modules.websocket.manager as websocket_manager
 import modules.websocket.utils as websocket_utils
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 def _create_notification(
     notification_data: notifications_schema.NotificationCreate,
@@ -247,11 +249,7 @@ async def create_admin_new_sign_up_approval_request_notification(
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_admin_new_sign_up_approval_request_notification: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in create_admin_new_sign_up_approval_request_notification: {err}", exc_info=err)
         raise HTTPException(
             status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
             detail="Internal Server Error",
@@ -286,11 +284,7 @@ async def create_garmin_token_expired_notification(
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_garmin_token_expired_notification: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in create_garmin_token_expired_notification: {err}", exc_info=err)
         raise HTTPException(
             status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
             detail="Internal Server Error",
