@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
@@ -17,15 +16,11 @@ router = APIRouter()
 
 
 @router.get(
-    "/activity_id/{activity_id}/all",
+    "/streams",
     response_model=(list[activity_streams_schema.ActivityStreamsRead]),
 )
 def read_activities_streams_for_activity_all(
     activity_id: int,
-    _validate_id: Annotated[
-        Callable,
-        Depends(activities_dependencies.validate_activity_id),
-    ],
     _check_scopes: Annotated[
         Callable,
         Security(
@@ -59,15 +54,11 @@ def read_activities_streams_for_activity_all(
 
 
 @router.get(
-    "/activity_id/{activity_id}/stream_type/{stream_type}",
+    "/streams/{stream_type}",
     response_model=(activity_streams_schema.ActivityStreamsRead | None),
 )
 def read_activities_streams_for_activity_stream_type(
     activity_id: int,
-    _validate_activity_id: Annotated[
-        Callable,
-        Depends(activities_dependencies.validate_activity_id),
-    ],
     stream_type: int,
     _validate_activity_stream_type: Annotated[
         Callable,
@@ -94,7 +85,6 @@ def read_activities_streams_for_activity_stream_type(
 
     Args:
         activity_id: The activity identifier.
-        validate_activity_id: Activity ID dep.
         stream_type: The stream type code.
         validate_activity_stream_type: Type dep.
         _check_scopes: Scope authorization dep.

@@ -9,7 +9,7 @@ def _build_app(mock_db):
     import modules.activities.activity_streams.public_router as router
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities_streams")
+    app.include_router(router.router, prefix="/public/activities/{activity_id}")
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -22,7 +22,7 @@ class TestReadPublicActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])]
 
-        response = client.get("/public/activities_streams/activity_id/1/all")
+        response = client.get("/public/activities/1/streams")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
@@ -32,7 +32,7 @@ class TestReadPublicActivityStreams:
         # (the response_model is list[...], so None would fail response validation).
         mock_get.return_value = []
 
-        response = client.get("/public/activities_streams/activity_id/999/all")
+        response = client.get("/public/activities/999/streams")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -43,7 +43,7 @@ class TestReadPublicActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
 
-        response = client.get("/public/activities_streams/activity_id/1/stream_type/1")
+        response = client.get("/public/activities/1/streams/1")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
@@ -51,6 +51,6 @@ class TestReadPublicActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
 
-        response = client.get("/public/activities_streams/activity_id/999/stream_type/1")
+        response = client.get("/public/activities/999/streams/1")
         assert response.status_code == 200
         assert response.json() is None

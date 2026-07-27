@@ -10,7 +10,7 @@ def _build_app(mock_db):
     import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/activities_streams")
+    app.include_router(router.router, prefix="/activities/{activity_id}")
 
     def _mock():
         return None
@@ -30,7 +30,7 @@ class TestReadActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
 
-        response = client.get("/activities_streams/activity_id/1/all", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/streams", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.router.activity_streams_crud.get_activity_stream_by_type")
@@ -38,5 +38,5 @@ class TestReadActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
 
-        response = client.get("/activities_streams/activity_id/1/stream_type/1", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/streams/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200

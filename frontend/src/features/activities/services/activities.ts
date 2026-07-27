@@ -566,8 +566,8 @@ export async function fetchActivityStreams(
 ): Promise<ActivityStream[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_streams/activity_id/${id}/all`,
-    `/public/activities_streams/activity_id/${id}/all`,
+    `/activities/${id}/streams`,
+    `/public/activities/${id}/streams`,
   )
   const dtos = await apiFetch<ActivityStreamDto[] | null>(path, {
     auth: context.authenticated,
@@ -589,8 +589,8 @@ export async function fetchActivityLaps(
 ): Promise<ActivityLap[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_laps/activity_id/${id}/all`,
-    `/public/activities_laps/activity_id/${id}/all`,
+    `/activities/${id}/laps`,
+    `/public/activities/${id}/laps`,
   )
   const dtos = await apiFetch<ActivityLapDto[] | null>(path, {
     auth: context.authenticated,
@@ -665,8 +665,8 @@ export async function fetchActivityWorkoutSteps(
 ): Promise<ActivityWorkoutStep[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_workout_steps/activity_id/${id}/all`,
-    `/public/activities_workout_steps/activity_id/${id}/all`,
+    `/activities/${id}/workout-steps`,
+    `/public/activities/${id}/workout-steps`,
   )
   const dtos = await apiFetch<ActivityWorkoutStepDto[] | null>(path, {
     auth: context.authenticated,
@@ -688,8 +688,8 @@ export async function fetchActivitySets(
 ): Promise<ActivityWorkoutSet[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_sets/activity_id/${id}/all`,
-    `/public/activities_sets/activity_id/${id}/all`,
+    `/activities/${id}/sets`,
+    `/public/activities/${id}/sets`,
   )
   const dtos = await apiFetch<ActivitySetDto[] | null>(path, {
     auth: context.authenticated,

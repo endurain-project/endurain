@@ -235,12 +235,12 @@ describe('fetchActivityStreams', () => {
     vi.mocked(apiFetch).mockResolvedValue([])
     await fetchActivityStreams(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_streams/activity_id/5/all',
+      '/activities/5/streams',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityStreams(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities_streams/activity_id/5/all',
+      '/public/activities/5/streams',
       expect.objectContaining({ auth: false }),
     )
   })
@@ -256,12 +256,12 @@ describe('fetchActivityLaps', () => {
     vi.mocked(apiFetch).mockResolvedValue([])
     await fetchActivityLaps(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_laps/activity_id/5/all',
+      '/activities/5/laps',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityLaps(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities_laps/activity_id/5/all',
+      '/public/activities/5/laps',
       expect.objectContaining({ auth: false }),
     )
   })

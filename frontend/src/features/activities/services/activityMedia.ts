@@ -47,10 +47,9 @@ export async function fetchActivityMedia(
   activityId: number,
   signal?: AbortSignal,
 ): Promise<ActivityMedia[]> {
-  const dtos = await apiFetch<ActivityMediaDto[] | null>(
-    `/activities_media/activity_id/${activityId}`,
-    { signal },
-  )
+  const dtos = await apiFetch<ActivityMediaDto[] | null>(`/activities/${activityId}/media`, {
+    signal,
+  })
   return (dtos ?? []).map(mapActivityMedia)
 }
 
@@ -67,10 +66,11 @@ export async function fetchActivityMedia(
 export async function uploadActivityMedia(activityId: number, file: File): Promise<ActivityMedia> {
   const formData = new FormData()
   formData.append('file', file, file.name)
-  const dto = await apiFetch<ActivityMediaDto>(
-    `/activities_media/upload/activity_id/${activityId}`,
-    { method: 'POST', body: formData, timeoutMs: 0 },
-  )
+  const dto = await apiFetch<ActivityMediaDto>(`/activities/${activityId}/media`, {
+    method: 'POST',
+    body: formData,
+    timeoutMs: 0,
+  })
   return mapActivityMedia(dto)
 }
 
@@ -78,9 +78,13 @@ export async function uploadActivityMedia(activityId: number, file: File): Promi
  * Deletes one photo from an activity (owner only); the backend also removes the
  * file from disk.
  *
+ * @param activityId - Activity the photo belongs to.
  * @param mediaId - The media record id to delete.
  * @throws {HttpError} When the delete fails.
  */
-export async function deleteActivityMedia(mediaId: number): Promise<void> {
-  await apiFetch(`/activities_media/${mediaId}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteActivityMedia(activityId: number, mediaId: number): Promise<void> {
+  await apiFetch(`/activities/${activityId}/media/${mediaId}`, {
+    method: 'DELETE',
+    responseType: 'void',
+  })
 }

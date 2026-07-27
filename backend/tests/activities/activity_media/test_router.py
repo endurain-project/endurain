@@ -10,7 +10,7 @@ def _build_app(mock_db, with_media=None):
     import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/activities_media")
+    app.include_router(router.router, prefix="/activities/{activity_id}")
 
     def _mock():
         return None
@@ -30,7 +30,7 @@ class TestReadActivityMedia:
         client = TestClient(_build_app(mock_db))
         mock_list.return_value = []
 
-        response = client.get("/activities_media/activity_id/1", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/media", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         mock_list.assert_called_once()
 
@@ -39,7 +39,7 @@ class TestReadActivityMedia:
         client = TestClient(_build_app(mock_db))
         mock_list.return_value = None
 
-        response = client.get("/activities_media/activity_id/999", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/999/media", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json() is None
 
@@ -53,7 +53,7 @@ class TestUploadActivityMedia:
         mock_store.side_effect = HTTPException(status_code=404, detail="Activity not found")
 
         response = client.post(
-            "/activities_media/upload/activity_id/2",
+            "/activities/2/media",
             files={"file": ("test.jpg", b"fake-image-data", "image/jpeg")},
             headers={"Authorization": "Bearer x"},
         )
@@ -68,7 +68,7 @@ class TestUploadActivityMedia:
         mock_store.return_value = ActivityMedia(id=1, activity_id=1, media_path="test.jpg", media_type=1)
 
         response = client.post(
-            "/activities_media/upload/activity_id/1",
+            "/activities/1/media",
             files={"file": ("test.jpg", b"fake-image-data", "image/jpeg")},
             headers={"Authorization": "Bearer x"},
         )
@@ -85,5 +85,5 @@ class TestDeleteActivityMedia:
         client = TestClient(_build_app(mock_db))
         mock_delete.return_value = None
 
-        response = client.delete("/activities_media/1", headers={"Authorization": "Bearer x"})
+        response = client.delete("/activities/1/media/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204

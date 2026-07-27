@@ -9,7 +9,7 @@ def _build_app(mock_db):
     import modules.activities.activity_workout_steps.public_router as router
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities_workout_steps")
+    app.include_router(router.router, prefix="/public/activities/{activity_id}")
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -24,7 +24,7 @@ class TestReadPublicWorkoutSteps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [ActivityWorkoutSteps(id=1, activity_id=1, message_index=0, duration_type="active")]
 
-        response = client.get("/public/activities_workout_steps/activity_id/1/all")
+        response = client.get("/public/activities/1/workout-steps")
         assert response.status_code == 200
 
     @patch(
@@ -34,6 +34,6 @@ class TestReadPublicWorkoutSteps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
 
-        response = client.get("/public/activities_workout_steps/activity_id/999/all")
+        response = client.get("/public/activities/999/workout-steps")
         assert response.status_code == 200
         assert response.json() is None

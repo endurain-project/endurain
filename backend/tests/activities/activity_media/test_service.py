@@ -138,7 +138,7 @@ class TestDeleteActivityMedia:
         mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=1, media_path="/media/x.jpg")
         mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
 
-        delete_activity_media(5, 2, MagicMock())
+        delete_activity_media(1, 5, 2, MagicMock())
 
         mock_media_crud.delete_activity_media.assert_called_once()
         mock_uploads.safe_remove_within.assert_called_once()
@@ -150,8 +150,26 @@ class TestDeleteActivityMedia:
         mock_media_crud.get_activity_media_by_id.return_value = None
 
         with pytest.raises(HTTPException) as exc:
-            delete_activity_media(5, 2, MagicMock())
+            delete_activity_media(1, 5, 2, MagicMock())
         assert exc.value.status_code == 404
+
+    @patch(f"{_SVC}.activity_media_crud")
+    def test_media_belonging_to_another_activity_is_404(self, mock_media_crud):
+        """The media id must match the activity in the route path.
+
+        Now that the route is ``/activities/{activity_id}/media/{media_id}``, a
+        media id reached through an unrelated activity's URL must not resolve —
+        otherwise the path would claim a relationship the handler never checked.
+        """
+        from modules.activities.activity_media.service import delete_activity_media
+
+        mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=99, media_path="/media/x.jpg")
+
+        with pytest.raises(HTTPException) as exc:
+            delete_activity_media(1, 5, 2, MagicMock())
+
+        assert exc.value.status_code == 404
+        mock_media_crud.delete_activity_media.assert_not_called()
 
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}.activity_crud")
@@ -162,7 +180,7 @@ class TestDeleteActivityMedia:
         mock_activity_crud.get_activity_by_id_from_user_id.return_value = None
 
         with pytest.raises(HTTPException) as exc:
-            delete_activity_media(5, 2, MagicMock())
+            delete_activity_media(1, 5, 2, MagicMock())
 
         assert exc.value.status_code == 404
         # 404 rather than 403 so media ids cannot be probed, and nothing is deleted.
@@ -182,7 +200,7 @@ class TestDeleteActivityMedia:
         mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
         mock_uploads.safe_remove_within.side_effect = HTTPException(status_code=400, detail="outside media dir")
 
-        delete_activity_media(5, 2, MagicMock())
+        delete_activity_media(1, 5, 2, MagicMock())
 
         # The row is still gone; only the file cleanup was refused.
         mock_media_crud.delete_activity_media.assert_called_once()

@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 import modules.auth.dependencies as auth_dependencies
@@ -17,15 +16,11 @@ router = APIRouter()
 
 
 @router.get(
-    "/activity_id/{activity_id}/all",
+    "/workout-steps",
     response_model=(list[activity_workout_steps_schema.ActivityWorkoutSteps] | None),
 )
 def read_activity_workout_steps_all(
     activity_id: int,
-    _validate_id: Annotated[
-        Callable,
-        Depends(activities_dependencies.validate_activity_id),
-    ],
     _check_scopes: Annotated[
         Callable,
         Security(

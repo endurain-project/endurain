@@ -10,7 +10,7 @@ def _build_app(mock_db):
     import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/activities_workout_steps")
+    app.include_router(router.router, prefix="/activities/{activity_id}")
 
     def _mock():
         return None
@@ -30,5 +30,5 @@ class TestReadWorkoutSteps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
 
-        response = client.get("/activities_workout_steps/activity_id/1/all", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/workout-steps", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
