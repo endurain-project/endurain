@@ -11,6 +11,7 @@ from timezonefinder import TimezoneFinder
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
@@ -330,7 +331,7 @@ def parse_activity(
         )
 
     # Create the activity object
-    activity_to_store = activities_schema.ActivityCore(
+    activity_to_store = activities_contracts.ActivityCore(
         user_id=user_id,
         name=detailed_activity.name,
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
@@ -392,7 +393,7 @@ def parse_activity(
 
 
 def save_activity_streams_laps(
-    activity: activities_schema.ActivityCore,
+    activity: activities_contracts.ActivityCore,
     stream_data: list,
     laps: list[dict] | None,
     db: Session,
@@ -418,15 +419,15 @@ def save_activity_streams_laps(
         The created activity schema.
     """
     parsed_streams = [
-        activities_schema.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
+        activities_contracts.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
         for is_set, stream_type, waypoints in (stream_data or [])
         if is_set
     ]
-    parsed = activities_schema.ParsedActivity(
+    parsed = activities_contracts.ParsedActivity(
         activity=activity,
         streams=parsed_streams,
         laps=laps,
-        source=activities_schema.ImportSource(
+        source=activities_contracts.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,
             dedup_key=(f"strava:{activity.strava_activity_id}" if activity.strava_activity_id is not None else None),

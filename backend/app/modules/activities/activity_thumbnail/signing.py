@@ -1,10 +1,11 @@
-"""Signed, ``<img>``-compatible URLs for the token-gated thumbnail route.
+"""Address activity thumbnails: signed, ``<img>``-compatible URLs and their tokens.
 
-Local activity thumbnails are no longer served from a public static mount at a
+Local activity thumbnails are not served from a public static mount at a
 guessable path (``/activity_thumbnails/42.webp``). Instead the serialized
-thumbnail URL carries an ``itsdangerous`` signature — keyed by the server
-``SECRET_KEY`` and bound to the activity id — that the public thumbnail route
-verifies before streaming the blob.
+thumbnail URL carries a signature — keyed by the server ``SECRET_KEY`` and bound
+to the activity id — that the public thumbnail route verifies before streaming
+the blob. The signing primitive itself lives in :mod:`core.signing`; this module
+owns the thumbnail-specific salt, the URL shape, and the storage backend choice.
 
 Why this shape:
 
@@ -20,25 +21,26 @@ Why this shape:
 
 The token has no expiry so the URL is stable and browser-cacheable; its security
 rests on being unforgeable and only ever handed to permitted viewers.
+
+Addressing lives here rather than in ``render.py`` so serializing an activity does
+not drag the rendering stack (staticmap, PIL) into the request path: the read path
+only ever needs the URL, never the renderer.
 """
 
-import functools
-
-from itsdangerous import BadData, URLSafeSerializer
-
 import core.config as core_config
+import core.signing as core_signing
+import infra.runtime as platform_runtime
 
 # Namespaces this signer from any other ``SECRET_KEY`` use (e.g. JWT signing).
 _SALT = "activity-thumbnail"
 
+# The storage area (domain-owned namespace) activity thumbnails live under.
+THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
 
-@functools.lru_cache(maxsize=1)
-def _serializer() -> URLSafeSerializer:
-    """Return the process-wide thumbnail URL signer (secret read once)."""
-    secret = core_config.read_secret("SECRET_KEY")
-    if not secret:
-        raise RuntimeError("SECRET_KEY is not configured; cannot sign thumbnail URLs")
-    return URLSafeSerializer(secret, salt=_SALT)
+
+def thumbnail_key(activity_id: int) -> str:
+    """Return the storage key for an activity's thumbnail (e.g. ``42.webp``)."""
+    return f"{activity_id}.webp"
 
 
 def sign_thumbnail_token(activity_id: int) -> str:
@@ -50,7 +52,7 @@ def sign_thumbnail_token(activity_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return _serializer().dumps(activity_id)
+    return core_signing.sign_token(_SALT, activity_id)
 
 
 def verify_thumbnail_token(activity_id: int, token: str) -> bool:
@@ -63,7 +65,35 @@ def verify_thumbnail_token(activity_id: int, token: str) -> bool:
     Returns:
         True if the token is authentic and bound to ``activity_id``.
     """
-    try:
-        return _serializer().loads(token) == activity_id
-    except BadData:
-        return False
+    return core_signing.verify_token(_SALT, activity_id, token)
+
+
+def thumbnail_url(key: str | None, activity_id: int) -> str | None:
+    """Resolve a stored thumbnail to a signed, ``<img>``-compatible URL.
+
+    Object storage keeps its presigned, expiring URL (already access-controlled
+    and usable in an ``<img>`` tag). Local disk is served by the token-gated
+    thumbnail route instead of a public static path, so the blob is only reachable
+    with a valid signed token — minted here and handed only to permitted viewers
+    via visibility masking, so a non-owner of a ``hide_map`` activity can neither
+    receive nor forge one. The activity owner keeps their map.
+
+    Args:
+        key: The stored storage key, or ``None``.
+        activity_id: The owning activity's id, bound into the signed token.
+
+    Returns:
+        A servable URL, or ``None`` when ``key`` is falsy.
+    """
+    if not key:
+        return None
+    # Object storage already serves via presigned, expiring, <img>-compatible
+    # URLs; use them directly to avoid round-tripping every thumbnail through the
+    # app.
+    if core_config.settings.resolved_storage_uri.startswith("s3"):
+        try:
+            return platform_runtime.get_active_platform().storage.url(THUMBNAIL_STORAGE_AREA, key)
+        except RuntimeError:
+            pass
+    # Local disk: a signed, token-gated app URL (no public static mount).
+    return f"{core_config.ROOT_PATH}/activities/{activity_id}/thumbnail?t={sign_thumbnail_token(activity_id)}"

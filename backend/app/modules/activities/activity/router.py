@@ -107,14 +107,14 @@ def count_own_activities(
 
 @router.get(
     "/types",
-    response_model=dict | None,
+    response_model=dict[int, str],
 )
 def list_activity_types(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
-    """Return the distinct activity types the user has recorded."""
+) -> dict[int, str]:
+    """Return the distinct activity types the user has recorded, keyed by type code."""
     return activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
 
 
@@ -255,7 +255,7 @@ def list_user_activities(
 
 @router.put(
     "/visibility/{visibility}",
-    response_model=dict[str, str | int],
+    response_model=activities_schema.VisibilityUpdateResponse,
 )
 def edit_activities_visibility(
     visibility: int,
@@ -269,13 +269,13 @@ def edit_activities_visibility(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> activities_schema.VisibilityUpdateResponse:
     """Set the visibility of all the authenticated user's activities."""
     updated = activities_crud.edit_user_activities_visibility(token_user_id, visibility, db)
-    return {
-        "detail": (f"Visibility changed to {visibility} for all user activities"),
-        "updated": updated or 0,
-    }
+    return activities_schema.VisibilityUpdateResponse(
+        detail=f"Visibility changed to {visibility} for all user activities",
+        updated=updated or 0,
+    )
 
 
 @router.get(
@@ -329,7 +329,7 @@ def edit_activity(
 
 @router.delete(
     "/{activity_id}",
-    response_model=dict[str, str],
+    response_model=activities_schema.ActivityMessageResponse,
 )
 def delete_activity(
     activity_id: int,
@@ -343,7 +343,7 @@ def delete_activity(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> activities_schema.ActivityMessageResponse:
     """Delete one of the authenticated user's activities."""
     # Delete the activity and publish ``activity.deleted`` atomically: the delete
     # is staged (commit=False) and the publisher owns the single commit, so when
@@ -360,4 +360,4 @@ def delete_activity(
     activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db, commit=db.commit)
 
     # Return success message
-    return {"detail": f"Activity {activity_id} deleted successfully"}
+    return activities_schema.ActivityMessageResponse(detail=f"Activity {activity_id} deleted successfully")

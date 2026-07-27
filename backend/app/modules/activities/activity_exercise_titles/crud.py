@@ -6,9 +6,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.logger as core_logger
 import modules.activities.activity_exercise_titles.models as activity_exercise_titles_models
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.server_settings.utils as server_settings_utils
+
+logger = core_logger.get_logger(__name__)
 
 
 def _to_read_schema(
@@ -141,8 +144,17 @@ def create_activity_exercise_titles(
     try:
         db.add_all(new_entries)
         db.commit()
+        logger.debug(
+            "Inserted new activity exercise titles",
+            extra=core_logger.context(inserted=len(new_entries), skipped=len(incoming_keys) - len(new_entries)),
+        )
     except IntegrityError as integrity_error:
         db.rollback()
+        logger.warning(
+            "Activity exercise title insert conflicted on (exercise_name, exercise_category)",
+            exc_info=integrity_error,
+            extra=core_logger.context(attempted=len(new_entries)),
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=("Duplicate entry error. Check if (exercise_name, exercise_category) is unique"),

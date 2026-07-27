@@ -10,13 +10,13 @@ There is deliberately no reconciliation net: like thumbnail cleanup this is an
 idempotent teardown keyed by activity id, and a stray orphaned file is harmless.
 """
 
-import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_file_storage.service as activity_file_storage_service
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
+from infra.subscribers import best_effort
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -41,26 +41,9 @@ def cleanup_activity_file_for_event(event: Event) -> None:
     activity_file_storage_service.delete_activity_file(payload.activity_id, storage)
 
 
-def on_activity_deleted_cleanup_file(event: Event) -> None:
-    """Bus subscriber: delete a deleted activity's source file, swallowing errors.
-
-    Wraps :func:`cleanup_activity_file_for_event` so a cleanup failure never
-    breaks activity deletion.
-
-    Args:
-        event: The ``activity.deleted`` event.
-
-    Returns:
-        None.
-    """
-    try:
-        cleanup_activity_file_for_event(event)
-    except Exception as err:
-        core_logger.print_to_log(
-            f"activity.deleted source-file cleanup failed for activity {event.payload.get('activity_id')}: {err}",
-            "error",
-            exc=err,
-        )
+# Bus subscriber: deletes a deleted activity's source file, swallowing errors so
+# a cleanup failure never breaks activity deletion.
+on_activity_deleted_cleanup_file = best_effort(cleanup_activity_file_for_event)
 
 
 def register_activity_file_cleanup_subscribers(events: EventBusProvider) -> None:

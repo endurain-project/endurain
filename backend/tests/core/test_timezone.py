@@ -58,7 +58,11 @@ class TestTodayIn:
         """The whole point: two athletes can be on different calendar days."""
         east = core_timezone.today_in("Pacific/Kiritimati")  # UTC+14
         west = core_timezone.today_in("Pacific/Niue")  # UTC-11
-        assert (east - west).days in (0, 1)
+        # The zones are 25 hours apart, so their local *datetimes* always straddle
+        # a midnight and their calendar dates differ by one day — or by two for the
+        # hour each day when the eastern zone has already rolled over while the
+        # western one has not yet reached its own midnight.
+        assert (east - west).days in (1, 2)
 
     def test_matches_an_explicit_conversion(self):
         from datetime import UTC, datetime

@@ -55,13 +55,14 @@ class TestGenerateAndStoreThumbnail:
         mock_crud.set_activity_thumbnail_path.assert_not_called()
 
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
-    def test_saves_and_records_key(self, mock_render, mock_crud):
+    def test_saves_and_records_key(self, mock_render, mock_signing, mock_crud):
         from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 
         mock_render.render_activity_thumbnail.return_value = b"data"
-        mock_render.thumbnail_key.return_value = "1.webp"
-        mock_render.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
+        mock_signing.thumbnail_key.return_value = "1.webp"
+        mock_signing.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
         mock_render.THUMBNAIL_CONTENT_TYPE = "image/webp"
         storage = MagicMock()
         db = MagicMock()

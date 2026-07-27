@@ -1230,3 +1230,104 @@ def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
     with pytest.raises(HTTPException) as exc:
         validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
     assert exc.value.status_code in {400, 413}
+
+
+# ---------------------------------------------------------------------------
+# Generic on-disk file helpers (moved here from the activity ingestion
+# orchestrator, which had reimplemented them for its own use)
+# ---------------------------------------------------------------------------
+
+
+def test_sha256_file_matches_hashlib(tmp_path: Path):
+    """The streamed digest matches a one-shot hash of the same bytes."""
+    import hashlib
+
+    from core.file_uploads import sha256_file
+
+    path = tmp_path / "activity.gpx"
+    payload = b"<gpx>some deterministic content</gpx>"
+    path.write_bytes(payload)
+
+    assert sha256_file(path) == hashlib.sha256(payload).hexdigest()
+
+
+def test_sha256_file_is_stable_across_reads(tmp_path: Path):
+    """The same bytes hash identically every time (what makes re-import a no-op)."""
+    from core.file_uploads import sha256_file
+
+    path = tmp_path / "activity.fit"
+    path.write_bytes(b"\x00\x01\x02repeatable\xff")
+
+    assert sha256_file(path) == sha256_file(path)
+
+
+def test_remove_files_removes_only_existing(tmp_path: Path):
+    """Existing files are removed; missing ones are silently skipped."""
+    from core.file_uploads import remove_files
+
+    present = tmp_path / "a"
+    present.write_bytes(b"x")
+    missing = tmp_path / "b"
+
+    remove_files([present, missing])
+
+    assert not present.exists()
+
+
+def test_remove_files_swallows_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A removal failure is logged, never raised — cleanup must not mask the real error."""
+    import core.file_uploads as file_uploads
+
+    present = tmp_path / "a"
+    present.write_bytes(b"x")
+
+    def _boom(_path):
+        raise OSError("Permission denied")
+
+    monkeypatch.setattr(file_uploads.os, "remove", _boom)
+
+    file_uploads.remove_files([present])
+
+
+def test_decompress_gzip_returns_inner_payload(tmp_path: Path):
+    """A ``.gz`` is expanded to a temp file and the staging archive is consumed."""
+    from core.file_uploads import decompress_gzip
+
+    payload = _make_gpx_bytes()
+    archive = tmp_path / "activity_123.gpx.gz"
+    archive.write_bytes(gzip.compress(payload))
+
+    temp_path, extension = decompress_gzip(archive)
+
+    try:
+        assert extension == ".gpx"
+        assert Path(temp_path).read_bytes() == payload
+        # The compressed staging copy is redundant once expanded.
+        assert not archive.exists()
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+
+
+def test_decompress_gzip_rejects_invalid_archive(tmp_path: Path):
+    """Non-gzip content is a 400, not a traceback."""
+    from core.file_uploads import decompress_gzip
+
+    archive = tmp_path / "bad.gpx.gz"
+    archive.write_bytes(b"definitely not gzip")
+
+    with pytest.raises(HTTPException) as exc:
+        decompress_gzip(archive)
+    assert exc.value.status_code == 400
+
+
+def test_decompress_gzip_rejects_decompression_bomb(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Output beyond the activity cap is a 413 and leaves no temp file behind."""
+    import core.file_uploads as file_uploads
+
+    archive = tmp_path / "big.gpx.gz"
+    archive.write_bytes(gzip.compress(b"x" * 4096))
+    monkeypatch.setattr(file_uploads, "_MAX_ACTIVITY_BYTES", 16)
+
+    with pytest.raises(HTTPException) as exc:
+        file_uploads.decompress_gzip(archive)
+    assert exc.value.status_code == 413

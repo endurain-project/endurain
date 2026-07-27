@@ -37,23 +37,27 @@ class TestCleanupActivityFileForEvent:
 
 
 class TestOnActivityDeletedCleanupFile:
-    @patch("modules.activities.activity_file_storage.subscribers.cleanup_activity_file_for_event")
-    def test_swallows_errors(self, mock_core):
+    @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
+    @patch("modules.activities.activity_file_storage.service.delete_activity_file")
+    def test_swallows_errors(self, mock_delete, mock_runtime):
         from modules.activities.activity_file_storage.subscribers import on_activity_deleted_cleanup_file
 
-        mock_core.side_effect = RuntimeError("boom")
+        mock_delete.side_effect = RuntimeError("boom")
 
         # A cleanup failure must never propagate out of the bus handler.
         on_activity_deleted_cleanup_file(_deleted_event({"activity_id": 42}))
 
-    @patch("modules.activities.activity_file_storage.subscribers.cleanup_activity_file_for_event")
-    def test_delegates_to_core(self, mock_core):
+    @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
+    @patch("modules.activities.activity_file_storage.service.delete_activity_file")
+    def test_delegates_to_core(self, mock_delete, mock_runtime):
         from modules.activities.activity_file_storage.subscribers import on_activity_deleted_cleanup_file
 
-        event = _deleted_event({"activity_id": 42})
-        on_activity_deleted_cleanup_file(event)
+        storage = MagicMock()
+        mock_runtime.get_active_platform.return_value.storage = storage
 
-        mock_core.assert_called_once_with(event)
+        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": 42}))
+
+        mock_delete.assert_called_once_with(42, storage)
 
 
 class TestRegistration:

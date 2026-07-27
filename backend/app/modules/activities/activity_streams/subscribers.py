@@ -17,6 +17,7 @@ import modules.activities.activity_streams.crud as activity_streams_crud
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
+from infra.subscribers import best_effort
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -44,26 +45,9 @@ def compute_hr_zones_for_event(event: Event) -> None:
         )
 
 
-def on_activity_created_compute_hr_zones(event: Event) -> None:
-    """Bus subscriber: compute HR zones, swallowing any error.
-
-    Wraps :func:`compute_hr_zones_for_event` so an HR-zone failure never breaks
-    activity import (the scheduled backfill scores any missed streams).
-
-    Args:
-        event: The ``activity.created`` event.
-
-    Returns:
-        None.
-    """
-    try:
-        compute_hr_zones_for_event(event)
-    except Exception as err:
-        core_logger.print_to_log(
-            f"activity.created HR-zone handler failed for activity {event.payload.get('activity_id')}: {err}",
-            "error",
-            exc=err,
-        )
+# Bus subscriber: computes HR zones, swallowing any error so an HR-zone failure
+# never breaks activity import (the scheduled backfill scores any missed streams).
+on_activity_created_compute_hr_zones = best_effort(compute_hr_zones_for_event)
 
 
 def register_hr_zone_subscribers(events: EventBusProvider) -> None:

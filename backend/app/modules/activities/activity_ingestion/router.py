@@ -10,7 +10,6 @@ core router fully parser- and provider-agnostic (enforced by the import-linter c
 
 import os
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -32,6 +31,7 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
 import modules.activities.activity_ingestion.orchestrator as orchestrator
 import modules.auth.dependencies as auth_dependencies
@@ -45,9 +45,6 @@ router = APIRouter()
 # Separate router for upload endpoint that supports
 # both JWT and API key authentication
 api_upload_router = APIRouter()
-
-# Define the thread pool executor with 2 workers
-executor = ThreadPoolExecutor(max_workers=2)
 
 
 @api_upload_router.post(
@@ -98,7 +95,7 @@ def create_activity_with_uploaded_file(
 @router.post(
     "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
-    response_model=dict[str, str],
+    response_model=activities_schema.ActivityMessageResponse,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_bulk_import(
@@ -109,7 +106,7 @@ def create_activity_with_bulk_import(
     ],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     db: Annotated[Session, Depends(core_database.get_db)],
-):
+) -> activities_schema.ActivityMessageResponse:
     try:
         # Get time of import initiation to pass to function for recording in import_data
         import_time = datetime.now(UTC).isoformat()
@@ -175,28 +172,12 @@ def create_activity_with_bulk_import(
         # instead of vanishing on the first error. A staging failure propagates so
         # the caller gets a 500 rather than a 202 for files that were never queued.
         # When durable jobs are off there is no worker to drain the queue, so fall
-        # back to the legacy module-level threadpool (one task processing all
-        # files, exceptions surfaced via a done-callback).
+        # back to the background thread pool owned by ``activity_ingestion.background``
+        # (one task processing all files, exceptions surfaced via a done-callback).
         if core_config.settings.JOBS_ENABLED:
             activity_bulk_import_subscribers.publish_bulk_import_files(files_to_process, token_user_id, import_time, db)
         else:
-            future = executor.submit(
-                orchestrator.process_all_files_sync,
-                token_user_id,
-                files_to_process,
-                import_initiated_time=import_time,
-            )
-
-            def _log_bulk_import_failure(fut: Future) -> None:
-                exc = fut.exception()
-                if exc is not None and isinstance(exc, Exception):
-                    core_logger.print_to_log(
-                        f"Bulk import background task failed: {exc}",
-                        "error",
-                        exc=exc,
-                    )
-
-            future.add_done_callback(_log_bulk_import_failure)
+            activity_ingestion_background.submit_bulk_import(token_user_id, files_to_process, import_time)
 
         # Log a success message that explains processing will continue elsewhere.
         core_logger.print_to_log_and_console(
@@ -204,13 +185,13 @@ def create_activity_with_bulk_import(
         )
 
         # Return a success message
-        return {
-            "detail": (
+        return activities_schema.ActivityMessageResponse(
+            detail=(
                 "Bulk import initiated for all files found in the "
                 "bulk_import directory. Processing of files will "
                 "continue in the background."
             )
-        }
+        )
     except (OSError, RuntimeError, SQLAlchemyError) as err:
         # Log the exception
         core_logger.print_to_log(

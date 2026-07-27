@@ -22,6 +22,7 @@ import infra.runtime as platform_runtime
 import migrations.crud as migrations_crud
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
+import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
 # Rows processed per DB round-trip; keeps memory bounded on large libraries.
 _BATCH_SIZE = 200
@@ -94,12 +95,12 @@ def process_migration_8(db: Session) -> None:
             if not legacy_path:
                 continue
             try:
-                key = activity_thumbnail_render.thumbnail_key(activity.id)
+                key = activity_thumbnail_signing.thumbnail_key(activity.id)
                 source = Path(legacy_path)
                 data = _reencode_to_webp(source) if source.is_file() else None
                 if data is not None:
                     storage.save(
-                        activity_thumbnail_render.THUMBNAIL_STORAGE_AREA,
+                        activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA,
                         key,
                         data,
                         activity_thumbnail_render.THUMBNAIL_CONTENT_TYPE,

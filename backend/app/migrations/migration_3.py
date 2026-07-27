@@ -16,8 +16,8 @@ import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import migrations.crud as migrations_crud
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.utils_fit as fit_utils
 import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_laps.crud as activity_laps_crud
@@ -174,7 +174,7 @@ def find_activity_fit_file(activity_id: int) -> str | None:
 
 
 def get_fit_file_from_garminconnect(
-    activity: activities_schema.ActivityMigrationRef,
+    activity: activities_contracts.ActivityMigrationRef,
     db: Session,
 ) -> str:
     """
@@ -282,7 +282,7 @@ def get_fit_file_from_garminconnect(
 
 
 def process_fit_file(
-    activity: activities_schema.ActivityMigrationRef,
+    activity: activities_contracts.ActivityMigrationRef,
     activity_fit_file_path: str,
     db: Session,
 ) -> None:
@@ -363,7 +363,7 @@ def process_fit_file(
 
 
 def process_activity_using_streams(
-    activity: activities_schema.ActivityMigrationRef,
+    activity: activities_contracts.ActivityMigrationRef,
     db: Session,
 ) -> None:
     """
@@ -405,7 +405,7 @@ def process_activity_using_streams(
 
 
 def process_strava_activity(
-    activity: activities_schema.ActivityMigrationRef,
+    activity: activities_contracts.ActivityMigrationRef,
     db: Session,
 ) -> bool:
     """
@@ -496,7 +496,7 @@ def process_strava_activity(
 
 
 def store_data_in_db(
-    activity: activities_schema.ActivityMigrationRef,
+    activity: activities_contracts.ActivityMigrationRef,
     sessions: list,
     laps: list,
     workout_steps: list,

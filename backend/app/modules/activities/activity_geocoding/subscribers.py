@@ -17,6 +17,7 @@ import modules.activities.activity_geocoding.service as activity_geocoding_servi
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
+from infra.subscribers import best_effort
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -42,26 +43,10 @@ def geocode_activity_for_event(event: Event) -> None:
         activity_geocoding_service.geocode_and_store_activity_location(payload.activity_id, payload.user_id, db)
 
 
-def on_activity_created_geocode(event: Event) -> None:
-    """Bus subscriber: reverse-geocode the activity, swallowing any error.
-
-    Wraps :func:`geocode_activity_for_event` so a geocoding failure never breaks
-    activity import (the scheduled backfill re-resolves any missed activities).
-
-    Args:
-        event: The ``activity.created`` event.
-
-    Returns:
-        None.
-    """
-    try:
-        geocode_activity_for_event(event)
-    except Exception as err:
-        core_logger.print_to_log(
-            f"activity.created geocoding handler failed for activity {event.payload.get('activity_id')}: {err}",
-            "error",
-            exc=err,
-        )
+# Bus subscriber: reverse-geocodes the activity, swallowing any error so a
+# geocoding failure never breaks activity import (the scheduled backfill
+# re-resolves any missed activities).
+on_activity_created_geocode = best_effort(geocode_activity_for_event)
 
 
 def register_geocoding_subscribers(events: EventBusProvider) -> None:

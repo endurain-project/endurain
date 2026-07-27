@@ -13,13 +13,10 @@ parser-agnostic — see the ``activities-parsing-boundary`` import-linter contra
 
 import contextlib
 import gzip
-import hashlib
 import os
 import shutil
-import time
 import uuid
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,6 +27,7 @@ import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import infra.runtime as platform_runtime
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
@@ -41,103 +39,6 @@ import modules.activities.activity_ingestion.file_adapter as file_adapter
 import modules.strava.bulk_import_utils as strava_bulk_import_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
-
-# Maximum size accepted when decompressing a gzipped activity
-# upload. Mirrors core_file_uploads' activity cap; safeuploads
-# enforces the same limit on the wrapping ``.gz`` upload before we
-# get here, but we re-cap defensively while expanding the inner
-# payload (decompression-bomb defense in depth).
-_MAX_DECOMPRESSED_ACTIVITY_BYTES = 200 * 1024 * 1024
-# Chunk size used while streaming decompressed bytes to disk.
-_DECOMPRESS_CHUNK_BYTES = 1024 * 1024
-
-
-def _sha256_file(file_path: str) -> str:
-    """Return the hex SHA-256 of a file's contents (streamed in chunks).
-
-    Gives provider-less file imports (upload / bulk import) a stable idempotency
-    fingerprint: re-importing the exact same file yields the same hash, so
-    :func:`ingestion_service.store_parsed_activity` can no-op it. The file is
-    hashed after ``.gz`` decompression, so a ``.gpx`` and its ``.gpx.gz`` produce
-    the same key.
-    """
-    digest = hashlib.sha256()
-    with open(file_path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(_DECOMPRESS_CHUNK_BYTES), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def handle_gzipped_file(
-    file_path: str,
-) -> tuple[str, str]:
-    """Handle gzipped files with bounded extraction.
-
-    Args:
-        file_path: Path to the gzipped activity file.
-
-    Returns:
-        Tuple containing the temporary file path and inner
-        extension.
-
-    Raises:
-        HTTPException: 400 for invalid gzip content or 413 when
-            decompressed content exceeds the configured limit.
-    """
-    path = Path(file_path)
-
-    inner_filename = path.stem  # eg "activity_1234567890.fit"
-    inner_file_extension = Path(inner_filename).suffix  # eg ".gz"
-    temp_file_path: str | None = None
-    bytes_written = 0
-
-    try:
-        with (
-            gzip.open(path, "rb") as gzipped_file,
-            NamedTemporaryFile(
-                suffix=inner_file_extension,
-                delete=False,
-            ) as temp_file,
-        ):
-            temp_file_path = temp_file.name
-            while True:
-                chunk = gzipped_file.read(_DECOMPRESS_CHUNK_BYTES)
-                if not chunk:
-                    break
-                bytes_written += len(chunk)
-                if bytes_written > _MAX_DECOMPRESSED_ACTIVITY_BYTES:
-                    temp_file.close()
-                    with contextlib.suppress(OSError):
-                        os.remove(temp_file_path)
-                    raise HTTPException(
-                        status_code=(status.HTTP_413_CONTENT_TOO_LARGE),
-                        detail=("Decompressed file exceeds maximum allowed size"),
-                    )
-                temp_file.write(chunk)
-            temp_file.flush()
-
-        core_logger.print_to_log_and_console(
-            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}"
-        )
-
-        # The original .gz is consumed once decompressed: the decompressed file
-        # is what gets retained in storage (keyed by activity id) downstream, so
-        # remove the staging .gz. Previously it was moved into the processed
-        # directory, but keeping a redundant compressed copy is no longer needed.
-        with contextlib.suppress(OSError):
-            os.remove(str(path))
-
-        return temp_file_path, inner_file_extension
-    except HTTPException:
-        raise
-    except (OSError, EOFError, gzip.BadGzipFile) as err:
-        if temp_file_path is not None:
-            with contextlib.suppress(OSError):
-                os.remove(temp_file_path)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid gzip file",
-        ) from err
 
 
 def _prepare_bulk_import_activity(
@@ -181,30 +82,6 @@ def _prepare_bulk_import_activity(
     # Add import metadata and Strava activities.csv metadata
     activity = strava_bulk_import_utils.append_bulk_import_metadata_to_activity(activity, activity_metadata_dict)
     return activity
-
-
-def _cleanup_upload_artifacts(file_paths: list[str]) -> None:
-    """Remove files created during failed activity uploads.
-
-    Args:
-        file_paths: Files to remove if they still exist.
-
-    Returns:
-        None.
-
-    Raises:
-        None.
-    """
-    for file_path in file_paths:
-        try:
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        except OSError as err:
-            core_logger.print_to_log(
-                f"Failed to cleanup upload artifact {file_path}: {err}",
-                "warning",
-                exc=err,
-            )
 
 
 def parse_file(
@@ -366,8 +243,8 @@ def _store_activities_from_file(
     # provider activity id, so their stable identity for idempotency is the
     # SHA-256 of the (already-decompressed) file. Garmin syncs key off the
     # provider id instead, so skip the hash there.
-    content_hash = None if from_garmin else _sha256_file(file_path)
-    import_source = activities_schema.ImportSource(
+    content_hash = None if from_garmin else core_file_uploads.sha256_file(file_path)
+    import_source = activities_contracts.ImportSource(
         kind="garmin" if from_garmin else "bulk_import" if is_bulk_import else "upload",
         content_hash=content_hash,
     )
@@ -564,7 +441,7 @@ def _validate_prepare_and_store_file(
         garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
     if file_extension == ".gz":
-        file_path, file_extension = handle_gzipped_file(file_path)
+        file_path, file_extension = core_file_uploads.decompress_gzip(file_path)
         file_extension = file_extension.lower()
         if file_extension not in core_config.SUPPORTED_FILE_FORMATS or file_extension == ".gz":
             raise HTTPException(
@@ -798,8 +675,8 @@ def parse_and_store_activity_from_uploaded_file(
         upload_artifacts.append(file_path)
 
         if file_extension.lower() == ".gz":
-            file_path, file_extension = handle_gzipped_file(file_path)
-            # ``handle_gzipped_file`` consumes (removes) the staging .gz and
+            file_path, file_extension = core_file_uploads.decompress_gzip(file_path)
+            # ``decompress_gzip`` consumes (removes) the staging .gz and
             # returns the decompressed temp file; track it so a later failure
             # cleans it up.
             upload_artifacts.append(file_path)
@@ -830,10 +707,10 @@ def parse_and_store_activity_from_uploaded_file(
             db,
         )
         if created_activities is None:
-            _cleanup_upload_artifacts(upload_artifacts)
+            core_file_uploads.remove_files(upload_artifacts)
         return created_activities
     except HTTPException:
-        _cleanup_upload_artifacts(upload_artifacts)
+        core_file_uploads.remove_files(upload_artifacts)
         raise
     except (
         OSError,
@@ -852,7 +729,7 @@ def parse_and_store_activity_from_uploaded_file(
             "error",
             exc=err,
         )
-        _cleanup_upload_artifacts(upload_artifacts)
+        core_file_uploads.remove_files(upload_artifacts)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -884,8 +761,6 @@ def process_all_files_sync(
                 is_bulk_import=True,
                 import_initiated_time=import_initiated_time,
             )
-            # Small delay between files
-            time.sleep(0.1)
 
         core_logger.print_to_log_and_console(f"Bulk import completed: {total_files} files processed for user {user_id}")
     finally:

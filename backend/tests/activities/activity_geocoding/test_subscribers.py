@@ -34,7 +34,7 @@ class TestOnActivityCreatedGeocode:
 
         assert mock_service.geocode_and_store_activity_location.call_args.args[:2] == (1, 2)
 
-    @patch(f"{_SUB}.core_logger")
+    @patch("infra.subscribers.logger")
     @patch(f"{_SUB}.core_database")
     @patch(f"{_SUB}.activity_geocoding_service")
     def test_swallows_errors(self, mock_service, _mock_db, mock_logger):
@@ -45,7 +45,7 @@ class TestOnActivityCreatedGeocode:
         # Must not raise — a geocoding failure never breaks activity import.
         on_activity_created_geocode(_event({"activity_id": 1, "user_id": 2}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
     def test_subscribes_to_created(self):
         from modules.activities.activity_geocoding.subscribers import (

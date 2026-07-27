@@ -16,7 +16,6 @@ create path.
 """
 
 import core.database as core_database
-import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_streams.constants as activity_streams_constants
@@ -25,6 +24,7 @@ import modules.activities.activity_thumbnail.service as activity_thumbnail_servi
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
+from infra.subscribers import best_effort
 
 # The minimum GPS waypoints needed to draw a route; below this there is no map
 # to render (non-GPS activities such as strength training cost nothing).
@@ -70,26 +70,9 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
         )
 
 
-def on_activity_created_generate_thumbnail(event: Event) -> None:
-    """Bus subscriber: generate a map thumbnail, swallowing any error.
-
-    Wraps :func:`generate_activity_thumbnail_for_event` so a thumbnail failure
-    never breaks activity import (the hourly backfill regenerates any missed).
-
-    Args:
-        event: The ``activity.created`` event.
-
-    Returns:
-        None.
-    """
-    try:
-        generate_activity_thumbnail_for_event(event)
-    except Exception as err:
-        core_logger.print_to_log(
-            f"activity.created thumbnail handler failed for activity {event.payload.get('activity_id')}: {err}",
-            "error",
-            exc=err,
-        )
+# Bus subscriber: generates a map thumbnail, swallowing any error so a thumbnail
+# failure never breaks activity import (the hourly backfill regenerates any missed).
+on_activity_created_generate_thumbnail = best_effort(generate_activity_thumbnail_for_event)
 
 
 def cleanup_activity_thumbnail_for_event(event: Event) -> None:
@@ -111,26 +94,9 @@ def cleanup_activity_thumbnail_for_event(event: Event) -> None:
     activity_thumbnail_service.delete_activity_thumbnail(payload.activity_id, storage)
 
 
-def on_activity_deleted_cleanup_thumbnail(event: Event) -> None:
-    """Bus subscriber: delete a deleted activity's thumbnail, swallowing any error.
-
-    Wraps :func:`cleanup_activity_thumbnail_for_event` so a cleanup failure never
-    breaks activity deletion.
-
-    Args:
-        event: The ``activity.deleted`` event.
-
-    Returns:
-        None.
-    """
-    try:
-        cleanup_activity_thumbnail_for_event(event)
-    except Exception as err:
-        core_logger.print_to_log(
-            f"activity.deleted thumbnail cleanup failed for activity {event.payload.get('activity_id')}: {err}",
-            "error",
-            exc=err,
-        )
+# Bus subscriber: deletes a deleted activity's thumbnail, swallowing any error so
+# a cleanup failure never breaks activity deletion.
+on_activity_deleted_cleanup_thumbnail = best_effort(cleanup_activity_thumbnail_for_event)
 
 
 def register_thumbnail_subscribers(events: EventBusProvider) -> None:

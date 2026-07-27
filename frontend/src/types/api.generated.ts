@@ -256,7 +256,7 @@ export interface paths {
         };
         /**
          * List Activity Types
-         * @description Return the distinct activity types the user has recorded.
+         * @description Return the distinct activity types the user has recorded, keyed by type code.
          */
         get: operations["list_activity_types_api_v1_activities_types_get"];
         put?: never;
@@ -5709,6 +5709,22 @@ export interface components {
             media_path: string;
             /** Media Type */
             media_type: number;
+        };
+        /**
+         * ActivityMessageResponse
+         * @description Generic message response for activity mutation endpoints.
+         *
+         *     Named for the module rather than called ``MessageResponse`` because FastAPI
+         *     keys its OpenAPI components by class name: two same-named models in different
+         *     modules are emitted as fully-qualified ``modules__..__MessageResponse``
+         *     schemas, which leaks the Python package layout into the generated client.
+         *
+         *     Attributes:
+         *         detail: Human-readable outcome of the operation.
+         */
+        ActivityMessageResponse: {
+            /** Detail */
+            detail: string;
         };
         /**
          * ActivitySetsRead
@@ -11889,6 +11905,20 @@ export interface components {
             type: string;
         };
         /**
+         * VisibilityUpdateResponse
+         * @description Result of a bulk visibility change across a user's activities.
+         *
+         *     Attributes:
+         *         detail: Human-readable outcome of the operation.
+         *         updated: Number of activities whose visibility changed.
+         */
+        VisibilityUpdateResponse: {
+            /** Detail */
+            detail: string;
+            /** Updated */
+            updated: number;
+        };
+        /**
          * WeekDay
          * @description Days of the week enumeration.
          *
@@ -12333,9 +12363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["ActivityMessageResponse"];
                 };
             };
         };
@@ -12528,8 +12556,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: unknown;
-                    } | null;
+                        [key: string]: string;
+                    };
                 };
             };
         };
@@ -12662,9 +12690,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string | number;
-                    };
+                    "application/json": components["schemas"]["VisibilityUpdateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -12726,9 +12752,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": components["schemas"]["ActivityMessageResponse"];
                 };
             };
             /** @description Validation Error */

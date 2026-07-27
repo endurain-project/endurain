@@ -9,6 +9,7 @@ import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
@@ -271,7 +272,7 @@ def _build_activity(
         (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
     )
 
-    return activities_schema.ActivityCore(
+    return activities_contracts.ActivityCore(
         user_id=user_id,
         name=activity_name,
         distance=distance,

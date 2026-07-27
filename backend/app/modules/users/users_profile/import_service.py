@@ -26,6 +26,7 @@ import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import infra.runtime as platform_runtime
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
@@ -856,7 +857,7 @@ class ImportService:
                 original_activity_id = activity_data.get("id")
                 activity_data.pop("id", None)
 
-                activity = activity_schema.ActivityCore(**activity_data)
+                activity = activity_contracts.ActivityCore(**activity_data)
                 # Bulk restore intentionally persists via create_activity directly
                 # rather than the store_parsed_activity seam: it must NOT publish
                 # activity.created. Publishing per restored activity would (a) spam

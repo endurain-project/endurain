@@ -28,6 +28,7 @@ import core.logger as core_logger
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
@@ -392,7 +393,7 @@ def get_all_activities(
 
 def get_all_activities_for_migration(
     db: Session,
-) -> list[activities_schema.ActivityMigrationRef]:
+) -> list[activities_contracts.ActivityMigrationRef]:
     """Return a lightweight reference for every activity (migration use only).
 
     Projects only the identity, owner, provider ids, and time bounds the
@@ -410,7 +411,7 @@ def get_all_activities_for_migration(
     try:
         activities = db.execute(select(activities_models.Activity)).scalars().all()
         return [
-            activities_schema.ActivityMigrationRef(
+            activities_contracts.ActivityMigrationRef(
                 id=activity.id,
                 user_id=activity.user_id,
                 start_time=activity.start_time,
@@ -1525,7 +1526,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
 
 
 def create_activity(
-    activity: activities_schema.ActivityCore,
+    activity: activities_contracts.ActivityCore,
     db: Session,
     *,
     commit: bool = True,
@@ -1690,7 +1691,7 @@ def update_activity_location(
 def get_activities_missing_location(
     db: Session,
     limit: int = 200,
-) -> list[activities_schema.ActivityLocationRef]:
+) -> list[activities_contracts.ActivityLocationRef]:
     """Return references to activities that have no resolved location.
 
     Rows where ``city``, ``town`` and ``country`` are all NULL — candidates for
@@ -1717,7 +1718,7 @@ def get_activities_missing_location(
             .limit(limit)
         )
         ids = db.execute(stmt).scalars().all()
-        return [activities_schema.ActivityLocationRef(id=activity_id) for activity_id in ids]
+        return [activities_contracts.ActivityLocationRef(id=activity_id) for activity_id in ids]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_missing_location: {err}",
@@ -1750,7 +1751,7 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
 
 def get_activities_with_thumbnail(
     db: Session,
-) -> list[activities_schema.ActivityThumbnailRef]:
+) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have a map thumbnail.
 
     Args:
@@ -1764,7 +1765,8 @@ def get_activities_with_thumbnail(
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.isnot(None))
         rows = db.execute(stmt).scalars().all()
         return [
-            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+            activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+            for row in rows
         ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
@@ -1777,7 +1779,7 @@ def get_activities_with_thumbnail(
 
 def get_activities_without_thumbnail(
     db: Session,
-) -> list[activities_schema.ActivityThumbnailRef]:
+) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have no map thumbnail.
 
     Args:
@@ -1791,7 +1793,8 @@ def get_activities_without_thumbnail(
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.is_(None))
         rows = db.execute(stmt).scalars().all()
         return [
-            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+            activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+            for row in rows
         ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
@@ -1806,7 +1809,7 @@ def get_activities_with_legacy_thumbnail_path(
     db: Session,
     after_id: int = 0,
     limit: int = 200,
-) -> list[activities_schema.ActivityThumbnailRef]:
+) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities whose thumbnail value is a legacy filesystem path.
 
     Legacy values are absolute paths (they contain a ``/`` separator); the new
@@ -1836,7 +1839,8 @@ def get_activities_with_legacy_thumbnail_path(
         )
         rows = db.execute(stmt).scalars().all()
         return [
-            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+            activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+            for row in rows
         ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(

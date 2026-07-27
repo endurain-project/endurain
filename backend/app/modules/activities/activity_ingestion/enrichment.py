@@ -18,12 +18,15 @@ the core and the parsers respectively.
 
 from sqlalchemy.orm import Session
 
-import modules.activities.activity.schema as activities_schema
+import core.logger as core_logger
+import modules.activities.activity.contracts as activities_contracts
 import modules.garmin.utils as garmin_utils
 import modules.gears.gear.crud as gears_crud
 import modules.users.users_default_gear.utils as user_default_gear_utils
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
+
+logger = core_logger.get_logger(__name__)
 
 
 def build_activity_privacy_kwargs(
@@ -90,11 +93,20 @@ def resolve_gear_id(
                 gear_id = gear.id
     if gear_id is None and activity_type is not None:
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
+    logger.debug(
+        "Resolved gear for a parsed activity",
+        extra=core_logger.context(
+            user_id=user_id,
+            activity_type=activity_type,
+            gear_id=gear_id,
+            from_garmin=from_garmin,
+        ),
+    )
     return gear_id
 
 
 def enrich_parsed_activity(
-    activity: activities_schema.Activity,
+    activity: activities_contracts.ActivityCore,
     *,
     user_id: int,
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
@@ -132,3 +144,19 @@ def enrich_parsed_activity(
     if from_garmin:
         activity.garminconnect_activity_id = garmin_connect_activity_id
         activity.garminconnect_gear_id = garminconnect_gear[0]["uuid"] if garminconnect_gear else None
+        logger.debug(
+            "Attached Garmin provider ids to a parsed activity",
+            extra=core_logger.context(
+                user_id=user_id,
+                garminconnect_activity_id=garmin_connect_activity_id,
+            ),
+        )
+
+    logger.debug(
+        "Enriched a parsed activity with owner context",
+        extra=core_logger.context(
+            user_id=user_id,
+            visibility=activity.visibility,
+            gear_id=activity.gear_id,
+        ),
+    )

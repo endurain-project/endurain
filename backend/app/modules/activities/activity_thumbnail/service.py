@@ -17,6 +17,7 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
+import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 import modules.server_settings.crud as server_settings_crud
 
 
@@ -77,9 +78,9 @@ def generate_and_store_thumbnail(
     )
     if data is None:
         return None
-    key = activity_thumbnail_render.thumbnail_key(activity_id)
+    key = activity_thumbnail_signing.thumbnail_key(activity_id)
     storage.save(
-        activity_thumbnail_render.THUMBNAIL_STORAGE_AREA,
+        activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA,
         key,
         data,
         activity_thumbnail_render.THUMBNAIL_CONTENT_TYPE,
@@ -103,7 +104,7 @@ def delete_activity_thumbnail(activity_id: int, storage: platform_providers.Stor
         None.
     """
     storage.delete(
-        activity_thumbnail_render.THUMBNAIL_STORAGE_AREA, activity_thumbnail_render.thumbnail_key(activity_id)
+        activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, activity_thumbnail_signing.thumbnail_key(activity_id)
     )
 
 
@@ -136,7 +137,7 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
             if key is None:
                 continue
             try:
-                storage.delete(activity_thumbnail_render.THUMBNAIL_STORAGE_AREA, key)
+                storage.delete(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key)
                 deleted += 1
             except Exception as err:
                 core_logger.print_to_log(
@@ -195,7 +196,7 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
         # they are regenerated below.
         for activity in activities_crud.get_activities_with_thumbnail(db):
             key = activity.map_thumbnail_path
-            if key is not None and not storage.exists(activity_thumbnail_render.THUMBNAIL_STORAGE_AREA, key):
+            if key is not None and not storage.exists(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key):
                 activities_crud.set_activity_thumbnail_path(activity.id, None, db)
                 core_logger.print_to_log(
                     f"Thumbnail scheduler: missing blob for activity {activity.id}, cleared thumbnail path in DB",

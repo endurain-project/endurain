@@ -1,7 +1,7 @@
 """Core activity ingestion — persist a canonical :class:`ParsedActivity`.
 
 This is the seam that makes parsing irrelevant to the activities core:
-it accepts a format-agnostic :class:`~modules.activities.activity.schema.ParsedActivity`
+it accepts a format-agnostic :class:`~modules.activities.activity.contracts.ParsedActivity`
 and persists the activity plus its streams/laps/sets/workout-steps, then publishes
 ``activity.created``. It has **no** knowledge of ``.gpx``/``.tcx``/``.fit``, Strava,
 or Garmin — the ``activity_ingestion`` adapters produce the contract and call here.
@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
@@ -26,7 +27,7 @@ import modules.activities.activity_workout_steps.crud as activity_workout_steps_
 
 def _derive_dedup_key(
     activity: activities_schema.Activity,
-    source: activities_schema.ImportSource | None,
+    source: activities_contracts.ImportSource | None,
 ) -> str | None:
     """Derive a stable idempotency key for an activity.
 
@@ -62,7 +63,7 @@ def _derive_dedup_key(
 
 
 def store_parsed_activity(
-    parsed: activities_schema.ParsedActivity,
+    parsed: activities_contracts.ParsedActivity,
     db: Session,
 ) -> activities_schema.Activity:
     """Persist a parsed activity and its children, then publish ``activity.created``.

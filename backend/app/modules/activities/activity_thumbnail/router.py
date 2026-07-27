@@ -13,9 +13,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
+import core.logger as core_logger
 import infra.runtime as platform_runtime
-import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
+
+logger = core_logger.get_logger(__name__)
 
 router = APIRouter()
 
@@ -46,12 +48,18 @@ def read_activity_thumbnail(
             an unauthorized caller).
     """
     if not activity_thumbnail_signing.verify_thumbnail_token(activity_id, token):
+        # Security-relevant: either a forged token or one replayed against a
+        # different activity. Logged at warning so a probing pattern is visible.
+        logger.warning(
+            "Rejected a thumbnail request with an invalid signed token",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thumbnail not found")
 
     storage = platform_runtime.get_active_platform().storage
     data = storage.get(
-        activity_thumbnail_render.THUMBNAIL_STORAGE_AREA,
-        activity_thumbnail_render.thumbnail_key(activity_id),
+        activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA,
+        activity_thumbnail_signing.thumbnail_key(activity_id),
     )
     if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thumbnail not found")

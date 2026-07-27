@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
-import modules.activities.activity.schema as activities_schema
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
@@ -168,7 +168,7 @@ def create_activity_objects(
                 if ele_loss is None and computed_loss:
                     ele_loss = round(computed_loss)
 
-            activity = activities_schema.ActivityCore(
+            activity = activities_contracts.ActivityCore(
                 user_id=user_id,
                 name=activity_name,
                 distance=(round(resolved_distance) if resolved_distance else 0),
