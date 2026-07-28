@@ -14,12 +14,12 @@ router = APIRouter()
 
 @router.get(
     "/laps",
-    response_model=list[activity_laps_schema.ActivityLapsRead] | None,
+    response_model=list[activity_laps_schema.ActivityLapsRead],
 )
 def read_public_activities_laps_for_activity_all(
     activity_id: int,
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[activity_laps_schema.ActivityLapsRead] | None:
+) -> list[activity_laps_schema.ActivityLapsRead]:
     """
     Return public laps for an activity exposed via shareable link.
 

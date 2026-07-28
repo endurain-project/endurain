@@ -6,10 +6,14 @@ from fastapi.testclient import TestClient
 
 def _build_app(mock_db):
     import core.database as core_db
+    import core.exceptions as core_exceptions
     import modules.activities.activity_streams.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities/{activity_id}")
+    # Same domain-error boundary the real app registers, so these tests assert
+    # the status codes clients actually receive.
+    core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -52,5 +56,8 @@ class TestReadPublicActivityStreams:
         mock_get.return_value = None
 
         response = client.get("/public/activities/999/streams/1")
-        assert response.status_code == 200
-        assert response.json() is None
+        # Missing, not public, and public-links-disabled are one answer: this
+        # endpoint is unauthenticated, so distinguishing them would let anyone
+        # enumerate activity ids.
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Activity stream not found"

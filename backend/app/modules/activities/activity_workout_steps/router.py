@@ -17,7 +17,7 @@ router = APIRouter()
 
 @router.get(
     "/workout-steps",
-    response_model=(list[activity_workout_steps_schema.ActivityWorkoutSteps] | None),
+    response_model=list[activity_workout_steps_schema.ActivityWorkoutSteps],
 )
 def read_activity_workout_steps_all(
     activity_id: int,

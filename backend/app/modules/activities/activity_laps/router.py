@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get(
     "/laps",
-    response_model=list[activity_laps_schema.ActivityLapsRead] | None,
+    response_model=list[activity_laps_schema.ActivityLapsRead],
 )
 def read_activities_laps_for_activity_all(
     activity_id: int,
@@ -26,7 +26,7 @@ def read_activities_laps_for_activity_all(
     ],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[activity_laps_schema.ActivityLapsRead] | None:
+) -> list[activity_laps_schema.ActivityLapsRead]:
     """
     Return all laps for the given activity visible to the caller.
 

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.exceptions as core_exceptions
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
@@ -41,7 +42,7 @@ def read_public_activities_streams_for_activity_all(
 
 @router.get(
     "/streams/{stream_type}",
-    response_model=(activity_streams_schema.ActivityStreamsRead | None),
+    response_model=activity_streams_schema.ActivityStreamsRead,
 )
 def read_public_activities_streams_for_activity_stream_type(
     activity_id: int,
@@ -65,6 +66,14 @@ def read_public_activities_streams_for_activity_stream_type(
         db: Database session.
 
     Returns:
-        The activity stream or None.
+        The activity stream.
+
+    Raises:
+        NotFoundError: When the activity has no such stream, is not public, or
+            public links are disabled — indistinguishable on purpose, since this
+            endpoint is unauthenticated.
     """
-    return activity_streams_crud.get_public_activity_stream_by_type(activity_id, stream_type, db)
+    stream = activity_streams_crud.get_public_activity_stream_by_type(activity_id, stream_type, db)
+    if stream is None:
+        raise core_exceptions.NotFoundError("Activity stream not found")
+    return stream

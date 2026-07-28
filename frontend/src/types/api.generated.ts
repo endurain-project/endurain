@@ -578,7 +578,14 @@ export interface paths {
          *         db: Database session.
          *
          *     Returns:
-         *         The activity stream or None.
+         *         The activity stream.
+         *
+         *     Raises:
+         *         NotFoundError: When the activity has no such stream, or is not visible
+         *             to the caller. A single resource that does not exist is a 404; it
+         *             used to answer ``200 null``, which is neither a resource nor an
+         *             error. The two cases are deliberately indistinguishable so the
+         *             endpoint cannot be used to probe which activities exist.
          */
         get: operations["read_activities_streams_for_activity_stream_type_api_v1_activities__activity_id__streams__stream_type__get"];
         put?: never;
@@ -4059,7 +4066,12 @@ export interface paths {
          *         db: Database session.
          *
          *     Returns:
-         *         The activity stream or None.
+         *         The activity stream.
+         *
+         *     Raises:
+         *         NotFoundError: When the activity has no such stream, is not public, or
+         *             public links are disabled — indistinguishable on purpose, since this
+         *             endpoint is unauthenticated.
          */
         get: operations["read_public_activities_streams_for_activity_stream_type_api_v1_public_activities__activity_id__streams__stream_type__get"];
         put?: never;
@@ -12255,7 +12267,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
+                    "application/json": components["schemas"]["ActivityExerciseTitles"][];
                 };
             };
         };
@@ -12661,7 +12673,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][] | null;
+                    "application/json": components["schemas"]["ActivityLapsRead"][];
                 };
             };
             /** @description Validation Error */
@@ -12788,7 +12800,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][] | null;
+                    "application/json": components["schemas"]["ActivitySetsRead"][];
                 };
             };
             /** @description Validation Error */
@@ -12851,7 +12863,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"] | null;
+                    "application/json": components["schemas"]["ActivityStreamsRead"];
                 };
             };
             /** @description Validation Error */
@@ -12917,7 +12929,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
+                    "application/json": components["schemas"]["ActivityWorkoutSteps"][];
                 };
             };
             /** @description Validation Error */
@@ -16292,7 +16304,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
+                    "application/json": components["schemas"]["ActivityExerciseTitles"][];
                 };
             };
         };
@@ -16345,7 +16357,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][] | null;
+                    "application/json": components["schemas"]["ActivityLapsRead"][];
                 };
             };
             /** @description Validation Error */
@@ -16376,7 +16388,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][] | null;
+                    "application/json": components["schemas"]["ActivitySetsRead"][];
                 };
             };
             /** @description Validation Error */
@@ -16439,7 +16451,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"] | null;
+                    "application/json": components["schemas"]["ActivityStreamsRead"];
                 };
             };
             /** @description Validation Error */
@@ -16470,7 +16482,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
+                    "application/json": components["schemas"]["ActivityWorkoutSteps"][];
                 };
             };
             /** @description Validation Error */

@@ -28,7 +28,7 @@ class TestGetAllExerciseTitles:
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_activity_exercise_titles(db=mock_db)
-        assert r is None
+        assert r == []
 
     def test_db_error(self, mock_db):
         import modules.activities.activity_exercise_titles.crud as crud
@@ -45,7 +45,7 @@ class TestGetPublicExerciseTitles:
 
         mock_settings.return_value = MagicMock(public_shareable_links=False)
         r = crud.get_public_activity_exercise_titles(db=mock_db)
-        assert r is None
+        assert r == []
 
     @patch("modules.activities.activity_exercise_titles.crud.server_settings_utils.get_server_settings_or_404")
     def test_success(self, mock_settings, mock_db):

@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get(
     "/sets",
-    response_model=list[activity_sets_schema.ActivitySetsRead] | None,
+    response_model=list[activity_sets_schema.ActivitySetsRead],
 )
 def read_public_activities_sets_for_activity_all(
     activity_id: int,

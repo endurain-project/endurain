@@ -29,8 +29,8 @@ class TestReadPublicActivityLaps:
     @patch("modules.activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+        mock_get.return_value = []
 
         response = client.get("/public/activities/999/laps")
         assert response.status_code == 200
-        assert response.json() is None
+        assert response.json() == []
