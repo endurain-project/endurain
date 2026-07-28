@@ -35,3 +35,30 @@ class BulkImportFilePayload(VersionedPayload):
     file_path: str
     user_id: int
     import_initiated_time: str | None = None
+
+
+# Published once per accepted upload when durable jobs are enabled; a durable
+# subscriber parses the staged file as an independent, retryable job. Like the
+# bulk-import channel this is durable-delivery only — the route falls back to
+# the background threadpool when JOBS_ENABLED is off, so no best-effort bus
+# subscriber exists for it.
+ACTIVITY_FILE_UPLOADED = "activity.file_uploaded"
+
+
+class UploadedFilePayload(VersionedPayload):
+    """Validated payload for the ``activity.file_uploaded`` event.
+
+    Carries only the upload job id: the staged path and owner are columns on the
+    job row, so the worker reads them under the same ownership check the HTTP
+    surface uses and a tampered payload cannot redirect the parse at a file the
+    uploader does not own.
+
+    Attributes:
+        job_id: The ``activity_upload_jobs`` row to process.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    job_id: str

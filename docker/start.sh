@@ -31,6 +31,7 @@ $DATA_FOLDER/activity_files
 $DATA_FOLDER/activity_files/processed
 $DATA_FOLDER/activity_files/bulk_import
 $DATA_FOLDER/activity_files/bulk_import/import_errors
+$DATA_FOLDER/activity_files/upload_staging
 $DATA_FOLDER/activity_files/strava_import
 $DATA_FOLDER/activity_files/strava_import/activities
 $DATA_FOLDER/activity_files/strava_import/media

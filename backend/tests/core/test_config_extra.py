@@ -752,6 +752,10 @@ class TestCheckRequiredDirs:
                 "core.config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR",
                 str(test_data / "activity_files" / "bulk_import" / "import_errors"),
             ),
+            patch(
+                "core.config.FILES_UPLOAD_STAGING_DIR",
+                str(test_data / "activity_files" / "upload_staging"),
+            ),
         ):
             check_required_dirs()
 

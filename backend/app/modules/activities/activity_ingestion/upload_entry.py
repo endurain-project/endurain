@@ -1,9 +1,18 @@
 """Entry point for a file uploaded directly through the API.
 
-Differs from the background entry in :mod:`bulk_entry` in two ways: the file
-arrives as an ``UploadFile`` and has to be streamed to disk before it can be
-parsed, and a failure is **raised** as an ``HTTPException`` (the upload route's
-contract) rather than swallowed, after any partial artifacts are cleaned up.
+Split across the request/background boundary. The request half
+(:func:`stage_uploaded_activity_file`) only has to receive bytes: it validates
+the filename and extension, streams the upload to the staging directory, and
+returns. Everything CPU-bound — gzip decompression and the format parse — is in
+:func:`process_staged_upload`, which runs on a background worker.
+
+That split is the point of the module: parsing a large FIT file takes seconds of
+pure CPU, and doing it inline held one of Starlette's shared threadpool tokens
+for the duration, so a handful of concurrent uploads could starve every other
+request in the process.
+
+Differs from :mod:`bulk_entry` in that the file arrives as an ``UploadFile`` and
+has to be streamed to disk before it can be parsed.
 """
 
 import gzip
@@ -26,33 +35,25 @@ import modules.activities.activity_ingestion.sources as ingestion_sources
 logger = core_logger.get_logger(__name__)
 
 
-def store_uploaded_activity_file(
-    token_user_id: int,
-    file: UploadFile,
-    db: Session,
-) -> list[activities_schema.Activity] | None:
-    """Persist an uploaded activity file and return the created activities.
+def stage_uploaded_activity_file(file: UploadFile) -> str:
+    """Validate an upload and stream it to the staging directory.
 
-    Validates the filename and extension, streams the upload to disk, decompresses
-    ``.gz`` payloads, then delegates to the shared pipeline. On failure it removes
-    any partial upload artifacts and re-raises.
+    Runs inside the request. Only the cheap, fail-fast checks live here so the
+    client still gets a synchronous 4xx for a file that was never going to
+    import — an unsupported extension, a failed signature check, an oversized
+    body — rather than a 202 followed by a failure it has to poll for.
 
     Args:
-        token_user_id: Authenticated user ID.
         file: Incoming FastAPI UploadFile.
-        db: Database session.
 
     Returns:
-        List of created Activity schemas, or None if no activity
-        could be parsed from the file.
+        Absolute path of the staged file.
 
     Raises:
-        InvalidInputError: When the filename is missing or a ``.gz`` decompresses
-            to an unsupported payload.
+        InvalidInputError: When the filename is missing.
         UnsupportedFormatError: When the extension is not a supported format.
-        ProcessingError: On an internal failure.
+        HTTPException: When the shared upload validators reject the payload.
     """
-    # Validate filename exists
     if file.filename is None:
         raise core_exceptions.InvalidInputError("Filename is required")
 
@@ -65,27 +66,53 @@ def store_uploaded_activity_file(
             "File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"
         )
 
-    upload_dir = core_config.settings.FILES_DIR
     upload_kind = (
         core_file_uploads.UploadKind.GZIP if file_extension.lower() == ".gz" else core_file_uploads.UploadKind.ACTIVITY
     )
     # Server-generated filename to defeat path traversal and collisions.
     storage_name = f"{uuid.uuid4().hex}{file_extension.lower()}"
-    upload_artifacts: list[str] = []
+
+    # Validate (signature/size/MIME via safeuploads) and stream
+    # the upload to disk in one unified step. The streaming
+    # writer enforces the activity/gzip byte cap and writes via
+    # a ``.part``-then-rename for atomicity.
+    return core_file_uploads.save_validated_upload_sync(
+        file,
+        kind=upload_kind,
+        upload_dir=core_config.FILES_UPLOAD_STAGING_DIR,
+        filename=storage_name,
+    )
+
+
+def process_staged_upload(
+    token_user_id: int,
+    staged_path: str,
+    db: Session,
+) -> list[activities_schema.Activity] | None:
+    """Decompress, parse and persist a previously staged upload.
+
+    Runs on a background worker. Confines the path to the staging directory
+    before touching it, so a job whose stored path was tampered with cannot make
+    the parser read an arbitrary file.
+
+    Args:
+        token_user_id: The user the activities belong to.
+        staged_path: Path returned by :func:`stage_uploaded_activity_file`.
+        db: Database session.
+
+    Returns:
+        List of created Activity schemas, or None if no activity
+        could be parsed from the file.
+
+    Raises:
+        InvalidInputError: When a ``.gz`` decompresses to an unsupported payload.
+        ProcessingError: On an internal failure.
+    """
+    file_path = str(core_file_uploads.ensure_within(staged_path, core_config.FILES_UPLOAD_STAGING_DIR))
+    _, file_extension = os.path.splitext(file_path)
+    upload_artifacts: list[str] = [file_path]
 
     try:
-        # Validate (signature/size/MIME via safeuploads) and stream
-        # the upload to disk in one unified step. The streaming
-        # writer enforces the activity/gzip byte cap and writes via
-        # a ``.part``-then-rename for atomicity.
-        file_path = core_file_uploads.save_validated_upload_sync(
-            file,
-            kind=upload_kind,
-            upload_dir=upload_dir,
-            filename=storage_name,
-        )
-        upload_artifacts.append(file_path)
-
         if file_extension.lower() == ".gz":
             file_path, file_extension = core_file_uploads.decompress_gzip(file_path)
             # ``decompress_gzip`` consumes (removes) the staging .gz and
@@ -106,8 +133,6 @@ def store_uploaded_activity_file(
 
         _, file_base_name = os.path.split(file_path)
 
-        # Delegate to the shared ingestion pipeline. The upload route is
-        # synchronous, so Starlette already runs it on a threadpool worker.
         created_activities = pipeline.store_activities_from_file(
             token_user_id,
             file_path,
@@ -137,7 +162,7 @@ def store_uploaded_activity_file(
         TypeError,
     ) as err:
         logger.error(
-            "Error in store_uploaded_activity_file",
+            "Error processing a staged activity upload",
             exc_info=err,
             extra=core_logger.context(user_id=token_user_id),
         )

@@ -654,6 +654,12 @@ SERVER_IMAGES_DIR = f"{settings.DATA_DIR}/{SERVER_IMAGES_URL_PATH}"
 FILES_PROCESSED_DIR = f"{settings.FILES_DIR}/processed"
 FILES_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/bulk_import"
 FILES_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{FILES_BULK_IMPORT_DIR}/import_errors"
+# Uploads are staged here between the request that receives them and the
+# background job that parses them. Kept separate from FILES_DIR itself so the
+# upload handler can path-confine to this directory alone: FILES_DIR is the
+# parent of processed/, bulk_import/ and strava_import/, and confining to it
+# would let a crafted payload reach those.
+FILES_UPLOAD_STAGING_DIR = f"{settings.FILES_DIR}/upload_staging"
 STRAVA_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/strava_import"
 STRAVA_BULK_IMPORT_ACTIVITIES_DIR = f"{STRAVA_BULK_IMPORT_DIR}/activities"
 STRAVA_BULK_IMPORT_MEDIA_DIR = f"{STRAVA_BULK_IMPORT_DIR}/media"
@@ -968,6 +974,7 @@ def check_required_dirs():
         FILES_PROCESSED_DIR,
         FILES_BULK_IMPORT_DIR,
         FILES_BULK_IMPORT_IMPORT_ERRORS_DIR,
+        FILES_UPLOAD_STAGING_DIR,
         settings.LOGS_DIR,
     ]
 
