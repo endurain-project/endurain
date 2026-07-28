@@ -77,6 +77,73 @@ class TestRecordingWrites:
         assert row.event_type == "activity.created"
 
 
+class TestHandlerNameIsBounded:
+    """``handler_name`` grows with the subscriber count and must never overflow.
+
+    It stores the comma-joined names of every subscriber that ran. At
+    ``varchar(100)`` that overflowed once ``activity.created`` reached four
+    subscribers (125 chars) and ``activity.deleted`` three (101 — one over), and
+    PostgreSQL rejected the whole UPDATE. Because event-log writes are
+    best-effort (the recorder swallows storage errors so observability cannot
+    break processing), nothing surfaced: the handlers had already run, so the
+    work completed while the row stayed at ``published`` forever.
+    """
+
+    def test_completed_write_survives_an_oversized_handler_list(self, db):
+        event_log_crud.record_published(_event(), db)
+        # Far more subscribers than any event has today.
+        handlers = ",".join(f"on_activity_created_subscriber_number_{i}" for i in range(40))
+
+        event_log_crud.mark_completed("e1", handlers, 5, db)
+
+        row = db.get(EventLog, "e1")
+        # The lifecycle transition is what matters: it must not be lost.
+        assert row.status == "completed"
+        assert row.completed_at is not None
+        assert len(row.handler_name) <= 500
+        # Marked, so a reader can tell the list was cut rather than assume it is
+        # the complete set of subscribers.
+        assert row.handler_name.endswith("...")
+
+    def test_failed_write_survives_an_oversized_handler_list(self, db):
+        event_log_crud.record_published(_event(), db)
+        handlers = ",".join(f"on_activity_created_subscriber_number_{i}" for i in range(40))
+
+        event_log_crud.mark_failed("e1", handlers, "boom", 5, db)
+
+        row = db.get(EventLog, "e1")
+        assert row.status == "failed"
+        assert len(row.handler_name) <= 500
+
+    def test_a_list_that_fits_is_stored_verbatim(self, db):
+        event_log_crud.record_published(_event(), db)
+        handlers = "cleanup_activity_thumbnail_for_event,cleanup_activity_file_for_event"
+
+        event_log_crud.mark_completed("e1", handlers, 5, db)
+
+        assert db.get(EventLog, "e1").handler_name == handlers
+
+    def test_the_real_subscriber_lists_fit(self):
+        """The concrete lists that broke production must fit with headroom."""
+        from collections import defaultdict
+
+        import modules.activities.subscriber_registry as activity_registry
+
+        class _Bus:
+            def __init__(self):
+                self.handlers = defaultdict(list)
+
+            def subscribe(self, event_type, handler):
+                self.handlers[event_type].append(handler)
+
+        bus = _Bus()
+        activity_registry.register_all_activity_bus_subscribers(bus)
+
+        for event_type, handlers in bus.handlers.items():
+            joined = ",".join(h.__name__ for h in handlers)
+            assert len(joined) <= 500, f"{event_type} handler list is {len(joined)} chars"
+
+
 class TestSummary:
     def test_counts_by_type_and_latency(self, db):
         event_log_crud.record_published(_event("e1", "activity.created"), db)

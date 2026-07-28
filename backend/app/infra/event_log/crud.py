@@ -28,6 +28,32 @@ _STATUS_DEAD_LETTER = "dead_letter"
 # Cap stored failure text so a pathological exception cannot bloat a row.
 _MAX_ERROR_LEN = 4000
 
+# ``handler_name`` is the comma-joined list of every subscriber that ran for the
+# event, so its length grows with the number of subscribers — unbounded from this
+# module's point of view. It must be clamped to the column width here, at the
+# only layer that knows that width: overflowing it made PostgreSQL reject the
+# whole UPDATE with StringDataRightTruncation, and because event-log writes are
+# deliberately best-effort (swallowed by the recorder so observability never
+# breaks processing), the failure was silent. The handlers had already run, so
+# the work completed while the row stayed stuck at ``published`` forever.
+_MAX_HANDLER_NAME_LEN = 500
+_TRUNCATION_MARKER = "..."
+
+
+def _fit_handler_name(handler_name: str | None) -> str | None:
+    """Clamp the joined subscriber list to the ``handler_name`` column width.
+
+    Args:
+        handler_name: Comma-joined subscriber names, or ``None``.
+
+    Returns:
+        The value unchanged when it fits, otherwise a marked truncation so a
+        reader can tell the list was cut rather than assume it is complete.
+    """
+    if handler_name is None or len(handler_name) <= _MAX_HANDLER_NAME_LEN:
+        return handler_name
+    return handler_name[: _MAX_HANDLER_NAME_LEN - len(_TRUNCATION_MARKER)] + _TRUNCATION_MARKER
+
 
 def record_published(event: Event, db: Session) -> None:
     """
@@ -123,7 +149,7 @@ def mark_completed(event_id: str, handler_name: str | None, processing_time_ms: 
         .where(EventLog.id == event_id)
         .values(
             status=_STATUS_COMPLETED,
-            handler_name=handler_name,
+            handler_name=_fit_handler_name(handler_name),
             processing_time_ms=processing_time_ms,
             completed_at=func.now(),
         )
@@ -156,7 +182,7 @@ def mark_failed(
         .where(EventLog.id == event_id)
         .values(
             status=_STATUS_FAILED,
-            handler_name=handler_name,
+            handler_name=_fit_handler_name(handler_name),
             error_message=error_message[:_MAX_ERROR_LEN],
             processing_time_ms=processing_time_ms,
             completed_at=func.now(),
