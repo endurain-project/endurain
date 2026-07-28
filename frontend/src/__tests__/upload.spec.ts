@@ -9,6 +9,11 @@ import {
   UploadJobTimeoutError,
 } from '@/features/upload/composables/useUpload'
 import {
+  clearAwaitingThumbnail,
+  isAwaitingThumbnail,
+  markAwaitingThumbnail,
+} from '@/features/upload/composables/usePendingThumbnails'
+import {
   assertValidActivityFile,
   fetchUploadJob,
   uploadActivityFile,
@@ -296,5 +301,32 @@ describe('replaceActivitiesInFeed', () => {
     const data = feed([[makeActivity({ id: 1 })]])
 
     expect(replaceActivitiesInFeed(data, [])).toBe(data)
+  })
+})
+
+describe('pending thumbnails', () => {
+  afterEach(() => {
+    clearAwaitingThumbnail([1, 2])
+  })
+
+  it('reports nothing as awaiting by default', () => {
+    expect(isAwaitingThumbnail(1)).toBe(false)
+  })
+
+  it('reports marked activities as awaiting', () => {
+    markAwaitingThumbnail([1, 2])
+
+    expect(isAwaitingThumbnail(1)).toBe(true)
+    expect(isAwaitingThumbnail(2)).toBe(true)
+    expect(isAwaitingThumbnail(3)).toBe(false)
+  })
+
+  it('stops reporting an activity once it is cleared', () => {
+    markAwaitingThumbnail([1, 2])
+
+    clearAwaitingThumbnail([1])
+
+    expect(isAwaitingThumbnail(1)).toBe(false)
+    expect(isAwaitingThumbnail(2)).toBe(true)
   })
 })

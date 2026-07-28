@@ -174,7 +174,8 @@
     "close": "Close",
     "deleteSuccess": "Photo deleted",
     "deleteError": "Couldn't delete the photo",
-    "expand": "View full size"
+    "expand": "View full size",
+    "thumbnailPending": "Generating map preview…"
   },
   "gallery": {
     "previous": "Previous",

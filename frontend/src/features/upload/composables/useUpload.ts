@@ -7,6 +7,10 @@ import {
 
 import { fetchActivity } from '@/features/activities/services/activities'
 import type { Activity } from '@/features/activities/types'
+import {
+  clearAwaitingThumbnail,
+  markAwaitingThumbnail,
+} from '@/features/upload/composables/usePendingThumbnails'
 import { fetchUploadJob, uploadActivityFile } from '@/features/upload/services/upload'
 import { type ActivityUploadJob, isTerminalUploadJob } from '@/features/upload/types'
 import { queryKeys } from '@/services/queryKeys'
@@ -174,6 +178,9 @@ function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
  * Re-fetches activities that arrived without a map thumbnail and patches the
  * feed as each one lands, so a fresh upload gains its map without a reload.
  *
+ * Each id is registered as awaiting (so its card can show a placeholder) and
+ * cleared the moment it resolves — or when the retries run out.
+ *
  * Gives up silently after {@link THUMBNAIL_RETRY_DELAYS_MS}: an activity with no
  * GPS track never gets a thumbnail, and a genuinely delayed one is picked up by
  * the server's periodic backfill and the next feed refetch.
@@ -187,23 +194,32 @@ async function backfillMissingThumbnails(
   activityIds: number[],
 ): Promise<void> {
   let awaiting = activityIds
-  for (const delayMs of THUMBNAIL_RETRY_DELAYS_MS) {
-    await new Promise((resolve) => setTimeout(resolve, delayMs))
-    const refreshed = (
-      await Promise.all(
-        awaiting.map((id) => fetchActivity(id, { authenticated: true }).catch(() => null)),
-      )
-    ).filter((activity): activity is Activity => activity !== null)
+  markAwaitingThumbnail(awaiting)
+  try {
+    for (const delayMs of THUMBNAIL_RETRY_DELAYS_MS) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+      const refreshed = (
+        await Promise.all(
+          awaiting.map((id) => fetchActivity(id, { authenticated: true }).catch(() => null)),
+        )
+      ).filter((activity): activity is Activity => activity !== null)
 
-    const ready = refreshed.filter((activity) => activity.mapThumbnailPath !== null)
-    if (ready.length > 0) {
-      patchUserFeed(queryClient, ready)
-      const readyIds = new Set(ready.map((activity) => activity.id))
-      awaiting = awaiting.filter((id) => !readyIds.has(id))
+      const ready = refreshed.filter((activity) => activity.mapThumbnailPath !== null)
+      if (ready.length > 0) {
+        patchUserFeed(queryClient, ready)
+        const readyIds = ready.map((activity) => activity.id)
+        clearAwaitingThumbnail(readyIds)
+        const resolved = new Set(readyIds)
+        awaiting = awaiting.filter((id) => !resolved.has(id))
+      }
+      if (awaiting.length === 0) {
+        return
+      }
     }
-    if (awaiting.length === 0) {
-      return
-    }
+  } finally {
+    // Whatever is left never arrived in time; drop the placeholder rather than
+    // leaving a card pulsing forever.
+    clearAwaitingThumbnail(awaiting)
   }
 }
 
