@@ -1,6 +1,7 @@
 """Centralized timezone conversion utilities."""
 
 from datetime import date, datetime
+from typing import overload
 from zoneinfo import ZoneInfo
 
 # ISO 8601 datetime format without offset, used for the
@@ -30,6 +31,14 @@ def today_in(tz_name: str) -> date:
     return datetime.now(ZoneInfo(tz_name)).date()
 
 
+@overload
+def to_utc_aware(dt: datetime | str) -> datetime: ...
+
+
+@overload
+def to_utc_aware(dt: None) -> None: ...
+
+
 def to_utc_aware(dt: datetime | str | None) -> datetime | None:
     """
     Normalize a datetime or ISO string to UTC-aware.
@@ -39,6 +48,11 @@ def to_utc_aware(dt: datetime | str | None) -> datetime | None:
     clock values). Ensures stored timestamps carry an
     explicit UTC offset instead of relying on the
     database session timezone.
+
+    The overloads state the actual contract: ``None`` is
+    returned only for a ``None`` input, so callers that
+    already hold a value do not have to re-check the
+    result for ``None``.
 
     Args:
         dt: A datetime, ISO 8601 string, or None.
@@ -65,6 +79,12 @@ def format_utc(dt: datetime | str | None) -> str:
     offset is silently dropped and the wall-clock is stored
     as if it were UTC. Naive datetimes are assumed to be UTC.
 
+    Used for the **waypoint** timestamps inside stream payloads, which are
+    stored as JSON strings. For an activity's ``start_time``/``end_time`` use
+    :func:`to_utc_second` instead — those are real ``datetime`` columns, and
+    round-tripping them through a string only to parse it back loses the type
+    for no benefit.
+
     Args:
         dt: A datetime, ISO 8601 string, or None.
 
@@ -74,3 +94,37 @@ def format_utc(dt: datetime | str | None) -> str:
     """
     aware = to_utc_aware(dt)
     return aware.strftime(_DT_FMT) if aware else ""
+
+
+@overload
+def to_utc_second(dt: datetime | str) -> datetime: ...
+
+
+@overload
+def to_utc_second(dt: None) -> None: ...
+
+
+def to_utc_second(dt: datetime | str | None) -> datetime | None:
+    """
+    Normalize to UTC-aware and truncate to whole seconds.
+
+    The resolution every ingestion producer already agreed on: the file parsers
+    and the provider adapters all used to format their activity start/end times
+    with a second-precision pattern and let the schema validator parse them
+    back. That round-trip made the value a ``str`` at the type level even though
+    every consumer needs a ``datetime``, so this does the same normalization
+    directly.
+
+    Truncation is preserved rather than dropped because the start-time duplicate
+    check compares stored instants for equality: devices report whole seconds,
+    and letting sub-second noise through would make the same activity re-imported
+    from a different source look like a new one.
+
+    Args:
+        dt: A datetime, ISO 8601 string, or None.
+
+    Returns:
+        A UTC-aware datetime with microseconds zeroed, or None if dt is None.
+    """
+    aware = to_utc_aware(dt)
+    return aware.replace(microsecond=0) if aware is not None else None

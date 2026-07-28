@@ -110,7 +110,10 @@ class BulkImportSource:
         """
         if not self.import_initiated_time:
             return {}
-        if self.is_strava:
+        # Narrow through the attribute rather than the ``is_strava`` property:
+        # the property guarantees non-None at runtime, but that is not a fact a
+        # type checker can carry across the call.
+        if self.strava_activities:
             return strava_bulk_import_utils.build_metadata_dict(
                 file_base_name,
                 self.strava_activities,

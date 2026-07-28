@@ -8,6 +8,7 @@ import fitdecode
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
@@ -176,8 +177,8 @@ def create_activity_objects(
                 name=activity_name,
                 distance=(round(resolved_distance) if resolved_distance else 0),
                 activity_type=activity_type,
-                start_time=session_record["session"]["first_waypoint_time"].strftime("%Y-%m-%dT%H:%M:%S"),
-                end_time=session_record["session"]["last_waypoint_time"].strftime("%Y-%m-%dT%H:%M:%S"),
+                start_time=core_timezone.to_utc_second(session_record["session"]["first_waypoint_time"]),
+                end_time=core_timezone.to_utc_second(session_record["session"]["last_waypoint_time"]),
                 timezone=session_timezone,
                 total_elapsed_time=session_record["session"]["total_elapsed_time"],
                 total_timer_time=total_timer_time,

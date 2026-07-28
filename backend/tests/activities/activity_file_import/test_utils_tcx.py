@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
 
+import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.utils_tcx as utils_tcx
 
 
@@ -59,7 +59,7 @@ class TestUtilsTcx:
         assert all(wp["time"] == "2026-04-01T10:00:00" for wp in waypoints["lat_lon_waypoints"])
 
     def test_build_activity_rejects_missing_start_and_end_time(self):
-        """A TCX with no start/end is rejected at ActivityCore construction."""
+        """A TCX with no start/end is rejected with a named domain error."""
         tcx_file = SimpleNamespace(
             start_time=None,
             end_time=None,
@@ -72,7 +72,7 @@ class TestUtilsTcx:
             calories=None,
         )
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(core_exceptions.InvalidInputError, match="no activity start or end time"):
             utils_tcx._build_activity(
                 tcx_file=tcx_file,
                 user_id=1,

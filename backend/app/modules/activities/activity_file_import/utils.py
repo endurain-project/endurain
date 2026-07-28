@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import functools
 from datetime import UTC, datetime
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
 
-import modules.activities.activity.schema as activities_schema
+if TYPE_CHECKING:
+    # Annotation-only: the module already uses postponed evaluation, so the
+    # contract is never imported at runtime and this file stays free of any
+    # import the parsers do not actually execute.
+    import modules.activities.activity.contracts as activities_contracts
 
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -34,7 +38,7 @@ STREAM_KEYS: tuple[str, ...] = (
 
 
 def build_activity_file_payload(
-    activity: activities_schema.Activity,
+    activity: activities_contracts.ActivityCore,
     waypoints: dict[str, list[dict]],
     laps: list[dict],
     extras: dict | None = None,
@@ -42,7 +46,10 @@ def build_activity_file_payload(
     """Build normalized activity file import payload.
 
     Args:
-        activity: Populated Activity schema instance.
+        activity: The parsed ingestion contract. Every parser builds an
+            ``ActivityCore`` — the strict write shape — not the read
+            ``Activity``, which carries server-owned fields a parser can never
+            populate.
         waypoints: Dict keyed by stream name (e.g. ``'lat_lon_waypoints'``,
             ``'ele_waypoints'``, …) mapping to lists of waypoint dicts.
         laps: List of lap dicts for the activity.

@@ -274,14 +274,22 @@ def _build_activity(
         (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
     )
 
+    # An activity without a start/end is not importable. Rejecting it here gives
+    # a clear reason instead of a pydantic ValidationError raised deep inside
+    # ``ActivityCore`` construction, which is what used to happen.
+    start_time = core_timezone.to_utc_second(tcx_file.start_time)
+    end_time = core_timezone.to_utc_second(tcx_file.end_time)
+    if start_time is None or end_time is None:
+        raise core_exceptions.InvalidInputError("Invalid TCX file - no activity start or end time found")
+
     return activities_contracts.ActivityCore(
         user_id=user_id,
         name=activity_name,
         distance=distance,
         activity_type=activity_type,
         timezone=timezone,
-        start_time=(core_timezone.format_utc(tcx_file.start_time) if tcx_file.start_time else None),
-        end_time=(core_timezone.format_utc(tcx_file.end_time) if tcx_file.end_time else None),
+        start_time=start_time,
+        end_time=end_time,
         total_elapsed_time=elapsed,
         total_timer_time=elapsed,
         city=city,
