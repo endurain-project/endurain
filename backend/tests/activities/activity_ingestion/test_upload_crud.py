@@ -25,7 +25,7 @@ def _row(**overrides):
         "id": "job-1",
         "user_id": 7,
         "filename": "ride.gpx",
-        "staged_path": "/s/x.gpx",
+        "staged_key": "abc.gpx",
         "status": "pending",
         "error_code": None,
         "activity_ids": None,
@@ -45,7 +45,7 @@ class TestCreateUploadJob:
     @patch("modules.activities.activity_ingestion.upload_crud.activity_ingestion_models.ActivityUploadJob")
     def test_commits_by_default(self, model, mock_db):
         model.return_value = _row()
-        result = upload_crud.create_upload_job("job-1", 7, "ride.gpx", "/s/x.gpx", mock_db)
+        result = upload_crud.create_upload_job("job-1", 7, "ride.gpx", "abc.gpx", mock_db)
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
         assert result.id == "job-1"
@@ -55,7 +55,7 @@ class TestCreateUploadJob:
     def test_flushes_when_the_caller_owns_the_commit(self, model, mock_db):
         """Lets the row and its outbox event land in one transaction."""
         model.return_value = _row()
-        upload_crud.create_upload_job("job-1", 7, "ride.gpx", "/s/x.gpx", mock_db, commit=False)
+        upload_crud.create_upload_job("job-1", 7, "ride.gpx", "abc.gpx", mock_db, commit=False)
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
@@ -64,7 +64,7 @@ class TestCreateUploadJob:
         model.return_value = _row()
         mock_db.commit.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as err:
-            upload_crud.create_upload_job("job-1", 7, "ride.gpx", "/s/x.gpx", mock_db)
+            upload_crud.create_upload_job("job-1", 7, "ride.gpx", "abc.gpx", mock_db)
         assert err.value.status_code == 500
 
 
@@ -83,8 +83,12 @@ class TestGetUploadJob:
         """The owner is part of the query, not an afterthought in the caller."""
         _stub_first(mock_db, None)
         upload_crud.get_upload_job("job-1", 7, mock_db)
-        where_clause = str(mock_db.scalars.call_args.args[0])
-        assert "user_id" in where_clause
+        stmt = mock_db.scalars.call_args.args[0]
+        # Read the clause structure rather than compiling to SQL: compiling
+        # would configure every mapper, which makes this test depend on what
+        # else the run happened to import.
+        filtered = {clause.left.name for clause in stmt.whereclause.get_children()}
+        assert filtered == {"id", "user_id"}
 
     def test_maps_a_completed_job(self, mock_db):
         _stub_first(mock_db, _row(status="completed", activity_ids=[11, 12], completed_at=_NOW))
@@ -101,13 +105,13 @@ class TestGetUploadJob:
 
 
 class TestGetJobWorkItem:
-    def test_returns_the_stored_owner_and_path(self, mock_db):
+    def test_returns_the_stored_owner_and_key(self, mock_db):
         """The owner comes from the row, so a tampered event cannot reattribute the import."""
         mock_db.get.return_value = _row()
-        assert upload_crud.get_job_work_item("job-1", mock_db) == (7, "/s/x.gpx")
+        assert upload_crud.get_job_work_item("job-1", mock_db) == (7, "abc.gpx")
 
     def test_returns_none_when_already_consumed(self, mock_db):
-        mock_db.get.return_value = _row(staged_path=None)
+        mock_db.get.return_value = _row(staged_key=None)
         assert upload_crud.get_job_work_item("job-1", mock_db) is None
 
     def test_returns_none_for_an_unknown_job(self, mock_db):
@@ -116,14 +120,14 @@ class TestGetJobWorkItem:
 
 
 class TestTerminalTransitions:
-    def test_mark_completed_records_ids_and_clears_the_staged_path(self, mock_db):
+    def test_mark_completed_records_ids_and_clears_the_staged_key(self, mock_db):
         row = _row(status="processing")
         mock_db.get.return_value = row
         upload_crud.mark_completed("job-1", [11], mock_db)
         assert row.status == "completed"
         assert row.activity_ids == [11]
         # Cleared so a retry after success is a no-op rather than a re-import.
-        assert row.staged_path is None
+        assert row.staged_key is None
         assert row.completed_at is not None
         mock_db.commit.assert_called_once()
 
@@ -133,7 +137,7 @@ class TestTerminalTransitions:
         upload_crud.mark_failed("job-1", activity_ingestion_schema.UploadJobErrorCode.INVALID_FILE, mock_db)
         assert row.status == "failed"
         assert row.error_code == "invalid_file"
-        assert row.staged_path is None
+        assert row.staged_key is None
 
     def test_mark_processing(self, mock_db):
         row = _row()
@@ -169,6 +173,6 @@ class TestSchemaMapping:
         assert result is not None
         assert result.activity_ids == []
 
-    def test_the_staged_path_is_not_part_of_the_read_schema(self):
+    def test_the_staged_key_is_not_part_of_the_read_schema(self):
         """It is an internal filesystem detail and must not reach a client."""
-        assert "staged_path" not in activity_ingestion_schema.ActivityUploadJob.model_fields
+        assert "staged_key" not in activity_ingestion_schema.ActivityUploadJob.model_fields

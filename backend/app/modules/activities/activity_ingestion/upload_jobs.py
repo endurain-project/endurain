@@ -8,7 +8,7 @@ does not change with the deployment.
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -16,8 +16,8 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import infra.runtime as platform_runtime
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -75,7 +75,7 @@ def accept_upload(
         UnsupportedFormatError: When the extension is not a supported format.
         HTTPException: When the shared upload validators reject the payload.
     """
-    staged_path = upload_entry.stage_uploaded_activity_file(file)
+    staged_key = upload_entry.stage_uploaded_activity_file(file)
     job_id = str(uuid.uuid4())
 
     try:
@@ -84,7 +84,7 @@ def accept_upload(
             token_user_id,
             # ``file.filename`` is non-None here: staging rejects a missing one.
             str(file.filename),
-            staged_path,
+            staged_key,
             db,
             commit=False,
         )
@@ -106,7 +106,7 @@ def accept_upload(
     except Exception:
         # The row is gone (or never committed), so nothing will consume the
         # staged bytes.
-        core_file_uploads.remove_files([staged_path])
+        upload_entry.discard_staged_upload(staged_key)
         raise
 
     if not core_config.settings.JOBS_ENABLED:
@@ -152,9 +152,13 @@ def run_upload_job(job_id: str) -> None:
     The job body for both executors. Opens its own session because neither the
     durable worker nor the background pool has a request-scoped one.
 
-    Raises on failure so the durable runner retries; the row is only moved to
-    ``failed`` once retries are exhausted, so a transient database blip does not
-    tell the user their file was rejected.
+    Failure handling splits on whether another attempt could plausibly succeed.
+    A rejected file (bad format, unreadable payload) fails identically every
+    time, so it is recorded as terminal immediately rather than burning five
+    attempts before telling the user. A server-side fault is left to propagate
+    so the durable runner retries it with backoff, and the staged blob is kept
+    so that retry has something to read \u2014 unless nothing will retry, which is
+    the case when durable jobs are off and the fallback pool runs each job once.
 
     Args:
         job_id: The ``activity_upload_jobs`` row to process.
@@ -171,20 +175,34 @@ def run_upload_job(job_id: str) -> None:
             # Already consumed — a retry after the import succeeded, or a job
             # whose row was pruned. Nothing to do, and re-running would be wrong.
             logger.info(
-                "Skipping an upload job with no staged file",
+                "Skipping an upload job with no staged upload",
                 extra=core_logger.context(job_id=job_id),
             )
             return
-        user_id, staged_path = work_item
+        user_id, staged_key = work_item
         upload_crud.mark_processing(job_id, db)
 
     with core_database.SessionLocal() as db:
         try:
-            created = upload_entry.process_staged_upload(user_id, staged_path, db)
-        except (core_exceptions.DomainError, HTTPException) as err:
-            # A rejected file will be rejected identically on every retry, so
-            # record the terminal reason now instead of burning attempts.
-            fail_upload_job(job_id, _error_code_for(err))
+            created = upload_entry.process_staged_upload(user_id, staged_key, db)
+        except (
+            core_exceptions.UnsupportedFormatError,
+            core_exceptions.InvalidInputError,
+            HTTPException,
+        ) as err:
+            # The file itself is the problem, so every retry reaches the same
+            # verdict: record it now and drop the blob nothing will read again.
+            fail_upload_job(job_id, _error_code_for(err), staged_key)
+            raise
+        except Exception:
+            # Server-side, possibly transient. Keep the blob for the retry, and
+            # only give up here when there is no retry to wait for.
+            if not core_config.settings.JOBS_ENABLED:
+                fail_upload_job(
+                    job_id,
+                    activity_ingestion_schema.UploadJobErrorCode.PROCESSING_FAILED,
+                    staged_key,
+                )
             raise
 
         # ``Activity.id`` is typed optional on the read model even though a
@@ -212,20 +230,26 @@ def run_upload_job(job_id: str) -> None:
 def fail_upload_job(
     job_id: str,
     error_code: activity_ingestion_schema.UploadJobErrorCode,
+    staged_key: str | None = None,
 ) -> None:
-    """Record a terminal failure on a job, in its own session.
+    """Record a terminal failure on a job and drop its staged upload.
 
     Separate session because the caller's may be in a failed transaction.
 
     Args:
         job_id: The job identifier.
         error_code: Sanitized failure reason.
+        staged_key: Storage key to discard, when the caller already knows it.
+            Omitted by the dead-letter path, which reads it from the row.
 
     Returns:
         None.
     """
     try:
         with core_database.SessionLocal() as db:
+            if staged_key is None:
+                work_item = upload_crud.get_job_work_item(job_id, db)
+                staged_key = work_item[1] if work_item else None
             upload_crud.mark_failed(job_id, error_code, db)
     except Exception as err:
         # Never mask the original failure with a bookkeeping one.
@@ -234,3 +258,51 @@ def fail_upload_job(
             exc_info=err,
             extra=core_logger.context(job_id=job_id),
         )
+
+    # After the row is terminal, so a crash in between leaves a readable blob
+    # rather than a job pointing at bytes that are gone.
+    if staged_key is not None:
+        upload_entry.discard_staged_upload(staged_key)
+
+
+# Single-runner lock name: the deletes are idempotent, but the lock keeps the
+# work from being duplicated across replicas.
+_PRUNE_LOCK_NAME = "activity_upload_jobs_prune"
+
+
+def prune_expired_upload_jobs() -> None:
+    """Prune finished upload jobs older than the durable-job retention window.
+
+    Mirrors :func:`infra.retention.prune_expired_records`: same schedule, same
+    ``JOBS_RETENTION_DAYS`` window, same platform lock so only one replica does
+    the work. It cannot live in that module because ``activity_upload_jobs`` is
+    a domain table and the substrate must not import a domain module.
+
+    The window is shared rather than given its own setting because these rows
+    are job history with the same lifecycle as ``processing_jobs``: an operator
+    asking to keep job history for N days means all of it.
+
+    Only terminal rows are removed. Pending and processing jobs are in-flight
+    work whose owner is still polling, and deleting one would strand both the
+    poller and the staged blob.
+
+    Returns:
+        None.
+    """
+    retention_days = core_config.settings.JOBS_RETENTION_DAYS
+    if retention_days <= 0:
+        return
+
+    platform = platform_runtime.get_active_platform()
+    with platform.lock.try_acquire(_PRUNE_LOCK_NAME) as acquired:
+        if not acquired:
+            logger.debug("Upload job prune: another replica holds the lock; skipping")
+            return
+        cutoff = platform.clock.now() - timedelta(days=retention_days)
+        with core_database.SessionLocal() as db:
+            deleted = upload_crud.delete_jobs_before(cutoff, db)
+
+    if deleted:
+        logger.info(f"Upload job prune: deleted {deleted} finished upload job row(s)")
+    else:
+        logger.debug("Upload job prune: nothing to delete")

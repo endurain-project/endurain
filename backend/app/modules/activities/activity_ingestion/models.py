@@ -37,8 +37,8 @@ class ActivityUploadJob(Base):
         user_id: Owner of the upload; every read is filtered by it.
         filename: Original client-supplied filename, kept for display only and
             never used to build a filesystem path.
-        staged_path: Absolute path of the server-named file awaiting parsing,
-            cleared once the file has been consumed.
+        staged_key: Storage key of the uploaded blob awaiting parsing, cleared
+            once the upload has been consumed.
         status: Lifecycle state: pending, processing, completed, or failed.
         error_code: Stable, sanitized reason when ``status`` is failed.
         activity_ids: Ids created by the import, so the client can refresh
@@ -67,10 +67,10 @@ class ActivityUploadJob(Base):
         nullable=False,
         comment="Original client filename, for display only",
     )
-    staged_path: Mapped[str | None] = mapped_column(
+    staged_key: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
-        comment="Server-named staged file awaiting parsing; cleared once consumed",
+        comment="Storage key of the staged upload; cleared once consumed",
     )
     status: Mapped[str] = mapped_column(
         String(20),

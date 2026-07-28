@@ -21,6 +21,12 @@ DATA_FOLDER="${DATA_DIR:-$BACKEND_FOLDER/data}"
 LOGS_FOLDER="${LOGS_DIR:-$BACKEND_FOLDER/logs}"
 FRONTEND_FOLDER="${FRONTEND_DIR:-/app/frontend/dist}"
 
+# Pre-created so a fresh data volume has the full layout visible from boot.
+# Most of these are also asserted by config.check_required_dirs(); the
+# exception is upload_staging, which is the local StorageProvider's area for
+# uploads awaiting import. The provider creates it on demand, and an S3
+# deployment has no such directory at all, so it is deliberately not a config
+# constant — it is listed here only so operators see it alongside the rest.
 REQUIRED_DIRS="
 $DATA_FOLDER
 $DATA_FOLDER/user_images
@@ -31,6 +37,7 @@ $DATA_FOLDER/activity_files
 $DATA_FOLDER/activity_files/processed
 $DATA_FOLDER/activity_files/bulk_import
 $DATA_FOLDER/activity_files/bulk_import/import_errors
+$DATA_FOLDER/activity_files/upload_incoming
 $DATA_FOLDER/activity_files/upload_staging
 $DATA_FOLDER/activity_files/strava_import
 $DATA_FOLDER/activity_files/strava_import/activities

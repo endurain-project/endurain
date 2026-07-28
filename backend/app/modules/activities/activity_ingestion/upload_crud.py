@@ -42,7 +42,7 @@ def create_upload_job(
     job_id: str,
     user_id: int,
     filename: str,
-    staged_path: str,
+    staged_key: str,
     db: Session,
     *,
     commit: bool = True,
@@ -54,7 +54,7 @@ def create_upload_job(
         job_id: Caller-generated job identifier (UUIDv4 string).
         user_id: Owner of the upload.
         filename: Original client filename, for display only.
-        staged_path: Absolute path of the staged file awaiting parsing.
+        staged_key: Storage key of the staged upload awaiting parsing.
         db: Database session.
         commit: Whether to commit; False lets the caller publish an event in the
             same transaction.
@@ -70,7 +70,7 @@ def create_upload_job(
         id=job_id,
         user_id=user_id,
         filename=filename,
-        staged_path=staged_path,
+        staged_key=staged_key,
         status=activity_ingestion_schema.UploadJobStatus.PENDING.value,
         created_at=now,
         updated_at=now,
@@ -118,7 +118,7 @@ def get_upload_job(
 @core_decorators.handle_db_errors
 def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
     """
-    Read the owner and staged path of a job, for the background executor.
+    Read the owner and staged key of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_upload_job`: the caller here is the
     worker acting on an event it was handed, not an HTTP client naming a job.
@@ -130,16 +130,16 @@ def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
         db: Database session.
 
     Returns:
-        A ``(user_id, staged_path)`` pair, or None if the job is unknown or its
-        file was already consumed.
+        A ``(user_id, staged_key)`` pair, or None if the job is unknown or its
+        upload was already consumed.
 
     Raises:
         HTTPException: If a database error occurs.
     """
     orm_job = db.get(activity_ingestion_models.ActivityUploadJob, job_id)
-    if orm_job is None or orm_job.staged_path is None:
+    if orm_job is None or orm_job.staged_key is None:
         return None
-    return orm_job.user_id, orm_job.staged_path
+    return orm_job.user_id, orm_job.staged_key
 
 
 @core_decorators.handle_db_errors
@@ -188,7 +188,7 @@ def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
     orm_job.status = activity_ingestion_schema.UploadJobStatus.COMPLETED.value
     orm_job.activity_ids = activity_ids
     orm_job.error_code = None
-    orm_job.staged_path = None
+    orm_job.staged_key = None
     orm_job.updated_at = now
     orm_job.completed_at = now
     db.commit()
@@ -220,7 +220,7 @@ def mark_failed(
     now = datetime.now(UTC)
     orm_job.status = activity_ingestion_schema.UploadJobStatus.FAILED.value
     orm_job.error_code = error_code.value
-    orm_job.staged_path = None
+    orm_job.staged_key = None
     orm_job.updated_at = now
     orm_job.completed_at = now
     db.commit()

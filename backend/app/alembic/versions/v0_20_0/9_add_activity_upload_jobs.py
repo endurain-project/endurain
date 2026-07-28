@@ -15,9 +15,11 @@ user, carries only a closed set of sanitized error codes, and stays identical
 whether the work ran on the durable worker or on the in-process fallback pool,
 so the client contract does not depend on ``JOBS_ENABLED``.
 
-``staged_path`` holds the server-named file between the request and the worker
-and is cleared once consumed, which is also what makes a retry after a
-successful import a no-op instead of a double import.
+``staged_key`` holds the storage key of the uploaded blob between the request
+and the worker and is cleared once consumed, which is also what makes a retry
+after a successful import a no-op instead of a double import. The blob itself
+goes through the platform ``StorageProvider``, so the worker that parses it does
+not have to be on the node that received it.
 """
 
 from collections.abc import Sequence
@@ -56,10 +58,10 @@ def upgrade() -> None:
             comment="Original client filename, for display only",
         ),
         sa.Column(
-            "staged_path",
+            "staged_key",
             sa.String(length=500),
             nullable=True,
-            comment="Server-named staged file awaiting parsing; cleared once consumed",
+            comment="Storage key of the staged upload; cleared once consumed",
         ),
         sa.Column(
             "status",
