@@ -22,8 +22,8 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
 import { ACTIVITY_FILE_EXTENSIONS } from '@/features/upload/types'
 import {
-  UploadJobFailedError,
-  UploadJobTimeoutError,
+  IngestionJobFailedError,
+  IngestionJobTimeoutError,
   useUploadActivityFileMutation,
 } from '@/features/upload/composables/useUpload'
 import {
@@ -157,10 +157,10 @@ function pickFile(): void {
  * @returns The localized message to show.
  */
 function uploadErrorMessage(error: unknown): string {
-  if (error instanceof UploadJobTimeoutError) {
+  if (error instanceof IngestionJobTimeoutError) {
     return t('home.upload.timeout')
   }
-  if (error instanceof UploadJobFailedError && error.code) {
+  if (error instanceof IngestionJobFailedError && error.code) {
     return t(`home.upload.failed.${error.code}`)
   }
   return t('home.upload.error')

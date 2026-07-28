@@ -192,6 +192,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/activities/ingestion-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Activity Ingestion Job
+         * @description Read the state of one of your ingestion requests.
+         *
+         *     Serves both uploads and provider refreshes: the caller's question is the
+         *     same either way, so there is one route rather than two near-identical ones.
+         *
+         *     Scoped to the caller: a job belonging to another user is reported as not
+         *     found rather than forbidden, so the endpoint does not confirm that an id
+         *     exists.
+         *
+         *     Args:
+         *         job_id: The job identifier returned by the upload or refresh route.
+         *         token_user_id: Authenticated user ID.
+         *         _check_scopes: Scope validation dependency.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The ingestion job.
+         *
+         *     Raises:
+         *         NotFoundError: If no such job belongs to the caller.
+         */
+        get: operations["get_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/activities/refresh": {
         parameters: {
             query?: never;
@@ -203,15 +242,26 @@ export interface paths {
         put?: never;
         /**
          * Refresh Activities
-         * @description Fetch the last 24h of activities from the linked providers (Strava/Garmin).
+         * @description Queue a sync of the last 24h from the linked providers (Strava/Garmin).
          *
-         *     The one documented ``async`` route: it awaits the provider HTTP
-         *     clients, which are not yet reworked. It lives in the ingestion layer (not the
-         *     activities core) because it depends on the Strava/Garmin provider clients — the
-         *     core router stays provider-agnostic.
+         *     Returns ``202`` with a job handle; poll
+         *     ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
          *
-         *     Returns an empty list when the providers had nothing new; it used to answer
-         *     ``200 null``, which forced every client to null-check a collection endpoint.
+         *     This used to be the one ``async def`` route in activities, awaiting the
+         *     provider clients inline. Everything synchronous on those paths — the
+         *     integration lookups, the per-activity dedup reads — therefore ran on the
+         *     event loop, where they stall every other request in the process instead of
+         *     occupying a single worker thread. Running the sync as a job removes that
+         *     class of bug rather than auditing for it: no provider code touches the loop
+         *     any more.
+         *
+         *     Args:
+         *         token_user_id: Authenticated user ID.
+         *         _check_scopes: Scope validation dependency.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The accepted refresh job, in the pending state.
          */
         post: operations["refresh_activities_api_v1_activities_refresh_post"];
         delete?: never;
@@ -296,42 +346,6 @@ export interface paths {
          *         The accepted upload job, in the pending state.
          */
         post: operations["create_activity_with_uploaded_file_api_v1_activities_upload_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/upload/{job_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Activity Upload Job
-         * @description Read the state of one of your uploads.
-         *
-         *     Scoped to the caller: a job belonging to another user is reported as not
-         *     found rather than forbidden, so the endpoint does not confirm that an id
-         *     exists.
-         *
-         *     Args:
-         *         job_id: The upload job identifier returned by the upload route.
-         *         token_user_id: Authenticated user ID.
-         *         _check_scopes: Scope validation dependency.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The upload job.
-         *
-         *     Raises:
-         *         NotFoundError: If no such job belongs to the caller.
-         */
-        get: operations["get_activity_upload_job_api_v1_activities_upload__job_id__get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5515,6 +5529,51 @@ export interface components {
             wkt_step_name: string;
         };
         /**
+         * ActivityIngestionJob
+         * @description An accepted ingestion request and the current state of its import.
+         *
+         *     One shape for both kinds, so a client has a single thing to poll: an upload
+         *     and a provider refresh differ in how the activities are obtained, not in
+         *     what the caller needs to know about progress.
+         *
+         *     Attributes:
+         *         id: Job identifier, returned by the route that accepted the request.
+         *         kind: Whether this job imports an upload or syncs from providers.
+         *         filename: Original client filename; only set for uploads.
+         *         status: Current lifecycle state.
+         *         error_code: Sanitized failure reason when ``status`` is failed.
+         *         activity_ids: Ids created by the import once it completes.
+         *         created_at: When the request was accepted.
+         *         updated_at: When the job last changed state.
+         *         completed_at: When the job reached a terminal state.
+         */
+        ActivityIngestionJob: {
+            /**
+             * Activity Ids
+             * @default []
+             */
+            activity_ids: number[];
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            error_code?: components["schemas"]["IngestionJobErrorCode"] | null;
+            /** Filename */
+            filename?: string | null;
+            /** Id */
+            id: string;
+            kind: components["schemas"]["IngestionJobKind"];
+            status: components["schemas"]["IngestionJobStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
          * ActivityLapsRead
          * @description Schema for reading activity laps.
          *
@@ -5779,45 +5838,6 @@ export interface components {
          * @enum {string}
          */
         ActivityType: "run" | "bike" | "swim" | "walk" | "strength" | "cardio";
-        /**
-         * ActivityUploadJob
-         * @description An accepted upload and the current state of its import.
-         *
-         *     Attributes:
-         *         id: Upload job identifier, returned by the upload route.
-         *         filename: Original client filename, echoed back for display.
-         *         status: Current lifecycle state.
-         *         error_code: Sanitized failure reason when ``status`` is failed.
-         *         activity_ids: Ids created by the import once it completes.
-         *         created_at: When the upload was accepted.
-         *         updated_at: When the job last changed state.
-         *         completed_at: When the job reached a terminal state.
-         */
-        ActivityUploadJob: {
-            /**
-             * Activity Ids
-             * @default []
-             */
-            activity_ids: number[];
-            /** Completed At */
-            completed_at?: string | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            error_code?: components["schemas"]["UploadJobErrorCode"] | null;
-            /** Filename */
-            filename: string;
-            /** Id */
-            id: string;
-            status: components["schemas"]["UploadJobStatus"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
         /**
          * ActivityVisibility
          * @description Activity visibility levels.
@@ -8988,6 +9008,29 @@ export interface components {
             token: string;
         };
         /**
+         * IngestionJobErrorCode
+         * @description Stable, sanitized reasons an ingestion job can fail.
+         *
+         *     Deliberately a closed set. The underlying exception text can carry
+         *     filesystem paths, parser internals and provider tokens, so the client is
+         *     given a code it can translate instead of a message the server happened to
+         *     produce.
+         * @enum {string}
+         */
+        IngestionJobErrorCode: "unsupported_format" | "invalid_file" | "no_activities_found" | "processing_failed" | "provider_unavailable";
+        /**
+         * IngestionJobKind
+         * @description What kind of ingestion the job performs.
+         * @enum {string}
+         */
+        IngestionJobKind: "upload" | "refresh";
+        /**
+         * IngestionJobStatus
+         * @description Lifecycle states of an ingestion job.
+         * @enum {string}
+         */
+        IngestionJobStatus: "pending" | "processing" | "completed" | "failed";
+        /**
          * Interval
          * @description Recurrence intervals for user goals.
          *
@@ -10392,22 +10435,6 @@ export interface components {
          * @enum {string}
          */
         Units: "metric" | "imperial";
-        /**
-         * UploadJobErrorCode
-         * @description Stable, sanitized reasons an upload job can fail.
-         *
-         *     Deliberately a closed set. The underlying exception text can carry
-         *     filesystem paths and parser internals, so the client is given a code it can
-         *     translate instead of a message the server happened to produce.
-         * @enum {string}
-         */
-        UploadJobErrorCode: "unsupported_format" | "invalid_file" | "no_activities_found" | "processing_failed";
-        /**
-         * UploadJobStatus
-         * @description Lifecycle states of an upload job.
-         * @enum {string}
-         */
-        UploadJobStatus: "pending" | "processing" | "completed" | "failed";
         /**
          * UserAccessType
          * @description User access level enumeration.
@@ -12437,11 +12464,15 @@ export interface operations {
             };
         };
     };
-    refresh_activities_api_v1_activities_refresh_post: {
+    get_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                api_key?: string | null;
+            };
             header?: never;
-            path?: never;
+            path: {
+                job_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -12452,7 +12483,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityIngestionJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_activities_api_v1_activities_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityIngestionJob"];
                 };
             };
         };
@@ -12537,40 +12597,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityUploadJob"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_activity_upload_job_api_v1_activities_upload__job_id__get: {
-        parameters: {
-            query?: {
-                api_key?: string | null;
-            };
-            header?: never;
-            path: {
-                job_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityUploadJob"];
+                    "application/json": components["schemas"]["ActivityIngestionJob"];
                 };
             };
             /** @description Validation Error */

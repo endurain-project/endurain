@@ -3,6 +3,9 @@ import type { Schemas } from '@/types'
 import { apiFetch, HttpError } from '@/services/http'
 import { todayIsoDate } from '@/utils/datetime'
 
+/** Job handle returned by the refresh endpoint; polled via `fetchIngestionJob`. */
+type ActivityIngestionJob = Schemas['ActivityIngestionJob']
+
 import type {
   ActivitiesPage,
   Activity,
@@ -540,16 +543,19 @@ export async function fetchUserThisMonthActivityCount(
 }
 
 /**
- * Triggers a refresh of the viewer's linked-integration activities (Strava /
- * Garmin Connect) and returns the freshly imported ones. Authenticated-only.
+ * Queues a refresh of the viewer's linked-integration activities (Strava /
+ * Garmin Connect). Authenticated-only.
+ *
+ * Resolves as soon as the sync is queued, not when it finishes: the endpoint
+ * answers `202` and pulls the providers on a background worker, so the caller
+ * must poll `fetchIngestionJob` for the outcome.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns The newly imported activities, mapped to the clean model.
+ * @returns The accepted refresh job, in the pending state.
  * @throws {HttpError} When the request fails.
  */
-export async function refreshActivities(signal?: AbortSignal): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>('/activities/refresh', { signal })
-  return (dtos ?? []).map(mapActivity)
+export async function refreshActivities(signal?: AbortSignal): Promise<ActivityIngestionJob> {
+  return apiFetch<ActivityIngestionJob>('/activities/refresh', { method: 'POST', signal })
 }
 
 /**

@@ -3,10 +3,10 @@ import type { InfiniteData } from '@tanstack/vue-query'
 
 import {
   prependActivitiesToFeed,
-  pollUploadJob,
+  pollIngestionJob,
   replaceActivitiesInFeed,
-  UploadJobFailedError,
-  UploadJobTimeoutError,
+  IngestionJobFailedError,
+  IngestionJobTimeoutError,
 } from '@/features/upload/composables/useUpload'
 import {
   clearAwaitingThumbnail,
@@ -15,10 +15,10 @@ import {
 } from '@/features/upload/composables/usePendingThumbnails'
 import {
   assertValidActivityFile,
-  fetchUploadJob,
+  fetchIngestionJob,
   uploadActivityFile,
 } from '@/features/upload/services/upload'
-import { type ActivityUploadJob, UploadValidationError } from '@/features/upload/types'
+import { type ActivityIngestionJob, UploadValidationError } from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
 
 import { makeActivity } from './fixtures/activity'
@@ -51,14 +51,15 @@ function jsonResponse(body: unknown, status = 201): Response {
 }
 
 /**
- * Builds an upload job in the shape the 202 upload response returns.
+ * Builds an ingestion job in the shape the 202 responses return.
  *
- * @param overrides - Fields to override on the default pending job.
- * @returns An upload job.
+ * @param overrides - Fields to override on the default pending upload job.
+ * @returns An ingestion job.
  */
-function uploadJob(overrides: Partial<ActivityUploadJob> = {}): ActivityUploadJob {
+function uploadJob(overrides: Partial<ActivityIngestionJob> = {}): ActivityIngestionJob {
   return {
     id: 'job-1',
+    kind: 'upload',
     filename: 'ride.gpx',
     status: 'pending',
     activity_ids: [],
@@ -186,26 +187,26 @@ describe('uploadActivityFile', () => {
   })
 })
 
-describe('fetchUploadJob', () => {
+describe('fetchIngestionJob', () => {
   it('encodes the job id into the path', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob()))
 
-    await fetchUploadJob('../admin/jobs')
+    await fetchIngestionJob('../admin/jobs')
 
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
-    // A hostile id must not climb out of the upload namespace.
-    expect(url).toBe('/activities/upload/..%2Fadmin%2Fjobs')
+    // A hostile id must not climb out of the ingestion-jobs namespace.
+    expect(url).toBe('/activities/ingestion-jobs/..%2Fadmin%2Fjobs')
   })
 })
 
-describe('pollUploadJob', () => {
+describe('pollIngestionJob', () => {
   it('polls until the import reaches a terminal state', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'pending' })))
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
       .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7, 8] })))
 
-    const job = await pollUploadJob('job-1', { intervalMs: 0 })
+    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(job.activity_ids).toEqual([7, 8])
@@ -216,17 +217,17 @@ describe('pollUploadJob', () => {
       jsonResponse(uploadJob({ status: 'failed', error_code: 'invalid_file' })),
     )
 
-    const error = await pollUploadJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
+    const error = await pollIngestionJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
 
-    expect(error).toBeInstanceOf(UploadJobFailedError)
-    expect((error as UploadJobFailedError).code).toBe('invalid_file')
+    expect(error).toBeInstanceOf(IngestionJobFailedError)
+    expect((error as IngestionJobFailedError).code).toBe('invalid_file')
   })
 
   it('gives up once the deadline passes', async () => {
     fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'processing' })))
 
-    await expect(pollUploadJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
-      UploadJobTimeoutError,
+    await expect(pollIngestionJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
+      IngestionJobTimeoutError,
     )
   })
 })

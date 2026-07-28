@@ -25,7 +25,7 @@ import modules.activities.activity.subscribers as activity_subscribers
 import modules.activities.activity_file_storage.subscribers as activity_file_storage_subscribers
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
-import modules.activities.activity_ingestion.upload_subscribers as activity_upload_subscribers
+import modules.activities.activity_ingestion.ingestion_subscribers as activity_ingestion_subscribers
 import modules.activities.activity_media.subscribers as activity_media_subscribers
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
@@ -79,7 +79,7 @@ def register_all_activity_durable_handlers(registry: JobHandlerRegistry) -> None
     activity_file_storage_subscribers.register_activity_file_cleanup_durable_handlers(registry)
     activity_media_subscribers.register_activity_media_cleanup_durable_handlers(registry)
     activity_bulk_import_subscribers.register_bulk_import_durable_handlers(registry)
-    activity_upload_subscribers.register_upload_durable_handlers(registry)
+    activity_ingestion_subscribers.register_ingestion_durable_handlers(registry)
 
 
 @dataclass(frozen=True)
@@ -173,14 +173,24 @@ ACTIVITY_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         ),
     ),
     DurableSubscriberNet(
-        activity_upload_subscribers.UPLOADED_FILE_SUBSCRIBER_ID,
+        activity_ingestion_subscribers.UPLOADED_FILE_SUBSCRIBER_ID,
         None,
         exempt_reason=(
             "The durable job IS the reliability mechanism here: each upload is its own "
-            "retryable job whose outcome is recorded on the activity_upload_jobs row "
+            "retryable job whose outcome is recorded on the activity_ingestion_jobs row "
             "the uploader polls. It is a command job, not an activity.created "
             "reaction, so there is no derived state to re-derive on a schedule — a "
             "job that exhausts its attempts ends as 'failed' and the user re-uploads."
+        ),
+    ),
+    DurableSubscriberNet(
+        activity_ingestion_subscribers.REFRESH_REQUESTED_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A refresh is a command job that re-reads a provider window the user asked "
+            "for; its result is activities, which the create-path subscribers already "
+            "reconcile. Re-running it on a schedule would be a provider poll, not a "
+            "reconciliation — and the scheduler already owns that separately."
         ),
     ),
 )

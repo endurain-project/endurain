@@ -1,6 +1,6 @@
-"""Persistence for activity upload jobs.
+"""Persistence for activity ingestion jobs.
 
-Pure persistence: staging, parsing and executor choice live in ``upload_jobs``,
+Pure persistence: staging, parsing and executor choice live in ``ingestion_jobs``,
 so this module never touches the filesystem and never publishes events.
 """
 
@@ -18,18 +18,21 @@ logger = core_logger.get_logger(__name__)
 
 
 def _to_read_schema(
-    orm_job: activity_ingestion_models.ActivityUploadJob,
-) -> activity_ingestion_schema.ActivityUploadJob:
-    """Convert an ORM ``ActivityUploadJob`` row to its read schema.
+    orm_job: activity_ingestion_models.ActivityIngestionJob,
+) -> activity_ingestion_schema.ActivityIngestionJob:
+    """Convert an ORM ``ActivityIngestionJob`` row to its read schema.
 
     The single ORM→schema boundary for this module so ORM instances never leave
     ``crud``.
     """
-    return activity_ingestion_schema.ActivityUploadJob(
+    return activity_ingestion_schema.ActivityIngestionJob(
         id=orm_job.id,
+        kind=activity_ingestion_schema.IngestionJobKind(orm_job.kind),
         filename=orm_job.filename,
-        status=activity_ingestion_schema.UploadJobStatus(orm_job.status),
-        error_code=(activity_ingestion_schema.UploadJobErrorCode(orm_job.error_code) if orm_job.error_code else None),
+        status=activity_ingestion_schema.IngestionJobStatus(orm_job.status),
+        error_code=(
+            activity_ingestion_schema.IngestionJobErrorCode(orm_job.error_code) if orm_job.error_code else None
+        ),
         activity_ids=list(orm_job.activity_ids or []),
         created_at=orm_job.created_at,
         updated_at=orm_job.updated_at,
@@ -38,40 +41,44 @@ def _to_read_schema(
 
 
 @core_decorators.handle_db_errors
-def create_upload_job(
+def create_ingestion_job(
     job_id: str,
     user_id: int,
-    filename: str,
-    staged_key: str,
+    kind: activity_ingestion_schema.IngestionJobKind,
     db: Session,
     *,
+    filename: str | None = None,
+    staged_key: str | None = None,
     commit: bool = True,
-) -> activity_ingestion_schema.ActivityUploadJob:
+) -> activity_ingestion_schema.ActivityIngestionJob:
     """
-    Record an accepted upload in the pending state.
+    Record an accepted ingestion request in the pending state.
 
     Args:
         job_id: Caller-generated job identifier (UUIDv4 string).
-        user_id: Owner of the upload.
-        filename: Original client filename, for display only.
-        staged_key: Storage key of the staged upload awaiting parsing.
+        user_id: Owner of the request.
+        kind: Whether this job imports an upload or syncs from providers.
         db: Database session.
+        filename: Original client filename; uploads only, for display.
+        staged_key: Storage key of the staged upload awaiting parsing; uploads
+            only.
         commit: Whether to commit; False lets the caller publish an event in the
             same transaction.
 
     Returns:
-        The created upload job.
+        The created ingestion job.
 
     Raises:
         HTTPException: If a database error occurs.
     """
     now = datetime.now(UTC)
-    new_job = activity_ingestion_models.ActivityUploadJob(
+    new_job = activity_ingestion_models.ActivityIngestionJob(
         id=job_id,
         user_id=user_id,
+        kind=kind.value,
         filename=filename,
         staged_key=staged_key,
-        status=activity_ingestion_schema.UploadJobStatus.PENDING.value,
+        status=activity_ingestion_schema.IngestionJobStatus.PENDING.value,
         created_at=now,
         updated_at=now,
     )
@@ -84,15 +91,15 @@ def create_upload_job(
 
 
 @core_decorators.handle_db_errors
-def get_upload_job(
+def get_ingestion_job(
     job_id: str,
     user_id: int,
     db: Session,
-) -> activity_ingestion_schema.ActivityUploadJob | None:
+) -> activity_ingestion_schema.ActivityIngestionJob | None:
     """
-    Retrieve one upload job belonging to a user.
+    Retrieve one ingestion job belonging to a user.
 
-    Always filtered by ``user_id``: an upload job id is a bearer-ish handle, and
+    Always filtered by ``user_id``: a job id is a bearer-ish handle, and
     scoping the read here means no caller can accidentally expose another user's
     job by forgetting the check.
 
@@ -102,14 +109,14 @@ def get_upload_job(
         db: Database session.
 
     Returns:
-        The upload job, or None if it does not exist or belongs to someone else.
+        The ingestion job, or None if it does not exist or belongs to someone else.
 
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = select(activity_ingestion_models.ActivityUploadJob).where(
-        activity_ingestion_models.ActivityUploadJob.id == job_id,
-        activity_ingestion_models.ActivityUploadJob.user_id == user_id,
+    stmt = select(activity_ingestion_models.ActivityIngestionJob).where(
+        activity_ingestion_models.ActivityIngestionJob.id == job_id,
+        activity_ingestion_models.ActivityIngestionJob.user_id == user_id,
     )
     orm_job = db.scalars(stmt).first()
     return _to_read_schema(orm_job) if orm_job else None
@@ -136,10 +143,34 @@ def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
     Raises:
         HTTPException: If a database error occurs.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityUploadJob, job_id)
+    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
     if orm_job is None or orm_job.staged_key is None:
         return None
     return orm_job.user_id, orm_job.staged_key
+
+
+@core_decorators.handle_db_errors
+def get_job_owner(job_id: str, db: Session) -> int | None:
+    """
+    Read the owner of a job, for the background executor.
+
+    Not user-scoped, unlike :func:`get_ingestion_job`: the caller is the worker
+    acting on an event it was handed, not an HTTP client naming a job. Reading
+    the owner from the row rather than the event payload is what keeps the sync
+    attributed to the requester even if the payload were tampered with.
+
+    Args:
+        job_id: The job identifier.
+        db: Database session.
+
+    Returns:
+        The owning user id, or None if the job is unknown.
+
+    Raises:
+        HTTPException: If a database error occurs.
+    """
+    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
+    return orm_job.user_id if orm_job else None
 
 
 @core_decorators.handle_db_errors
@@ -157,10 +188,10 @@ def mark_processing(job_id: str, db: Session) -> None:
     Raises:
         HTTPException: If a database error occurs.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityUploadJob, job_id)
+    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
     if orm_job is None:
         return
-    orm_job.status = activity_ingestion_schema.UploadJobStatus.PROCESSING.value
+    orm_job.status = activity_ingestion_schema.IngestionJobStatus.PROCESSING.value
     orm_job.updated_at = datetime.now(UTC)
     db.commit()
 
@@ -181,11 +212,11 @@ def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
     Raises:
         HTTPException: If a database error occurs.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityUploadJob, job_id)
+    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
     if orm_job is None:
         return
     now = datetime.now(UTC)
-    orm_job.status = activity_ingestion_schema.UploadJobStatus.COMPLETED.value
+    orm_job.status = activity_ingestion_schema.IngestionJobStatus.COMPLETED.value
     orm_job.activity_ids = activity_ids
     orm_job.error_code = None
     orm_job.staged_key = None
@@ -197,7 +228,7 @@ def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
 @core_decorators.handle_db_errors
 def mark_failed(
     job_id: str,
-    error_code: activity_ingestion_schema.UploadJobErrorCode,
+    error_code: activity_ingestion_schema.IngestionJobErrorCode,
     db: Session,
 ) -> None:
     """
@@ -214,11 +245,11 @@ def mark_failed(
     Raises:
         HTTPException: If a database error occurs.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityUploadJob, job_id)
+    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
     if orm_job is None:
         return
     now = datetime.now(UTC)
-    orm_job.status = activity_ingestion_schema.UploadJobStatus.FAILED.value
+    orm_job.status = activity_ingestion_schema.IngestionJobStatus.FAILED.value
     orm_job.error_code = error_code.value
     orm_job.staged_key = None
     orm_job.updated_at = now
@@ -229,7 +260,7 @@ def mark_failed(
 @core_decorators.handle_db_errors
 def delete_jobs_before(cutoff: datetime, db: Session) -> int:
     """
-    Delete terminal upload jobs older than a cutoff.
+    Delete terminal ingestion jobs older than a cutoff.
 
     Args:
         cutoff: Jobs that reached a terminal state before this are removed.
@@ -241,9 +272,9 @@ def delete_jobs_before(cutoff: datetime, db: Session) -> int:
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = select(activity_ingestion_models.ActivityUploadJob).where(
-        activity_ingestion_models.ActivityUploadJob.completed_at.is_not(None),
-        activity_ingestion_models.ActivityUploadJob.completed_at < cutoff,
+    stmt = select(activity_ingestion_models.ActivityIngestionJob).where(
+        activity_ingestion_models.ActivityIngestionJob.completed_at.is_not(None),
+        activity_ingestion_models.ActivityIngestionJob.completed_at < cutoff,
     )
     stale = list(db.scalars(stmt).all())
     for orm_job in stale:

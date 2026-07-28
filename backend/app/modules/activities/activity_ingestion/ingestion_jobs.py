@@ -1,12 +1,14 @@
-"""Accepting and running activity upload jobs.
+"""Accepting and running activity ingestion jobs.
 
-The seam between the two halves of :mod:`upload_entry`. :func:`accept_upload`
-runs in the request and returns a handle; :func:`run_upload_job` is the job
-body, and is deliberately identical whichever executor calls it — the durable
-worker when ``JOBS_ENABLED``, the in-process pool otherwise. The client contract
-does not change with the deployment.
+Two ways activities enter the system on a user's request — an uploaded file and
+a provider refresh — and both work the same way: the route accepts, returns a
+handle, and the work runs on a background worker. ``accept_*`` runs in the
+request; ``run_*_job`` is the job body, deliberately identical whichever
+executor calls it (the durable worker when ``JOBS_ENABLED``, the in-process pool
+otherwise), so the client contract does not change with the deployment.
 """
 
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -20,8 +22,9 @@ import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.events as ingestion_events
+import modules.activities.activity_ingestion.ingestion_jobs_crud as ingestion_jobs_crud
+import modules.activities.activity_ingestion.refresh_entry as refresh_entry
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
-import modules.activities.activity_ingestion.upload_crud as upload_crud
 import modules.activities.activity_ingestion.upload_entry as upload_entry
 from infra import publisher as platform_publisher
 
@@ -30,13 +33,13 @@ logger = core_logger.get_logger(__name__)
 # Failure classes the owner can act on, mapped to a stable code. Anything not
 # listed collapses to PROCESSING_FAILED: the exception text can carry filesystem
 # paths and parser internals, so only this closed set ever reaches a client.
-_ERROR_CODES: dict[type[Exception], activity_ingestion_schema.UploadJobErrorCode] = {
-    core_exceptions.UnsupportedFormatError: activity_ingestion_schema.UploadJobErrorCode.UNSUPPORTED_FORMAT,
-    core_exceptions.InvalidInputError: activity_ingestion_schema.UploadJobErrorCode.INVALID_FILE,
+_ERROR_CODES: dict[type[Exception], activity_ingestion_schema.IngestionJobErrorCode] = {
+    core_exceptions.UnsupportedFormatError: activity_ingestion_schema.IngestionJobErrorCode.UNSUPPORTED_FORMAT,
+    core_exceptions.InvalidInputError: activity_ingestion_schema.IngestionJobErrorCode.INVALID_FILE,
 }
 
 
-def _error_code_for(error: Exception) -> activity_ingestion_schema.UploadJobErrorCode:
+def _error_code_for(error: Exception) -> activity_ingestion_schema.IngestionJobErrorCode:
     """Map an exception to the sanitized code shown to the uploader.
 
     Args:
@@ -48,14 +51,14 @@ def _error_code_for(error: Exception) -> activity_ingestion_schema.UploadJobErro
     for error_type, code in _ERROR_CODES.items():
         if isinstance(error, error_type):
             return code
-    return activity_ingestion_schema.UploadJobErrorCode.PROCESSING_FAILED
+    return activity_ingestion_schema.IngestionJobErrorCode.PROCESSING_FAILED
 
 
 def accept_upload(
     token_user_id: int,
     file: UploadFile,
     db: Session,
-) -> activity_ingestion_schema.ActivityUploadJob:
+) -> activity_ingestion_schema.ActivityIngestionJob:
     """Stage an uploaded file and queue it for background import.
 
     The staging write happens before the row is created so a rejected file never
@@ -79,13 +82,14 @@ def accept_upload(
     job_id = str(uuid.uuid4())
 
     try:
-        upload_crud.create_upload_job(
+        ingestion_jobs_crud.create_ingestion_job(
             job_id,
             token_user_id,
-            # ``file.filename`` is non-None here: staging rejects a missing one.
-            str(file.filename),
-            staged_key,
+            activity_ingestion_schema.IngestionJobKind.UPLOAD,
             db,
+            # ``file.filename`` is non-None here: staging rejects a missing one.
+            filename=str(file.filename),
+            staged_key=staged_key,
             commit=False,
         )
         if core_config.settings.JOBS_ENABLED:
@@ -120,10 +124,16 @@ def accept_upload(
         "Activity upload accepted for background import",
         extra=core_logger.context(user_id=token_user_id, job_id=job_id),
     )
-    return upload_crud.get_upload_job(job_id, token_user_id, db) or _pending_view(job_id, str(file.filename))
+    return ingestion_jobs_crud.get_ingestion_job(job_id, token_user_id, db) or _pending_view(
+        job_id, activity_ingestion_schema.IngestionJobKind.UPLOAD, str(file.filename)
+    )
 
 
-def _pending_view(job_id: str, filename: str) -> activity_ingestion_schema.ActivityUploadJob:
+def _pending_view(
+    job_id: str,
+    kind: activity_ingestion_schema.IngestionJobKind,
+    filename: str | None = None,
+) -> activity_ingestion_schema.ActivityIngestionJob:
     """Build the pending response when the row cannot be re-read.
 
     Only reachable if the job completed and was pruned between the commit and
@@ -131,19 +141,115 @@ def _pending_view(job_id: str, filename: str) -> activity_ingestion_schema.Activ
 
     Args:
         job_id: The accepted job identifier.
-        filename: Original client filename.
+        kind: Whether this job imports an upload or syncs from providers.
+        filename: Original client filename, for an upload.
 
     Returns:
         A pending view of the job.
     """
     now = datetime.now(UTC)
-    return activity_ingestion_schema.ActivityUploadJob(
+    return activity_ingestion_schema.ActivityIngestionJob(
         id=job_id,
+        kind=kind,
         filename=filename,
-        status=activity_ingestion_schema.UploadJobStatus.PENDING,
+        status=activity_ingestion_schema.IngestionJobStatus.PENDING,
         created_at=now,
         updated_at=now,
     )
+
+
+def accept_refresh(
+    token_user_id: int,
+    db: Session,
+) -> activity_ingestion_schema.ActivityIngestionJob:
+    """Queue a provider refresh for background execution.
+
+    The route used to be the one ``async def`` in activities, awaiting the
+    Strava and Garmin clients directly. That made every synchronous call on
+    those paths — the provider integration lookups, the per-activity dedup
+    reads — run on the event loop, where they stall every other request in the
+    process rather than occupying one worker thread. Moving the work to a job
+    removes the question entirely: nothing on this path touches the loop.
+
+    Args:
+        token_user_id: Authenticated user ID.
+        db: Database session.
+
+    Returns:
+        The accepted refresh job, in the pending state.
+    """
+    job_id = str(uuid.uuid4())
+
+    ingestion_jobs_crud.create_ingestion_job(
+        job_id,
+        token_user_id,
+        activity_ingestion_schema.IngestionJobKind.REFRESH,
+        db,
+        commit=False,
+    )
+    if core_config.settings.JOBS_ENABLED:
+        platform_publisher.publish_committing(
+            ingestion_events.ACTIVITY_REFRESH_REQUESTED,
+            {"job_id": job_id},
+            source="api:refresh",
+            db=db,
+            commit=db.commit,
+            metadata={"user_id": token_user_id},
+        )
+    else:
+        db.commit()
+        activity_ingestion_background.submit_refresh(job_id)
+
+    logger.info(
+        "Provider refresh accepted for background sync",
+        extra=core_logger.context(user_id=token_user_id, job_id=job_id),
+    )
+    return ingestion_jobs_crud.get_ingestion_job(job_id, token_user_id, db) or _pending_view(
+        job_id, activity_ingestion_schema.IngestionJobKind.REFRESH
+    )
+
+
+def run_refresh_job(job_id: str) -> None:
+    """Pull the last 24h from the linked providers, recording the outcome.
+
+    The job body for both executors. The provider helpers are still ``async``
+    (they offload their blocking HTTP clients with ``asyncio.to_thread``), so
+    they are driven here by :func:`asyncio.run` on a loop private to this worker
+    thread. That is what keeps their synchronous database calls off the main
+    loop — the whole point of moving this off the request.
+
+    Args:
+        job_id: The ``activity_ingestion_jobs`` row to process.
+
+    Returns:
+        None.
+
+    Raises:
+        Exception: Whatever the provider sync raised, so the caller can retry.
+    """
+    with core_database.SessionLocal() as db:
+        owner = ingestion_jobs_crud.get_job_owner(job_id, db)
+        if owner is None:
+            logger.info("Skipping an unknown refresh job", extra=core_logger.context(job_id=job_id))
+            return
+        ingestion_jobs_crud.mark_processing(job_id, db)
+
+    with core_database.SessionLocal() as db:
+        try:
+            activities = asyncio.run(refresh_entry.sync_linked_providers(owner, db))
+        except Exception:
+            if not core_config.settings.JOBS_ENABLED:
+                # Nothing will retry, so leave the caller a terminal state
+                # instead of a job stuck at "processing".
+                fail_ingestion_job(job_id, activity_ingestion_schema.IngestionJobErrorCode.PROVIDER_UNAVAILABLE)
+            raise
+
+        activity_ids = [activity.id for activity in activities if activity.id is not None]
+        ingestion_jobs_crud.mark_completed(job_id, activity_ids, db)
+        logger.info(
+            "Refresh job synced provider activities",
+            extra=core_logger.context(user_id=owner, job_id=job_id, activity_count=len(activity_ids)),
+        )
 
 
 def run_upload_job(job_id: str) -> None:
@@ -170,7 +276,7 @@ def run_upload_job(job_id: str) -> None:
         Exception: Whatever the import raised, so the caller can retry.
     """
     with core_database.SessionLocal() as db:
-        work_item = upload_crud.get_job_work_item(job_id, db)
+        work_item = ingestion_jobs_crud.get_job_work_item(job_id, db)
         if work_item is None:
             # Already consumed — a retry after the import succeeded, or a job
             # whose row was pruned. Nothing to do, and re-running would be wrong.
@@ -180,7 +286,7 @@ def run_upload_job(job_id: str) -> None:
             )
             return
         user_id, staged_key = work_item
-        upload_crud.mark_processing(job_id, db)
+        ingestion_jobs_crud.mark_processing(job_id, db)
 
     with core_database.SessionLocal() as db:
         try:
@@ -192,15 +298,15 @@ def run_upload_job(job_id: str) -> None:
         ) as err:
             # The file itself is the problem, so every retry reaches the same
             # verdict: record it now and drop the blob nothing will read again.
-            fail_upload_job(job_id, _error_code_for(err), staged_key)
+            fail_ingestion_job(job_id, _error_code_for(err), staged_key)
             raise
         except Exception:
             # Server-side, possibly transient. Keep the blob for the retry, and
             # only give up here when there is no retry to wait for.
             if not core_config.settings.JOBS_ENABLED:
-                fail_upload_job(
+                fail_ingestion_job(
                     job_id,
-                    activity_ingestion_schema.UploadJobErrorCode.PROCESSING_FAILED,
+                    activity_ingestion_schema.IngestionJobErrorCode.PROCESSING_FAILED,
                     staged_key,
                 )
             raise
@@ -210,9 +316,9 @@ def run_upload_job(job_id: str) -> None:
         # id-less entry would only mean the client cannot refresh that one row.
         activity_ids = [activity.id for activity in created or [] if activity.id is not None]
         if not activity_ids:
-            upload_crud.mark_failed(
+            ingestion_jobs_crud.mark_failed(
                 job_id,
-                activity_ingestion_schema.UploadJobErrorCode.NO_ACTIVITIES_FOUND,
+                activity_ingestion_schema.IngestionJobErrorCode.NO_ACTIVITIES_FOUND,
                 db,
             )
             logger.info(
@@ -220,16 +326,16 @@ def run_upload_job(job_id: str) -> None:
                 extra=core_logger.context(user_id=user_id, job_id=job_id),
             )
             return
-        upload_crud.mark_completed(job_id, activity_ids, db)
+        ingestion_jobs_crud.mark_completed(job_id, activity_ids, db)
         logger.info(
             "Upload job imported activities",
             extra=core_logger.context(user_id=user_id, job_id=job_id, activity_count=len(activity_ids)),
         )
 
 
-def fail_upload_job(
+def fail_ingestion_job(
     job_id: str,
-    error_code: activity_ingestion_schema.UploadJobErrorCode,
+    error_code: activity_ingestion_schema.IngestionJobErrorCode,
     staged_key: str | None = None,
 ) -> None:
     """Record a terminal failure on a job and drop its staged upload.
@@ -248,9 +354,9 @@ def fail_upload_job(
     try:
         with core_database.SessionLocal() as db:
             if staged_key is None:
-                work_item = upload_crud.get_job_work_item(job_id, db)
+                work_item = ingestion_jobs_crud.get_job_work_item(job_id, db)
                 staged_key = work_item[1] if work_item else None
-            upload_crud.mark_failed(job_id, error_code, db)
+            ingestion_jobs_crud.mark_failed(job_id, error_code, db)
     except Exception as err:
         # Never mask the original failure with a bookkeeping one.
         logger.error(
@@ -267,10 +373,10 @@ def fail_upload_job(
 
 # Single-runner lock name: the deletes are idempotent, but the lock keeps the
 # work from being duplicated across replicas.
-_PRUNE_LOCK_NAME = "activity_upload_jobs_prune"
+_PRUNE_LOCK_NAME = "activity_ingestion_jobs_prune"
 
 
-def prune_expired_upload_jobs() -> None:
+def prune_expired_ingestion_jobs() -> None:
     """Prune finished upload jobs older than the durable-job retention window.
 
     Mirrors :func:`infra.retention.prune_expired_records`: same schedule, same
@@ -296,13 +402,13 @@ def prune_expired_upload_jobs() -> None:
     platform = platform_runtime.get_active_platform()
     with platform.lock.try_acquire(_PRUNE_LOCK_NAME) as acquired:
         if not acquired:
-            logger.debug("Upload job prune: another replica holds the lock; skipping")
+            logger.debug("Ingestion job prune: another replica holds the lock; skipping")
             return
         cutoff = platform.clock.now() - timedelta(days=retention_days)
         with core_database.SessionLocal() as db:
-            deleted = upload_crud.delete_jobs_before(cutoff, db)
+            deleted = ingestion_jobs_crud.delete_jobs_before(cutoff, db)
 
     if deleted:
-        logger.info(f"Upload job prune: deleted {deleted} finished upload job row(s)")
+        logger.info(f"Ingestion job prune: deleted {deleted} finished upload job row(s)")
     else:
-        logger.debug("Upload job prune: nothing to delete")
+        logger.debug("Ingestion job prune: nothing to delete")
