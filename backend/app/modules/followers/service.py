@@ -57,43 +57,67 @@ def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Se
 
 
 def list_followers(
-    target_user_id: int, requester_user_id: int, db: Session
-) -> list[followers_schema.FollowRelationship]:
-    """List the target's followers, enforcing profile privacy.
+    target_user_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 25,
+) -> followers_schema.FollowRelationshipPage:
+    """Return one page of the target's followers with the matching total.
 
     Args:
         target_user_id: The user whose followers to list.
         requester_user_id: The authenticated requester.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The target's follower records.
+        The page envelope. ``total`` counts every follower, not just this page.
 
     Raises:
         PermissionDeniedError: When the requester may not view this network.
     """
+    # Checked once here so the page and its total share a single authorisation
+    # decision rather than each re-deriving it.
     _ensure_may_view_network(target_user_id, requester_user_id, db)
-    return followers_crud.get_all_followers_by_user_id(target_user_id, db)
+    items = followers_crud.get_all_followers_by_user_id(
+        target_user_id, db, page_number=page_number, num_records=num_records
+    )
+    total = followers_crud.count_followers_by_user_id(target_user_id, db)
+    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
 def list_following(
-    target_user_id: int, requester_user_id: int, db: Session
-) -> list[followers_schema.FollowRelationship]:
-    """List who the target follows, enforcing profile privacy.
+    target_user_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 25,
+) -> followers_schema.FollowRelationshipPage:
+    """Return one page of who the target follows with the matching total.
 
     Args:
         target_user_id: The user whose following list to return.
         requester_user_id: The authenticated requester.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The target's following records.
+        The page envelope. ``total`` counts every followee, not just this page.
 
     Raises:
         PermissionDeniedError: When the requester may not view this network.
     """
     _ensure_may_view_network(target_user_id, requester_user_id, db)
-    return followers_crud.get_all_following_by_user_id(target_user_id, db)
+    items = followers_crud.get_all_following_by_user_id(
+        target_user_id, db, page_number=page_number, num_records=num_records
+    )
+    total = followers_crud.count_following_by_user_id(target_user_id, db)
+    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
 def count_followers(target_user_id: int, requester_user_id: int, db: Session, *, accepted_only: bool = False) -> int:

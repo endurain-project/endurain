@@ -135,8 +135,8 @@ class TestStoreActivitiesFromFile:
         source.write_bytes(b"\x00")
 
         with (
-            patch.object(pipeline.users_crud, "get_user_by_id"),
-            patch.object(pipeline.users_privacy_settings_crud, "get_user_privacy_settings_by_user_id"),
+            patch.object(pipeline.users_integration_service, "get_user"),
+            patch.object(pipeline.users_integration_service, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=activities_contracts.ParsedFile()),
             patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
             patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store,
@@ -159,8 +159,8 @@ class TestStoreActivitiesFromFile:
         source.write_bytes(b"<gpx/>")
 
         with (
-            patch.object(pipeline.users_crud, "get_user_by_id"),
-            patch.object(pipeline.users_privacy_settings_crud, "get_user_privacy_settings_by_user_id"),
+            patch.object(pipeline.users_integration_service, "get_user"),
+            patch.object(pipeline.users_integration_service, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=None),
         ):
             result = pipeline.store_activities_from_file(

@@ -1,6 +1,10 @@
 """Domain event channel names owned by the activity-ingestion sub-domain."""
 
-from pydantic import BaseModel, ConfigDict
+from typing import ClassVar
+
+from pydantic import ConfigDict
+
+from infra.event_versioning import VersionedPayload
 
 # Published once per file when a bulk import is initiated with durable jobs
 # enabled; a durable subscriber imports each file as an independent,
@@ -11,7 +15,7 @@ from pydantic import BaseModel, ConfigDict
 ACTIVITY_BULK_IMPORT_FILE = "activity.bulk_import_file"
 
 
-class BulkImportFilePayload(BaseModel):
+class BulkImportFilePayload(VersionedPayload):
     """Validated payload for the ``activity.bulk_import_file`` event.
 
     The durable subscriber validates the event payload against this schema, so a
@@ -25,6 +29,8 @@ class BulkImportFilePayload(BaseModel):
     """
 
     model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
 
     file_path: str
     user_id: int

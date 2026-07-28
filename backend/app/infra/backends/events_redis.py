@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any
 import core.logger as core_logger
 import infra.node as platform_node
 import infra.redis as platform_redis
-from infra.events import Event
+from infra.events import INITIAL_SCHEMA_VERSION, Event
 
 logger = core_logger.get_logger(__name__)
 
@@ -56,6 +56,7 @@ def serialize_event(event: Event) -> dict[str, str]:
         "payload": json.dumps(event.payload),
         "metadata": json.dumps(event.metadata),
         "retry_count": str(event.retry_count),
+        "schema_version": str(event.schema_version),
     }
 
 
@@ -69,6 +70,11 @@ def deserialize_event(fields: Mapping[str, str]) -> Event:
         payload=json.loads(fields["payload"]),
         metadata=json.loads(fields["metadata"]),
         retry_count=int(fields["retry_count"]),
+        # Unlike the outbox/jobs tables, a Redis stream has no migration: entries
+        # written before this field shipped are still sitting in the stream with
+        # no ``schema_version``. They were produced at the initial version, so
+        # default rather than failing the consumer on them.
+        schema_version=int(fields.get("schema_version", INITIAL_SCHEMA_VERSION)),
     )
 
 

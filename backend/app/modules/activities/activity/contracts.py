@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import Field, field_validator
 
 import core.timezone as core_timezone
-from modules.activities.activity.schema import Activity
+from modules.activities.activity.schema import ActivityBase
 
 if TYPE_CHECKING:
     # Imported for typing only: a runtime import would be circular (the sub-module
@@ -127,13 +127,19 @@ class GearUsageWindow:
     end_date: date | None = None
 
 
-class ActivityCore(Activity):
+class ActivityCore(ActivityBase):
     """Strict ingestion *input* schema.
 
-    The tightened variant of the read :class:`~modules.activities.activity.schema.Activity`
-    that every ingestion producer builds — the file parsers (incl. Garmin's ``.fit``
-    path), the Strava adapter, and the profile bulk-restore. It differs from the loose
-    read schema in two enforced ways:
+    Extends :class:`~modules.activities.activity.schema.ActivityBase` — the
+    fields that describe an activity — **not** the read
+    :class:`~modules.activities.activity.schema.Activity`. That distinction is
+    the point: the read model adds the server-owned ``id`` and
+    ``map_thumbnail_path``, and while this class inherited from it those became
+    accepted ingestion inputs by accident, as would every future read-only field.
+
+    Every ingestion producer builds this shape — the file parsers (incl. Garmin's
+    ``.fit`` path), the Strava adapter, and the profile bulk-restore. It differs
+    from the loose base in two enforced ways:
 
     * **Owner + start/end are required.** ``user_id`` is required and
       ``start_time``/``end_time`` may not be null — a missing owner or timestamp is

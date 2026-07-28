@@ -20,6 +20,7 @@ from pydantic import (
     field_validator,
 )
 
+import core.pagination as core_pagination
 import core.timezone as core_timezone
 
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
@@ -28,12 +29,19 @@ LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = Annotated[StrictStr, Field(max_length=250)]
 
 
-class Activity(BaseModel):
+class ActivityBase(BaseModel):
     """
-    Schema representing a fitness activity.
+    The fields that describe an activity, shared by the read and write shapes.
+
+    Split out from :class:`Activity` so the ingestion contract
+    (:class:`~modules.activities.activity.contracts.ActivityCore`) can extend
+    *this* rather than the read model. While ``ActivityCore`` inherited from the
+    read model, every field added for the API silently became a valid ingestion
+    input — including server-owned ones like ``id`` and ``map_thumbnail_path``,
+    which a producer must never be able to set. The two shapes now share their
+    common ground explicitly and each adds only what it owns.
 
     Attributes:
-        id: Unique activity identifier.
         user_id: ID of the owning user.
         description: Public activity description.
         private_notes: Private notes visible only to owner.
@@ -92,13 +100,11 @@ class Activity(BaseModel):
         hide_gear: Hide gear information from others.
         tracker_manufacturer: Device manufacturer name.
         tracker_model: Device model name.
-        map_thumbnail_path: Path to the map thumbnail image.
         total_cycles: Total number of cycles (e.g., pedal strokes) recorded.
     """
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int | None = Field(default=None, ge=1)
     user_id: int | None = Field(default=None, ge=1)
     description: str | None = Field(default=None, max_length=2500)
     private_notes: str | None = Field(default=None, max_length=2500)
@@ -151,7 +157,6 @@ class Activity(BaseModel):
     hide_gear: bool | None = None
     tracker_manufacturer: str | None = Field(default=None, max_length=250)
     tracker_model: str | None = Field(default=None, max_length=250)
-    map_thumbnail_path: str | None = Field(default=None, max_length=500)
     total_cycles: int | None = Field(default=None, ge=0)
 
     @field_validator("start_time", "end_time", "created_at", mode="before")
@@ -169,6 +174,24 @@ class Activity(BaseModel):
         providers) to an aware UTC instant.
         """
         return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
+
+
+class Activity(ActivityBase):
+    """
+    Schema representing a stored fitness activity — what the API returns.
+
+    Extends :class:`ActivityBase` with the fields the **server** owns: they are
+    read out of a stored row and are never accepted from an ingestion producer,
+    which is exactly why they live here rather than on the shared base.
+
+    Attributes:
+        id: Unique activity identifier, assigned on insert.
+        map_thumbnail_path: Storage key of the generated map thumbnail, written
+            by the thumbnail subsystem reacting to ``activity.created``.
+    """
+
+    id: int | None = Field(default=None, ge=1)
+    map_thumbnail_path: str | None = Field(default=None, max_length=500)
 
 
 class ActivitySportStats(BaseModel):
@@ -229,57 +252,10 @@ class ActivityStats(BaseModel):
     inline_skating: ActivitySportStats = Field(default_factory=ActivitySportStats)
 
 
-class ActivityPage(BaseModel):
-    """One page of activities plus everything needed to paginate.
-
-    Replaces the previous "fetch the list, then fetch ``/count`` separately"
-    pattern: every list endpoint returned a bare array, so a client that wanted
-    to render "showing 20 of 340" or decide whether a next page existed had to
-    make a second request with the same filters. Two round trips, two chances for
-    the filters to disagree, and the count could change between them.
-
-    Attributes:
-        items: The activities on this page.
-        total: Total matching activities across all pages, with the same filters
-            and the same visibility scoping applied to ``items``.
-        page: The 1-based page number these items came from.
-        num_records: The page size used.
-        next: The next page number, or ``None`` when this is the last page.
-    """
-
-    items: list[Activity]
-    total: int
-    page: int
-    num_records: int
-    next: int | None = None
-
-    @classmethod
-    def build(
-        cls,
-        items: list[Activity] | None,
-        total: int,
-        page: int,
-        num_records: int,
-    ) -> ActivityPage:
-        """Assemble a page, deriving ``next`` from the totals.
-
-        Args:
-            items: The activities on this page (``None`` is treated as empty).
-            total: Total matching activities across all pages.
-            page: The 1-based page number.
-            num_records: The page size.
-
-        Returns:
-            The populated page envelope.
-        """
-        rows = items or []
-        return cls(
-            items=rows,
-            total=total,
-            page=page,
-            num_records=num_records,
-            next=page + 1 if page * num_records < total else None,
-        )
+#: One page of activities. Aliases the shared :class:`core.pagination.Page` so
+#: the activities list endpoints and every other module's return the same
+#: envelope rather than each inventing its own.
+ActivityPage = core_pagination.Page[Activity]
 
 
 class ActivityMessageResponse(BaseModel):

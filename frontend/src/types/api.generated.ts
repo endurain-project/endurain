@@ -944,7 +944,7 @@ export interface paths {
         };
         /**
          * List User Followers
-         * @description List a user's followers.
+         * @description List a user's followers, with the matching total.
          *
          *     Privacy-aware: only the user themselves or an accepted follower may list them.
          */
@@ -988,7 +988,7 @@ export interface paths {
         };
         /**
          * List User Following
-         * @description List who a user follows.
+         * @description List who a user follows, with the matching total.
          *
          *     Privacy-aware: only the user themselves or an accepted follower may list them.
          */
@@ -5241,70 +5241,16 @@ export interface components {
         };
         /**
          * Activity
-         * @description Schema representing a fitness activity.
+         * @description Schema representing a stored fitness activity — what the API returns.
+         *
+         *     Extends :class:`ActivityBase` with the fields the **server** owns: they are
+         *     read out of a stored row and are never accepted from an ingestion producer,
+         *     which is exactly why they live here rather than on the shared base.
          *
          *     Attributes:
-         *         id: Unique activity identifier.
-         *         user_id: ID of the owning user.
-         *         description: Public activity description.
-         *         private_notes: Private notes visible only to owner.
-         *         distance: Total distance in meters.
-         *         name: Activity name.
-         *         activity_type: Numeric code for the sport type.
-         *         start_time: Activity start as a timezone-aware UTC instant.
-         *         end_time: Activity end as a timezone-aware UTC instant.
-         *         timezone: IANA timezone the activity was recorded in. Clients render
-         *             ``start_time``/``end_time`` in this zone to show the athlete's
-         *             local wall clock.
-         *         total_elapsed_time: Total elapsed wall-clock time in
-         *             seconds.
-         *         total_timer_time: Active timer time in seconds.
-         *         city: City where the activity took place.
-         *         town: Town where the activity took place.
-         *         country: Country where the activity took place.
-         *         created_at: Record creation as a timezone-aware UTC instant.
-         *         elevation_gain: Total elevation gain in meters.
-         *         elevation_loss: Total elevation loss in meters.
-         *         pace: Average pace in seconds per kilometer.
-         *         average_speed: Average speed in meters per second.
-         *         max_speed: Maximum speed in meters per second.
-         *         average_power: Average power output in watts.
-         *         max_power: Maximum power output in watts.
-         *         normalized_power: Normalized power in watts.
-         *         average_hr: Average heart rate in bpm.
-         *         max_hr: Maximum heart rate in bpm.
-         *         average_cad: Average cadence in rpm/spm.
-         *         max_cad: Maximum cadence in rpm/spm.
-         *         workout_feeling: Subjective feeling rating (0-100).
-         *         workout_rpe: Rate of perceived exertion (10-100).
-         *         calories: Estimated calories burned.
-         *         visibility: Visibility level of the activity
-         *             (0 - public, 1 - followers, 2 - private).
-         *         gear_id: Associated gear identifier.
-         *         strava_gear_id: Strava gear identifier.
-         *         strava_activity_id: Strava activity identifier.
-         *         garminconnect_activity_id: Garmin Connect activity
-         *             identifier.
-         *         garminconnect_gear_id: Garmin Connect gear identifier.
-         *         import_info: Import metadata (imported, import_source,
-         *             import_ISO_time).
-         *         is_hidden: Whether the activity is hidden.
-         *         hide_start_time: Hide the start time from others.
-         *         hide_location: Hide location data from others.
-         *         hide_map: Hide the map from others.
-         *         hide_hr: Hide heart rate data from others.
-         *         hide_power: Hide power data from others.
-         *         hide_cadence: Hide cadence data from others.
-         *         hide_elevation: Hide elevation data from others.
-         *         hide_speed: Hide speed data from others.
-         *         hide_pace: Hide pace data from others.
-         *         hide_laps: Hide lap data from others.
-         *         hide_workout_sets_steps: Hide workout sets and steps.
-         *         hide_gear: Hide gear information from others.
-         *         tracker_manufacturer: Device manufacturer name.
-         *         tracker_model: Device model name.
-         *         map_thumbnail_path: Path to the map thumbnail image.
-         *         total_cycles: Total number of cycles (e.g., pedal strokes) recorded.
+         *         id: Unique activity identifier, assigned on insert.
+         *         map_thumbnail_path: Storage key of the generated map thumbnail, written
+         *             by the thumbnail subsystem reacting to ``activity.created``.
          */
         Activity: {
             /** Activity Type */
@@ -5636,36 +5582,6 @@ export interface components {
         ActivityMessageResponse: {
             /** Detail */
             detail: string;
-        };
-        /**
-         * ActivityPage
-         * @description One page of activities plus everything needed to paginate.
-         *
-         *     Replaces the previous "fetch the list, then fetch ``/count`` separately"
-         *     pattern: every list endpoint returned a bare array, so a client that wanted
-         *     to render "showing 20 of 340" or decide whether a next page existed had to
-         *     make a second request with the same filters. Two round trips, two chances for
-         *     the filters to disagree, and the count could change between them.
-         *
-         *     Attributes:
-         *         items: The activities on this page.
-         *         total: Total matching activities across all pages, with the same filters
-         *             and the same visibility scoping applied to ``items``.
-         *         page: The 1-based page number these items came from.
-         *         num_records: The page size used.
-         *         next: The next page number, or ``None`` when this is the last page.
-         */
-        ActivityPage: {
-            /** Items */
-            items: components["schemas"]["Activity"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
         };
         /**
          * ActivitySetsRead
@@ -9544,6 +9460,32 @@ export interface components {
              */
             user_id: number;
         };
+        /** Page[Activity] */
+        Page_Activity_: {
+            /** Items */
+            items: components["schemas"]["Activity"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[FollowRelationship] */
+        Page_FollowRelationship_: {
+            /** Items */
+            items: components["schemas"]["FollowRelationship"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /**
          * PasswordResetConfirm
          * @description Request schema for confirming a password reset.
@@ -12264,7 +12206,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityPage"];
+                    "application/json": components["schemas"]["Page_Activity_"];
                 };
             };
             /** @description Validation Error */
@@ -12336,7 +12278,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityPage"];
+                    "application/json": components["schemas"]["Page_Activity_"];
                 };
             };
             /** @description Validation Error */
@@ -12370,7 +12312,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityPage"];
+                    "application/json": components["schemas"]["Page_Activity_"];
                 };
             };
             /** @description Validation Error */
@@ -12525,7 +12467,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityPage"];
+                    "application/json": components["schemas"]["Page_Activity_"];
                 };
             };
             /** @description Validation Error */
@@ -13258,7 +13200,10 @@ export interface operations {
     };
     list_user_followers_api_v1_followers_users__user_id__followers_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 user_id: number;
@@ -13273,7 +13218,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FollowRelationship"][];
+                    "application/json": components["schemas"]["Page_FollowRelationship_"];
                 };
             };
             /** @description Validation Error */
@@ -13322,7 +13267,10 @@ export interface operations {
     };
     list_user_following_api_v1_followers_users__user_id__following_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 user_id: number;
@@ -13337,7 +13285,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FollowRelationship"][];
+                    "application/json": components["schemas"]["Page_FollowRelationship_"];
                 };
             };
             /** @description Validation Error */

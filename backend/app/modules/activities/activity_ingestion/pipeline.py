@@ -10,9 +10,13 @@ The pipeline is format-agnostic. It asks
 registered to the extension and iterates whatever activities come back — a
 multi-session ``.fit`` is not special-cased, because the registry hands back the
 same :class:`~modules.activities.activity.contracts.ParsedFile` shape for every
-format. Keeping this module (rather than ``activity/``) responsible for parsing
-is what lets the activities core stay parser-agnostic — see the
-``activities-parsing-boundary`` import-linter contract.
+format. It is **provider-agnostic** too: everything a specific origin knows
+(Strava export metadata, its sidecar photos, which duplicate listings to skip)
+is answered by the :mod:`sources` object it was handed, never by branching on the
+provider here. Keeping this module (rather than ``activity/``) responsible for
+parsing is what lets the activities core stay parser-agnostic — see the
+``activities-parsing-boundary`` and ``ingestion-pipeline-provider-agnostic``
+import-linter contracts.
 """
 
 import contextlib
@@ -36,9 +40,7 @@ import modules.activities.activity_file_import.registry as parser_registry
 import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_ingestion.enrichment as enrichment
 import modules.activities.activity_ingestion.sources as ingestion_sources
-import modules.strava.bulk_import_utils as strava_bulk_import_utils
-import modules.users.users.crud as users_crud
-import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
+import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -180,11 +182,11 @@ def store_activities_from_file(
         NotFoundError: When the user (or their privacy settings) cannot be found.
         ProcessingError: On an internal parse/persist failure.
     """
-    user = users_crud.get_user_by_id(token_user_id, db)
+    user = users_integration_service.get_user(token_user_id, db)
     if user is None:
         raise core_exceptions.NotFoundError("User not found")
 
-    user_privacy_settings = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user.id, db)
+    user_privacy_settings = users_integration_service.get_privacy_settings(user.id, db)
     if user_privacy_settings is None:
         raise core_exceptions.NotFoundError("User privacy settings not found")
 
@@ -254,7 +256,7 @@ def store_activities_from_file(
                 activities_in_file=len(parsed_file.activities),
             ):
                 continue
-            strava_bulk_import_utils.apply_bulk_import_metadata(parsed.activity, activity_metadata)
+            bulk_source.apply_metadata(parsed.activity, activity_metadata)
 
         parsed.source = import_source
         created_activities.append(ingestion_service.store_parsed_activity(parsed, db))
@@ -277,10 +279,10 @@ def _finish_bulk_import_file(
     file_base_name: str,
     db: Session,
 ) -> None:
-    """Log completion of one bulk-import file and import its Strava media.
+    """Log completion of one bulk-import file and import its side artifacts.
 
     Args:
-        source: The bulk-import source, carrying the Strava export metadata.
+        source: The bulk-import source, which owns any source-specific follow-up.
         created_activities: Activities persisted from the file.
         file_base_name: The file's original base name.
         db: Database session.
@@ -296,16 +298,10 @@ def _finish_bulk_import_file(
         ),
     )
 
-    # Deal with Strava bulk import media. Note - even multi-activity .fit files
-    # are good with this code, as there should only be a single imported activity
-    # per file in the Strava activities file directory.
-    if source.strava_activities and created_activities:
-        strava_bulk_import_utils.import_media_from_strava_bulk_export(
-            source.strava_activities,
-            created_activities[-1],
-            file_base_name,
-            db,
-        )
+    # Anything that shipped alongside the file rather than inside it (a Strava
+    # export's photos today). The source decides what that means — the pipeline
+    # stays format- and provider-agnostic.
+    source.import_side_artifacts(created_activities, file_base_name, db)
 
     logger.info(
         "Bulk file import: import work complete for file",

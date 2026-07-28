@@ -12,13 +12,20 @@ import modules.followers.schema as followers_schema
 import modules.followers.service as followers_service
 import modules.users.users.dependencies as users_dependencies
 
+# Default page size when a list request omits pagination.
+_DEFAULT_NUM_RECORDS = 25
+# Hard cap on the client-requested page size, bounding query and serialization
+# cost per request (defense against resource exhaustion). Mirrors the activities
+# router so the two template modules agree.
+_MAX_NUM_RECORDS = 200
+
 # Define the API router
 router = APIRouter()
 
 
 @router.get(
     "/users/{user_id}/followers",
-    response_model=list[followers_schema.FollowRelationship],
+    response_model=followers_schema.FollowRelationshipPage,
     status_code=status.HTTP_200_OK,
 )
 def list_user_followers(
@@ -27,12 +34,20 @@ def list_user_followers(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[followers_schema.FollowRelationship]:
-    """List a user's followers.
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
+) -> followers_schema.FollowRelationshipPage:
+    """List a user's followers, with the matching total.
 
     Privacy-aware: only the user themselves or an accepted follower may list them.
     """
-    return followers_service.list_followers(user_id, token_user_id, db)
+    return followers_service.list_followers(
+        user_id,
+        token_user_id,
+        db,
+        page_number=page_number or 1,
+        num_records=num_records or _DEFAULT_NUM_RECORDS,
+    )
 
 
 @router.get(
@@ -57,7 +72,7 @@ def count_user_followers(
 
 @router.get(
     "/users/{user_id}/following",
-    response_model=list[followers_schema.FollowRelationship],
+    response_model=followers_schema.FollowRelationshipPage,
     status_code=status.HTTP_200_OK,
 )
 def list_user_following(
@@ -66,12 +81,20 @@ def list_user_following(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[followers_schema.FollowRelationship]:
-    """List who a user follows.
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
+) -> followers_schema.FollowRelationshipPage:
+    """List who a user follows, with the matching total.
 
     Privacy-aware: only the user themselves or an accepted follower may list them.
     """
-    return followers_service.list_following(user_id, token_user_id, db)
+    return followers_service.list_following(
+        user_id,
+        token_user_id,
+        db,
+        page_number=page_number or 1,
+        num_records=num_records or _DEFAULT_NUM_RECORDS,
+    )
 
 
 @router.get(

@@ -51,6 +51,7 @@ def add_to_outbox(event: Event, *, now: datetime, db: Session, commit: bool = Tr
             source=event.source,
             timestamp=event.timestamp,
             payload=event.payload,
+            schema_version=event.schema_version,
             event_metadata=event.metadata or None,
             created_at=now,
         )

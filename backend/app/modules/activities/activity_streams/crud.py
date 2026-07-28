@@ -13,7 +13,7 @@ import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_streams.utils as activity_streams_utils
 import modules.server_settings.utils as server_settings_utils
-import modules.users.users.crud as users_crud
+import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -375,7 +375,7 @@ def recompute_hr_zone_percentages_for_user(user_id: int, db: Session) -> None:
         None.
     """
     try:
-        user = users_crud.get_user_by_id(user_id, db)
+        user = users_integration_service.get_user(user_id, db)
         if user is None:
             return
 
@@ -474,7 +474,7 @@ def compute_and_store_hr_zone_percentages_for_activity(activity_id: int, user_id
     Returns:
         None.
     """
-    user = users_crud.get_user_by_id(user_id, db)
+    user = users_integration_service.get_user(user_id, db)
     if user is None:
         return
     max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
@@ -549,7 +549,7 @@ def backfill_missing_hr_zone_percentages(db: Session, batch_size: int = 500) -> 
             break
         for stream, total_timer_time, owner_id in rows:
             if owner_id not in max_hr_cache:
-                owner = users_crud.get_user_by_id(owner_id, db)
+                owner = users_integration_service.get_user(owner_id, db)
                 max_hr_cache[owner_id] = activity_streams_utils.resolve_max_heart_rate(owner) if owner else None
             max_hr = max_hr_cache[owner_id]
             if not max_hr:

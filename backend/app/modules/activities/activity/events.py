@@ -6,9 +6,19 @@ publishes the fact below; any derived work (thumbnail generation today, and
 future computations) reacts by subscribing to the same constant, so producer and
 subscribers cannot drift on the string. Convention: ``<domain>.<fact>``, past
 tense.
+
+The payload *versions* are owned here for the same reason. Bump a model's
+``SCHEMA_VERSION`` (and register an upgrader for the step) whenever a field is
+renamed, removed, or given a new meaning — a purely additive optional field does
+not need one. See :mod:`infra.event_versioning` for why in-flight events make
+this necessary.
 """
 
-from pydantic import BaseModel, ConfigDict
+from typing import ClassVar
+
+from pydantic import ConfigDict
+
+from infra.event_versioning import VersionedPayload
 
 # Published by ``store_activity`` after an activity (and its streams/laps) has
 # been persisted, for every ingestion path (upload, Strava, Garmin, bulk).
@@ -21,12 +31,14 @@ ACTIVITY_CREATED = "activity.created"
 ACTIVITY_DELETED = "activity.deleted"
 
 
-class ActivityCreatedPayload(BaseModel):
+class ActivityCreatedPayload(VersionedPayload):
     """Validated payload for the ``activity.created`` event.
 
-    Durable subscribers validate the event payload against this schema, so a
-    malformed payload raises (surfacing via retry / dead-letter) instead of
-    silently marking the job complete.
+    Subscribers parse the event through
+    :func:`infra.event_versioning.parse_payload`, so a payload written by another
+    build is upgraded or loudly refused instead of being silently misread, and a
+    malformed one raises (surfacing via retry / dead-letter) instead of quietly
+    marking the job complete.
 
     Attributes:
         activity_id: The stored activity's ID.
@@ -37,12 +49,14 @@ class ActivityCreatedPayload(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    SCHEMA_VERSION: ClassVar[int] = 1
+
     activity_id: int
     user_id: int
     duplicate_start_time: bool = False
 
 
-class ActivityDeletedPayload(BaseModel):
+class ActivityDeletedPayload(VersionedPayload):
     """Validated payload for the ``activity.deleted`` event.
 
     Attributes:
@@ -50,5 +64,7 @@ class ActivityDeletedPayload(BaseModel):
     """
 
     model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
 
     activity_id: int

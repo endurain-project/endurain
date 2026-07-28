@@ -21,6 +21,7 @@ job or reconciliation net is warranted.
 
 import core.database as core_database
 import infra.async_bridge as platform_async_bridge
+import infra.event_versioning as platform_event_versioning
 import modules.followers.events as followers_events
 import modules.notifications.utils as notifications_utils
 import modules.websocket.manager as websocket_manager
@@ -43,7 +44,7 @@ def notify_follower_requested_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    payload = followers_events.FollowerRequestedPayload.model_validate(event.payload)
+    payload = platform_event_versioning.parse_payload(followers_events.FollowerRequestedPayload, event)
     with core_database.SessionLocal() as db:
         notification, ws_message = notifications_utils.create_new_follower_request_notification(
             payload.requester_user_id, payload.target_user_id, db
@@ -72,7 +73,7 @@ def notify_follower_accepted_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    payload = followers_events.FollowerAcceptedPayload.model_validate(event.payload)
+    payload = platform_event_versioning.parse_payload(followers_events.FollowerAcceptedPayload, event)
     with core_database.SessionLocal() as db:
         notification, ws_message = notifications_utils.create_accepted_follower_request_notification(
             payload.accepter_user_id, payload.requester_user_id, db

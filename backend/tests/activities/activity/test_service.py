@@ -19,7 +19,7 @@ def stub_user_local_today():
     read; without this the bounds tests would also drift with the wall clock.
     """
     with patch(
-        "modules.activities.activity.service.users_utils.user_local_today",
+        "modules.activities.activity.service.users_integration_service.local_today",
         return_value=_TODAY,
     ) as mock:
         yield mock

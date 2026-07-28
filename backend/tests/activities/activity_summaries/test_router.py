@@ -16,7 +16,7 @@ def stub_user_local_today():
     timezone, which is a DB read the mocked session cannot serve.
     """
     with patch(
-        f"{_SERVICE}.users_utils.user_local_today",
+        f"{_SERVICE}.users_integration_service.local_today",
         return_value=date(2026, 3, 12),
     ) as mock:
         yield mock

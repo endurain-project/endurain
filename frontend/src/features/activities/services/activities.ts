@@ -222,7 +222,7 @@ export async function searchActivitiesByName(
   signal?: AbortSignal,
 ): Promise<Activity[]> {
   const params = new URLSearchParams({ name })
-  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${params.toString()}`, {
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities?${params.toString()}`, {
     signal,
   })
   return (page_.items ?? []).map(mapActivity)
@@ -250,7 +250,7 @@ export async function fetchUserActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${params.toString()}`, {
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities?${params.toString()}`, {
     signal,
   })
   return (page_.items ?? []).map(mapActivity)
@@ -275,7 +275,7 @@ export async function fetchFollowersActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities/feed?${params.toString()}`, {
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities/feed?${params.toString()}`, {
     signal,
   })
   return (page_.items ?? []).map(mapActivity)
@@ -340,7 +340,7 @@ export async function fetchUserWeekActivities(
     end_date: endDate,
     num_records: '200',
   })
-  const page_ = await apiFetch<Schemas['ActivityPage']>(
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )
@@ -436,7 +436,7 @@ export async function fetchUserActivitiesPage(
   listParams.set('page_number', String(page))
   listParams.set('num_records', String(numRecords))
 
-  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${listParams.toString()}`, {
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities?${listParams.toString()}`, {
     signal,
   })
 
@@ -529,7 +529,7 @@ export async function fetchUserThisMonthActivityCount(
     end_date: endDate,
     num_records: '200',
   })
-  const page_ = await apiFetch<Schemas['ActivityPage']>(
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )

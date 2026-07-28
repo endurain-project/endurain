@@ -7,7 +7,11 @@ and subscriber cannot drift on the string. Convention: ``<domain>.<fact>``, past
 tense.
 """
 
-from pydantic import BaseModel, ConfigDict
+from typing import ClassVar
+
+from pydantic import ConfigDict
+
+from infra.event_versioning import VersionedPayload
 
 # Published after a follow-request row has been created (a user requests to
 # follow another user), so the target user can be notified.
@@ -18,7 +22,7 @@ FOLLOWER_REQUESTED = "follower.requested"
 FOLLOWER_ACCEPTED = "follower.accepted"
 
 
-class FollowerRequestedPayload(BaseModel):
+class FollowerRequestedPayload(VersionedPayload):
     """Validated payload for the ``follower.requested`` event.
 
     Subscribers validate against this schema so a malformed payload raises at the
@@ -32,11 +36,13 @@ class FollowerRequestedPayload(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    SCHEMA_VERSION: ClassVar[int] = 1
+
     requester_user_id: int
     target_user_id: int
 
 
-class FollowerAcceptedPayload(BaseModel):
+class FollowerAcceptedPayload(VersionedPayload):
     """Validated payload for the ``follower.accepted`` event.
 
     Attributes:
@@ -45,6 +51,8 @@ class FollowerAcceptedPayload(BaseModel):
     """
 
     model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
 
     accepter_user_id: int
     requester_user_id: int

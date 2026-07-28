@@ -208,7 +208,7 @@ class TestUserStats:
         from datetime import date
 
         with patch(
-            "modules.activities.activity.service.users_utils.user_local_today",
+            "modules.activities.activity.service.users_integration_service.local_today",
             return_value=date(2026, 3, 12),
         ):
             yield

@@ -26,9 +26,9 @@ def _privacy_settings() -> SimpleNamespace:
 
 
 class TestBuildActivityPrivacyKwargs:
-    @patch("modules.activities.activity_ingestion.enrichment.users_privacy_settings_utils")
-    def test_maps_privacy_fields(self, mock_ups_utils):
-        mock_ups_utils.visibility_to_int.return_value = 0
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_maps_privacy_fields(self, mock_users):
+        mock_users.default_visibility_to_int.return_value = 0
 
         kwargs = enrichment.build_activity_privacy_kwargs(_privacy_settings())
 
@@ -40,22 +40,22 @@ class TestBuildActivityPrivacyKwargs:
 
 
 class TestResolveGearId:
-    @patch("modules.activities.activity_ingestion.enrichment.user_default_gear_utils")
-    def test_default_gear_when_not_garmin(self, mock_dg):
-        mock_dg.get_user_default_gear_by_activity_type.return_value = 42
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_default_gear_when_not_garmin(self, mock_users):
+        mock_users.get_default_gear_for_activity_type.return_value = 42
 
         assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock()) == 42
-        mock_dg.get_user_default_gear_by_activity_type.assert_called_once_with(7, 1, ANY)
+        mock_users.get_default_gear_for_activity_type.assert_called_once_with(7, 1, ANY)
 
-    @patch("modules.activities.activity_ingestion.enrichment.user_default_gear_utils")
-    def test_none_activity_type_skips_default_gear(self, mock_dg):
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_none_activity_type_skips_default_gear(self, mock_users):
         assert enrichment.resolve_gear_id(None, user_id=7, db=MagicMock()) is None
-        mock_dg.get_user_default_gear_by_activity_type.assert_not_called()
+        mock_users.get_default_gear_for_activity_type.assert_not_called()
 
     @patch("modules.activities.activity_ingestion.enrichment.gears_crud")
     @patch("modules.activities.activity_ingestion.enrichment.garmin_utils")
-    @patch("modules.activities.activity_ingestion.enrichment.user_default_gear_utils")
-    def test_garmin_gear_preferred(self, mock_dg, mock_garmin, mock_gears):
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_garmin_gear_preferred(self, mock_users, mock_garmin, mock_gears):
         mock_garmin.fetch_user_integrations_and_validate_token.return_value = SimpleNamespace(
             garminconnect_sync_gear=True
         )
@@ -67,16 +67,16 @@ class TestResolveGearId:
 
         assert result == 99
         # Garmin gear resolved -> default-gear lookup is not consulted.
-        mock_dg.get_user_default_gear_by_activity_type.assert_not_called()
+        mock_users.get_default_gear_for_activity_type.assert_not_called()
 
     @patch("modules.activities.activity_ingestion.enrichment.gears_crud")
     @patch("modules.activities.activity_ingestion.enrichment.garmin_utils")
-    @patch("modules.activities.activity_ingestion.enrichment.user_default_gear_utils")
-    def test_garmin_falls_back_to_default_when_sync_off(self, mock_dg, mock_garmin, mock_gears):
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_garmin_falls_back_to_default_when_sync_off(self, mock_users, mock_garmin, mock_gears):
         mock_garmin.fetch_user_integrations_and_validate_token.return_value = SimpleNamespace(
             garminconnect_sync_gear=False
         )
-        mock_dg.get_user_default_gear_by_activity_type.return_value = 5
+        mock_users.get_default_gear_for_activity_type.return_value = 5
 
         result = enrichment.resolve_gear_id(
             1, user_id=7, db=MagicMock(), from_garmin=True, garminconnect_gear=[{"uuid": "abc"}]
@@ -87,11 +87,10 @@ class TestResolveGearId:
 
 
 class TestEnrichParsedActivity:
-    @patch("modules.activities.activity_ingestion.enrichment.user_default_gear_utils")
-    @patch("modules.activities.activity_ingestion.enrichment.users_privacy_settings_utils")
-    def test_sets_privacy_and_gear_non_garmin(self, mock_ups_utils, mock_dg):
-        mock_ups_utils.visibility_to_int.return_value = 1
-        mock_dg.get_user_default_gear_by_activity_type.return_value = 12
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_sets_privacy_and_gear_non_garmin(self, mock_users):
+        mock_users.default_visibility_to_int.return_value = 1
+        mock_users.get_default_gear_for_activity_type.return_value = 12
         activity = SimpleNamespace(activity_type=4)
 
         enrichment.enrich_parsed_activity(
@@ -106,14 +105,13 @@ class TestEnrichParsedActivity:
 
     @patch("modules.activities.activity_ingestion.enrichment.gears_crud")
     @patch("modules.activities.activity_ingestion.enrichment.garmin_utils")
-    @patch("modules.activities.activity_ingestion.enrichment.user_default_gear_utils")
-    @patch("modules.activities.activity_ingestion.enrichment.users_privacy_settings_utils")
-    def test_sets_garmin_ids_when_from_garmin(self, mock_ups_utils, mock_dg, mock_garmin, mock_gears):
-        mock_ups_utils.visibility_to_int.return_value = 0
+    @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
+    def test_sets_garmin_ids_when_from_garmin(self, mock_users, mock_garmin, mock_gears):
+        mock_users.default_visibility_to_int.return_value = 0
         mock_garmin.fetch_user_integrations_and_validate_token.return_value = SimpleNamespace(
             garminconnect_sync_gear=False
         )
-        mock_dg.get_user_default_gear_by_activity_type.return_value = None
+        mock_users.get_default_gear_for_activity_type.return_value = None
         activity = SimpleNamespace(activity_type=1)
 
         enrichment.enrich_parsed_activity(

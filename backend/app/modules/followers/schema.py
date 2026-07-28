@@ -4,6 +4,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, StrictInt
 
+import core.pagination as core_pagination
+
 
 class FollowStatus(Enum):
     """Status of a follow relationship.
@@ -39,6 +41,13 @@ class RelationshipView(BaseModel):
 
     outgoing: FollowRelationship | None = None
     incoming: FollowRelationship | None = None
+
+
+#: One page of follow relationships. Aliases the shared
+#: :class:`core.pagination.Page` so the follower lists return the same envelope
+#: the activities lists do — they previously returned bare, unbounded arrays,
+#: which made the two template modules disagree on what a list response is.
+FollowRelationshipPage = core_pagination.Page[FollowRelationship]
 
 
 class MessageResponse(BaseModel):

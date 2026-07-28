@@ -18,7 +18,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity_summaries.crud as summary_crud
 import modules.activities.activity_summaries.schema as summary_schema
-import modules.users.users.utils as users_utils
+import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -109,7 +109,7 @@ def build_summary(
     # web client always sends its own local date (the request carries no
     # timezone, so the server cannot derive it); when it does not, the caller's
     # configured timezone is the same frame of reference it would have sent.
-    today = anchor or users_utils.user_local_today(user_id, db)
+    today = anchor or users_integration_service.local_today(user_id, db)
 
     # Which day the server thinks "today" is drives every bucket boundary, so log
     # it alongside what the caller asked for — off-by-one summary reports are

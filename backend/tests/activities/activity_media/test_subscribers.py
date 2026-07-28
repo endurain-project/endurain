@@ -101,8 +101,15 @@ class TestDeleteMediaFilesForActivity:
 
 
 class TestCleanupSubscriber:
+    @staticmethod
+    def _event(payload: dict):
+        """Build a real envelope — the handler reads ``schema_version`` off it."""
+        from infra.events import new_event
+
+        return new_event("activity.deleted", payload, source="test")
+
     def test_durable_handler_cleans_up_by_activity_id(self):
-        event = MagicMock(payload={"activity_id": 42})
+        event = self._event({"activity_id": 42})
 
         with patch.object(media_subscribers.activity_media_service, "delete_media_files_for_activity") as cleanup:
             media_subscribers.cleanup_activity_media_for_event(event)
@@ -115,7 +122,7 @@ class TestCleanupSubscriber:
         import pydantic
 
         with pytest.raises(pydantic.ValidationError):
-            media_subscribers.cleanup_activity_media_for_event(MagicMock(payload={}))
+            media_subscribers.cleanup_activity_media_for_event(self._event({}))
 
     def test_bus_subscriber_swallows_failures(self):
         # A cleanup failure must never break activity deletion.
