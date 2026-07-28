@@ -4,6 +4,7 @@ import type { InfiniteData } from '@tanstack/vue-query'
 import {
   prependActivitiesToFeed,
   pollUploadJob,
+  replaceActivitiesInFeed,
   UploadJobFailedError,
   UploadJobTimeoutError,
 } from '@/features/upload/composables/useUpload'
@@ -261,5 +262,39 @@ describe('prependActivitiesToFeed', () => {
     const data = feed([[makeActivity({ id: 1 })]])
 
     expect(prependActivitiesToFeed(data, [])).toBe(data)
+  })
+})
+
+describe('replaceActivitiesInFeed', () => {
+  it('swaps the matching row in place, on any page', () => {
+    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
+
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({ id: 2, mapThumbnailPath: '2.webp' }),
+    ])
+
+    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([1])
+    expect(result?.pages[1]?.[0]?.mapThumbnailPath).toBe('2.webp')
+  })
+
+  it('leaves rows it has no replacement for untouched', () => {
+    const data = feed([[makeActivity({ id: 1 }), makeActivity({ id: 2 })]])
+
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({ id: 2, mapThumbnailPath: '2.webp' }),
+    ])
+
+    expect(result?.pages[0]?.[0]?.mapThumbnailPath).toBeNull()
+    expect(result?.pages[0]?.[1]?.mapThumbnailPath).toBe('2.webp')
+  })
+
+  it('returns the value untouched when there is nothing cached', () => {
+    expect(replaceActivitiesInFeed(undefined, [makeActivity()])).toBeUndefined()
+  })
+
+  it('returns the value untouched when there are no replacements', () => {
+    const data = feed([[makeActivity({ id: 1 })]])
+
+    expect(replaceActivitiesInFeed(data, [])).toBe(data)
   })
 })

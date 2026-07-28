@@ -1,4 +1,9 @@
-import { type InfiniteData, useMutation, useQueryClient } from '@tanstack/vue-query'
+import {
+  type InfiniteData,
+  type QueryClient,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/vue-query'
 
 import { fetchActivity } from '@/features/activities/services/activities'
 import type { Activity } from '@/features/activities/types'
@@ -8,6 +13,15 @@ import { queryKeys } from '@/services/queryKeys'
 
 /** How long to wait between upload-job status polls. */
 const POLL_INTERVAL_MS = 1500
+
+/**
+ * Delays before re-checking a freshly uploaded activity whose map thumbnail was
+ * not ready yet. The thumbnail is rendered by a background job that finishes
+ * *after* the upload job it reacted to, so the row fetched on completion can
+ * legitimately still carry none. Bounded and give-up-quiet: a non-GPS activity
+ * never gets one, and the hourly server-side backfill remains the real net.
+ */
+const THUMBNAIL_RETRY_DELAYS_MS = [2000, 5000, 10000]
 
 /**
  * How long to keep polling before giving up. Generous because the wait covers
@@ -117,6 +131,83 @@ export function prependActivitiesToFeed(
 }
 
 /**
+ * Returns a copy of the feed cache with any row matching a given activity's id
+ * swapped for that activity, leaving position and every other row untouched.
+ * Pure and immutable — never mutates in place.
+ *
+ * @param data - The cached infinite-feed value, or `undefined` when unpopulated.
+ * @param activities - The refreshed activities to swap in.
+ * @returns The updated feed value, or `undefined` when there was nothing cached.
+ */
+export function replaceActivitiesInFeed(
+  data: InfiniteData<Activity[]> | undefined,
+  activities: Activity[],
+): InfiniteData<Activity[]> | undefined {
+  if (!data || activities.length === 0) {
+    return data
+  }
+  const byId = new Map(activities.map((activity) => [activity.id, activity]))
+  return {
+    ...data,
+    pages: data.pages.map((page) => page.map((activity) => byId.get(activity.id) ?? activity)),
+  }
+}
+
+/**
+ * Writes activities over their existing rows in the viewer's own home feed.
+ *
+ * @param queryClient - The query client holding the feed caches.
+ * @param activities - The refreshed activities to swap in.
+ * @returns Nothing.
+ */
+function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
+  queryClient.setQueriesData<InfiniteData<Activity[]>>(
+    {
+      queryKey: queryKeys.activities.lists(),
+      predicate: (query) => activityListScope(query.queryKey) === 'user-feed',
+    },
+    (data) => replaceActivitiesInFeed(data, activities),
+  )
+}
+
+/**
+ * Re-fetches activities that arrived without a map thumbnail and patches the
+ * feed as each one lands, so a fresh upload gains its map without a reload.
+ *
+ * Gives up silently after {@link THUMBNAIL_RETRY_DELAYS_MS}: an activity with no
+ * GPS track never gets a thumbnail, and a genuinely delayed one is picked up by
+ * the server's periodic backfill and the next feed refetch.
+ *
+ * @param queryClient - The query client holding the feed caches.
+ * @param activityIds - Ids of the activities still missing a thumbnail.
+ * @returns A promise resolving once every id resolved or the retries ran out.
+ */
+async function backfillMissingThumbnails(
+  queryClient: QueryClient,
+  activityIds: number[],
+): Promise<void> {
+  let awaiting = activityIds
+  for (const delayMs of THUMBNAIL_RETRY_DELAYS_MS) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+    const refreshed = (
+      await Promise.all(
+        awaiting.map((id) => fetchActivity(id, { authenticated: true }).catch(() => null)),
+      )
+    ).filter((activity): activity is Activity => activity !== null)
+
+    const ready = refreshed.filter((activity) => activity.mapThumbnailPath !== null)
+    if (ready.length > 0) {
+      patchUserFeed(queryClient, ready)
+      const readyIds = new Set(ready.map((activity) => activity.id))
+      awaiting = awaiting.filter((id) => !readyIds.has(id))
+    }
+    if (awaiting.length === 0) {
+      return
+    }
+  }
+}
+
+/**
  * Write-path reference for file uploads: a TanStack mutation that uploads one
  * activity file, waits for the background import, and reconciles the activities
  * cache.
@@ -129,8 +220,11 @@ export function prependActivitiesToFeed(
  *
  * The completed job carries the ids it created, which are fetched and
  * optimistically pinned to the top of the viewer's home feed (see
- * {@link prependActivitiesToFeed}) so a fresh upload is immediately visible \u2014
- * with its map \u2014 instead of buried in its chronological position.
+ * {@link prependActivitiesToFeed}) so a fresh upload is immediately visible
+ * instead of buried in its chronological position. Its map thumbnail is
+ * rendered by a separate background job, so any activity that arrives without
+ * one is chased briefly and patched in place (see
+ * {@link backfillMissingThumbnails}).
  *
  * The home feeds are deliberately excluded from the settle-time invalidation \u2014
  * refetching them would reorder the new activity out of view before the viewer
@@ -171,6 +265,18 @@ export function useUploadActivityFileMutation() {
         },
         (data) => prependActivitiesToFeed(data, created),
       )
+
+      // Thumbnail rendering reacts to `activity.created` on a background worker,
+      // so it can finish after the upload job the poll above waited on. Chase
+      // the ones that came back without a map rather than pinning a mapless
+      // card until the next full reload. Deliberately not awaited: the upload is
+      // already done, and the mutation must resolve so the UI placeholder clears.
+      const awaitingThumbnail = created
+        .filter((activity) => activity.mapThumbnailPath === null)
+        .map((activity) => activity.id)
+      if (awaitingThumbnail.length > 0) {
+        void backfillMissingThumbnails(queryClient, awaitingThumbnail)
+      }
     },
     onSettled: () => {
       // Refresh every activities query except the home feeds, which were just
