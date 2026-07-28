@@ -285,6 +285,26 @@ class VisibilityUpdateResponse(BaseModel):
     updated: int
 
 
+class ActivitiesBulkEdit(BaseModel):
+    """
+    Schema for a bulk (PATCH) update across the caller's own activities.
+
+    Every field is optional and only the fields present in the request body are
+    applied, so adding a second bulk-editable attribute later does not need a
+    new endpoint. Unknown fields are rejected (``extra="forbid"``) rather than
+    silently ignored, which is what stops a typo'd field from looking like a
+    successful no-op.
+
+    Attributes:
+        visibility: Visibility to apply to every activity the caller owns.
+            0 public, 1 followers, 2 private.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    visibility: int | None = Field(default=None, ge=0, le=2)
+
+
 class ActivityEdit(BaseModel):
     """
     Schema for partial (PATCH) updates to an activity.

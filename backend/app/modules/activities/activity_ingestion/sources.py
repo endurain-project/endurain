@@ -68,6 +68,9 @@ class BulkImportSource:
     Attributes:
         import_initiated_time: ISO timestamp of when the import run started,
             recorded on each imported activity.
+        user_id: Owner of the import, used to resolve that user's error
+            directory. ``None`` for a Strava export, which has its own shared
+            directory.
         strava_activities: Parsed Strava ``activities.csv``, keyed by filename.
             ``None`` for a generic bulk import.
         gear_nickname_to_id: Gear nickname -> internal gear id, used to resolve
@@ -75,6 +78,7 @@ class BulkImportSource:
     """
 
     import_initiated_time: str | None = None
+    user_id: int | None = None
     strava_activities: dict | None = None
     gear_nickname_to_id: dict | None = None
 
@@ -87,12 +91,17 @@ class BulkImportSource:
 
     @property
     def error_directory(self) -> str:
-        """Directory a file is moved to when its import fails."""
-        return (
-            core_config.STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR
-            if self.strava_activities
-            else core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
-        )
+        """Directory a file is moved to when its import fails.
+
+        Per-user for a generic bulk import, matching the per-user drop
+        directory: moving one user's failed file into a shared location would
+        undo the isolation the import itself enforces.
+        """
+        if self.strava_activities:
+            return core_config.STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR
+        if self.user_id is None:
+            return core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
+        return core_config.bulk_import_error_dir_for(self.user_id)
 
     def metadata_for(self, file_base_name: str) -> dict:
         """Build the supplemental metadata to apply to activities from one file.

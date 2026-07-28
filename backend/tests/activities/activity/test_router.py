@@ -4,6 +4,8 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
+import core.exceptions as core_exceptions
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -331,10 +333,30 @@ class TestEditVisibility:
     def test_success(self, mock_db):
         with patch("modules.activities.activity.router.activities_crud.edit_user_activities_visibility") as m:
             m.return_value = 5
-            resp = TestClient(_build_app(mock_db)).put(
-                "/activities/visibility/1", headers={"Authorization": "Bearer x"}
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities", json={"visibility": 1}, headers={"Authorization": "Bearer x"}
             )
             assert resp.status_code == 200 and resp.json()["updated"] == 5
+            assert m.call_args.args[1] == 1
+
+    def test_rejects_an_out_of_range_visibility(self, mock_db):
+        """Validation moved from a path dependency into the body schema."""
+        resp = TestClient(_build_app(mock_db)).patch(
+            "/activities", json={"visibility": 9}, headers={"Authorization": "Bearer x"}
+        )
+        assert resp.status_code == 422
+
+    def test_rejects_an_unknown_field(self, mock_db):
+        """A typo'd field must not look like a successful no-op."""
+        resp = TestClient(_build_app(mock_db)).patch(
+            "/activities", json={"visibilty": 1}, headers={"Authorization": "Bearer x"}
+        )
+        assert resp.status_code == 422
+
+    def test_rejects_an_empty_patch(self, mock_db):
+        """An empty body is a client bug, not a successful no-op."""
+        with pytest.raises(core_exceptions.InvalidInputError):
+            TestClient(_build_app(mock_db)).patch("/activities", json={}, headers={"Authorization": "Bearer x"})
 
 
 class TestDelete:

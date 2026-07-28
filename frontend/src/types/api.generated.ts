@@ -102,7 +102,29 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Activities
+         * @description Apply a bulk edit across all of the authenticated user's activities.
+         *
+         *     A PATCH on the collection with the change in the body, rather than the
+         *     previous ``PUT /visibility/{visibility}``: the value being set is data, not
+         *     an identifier, and PUT implied a full replacement of a resource that does
+         *     not exist at that path. The body shape also leaves room for a second
+         *     bulk-editable field without another endpoint.
+         *
+         *     Args:
+         *         body: The fields to apply; only those present are changed.
+         *         token_user_id: Authenticated user ID.
+         *         _check_scopes: Scope validation dependency.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         How many activities changed.
+         *
+         *     Raises:
+         *         InvalidInputError: If the body asks for no change at all.
+         */
+        patch: operations["edit_activities_api_v1_activities_patch"];
         trace?: never;
     };
     "/api/v1/activities/bulk-import": {
@@ -325,11 +347,15 @@ export interface paths {
          *
          *     Returns ``202`` once the file is stored and queued: parsing is seconds of
          *     CPU work, and doing it inline held a shared request thread for the duration.
-         *     Poll ``GET /activities/upload/{job_id}`` for the outcome.
+         *     Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
          *
          *     Rejections that can be decided cheaply — unsupported extension, failed
          *     signature check, oversized body — still come back synchronously as a 4xx, so
          *     only files that plausibly import get a job.
+         *
+         *     Send an ``Idempotency-Key`` to make a retry safe: a client that never saw
+         *     the 202 has no job id to poll, so replaying the upload is its only recovery,
+         *     and without a key that replay would import the file a second time.
          *
          *     Accepts both JWT bearer token and API key
          *     authentication (X-API-Key header or ?api_key=
@@ -341,6 +367,7 @@ export interface paths {
          *         file: The activity file to upload.
          *         _check_scopes: Scope validation dependency.
          *         db: Database session dependency.
+         *         idempotency_key: Optional key identifying this request.
          *
          *     Returns:
          *         The accepted upload job, in the pending state.
@@ -385,26 +412,6 @@ export interface paths {
          */
         get: operations["read_user_activity_stats_api_v1_activities_users__user_id__stats_get"];
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/visibility/{visibility}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Edit Activities Visibility
-         * @description Set the visibility of all the authenticated user's activities.
-         */
-        put: operations["edit_activities_visibility_api_v1_activities_visibility__visibility__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5308,6 +5315,24 @@ export interface components {
             name: string;
             /** Version */
             version: string;
+        };
+        /**
+         * ActivitiesBulkEdit
+         * @description Schema for a bulk (PATCH) update across the caller's own activities.
+         *
+         *     Every field is optional and only the fields present in the request body are
+         *     applied, so adding a second bulk-editable attribute later does not need a
+         *     new endpoint. Unknown fields are rejected (``extra="forbid"``) rather than
+         *     silently ignored, which is what stops a typo'd field from looking like a
+         *     successful no-op.
+         *
+         *     Attributes:
+         *         visibility: Visibility to apply to every activity the caller owns.
+         *             0 public, 1 followers, 2 private.
+         */
+        ActivitiesBulkEdit: {
+            /** Visibility */
+            visibility?: number | null;
         };
         /**
          * Activity
@@ -12358,6 +12383,39 @@ export interface operations {
             };
         };
     };
+    edit_activities_api_v1_activities_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivitiesBulkEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisibilityUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_activity_with_bulk_import_api_v1_activities_bulk_import_post: {
         parameters: {
             query?: never;
@@ -12581,7 +12639,10 @@ export interface operations {
             query?: {
                 api_key?: string | null;
             };
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12674,37 +12735,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityStats"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    edit_activities_visibility_api_v1_activities_visibility__visibility__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                visibility: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VisibilityUpdateResponse"];
                 };
             };
             /** @description Validation Error */

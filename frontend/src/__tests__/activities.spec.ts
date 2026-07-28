@@ -329,15 +329,32 @@ describe('deleteActivity', () => {
 })
 
 describe('updateUserActivitiesVisibility', () => {
-  it('updates every existing activity to the requested visibility', async () => {
+  it('patches the collection with the wire value for the requested visibility', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
     await updateUserActivitiesVisibility('followers')
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/visibility/followers', {
-      method: 'PUT',
+    // The profile UI works in names, the activities API in integers; sending
+    // the name produced a 422 before this mapping existed.
+    expect(apiFetch).toHaveBeenCalledWith('/activities', {
+      method: 'PATCH',
+      body: JSON.stringify({ visibility: 1 }),
       responseType: 'void',
     })
+  })
+
+  it('maps every visibility level to its wire value', async () => {
+    for (const [name, wire] of [
+      ['public', 0],
+      ['followers', 1],
+      ['private', 2],
+    ] as const) {
+      vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+      await updateUserActivitiesVisibility(name)
+      expect(vi.mocked(apiFetch).mock.lastCall?.[1]).toMatchObject({
+        body: JSON.stringify({ visibility: wire }),
+      })
+    }
   })
 })
 

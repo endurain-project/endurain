@@ -668,6 +668,37 @@ STRAVA_BULK_IMPORT_MEDIA_DIR = f"{STRAVA_BULK_IMPORT_DIR}/media"
 STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{STRAVA_BULK_IMPORT_DIR}/import_errors"
 
 
+def bulk_import_dir_for(user_id: int) -> str:
+    """Return the bulk-import drop directory belonging to one user.
+
+    Bulk import used to scan a single shared directory, so on a multi-user
+    server any user triggering an import would ingest every file present —
+    including another user's — and have the resulting activities attributed to
+    themselves. Giving each user their own directory makes that impossible by
+    construction rather than by convention.
+
+    Args:
+        user_id: The owning user's id. Coerced to ``int`` so the value can only
+            ever be a single path segment.
+
+    Returns:
+        Absolute path of that user's bulk-import directory.
+    """
+    return f"{FILES_BULK_IMPORT_DIR}/{int(user_id)}"
+
+
+def bulk_import_error_dir_for(user_id: int) -> str:
+    """Return the import-error directory belonging to one user.
+
+    Args:
+        user_id: The owning user's id.
+
+    Returns:
+        Absolute path of that user's import-error directory.
+    """
+    return f"{bulk_import_dir_for(user_id)}/import_errors"
+
+
 # Secret loading and environment validation
 def read_secret(
     env_var_name: str,
