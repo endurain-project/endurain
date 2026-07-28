@@ -710,8 +710,8 @@ export async function fetchActivityExerciseTitles(
 ): Promise<ActivityExerciseTitle[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_exercise_titles/all`,
-    `/public/activities_exercise_titles/all`,
+    `/activities/exercise-titles/all`,
+    `/public/activities/exercise-titles/all`,
   )
   const dtos = await apiFetch<ActivityExerciseTitleDto[] | null>(path, {
     auth: context.authenticated,

@@ -20,6 +20,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
@@ -513,6 +514,12 @@ def create_app() -> FastAPI:
         auth_utils.ClearRefreshTokenCookieHTTPException,
         auth_utils.clear_refresh_token_cookie_exception_handler,  # type: ignore[arg-type]
     )
+    # Single API boundary for the transport-agnostic domain errors raised by the
+    # application layers (services, ingestion pipeline, file parsers). Those
+    # layers no longer import FastAPI to report a failure — this handler owns the
+    # status code and renders the same ``{"detail": ...}`` body HTTPException
+    # produces, so the client-visible contract is unchanged.
+    core_exceptions.register_exception_handlers(fastapi_app)
     fastapi_app.add_middleware(SlowAPIMiddleware)
 
     # RequestIdMiddleware is added last so it executes

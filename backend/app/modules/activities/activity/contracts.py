@@ -142,16 +142,17 @@ class ActivityCore(Activity):
     * **Times are normalized to UTC-aware at construction.** Parsers emit naive UTC
       wall-clock strings and providers emit ISO strings; the validator coerces both
       to aware UTC, relocating the normalization that used to run late in
-      ``ParsedActivity.__post_init__``. The field type stays ``datetime | str |
-      None`` so producers keep passing their string output unchanged (no call-site
-      churn), while the stored value is always an aware ``datetime``.
+      ``ParsedActivity.__post_init__``. Producers keep passing their string output
+      unchanged (no call-site churn), while the stored value is always an aware
+      ``datetime`` — and unlike the read schema, ``None`` is rejected rather than
+      allowed through.
     """
 
     user_id: int = Field(ge=1)
     # Required (no default): ingestion must provide a start/end time; the validator
     # rejects a null/unparseable value and coerces the rest to aware UTC.
-    start_time: datetime | str | None
-    end_time: datetime | str | None
+    start_time: datetime
+    end_time: datetime
 
     @field_validator("start_time", "end_time", mode="before")
     @classmethod

@@ -37,11 +37,13 @@ class TestReadActivityMedia:
     @patch("modules.activities.activity_media.router.activity_media_service.list_activity_media")
     def test_read_media_not_found(self, mock_list, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_list.return_value = None
+        mock_list.return_value = []
 
+        # A collection endpoint answers with a collection: no media (or an
+        # activity the caller cannot see) is an empty list, not ``null``.
         response = client.get("/activities/999/media", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() is None
+        assert response.json() == []
 
 
 class TestUploadActivityMedia:

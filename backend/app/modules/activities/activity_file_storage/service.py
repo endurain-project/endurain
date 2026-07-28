@@ -64,7 +64,10 @@ def store_activity_file(
     """
     key = activity_file_key(activity_id, extension)
     storage.save(ACTIVITY_FILE_STORAGE_AREA, key, data)
-    logger.debug(f"Stored activity source file for activity {activity_id} as {key}")
+    logger.debug(
+        "Stored the activity source file",
+        extra=core_logger.context(activity_id=activity_id, storage_key=key),
+    )
     return key
 
 

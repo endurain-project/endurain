@@ -21,6 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
@@ -73,13 +74,13 @@ def _move_failed_file_to_error_directory(source: ingestion_sources.BulkImportSou
         os.makedirs(error_file_dir, exist_ok=True)
         core_file_uploads.move_within(file_path, error_file_dir, filename=os.path.basename(file_path))
         logger.error(
-            f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}",
-            extra=core_logger.context(console=True),
+            "Bulk file import: moved the error-producing file to the import-error directory",
+            extra=core_logger.context(console=True, file=Path(file_path).name, error_directory=error_file_dir),
         )
     except OSError:
         logger.error(
-            f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.",
-            extra=core_logger.context(console=True),
+            "Bulk file import: failed to move the error-producing file to the import-error directory",
+            extra=core_logger.context(console=True, file=Path(file_path).name),
         )
 
 
@@ -116,6 +117,9 @@ def store_activity_file(
     try:
         return pipeline.validate_prepare_and_store_file(token_user_id, file_path, db, source=source)
     except (
+        core_exceptions.DomainError,
+        # Still raised by the shared ``core.file_uploads`` validators, which have
+        # not moved to DomainError yet.
         HTTPException,
         OSError,
         EOFError,
@@ -129,15 +133,15 @@ def store_activity_file(
     ) as err:
         if isinstance(source, ingestion_sources.BulkImportSource):
             logger.error(
-                f"Bulk file import: Error while parsing {file_path} in store_activity_file - {err!s}",
+                "Bulk file import: error while parsing file",
                 exc_info=err,
-                extra=core_logger.context(console=True),
+                extra=core_logger.context(console=True, file=Path(file_path).name, user_id=token_user_id),
             )
             _move_failed_file_to_error_directory(source, file_path)
         logger.error(
-            f"Error in store_activity_file - {err}",
+            "Error in store_activity_file",
             exc_info=err,
-            extra=core_logger.context(console=True),
+            extra=core_logger.context(console=True, file=Path(file_path).name, user_id=token_user_id),
         )
         # Background-task callers expect ``None`` on failure rather
         # than re-raising; make that contract explicit.
@@ -161,7 +165,14 @@ def process_all_files_sync(
         total_files = len(file_paths)
         for idx, file_path in enumerate(file_paths, 1):
             logger.info(
-                f"Processing file {idx}/{total_files}: {Path(file_path).name}", extra=core_logger.context(console=True)
+                "Processing bulk-import file",
+                extra=core_logger.context(
+                    console=True,
+                    file=Path(file_path).name,
+                    index=idx,
+                    total_files=total_files,
+                    user_id=user_id,
+                ),
             )
             store_activity_file(
                 user_id,
@@ -171,8 +182,8 @@ def process_all_files_sync(
             )
 
         logger.info(
-            f"Bulk import completed: {total_files} files processed for user {user_id}",
-            extra=core_logger.context(console=True),
+            "Bulk import completed",
+            extra=core_logger.context(console=True, total_files=total_files, user_id=user_id),
         )
     finally:
         db.close()

@@ -98,16 +98,26 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
 )
+# Literal ``/activities/<name>`` sub-resources, mounted for the same reason as the
+# ingestion routers above: they must be matched before the core router's dynamic
+# ``/activities/{activity_id}``, which would otherwise swallow "summaries" and
+# "exercise-titles" as activity ids and answer 422.
 router.include_router(
-    activities_router.router,
-    prefix=core_config.ROOT_PATH + "/activities",
-    tags=["activities"],
+    activity_summaries_router.router,
+    prefix=core_config.ROOT_PATH + "/activities/summaries",
+    tags=["activity_summaries"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     activity_exercise_titles_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_exercise_titles",
+    prefix=core_config.ROOT_PATH + "/activities/exercise-titles",
     tags=["activity_exercise_titles"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    activities_router.router,
+    prefix=core_config.ROOT_PATH + "/activities",
+    tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
@@ -154,12 +164,6 @@ router.include_router(
         Depends(auth_dependencies.validate_access_token),
         Depends(activities_dependencies.validate_activity_id),
     ],
-)
-router.include_router(
-    activity_summaries_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_summaries",
-    tags=["summaries"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     auth_router.router,
@@ -357,7 +361,7 @@ router.include_router(
 )
 router.include_router(
     activity_exercise_titles_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities_exercise_titles",
+    prefix=core_config.ROOT_PATH + "/public/activities/exercise-titles",
     tags=["public_activity_exercise_titles"],
 )
 router.include_router(

@@ -214,7 +214,7 @@ def create_activity_sets(
     else:
         db.flush()
 
-    logger.debug(f"Created {len(sets)} set(s) for activity {activity_id}")
+    logger.debug("Created activity sets", extra=core_logger.context(activity_id=activity_id, count=len(sets)))
 
 
 def _extract_value(

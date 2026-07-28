@@ -252,6 +252,11 @@ def create_follower(
         status="pending",
     )
 
+    logger.debug(
+        "Creating a follow request",
+        extra=core_logger.context(follower_id=user_id, followee_id=target_user_id),
+    )
+
     try:
         db.add(new_follow)
         db.commit()
@@ -262,7 +267,11 @@ def create_follower(
         # pre-check above races, so a concurrent follow lands here and must be a
         # 409, not a 500. Everything else is the decorator's job.
         db.rollback()
-        logger.warning(f"Integrity error in create_follower: {type(err).__name__}", exc_info=err)
+        logger.warning(
+            "Integrity error in create_follower",
+            exc_info=err,
+            extra=core_logger.context(error=type(err).__name__),
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Follow relationship already exists",
@@ -313,6 +322,11 @@ def accept_follower(
     db.commit()
     db.refresh(accept_follow)
 
+    logger.debug(
+        "Accepted a follow request",
+        extra=core_logger.context(follower_id=target_user_id, followee_id=user_id),
+    )
+
 
 @core_decorators.handle_db_errors
 def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
@@ -346,3 +360,7 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
         )
 
     db.commit()
+    logger.debug(
+        "Deleted a follow relationship",
+        extra=core_logger.context(follower_id=user_id, followee_id=target_user_id),
+    )

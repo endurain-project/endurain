@@ -11,10 +11,11 @@ places at once.
 import uuid
 from pathlib import Path, PurePosixPath
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
@@ -30,10 +31,10 @@ _ALLOWED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", 
 
 
 def _require_owned_activity(activity_id: int, user_id: int, db: Session) -> None:
-    """Raise 404 unless ``user_id`` owns ``activity_id``.
+    """Raise :class:`NotFoundError` unless ``user_id`` owns ``activity_id``.
 
-    404 rather than 403 so a caller cannot use the media endpoints to probe which
-    activity ids exist.
+    "Not found" rather than "forbidden" so a caller cannot use the media endpoints
+    to probe which activity ids exist.
 
     Args:
         activity_id: The activity the media belongs to.
@@ -44,18 +45,15 @@ def _require_owned_activity(activity_id: int, user_id: int, db: Session) -> None
         None.
 
     Raises:
-        HTTPException: 404 when the activity does not exist or is not owned by
-            the user.
+        NotFoundError: When the activity does not exist or is not owned by the
+            user.
     """
     if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
         logger.debug(
             "Rejected activity media access for an activity the caller does not own",
             extra=core_logger.context(activity_id=activity_id, user_id=user_id),
         )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found",
-        )
+        raise core_exceptions.NotFoundError("Activity not found")
 
 
 def _build_storage_filename(activity_id: int, original_name: str | None) -> str:
@@ -73,7 +71,7 @@ def _build_storage_filename(activity_id: int, original_name: str | None) -> str:
         A safe filename of the form ``"{activity_id}_{uuid}{ext}"``.
 
     Raises:
-        HTTPException: 415 when the extension is not allowed.
+        UnsupportedMediaTypeError: When the extension is not allowed.
     """
     base_name = PurePosixPath(original_name or "").name
     extension = PurePosixPath(base_name).suffix.lower()
@@ -83,10 +81,7 @@ def _build_storage_filename(activity_id: int, original_name: str | None) -> str:
             "Rejected an activity media upload with an unsupported extension",
             extra=core_logger.context(activity_id=activity_id, extension=extension or None),
         )
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Unsupported media file type",
-        )
+        raise core_exceptions.UnsupportedMediaTypeError("Unsupported media file type")
 
     return f"{activity_id}_{uuid.uuid4().hex}{extension}"
 
@@ -95,7 +90,7 @@ def list_activity_media(
     activity_id: int,
     user_id: int,
     db: Session,
-) -> list[activity_media_schema.ActivityMedia] | None:
+) -> list[activity_media_schema.ActivityMedia]:
     """List the media attached to one of the user's activities.
 
     Args:
@@ -104,12 +99,14 @@ def list_activity_media(
         db: Database session.
 
     Returns:
-        The activity's media, or ``None`` when the activity is not the user's or
-        has no media.
+        The activity's media, empty when the activity is not the user's or has
+        no media. A collection read returns a collection; "you cannot see it"
+        and "there is none" are deliberately indistinguishable here so the
+        endpoint cannot be used to probe which activity ids exist.
     """
     if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
-        return None
-    return activity_media_crud.get_media_for_activity(activity_id, db) or None
+        return []
+    return activity_media_crud.get_media_for_activity(activity_id, db) or []
 
 
 def store_activity_media(
@@ -134,9 +131,9 @@ def store_activity_media(
         The created media record.
 
     Raises:
-        HTTPException: 404 when the activity is not the user's, 415 for an
-            unsupported extension, 400 when image validation fails, 409 on a
-            duplicate path.
+        NotFoundError: When the activity is not the user's.
+        UnsupportedMediaTypeError: For an unsupported extension.
+        ConflictError: On a duplicate path.
     """
     _require_owned_activity(activity_id, user_id, db)
 
@@ -154,7 +151,7 @@ def store_activity_media(
 
     try:
         created = activity_media_crud.create_activity_media(activity_id, file_path, db)
-    except HTTPException:
+    except (core_exceptions.DomainError, HTTPException):
         # Best-effort cleanup of the orphaned file, confined to the media dir.
         try:
             core_file_uploads.safe_remove_within(
@@ -163,8 +160,8 @@ def store_activity_media(
             )
         except HTTPException as fs_err:
             logger.warning(
-                f"Failed to clean up orphaned media file {storage_name}: {fs_err.detail}",
-                extra=core_logger.context(activity_id=activity_id),
+                "Failed to clean up an orphaned activity media file",
+                extra=core_logger.context(activity_id=activity_id, file=storage_name, reason=fs_err.detail),
             )
         raise
 
@@ -190,15 +187,12 @@ def delete_activity_media(activity_id: int, media_id: int, user_id: int, db: Ses
         None.
 
     Raises:
-        HTTPException: 404 when the media does not exist, does not belong to
+        NotFoundError: When the media does not exist, does not belong to
             ``activity_id``, or its activity is not the user's.
     """
     media = activity_media_crud.get_activity_media_by_id(media_id, db)
     if media is None or media.activity_id != activity_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity media not found",
-        )
+        raise core_exceptions.NotFoundError("Activity media not found")
 
     _require_owned_activity(media.activity_id, user_id, db)
 
@@ -214,8 +208,8 @@ def delete_activity_media(activity_id: int, media_id: int, user_id: int, db: Ses
             )
         except HTTPException as fs_err:
             logger.warning(
-                f"Refused to remove activity media outside the media dir for id {media_id}: {fs_err.detail}",
-                extra=core_logger.context(media_id=media_id),
+                "Refused to remove an activity media file outside the media directory",
+                extra=core_logger.context(media_id=media_id, reason=fs_err.detail),
             )
 
     logger.info(
@@ -261,13 +255,13 @@ def delete_media_files_for_activity(activity_id: int) -> int:
             removed += 1
         except OSError as err:
             logger.warning(
-                f"Failed to remove activity media file {candidate.name}: {err}",
-                extra=core_logger.context(activity_id=activity_id),
+                "Failed to remove an activity media file",
+                extra=core_logger.context(activity_id=activity_id, file=candidate.name, reason=str(err)),
             )
 
     if removed:
         logger.info(
-            f"Removed {removed} media file(s) for deleted activity {activity_id}",
-            extra=core_logger.context(activity_id=activity_id),
+            "Removed media files for a deleted activity",
+            extra=core_logger.context(activity_id=activity_id, removed=removed),
         )
     return removed

@@ -24,7 +24,7 @@ router = APIRouter()
 def list_user_followers(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[followers_schema.FollowRelationship]:
@@ -43,7 +43,7 @@ def list_user_followers(
 def count_user_followers(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
     accepted_only: Annotated[bool, Query()] = False,
@@ -63,7 +63,7 @@ def count_user_followers(
 def list_user_following(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[followers_schema.FollowRelationship]:
@@ -82,7 +82,7 @@ def list_user_following(
 def count_user_following(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
     accepted_only: Annotated[bool, Query()] = False,
@@ -102,7 +102,7 @@ def count_user_following(
 def read_user_relationship(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.RelationshipView:
@@ -123,7 +123,7 @@ def read_user_relationship(
 def follow_user(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.FollowRelationship:
@@ -139,7 +139,7 @@ def follow_user(
 def accept_follow(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.MessageResponse:
@@ -156,7 +156,7 @@ def accept_follow(
 def unfollow_user(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.MessageResponse:
@@ -173,7 +173,7 @@ def unfollow_user(
 def remove_follower(
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.MessageResponse:

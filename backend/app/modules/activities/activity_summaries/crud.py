@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, Select, case, extract, func, select
 from sqlalchemy.orm import Session
 
+import core.logger as core_logger
 from modules.activities.activity.constants import (
     ACTIVITY_NAME_TO_ID,
     set_activity_name_based_on_activity_type,
@@ -33,6 +34,8 @@ from modules.activities.activity_summaries.schema import (
     YearlyPeriodSummary,
     YearlySummaryResponse,
 )
+
+logger = core_logger.get_logger(__name__)
 
 
 def _apply_activity_type_filter(
@@ -188,6 +191,15 @@ def get_weekly_summary(
 
     stmt = stmt.group_by(iso_dow).order_by(iso_dow)
 
+    logger.debug(
+        "Aggregating a weekly activity summary",
+        extra=core_logger.context(
+            user_id=user_id,
+            start=start_of_week.isoformat(),
+            end=end_of_week.isoformat(),
+            activity_type=activity_type,
+        ),
+    )
     daily_results = db.execute(stmt).all()
     breakdown: list[DaySummary] = []
     overall = SummaryMetrics()
@@ -275,6 +287,16 @@ def get_monthly_summary(
 
     stmt = stmt.group_by(week_expr).order_by(week_expr)
 
+    logger.debug(
+        "Aggregating a monthly activity summary",
+        extra=core_logger.context(
+            user_id=user_id,
+            start=start_of_month.isoformat(),
+            end=end_of_month.isoformat(),
+            activity_type=activity_type,
+        ),
+    )
+
     weekly_results = db.execute(stmt).all()
     breakdown: list[WeekSummary] = []
     overall = SummaryMetrics()
@@ -355,6 +377,11 @@ def get_yearly_summary(
 
     stmt = stmt.group_by(month_expr).order_by(month_expr)
 
+    logger.debug(
+        "Aggregating a yearly activity summary",
+        extra=core_logger.context(user_id=user_id, year=year, activity_type=activity_type),
+    )
+
     monthly_results = db.execute(stmt).all()
     breakdown: list[MonthSummary] = []
     overall = SummaryMetrics()
@@ -431,6 +458,11 @@ def get_lifetime_summary(
     ).where(Activity.user_id == user_id)
 
     metrics_stmt, _ = _apply_activity_type_filter(metrics_stmt, activity_type)
+
+    logger.debug(
+        "Aggregating a lifetime activity summary",
+        extra=core_logger.context(user_id=user_id, activity_type=activity_type),
+    )
 
     totals = db.execute(metrics_stmt).one_or_none()
 

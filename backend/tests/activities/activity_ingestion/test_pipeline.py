@@ -8,8 +8,8 @@ cleanup — now lives in ``core.file_uploads`` and is tested there.
 from unittest.mock import patch
 
 import pytest
-from fastapi import HTTPException
 
+import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_ingestion.pipeline as pipeline
 import modules.activities.activity_ingestion.sources as sources
@@ -62,7 +62,7 @@ class TestParseFile:
         assert result.activities == ["i1", "i2"]
 
     def test_raises_on_unsupported_extension(self):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.UnsupportedFormatError) as exc:
             pipeline.parse_file(
                 token_user_id=1,
                 file_extension=".xyz",
@@ -86,7 +86,7 @@ class TestParseFileError:
     def test_raises_500_on_parse_error(self, mock_gpx):
         mock_gpx.parse_gpx_file.side_effect = ValueError("bad data")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             pipeline.parse_file(
                 token_user_id=1,
                 file_extension=".gpx",

@@ -51,6 +51,14 @@ SENSITIVE: str = "10/minute"
 #: resource consumption on the ingestion endpoints.
 UPLOAD: str = "20/minute"
 
+#: Endpoints that trigger OUTBOUND calls to a third-party
+#: provider (Strava, Garmin Connect). Tighter than WRITE
+#: because each request amplifies into several external
+#: HTTP calls: without a cap a caller can burn the
+#: server's shared provider quota (or have the server
+#: throttled/banned) with almost no local cost.
+PROVIDER_SYNC: str = "6/minute"
+
 
 def _get_rate_limit_key(request: Request) -> str:
     """

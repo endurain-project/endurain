@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo, available_timezones
 
 import fitdecode
-from fastapi import HTTPException, status
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
@@ -29,7 +30,10 @@ def create_activity_objects(
     enrichment seam.
     """
     try:
-        logger.debug(f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}")
+        logger.debug(
+            "FIT: building activity objects",
+            extra=core_logger.context(user_id=user_id, sessions=len(sessions_records)),
+        )
         # Fallback for sessions with neither a GPS track nor a reported UTC
         # offset (indoor rides, treadmill runs, pool swims).
         timezone = default_timezone or core_config.settings.TZ
@@ -229,18 +233,16 @@ def create_activity_objects(
 
             activities.append(parsed_activity)
 
-        logger.debug(f"FIT: built {len(activities)} activity object(s) for user={user_id}")
+        logger.debug(
+            "FIT: built activity objects",
+            extra=core_logger.context(user_id=user_id, activity_count=len(activities)),
+        )
         return activities
-    except HTTPException as http_err:
-        raise http_err
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        # Log the exception
-        logger.error(f"Error in create_activity_objects: {err}", exc_info=err)
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Can't parse FIT file sessions",
-        ) from err
+        logger.error("Error in create_activity_objects", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.ProcessingError("Can't parse FIT file sessions") from err
 
 
 def split_records_by_activity(parsed_data: dict) -> list[dict]:
@@ -713,7 +715,7 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
 
 def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
     try:
-        logger.debug(f"FIT parse start: file={file}")
+        logger.debug("FIT parse start", extra=core_logger.context(file=Path(file).name))
         state = FitParseState(
             activity_name=activity_name_input or "Workout",
         )
@@ -724,18 +726,16 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
                 if isinstance(frame, fitdecode.FitDataMessage):
                     _dispatch_data_message(frame, state, fit_data.last_timestamp)
 
-        logger.debug(f"FIT parse complete: file={file}, exercise_titles={len(state.exercises_titles)}")
+        logger.debug(
+            "FIT parse complete",
+            extra=core_logger.context(file=Path(file).name, exercise_titles=len(state.exercises_titles)),
+        )
         return state.to_payload()
-    except HTTPException as http_err:
-        raise http_err
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        # Log the exception
-        logger.error(f"Error in parse_fit_file: {err}", exc_info=err)
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Can't parse FIT file",
-        ) from err
+        logger.error("Error in parse_fit_file", exc_info=err, extra=core_logger.context(file=Path(file).name))
+        raise core_exceptions.ProcessingError("Can't parse FIT file") from err
 
 
 def parse_frame_session(frame):
@@ -1251,5 +1251,8 @@ def find_timezone_name(offset_seconds, reference_date):
         if utc_offset.total_seconds() == offset_seconds:
             return tz_name
 
-    logger.warning(f"FIT: no timezone matches UTC offset {offset_seconds}s; falling back to the server timezone")
+    logger.warning(
+        "FIT: no timezone matches the UTC offset; falling back to the server timezone",
+        extra=core_logger.context(offset_seconds=offset_seconds),
+    )
     return None

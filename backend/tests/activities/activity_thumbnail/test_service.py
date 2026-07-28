@@ -138,9 +138,12 @@ class TestDeleteAndRegenerateThumbnails:
 
         delete_and_regenerate_all_activity_thumbnails()
 
-        mock_logger.warning.assert_any_call(
-            "Thumbnail regeneration: could not delete thumbnail for activity 1: boom",
-        )
+        # Structured logging: the activity and the reason are queryable fields
+        # rather than interpolated into the message.
+        warning = mock_logger.warning.call_args
+        assert warning.args[0] == "Thumbnail regeneration: could not delete the existing thumbnail"
+        assert warning.kwargs["extra"]["activity_id"] == 1
+        assert warning.kwargs["extra"]["reason"] == "boom"
         mock_crud.clear_all_activity_thumbnail_paths.assert_called_once()
         mock_gen.assert_called_once()
 

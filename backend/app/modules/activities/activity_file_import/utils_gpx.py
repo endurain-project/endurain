@@ -8,9 +8,9 @@ from typing import TypedDict
 
 import gpxpy
 import gpxpy.gpx
-from fastapi import HTTPException, status
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
@@ -509,10 +509,7 @@ def _build_activity_schema(
         Populated Activity schema instance.
     """
     if state.first_waypoint_time is None or state.last_waypoint_time is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Missing waypoint timestamps in GPX parse state",
-        )
+        raise core_exceptions.ProcessingError("Missing waypoint timestamps in GPX parse state")
     elapsed = (state.last_waypoint_time - state.first_waypoint_time).total_seconds()
     return activities_contracts.ActivityCore(
         user_id=user_id,
@@ -567,12 +564,12 @@ def parse_gpx_file(
         arrays, lap data, and boolean stream flags.
 
     Raises:
-        HTTPException: 400 if the GPX has no tracks, no segments, or no valid
+        InvalidInputError: If the GPX has no tracks, no segments, or no valid
             timed trackpoints.
-        HTTPException: 500 if the file cannot be read.
+        ProcessingError: If the file cannot be read.
     """
     try:
-        logger.debug(f"GPX parse start: file={file}, user={user_id}")
+        logger.debug("GPX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
         state = _init_parsing_state(
             activity_name_input,
             # A GPX track normally yields a timezone from its first GPS point;
@@ -584,19 +581,13 @@ def parse_gpx_file(
             gpx = gpxpy.parse(gpx_file)
 
             if not gpx.tracks:
-                raise HTTPException(
-                    status_code=(status.HTTP_400_BAD_REQUEST),
-                    detail=("Invalid GPX file - no tracks found in the GPX file"),
-                )
+                raise core_exceptions.InvalidInputError("Invalid GPX file - no tracks found in the GPX file")
 
             for track in gpx.tracks:
                 _process_track_metadata(track, gpx, state)
 
                 if not track.segments:
-                    raise HTTPException(
-                        status_code=(status.HTTP_400_BAD_REQUEST),
-                        detail=("Invalid GPX file - no segments found in the GPX file"),
-                    )
+                    raise core_exceptions.InvalidInputError("Invalid GPX file - no segments found in the GPX file")
 
                 for segment in track.segments:
                     state.reset_segment()
@@ -610,15 +601,11 @@ def parse_gpx_file(
                         state.lat_lon_segments.append(segment_waypoints)
 
         if state.first_waypoint_time is None or state.last_waypoint_time is None:
-            raise HTTPException(
-                status_code=(status.HTTP_400_BAD_REQUEST),
-                detail=("Invalid GPX file - no trackpoints with valid time data found"),
-            )
+            raise core_exceptions.InvalidInputError("Invalid GPX file - no trackpoints with valid time data found")
 
         if not state.lat_lon_segments:
-            raise HTTPException(
-                status_code=(status.HTTP_400_BAD_REQUEST),
-                detail=("Invalid GPX file - no valid segments with at least two timed GPS trackpoints found"),
+            raise core_exceptions.InvalidInputError(
+                "Invalid GPX file - no valid segments with at least two timed GPS trackpoints found"
             )
 
         # Sum distance per segment (not across the full flat waypoint list) so
@@ -646,12 +633,20 @@ def parse_gpx_file(
             )
 
         logger.debug(
-            f"GPX parse complete: user={user_id}, type={activity.activity_type}, "
-            f"distance={activity.distance}m, segments={len(state.lat_lon_segments)}, "
-            f"laps={len(laps)}, gps_points={len(state.lat_lon_waypoints)}, "
-            f"streams(hr={bool(state.hr_waypoints)}, power={bool(state.power_waypoints)}, "
-            f"cadence={bool(state.cad_waypoints)}, elevation={bool(state.ele_waypoints)}, "
-            f"velocity={bool(state.vel_waypoints)})"
+            "GPX parse complete",
+            extra=core_logger.context(
+                user_id=user_id,
+                activity_type=activity.activity_type,
+                distance_m=activity.distance,
+                segments=len(state.lat_lon_segments),
+                laps=len(laps),
+                gps_points=len(state.lat_lon_waypoints),
+                has_hr=bool(state.hr_waypoints),
+                has_power=bool(state.power_waypoints),
+                has_cadence=bool(state.cad_waypoints),
+                has_elevation=bool(state.ele_waypoints),
+                has_velocity=bool(state.vel_waypoints),
+            ),
         )
 
         return ParsedGpxData(
@@ -672,15 +667,12 @@ def parse_gpx_file(
             laps=laps,
         )
 
-    except HTTPException as http_err:
-        raise http_err
+    except core_exceptions.DomainError:
+        raise
     except (
         gpxpy.gpx.GPXException,
         OSError,
         ValueError,
     ) as err:
-        logger.error(f"Error in parse_gpx_file - {err}", exc_info=err)
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Failed to parse GPX file",
-        ) from err
+        logger.error("Error in parse_gpx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.ProcessingError("Failed to parse GPX file") from err

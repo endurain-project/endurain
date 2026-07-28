@@ -11,11 +11,12 @@ import os
 import shutil
 import uuid
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
@@ -34,7 +35,7 @@ def store_uploaded_activity_file(
 
     Validates the filename and extension, streams the upload to disk, decompresses
     ``.gz`` payloads, then delegates to the shared pipeline. On failure it removes
-    any partial upload artifacts and raises ``HTTPException``.
+    any partial upload artifacts and re-raises.
 
     Args:
         token_user_id: Authenticated user ID.
@@ -46,24 +47,22 @@ def store_uploaded_activity_file(
         could be parsed from the file.
 
     Raises:
-        HTTPException: 400/404/406/413 on validation errors,
-            500 on internal failures.
+        InvalidInputError: When the filename is missing or a ``.gz`` decompresses
+            to an unsupported payload.
+        UnsupportedFormatError: When the extension is not a supported format.
+        ProcessingError: On an internal failure.
     """
     # Validate filename exists
     if file.filename is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Filename is required",
-        )
+        raise core_exceptions.InvalidInputError("Filename is required")
 
     # Pre-check the extension so we can short-circuit with a
     # human-friendly 406 before invoking the validator (which would
     # otherwise raise a generic ExtensionSecurityError -> 400).
     _, file_extension = os.path.splitext(file.filename)
     if file_extension.lower() not in core_config.SUPPORTED_FILE_FORMATS:
-        raise HTTPException(
-            status_code=status.HTTP_406_NOT_ACCEPTABLE,
-            detail=("File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"),
+        raise core_exceptions.UnsupportedFormatError(
+            "File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"
         )
 
     upload_dir = core_config.settings.FILES_DIR
@@ -96,10 +95,7 @@ def store_uploaded_activity_file(
             # Re-validate after decompression so the inner payload
             # still matches one of the supported activity formats.
             if file_extension.lower() not in core_config.SUPPORTED_FILE_FORMATS or file_extension.lower() == ".gz":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=("Decompressed file extension is not supported"),
-                )
+                raise core_exceptions.InvalidInputError("Decompressed file extension is not supported")
             # Defense in depth: signature-check the inner payload
             # via the same safeuploads validator used for direct
             # activity uploads.
@@ -123,7 +119,10 @@ def store_uploaded_activity_file(
         if created_activities is None:
             core_file_uploads.remove_files(upload_artifacts)
         return created_activities
-    except HTTPException:
+    except (core_exceptions.DomainError, HTTPException):
+        # ``HTTPException`` is still raised by the shared ``core.file_uploads``
+        # validators; caught only so the partial artifacts are cleaned up before
+        # the error propagates unchanged.
         core_file_uploads.remove_files(upload_artifacts)
         raise
     except (
@@ -137,11 +136,10 @@ def store_uploaded_activity_file(
         KeyError,
         TypeError,
     ) as err:
-        # Log the exception
-        logger.error(f"Error in store_uploaded_activity_file - {err!s}", exc_info=err)
+        logger.error(
+            "Error in store_uploaded_activity_file",
+            exc_info=err,
+            extra=core_logger.context(user_id=token_user_id),
+        )
         core_file_uploads.remove_files(upload_artifacts)
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        raise core_exceptions.ProcessingError() from err

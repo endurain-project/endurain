@@ -6,10 +6,14 @@ from fastapi.testclient import TestClient
 
 def _build_app(mock_db):
     import core.database as core_db
+    import core.exceptions as core_exceptions
     import modules.activities.activity.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities")
+    # Same domain-error boundary the real app registers, so these tests assert
+    # the status codes clients actually receive.
+    core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -62,6 +66,8 @@ class TestReadPublicActivity:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
 
+        # Missing and not-public are the same answer on purpose: this endpoint is
+        # unauthenticated, so distinguishing them would let anyone enumerate ids.
         response = client.get("/public/activities/999")
-        assert response.status_code == 200
-        assert response.json() is None
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Activity not found"

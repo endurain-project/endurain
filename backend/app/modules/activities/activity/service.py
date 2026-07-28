@@ -3,17 +3,18 @@
 Thin sync routes delegate their read/stats/feed orchestration here: timeframe
 math, owner-vs-requester scoping, aggregate stats, and the following-feed access
 guard. Functions return schemas / DTOs / primitives and never expose ORM
-instances. The only non-return side effect is raising ``HTTPException`` for
-access-control failures — matching the module's established CRUD error
-convention (a pure domain-exception boundary is a later refinement).
+instances. Access-control failures raise the transport-agnostic domain errors in
+:mod:`core.exceptions`, which the API boundary renders — this layer states *what*
+went wrong, never which HTTP status to send, so it stays usable from the durable
+job worker and unit-testable without FastAPI.
 """
 
 import calendar
 from datetime import UTC, date, datetime, time, timedelta
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activities_schema
@@ -123,18 +124,6 @@ def _month_bounds(
     return start_of_month, end_of_month
 
 
-def list_week_activities(
-    user_id: int,
-    week_number: int,
-    requester_user_id: int,
-    db: Session,
-    anchor: date | None = None,
-) -> list[activities_schema.Activity] | None:
-    """List a user's activities for the week ``week_number`` weeks ago (0 = current)."""
-    start, end = _week_bounds(requester_user_id, db, week_number, anchor)
-    return get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-
-
 def week_stats(
     user_id: int,
     requester_user_id: int,
@@ -163,18 +152,6 @@ def month_stats(
     return activities_schema.ActivityStats()
 
 
-def count_month_activities(
-    user_id: int,
-    requester_user_id: int,
-    db: Session,
-    anchor: date | None = None,
-) -> int:
-    """Count a user's current-month activities (requester-scoped)."""
-    start, end = _month_bounds(requester_user_id, db, anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    return len(activities) if activities else 0
-
-
 def period_stats(
     user_id: int,
     period: str,
@@ -192,7 +169,10 @@ def period_stats(
         anchor: The caller's local calendar date, used to decide which week or
             month is "current". Falls back to today in the requester's timezone.
     """
-    logger.debug(f"period_stats: user {user_id} period={period!r} requester {requester_user_id} anchor={anchor}")
+    logger.debug(
+        "Aggregating period stats",
+        extra=core_logger.context(user_id=user_id, period=period, requester_user_id=requester_user_id, anchor=anchor),
+    )
     if period == "month":
         return month_stats(user_id, requester_user_id, db, anchor)
     return week_stats(user_id, requester_user_id, db, anchor)
@@ -282,11 +262,11 @@ def list_user_activities_paginated(
 def _require_feed_owner(user_id: int, requester_user_id: int) -> None:
     """Enforce that the requester is reading their own following feed (OWASP A01 / IDOR)."""
     if user_id != requester_user_id:
-        logger.warning(f"Blocked following-feed access: user {requester_user_id} requested the feed of user {user_id}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden",
+        logger.warning(
+            "Blocked following-feed access for a feed the caller does not own",
+            extra=core_logger.context(requester_user_id=requester_user_id, user_id=user_id),
         )
+        raise core_exceptions.PermissionDeniedError()
 
 
 def get_following_feed(

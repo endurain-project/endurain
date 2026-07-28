@@ -4,7 +4,8 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+
+import core.exceptions as core_exceptions
 
 # A Thursday, so week bounds straddle a month boundary in neither direction.
 _TODAY = date(2026, 3, 12)
@@ -44,19 +45,6 @@ class TestGetActivitiesInTimeframe:
         mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, False, requester_user_id=2)
 
 
-class TestListWeekActivities:
-    @patch("modules.activities.activity.service.get_activities_in_timeframe")
-    def test_delegates_with_bounds(self, mock_get):
-        from modules.activities.activity import service
-
-        mock_get.return_value = ["a"]
-        result = service.list_week_activities(3, 0, 3, MagicMock())
-        assert result == ["a"]
-        # user_id (arg 0) and requester_user_id (arg 3) are threaded through.
-        assert mock_get.call_args.args[0] == 3
-        assert mock_get.call_args.args[3] == 3
-
-
 class TestPeriodStats:
     @patch("modules.activities.activity.service.activities_stats.calculate_activity_stats", return_value="stats")
     @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=[MagicMock()])
@@ -87,18 +75,6 @@ class TestPeriodStats:
 
         assert isinstance(service.month_stats(1, 1, MagicMock()), schema.ActivityStats)
 
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=[MagicMock(), MagicMock()])
-    def test_count_month_activities(self, mock_get):
-        from modules.activities.activity import service
-
-        assert service.count_month_activities(1, 1, MagicMock()) == 2
-
-    @patch("modules.activities.activity.service.get_activities_in_timeframe", return_value=None)
-    def test_count_month_activities_none(self, mock_get):
-        from modules.activities.activity import service
-
-        assert service.count_month_activities(1, 1, MagicMock()) == 0
-
 
 class TestFollowingFeed:
     @patch("modules.activities.activity.service.followers_service")
@@ -116,7 +92,7 @@ class TestFollowingFeed:
     def test_feed_other_user_forbidden(self):
         from modules.activities.activity import service
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.PermissionDeniedError) as exc:
             service.get_following_feed(2, 1, 1, 10, MagicMock())
         assert exc.value.status_code == 403
 
@@ -136,7 +112,7 @@ class TestFollowingFeed:
     def test_count_other_user_forbidden(self):
         from modules.activities.activity import service
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.PermissionDeniedError) as exc:
             service.count_following_feed(2, 1, MagicMock())
         assert exc.value.status_code == 403
 
