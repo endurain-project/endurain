@@ -493,9 +493,9 @@ def _compute_derived_metrics(
 def _build_activity_schema(
     state: ParseState,
     user_id: int,
-) -> activities_schema.Activity:
+) -> activities_contracts.ActivityCore:
     """
-    Build an Activity Pydantic schema from parsed state.
+    Build an ActivityCore ingestion contract from parsed state.
 
     Domain fields (privacy, gear, provider ids) are intentionally left unset —
     the ``activity_ingestion`` enrichment seam populates them after parsing so

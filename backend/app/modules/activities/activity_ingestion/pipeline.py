@@ -190,7 +190,7 @@ def store_activities_from_file(
     if user_privacy_settings is None:
         raise core_exceptions.NotFoundError("User privacy settings not found")
 
-    from_garmin = isinstance(source, ingestion_sources.GarminSource)
+    garmin_source = source if isinstance(source, ingestion_sources.GarminSource) else None
     bulk_source = source if isinstance(source, ingestion_sources.BulkImportSource) else None
     activity_name = source.activity_name if not isinstance(source, ingestion_sources.BulkImportSource) else None
 
@@ -231,7 +231,7 @@ def store_activities_from_file(
     # provider id instead, so skip the hash there.
     import_source = activities_contracts.ImportSource(
         kind=source.kind,
-        content_hash=None if from_garmin else core_file_uploads.sha256_file(file_path),
+        content_hash=None if garmin_source else core_file_uploads.sha256_file(file_path),
     )
     garmin_activity_id = int(garmin_connect_activity_id) if garmin_connect_activity_id else None
 
@@ -244,8 +244,12 @@ def store_activities_from_file(
             user_id=token_user_id,
             user_privacy_settings=user_privacy_settings,
             db=db,
-            from_garmin=from_garmin,
-            garminconnect_gear=source.gear if from_garmin else None,
+            from_garmin=garmin_source is not None,
+            # Read through the narrowed source rather than a separate boolean:
+            # only ``GarminSource`` has ``gear``, and a plain ``from_garmin``
+            # flag left that unprovable (and one refactor away from an
+            # AttributeError on the other two source types).
+            garminconnect_gear=garmin_source.gear if garmin_source else None,
             garmin_connect_activity_id=garmin_activity_id,
         )
 

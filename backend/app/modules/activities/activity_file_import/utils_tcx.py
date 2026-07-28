@@ -11,7 +11,6 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 
@@ -245,9 +244,9 @@ def _build_activity(
     avg_power: float | None,
     max_power: float | None,
     norm_power: float | None,
-) -> activities_schema.Activity:
+) -> activities_contracts.ActivityCore:
     """
-    Construct an Activity schema from parsed TCX data.
+    Construct an ActivityCore ingestion contract from parsed TCX data.
 
     Domain fields (privacy, gear, provider ids) are intentionally left unset —
     the ``activity_ingestion`` enrichment seam populates them after parsing so
