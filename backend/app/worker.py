@@ -15,6 +15,7 @@ import threading
 from types import FrameType
 
 import core.config as core_config
+import core.database as core_database
 import core.logger as core_logger
 import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
@@ -53,6 +54,11 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
             "JOBS_ENABLED is false; the worker has nothing to do. Exiting.", extra=core_logger.context(console=True)
         )
         return
+    # Unlike the API, this process does not import the whole module tree, so
+    # the ORM registry would be missing every model a job never touches
+    # directly - and a string-target relationship on one that it does touch
+    # (Users -> PasswordResetToken) fails to resolve on the first claim.
+    core_database.import_all_models()
     platform = platform_container.build_platform(core_config.settings)
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any

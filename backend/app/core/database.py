@@ -1,8 +1,10 @@
 """Database engine, session factory, and declarative base."""
 
 import os
+import pathlib
 from collections.abc import Generator
 from datetime import datetime
+from importlib import import_module
 
 from sqlalchemy import DateTime, create_engine, func
 from sqlalchemy.engine.url import URL
@@ -129,3 +131,24 @@ def get_db() -> Generator[Session]:
         raise
     finally:
         db.close()
+
+
+# A model's table, and any ``relationship()`` that names its
+# target as a string, only resolve once the defining module
+# has been imported. The API gets that for free because
+# ``main`` transitively imports the whole module tree. Every
+# other entrypoint — the durable-job worker, the Alembic CLI
+# — must sweep explicitly, or the first ORM query fails with
+# "failed to locate a name" and autogenerate diffs against an
+# empty metadata.
+def import_all_models() -> None:
+    """
+    Import every ``models.py`` so the ORM registry is complete.
+
+    Returns:
+        None.
+    """
+    app_dir = pathlib.Path(__file__).resolve().parents[1]
+    for path in sorted(app_dir.glob("**/models.py")):
+        module = ".".join(path.relative_to(app_dir).with_suffix("").parts)
+        import_module(module)
