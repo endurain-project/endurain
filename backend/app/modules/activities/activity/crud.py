@@ -145,7 +145,7 @@ local_date_range_conditions = activities_query.local_date_range_conditions
 
 
 def _transform_schema_activity_to_model_activity(
-    activity: activities_schema.Activity,
+    activity: activities_schema.ActivityBase,
 ) -> activities_models.Activity:
     # Use an explicit UTC-aware created_at when provided,
     # otherwise let the database stamp the row with now().
@@ -1400,10 +1400,10 @@ def create_activity(
             re-imports of the same source can be recognised as duplicates.
 
     Returns:
-        The provided activity schema with generated ID and ``created_at``
-        populated. ``is_hidden`` is set ``True`` when the start time duplicates
-        an existing activity — the signal the caller forwards to the
-        ``activity.created`` notification subscriber.
+        The stored activity as the read schema, with the generated ``id`` and
+        ``created_at`` populated from the row. ``is_hidden`` is ``True`` when the
+        start time duplicates an existing activity — the signal the caller
+        forwards to the ``activity.created`` notification subscriber.
 
     Raises:
         HTTPException: 500 on database error.
@@ -1428,10 +1428,14 @@ def create_activity(
         )
 
     activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
-    if activity_start_time_exists:
-        activity.is_hidden = True
 
     new_activity = _transform_schema_activity_to_model_activity(activity)
+    # Flagged on the ORM row rather than on the caller's input: ``create_activity``
+    # takes the write contract and must not mutate it (nor could it set the read
+    # model's ``id``/``created_at`` there — those fields do not exist on the
+    # ingestion shape at all).
+    if activity_start_time_exists:
+        new_activity.is_hidden = True
     # Persist the idempotency key alongside the row so future re-imports of
     # the same source can be recognised as duplicates.
     new_activity.dedup_key = dedup_key
@@ -1447,15 +1451,23 @@ def create_activity(
         db.flush()
     db.refresh(new_activity)
 
-    activity.id = new_activity.id
-    activity.created_at = new_activity.created_at
+    # Build the read schema from the stored row. Returning a freshly serialized
+    # ``Activity`` (rather than handing back the mutated input) is what makes the
+    # declared ``ActivityCore -> Activity`` signature true: the generated id and
+    # ``created_at`` belong to the read model, which the ingestion contract
+    # deliberately does not carry.
+    created = activities_serializers.serialize_activity(new_activity)
 
     logger.debug(
-        f"Created activity {new_activity.id} for user {activity.user_id}"
-        + (" (marked hidden: duplicate start time)" if activity_start_time_exists else "")
+        "Created activity",
+        extra=core_logger.context(
+            activity_id=created.id,
+            user_id=created.user_id,
+            duplicate_start_time=bool(activity_start_time_exists),
+        ),
     )
 
-    return activity
+    return created
 
 
 @core_decorators.handle_db_errors

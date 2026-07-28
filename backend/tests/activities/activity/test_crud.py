@@ -216,9 +216,10 @@ class TestGetActivityByID:
 
 
 class TestCreateActivity:
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
-    def test_success(self, mock_transform, mock_check, mock_db):
+    def test_success(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_check.return_value = None
@@ -229,8 +230,47 @@ class TestCreateActivity:
         a.user_id = 1
         a.start_time = datetime.now(UTC)
         r = crud.create_activity(activity=a, db=mock_db)
-        assert r is not None
+        # The stored row is serialized into the READ schema and returned; the
+        # write contract carries no id/created_at to write back onto.
+        assert r is mock_serialize.return_value
+        mock_serialize.assert_called_once_with(m)
         mock_db.add.assert_called_once()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    @patch("modules.activities.activity.crud.get_activity_by_start_time")
+    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    def test_does_not_mutate_the_ingestion_contract(self, mock_transform, mock_check, mock_serialize, mock_db):
+        """The input is the write contract and must come back untouched.
+
+        Regression guard: this used to do ``activity.id = new_activity.id``,
+        which raised ``ValueError: "ActivityCore" object has no field "id"``
+        once the ingestion contract stopped inheriting the read model — breaking
+        every Garmin/upload/bulk import at the point of persistence.
+        """
+        import modules.activities.activity.contracts as contracts
+        import modules.activities.activity.crud as crud
+
+        mock_check.return_value = None
+        mock_transform.return_value = MagicMock(id=7)
+        activity = contracts.ActivityCore(
+            user_id=1,
+            distance=1000,
+            name="Ride",
+            activity_type=1,
+            start_time="2026-06-20T08:00:00",
+            end_time="2026-06-20T09:00:00",
+        )
+
+        crud.create_activity(activity=activity, db=mock_db)
+
+        # ``id``/``map_thumbnail_path`` are read-model fields the ingestion
+        # contract does not carry, so there is nothing to write back to.
+        assert not hasattr(activity, "id")
+        assert not hasattr(activity, "map_thumbnail_path")
+        # ``created_at`` IS on the shared base (a profile restore supplies it to
+        # preserve the original timestamp), so it must be left as the producer
+        # set it rather than overwritten with the row's value.
+        assert activity.created_at is None
 
     def test_missing_start_time_raises_422(self, mock_db):
         import modules.activities.activity.crud as crud
@@ -254,9 +294,10 @@ class TestCreateActivity:
         assert e.value.status_code == 422
         mock_db.add.assert_not_called()
 
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
-    def test_duplicate_start_time(self, mock_transform, mock_check, mock_db):
+    def test_duplicate_start_time(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_check.return_value = MagicMock()
@@ -271,11 +312,13 @@ class TestCreateActivity:
         # A duplicate start time marks the activity hidden; the caller forwards
         # this (via publish_activity_created) to the notification subscriber,
         # which raises the duplicate variant. No notification is emitted inline.
-        assert a.is_hidden is True
+        # The flag lands on the ORM row, not on the caller's write contract.
+        assert m.is_hidden is True
 
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
     @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
-    def test_persists_dedup_key(self, mock_transform, mock_check, mock_db):
+    def test_persists_dedup_key(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
         mock_check.return_value = None
