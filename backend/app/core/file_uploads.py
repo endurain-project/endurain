@@ -626,6 +626,52 @@ async def save_validated_upload(
         ) from err
 
 
+async def read_validated_upload(file: UploadFile, *, kind: UploadKind) -> bytes:
+    """Validate an upload and return its bytes, without touching the filesystem.
+
+    The async counterpart of :func:`read_validated_upload_sync`, for callers that
+    hand the bytes to the platform ``StorageProvider`` rather than writing them
+    to a local directory.
+
+    Args:
+        file: Incoming FastAPI UploadFile.
+        kind: Logical content type, drives validator + size cap.
+
+    Returns:
+        The validated file contents.
+
+    Raises:
+        HTTPException: 400/413/500 depending on the failure mode.
+    """
+    await validate_upload(file, kind=kind)
+    # The read is blocking on a spooled file that may have hit disk.
+    return await asyncio.to_thread(_read_capped_sync, file, _max_bytes_for(kind))
+
+
+def _read_capped_sync(file: UploadFile, max_bytes: int) -> bytes:
+    """Read an already-validated upload into memory, enforcing the size cap."""
+    chunks: list[bytes] = []
+    total = 0
+    # The validators leave file.file at offset 0; rewind defensively.
+    with contextlib.suppress(Exception):
+        file.file.seek(0)
+    while True:
+        chunk = file.file.read(_STREAM_CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail={
+                    "message": "Uploaded file exceeds maximum allowed size",
+                    "code": "FILE_SIZE_EXCEEDED",
+                },
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def save_validated_upload_sync(
     file: UploadFile,
     *,
@@ -703,40 +749,7 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
     """
     _run_validator_sync(validate_upload(file, kind=kind))
 
-    max_bytes = _max_bytes_for(kind)
-    chunks: list[bytes] = []
-    total = 0
-    try:
-        # The validators leave file.file at offset 0; rewind defensively.
-        with contextlib.suppress(Exception):
-            file.file.seek(0)
-        while True:
-            chunk = file.file.read(_STREAM_CHUNK_BYTES)
-            if not chunk:
-                break
-            total += len(chunk)
-            if total > max_bytes:
-                raise HTTPException(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    detail={
-                        "message": "Uploaded file exceeds maximum allowed size",
-                        "code": "FILE_SIZE_EXCEEDED",
-                    },
-                )
-            chunks.append(chunk)
-    except HTTPException:
-        raise
-    except Exception as err:
-        logger.error(f"Error in read_validated_upload_sync: {type(err).__name__}", exc_info=err)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "message": "Failed to read file",
-                "code": "FILE_READ_FAILED",
-            },
-        ) from err
-
-    return b"".join(chunks)
+    return _read_capped_sync(file, _max_bytes_for(kind))
 
 
 # ---------------------------------------------------------------------------

@@ -627,90 +627,72 @@ def _make_scandir_mock(entries: list) -> MagicMock:
 
 
 class TestExportServiceUserImages:
-    def test_add_user_images_missing_dir(self) -> None:
+    """User photos are exported through the StorageProvider, not a local walk."""
+
+    @staticmethod
+    def _export(user_id: int, keys: list[str], blob: bytes | None = b"image-bytes"):
         buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+        mock_db = MagicMock(spec=Session)
+        service = profile_export_service.ExportService(user_id=user_id, db=mock_db)
+        service.performance_config.enable_memory_monitoring = False
 
-            with patch("os.path.exists", return_value=False):
-                service.add_user_images_to_zip(z)
+        with (
+            zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
+            patch("modules.users.users_profile.export_service.platform_runtime") as runtime,
+        ):
+            storage = runtime.get_active_platform.return_value.storage
+            storage.list_keys.return_value = keys
+            storage.get.return_value = blob
+            service.add_user_images_to_zip(z)
+        return service, buf, storage
 
-    def test_add_user_images_with_matching_file(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = MagicMock(spec=["name", "path", "is_file", "is_dir", "stat"])
-            mock_entry.name = "1.jpg"
-            mock_entry.path = "/images/1.jpg"
-            mock_entry.is_file.return_value = True
-            mock_entry.is_dir.return_value = False
-            mock_entry.stat.return_value.st_size = 1024
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", return_value=_make_scandir_mock([mock_entry])),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
-
-        assert service.counts["user_images"] == 1
-
-    def test_add_user_images_skips_non_matching(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=2, db=mock_db)
-
-            mock_entry = MagicMock(spec=["name", "is_file", "stat"])
-            mock_entry.name = "1.jpg"
-            mock_entry.is_file.return_value = True
-            mock_entry.stat.return_value.st_size = 1024
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", return_value=_make_scandir_mock([mock_entry])),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
+    def test_no_stored_photo(self) -> None:
+        service, _, _ = self._export(1, [])
 
         assert service.counts["user_images"] == 0
 
-    def test_large_image_triggers_warning(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
+    def test_writes_the_blob_under_its_key(self) -> None:
+        service, buf, storage = self._export(1, ["1.jpg"])
 
-            mock_entry = MagicMock(spec=["name", "path", "is_file", "stat"])
-            mock_entry.name = "1.jpg"
-            mock_entry.path = "/images/1.jpg"
-            mock_entry.is_file.return_value = True
-            mock_entry.stat.return_value.st_size = 11 * 1024 * 1024  # >10MB
+        assert service.counts["user_images"] == 1
+        storage.list_keys.assert_called_once_with("user_images", "1.")
+        with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as written:
+            assert written.read("user_images/1.jpg") == b"image-bytes"
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", return_value=_make_scandir_mock([mock_entry])),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
+    def test_only_the_owner_prefix_is_listed(self) -> None:
+        """Listing by prefix is what stops user 1's export leaking user 12's photo."""
+        _, _, storage = self._export(1, ["1.jpg"])
+
+        assert storage.list_keys.call_args.args[1] == "1."
+
+    def test_skips_a_missing_blob(self) -> None:
+        service, _, _ = self._export(1, ["1.jpg"], blob=None)
+
+        assert service.counts["user_images"] == 0
+
+    def test_large_image_is_still_exported(self) -> None:
+        service, _, _ = self._export(1, ["1.jpg"], blob=b"x" * (11 * 1024 * 1024))
 
         assert service.counts["user_images"] == 1
 
-    def test_user_images_os_error_logged(self) -> None:
+    def test_a_listing_failure_is_logged_not_raised(self) -> None:
         buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+        mock_db = MagicMock(spec=Session)
+        service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", side_effect=OSError("perms")),
-            ):
-                service.add_user_images_to_zip(z)
+        with (
+            zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
+            patch("modules.users.users_profile.export_service.platform_runtime") as runtime,
+        ):
+            runtime.get_active_platform.return_value.storage.list_keys.side_effect = OSError("perms")
+            service.add_user_images_to_zip(z)
+
+        assert service.counts["user_images"] == 0
+
+    def test_a_read_failure_skips_only_that_blob(self) -> None:
+        service, _, _ = self._export(1, ["1.jpg"], blob=None)
+
+        assert service.counts["user_images"] == 0
 
 
 class TestExportServiceGenerateExportArchive:
@@ -1283,172 +1265,6 @@ class TestExportServiceActivityMediaEdgeCases:
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts.get("media", 0) == 0
-
-
-class TestExportServiceUserImagesEdgeCases:
-    """Cover lines 913-915, 930-934 of add_user_images_to_zip and _add_user_images_optimized."""
-
-    def test_add_user_images_os_error_raises_file_system_error(self) -> None:
-        """OSError in add_user_images_to_zip raises FileSystemError."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch.object(service, "_add_user_images_optimized", side_effect=OSError("permission denied")),
-                pytest.raises(FileSystemError),
-            ):
-                service.add_user_images_to_zip(z)
-
-    def test_recursive_subdirectory_processed(self) -> None:
-        """_add_user_images_optimized recurses into subdirectories (lines 930-932)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            sub_entry_file = MagicMock()
-            sub_entry_file.name = "1.jpg"
-            sub_entry_file.path = "/images/sub/1.jpg"
-            sub_entry_file.is_file.return_value = True
-            sub_entry_file.is_dir.return_value = False
-            sub_entry_file.stat.return_value.st_size = 1024
-
-            sub_dir_entry = MagicMock()
-            sub_dir_entry.name = "sub"
-            sub_dir_entry.path = "/images/sub"
-            sub_dir_entry.is_file.return_value = False
-            sub_dir_entry.is_dir.return_value = True
-
-            root_file_entry = MagicMock()
-            root_file_entry.name = "other.txt"
-            root_file_entry.path = "/images/other.txt"
-            root_file_entry.is_file.return_value = True
-            root_file_entry.is_dir.return_value = False
-            root_file_entry.stat.return_value.st_size = 100
-
-            scandir_calls = [0]
-
-            def scandir_side(path):
-                scandir_calls[0] += 1
-                if scandir_calls[0] == 1:
-                    return _make_scandir_mock([sub_dir_entry, root_file_entry])
-                return _make_scandir_mock([sub_entry_file])
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", side_effect=scandir_side),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
-
-            assert service.counts["user_images"] == 1
-
-    def test_permission_error_on_scandir_logged(self) -> None:
-        """PermissionError in _add_user_images_optimized caught (line 934)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", side_effect=PermissionError("no access")),
-            ):
-                service.add_user_images_to_zip(z)
-
-            assert service.counts.get("user_images", 0) == 0
-
-
-class TestExportServiceProcessUserImageFile:
-    """Cover lines 975-982 of _process_user_image_file."""
-
-    def _make_entry_mock(self, name: str = "1.jpg", path: str = "/images/1.jpg", size: int = 1024):
-        mock_entry = MagicMock(spec=["name", "path", "is_file", "is_dir", "stat"])
-        mock_entry.name = name
-        mock_entry.path = path
-        mock_entry.is_file.return_value = True
-        mock_entry.is_dir.return_value = False
-        mock_entry.stat.return_value.st_size = size
-        return mock_entry
-
-    def test_file_not_found_error(self) -> None:
-        """FileNotFoundError from zipf.write caught (line 975-976)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=FileNotFoundError("not found")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_permission_error(self) -> None:
-        """PermissionError from zipf.write caught (lines 977-978)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=PermissionError("denied")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_os_error(self) -> None:
-        """OSError from zipf.write caught (lines 979-980)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=OSError("io error")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_unexpected_exception(self) -> None:
-        """Generic exception from zipf.write caught (lines 981-982)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=ValueError("unexpected")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_large_file_triggers_memory_check(self) -> None:
-        """File >5MB triggers check_memory_usage (lines 960-966)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-            service.performance_config.enable_memory_monitoring = True
-            service.performance_config.max_memory_mb = 1024
-
-            mock_entry = self._make_entry_mock(size=6 * 1024 * 1024)
-
-            with (
-                patch.object(z, "write"),
-                patch.object(profile_utils, "check_memory_usage") as mock_mem,
-            ):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        mock_mem.assert_called_once()
-        assert service.counts["user_images"] == 1
 
 
 class _MockNamedTempFile:

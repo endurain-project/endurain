@@ -44,6 +44,7 @@ import modules.server_settings.jobs_router as jobs_router
 import modules.server_settings.public_router as server_settings_public_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
+import modules.users.users.photo_router as users_photo_router
 import modules.users.users.public_router as users_public_router
 import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as user_default_gear_router
@@ -104,6 +105,13 @@ router.include_router(
     activity_media_public_router.router,
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activity_media"],
+)
+# So are user profile photos, whose stored name is the user id — the one blob
+# kind whose public path was directly enumerable.
+router.include_router(
+    users_photo_router.router,
+    prefix=core_config.ROOT_PATH + "/users",
+    tags=["users"],
 )
 # Literal ``/activities/<name>`` sub-resources, mounted for the same reason as the
 # ingestion routers above: they must be matched before the core router's dynamic

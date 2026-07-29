@@ -21,7 +21,6 @@ from typing import Any
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_integration
@@ -37,6 +36,7 @@ import modules.gears.gear.crud as gear_crud
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_weight.crud as health_weight_crud
+import modules.users.users.signing as users_signing
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.schema as user_default_gear_schema
 import modules.users.users_goals.crud as user_goals_crud
@@ -757,92 +757,49 @@ class ExportService:
 
     def add_user_images_to_zip(self, zipf: zipfile.ZipFile):
         """
-        Add user image files to ZIP archive.
+        Add the user's profile image to the ZIP archive.
+
+        Read through the platform ``StorageProvider`` rather than by walking a
+        local directory, so an export is complete regardless of which storage
+        backend is configured. Keys are ``{user_id}{ext}``, so the caller's
+        blobs are listed by their own prefix instead of scanning every stored
+        image and filtering by filename.
 
         Args:
             zipf: ZipFile instance to write to.
-
-        Raises:
-            FileSystemError: If file system error occurs.
         """
+        storage = platform_runtime.get_active_platform().storage
+        area = users_signing.USER_IMAGE_STORAGE_AREA
+
         try:
-            if not os.path.exists(core_config.USER_IMAGES_DIR):
-                logger.warning(f"User images directory does not exist: {core_config.USER_IMAGES_DIR}")
-                return
+            keys = storage.list_keys(area, f"{self.user_id}.")
+        except Exception as err:
+            logger.warning(f"Failed to list images for user {self.user_id}: {err}", exc_info=err)
+            return
 
-            self._add_user_images_optimized(zipf, core_config.USER_IMAGES_DIR)
+        for key in keys:
+            try:
+                data = storage.get(area, key)
+                if data is None:
+                    logger.warning(f"User image blob not found for key: {key}")
+                    continue
 
-        except MemoryAllocationError:
-            raise
-        except OSError as err:
-            logger.error(f"Error adding user images to ZIP: {err}", exc_info=err)
-            raise FileSystemError(f"Failed to add user images: {err}") from err
-
-    def _add_user_images_optimized(self, zipf: zipfile.ZipFile, images_dir: str):
-        """
-        Recursively add user images from directory.
-
-        Args:
-            zipf: ZipFile instance to write to.
-            images_dir: Directory path containing images.
-        """
-        try:
-            with os.scandir(images_dir) as entries:
-                for entry in entries:
-                    if entry.is_file(follow_symlinks=False):
-                        self._process_user_image_file(zipf, entry, images_dir)
-                    elif entry.is_dir(follow_symlinks=False):
-                        # Recursively process subdirectories
-                        self._add_user_images_optimized(zipf, entry.path)
-        except PermissionError as err:
-            logger.warning(f"Permission denied accessing {images_dir}: {err}")
-        except OSError as err:
-            logger.warning(f"OS error accessing {images_dir}: {err}")
-
-    def _process_user_image_file(self, zipf: zipfile.ZipFile, entry, images_dir: str):
-        """
-        Process and add single user image file to ZIP.
-
-        Args:
-            zipf: ZipFile instance to write to.
-            entry: Directory entry for the image file.
-            images_dir: Base images directory path.
-        """
-        try:
-            file_id, _ = os.path.splitext(entry.name)
-            if str(self.user_id) == file_id:
-                # Get file size for monitoring
-                file_size = entry.stat().st_size
-
-                # Warn about large image files (>10MB)
-                if file_size > 10 * 1024 * 1024:
-                    logger.warning(f"Large image file: {entry.path} ({file_size / (1024 * 1024):.1f}MB)")
-
-                # Check memory usage before adding large files
-                if file_size > 5 * 1024 * 1024:  # 5MB threshold for images
+                size = len(data)
+                if size > 10 * 1024 * 1024:
+                    logger.warning(f"Large image file: {key} ({size / (1024 * 1024):.1f}MB)")
+                if size > 5 * 1024 * 1024:
                     users_profile_utils.check_memory_usage(
-                        f"before image {entry.name}",
+                        f"before image {key}",
                         self.performance_config.max_memory_mb,
                         self.performance_config.enable_memory_monitoring,
                     )
 
-                arcname = os.path.join(
-                    "user_images",
-                    os.path.relpath(entry.path, images_dir),
-                )
-                zipf.write(entry.path, arcname)
+                zipf.writestr(os.path.join("user_images", key), data)
                 self.counts["user_images"] += 1
-
-        except FileNotFoundError:
-            logger.warning(f"Image file not found: {entry.path}")
-        except PermissionError:
-            logger.warning(f"Permission denied: {entry.path}")
-        except OSError as err:
-            logger.warning(f"Error processing image {entry.path}: {err}")
-        except MemoryAllocationError:
-            raise
-        except Exception as err:
-            logger.warning(f"Unexpected error with image {entry.path}: {err}", exc_info=err)
+            except MemoryAllocationError:
+                raise
+            except Exception as err:
+                logger.warning(f"Unexpected error adding user image {key}: {err}", exc_info=err)
 
     def generate_export_archive(self, user_dict: dict[str, Any], timeout_seconds: int | None = 300) -> Generator[bytes]:
         """

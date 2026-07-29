@@ -718,21 +718,19 @@ class TestEditUser:
         mock_bmi.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_with_photo_path_update(self):
+    async def test_photo_path_is_not_mass_assigned(self):
+        """UsersRead exposes a signed URL; echoing it back must not clobber the key."""
         from modules.users.users.crud import edit_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_db_user.height = 180
-        mock_db_user.photo_path = "old/path.jpg"
+        mock_db_user.photo_path = "1.jpg"
 
         mock_user_schema = MagicMock()
         mock_user_schema.username = "updateduser"
-        mock_user_schema.photo_path = "new/path.jpg"
-        mock_user_schema.model_dump.return_value = {
-            "username": "updateduser",
-            "photo_path": "new/path.jpg",
-        }
+        mock_user_schema.photo_path = "/api/v1/users/1/photo?t=sig"
+        mock_user_schema.model_dump.return_value = {"username": "updateduser"}
 
         with (
             patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
@@ -740,11 +738,17 @@ class TestEditUser:
                 "modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock
             ) as mock_del,
         ):
-            mock_db_user.photo_path = "new/path.jpg"
             result = await edit_user(1, mock_user_schema, mock_db)
 
+        assert mock_user_schema.model_dump.call_args.kwargs["exclude"] == {
+            "password",
+            "external_auth_count",
+            "mfa_enabled",
+            "photo_path",
+        }
+        assert mock_db_user.photo_path == "1.jpg"
         assert result == mock_db_user
-        mock_del.assert_called_once()
+        mock_del.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_skips_read_only_computed_property(self):
@@ -899,70 +903,34 @@ class TestEditProfileUser:
         )
 
     @pytest.mark.asyncio
-    async def test_photo_path_traversal_rejected(self):
-        from modules.users.users.crud import edit_profile_user
+    async def test_photo_path_is_never_writable(self):
+        """The photo is a server-issued storage key.
+
+        Accepting it from a profile payload was a stored IDOR: any string the
+        caller sent became their avatar's address, so pointing at another
+        user's blob only required knowing their id. The field is now dropped by
+        the allow-list, which removes the whole class of path-shape bypasses
+        (backslashes, ``..`` segments, per-user prefix spoofing).
+        """
+        from modules.users.users.crud import PROFILE_SELF_SERVICE_FIELDS, edit_profile_user
+
+        assert "photo_path" not in PROFILE_SELF_SERVICE_FIELDS
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_db_user.height = 180
-        mock_db_user.photo_path = "data/user_images/1.valid.jpg"
+        mock_db_user.photo_path = "1.jpg"
 
         mock_profile = MagicMock()
         mock_profile.model_dump.return_value = {
             "name": "Test",
-            "photo_path": "data/user_images/1.valid.jpg",
+            "photo_path": "3.avatar.jpg",
         }
 
-        with (
-            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-        ):
-            result = await edit_profile_user(1, mock_profile, mock_db)
+        with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
+            await edit_profile_user(1, mock_profile, mock_db)
 
-        assert result == mock_db_user
-
-    @pytest.mark.asyncio
-    async def test_photo_path_with_backslash_traversal_rejected(self):
-        from modules.users.users.crud import edit_profile_user
-
-        mock_db = MagicMock(spec=Session)
-        mock_db_user = MagicMock()
-        mock_db_user.height = 180
-        mock_db_user.photo_path = None
-
-        mock_profile = MagicMock()
-        mock_profile.model_dump.return_value = {
-            "name": "Test",
-            "photo_path": "data\\user_images\\2.evil.jpg",
-        }
-
-        with (
-            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-        ):
-            result = await edit_profile_user(1, mock_profile, mock_db)
-
-        assert result == mock_db_user
-
-    @pytest.mark.asyncio
-    async def test_photo_path_with_dotdot_traversal_rejected(self):
-        from modules.users.users.crud import edit_profile_user
-
-        mock_db = MagicMock(spec=Session)
-        mock_db_user = MagicMock()
-        mock_db_user.height = 180
-        mock_db_user.photo_path = None
-
-        mock_profile = MagicMock()
-        mock_profile.model_dump.return_value = {
-            "name": "Test",
-            "photo_path": "data/user_images/1./../3.avatar.jpg",
-        }
-
-        with (
-            patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-        ):
-            result = await edit_profile_user(1, mock_profile, mock_db)
-
-        assert result == mock_db_user
+        assert mock_db_user.photo_path == "1.jpg"
 
     @pytest.mark.asyncio
     async def test_height_change_triggers_bmi_recalc(self):
@@ -1039,14 +1007,15 @@ class TestEditProfileUser:
         mock_recompute.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_photo_cleared_deletes_filesystem(self):
+    async def test_photo_is_left_untouched(self):
+        """Deleting the blob belongs to the photo endpoints, not to a profile edit."""
         from modules.users.users.crud import edit_profile_user
 
         mock_db = MagicMock(spec=Session)
         mock_db_user = MagicMock()
         mock_db_user.id = 1
         mock_db_user.height = 180
-        mock_db_user.photo_path = "data/user_images/1.old.jpg"
+        mock_db_user.photo_path = "1.old.jpg"
 
         mock_profile = MagicMock()
         mock_profile.model_dump.return_value = {"photo_path": None}
@@ -1060,7 +1029,8 @@ class TestEditProfileUser:
             result = await edit_profile_user(1, mock_profile, mock_db)
 
         assert result == mock_db_user
-        mock_del.assert_called_once_with(1)
+        assert mock_db_user.photo_path == "1.old.jpg"
+        mock_del.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_integrity_error(self):

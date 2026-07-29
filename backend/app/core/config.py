@@ -39,7 +39,6 @@ LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 
-USER_IMAGES_URL_PATH = "user_images"
 SERVER_IMAGES_URL_PATH = "server_images"
 
 STRAVA_BULK_IMPORT_ACTIVITIES_FILE = "activities.csv"
@@ -646,7 +645,6 @@ settings = Settings()
 
 
 # Derived module-level paths and runtime state.
-USER_IMAGES_DIR = f"{settings.DATA_DIR}/{USER_IMAGES_URL_PATH}"
 SERVER_IMAGES_DIR = f"{settings.DATA_DIR}/{SERVER_IMAGES_URL_PATH}"
 
 FILES_PROCESSED_DIR = f"{settings.FILES_DIR}/processed"
@@ -997,7 +995,6 @@ def check_required_dirs():
     """
     required_dirs = [
         settings.DATA_DIR,
-        USER_IMAGES_DIR,
         SERVER_IMAGES_DIR,
         settings.FILES_DIR,
         FILES_PROCESSED_DIR,

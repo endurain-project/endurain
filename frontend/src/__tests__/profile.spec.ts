@@ -44,7 +44,7 @@ function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
     birthdate: '1990-01-01',
     height: 170,
     max_heart_rate: 190,
-    photo_path: '/app/backend/data/user_images/5.png',
+    photo_path: '/api/v1/users/5/photo?t=sig',
     default_activity_visibility: 'followers',
     hide_activity_start_time: true,
     hide_activity_location: false,
@@ -80,7 +80,7 @@ describe('mapProfileDetails', () => {
       preferredLanguage: 'en',
       firstDayOfWeek: 'monday',
       accessType: 'regular',
-      avatarUrl: 'https://cdn.test/user_images/5.png',
+      avatarUrl: 'https://cdn.test/api/v1/users/5/photo?t=sig',
     })
     expect(profile.hasLocalPassword).toBe(true)
     expect(profile.privacy.defaultActivityVisibility).toBe('followers')

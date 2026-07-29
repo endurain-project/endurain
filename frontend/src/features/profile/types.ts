@@ -71,7 +71,7 @@ export interface PrivacySettings {
  * @property hasLocalPassword - Whether the account has a local password (false for SSO-only).
  * @property stravaLinked - Whether a Strava account is connected.
  * @property garminLinked - Whether a Garmin Connect account is connected.
- * @property photoPath - Raw backend photo path, or `null`.
+ * @property photoPath - Backend-issued photo URL, or `null` when unset.
  * @property avatarUrl - Servable avatar URL derived from `photoPath`, or `null`.
  * @property privacy - The user's privacy preferences.
  */

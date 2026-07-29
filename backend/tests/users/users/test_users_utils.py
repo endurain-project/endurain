@@ -157,40 +157,48 @@ class TestSaveUserImageFile:
         assert exc.value.status_code == 415
 
     @pytest.mark.asyncio
-    async def test_success_saves_file_and_updates_db(self):
+    async def test_success_stores_blob_and_records_the_key(self):
         from modules.users.users.utils import save_user_image_file
 
         mock_file = MagicMock()
         mock_file.filename = "avatar.png"
+        mock_file.content_type = "image/png"
         mock_db = MagicMock(spec=Session)
 
         with (
             patch("modules.users.users.utils.get_user_by_id_or_404", return_value=MagicMock()),
-            patch("core.file_uploads.save_validated_upload", new_callable=AsyncMock),
+            patch("core.file_uploads.read_validated_upload", new_callable=AsyncMock, return_value=b"png"),
+            patch("modules.users.users.utils.platform_runtime") as mock_runtime,
             patch(
                 "modules.users.users.crud.update_user_photo",
                 new_callable=AsyncMock,
-                return_value="/path/to/user_images/1.png",
+                return_value="1.png",
             ),
         ):
             result = await save_user_image_file(1, mock_file, mock_db)
 
-        assert result == "/path/to/user_images/1.png"
+        # The row records a bare storage key, never a filesystem path.
+        assert result == "1.png"
+        mock_runtime.get_active_platform.return_value.storage.save.assert_called_once_with(
+            "user_images", "1.png", b"png", "image/png"
+        )
 
 
 class TestDeleteUserPhotoFilesystem:
-    """delete_user_photo_filesystem: delete user photo files."""
+    """delete_user_photo_filesystem: delete a user's stored photo blobs."""
 
     @pytest.mark.asyncio
-    async def test_calls_delete_files_by_pattern(self):
+    async def test_deletes_every_stored_extension_for_the_user(self):
         from modules.users.users.utils import delete_user_photo_filesystem
 
-        with patch(
-            "core.file_uploads.delete_files_by_pattern",
-            new_callable=AsyncMock,
-        ) as mock_delete:
+        with patch("modules.users.users.utils.platform_runtime") as mock_runtime:
+            storage = mock_runtime.get_active_platform.return_value.storage
+            storage.list_keys.return_value = ["42.png", "42.webp"]
             await delete_user_photo_filesystem(42)
 
-        mock_delete.assert_called_once()
-        args, _ = mock_delete.call_args
-        assert args[1] == "42.*"
+        # The trailing dot keeps user 42 from matching user 421's blobs.
+        storage.list_keys.assert_called_once_with("user_images", "42.")
+        assert [call.args for call in storage.delete.call_args_list] == [
+            ("user_images", "42.png"),
+            ("user_images", "42.webp"),
+        ]

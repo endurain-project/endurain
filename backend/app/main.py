@@ -538,21 +538,18 @@ def create_app() -> FastAPI:
     # Static mounts must be registered before the
     # catch-all frontend route included by api_router.
     fastapi_app.mount(
-        f"/{core_config.USER_IMAGES_DIR}",
-        StaticFiles(directory=core_config.USER_IMAGES_DIR),
-        name="user_images",
-    )
-    fastapi_app.mount(
         f"/{core_config.SERVER_IMAGES_DIR}",
         StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
         name="server_images",
     )
-    # NOTE: activity thumbnails and activity media are intentionally NOT mounted
-    # as public static files. Both are served by token-gated routes
+    # NOTE: activity thumbnails, activity media and user photos are intentionally
+    # NOT mounted as public static files. Each is served by a token-gated route
     # (modules.activities.activity_thumbnail.router,
-    # modules.activities.activity_media.public_router), so the blobs are only
-    # reachable with a valid signed URL handed to a permitted viewer rather than
-    # at a guessable public path.
+    # modules.activities.activity_media.public_router,
+    # modules.users.users.photo_router), so a blob is only reachable with a valid
+    # signed URL handed to a permitted viewer rather than at a guessable path.
+    # Server images stay public: they are the login-page branding, needed before
+    # anyone is authenticated.
 
     # Router files
     fastapi_app.include_router(api_router)

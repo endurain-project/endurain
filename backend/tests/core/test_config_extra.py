@@ -752,7 +752,6 @@ class TestCheckRequiredDirs:
             patch("core.config.settings.DATA_DIR", str(test_data)),
             patch("core.config.settings.LOGS_DIR", str(tmp_path / "logs")),
             patch("core.config.settings.FILES_DIR", str(test_data / "activity_files")),
-            patch("core.config.USER_IMAGES_DIR", str(test_data / "user_images")),
             patch("core.config.SERVER_IMAGES_DIR", str(test_data / "server_images")),
             patch("core.config.FILES_PROCESSED_DIR", str(test_data / "activity_files" / "processed")),
             patch("core.config.FILES_BULK_IMPORT_DIR", str(test_data / "activity_files" / "bulk_import")),
@@ -779,7 +778,6 @@ class TestCheckRequiredDirs:
             patch("core.config.settings.DATA_DIR", str(file_path)),
             patch("core.config.settings.LOGS_DIR", str(tmp_path / "logs")),
             patch("core.config.settings.FILES_DIR", str(tmp_path / "files")),
-            patch("core.config.USER_IMAGES_DIR", str(tmp_path / "user_images")),
             patch("core.config.SERVER_IMAGES_DIR", str(tmp_path / "server_images")),
             patch("core.config.FILES_PROCESSED_DIR", str(tmp_path / "processed")),
             patch("core.config.FILES_BULK_IMPORT_DIR", str(tmp_path / "bulk_import")),
@@ -810,10 +808,15 @@ class TestModuleLevelConstants:
         assert ROOT_PATH == "/api/v1"
 
     def test_image_dirs(self):
-        from core.config import SERVER_IMAGES_DIR, USER_IMAGES_DIR, settings
+        from core.config import SERVER_IMAGES_DIR, settings
 
-        assert f"{settings.DATA_DIR}/user_images" == USER_IMAGES_DIR
         assert f"{settings.DATA_DIR}/server_images" == SERVER_IMAGES_DIR
+
+    def test_no_user_images_dir(self):
+        """User photos live behind the StorageProvider, not a config path."""
+        import core.config as core_config
+
+        assert not hasattr(core_config, "USER_IMAGES_DIR")
 
     def test_supported_file_formats(self):
         from core.config import SUPPORTED_FILE_FORMATS
