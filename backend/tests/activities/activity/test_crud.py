@@ -541,7 +541,7 @@ class TestFollowing:
         setup_mock_execute(mock_db, return_scalars_all=[])
         assert crud.get_user_following_activities(user_id=1, db=mock_db) is None
 
-    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
+    @patch("modules.activities.activity.crud.followers_integration.list_accepted_followee_ids", return_value=[2])
     def test_db_error(self, _mock_followees, mock_db):
         import modules.activities.activity.crud as crud
 

@@ -1,51 +1,12 @@
+"""Followers module for user follow relationships.
+
+Follow requests, acceptance and removal between users. Other modules consume
+this module through ``integration_service``; the follow graph is private, so
+reads are privacy-checked in ``service``.
+
+Importing this package does not pull in its ORM, CRUD or services: reach for
+the submodule you need (``.crud``, ``.schema``, ``.router``). A re-export
+facade here would hand out the ORM model and the CRUD functions under a
+package path, which is a silent bypass of the boundaries the import-linter
+contracts enforce against ``*.models`` and ``*.crud``.
 """
-Followers module for user follow/unfollow relationships.
-
-This module manages follow requests, acceptance, and removal between users,
-including notification side effects on creation and acceptance.
-
-Exports:
-    - CRUD: get_all_followers_by_user_id, get_accepted_followers_by_user_id,
-      get_all_following_by_user_id, get_accepted_following_by_user_id,
-      count_followers_by_user_id, count_following_by_user_id,
-      get_follower_for_user_id_and_target_user_id,
-      create_follower, accept_follower, delete_follower
-    - Schemas: FollowRelationship, FollowStatus, RelationshipView, MessageResponse
-    - Models: Follower (ORM model)
-"""
-
-from .crud import (
-    accept_follower,
-    count_followers_by_user_id,
-    count_following_by_user_id,
-    create_follower,
-    delete_follower,
-    get_accepted_followers_by_user_id,
-    get_accepted_following_by_user_id,
-    get_all_followers_by_user_id,
-    get_all_following_by_user_id,
-    get_follower_for_user_id_and_target_user_id,
-)
-from .models import Follower as FollowerModel
-from .schema import FollowRelationship, FollowStatus, MessageResponse, RelationshipView
-
-__all__ = [
-    # Pydantic schemas
-    "FollowRelationship",
-    "FollowStatus",
-    # Database model
-    "FollowerModel",
-    "MessageResponse",
-    "RelationshipView",
-    "accept_follower",
-    "count_followers_by_user_id",
-    "count_following_by_user_id",
-    "create_follower",
-    "delete_follower",
-    "get_accepted_followers_by_user_id",
-    "get_accepted_following_by_user_id",
-    # CRUD operations
-    "get_all_followers_by_user_id",
-    "get_all_following_by_user_id",
-    "get_follower_for_user_id_and_target_user_id",
-]

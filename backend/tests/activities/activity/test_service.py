@@ -77,7 +77,7 @@ class TestPeriodStats:
 
 
 class TestFollowingFeed:
-    @patch("modules.activities.activity.service.followers_service")
+    @patch("modules.activities.activity.service.followers_integration")
     @patch("modules.activities.activity.service.activities_crud")
     def test_owner_gets_feed(self, mock_crud, mock_followers):
         from modules.activities.activity import service
@@ -96,7 +96,7 @@ class TestFollowingFeed:
             service.get_following_feed(2, 1, 1, 10, MagicMock())
         assert exc.value.status_code == 403
 
-    @patch("modules.activities.activity.service.followers_service")
+    @patch("modules.activities.activity.service.followers_integration")
     @patch(
         "modules.activities.activity.service.activities_crud.count_user_following_activities",
         return_value=2,

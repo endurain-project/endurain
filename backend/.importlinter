@@ -242,24 +242,54 @@ forbidden_modules =
     modules.users.users_integrations.models
     modules.users.users_privacy_settings.models
 
-# The activities core consumes the followers "following feed" through the curated
-# followers.service interface (list_accepted_followee_ids) — used by both the feed
-# routes and the non-owner visibility filter — never by reaching into the followers
-# ORM/CRUD directly. This inverts the old coupling where the feed + visibility filter
-# read the followers table (followers.models). allow_indirect_imports keeps this to
-# DIRECT imports: followers.service legitimately imports followers.crud/models, so the
-# transitive activities -> followers.service -> followers.crud -> followers.models path
-# is fine — only a bare `import modules.followers.models` / `.crud` in the activities
-# core is rejected.
+# The activities core consumes the followers module through the curated
+# followers.integration_service interface (list_accepted_followee_ids) — used by both
+# the feed routes and the non-owner visibility filter — never by reaching into the
+# followers ORM/CRUD, and never into followers.service either. That last one matters:
+# ``service`` is the followers module's OWN application layer (privacy-checked reads,
+# follow/accept/unfollow writes, notification publishes), almost none of which means
+# anything to a caller outside the module. Naming the cross-module surface
+# ``integration_service`` in every module makes "what may I depend on?" have one answer
+# everywhere instead of being ``integration_service`` here and ``service`` there.
+# allow_indirect_imports keeps this to DIRECT imports: integration_service legitimately
+# imports followers.crud, so the transitive
+# activities -> followers.integration_service -> followers.crud -> followers.models
+# path is fine.
 [importlinter:contract:activities-followers-boundary]
-name = Activities core must use the followers service interface, not the followers ORM/CRUD
+name = Activities must use the followers integration service, not its ORM/CRUD/service
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    modules.activities.activity
+    modules.activities
 forbidden_modules =
     modules.followers.models
     modules.followers.crud
+    modules.followers.service
+
+# Routers are transport adapters: they validate, delegate to the module's service, and
+# return. They hold no domain rule and no persistence orchestration. This is what the
+# activities router was violating — it owned the delete's commit/publish ordering, the
+# bulk-edit "an empty body is a client bug" rule, and a bare HTTPException sitting next
+# to siblings that raise domain errors. Forbidding crud/models/event_publishers makes
+# "call the service" the only remaining option rather than a convention the next
+# handler can quietly drop.
+# Scoped to activity/ deliberately: the sibling sub-resource routers (laps, sets,
+# streams, workout steps, exercise titles) are still single-call reads straight to
+# their own crud. Extending the rule to them means giving each a service module, which
+# is a separate mechanical change — listing them here first would only produce
+# router-shaped services that forward a single call.
+[importlinter:contract:activities-router-delegates]
+name = Activities routers delegate to the service — no CRUD, ORM or event publishing
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity.router
+    modules.activities.activity.public_router
+forbidden_modules =
+    modules.activities.activity.crud
+    modules.activities.activity.models
+    modules.activities.activity.event_publishers
+    modules.activities.activity.query
 
 # ORM ownership: the activities ORM models are owned by their subpackage's models.py
 # and touched only by the persistence layer — crud.py (the single ORM surface) and the

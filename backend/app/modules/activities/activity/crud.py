@@ -36,7 +36,7 @@ import modules.activities.activity.models as activities_models
 import modules.activities.activity.query as activities_query
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
-import modules.followers.service as followers_service
+import modules.followers.integration_service as followers_integration
 import modules.server_settings.utils as server_settings_utils
 
 logger = core_logger.get_logger(__name__)
@@ -95,7 +95,7 @@ def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     """
     visibility_conditions = [activities_models.Activity.visibility == 0]
     if requester_user_id is not None:
-        followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+        followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
         if followee_ids:
             visibility_conditions.append(
                 and_(
@@ -815,7 +815,7 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
     Raises:
         HTTPException: 500 on database error.
     """
-    followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+    followee_ids = followers_integration.list_accepted_followee_ids(user_id, db)
     if not followee_ids:
         return None
     stmt = select(activities_models.Activity).where(

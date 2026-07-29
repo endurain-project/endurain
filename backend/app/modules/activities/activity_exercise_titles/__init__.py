@@ -1,35 +1,11 @@
+"""Activity exercise titles sub-module.
+
+Maps FIT exercise category/name identifiers to the human-readable workout
+step names used by activity sets.
+
+Importing this package does not pull in its ORM, CRUD or services: reach for
+the submodule you need (``.crud``, ``.schema``, ``.router``). A re-export
+facade here would hand out the ORM model and the CRUD functions under a
+package path, which is a silent bypass of the boundaries the import-linter
+contracts enforce against ``*.models`` and ``*.crud``.
 """
-Activity exercise titles module.
-
-Provides mapping between FIT exercise category/name identifiers and
-human-readable workout step names used by activity sets.
-
-Exports:
-    - CRUD operations: get_activity_exercise_titles,
-      get_public_activity_exercise_titles,
-      get_activity_exercise_title_by_exercise_name,
-      create_activity_exercise_titles
-    - Schemas: ActivityExerciseTitles
-    - Models: ActivityExerciseTitles (ORM model)
-"""
-
-from .crud import (
-    create_activity_exercise_titles,
-    get_activity_exercise_title_by_exercise_name,
-    get_activity_exercise_titles,
-    get_public_activity_exercise_titles,
-)
-from .models import ActivityExerciseTitles as ActivityExerciseTitlesModel
-from .schema import ActivityExerciseTitles
-
-__all__ = [
-    # Pydantic schemas
-    "ActivityExerciseTitles",
-    # Database model
-    "ActivityExerciseTitlesModel",
-    # CRUD operations
-    "create_activity_exercise_titles",
-    "get_activity_exercise_title_by_exercise_name",
-    "get_activity_exercise_titles",
-    "get_public_activity_exercise_titles",
-]

@@ -1,9 +1,11 @@
 """FastAPI routes for the activities module (authenticated).
 
-RESTful surface. Route handlers are thin: they validate,
-delegate the read/stats/feed orchestration to :mod:`activity/service.py`, and
-return. Literal paths are declared before ``/{activity_id}`` so FastAPI matches
-them first.
+RESTful surface. Route handlers are thin transport adapters: they validate,
+delegate to :mod:`activity/service.py`, and return. They hold no domain rule and
+no persistence orchestration, and they never reach past the service into ``crud``
+or the event publishers — enforced by the ``activities-router-delegates``
+import-linter contract. Literal paths are declared before ``/{activity_id}`` so
+FastAPI matches them first.
 """
 
 from collections.abc import Callable
@@ -13,18 +15,13 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Query,
     Security,
-    status,
 )
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import core.exceptions as core_exceptions
-import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
-import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.service as activities_service
 import modules.auth.dependencies as auth_dependencies
@@ -87,7 +84,7 @@ def list_activity_types(
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> dict[int, str]:
     """Return the distinct activity types the user has recorded, keyed by type code."""
-    return activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
+    return activities_service.list_activity_types(token_user_id, db)
 
 
 @router.get(
@@ -234,14 +231,10 @@ def edit_activities(
     Raises:
         InvalidInputError: If the body asks for no change at all.
     """
-    if body.visibility is None:
-        # An empty patch is a client bug, not a no-op worth reporting as success.
-        raise core_exceptions.InvalidInputError("No supported field to update was provided")
-
-    updated = activities_crud.edit_user_activities_visibility(token_user_id, body.visibility, db)
+    updated = activities_service.bulk_edit_activities(token_user_id, body, db)
     return activities_schema.VisibilityUpdateResponse(
         detail=f"Visibility changed to {body.visibility} for all user activities",
-        updated=updated or 0,
+        updated=updated,
     )
 
 
@@ -263,13 +256,7 @@ def read_activity(
     ],
 ):
     """Read a single activity the requester owns or is permitted to see."""
-    activity = activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, token_user_id, db)
-    if activity is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity {activity_id} not found",
-        )
-    return activity
+    return activities_service.get_activity(activity_id, token_user_id, db)
 
 
 @router.patch(
@@ -291,7 +278,7 @@ def edit_activity(
     ],
 ):
     """Apply partial updates to one of the authenticated user's activities."""
-    return activities_crud.edit_activity(token_user_id, activity_id, activity_attributes, db)
+    return activities_service.edit_activity(activity_id, token_user_id, activity_attributes, db)
 
 
 @router.delete(
@@ -312,19 +299,5 @@ def delete_activity(
     ],
 ) -> activities_schema.ActivityMessageResponse:
     """Delete one of the authenticated user's activities."""
-    # Delete the activity and publish ``activity.deleted`` atomically: the delete
-    # is staged (commit=False) and the publisher owns the single commit, so when
-    # durable jobs are enabled the outbox row is written in the *same* transaction
-    # as the delete. A crash can no longer leave the row deleted but the cleanup
-    # event unpublished (which would orphan the thumbnail / source-file blobs).
-    # The route stays ignorant of who reacts; on the best-effort (no durable jobs)
-    # path the commit runs first and any bus-dispatch failure is swallowed.
-    #
-    # Ownership lives in the delete's WHERE clause (404 when the activity is
-    # missing *or* owned by someone else), so there is no read-then-delete gap
-    # and no route-level precondition that a future caller could forget.
-    activities_crud.delete_activity(activity_id, token_user_id, db, commit=False)
-    activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db, commit=db.commit)
-
-    # Return success message
+    activities_service.delete_activity(activity_id, token_user_id, db)
     return activities_schema.ActivityMessageResponse(detail=f"Activity {activity_id} deleted successfully")
