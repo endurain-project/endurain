@@ -6,7 +6,6 @@ from datetime import UTC, date, datetime
 from typing import Any, cast
 from urllib.parse import unquote
 
-from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import (
     CursorResult,
@@ -27,6 +26,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
@@ -1409,10 +1409,7 @@ def create_activity(
         HTTPException: 500 on database error.
     """
     if activity.user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Activity user_id is required",
-        )
+        raise core_exceptions.InvalidInputError("Activity user_id is required")
 
     # Normalize the start time to a UTC-aware datetime at the persistence
     # boundary. Parsers emit naive UTC wall-clock values and providers emit
@@ -1422,10 +1419,7 @@ def create_activity(
     # handed a None).
     normalized_start_time = core_timezone.to_utc_aware(activity.start_time)
     if normalized_start_time is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Activity start_time is required and must be a valid datetime",
-        )
+        raise core_exceptions.InvalidInputError("Activity start_time is required and must be a valid datetime")
 
     activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
 
@@ -1735,10 +1729,7 @@ def edit_activity(
     )
     db_activity = db.execute(stmt).scalar_one_or_none()
     if db_activity is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity not found",
-        )
+        raise core_exceptions.NotFoundError("Activity not found")
 
     # Both `Activity` and `ActivityEdit` are Pydantic models;
     # `exclude_unset=True` lets callers explicitly clear nullable
@@ -1910,19 +1901,16 @@ def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = 
         )
         result = cast("CursorResult[Any]", db.execute(stmt))
         if result.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Activity with id {activity_id} not found",
-            )
+            raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
         if commit:
             db.commit()
         logger.debug("Deleted activity", extra=core_logger.context(activity_id=activity_id, user_id=user_id))
-    except HTTPException:
+    except core_exceptions.NotFoundError:
         # Kept rather than delegated: the 404 above is raised *after* the DELETE
-        # has been staged, and the decorator does not roll back for an
-        # HTTPException. Callers pass ``commit=False`` to stage the delete in
-        # their own unit of work, so without this the aborted delete would linger
-        # in their transaction.
+        # has been staged, and the decorator does not roll back for a domain
+        # error. Callers pass ``commit=False`` to stage the delete in their own
+        # unit of work, so without this the aborted delete would linger in their
+        # transaction.
         db.rollback()
         raise
 

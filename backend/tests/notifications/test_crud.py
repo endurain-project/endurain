@@ -2,8 +2,9 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
+
+import core.exceptions as core_exceptions
 
 
 class TestGetUserNotificationById:
@@ -31,7 +32,7 @@ class TestGetUserNotificationById:
         import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_notification_by_id(notification_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -55,7 +56,7 @@ class TestGetUserNotificationsCount:
         import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_notifications_count(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -92,7 +93,7 @@ class TestGetUserNotificationsWithPagination:
         import modules.notifications.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_notifications_with_pagination(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -131,7 +132,7 @@ class TestCreateNotification:
             type: str = "follow_request"
             options: dict = {}
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_notification(notification=NC(), db=mock_db)
         assert e.value.status_code == 500
 
@@ -169,7 +170,7 @@ class TestMarkNotificationAsRead:
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
         mock_db.commit.side_effect = SQLAlchemyError("err")
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.mark_notification_as_read(notification_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -189,6 +190,6 @@ class TestMarkAllNotificationsAsRead:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.mark_all_notifications_as_read(user_id=1, db=mock_db)
         assert e.value.status_code == 500

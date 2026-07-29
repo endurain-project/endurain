@@ -3,10 +3,11 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import create_sqlite_session, setup_mock_execute
 from tests._helpers.models import mock_model
+
+import core.exceptions as core_exceptions
 
 
 class TestGetUserActivities:
@@ -32,7 +33,7 @@ class TestGetUserActivities:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -77,7 +78,7 @@ class TestGetUserActivitiesWithPagination:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_with_pagination(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -137,7 +138,7 @@ class TestGetAllActivities:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_all_activities(db=mock_db)
         assert e.value.status_code == 500
 
@@ -178,7 +179,7 @@ class TestGetActivitiesPerTimeframe:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_per_timeframe(
                 user_id=1,
                 start=datetime(2024, 1, 1, tzinfo=UTC),
@@ -210,7 +211,7 @@ class TestGetActivityByID:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_id(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -272,26 +273,26 @@ class TestCreateActivity:
         # set it rather than overwritten with the row's value.
         assert activity.created_at is None
 
-    def test_missing_start_time_raises_422(self, mock_db):
+    def test_missing_start_time_is_rejected(self, mock_db):
         import modules.activities.activity.crud as crud
 
         a = MagicMock()
         a.user_id = 1
         a.start_time = None
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.InvalidInputError) as e:
             crud.create_activity(activity=a, db=mock_db)
-        assert e.value.status_code == 422
+        assert e.value.status_code == 400
         mock_db.add.assert_not_called()
 
-    def test_missing_user_id_raises_422(self, mock_db):
+    def test_missing_user_id_is_rejected(self, mock_db):
         import modules.activities.activity.crud as crud
 
         a = MagicMock()
         a.user_id = None
         a.start_time = datetime.now(UTC)
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.InvalidInputError) as e:
             crud.create_activity(activity=a, db=mock_db)
-        assert e.value.status_code == 422
+        assert e.value.status_code == 400
         mock_db.add.assert_not_called()
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
@@ -344,7 +345,7 @@ class TestCreateActivity:
         a = MagicMock()
         a.user_id = 1
         a.start_time = "2024-01-01T10:00:00+00:00"
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_activity(activity=a, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -380,7 +381,7 @@ class TestEditActivity:
             id: int = 999
             name: str = "U"
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.NotFoundError) as e:
             crud.edit_activity(user_id=1, activity_id=999, activity_attributes=A(), db=mock_db)
         assert e.value.status_code == 404
 
@@ -421,7 +422,7 @@ class TestEditActivity:
             name: str = "U"
 
         mock_db.commit.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.edit_activity(user_id=1, activity_id=1, activity_attributes=A(), db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -452,7 +453,7 @@ class TestDelete:
         r = MagicMock()
         r.rowcount = 0
         mock_db.execute.return_value = r
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.NotFoundError) as e:
             crud.delete_activity(activity_id=999, user_id=7, db=mock_db)
         assert e.value.status_code == 404
 
@@ -463,7 +464,7 @@ class TestDelete:
         r = MagicMock()
         r.rowcount = 0
         mock_db.execute.return_value = r
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.NotFoundError) as e:
             crud.delete_activity(activity_id=1, user_id=999, db=mock_db)
         assert e.value.status_code == 404
         mock_db.commit.assert_not_called()
@@ -472,7 +473,7 @@ class TestDelete:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_activity(activity_id=1, user_id=7, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -497,7 +498,7 @@ class TestDistinctTypes:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_distinct_activity_types_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -519,7 +520,7 @@ class TestGearActivities:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_activities_count_by_user_id(user_id=1, gear_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -546,7 +547,7 @@ class TestFollowing:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_following_activities(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -568,7 +569,7 @@ class TestCountUserActivities:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.count_user_activities(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -589,7 +590,7 @@ class TestCountFollowing:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.count_user_following_activities([2], db=mock_db)
         assert e.value.status_code == 500
 
@@ -612,7 +613,7 @@ class TestBulkSetGear:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -629,7 +630,7 @@ class TestUpdateGear:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.update_activity_gear_id(activity_id=1, user_id=1, gear_id=5, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -666,7 +667,7 @@ class TestActivityByStravaGarmin:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_strava_id_from_user_id(activity_strava_id=123, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -683,7 +684,7 @@ class TestActivityByStravaGarmin:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_garminconnect_id_from_user_id(activity_garminconnect_id=456, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -708,7 +709,7 @@ class TestGetAllActivitiesForMigration:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_all_activities_for_migration(db=mock_db)
         assert e.value.status_code == 500
 
@@ -734,7 +735,7 @@ class TestGetUserActivitiesByGarminGear:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_by_user_id_and_garminconnect_gear_set(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -780,7 +781,7 @@ class TestGetUserActivitiesPerTimeframeAndType:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_per_timeframe_and_activity_type(
                 user_id=1,
                 activity_type=1,
@@ -854,7 +855,7 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_per_timeframe_and_activity_types(
                 user_id=1,
                 activity_types=[1],
@@ -894,7 +895,7 @@ class TestGetUserFollowingActivitiesWithPagination:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db)
         assert e.value.status_code == 500
 
@@ -920,7 +921,7 @@ class TestGetUserActivitiesByGearId:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_by_gear_id_and_user_id(user_id=1, gear_id=5, db=mock_db)
         assert e.value.status_code == 500
 
@@ -953,7 +954,7 @@ class TestGetUserActivitiesByGearIdWithPagination:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
                 user_id=1, gear_id=5, page_number=1, num_records=10, db=mock_db
             )
@@ -995,7 +996,7 @@ class TestGetActivityByIdFromUserIdOrHasVisibility:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -1072,7 +1073,7 @@ class TestGetActivityByIdIfIsPublic:
 
         mock_settings.return_value.public_shareable_links = True
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_id_if_is_public(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -1328,7 +1329,7 @@ class TestGetViewableActivityByIdForUser:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -1368,7 +1369,7 @@ class TestGetActivityByStartTime:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_start_time(start_time="2024-01-01T10:00:00+00:00", user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -1395,7 +1396,7 @@ class TestGetActivityByDedupKey:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_dedup_key(dedup_key="strava:123", user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -1422,7 +1423,7 @@ class TestGetActivityByIdFromUserId:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_id_from_user_id(activity_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -1449,7 +1450,7 @@ class TestSetActivityThumbnailPath:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.set_activity_thumbnail_path(activity_id=1, thumbnail_path="/path/to/thumb.png", db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -1539,7 +1540,7 @@ class TestUpdateActivityLocation:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.update_activity_location(1, "Lisbon", None, "Portugal", db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -1590,7 +1591,7 @@ class TestEditUserActivitiesVisibility:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -1630,7 +1631,7 @@ class TestDeleteAllStravaActivitiesForUser:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_all_strava_activities_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -1661,7 +1662,7 @@ class TestDeleteAllActivitiesForUser:
         import modules.activities.activity.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_all_activities_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()

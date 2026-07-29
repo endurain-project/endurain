@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+import core.exceptions as core_exceptions
 from modules.users.users_integrations import crud as user_integrations_crud
 from modules.users.users_integrations.models import UsersIntegrations
 
@@ -77,7 +78,7 @@ class TestGetUserIntegrationsByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_integrations_crud.get_user_integrations_by_user_id(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -137,7 +138,7 @@ class TestGetUserIntegrationsByStravaState:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_integrations_crud.get_user_integrations_by_strava_state("state", mock_db)
 
         assert exc_info.value.status_code == 500
@@ -213,7 +214,7 @@ class TestCreateUserIntegrations:
         mock_db.rollback = MagicMock()
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_integrations_crud.create_user_integrations(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -281,7 +282,7 @@ class TestLinkStravaAccount:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.link_strava_account(mock_integrations, tokens, mock_db)
 
             assert exc_info.value.status_code == 500
@@ -628,7 +629,7 @@ class TestEditUserIntegrations:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.edit_user_integrations(mock_update, 1, mock_db)
 
             assert exc_info.value.status_code == 500
@@ -656,7 +657,7 @@ class TestLinkStravaAccountDBError:
             mock_encrypt.return_value = "encrypted"
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.link_strava_account(
                     mock_integrations,
                     {
@@ -693,7 +694,7 @@ class TestUnlinkStravaAccountDBError:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.unlink_strava_account(1, mock_db)
 
             assert exc_info.value.status_code == 500
@@ -725,7 +726,7 @@ class TestSetUserStravaClientDBError:
                 mock_encrypt.return_value = "encrypted"
 
                 # Act & Assert
-                with pytest.raises(HTTPException) as exc_info:
+                with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                     user_integrations_crud.set_user_strava_client(1, "client_id", "client_secret", mock_db)
 
                 assert exc_info.value.status_code == 500
@@ -754,7 +755,7 @@ class TestSetUserStravaStateDBError:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.set_user_strava_state(1, "state", mock_db)
 
             assert exc_info.value.status_code == 500
@@ -783,7 +784,7 @@ class TestSetUserStravaSyncGearDBError:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.set_user_strava_sync_gear(1, True, mock_db)
 
             assert exc_info.value.status_code == 500
@@ -812,7 +813,7 @@ class TestLinkGarminConnectAccountDBError:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.link_garminconnect_account(1, {"key": "value"}, mock_db)
 
             assert exc_info.value.status_code == 500
@@ -841,7 +842,7 @@ class TestSetUserGarminConnectSyncGearDBError:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.set_user_garminconnect_sync_gear(1, True, mock_db)
 
             assert exc_info.value.status_code == 500
@@ -870,7 +871,7 @@ class TestUnlinkGarminConnectAccountDBError:
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 user_integrations_crud.unlink_garminconnect_account(1, mock_db)
 
             assert exc_info.value.status_code == 500

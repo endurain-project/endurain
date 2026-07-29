@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 from modules.auth.identity_providers import crud as idp_crud
 from modules.auth.identity_providers.models import IdentityProvider
 from modules.auth.identity_providers.schema import (
@@ -71,7 +72,7 @@ class TestGetIdentityProvider:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.get_identity_provider(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -134,7 +135,7 @@ class TestGetIdentityProviderBySlug:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.get_identity_provider_by_slug("test", mock_db)
 
         assert exc_info.value.status_code == 500
@@ -195,7 +196,7 @@ class TestGetAllIdentityProviders:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.get_all_identity_providers(mock_db)
 
         assert exc_info.value.status_code == 500
@@ -257,7 +258,7 @@ class TestGetEnabledProviders:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.get_enabled_identity_providers(mock_db)
 
         assert exc_info.value.status_code == 500
@@ -362,7 +363,7 @@ class TestGetIdentityProvidersByIds:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
 
         assert exc_info.value.status_code == 500
@@ -492,7 +493,7 @@ class TestCreateIdentityProvider:
         )
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.create_identity_provider(idp_data, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -651,7 +652,7 @@ class TestUpdateIdentityProvider:
         idp_data = IdentityProviderUpdate(name="Updated", slug="test-slug", client_id="client-123")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.update_identity_provider(1, idp_data, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -758,7 +759,7 @@ class TestDeleteIdentityProvider:
         mock_db.delete.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_crud.delete_identity_provider(1, mock_db)
 
         assert exc_info.value.status_code == 500

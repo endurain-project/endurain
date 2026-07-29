@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
@@ -67,7 +68,7 @@ class TestGetUserPrivacySettingsByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -140,7 +141,7 @@ class TestCreateUserPrivacySettings:
         mock_db.add.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             users_privacy_settings_crud.create_user_privacy_settings(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -264,7 +265,7 @@ class TestEditUserPrivacySettings:
         mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             users_privacy_settings_crud.edit_user_privacy_settings(user_id, update_data, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

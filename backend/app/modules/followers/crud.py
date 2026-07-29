@@ -2,12 +2,12 @@
 
 from typing import Any, cast
 
-from fastapi import HTTPException, status
 from sqlalchemy import CursorResult, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
@@ -267,19 +267,13 @@ def create_follower(
     # Prevent self-follow which would otherwise pollute counts and
     # notifications.
     if user_id == target_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot follow yourself",
-        )
+        raise core_exceptions.InvalidInputError("Cannot follow yourself")
 
     # Pre-check to return a clean 409 instead of a 500 from a unique
     # constraint violation.
     existing = get_follower_for_user_id_and_target_user_id(user_id, target_user_id, db)
     if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Follow relationship already exists",
-        )
+        raise core_exceptions.ConflictError("Follow relationship already exists")
 
     new_follow = followers_models.Follower(
         follower_id=user_id,
@@ -307,10 +301,7 @@ def create_follower(
             exc_info=err,
             extra=core_logger.context(error=type(err).__name__),
         )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Follow relationship already exists",
-        ) from err
+        raise core_exceptions.ConflictError("Follow relationship already exists") from err
 
     return _transform_follower(new_follow)
 
@@ -348,10 +339,7 @@ def accept_follower(
 
     accept_follow = db.scalars(stmt).first()
     if accept_follow is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Follower record not found",
-        )
+        raise core_exceptions.NotFoundError("Follower record not found")
 
     accept_follow.status = "accepted"
     db.commit()
@@ -389,10 +377,7 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
     if result.rowcount == 0:
         # Roll back so the no-op transaction does not stay open.
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Follower record not found",
-        )
+        raise core_exceptions.NotFoundError("Follower record not found")
 
     db.commit()
     logger.debug(

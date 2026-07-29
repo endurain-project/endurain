@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 
 
 class TestHandleDbErrors:
@@ -39,7 +40,7 @@ class TestHandleDbErrors:
 
         with (
             patch("core.decorators.logger") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func(session)
 
@@ -56,7 +57,7 @@ class TestHandleDbErrors:
 
         with (
             patch("core.decorators.logger") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func(some_session=session)
 
@@ -71,7 +72,7 @@ class TestHandleDbErrors:
 
         with (
             patch("core.decorators.logger") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func()
 
@@ -100,7 +101,7 @@ class TestHandleDbErrors:
 
         with (
             patch("core.decorators.logger") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func(session)
 

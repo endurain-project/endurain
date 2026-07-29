@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import operators
 
+import core.exceptions as core_exceptions
 import modules.auth.mfa.backup_codes.crud as backup_crud
 import modules.auth.mfa.backup_codes.models as backup_models
 
@@ -40,7 +41,7 @@ class TestGetUserBackupCodes:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             backup_crud.get_user_backup_codes(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -74,7 +75,7 @@ class TestGetUserUnusedBackupCodes:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             backup_crud.get_user_unused_backup_codes(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -169,7 +170,7 @@ class TestCreateBackupCodes:
         ):
             mock_sa_delete.return_value.where.return_value = MagicMock()
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 backup_crud.create_backup_codes(user_id, password_hasher, mock_db)
 
             assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -242,7 +243,7 @@ class TestMarkBackupCodeAsUsed:
         mock_db.get.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             backup_crud.mark_backup_code_as_used(code_id, user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -287,7 +288,7 @@ class TestDeleteUserBackupCodes:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             backup_crud.delete_user_backup_codes(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

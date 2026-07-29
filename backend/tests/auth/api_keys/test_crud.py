@@ -9,6 +9,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.auth.api_keys.crud as auth_api_keys_crud
 import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
@@ -45,7 +46,7 @@ class TestGetApiKeysByUserId:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.get_api_keys_by_user_id(1, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -89,7 +90,7 @@ class TestGetApiKeyById:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.get_api_key_by_id("some-uuid", 1, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -123,7 +124,7 @@ class TestGetApiKeyByHash:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.get_api_key_by_hash("c" * 64, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -255,7 +256,7 @@ class TestCreateApiKey:
         )
         mock_db.add.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.create_api_key(1, data, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -291,7 +292,7 @@ class TestUpdateLastUsed:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.update_last_used("some-uuid", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

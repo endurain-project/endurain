@@ -2,9 +2,10 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.auth.sessions.rotated_refresh_tokens.crud as rotated_token_crud
 import modules.auth.sessions.rotated_refresh_tokens.models as _auth_rotated_token_models
 import modules.auth.sessions.rotated_refresh_tokens.models as rotated_token_models
@@ -59,7 +60,7 @@ class TestGetRotatedTokenByHash:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             rotated_token_crud.get_rotated_token_by_hash(hashed_token, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -118,7 +119,7 @@ class TestCreateRotatedToken:
         mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             rotated_token_crud.create_rotated_token(token_data, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -171,7 +172,7 @@ class TestDeleteExpiredTokens:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             rotated_token_crud.delete_expired_tokens(cutoff_time, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -224,7 +225,7 @@ class TestDeleteByFamily:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             rotated_token_crud.delete_by_family(token_family_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

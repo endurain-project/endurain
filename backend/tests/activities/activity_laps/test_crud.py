@@ -1,10 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
+
+import core.exceptions as core_exceptions
 
 
 class TestCreateActivityLaps:
@@ -31,7 +32,7 @@ class TestCreateActivityLaps:
         mock_laps_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
         laps = [{"lap_number": 1}]
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_activity_laps(laps, 1, mock_db)
         assert e.value.status_code == 500
 
@@ -80,7 +81,7 @@ class TestGetActivityLaps:
 
         mock_get_act.return_value = MagicMock(user_id=1, hide_laps=False)
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -140,7 +141,7 @@ class TestGetActivitiesLaps:
         import modules.activities.activity_laps.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activities_laps(activity_ids=[1], token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -191,7 +192,7 @@ class TestGetPublicActivityLaps:
 
         mock_gate.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_public_activity_laps(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 

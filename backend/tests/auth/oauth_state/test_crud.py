@@ -4,9 +4,10 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
 import modules.auth.sessions.models as users_session_models
@@ -335,7 +336,7 @@ class TestDeleteOAuthState:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             oauth_state_crud.delete_oauth_state(oauth_state_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

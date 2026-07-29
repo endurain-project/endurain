@@ -315,6 +315,35 @@ source_modules =
 forbidden_modules =
     modules.activities.*.models
 
+# The persistence layer describes what went wrong in the domain, not which HTTP
+# status to send. The activities and followers CRUD modules raised
+# ``fastapi.HTTPException`` for 404/409/422, and ``core.decorators.handle_db_errors``
+# raised it for every database failure — so the durable-job worker, which serves no
+# HTTP at all, handled a dropped connection by constructing an HTTP response, and
+# ``ingestion_service`` had to catch both exception families to guarantee a rollback.
+# They now raise ``core.exceptions``; the single handler registered on the app turns
+# those into responses. Forbidding fastapi outright (not just HTTPException, which
+# import-linter cannot express) is what keeps a ``status`` or ``Depends`` from being
+# the next thing to leak in.
+[importlinter:contract:persistence-no-http]
+name = Activities and followers persistence raises domain errors, not HTTP ones
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity.crud
+    modules.activities.activity.query
+    modules.activities.activity.serializers
+    modules.activities.activity_media.crud
+    modules.activities.activity_exercise_titles.crud
+    modules.activities.activity_laps.crud
+    modules.activities.activity_sets.crud
+    modules.activities.activity_streams.crud
+    modules.activities.activity_summaries.crud
+    modules.activities.activity_workout_steps.crud
+    modules.followers.crud
+forbidden_modules =
+    fastapi
+
 # The counterpart to consumer-activities-boundary, pointing the other way: the
 # activities module consumes users through the curated users integration service
 # (users/users/integration_service.py), never by reaching into the users CRUD or

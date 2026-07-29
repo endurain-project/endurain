@@ -1,10 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
+
+import core.exceptions as core_exceptions
 
 
 class TestCreateActivitySets:
@@ -37,7 +38,7 @@ class TestCreateActivitySets:
         sets = [
             ActivitySetsCreate(activity_id=1, duration=300.0, set_type="interval", start_time="2024-01-15T08:00:00")
         ]
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_activity_sets(sets, 1, mock_db)
         assert e.value.status_code == 500
 
@@ -93,7 +94,7 @@ class TestGetActivitySets:
 
         mock_get_act.return_value = MagicMock(user_id=1, hide_workout_sets_steps=False)
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_sets(activity_id=1, token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -153,7 +154,7 @@ class TestGetActivitiesSets:
         import modules.activities.activity_sets.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activities_sets(activity_ids=[1], token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -204,6 +205,6 @@ class TestGetPublicActivitySets:
 
         mock_gate.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0, timezone="UTC")
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_public_activity_sets(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
