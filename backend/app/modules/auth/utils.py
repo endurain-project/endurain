@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.token_manager as auth_token_manager
 import modules.auth.constants as auth_constants
@@ -325,9 +326,12 @@ async def clear_refresh_token_cookie_exception_handler(
     Raises:
         None.
     """
-    response = JSONResponse(
+    response = core_exceptions.build_problem_response(
+        request=_request,
         status_code=exc.status_code,
-        content={"detail": exc.detail},
+        code="authentication-failed",
+        title="Unauthorized",
+        detail=str(exc.detail),
         headers=exc.headers,
     )
     clear_refresh_token_cookies(response)

@@ -430,14 +430,17 @@ class TestCompleteLogin:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+        request = MagicMock()
+        request.url.path = "/api/v1/auth/refresh"
         response = await auth_utils.clear_refresh_token_cookie_exception_handler(
-            MagicMock(),
+            request,
             exc,
         )
 
         set_cookie_headers = [header.lower() for header in _set_cookie_headers(response)]
         assert response.status_code == 401
         assert response.headers["www-authenticate"] == "Bearer"
+        assert response.headers["content-type"].startswith("application/problem+json")
         assert any("max-age=0" in h and "path=/;" in h for h in set_cookie_headers)
         assert any("max-age=0" in h and "path=/api/v1/auth" in h for h in set_cookie_headers)
 

@@ -25,12 +25,12 @@ Architecture
 import hashlib
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 
@@ -112,11 +112,12 @@ def rate_limit_exceeded_handler(
         headers attached when available.
     """
     logger.warning(f"Rate limit exceeded: {_get_rate_limit_key(request)} on {request.method} {request.url.path}")
-    response = JSONResponse(
+    response = core_exceptions.build_problem_response(
+        request=request,
         status_code=429,
-        content={
-            "detail": ("Too many requests. Please try again later."),
-        },
+        code="rate-limited",
+        title="Too Many Requests",
+        detail="Too many requests. Please try again later.",
     )
     # Inject X-RateLimit-* and Retry-After headers.
     # request.state.view_rate_limit is populated by
