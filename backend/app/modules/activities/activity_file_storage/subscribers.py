@@ -10,6 +10,7 @@ There is deliberately no reconciliation net: like thumbnail cleanup this is an
 idempotent teardown keyed by activity id, and a stray orphaned file is harmless.
 """
 
+import core.logger as core_logger
 import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
@@ -18,6 +19,8 @@ from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
+
+logger = core_logger.get_logger(__name__)
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -40,6 +43,10 @@ def cleanup_activity_file_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     storage = platform_runtime.get_active_platform().storage
     activity_file_storage_service.delete_activity_file(payload.activity_id, storage)
+    logger.debug(
+        "Deleted retained source file for deleted activity",
+        extra=core_logger.context(activity_id=payload.activity_id),
+    )
 
 
 # Bus subscriber: deletes a deleted activity's source file, swallowing errors so

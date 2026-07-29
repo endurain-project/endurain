@@ -118,3 +118,67 @@ def test_http_exceptions_stay_at_the_transport_boundary() -> None:
                 offenders.append(f"{path.relative_to(_MODULES_DIR.parent)}:{node.lineno}")
 
     assert not offenders, f"Raise a core.exceptions error instead of HTTPException: {', '.join(offenders)}"
+
+
+_LOG_METHODS = {"debug", "info", "warning", "error", "critical", "exception", "log"}
+
+
+def _log_message_arg(node: ast.Call) -> ast.expr | None:
+    """Return the message argument of a ``logger.<level>(...)`` call, if it is one."""
+    func = node.func
+    if not isinstance(func, ast.Attribute) or func.attr not in _LOG_METHODS:
+        return None
+    if not isinstance(func.value, ast.Name) or func.value.id != "logger":
+        return None
+    # logger.log() takes the level first, so the message is the second argument.
+    index = 1 if func.attr == "log" else 0
+    return node.args[index] if len(node.args) > index else None
+
+
+def test_log_messages_are_static_strings() -> None:
+    """Variable data belongs in ``extra=core_logger.context(...)``, not the message.
+
+    An f-string message is a distinct string per occurrence, so the records cannot
+    be grouped, counted or alerted on, and the interpolated values are not
+    queryable fields. It is also how identifiers end up in messages that get
+    truncated or scrubbed downstream.
+    """
+    offenders = []
+    for path in _template_sources():
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            message = _log_message_arg(node)
+            if isinstance(message, ast.JoinedStr) or (
+                isinstance(message, ast.BinOp) and isinstance(message.op, ast.Mod)
+            ):
+                offenders.append(f"{path.relative_to(_MODULES_DIR.parent)}:{node.lineno}")
+
+    assert not offenders, (
+        "Log messages must be static strings; pass variable data as "
+        f"extra=core_logger.context(...): {', '.join(offenders)}"
+    )
+
+
+def test_event_subscribers_log_what_they_did() -> None:
+    """Every ``*_for_event`` handler logs, so derived work is not silent.
+
+    These run outside a request — on the bus consumer or a job worker — where
+    ``best_effort`` records failures but a *successful* no-op leaves no trace at
+    all. "The activity imported but has no thumbnail" was unanswerable from the
+    logs: nothing distinguished 'skipped, too few waypoints' from 'never ran'.
+    """
+    offenders = []
+    for path in _template_sources():
+        if path.name not in {"subscribers.py", "ingestion_subscribers.py", "bulk_import_subscribers.py"}:
+            continue
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef) or not node.name.endswith("_for_event"):
+                continue
+            logs = any(isinstance(inner, ast.Call) and _log_message_arg(inner) is not None for inner in ast.walk(node))
+            if not logs:
+                offenders.append(f"{path.relative_to(_MODULES_DIR.parent)}::{node.name}")
+
+    assert not offenders, f"Event handlers must log their outcome: {', '.join(offenders)}"

@@ -100,7 +100,11 @@ class JobRunner:
             try:
                 self._run_job(snapshot)
             except Exception as error:
-                logger.error(f"Durable job {snapshot.id} could not be finalized", exc_info=error)
+                logger.error(
+                    "Durable job could not be finalized",
+                    exc_info=error,
+                    extra=core_logger.context(job_id=snapshot.id, subscriber=snapshot.subscriber_id),
+                )
         return len(snapshots)
 
     def reap_once(self) -> int:
@@ -140,7 +144,18 @@ class JobRunner:
                 db=db,
             )
         level = logging.ERROR if status == jobs_crud.STATUS_DEAD_LETTER else logging.WARNING
-        logger.log(level, f"Durable job {job.id} ({job.subscriber_id}) failed -> {status or 'unknown'}", exc_info=error)
+        logger.log(
+            level,
+            "Durable job failed",
+            exc_info=error,
+            extra=core_logger.context(
+                job_id=job.id,
+                subscriber=job.subscriber_id,
+                event_type=job.event_type,
+                attempts=job.attempts,
+                job_status=status or "unknown",
+            ),
+        )
 
     def _event_from(self, job: ClaimedJob) -> Event:
         return Event(

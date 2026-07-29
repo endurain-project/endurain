@@ -63,7 +63,7 @@ def process_uploaded_file_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(ingestion_events.UploadedFilePayload, event)
     try:
         ingestion_jobs.run_upload_job(payload.job_id)
-    except Exception:
+    except Exception as err:
         if _is_final_attempt(event):
             ingestion_jobs.fail_ingestion_job(
                 payload.job_id,
@@ -71,6 +71,7 @@ def process_uploaded_file_for_event(event: Event) -> None:
             )
             logger.error(
                 "Upload job dead-lettered",
+                exc_info=err,
                 extra=core_logger.context(console=True, job_id=payload.job_id),
             )
         raise
@@ -93,7 +94,7 @@ def process_refresh_requested_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(ingestion_events.RefreshRequestedPayload, event)
     try:
         ingestion_jobs.run_refresh_job(payload.job_id)
-    except Exception:
+    except Exception as err:
         if _is_final_attempt(event):
             ingestion_jobs.fail_ingestion_job(
                 payload.job_id,
@@ -101,6 +102,7 @@ def process_refresh_requested_for_event(event: Event) -> None:
             )
             logger.error(
                 "Refresh job dead-lettered",
+                exc_info=err,
                 extra=core_logger.context(console=True, job_id=payload.job_id),
             )
         raise

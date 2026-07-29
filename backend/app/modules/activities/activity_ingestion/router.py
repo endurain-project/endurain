@@ -197,9 +197,13 @@ def _warn_about_unowned_bulk_import_files(user_id: int) -> None:
 
     if stranded:
         logger.warning(
-            f"Skipping {len(stranded)} file(s) in the shared bulk-import root: they are not attributed "
-            f"to any user. Move them into {core_config.bulk_import_dir_for(user_id)} to import them.",
-            extra=core_logger.context(console=True, user_id=user_id, file_count=len(stranded)),
+            "Skipping bulk-import files in the shared root: they are not attributed to any user",
+            extra=core_logger.context(
+                console=True,
+                user_id=user_id,
+                file_count=len(stranded),
+                expected_dir=core_config.bulk_import_dir_for(user_id),
+            ),
         )
 
 
@@ -247,8 +251,14 @@ def create_activity_with_bulk_import(
             file_extension = file_extension.lower()
             if file_extension not in supported_file_formats:
                 logger.info(
-                    f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}.",
-                    extra=core_logger.context(console=True),
+                    "Skipping a bulk-import file with an unsupported extension",
+                    extra=core_logger.context(
+                        console=True,
+                        user_id=token_user_id,
+                        file=os.path.basename(file_path),
+                        file_extension=file_extension,
+                        supported_extensions=list(supported_file_formats),
+                    ),
                 )
                 # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
                 continue
@@ -275,10 +285,9 @@ def create_activity_with_bulk_import(
                     continue
 
                 files_to_process.append(file_path)
-                # Log the file being processed
                 logger.info(
-                    f"Queuing file for processing: {os.path.basename(file_path)}",
-                    extra=core_logger.context(console=True),
+                    "Queuing a bulk-import file for processing",
+                    extra=core_logger.context(console=True, user_id=token_user_id, file=os.path.basename(file_path)),
                 )
 
         # Hand each validated file off for background processing. When durable jobs
@@ -301,7 +310,7 @@ def create_activity_with_bulk_import(
         # Log a success message that explains processing will continue elsewhere.
         logger.info(
             "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background.",
-            extra=core_logger.context(console=True),
+            extra=core_logger.context(console=True, user_id=token_user_id, file_count=len(files_to_process)),
         )
 
         # Return a success message

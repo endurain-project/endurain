@@ -131,9 +131,11 @@ def backfill_missing_activity_locations(db: Session) -> int:
         )
         stored += 1
 
+    # Level varies so an idle scheduler pass stays at debug instead of emitting
+    # an INFO line every tick.
     logger.log(
         logging.INFO if stored else logging.DEBUG,
-        f"Geocoding scheduler: stored location for {stored} activity(ies) "
-        f"out of {len(waypoints_by_activity)} GPS candidate(s)",
+        "Geocoding scheduler pass complete",
+        extra=core_logger.context(stored=stored, gps_candidates=len(waypoints_by_activity)),
     )
     return stored

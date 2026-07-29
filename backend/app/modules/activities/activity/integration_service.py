@@ -25,10 +25,13 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
+
+logger = core_logger.get_logger(__name__)
 
 
 def get_activity_by_strava_id(
@@ -111,7 +114,12 @@ def bulk_set_activities_gear(
     Returns:
         The number of activities updated.
     """
-    return activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db)
+    updated = activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db)
+    logger.info(
+        "Bulk-assigned gear to activities",
+        extra=core_logger.context(user_id=user_id, requested=len(gear_assignments), updated=updated),
+    )
+    return updated
 
 
 def get_gear_usage_totals(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
@@ -268,6 +276,12 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
         db.commit,
         source="api:delete_all_strava_activities",
     )
+    # Irreversible and triggered from another module, so the count is recorded
+    # here rather than left to the caller.
+    logger.info(
+        "Deleted all Strava-sourced activities for user",
+        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
+    )
     return len(deleted_ids)
 
 
@@ -294,5 +308,9 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
         db,
         db.commit,
         source="api:delete_user",
+    )
+    logger.info(
+        "Deleted all activities for user",
+        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)

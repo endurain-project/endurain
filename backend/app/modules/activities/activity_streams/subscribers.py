@@ -48,6 +48,10 @@ def compute_hr_zones_for_event(event: Event) -> None:
         activity_streams_crud.compute_and_store_hr_zone_percentages_for_activity(
             payload.activity_id, payload.user_id, db
         )
+    logger.debug(
+        "Handled HR zone computation for created activity",
+        extra=core_logger.context(activity_id=payload.activity_id, user_id=payload.user_id),
+    )
 
 
 # Bus subscriber: computes HR zones, swallowing any error so an HR-zone failure
@@ -109,7 +113,10 @@ def run_missing_hr_zone_backfill() -> None:
             return
         with core_database.SessionLocal() as db:
             updated = activity_streams_crud.backfill_missing_hr_zone_percentages(db)
+        # Level varies so an idle scheduler pass stays at debug instead of
+        # emitting an INFO line every tick.
         logger.log(
             logging.INFO if updated else logging.DEBUG,
-            f"HR-zone scheduler: backfilled zone percentages for {updated} stream(s)",
+            "HR-zone scheduler pass complete",
+            extra=core_logger.context(updated=updated),
         )

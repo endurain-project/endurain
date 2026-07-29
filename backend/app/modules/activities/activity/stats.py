@@ -55,6 +55,10 @@ def calculate_activity_stats(
                     bucket.calories += float(activity.calories or 0)
                     break
     except (TypeError, ValueError, AttributeError) as err:
-        logger.error("Error in calculate_activity_stats", exc_info=err)
+        logger.error(
+            "Error calculating activity stats",
+            exc_info=err,
+            extra=core_logger.context(activity_count=len(activities)),
+        )
 
     return stats

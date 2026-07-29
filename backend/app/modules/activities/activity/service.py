@@ -50,8 +50,14 @@ def get_activities_in_timeframe(
     """
     is_owner = user_id == requester_user_id
     logger.debug(
-        f"get_activities_in_timeframe: user {user_id} "
-        f"[{'owner' if is_owner else 'requester-scoped'}] window {start}..{end}"
+        "Listing activities in timeframe",
+        extra=core_logger.context(
+            user_id=user_id,
+            requester_user_id=requester_user_id,
+            is_owner=is_owner,
+            window_start=str(start),
+            window_end=str(end),
+        ),
     )
     if is_owner:
         return activities_crud.get_user_activities_per_timeframe(user_id, start, end, db, True)
@@ -254,8 +260,14 @@ def list_user_activities_paginated(
         requester_user_id=requester_user_id,
     )
     logger.debug(
-        f"list_user_activities_paginated: user {user_id} requester {requester_user_id} "
-        f"page {page_number} size {num_records} -> {len(activities) if activities else 0} activities"
+        "Listed paginated user activities",
+        extra=core_logger.context(
+            user_id=user_id,
+            requester_user_id=requester_user_id,
+            page_number=page_number,
+            page_size=num_records,
+            returned=len(activities) if activities else 0,
+        ),
     )
     return activities
 
@@ -282,7 +294,13 @@ def get_following_feed(
     followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     feed = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
     logger.debug(
-        f"get_following_feed: user {requester_user_id} page {page_number} -> {len(feed) if feed else 0} activities"
+        "Built following feed",
+        extra=core_logger.context(
+            requester_user_id=requester_user_id,
+            page_number=page_number,
+            followee_count=len(followee_ids) if followee_ids else 0,
+            returned=len(feed) if feed else 0,
+        ),
     )
     return feed
 

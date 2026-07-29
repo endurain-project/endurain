@@ -45,7 +45,7 @@ def best_effort(handler: Callable[[Event], None]) -> Callable[[Event], None]:
             handler(event)
         except Exception as err:
             logger.error(
-                f"Subscriber {handler.__name__} failed for {event.event_type}",
+                "Event subscriber failed",
                 exc_info=err,
                 extra=core_logger.context(
                     event_type=event.event_type,

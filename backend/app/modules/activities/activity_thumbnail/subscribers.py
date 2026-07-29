@@ -16,6 +16,7 @@ create path.
 """
 
 import core.database as core_database
+import core.logger as core_logger
 import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
@@ -26,6 +27,8 @@ from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
+
+logger = core_logger.get_logger(__name__)
 
 # The minimum GPS waypoints needed to draw a route; below this there is no map
 # to render (non-GPS activities such as strength training cost nothing).
@@ -58,6 +61,17 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
             payload.activity_id, activity_streams_constants.STREAM_TYPE_MAP, payload.user_id, db
         )
         if waypoints is None or len(waypoints.stream_waypoints) < _MIN_WAYPOINTS:
+            # Logged because "my activity has no thumbnail" is otherwise
+            # indistinguishable from a failure.
+            logger.debug(
+                "Skipping thumbnail generation: too few GPS waypoints",
+                extra=core_logger.context(
+                    activity_id=payload.activity_id,
+                    user_id=payload.user_id,
+                    waypoint_count=0 if waypoints is None else len(waypoints.stream_waypoints),
+                    minimum_waypoints=_MIN_WAYPOINTS,
+                ),
+            )
             return
         tile_url, background_color, api_key = activity_thumbnail_service.resolve_tile_settings(db)
         activity_thumbnail_service.generate_and_store_thumbnail(
@@ -93,6 +107,10 @@ def cleanup_activity_thumbnail_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     storage = platform_runtime.get_active_platform().storage
     activity_thumbnail_service.delete_activity_thumbnail(payload.activity_id, storage)
+    logger.debug(
+        "Deleted thumbnail for deleted activity",
+        extra=core_logger.context(activity_id=payload.activity_id),
+    )
 
 
 # Bus subscriber: deletes a deleted activity's thumbnail, swallowing any error so
