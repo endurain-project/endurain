@@ -679,6 +679,66 @@ def save_validated_upload_sync(
         ) from err
 
 
+def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
+    """Validate an upload and return its bytes, without touching the filesystem.
+
+    The read counterpart of :func:`save_validated_upload_sync`, for callers that
+    hand the bytes to the platform ``StorageProvider`` (which may be object
+    storage) rather than writing them to a local directory. The same safeuploads
+    validator and size cap apply, so the only thing that differs is the
+    destination.
+
+    Content validation runs on a private event loop (:func:`_run_validator_sync`),
+    so this must be called from a thread with **no** running loop.
+
+    Args:
+        file: Incoming FastAPI UploadFile.
+        kind: Logical content type, drives validator + size cap.
+
+    Returns:
+        The validated file contents.
+
+    Raises:
+        HTTPException: 400/413/500 depending on the failure mode.
+    """
+    _run_validator_sync(validate_upload(file, kind=kind))
+
+    max_bytes = _max_bytes_for(kind)
+    chunks: list[bytes] = []
+    total = 0
+    try:
+        # The validators leave file.file at offset 0; rewind defensively.
+        with contextlib.suppress(Exception):
+            file.file.seek(0)
+        while True:
+            chunk = file.file.read(_STREAM_CHUNK_BYTES)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                    detail={
+                        "message": "Uploaded file exceeds maximum allowed size",
+                        "code": "FILE_SIZE_EXCEEDED",
+                    },
+                )
+            chunks.append(chunk)
+    except HTTPException:
+        raise
+    except Exception as err:
+        logger.error(f"Error in read_validated_upload_sync: {type(err).__name__}", exc_info=err)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Failed to read file",
+                "code": "FILE_READ_FAILED",
+            },
+        ) from err
+
+    return b"".join(chunks)
+
+
 # ---------------------------------------------------------------------------
 # Filesystem cleanup helpers
 # ---------------------------------------------------------------------------

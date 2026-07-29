@@ -1134,7 +1134,7 @@ class TestImportServiceActivityComponentsMedia:
                 [],
                 [],
                 [],
-                [{"activity_id": 1, "media_path": "activity_media/1_photo.jpg", "media_type": 1}],
+                [{"activity_id": 1, "media_path": "1_photo.jpg", "media_type": 1}],
                 [],
                 1,
                 mock_activity,
@@ -1142,7 +1142,12 @@ class TestImportServiceActivityComponentsMedia:
 
         assert service.counts.get("activity_media") == 1
 
-    async def test_collect_and_import_activity_components_with_media_no_underscore(self) -> None:
+    async def test_collect_and_import_activity_components_rejects_a_key_with_a_separator(self) -> None:
+        """A key carrying a path separator is skipped.
+
+        The archive is untrusted: such a value would address a blob outside the
+        flat media area, where the deletion cleanup could never find it again.
+        """
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -1160,7 +1165,7 @@ class TestImportServiceActivityComponentsMedia:
                 [],
                 [],
                 [],
-                [{"activity_id": 1, "media_path": "activity_media/nounderscore.jpg", "media_type": 1}],
+                [{"activity_id": 1, "media_path": "../../etc/1_passwd.jpg", "media_type": 1}],
                 [],
                 1,
                 mock_activity,
@@ -1169,7 +1174,8 @@ class TestImportServiceActivityComponentsMedia:
         mock_create.assert_not_called()
         assert service.counts.get("activity_media", 0) == 0
 
-    async def test_collect_and_import_activity_components_with_media_http_exception(self) -> None:
+    async def test_collect_and_import_activity_components_with_media_invalid_key(self) -> None:
+        """A media entry whose key carries no ``{activity_id}_`` prefix is skipped."""
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -1178,22 +1184,16 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
-        with (
-            patch(
-                "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
-                side_effect=HTTPException(status_code=400, detail="unsafe path"),
-            ),
-            patch(
-                "modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"
-            ) as mock_create,
-        ):
+        with patch(
+            "modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"
+        ) as mock_create:
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
                 [],
                 [],
                 [],
                 [],
-                [{"activity_id": 1, "media_path": "activity_media/1_unsafe.jpg", "media_type": 1}],
+                [{"activity_id": 1, "media_path": "nounderscore.jpg", "media_type": 1}],
                 [],
                 1,
                 mock_activity,
@@ -1225,9 +1225,9 @@ class TestImportServiceActivityComponentsMedia:
                 [],
                 [],
                 [
-                    {"activity_id": 1, "media_path": "activity_media/1_a.jpg", "media_type": 1},
-                    {"activity_id": 1, "media_path": "activity_media/1_b.jpg", "media_type": 1},
-                    {"activity_id": 2, "media_path": "activity_media/2_c.jpg", "media_type": 1},
+                    {"activity_id": 1, "media_path": "1_a.jpg", "media_type": 1},
+                    {"activity_id": 1, "media_path": "1_b.jpg", "media_type": 1},
+                    {"activity_id": 2, "media_path": "2_c.jpg", "media_type": 1},
                 ],
                 [],
                 1,
@@ -1475,9 +1475,8 @@ class TestImportServiceAddActivityMediaFromZip:
         mock_validator.config.limits.max_image_size = 1000000
         with (
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
-            ),
+            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_media_from_zip(
@@ -1487,6 +1486,10 @@ class TestImportServiceAddActivityMediaFromZip:
             )
 
         assert service.counts["media"] == 1
+        # Re-keyed onto the new activity id and written through the provider.
+        runtime.get_active_platform.return_value.storage.save.assert_called_once_with(
+            "activity_media", "10_photo.jpg", b"image-data"
+        )
 
     async def test_add_activity_media_from_zip_no_mapping(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1538,10 +1541,11 @@ class TestImportServiceAddActivityMediaFromZip:
         with (
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.validate_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid image"),
             ),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_media_from_zip(
@@ -1551,6 +1555,8 @@ class TestImportServiceAddActivityMediaFromZip:
             )
 
         assert service.counts.get("media", 0) == 0
+        # A rejected image is never stored.
+        runtime.get_active_platform.return_value.storage.save.assert_not_called()
 
     async def test_add_activity_media_from_zip_value_error(self) -> None:
         mock_db = MagicMock(spec=Session)

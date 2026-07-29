@@ -137,43 +137,20 @@ class TestReturnServerImgPath:
         assert result == "response"
 
 
-class TestReturnActivityMediaPath:
-    """Tests for return_activity_media_path."""
+class TestNoBlobPathHelpers:
+    """Activity media and thumbnails must have no filename-addressed serve helper.
 
-    def test_calls_serve_from_with_activity_media_dir(self):
-        from core.utils import return_activity_media_path
+    Both are private user data served only through their token-gated routes. A
+    ``return_*_path`` helper here is what the removed public routes were built
+    on, so its absence is the regression guard.
+    """
 
-        mock_core_config = MagicMock()
-        mock_core_config.settings.ACTIVITY_MEDIA_DIR = "/mock/activity_media"
-        mock_serve_from = MagicMock(return_value="response")
+    def test_no_activity_media_path_helper(self):
+        import core.utils
 
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_activity_media_path("photo.jpg")
+        assert not hasattr(core.utils, "return_activity_media_path")
 
-        mock_serve_from.assert_called_once_with("/mock/activity_media", "photo.jpg")
-        assert result == "response"
+    def test_no_activity_thumbnail_path_helper(self):
+        import core.utils
 
-
-class TestReturnActivityThumbnailPath:
-    """Tests for return_activity_thumbnail_path."""
-
-    def test_calls_serve_from_with_activity_thumbnails_dir(self):
-        from core.utils import return_activity_thumbnail_path
-
-        mock_core_config = MagicMock()
-        mock_core_config.settings.ACTIVITY_THUMBNAILS_DIR = "/mock/thumbnails"
-        mock_serve_from = MagicMock(return_value="response")
-
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_activity_thumbnail_path("thumb.png")
-
-        mock_serve_from.assert_called_once_with("/mock/thumbnails", "thumb.png")
-        assert result == "response"
+        assert not hasattr(core.utils, "return_activity_thumbnail_path")

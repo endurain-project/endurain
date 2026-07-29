@@ -145,8 +145,18 @@ class TestSettings:
         assert s.DATA_DIR == "/custom/backend/data"
         assert s.LOGS_DIR == "/custom/backend/logs"
         assert s.FILES_DIR == "/custom/backend/data/activity_files"
-        assert s.ACTIVITY_MEDIA_DIR == "/custom/backend/data/activity_media"
-        assert s.ACTIVITY_THUMBNAILS_DIR == "/custom/backend/data/activity_thumbnails"
+
+    def test_no_blob_directory_settings(self):
+        """Blob directories are owned by the StorageProvider area convention.
+
+        A settable directory for media/thumbnails would be a second source of
+        truth for a path the local storage backend already derives, and would be
+        meaningless on object storage.
+        """
+        from core.config import Settings
+
+        assert "ACTIVITY_MEDIA_DIR" not in Settings.model_fields
+        assert "ACTIVITY_THUMBNAILS_DIR" not in Settings.model_fields
 
     def test_data_dir_custom(self):
         from core.config import Settings
@@ -742,8 +752,6 @@ class TestCheckRequiredDirs:
             patch("core.config.settings.DATA_DIR", str(test_data)),
             patch("core.config.settings.LOGS_DIR", str(tmp_path / "logs")),
             patch("core.config.settings.FILES_DIR", str(test_data / "activity_files")),
-            patch("core.config.settings.ACTIVITY_MEDIA_DIR", str(test_data / "activity_media")),
-            patch("core.config.settings.ACTIVITY_THUMBNAILS_DIR", str(test_data / "activity_thumbnails")),
             patch("core.config.USER_IMAGES_DIR", str(test_data / "user_images")),
             patch("core.config.SERVER_IMAGES_DIR", str(test_data / "server_images")),
             patch("core.config.FILES_PROCESSED_DIR", str(test_data / "activity_files" / "processed")),
@@ -771,8 +779,6 @@ class TestCheckRequiredDirs:
             patch("core.config.settings.DATA_DIR", str(file_path)),
             patch("core.config.settings.LOGS_DIR", str(tmp_path / "logs")),
             patch("core.config.settings.FILES_DIR", str(tmp_path / "files")),
-            patch("core.config.settings.ACTIVITY_MEDIA_DIR", str(tmp_path / "activity_media")),
-            patch("core.config.settings.ACTIVITY_THUMBNAILS_DIR", str(tmp_path / "activity_thumbnails")),
             patch("core.config.USER_IMAGES_DIR", str(tmp_path / "user_images")),
             patch("core.config.SERVER_IMAGES_DIR", str(tmp_path / "server_images")),
             patch("core.config.FILES_PROCESSED_DIR", str(tmp_path / "processed")),

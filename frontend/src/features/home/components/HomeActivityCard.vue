@@ -114,15 +114,14 @@ const metricVisibility = computed(() => buildMetricVisibility(props.activity, pr
  * The map thumbnail URL, or `null` when there is no thumbnail or the viewer may
  * not see the map. The backend returns a ready-to-use URL: a same-origin signed
  * path (`/api/v1/activities/42/thumbnail?t=…`) for local storage, or an absolute
- * (presigned) URL for remote object storage. Same-origin paths are prefixed with
- * the backend host; absolute URLs are used as-is.
+ * (presigned) URL for remote object storage; `getBackendAssetUrl` handles both.
  */
 const thumbnailUrl = computed(() => {
   const path = props.activity.mapThumbnailPath
   if (!path || !canViewField(props.activity, 'hideMap', props.currentUserId)) {
     return null
   }
-  return /^https?:\/\//i.test(path) ? path : getBackendAssetUrl(path)
+  return getBackendAssetUrl(path)
 })
 
 /**

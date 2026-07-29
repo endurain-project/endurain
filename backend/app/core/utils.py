@@ -85,13 +85,3 @@ def return_user_img_path(user_img: str):
 def return_server_img_path(server_img: str):
     """Serve a server-managed image asset."""
     return _serve_from(core_config.SERVER_IMAGES_DIR, server_img)
-
-
-def return_activity_media_path(media: str):
-    """Serve activity-attached media (photos, etc.)."""
-    return _serve_from(core_config.settings.ACTIVITY_MEDIA_DIR, media)
-
-
-def return_activity_thumbnail_path(thumbnail: str):
-    """Serve a generated activity map thumbnail."""
-    return _serve_from(core_config.settings.ACTIVITY_THUMBNAILS_DIR, thumbnail)

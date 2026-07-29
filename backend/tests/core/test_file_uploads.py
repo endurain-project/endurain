@@ -36,6 +36,7 @@ from core.file_uploads import (
     ensure_within,
     extract_validated_zip,
     move_within,
+    read_validated_upload_sync,
     resolve_storage_path,
     safe_remove_within,
     save_file,
@@ -1221,6 +1222,21 @@ def test_validate_local_file_sync_accepts_valid(tmp_path: Path):
     path = tmp_path / "ride.gpx"
     path.write_bytes(_make_gpx_bytes())
     validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+
+
+def test_read_validated_upload_sync_returns_bytes(tmp_path: Path):
+    """A valid image is validated and returned without touching the filesystem."""
+    png = _make_png_bytes()
+    data = read_validated_upload_sync(_upload("photo.png", png), kind=UploadKind.IMAGE)
+    assert data == png
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_read_validated_upload_sync_rejects_garbage():
+    """Garbage bytes with a valid extension are rejected rather than returned."""
+    with pytest.raises(HTTPException) as exc:
+        read_validated_upload_sync(_upload("photo.png", b"not a real image"), kind=UploadKind.IMAGE)
+    assert exc.value.status_code in {400, 413}
 
 
 def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):

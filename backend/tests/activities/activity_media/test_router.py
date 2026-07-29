@@ -67,7 +67,9 @@ class TestUploadActivityMedia:
         from modules.activities.activity_media.schema import ActivityMedia
 
         client = TestClient(_build_app(mock_db))
-        mock_store.return_value = ActivityMedia(id=1, activity_id=1, media_path="test.jpg", media_type=1)
+        mock_store.return_value = ActivityMedia(
+            id=1, activity_id=1, media_type=1, url="/api/v1/activities/1/media/1/file?t=tok"
+        )
 
         response = client.post(
             "/activities/1/media",
@@ -76,6 +78,8 @@ class TestUploadActivityMedia:
         )
         assert response.status_code == 201
         assert response.json()["id"] == 1
+        # The opaque storage key is not part of the API contract.
+        assert "media_path" not in response.json()
         # The route passes the path activity id and the token user through unchanged.
         assert mock_store.call_args.args[0] == 1
         assert mock_store.call_args.args[1] == 1

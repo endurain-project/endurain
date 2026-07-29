@@ -281,6 +281,46 @@ class TestLocalStorage:
         with pytest.raises(ValueError, match="escapes base directory"):
             storage.save("link", "evil.webp", b"x")
 
+    def test_list_keys_returns_matching_keys_only(self, tmp_path):
+        storage = LocalStorage(str(tmp_path))
+        storage.save("media", "42_a.jpg", b"x")
+        storage.save("media", "42_b.png", b"x")
+        storage.save("media", "421_c.jpg", b"x")
+        storage.save("thumbs", "42_d.jpg", b"x")
+
+        assert storage.list_keys("media", "42_") == ["42_a.jpg", "42_b.png"]
+
+    def test_list_keys_without_prefix_returns_the_whole_area(self, tmp_path):
+        storage = LocalStorage(str(tmp_path))
+        storage.save("media", "b.jpg", b"x")
+        storage.save("media", "a.jpg", b"x")
+
+        assert storage.list_keys("media") == ["a.jpg", "b.jpg"]
+
+    def test_list_keys_missing_area_is_empty(self, tmp_path):
+        assert LocalStorage(str(tmp_path)).list_keys("media", "42_") == []
+
+    def test_list_keys_skips_directories(self, tmp_path):
+        storage = LocalStorage(str(tmp_path))
+        storage.save("media", "42_a.jpg", b"x")
+        (tmp_path / "media" / "42_dir").mkdir()
+
+        assert storage.list_keys("media", "42_") == ["42_a.jpg"]
+
+    def test_list_keys_does_not_follow_symlinks_out_of_the_area(self, tmp_path):
+        outside = tmp_path / "outside.jpg"
+        outside.write_bytes(b"x")
+        storage = LocalStorage(str(tmp_path))
+        storage.save("media", "42_real.jpg", b"x")
+        (tmp_path / "media" / "42_link.jpg").symlink_to(outside)
+
+        assert storage.list_keys("media", "42_") == ["42_real.jpg"]
+
+    def test_list_keys_traversal_rejected(self, tmp_path):
+        storage = LocalStorage(str(tmp_path))
+        with pytest.raises(ValueError, match="escapes base directory"):
+            storage.list_keys("media", "../")
+
     def test_satisfies_storage_provider(self, tmp_path):
         assert isinstance(LocalStorage(str(tmp_path)), platform_providers.StorageProvider)
 
@@ -472,6 +512,30 @@ class TestS3Storage:
         client.generate_presigned_url.assert_called_once_with(
             "get_object", Params={"Bucket": "my-bucket", "Key": "images/42.webp"}, ExpiresIn=60
         )
+
+    def test_list_keys_strips_the_area_and_prefix_from_object_keys(self):
+        client = MagicMock()
+        client.get_paginator.return_value.paginate.return_value = [
+            {"Contents": [{"Key": "thumbs/images/42_a.jpg"}, {"Key": "thumbs/images/42_b.png"}]}
+        ]
+        backend = self._backend(client, "thumbs")
+
+        assert backend.list_keys("images", "42_") == ["42_a.jpg", "42_b.png"]
+        client.get_paginator.return_value.paginate.assert_called_once_with(
+            Bucket="my-bucket", Prefix="thumbs/images/42_"
+        )
+
+    def test_list_keys_without_bucket_prefix(self):
+        client = MagicMock()
+        client.get_paginator.return_value.paginate.return_value = [{"Contents": [{"Key": "images/42_a.jpg"}]}]
+
+        assert self._backend(client).list_keys("images", "42_") == ["42_a.jpg"]
+
+    def test_list_keys_empty_page(self):
+        client = MagicMock()
+        client.get_paginator.return_value.paginate.return_value = [{}]
+
+        assert self._backend(client).list_keys("images", "42_") == []
 
     def test_satisfies_storage_provider(self):
         assert isinstance(self._backend(MagicMock()), platform_providers.StorageProvider)

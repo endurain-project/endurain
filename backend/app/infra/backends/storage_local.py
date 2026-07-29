@@ -55,6 +55,23 @@ class LocalStorage:
         if path.is_file():
             path.unlink()
 
+    def list_keys(self, area: str, prefix: str = "") -> list[str]:
+        self._ensure_safe_segment(area, "area")
+        self._ensure_safe_segment(prefix, "prefix")
+        base = self._base.resolve()
+        area_dir = (base / area).resolve()
+        if not area_dir.is_relative_to(base) or not area_dir.is_dir():
+            return []
+        keys = []
+        for candidate in area_dir.iterdir():
+            # Never follow a symlink out of the area directory.
+            resolved = candidate.resolve()
+            if not resolved.is_relative_to(area_dir) or not resolved.is_file():
+                continue
+            if candidate.name.startswith(prefix):
+                keys.append(candidate.name)
+        return sorted(keys)
+
     def url(self, area: str, key: str, expires_in: int = 3600) -> str:
         self._ensure_safe_segment(area, "area")
         self._ensure_safe_segment(key, "key")

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 import time
 from datetime import UTC, datetime
@@ -17,7 +18,7 @@ import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
 import modules.activities.activity_ingestion.sources as ingestion_sources
-import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.service as activity_media_service
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.users.users.crud as users_crud
@@ -536,52 +537,46 @@ def create_activity_media_from_strava_bulk_import(
         f"Media import: Beginning processing of {media_path_from_strava}", extra=core_logger.context(console=True)
     )
     try:
-        # Ensure the 'data/activity_media' directory exists
-        final_media_dir = core_config.settings.ACTIVITY_MEDIA_DIR
-        os.makedirs(final_media_dir, exist_ok=True)
-
-        # Create new file name and new file path
-        new_file_name = f"{activity_id}_{media_strava_filename}"
-        new_file_path = os.path.join(final_media_dir, new_file_name)
-
-        if os.path.exists(media_path_from_strava):
-            # Validate the media file as an image through the unified
-            # pipeline before relocating it into ACTIVITY_MEDIA_DIR
-            # (which is served back to clients via FileResponse).
-            try:
-                file_uploads.validate_local_file_sync(
-                    media_path_from_strava,
-                    kind=file_uploads.UploadKind.IMAGE,
-                    filename=media_strava_filename,
-                )
-            except HTTPException as err:
-                logger.warning(
-                    f"Bulk file import media import: Rejecting "
-                    f"{media_path_from_strava} - failed image "
-                    f"validation: {err.detail}",
-                    extra=core_logger.context(console=True),
-                )
-                return
-
-            file_uploads.move_within(
-                media_path_from_strava,
-                final_media_dir,
-                filename=new_file_name,
-                src_base_dir=core_config.STRAVA_BULK_IMPORT_MEDIA_DIR,
-            )
-
-            # Add media file to db
-            activity_media_crud.create_activity_media(activity_id, new_file_path, db)
-            logger.info(
-                f"Bulk file import media import: Media file {media_strava_filename} has been imported to db.",
-                extra=core_logger.context(console=True),
-            )
-        else:
+        if not os.path.exists(media_path_from_strava):
             logger.warning(
                 f"Bulk file import media import warning: Media file {media_strava_filename} does not exist, skipping import of it - {media_path_from_strava}",
                 extra=core_logger.context(console=True),
             )
             return
+
+        # Validate the media file as an image through the unified pipeline
+        # before it is stored and becomes servable.
+        try:
+            file_uploads.validate_local_file_sync(
+                media_path_from_strava,
+                kind=file_uploads.UploadKind.IMAGE,
+                filename=media_strava_filename,
+            )
+        except HTTPException as err:
+            logger.warning(
+                f"Bulk file import media import: Rejecting "
+                f"{media_path_from_strava} - failed image "
+                f"validation: {err.detail}",
+                extra=core_logger.context(console=True),
+            )
+            return
+
+        source = file_uploads.ensure_within(media_path_from_strava, core_config.STRAVA_BULK_IMPORT_MEDIA_DIR)
+        data = source.read_bytes()
+
+        # The media module owns the storage key and area; this only supplies the
+        # validated bytes. Storing through it (rather than writing to the media
+        # directory here) is what keeps the photo reachable on object storage and
+        # only through the token-gated route.
+        activity_media_service.store_activity_media_bytes(activity_id, media_strava_filename, data, db)
+
+        with contextlib.suppress(OSError):
+            source.unlink()
+
+        logger.info(
+            f"Bulk file import media import: Media file {media_strava_filename} has been imported to db.",
+            extra=core_logger.context(console=True),
+        )
     except Exception as err:
         logger.error(
             f"Bulk file import media import: Error during processing of {media_path_from_strava}: {err}",

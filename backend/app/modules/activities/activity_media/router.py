@@ -82,13 +82,15 @@ def upload_media(
     """
     Upload an image file to associate with an activity.
 
-    The file is validated by magic-number (not extension) and size limits
-    via the centralized image upload helper, stored under the configured
-    ``ACTIVITY_MEDIA_DIR``, and registered in the database.
+    The file is validated by magic number (not extension) and size limits via
+    the centralized image upload helper, stored through the platform
+    ``StorageProvider`` under a server-generated key, and registered in the
+    database. The response carries a signed URL; the blob itself has no public
+    path.
 
     Rate limited on the ``UPLOAD`` tier: it is an authenticated endpoint that
-    writes caller-supplied bytes to disk, so without a cap a single account can
-    fill the media volume.
+    writes caller-supplied bytes to storage, so without a cap a single account
+    can fill the media volume.
 
     Args:
         request: Incoming request, required by the rate limiter.
@@ -129,7 +131,7 @@ def delete_activity_media(
     ],
 ) -> None:
     """
-    Delete an activity media record and remove its file from disk.
+    Delete an activity media record and remove its stored blob.
 
     Args:
         activity_id: Activity the media must belong to.
@@ -143,9 +145,7 @@ def delete_activity_media(
         None.
 
     Raises:
-        HTTPException:
-            - 404 Not Found: If the media is missing, does not belong to this
-              activity, or its owning activity is not the user's.
-            - 500 Internal Server Error: For database errors.
+        NotFoundError: If the media is missing, does not belong to this activity,
+            or its owning activity is not the user's.
     """
     activity_media_service.delete_activity_media(activity_id, media_id, token_user_id, db)

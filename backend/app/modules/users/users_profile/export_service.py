@@ -29,6 +29,7 @@ import modules.activities.activity_exercise_titles.crud as activity_exercise_tit
 import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.signing as activity_media_signing
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
@@ -718,54 +719,41 @@ class ExportService:
         """
         Add activity media files to ZIP archive.
 
+        Read through the platform ``StorageProvider`` rather than by walking a
+        local directory, so an export is complete regardless of which storage
+        backend is configured. Keys are ``{activity_id}_{uuid}{ext}``, so each
+        activity's blobs are listed by its own prefix instead of scanning every
+        stored file and filtering.
+
         Args:
             zipf: ZipFile instance to write to.
             user_activities: List of activity objects.
-
-        Raises:
-            FileSystemError: If file system error occurs.
         """
         if not user_activities:
             return
 
-        try:
-            if not os.path.exists(core_config.settings.ACTIVITY_MEDIA_DIR):
-                logger.warning(f"Media directory does not exist: {core_config.settings.ACTIVITY_MEDIA_DIR}")
-                return
+        storage = platform_runtime.get_active_platform().storage
 
-            for root, _, files in os.walk(core_config.settings.ACTIVITY_MEDIA_DIR):
-                for file in files:
-                    try:
-                        file_id, _ = os.path.splitext(file)
-                        file_activity_id = file_id.split("_")[0]
+        for activity in user_activities:
+            try:
+                keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, f"{activity.id}_")
+            except Exception as err:
+                logger.warning(f"Failed to list media for activity {activity.id}: {err}", exc_info=err)
+                continue
 
-                        if any(str(activity.id) == file_activity_id for activity in user_activities):
-                            file_path = os.path.join(root, file)
-
-                            # Check if file exists and is readable
-                            if not os.path.isfile(file_path):
-                                logger.warning(f"Media file not found: {file_path}")
-                                continue
-
-                            arcname = os.path.join(
-                                "activity_media",
-                                os.path.relpath(file_path, core_config.settings.ACTIVITY_MEDIA_DIR),
-                            )
-                            zipf.write(file_path, arcname)
-                            self.counts["media"] += 1
-
-                    except OSError as err:
-                        logger.warning(f"Failed to add media file {file}: {err}", exc_info=err)
+            for key in keys:
+                try:
+                    data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
+                    if data is None:
+                        logger.warning(f"Media blob not found for key: {key}")
                         continue
-                    except MemoryAllocationError:
-                        raise
-                    except Exception as err:
-                        logger.warning(f"Unexpected error adding media file {file}: {err}", exc_info=err)
-                        continue
-
-        except OSError as err:
-            logger.error(f"File system error accessing media files: {err}", exc_info=err)
-            raise FileSystemError(f"Cannot access media files directory: {err}") from err
+                    zipf.writestr(os.path.join("activity_media", key), data)
+                    self.counts["media"] += 1
+                except MemoryAllocationError:
+                    raise
+                except Exception as err:
+                    logger.warning(f"Unexpected error adding media file {key}: {err}", exc_info=err)
+                    continue
 
     def add_user_images_to_zip(self, zipf: zipfile.ZipFile):
         """

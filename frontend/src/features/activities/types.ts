@@ -276,13 +276,12 @@ export interface ActivitiesPage {
 }
 
 /**
- * A photo attached to an activity. `url` is the resolved, servable image URL;
- * the backend stores an absolute filesystem path in `mediaPath`.
+ * A photo attached to an activity. `url` is the servable image URL the backend
+ * resolved from its storage key; the key itself is not addressable.
  */
 export interface ActivityMedia {
   id: number
   activityId: number
-  mediaPath: string
   url: string
 }
 

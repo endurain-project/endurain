@@ -122,58 +122,12 @@ def server_img_return(
     return path
 
 
-@router.get("/activity_media/{media}", response_class=FileResponse)
-def activity_media_return(
-    media: str,
-) -> FileResponse:
-    """
-    Retrieves the server path for a given activity media file.
-
-    Args:
-        media (str): The name or identifier of the activity media file.
-
-    Returns:
-        str: The server path to the activity media file.
-
-    Raises:
-        HTTPException: If the media file is not found.
-    """
-    path = core_utils.return_activity_media_path(media)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity media not found",
-        )
-
-    return path
-
-
-@router.get("/activity_thumbnails/{thumbnail}", response_class=FileResponse)
-def activity_thumbnail_return(
-    thumbnail: str,
-) -> FileResponse:
-    """
-    Retrieves the server path for a given activity thumbnail.
-
-    Args:
-        thumbnail (str): The name or identifier of the activity thumbnail.
-
-    Returns:
-        str: The server path to the activity thumbnail.
-
-    Raises:
-        HTTPException: If the thumbnail is not found.
-    """
-    path = core_utils.return_activity_thumbnail_path(thumbnail)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity thumbnail not found",
-        )
-
-    return path
+# NOTE: there is deliberately no ``/activity_media/{media}`` or
+# ``/activity_thumbnails/{thumbnail}`` route here. Both blob kinds are private
+# user data and are served only by their token-gated routes
+# (modules.activities.activity_media.public_router and
+# modules.activities.activity_thumbnail.router). A filename-addressed route next
+# to them is a full bypass of that gate, which is what these two used to be.
 
 
 @router.get(

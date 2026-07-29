@@ -11,10 +11,11 @@ Exports:
       create_activity_medias, edit_activity_media_media_path,
       delete_activity_media
     - Service: list_activity_media, store_activity_media,
-      delete_activity_media (permission-checked, file-aware)
-    - Schemas: ActivityMedia
+      delete_activity_media (permission-checked, storage-aware)
+    - Contracts: ActivityMediaRecord (persisted record, carries the storage key)
+    - Schemas: ActivityMedia (API read model, carries the servable URL)
     - Models: ActivityMedia (ORM model)
-    - Routers: router
+    - Routers: router, public_router
 """
 
 from .crud import (

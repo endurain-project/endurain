@@ -14,6 +14,7 @@ Key Features:
 import asyncio
 import json
 import os
+import re
 import time
 import zipfile
 from io import BytesIO
@@ -33,8 +34,9 @@ import modules.activities.activity_exercise_titles.crud as activity_exercise_tit
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_laps.crud as activity_laps_crud
+import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
-import modules.activities.activity_media.schema as activity_media_schema
+import modules.activities.activity_media.signing as activity_media_signing
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_streams.crud as activity_streams_crud
@@ -71,6 +73,9 @@ from modules.users.users_profile.exceptions import (
 )
 
 logger = core_logger.get_logger(__name__)
+
+# An activity media storage key: ``{activity_id}_{suffix}``, no path separators.
+_MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
@@ -711,27 +716,21 @@ class ImportService:
                 media_data.pop("id", None)
                 media_data["activity_id"] = new_activity.id
 
-                # Update media path
-                old_path = media_data.get("media_path", None)
-                if old_path:
-                    filename = os.path.basename(str(old_path).replace("\\", "/"))
-                    if "_" not in filename:
-                        logger.warning(f"Skipping activity media with invalid path: {old_path}")
+                # Re-key the storage key onto the new activity id; the blobs are
+                # restored under the same name by add_activity_media_from_zip.
+                # The archive is untrusted input, so the key must be a bare
+                # ``{activity_id}_{suffix}`` filename — a value carrying a path
+                # separator would address a blob outside the flat media area,
+                # where deletion cleanup would never find it again.
+                old_key = media_data.get("media_path", None)
+                if old_key:
+                    match = _MEDIA_KEY_PATTERN.fullmatch(str(old_key))
+                    if match is None:
+                        logger.warning(f"Skipping activity media with invalid key: {old_key}")
                         continue
-                    suffix = filename.split("_", 1)[1]
-                    new_file_name = f"{new_activity.id}_{suffix}"
-                    try:
-                        media_data["media_path"] = str(
-                            file_uploads.resolve_storage_path(
-                                core_config.settings.ACTIVITY_MEDIA_DIR,
-                                new_file_name,
-                            )
-                        )
-                    except HTTPException as err:
-                        logger.warning(f"Skipping activity media with unsafe path {old_path}: {err.detail}")
-                        continue
+                    media_data["media_path"] = f"{new_activity.id}_{match.group('suffix')}"
 
-                media_item = activity_media_schema.ActivityMedia(**media_data)
+                media_item = activity_media_contracts.ActivityMediaRecord(**media_data)
                 media.append(media_item)
 
             if media and new_activity.id is not None:
@@ -1121,16 +1120,16 @@ class ImportService:
 
                         new_file_name = f"{new_id}_{suffix}{ext}"
 
-                        # Read bytes from ZIP and save through the
-                        # unified validated-write pipeline so the
-                        # entry is re-checked as an image.
+                        # Read bytes from ZIP and validate them as an image
+                        # before storing, then write through the platform
+                        # StorageProvider under the media area (the same place
+                        # an upload lands) rather than to a local directory.
                         image_limit = file_uploads.file_validator.config.limits.max_image_size
                         file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=image_limit)
                         try:
-                            await file_uploads.save_validated_bytes(
+                            await file_uploads.validate_bytes(
                                 file_bytes,
                                 kind=file_uploads.UploadKind.IMAGE,
-                                upload_dir=(core_config.settings.ACTIVITY_MEDIA_DIR),
                                 filename=new_file_name,
                             )
                         except HTTPException as err:
@@ -1138,6 +1137,11 @@ class ImportService:
                                 f"Profile import dropped invalid activity media {new_file_name}: {err.detail}"
                             )
                             continue
+                        platform_runtime.get_active_platform().storage.save(
+                            activity_media_signing.MEDIA_STORAGE_AREA,
+                            new_file_name,
+                            file_bytes,
+                        )
                         self.counts["media"] += 1
                     except ValueError:
                         # Skip files that don't have numeric activity IDs

@@ -543,16 +543,12 @@ def create_app() -> FastAPI:
         StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
         name="server_images",
     )
-    fastapi_app.mount(
-        f"/{core_config.settings.ACTIVITY_MEDIA_DIR}",
-        StaticFiles(directory=core_config.settings.ACTIVITY_MEDIA_DIR),
-        name="activity_media",
-    )
-    # NOTE: activity thumbnails are intentionally NOT mounted as public static
-    # files. They are served by the token-gated route in
-    # modules.activities.activity_thumbnail.router, so the blobs are only
-    # reachable with a valid signed URL (visibility-masked per viewer) rather
-    # than at a guessable public path.
+    # NOTE: activity thumbnails and activity media are intentionally NOT mounted
+    # as public static files. Both are served by token-gated routes
+    # (modules.activities.activity_thumbnail.router,
+    # modules.activities.activity_media.public_router), so the blobs are only
+    # reachable with a valid signed URL handed to a permitted viewer rather than
+    # at a guessable public path.
 
     # Router files
     fastapi_app.include_router(api_router)
