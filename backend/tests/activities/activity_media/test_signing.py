@@ -38,13 +38,6 @@ class TestMediaTokenSigning:
 
 
 class TestMediaUrl:
-    def test_url_none_for_missing_key_or_id(self):
-        from modules.activities.activity_media.signing import media_url
-
-        assert media_url(None, 1, 5) is None
-        assert media_url("", 1, 5) is None
-        assert media_url("1_abc.jpg", 1, None) is None
-
     @patch(f"{_SIGNING}.core_signing")
     @patch(f"{_SIGNING}.core_config")
     def test_url_local_is_signed_route(self, mock_config, mock_signing):

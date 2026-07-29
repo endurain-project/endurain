@@ -61,7 +61,7 @@ def verify_media_token(media_id: int, token: str) -> bool:
     return core_signing.verify_token(_SALT, media_id, token)
 
 
-def media_url(key: str | None, activity_id: int, media_id: int | None) -> str | None:
+def media_url(key: str, activity_id: int, media_id: int) -> str:
     """Resolve a stored media key to a signed, ``<img>``-compatible URL.
 
     Object storage keeps its presigned, expiring URL (already access-controlled
@@ -69,15 +69,13 @@ def media_url(key: str | None, activity_id: int, media_id: int | None) -> str | 
     route, so the blob is only reachable with a valid signed token.
 
     Args:
-        key: The stored storage key, or ``None``.
+        key: The stored storage key.
         activity_id: The owning activity's id, which the route cross-checks.
         media_id: The media record's id, bound into the signed token.
 
     Returns:
-        A servable URL, or ``None`` when ``key`` or ``media_id`` is missing.
+        A servable URL.
     """
-    if not key or media_id is None:
-        return None
     if core_config.settings.resolved_storage_uri.startswith("s3"):
         try:
             return platform_runtime.get_active_platform().storage.url(MEDIA_STORAGE_AREA, key)

@@ -713,9 +713,6 @@ class ImportService:
                 if media_item.get("activity_id") == original_activity_id
             ]
             for media_data in media_for_activity:
-                media_data.pop("id", None)
-                media_data["activity_id"] = new_activity.id
-
                 # Re-key the storage key onto the new activity id; the blobs are
                 # restored under the same name by add_activity_media_from_zip.
                 # The archive is untrusted input, so the key must be a bare
@@ -723,15 +720,19 @@ class ImportService:
                 # separator would address a blob outside the flat media area,
                 # where deletion cleanup would never find it again.
                 old_key = media_data.get("media_path", None)
-                if old_key:
-                    match = _MEDIA_KEY_PATTERN.fullmatch(str(old_key))
-                    if match is None:
-                        logger.warning(f"Skipping activity media with invalid key: {old_key}")
-                        continue
-                    media_data["media_path"] = f"{new_activity.id}_{match.group('suffix')}"
+                if not old_key:
+                    continue
+                match = _MEDIA_KEY_PATTERN.fullmatch(str(old_key))
+                if match is None:
+                    logger.warning(f"Skipping activity media with invalid key: {old_key}")
+                    continue
 
-                media_item = activity_media_contracts.ActivityMediaRecord(**media_data)
-                media.append(media_item)
+                media.append(
+                    activity_media_contracts.ActivityMediaCreate(
+                        media_path=f"{new_activity.id}_{match.group('suffix')}",
+                        media_type=media_data.get("media_type", 1),
+                    )
+                )
 
             if media and new_activity.id is not None:
                 activity_media_crud.create_activity_medias(media, new_activity.id, self.db)

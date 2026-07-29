@@ -224,7 +224,7 @@ def create_activity_media(
 
 @core_decorators.handle_db_errors
 def create_activity_medias(
-    activity_media: list[activity_media_contracts.ActivityMediaRecord],
+    activity_media: list[activity_media_contracts.ActivityMediaCreate],
     activity_id: int,
     db: Session,
 ) -> None:

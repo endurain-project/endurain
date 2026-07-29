@@ -159,10 +159,10 @@ class TestCreateActivityMedias:
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_success(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
+        from modules.activities.activity_media.contracts import ActivityMediaCreate
 
         mock_media_model.return_value = MagicMock()
-        media_list = [ActivityMediaRecord(activity_id=1, media_path="1_p.jpg", media_type=1)]
+        media_list = [ActivityMediaCreate(media_path="1_p.jpg", media_type=1)]
         crud.create_activity_medias(media_list, 1, mock_db)
         mock_db.add_all.assert_called_once()
         mock_db.commit.assert_called_once()
@@ -176,11 +176,11 @@ class TestCreateActivityMedias:
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_db_error(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
+        from modules.activities.activity_media.contracts import ActivityMediaCreate
 
         mock_media_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
-        media_list = [ActivityMediaRecord(activity_id=1, media_path="1_p.jpg", media_type=1)]
+        media_list = [ActivityMediaCreate(media_path="1_p.jpg", media_type=1)]
         with pytest.raises(HTTPException) as e:
             crud.create_activity_medias(media_list, 1, mock_db)
         assert e.value.status_code == 500
