@@ -50,7 +50,7 @@ def get_activity_sets(
         caller, its sets are hidden, or it has none.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
@@ -91,7 +91,7 @@ def get_activities_sets(
         List of ActivitySetsRead schemas.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     if not activity_ids:
         return []
@@ -137,7 +137,7 @@ def get_public_activity_sets(
         unauthenticated.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
 
@@ -176,7 +176,7 @@ def create_activity_sets(
         None.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     sets = []
 

@@ -41,7 +41,7 @@ def get_activity_workout_steps(
         the caller or has none.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
@@ -83,7 +83,7 @@ def get_activities_workout_steps(
         List of workout steps (may be empty).
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     if not activity_ids:
         return []
@@ -133,7 +133,7 @@ def get_public_activity_workout_steps(
         since this endpoint is unauthenticated.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
 
@@ -172,7 +172,7 @@ def create_activity_workout_steps(
         None.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     workout_steps = [
         activity_workout_steps_models.ActivityWorkoutSteps(

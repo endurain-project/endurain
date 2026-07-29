@@ -35,7 +35,7 @@ def get_activity_exercise_titles(
         Every exercise title, empty when there are none.
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(activity_exercise_titles_models.ActivityExerciseTitles)
     activity_exercise_titles = db.execute(stmt).scalars().all()
@@ -88,7 +88,7 @@ def get_activity_exercise_title_by_exercise_name(
         Matching ActivityExerciseTitles or None if not found.
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(activity_exercise_titles_models.ActivityExerciseTitles).where(
         activity_exercise_titles_models.ActivityExerciseTitles.exercise_name == exercise_name
@@ -113,8 +113,8 @@ def create_activity_exercise_titles(
         None.
 
     Raises:
-        HTTPException: 409 on duplicate entry conflict, 500 on
-            other database errors.
+        ConflictError: On a duplicate (exercise_name, exercise_category) entry.
+        ProcessingError: On other database errors.
     """
     if not activity_exercise_titles:
         return
