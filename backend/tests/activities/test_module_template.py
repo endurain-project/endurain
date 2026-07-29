@@ -55,3 +55,66 @@ def test_every_module_exposes_one_cross_module_surface_name() -> None:
     activity = _MODULES_DIR / "activities" / "activity"
     assert (activity / "integration_service.py").is_file()
     assert (activity / "service.py").is_file()
+
+
+def _template_sources() -> list[Path]:
+    return sorted(
+        path for package in _TEMPLATE_PACKAGES for path in package.rglob("*.py") if "__pycache__" not in path.parts
+    )
+
+
+def test_no_route_handler_is_async() -> None:
+    """Route handlers stay ``def``, never ``async def``.
+
+    A synchronous handler runs on Starlette's threadpool, so a blocking call
+    inside it occupies one worker. The same call in an ``async def`` handler
+    blocks the event loop and stalls every other request in the process. The
+    provider-refresh route was exactly that bug, and nothing stops the next one
+    being reintroduced by habit.
+    """
+    offenders = []
+    for path in _template_sources():
+        if "router" not in path.name:
+            continue
+        tree = ast.parse(path.read_text())
+        offenders += [
+            f"{path.relative_to(_MODULES_DIR.parent)}::{node.name}"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef) and _is_route(node)
+        ]
+
+    assert not offenders, f"Route handlers must be synchronous: {', '.join(offenders)}"
+
+
+def _is_route(node: ast.AsyncFunctionDef) -> bool:
+    """Return whether a function carries an ``@router.<method>(...)`` decorator."""
+    for decorator in node.decorator_list:
+        call = decorator.func if isinstance(decorator, ast.Call) else decorator
+        if isinstance(call, ast.Attribute) and isinstance(call.value, ast.Name) and "router" in call.value.id:
+            return True
+    return False
+
+
+def test_http_exceptions_stay_at_the_transport_boundary() -> None:
+    """Only routers and FastAPI dependencies may raise ``HTTPException``.
+
+    Everything else raises ``core.exceptions``. The ``persistence-no-http``
+    import contract covers CRUD, but services and subscribers are equally capable
+    of coupling themselves to HTTP — and a subscriber that does is running in the
+    durable-job worker, which serves no HTTP at all.
+    """
+    allowed = {"router.py", "public_router.py", "dependencies.py"}
+    offenders = []
+    for path in _template_sources():
+        if path.name in allowed:
+            continue
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Raise) or node.exc is None:
+                continue
+            call = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
+            name = call.id if isinstance(call, ast.Name) else getattr(call, "attr", "")
+            if name == "HTTPException":
+                offenders.append(f"{path.relative_to(_MODULES_DIR.parent)}:{node.lineno}")
+
+    assert not offenders, f"Raise a core.exceptions error instead of HTTPException: {', '.join(offenders)}"
