@@ -25,8 +25,10 @@ is the point: a user can quote the id from a failed response and it resolves to
 the exact log line, without the response ever exposing an internal message.
 """
 
+import json
 from typing import Any
 
+from fastapi import FastAPI
 from pydantic import BaseModel, ConfigDict, Field
 
 # Media type mandated by RFC 9457 for a problem document.
@@ -84,3 +86,100 @@ class ProblemDetail(BaseModel):
     instance: str | None = None
     request_id: str | None = None
     errors: list[dict[str, Any]] | None = Field(default=None)
+
+
+# FastAPI generates these from its own default 422 handler, which no longer runs.
+_SUPERSEDED_SCHEMAS = ("HTTPValidationError", "ValidationError")
+
+
+def _is_error_status(status_code: str) -> bool:
+    """Return whether an OpenAPI response key denotes an error response."""
+    return status_code == "default" or (status_code.isdigit() and int(status_code) >= 400)
+
+
+def _problem_content() -> dict[str, Any]:
+    """Return the OpenAPI ``content`` block for a problem document."""
+    return {PROBLEM_CONTENT_TYPE: {"schema": {"$ref": f"#/components/schemas/{ProblemDetail.__name__}"}}}
+
+
+def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
+    """Point every error response in an OpenAPI document at :class:`ProblemDetail`.
+
+    FastAPI documents its *default* error shapes, not the ones this app installs:
+    every operation with a path/query parameter declares a 422 returning
+    ``HTTPValidationError``, whose ``detail`` is an **array**. The validation
+    handler now returns a problem document whose ``detail`` is a string, so the
+    generated schema — and the frontend client generated from it — described a
+    response the API cannot produce.
+
+    A ``default`` response is added too, so the document states that *any*
+    unlisted failure is also a problem document, without enumerating every status
+    on every operation.
+
+    Args:
+        schema: The OpenAPI document, mutated in place.
+
+    Returns:
+        The same document.
+    """
+    components = schema.setdefault("components", {}).setdefault("schemas", {})
+    components[ProblemDetail.__name__] = ProblemDetail.model_json_schema(ref_template="#/components/schemas/{model}")
+
+    for path_item in schema.get("paths", {}).values():
+        for operation in path_item.values():
+            if not isinstance(operation, dict) or "responses" not in operation:
+                continue
+            responses = operation["responses"]
+            for status_code in list(responses):
+                if _is_error_status(status_code):
+                    responses[status_code] = {
+                        "description": responses[status_code].get("description", "Error"),
+                        "content": _problem_content(),
+                    }
+            responses.setdefault(
+                "default",
+                {"description": "Unexpected error", "content": _problem_content()},
+            )
+
+    # Drop the superseded schemas once nothing references them. Iterated because
+    # removing one can orphan another: HTTPValidationError is the only referent
+    # of ValidationError.
+    for _ in range(len(_SUPERSEDED_SCHEMAS)):
+        remaining = json.dumps(schema)
+        orphans = [
+            name
+            for name in _SUPERSEDED_SCHEMAS
+            if name in components and f'"#/components/schemas/{name}"' not in remaining
+        ]
+        if not orphans:
+            break
+        for name in orphans:
+            components.pop(name)
+
+    return schema
+
+
+def install_problem_schema(app: FastAPI) -> None:
+    """Make ``app.openapi()`` describe the errors the app actually returns.
+
+    Wraps the generator rather than annotating ~30 ``include_router`` calls with
+    ``responses=``: the rule is global, so stating it once is both less noise and
+    impossible to forget on a new router.
+
+    Args:
+        app: The FastAPI application whose schema generator to wrap.
+
+    Returns:
+        None.
+    """
+    generate = app.openapi
+
+    def patched() -> dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+        # ``generate()`` populates and returns ``app.openapi_schema``; mutating it
+        # in place means the cached document is the patched one.
+        app.openapi_schema = _rewrite_error_responses(generate())
+        return app.openapi_schema
+
+    app.openapi = patched  # type: ignore[method-assign]
