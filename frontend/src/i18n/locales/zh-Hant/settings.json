@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "儲存您的備用碼",
       "description": "若您無法存取驗證器應用程式，請使用備用碼登入。",
-      "warning": "這些驗證碼只會顯示一次，請將其儲存在安全的地方——每組驗證碼只能使用一次。",
+      "warning": "這些驗證碼只會顯示一次，請將其儲存在安全的地方，每組驗證碼只能使用一次。",
       "copy": "複製",
       "copied": "備用碼已複製",
       "copyError": "無法複製驗證碼。",
@@ -898,7 +898,7 @@
       "export": "匯出資料",
       "import": "匯入資料",
       "invalidType": "請選擇 .zip 壓縮檔。",
-      "exportSuccess": "匯出完成——您的下載應即將開始",
+      "exportSuccess": "匯出完成，您的下載應即將開始",
       "exportError": "無法匯出您的資料，請再試一次。",
       "importSuccess": "資料已匯入",
       "importError": "無法匯入壓縮檔，請確認檔案後再試一次。"

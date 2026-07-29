@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestFollowUser:
     @patch("modules.followers.service.followers_event_publishers")
@@ -33,27 +35,49 @@ class TestAcceptFollowRequest:
         mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db)
 
 
-class TestUnfollowUser:
-    @patch("modules.followers.service.followers_crud")
-    def test_deletes(self, mock_crud):
-        from modules.followers.service import unfollow_user
+class TestDeleteRelationship:
+    def test_unfollowing_deletes_the_row(self):
+        from modules.followers.service import delete_relationship
 
         db = MagicMock()
-        unfollow_user(1, 2, db)
+        with patch("modules.followers.service.followers_crud") as crud:
+            delete_relationship(2, 1, 1, db)
 
-        mock_crud.delete_follower.assert_called_once_with(1, 2, db)
+        crud.delete_follower.assert_called_once_with(1, 2, db)
 
-
-class TestRemoveFollower:
-    @patch("modules.followers.service.followers_crud")
-    def test_deletes_reversed(self, mock_crud):
-        from modules.followers.service import remove_follower
+    def test_removing_a_follower_deletes_the_same_row(self):
+        """Same row, opposite caller — the reason these are one operation."""
+        from modules.followers.service import delete_relationship
 
         db = MagicMock()
-        # remove_follower(user_id=1, follower_user_id=2) removes 2's follow of 1.
-        remove_follower(1, 2, db)
+        with patch("modules.followers.service.followers_crud") as crud:
+            delete_relationship(1, 2, 1, db)
 
-        mock_crud.delete_follower.assert_called_once_with(2, 1, db)
+        crud.delete_follower.assert_called_once_with(2, 1, db)
+
+    def test_a_third_party_is_refused(self):
+        import core.exceptions as core_exceptions
+        from modules.followers.service import delete_relationship
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud") as crud,
+            pytest.raises(core_exceptions.PermissionDeniedError),
+        ):
+            delete_relationship(2, 3, 1, db)
+
+        crud.delete_follower.assert_not_called()
+
+
+class TestRejectFollowRequest:
+    def test_deletes_the_pending_row(self):
+        from modules.followers.service import reject_follow_request
+
+        db = MagicMock()
+        with patch("modules.followers.service.followers_crud") as crud:
+            reject_follow_request(1, 2, db)
+
+        crud.delete_follower.assert_called_once_with(2, 1, db)
 
 
 class TestListAcceptedFolloweeIds:

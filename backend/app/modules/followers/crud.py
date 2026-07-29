@@ -27,6 +27,7 @@ def get_all_followers_by_user_id(
     *,
     page_number: int = 1,
     num_records: int = 25,
+    accepted_only: bool = False,
 ) -> list[followers_schema.FollowRelationship]:
     """
     Retrieve one page of follower records where the user is being followed.
@@ -40,6 +41,7 @@ def get_all_followers_by_user_id(
         db: Database session.
         page_number: 1-based page number.
         num_records: Page size.
+        accepted_only: Exclude pending follow requests when True.
 
     Returns:
         List of Follower records (empty list if none).
@@ -47,13 +49,10 @@ def get_all_followers_by_user_id(
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = (
-        select(followers_models.Follower)
-        .where(followers_models.Follower.followee_id == user_id)
-        .order_by(followers_models.Follower.id)
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-    )
+    stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
+    if accepted_only:
+        stmt = stmt.where(followers_models.Follower.status == "accepted")
+    stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 
@@ -86,6 +85,7 @@ def get_all_following_by_user_id(
     *,
     page_number: int = 1,
     num_records: int = 25,
+    accepted_only: bool = False,
 ) -> list[followers_schema.FollowRelationship]:
     """
     Retrieve one page of follow records where the user is the follower.
@@ -98,6 +98,7 @@ def get_all_following_by_user_id(
         db: Database session.
         page_number: 1-based page number.
         num_records: Page size.
+        accepted_only: Exclude pending follow requests when True.
 
     Returns:
         List of Follower records (empty list if none).
@@ -105,13 +106,10 @@ def get_all_following_by_user_id(
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = (
-        select(followers_models.Follower)
-        .where(followers_models.Follower.follower_id == user_id)
-        .order_by(followers_models.Follower.id)
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-    )
+    stmt = select(followers_models.Follower).where(followers_models.Follower.follower_id == user_id)
+    if accepted_only:
+        stmt = stmt.where(followers_models.Follower.status == "accepted")
+    stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 
@@ -135,6 +133,56 @@ def get_accepted_following_by_user_id(user_id: int, db: Session) -> list[followe
         followers_models.Follower.status == "accepted",
     )
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
+
+
+@core_decorators.handle_db_errors
+def get_pending_requests_for_user_id(
+    user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 25,
+) -> list[followers_schema.FollowRelationship]:
+    """Retrieve one page of pending follow requests addressed to a user.
+
+    Args:
+        user_id: The user the requests are addressed to.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The pending requests (empty list if none).
+    """
+    stmt = (
+        select(followers_models.Follower)
+        .where(
+            followers_models.Follower.followee_id == user_id,
+            followers_models.Follower.status == "pending",
+        )
+        .order_by(followers_models.Follower.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
+
+
+@core_decorators.handle_db_errors
+def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
+    """Count the pending follow requests addressed to a user.
+
+    Args:
+        user_id: The user the requests are addressed to.
+        db: Database session.
+
+    Returns:
+        The number of pending requests.
+    """
+    stmt = select(func.count(followers_models.Follower.id)).where(
+        followers_models.Follower.followee_id == user_id,
+        followers_models.Follower.status == "pending",
+    )
+    return db.scalar(stmt) or 0
 
 
 @core_decorators.handle_db_errors

@@ -13,8 +13,10 @@ from sqlalchemy import (
     case,
     desc,
     func,
+    literal,
     or_,
     select,
+    tuple_,
 )
 from sqlalchemy import (
     delete as sa_delete,
@@ -798,6 +800,53 @@ def get_user_following_activities_with_pagination(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
+    return _serialize_and_mask(list(activities), force_non_owner=True)
+
+
+@core_decorators.handle_db_errors
+def get_following_feed_after(
+    followee_ids: list[int],
+    after: tuple[datetime, int] | None,
+    num_records: int,
+    db: Session,
+) -> list[activities_schema.Activity]:
+    """Get the next keyset slice of the following feed.
+
+    Ordered by ``(start_time DESC, id DESC)``. ``id`` is part of the key because
+    ``start_time`` is not unique — two activities sharing a start time would
+    otherwise straddle the boundary and one of them would be skipped or repeated.
+
+    Args:
+        followee_ids: The requester's accepted-followee user ids.
+        after: The ``(start_time, id)`` position to resume strictly after, or
+            ``None`` for the first slice.
+        num_records: Maximum records to return.
+        db: Database session.
+
+    Returns:
+        The slice, newest first (empty when there is nothing more).
+    """
+    if not followee_ids:
+        return []
+    stmt = select(activities_models.Activity).where(
+        activities_models.Activity.user_id.in_(followee_ids),
+        activities_models.Activity.visibility.in_([0, 1]),
+        activities_models.Activity.is_hidden.is_(False),
+        activities_models.Activity.strava_activity_id.is_(None),
+    )
+    if after is not None:
+        last_start_time, last_id = after
+        # Row-value comparison: strictly older, or same instant with a lower id.
+        stmt = stmt.where(
+            tuple_(activities_models.Activity.start_time, activities_models.Activity.id)
+            < tuple_(literal(last_start_time), literal(last_id))
+        )
+    stmt = stmt.order_by(desc(activities_models.Activity.start_time), desc(activities_models.Activity.id)).limit(
+        num_records
+    )
+    activities = db.execute(stmt).scalars().all()
+    if not activities:
+        return []
     return _serialize_and_mask(list(activities), force_non_owner=True)
 
 
@@ -1777,7 +1826,9 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
     stmt = (
         sa_update(activities_models.Activity)
         .where(activities_models.Activity.user_id == user_id)
-        .values(visibility=visibility)
+        # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
+        # change it should have invalidated.
+        .values(visibility=visibility, version=activities_models.Activity.version + 1)
     )
     # Session.execute() is typed to return the base Result; an UPDATE/DELETE
     # always yields a CursorResult at runtime, which is what exposes rowcount.
@@ -1826,7 +1877,7 @@ def bulk_set_activities_gear_id(
                 activities_models.Activity.user_id == user_id,
                 activities_models.Activity.id.in_(activity_ids),
             )
-            .values(gear_id=gear_id)
+            .values(gear_id=gear_id, version=activities_models.Activity.version + 1)
         )
         result = cast("CursorResult[Any]", db.execute(stmt))
         total += result.rowcount or 0
@@ -1861,7 +1912,7 @@ def update_activity_gear_id(
             activities_models.Activity.id == activity_id,
             activities_models.Activity.user_id == user_id,
         )
-        .values(gear_id=gear_id)
+        .values(gear_id=gear_id, version=activities_models.Activity.version + 1)
     )
     db.execute(stmt)
     db.commit()

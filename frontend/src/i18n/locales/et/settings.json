@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Salvesta oma varukoodid",
       "description": "Kasuta varukoodi sisselogimiseks, kui kaotad ligipääsu oma autentimisrakendusele.",
-      "warning": "Neid koode näidatakse ainult üks kord. Hoia need turvalises kohas — iga kood töötab ühe korra.",
+      "warning": "Neid koode näidatakse ainult üks kord. Hoia need turvalises kohas, iga kood töötab ühe korra.",
       "copy": "Kopeeri",
       "copied": "Varukoodid kopeeritud",
       "copyError": "Koode ei õnnestunud kopeerida.",
@@ -898,7 +898,7 @@
       "export": "Ekspordi andmed",
       "import": "Impordi andmed",
       "invalidType": "Palun vali .zip-arhiiv.",
-      "exportSuccess": "Eksport valmis — allalaadimine peaks varsti algama",
+      "exportSuccess": "Eksport valmis, allalaadimine peaks varsti algama",
       "exportError": "Sinu andmeid ei õnnestunud eksportida. Palun proovi uuesti.",
       "importSuccess": "Andmed imporditud",
       "importError": "Arhiivi ei õnnestunud importida. Palun kontrolli faili ja proovi uuesti."

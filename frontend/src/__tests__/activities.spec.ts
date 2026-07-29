@@ -38,6 +38,7 @@ vi.mock('@/services/http', () => {
 
 const activityDto: ActivityDto = {
   id: 5,
+  version: 3,
   user_id: 7,
   name: 'Morning run',
   description: 'Felt great',
@@ -301,6 +302,7 @@ describe('setActivityGear', () => {
     expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
       method: 'PATCH',
       body: JSON.stringify({ gear_id: 42 }),
+      headers: { 'If-Match': '"3"' },
     })
     expect(updated.gearId).toBe(42)
   })
@@ -314,7 +316,19 @@ describe('setActivityGear', () => {
     expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
       method: 'PATCH',
       body: JSON.stringify({ gear_id: null }),
+      headers: { 'If-Match': '"3"' },
     })
+  })
+
+  it('omits If-Match when the copy carries no version', async () => {
+    // A conditional write needs something to be conditional on; sending a made
+    // up tag would fail every save.
+    const activity = { ...mapActivity(activityDto), version: null }
+    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
+
+    await setActivityGear(activity, 42)
+
+    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({})
   })
 })
 
@@ -389,6 +403,7 @@ describe('editActivity', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
       method: 'PATCH',
+      headers: {},
       body: JSON.stringify({
         name: 'Evening run',
         activity_type: 1,
@@ -592,5 +607,45 @@ describe('local-calendar period anchoring', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('conditional activity writes', () => {
+  it('editActivity sends If-Match built from the version the form was loaded at', async () => {
+    // Without this header the save is last-writer-wins: the edit form posts
+    // every field it holds, so a copy loaded before someone else's change
+    // silently reverts that change.
+    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
+
+    await editActivity(
+      5,
+      {
+        name: 'Evening run',
+        activityType: 1,
+        description: '',
+        privateNotes: '',
+        visibility: 0,
+        isHidden: false,
+        hideStartTime: false,
+        hideLocation: false,
+        hideMap: false,
+        hideHr: false,
+        hidePower: false,
+        hideCadence: false,
+        hideElevation: false,
+        hideSpeed: false,
+        hidePace: false,
+        hideLaps: false,
+        hideWorkoutSetsSteps: false,
+        hideGear: false,
+      },
+      7,
+    )
+
+    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({ 'If-Match': '"7"' })
+  })
+
+  it('maps the version off the wire so it can be echoed back', async () => {
+    expect(mapActivity({ ...activityDto, version: 9 }).version).toBe(9)
   })
 })

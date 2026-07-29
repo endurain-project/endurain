@@ -192,6 +192,7 @@ class Activity(ActivityBase):
 
     id: int | None = Field(default=None, ge=1)
     map_thumbnail_path: str | None = Field(default=None, max_length=500)
+    version: int | None = Field(default=None, ge=1)
 
 
 class ActivitySportStats(BaseModel):
@@ -256,6 +257,10 @@ class ActivityStats(BaseModel):
 #: the activities list endpoints and every other module's return the same
 #: envelope rather than each inventing its own.
 ActivityPage = core_pagination.Page[Activity]
+
+#: One keyset slice of the following feed. The feed takes inserts at the head
+#: continuously, so offset paging would repeat and skip rows across requests.
+ActivityFeedPage = core_pagination.CursorPage[Activity]
 
 
 class ActivityMessageResponse(BaseModel):

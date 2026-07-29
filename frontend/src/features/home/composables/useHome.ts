@@ -2,7 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { Activity, ActivityStats } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
 import type { GoalProgress } from '@/features/goals/types'
 
 import { queryKeys } from '@/services/queryKeys'
@@ -109,9 +109,10 @@ export function useFollowersActivitiesFeed(
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
     queryFn: ({ pageParam, signal }) => fetchFollowersActivities(pageParam, pageSize, signal),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
-      lastPage.length < pageSize ? undefined : lastPageParam + 1,
+    // Keyset, not offset: the server hands back the position of the last row it
+    // returned, so activities arriving mid-scroll cannot shift the window.
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastSlice: ActivityFeedSlice) => lastSlice.nextCursor ?? undefined,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }

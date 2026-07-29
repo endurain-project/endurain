@@ -85,8 +85,10 @@ const following = useFollowersActivitiesFeed(
   () => scope.value === 'following',
 )
 
-const activities = computed(
-  () => (scope.value === 'mine' ? mine.data.value : following.data.value)?.pages.flat() ?? [],
+const activities = computed(() =>
+  scope.value === 'mine'
+    ? (mine.data.value?.pages.flat() ?? [])
+    : (following.data.value?.pages.flatMap((slice) => slice.items) ?? []),
 )
 const isPending = computed(() =>
   scope.value === 'mine' ? mine.isPending.value : following.isPending.value,

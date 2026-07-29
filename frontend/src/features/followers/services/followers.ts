@@ -84,9 +84,13 @@ export async function fetchFollowing(userId: number, signal?: AbortSignal): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersCount(userId: number, signal?: AbortSignal): Promise<number> {
-  return apiFetch<number>(`/followers/users/${userId}/followers/count?accepted_only=true`, {
-    signal,
-  })
+  // `total` on the page envelope describes the same filter, so the dedicated
+  // count endpoint (a bare JSON number, and a second round trip) is gone.
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/followers?accepted_only=true&num_records=1`,
+    { signal },
+  )
+  return page?.total ?? 0
 }
 
 /**
@@ -98,9 +102,11 @@ export async function fetchFollowersCount(userId: number, signal?: AbortSignal):
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowingCount(userId: number, signal?: AbortSignal): Promise<number> {
-  return apiFetch<number>(`/followers/users/${userId}/following/count?accepted_only=true`, {
-    signal,
-  })
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/following?accepted_only=true&num_records=1`,
+    { signal },
+  )
+  return page?.total ?? 0
 }
 
 /**
@@ -130,7 +136,7 @@ export async function fetchFollowStatus(
  * @throws {HttpError} When the request fails.
  */
 export async function followUser(targetId: number): Promise<void> {
-  await apiFetch<FollowerDto>(`/followers/users/${targetId}/follow`, { method: 'POST' })
+  await apiFetch<FollowerDto>(`/followers/users/${targetId}/followers`, { method: 'POST' })
 }
 
 /**
@@ -141,8 +147,9 @@ export async function followUser(targetId: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function acceptFollower(targetId: number): Promise<void> {
-  await apiFetch<Schemas['MessageResponse']>(`/followers/users/${targetId}/follow/accept`, {
-    method: 'POST',
+  await apiFetch<FollowerDto>(`/followers/follow-requests/${targetId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'accepted' }),
   })
 }
 
@@ -153,8 +160,9 @@ export async function acceptFollower(targetId: number): Promise<void> {
  * @param targetId - The followed (or requested) user to drop.
  * @throws {HttpError} When the request fails.
  */
-export async function unfollowUser(targetId: number): Promise<void> {
-  await apiFetch<Schemas['MessageResponse']>(`/followers/users/${targetId}/follow`, {
+export async function unfollowUser(targetId: number, viewerId: number): Promise<void> {
+  // One route serves both directions; the viewer is the follower here.
+  await apiFetch<void>(`/followers/users/${targetId}/followers/${viewerId}`, {
     method: 'DELETE',
   })
 }
@@ -166,8 +174,9 @@ export async function unfollowUser(targetId: number): Promise<void> {
  * @param targetId - The follower to remove.
  * @throws {HttpError} When the request fails.
  */
-export async function removeFollower(targetId: number): Promise<void> {
-  await apiFetch<Schemas['MessageResponse']>(`/followers/users/${targetId}/follower`, {
+export async function removeFollower(targetId: number, viewerId: number): Promise<void> {
+  // Same route as unfollow, with the viewer as the followee instead.
+  await apiFetch<void>(`/followers/users/${viewerId}/followers/${targetId}`, {
     method: 'DELETE',
   })
 }

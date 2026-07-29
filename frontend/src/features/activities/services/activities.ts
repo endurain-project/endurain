@@ -14,6 +14,7 @@ import type {
   ActivityEditInput,
   ActivityExerciseTitle,
   ActivityExerciseTitleDto,
+  ActivityFeedSlice,
   ActivityLap,
   ActivityLapDto,
   ActivitySetDto,
@@ -58,6 +59,7 @@ export function mapActivity(dto: ActivityDto): Activity {
     visibility: dto.visibility ?? 0,
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
+    version: dto.version ?? null,
 
     // The UTC instant plus the recording timezone. Views localize for display
     // via `formatZonedDateTime`, so the athlete's own wall clock is shown to
@@ -260,28 +262,36 @@ export async function fetchUserActivities(
 }
 
 /**
- * Fetches one page of activities from the people the viewer follows (the
+ * Fetches one slice of activities from the people the viewer follows (the
  * following feed), newest first. Authenticated-only.
  *
- * @param page - 1-based page number.
- * @param numRecords - Page size.
+ * Keyset- rather than offset-paginated: the feed takes inserts at the head
+ * continuously, so paging by offset would repeat the boundary activity and skip
+ * whatever it displaced.
+ *
+ * @param cursor - Opaque cursor from the previous slice, or null to start.
+ * @param numRecords - Slice size.
  * @param signal - Optional abort signal for cancellation.
- * @returns The page's activities, mapped to the clean model.
+ * @returns The slice's activities plus the cursor for the next one.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersActivities(
-  page: number,
+  cursor: string | null,
   numRecords: number,
   signal?: AbortSignal,
-): Promise<Activity[]> {
-  const params = new URLSearchParams({
-    page_number: String(page),
-    num_records: String(numRecords),
-  })
-  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities/feed?${params.toString()}`, {
-    signal,
-  })
-  return (page_.items ?? []).map(mapActivity)
+): Promise<ActivityFeedSlice> {
+  const params = new URLSearchParams({ num_records: String(numRecords) })
+  if (cursor) {
+    params.set('cursor', cursor)
+  }
+  const slice = await apiFetch<Schemas['CursorPage_Activity_']>(
+    `/activities/feed?${params.toString()}`,
+    { signal },
+  )
+  return {
+    items: (slice.items ?? []).map(mapActivity),
+    nextCursor: slice.next_cursor ?? null,
+  }
 }
 
 /** Formats a `Date` as a `YYYY-MM-DD` string using its local calendar fields. */
@@ -727,13 +737,27 @@ export async function fetchActivityExerciseTitles(
 }
 
 /**
+ * Builds the conditional-write headers for an activity mutation.
+ *
+ * Without `If-Match` the write is last-writer-wins: the edit form posts every
+ * field it holds, so saving a copy loaded before someone else's change silently
+ * reverts that change.
+ *
+ * @param version - The row version the caller's copy was read at.
+ * @returns The headers to merge into the request, empty when no version is known.
+ */
+function ifMatchHeaders(version: number | null | undefined): HeadersInit {
+  return version == null ? {} : { 'If-Match': `"${version}"` }
+}
+
+/**
  * Sets the gear associated with an activity, or clears it when `gearId` is
  * `null`, via a partial `PATCH /activities/{id}` update.
  *
- * @param activity - The activity to update (supplies its id).
+ * @param activity - The activity to update (supplies its id and version).
  * @param gearId - The gear to associate, or `null` to remove the association.
  * @returns The updated activity domain model.
- * @throws {HttpError} When the update fails.
+ * @throws {HttpError} When the update fails, including 412 when the copy is stale.
  */
 export async function setActivityGear(
   activity: Activity,
@@ -743,6 +767,7 @@ export async function setActivityGear(
   const dto = await apiFetch<ActivityDto>(`/activities/${activity.id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
+    headers: ifMatchHeaders(activity.version),
   })
   return mapActivity(dto)
 }
@@ -795,10 +820,15 @@ export async function updateUserActivitiesVisibility(
  *
  * @param id - Activity identifier.
  * @param input - The edited field values from the form.
+ * @param version - The row version the form was loaded at, for `If-Match`.
  * @returns The updated activity domain model.
- * @throws {HttpError} When the update fails.
+ * @throws {HttpError} When the update fails, including 412 when the copy is stale.
  */
-export async function editActivity(id: number, input: ActivityEditInput): Promise<Activity> {
+export async function editActivity(
+  id: number,
+  input: ActivityEditInput,
+  version?: number | null,
+): Promise<Activity> {
   const body: ActivityEditDto = {
     name: input.name,
     activity_type: input.activityType,
@@ -822,6 +852,7 @@ export async function editActivity(id: number, input: ActivityEditInput): Promis
   const dto = await apiFetch<ActivityDto>(`/activities/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
+    headers: ifMatchHeaders(version),
   })
   return mapActivity(dto)
 }

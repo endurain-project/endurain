@@ -150,19 +150,30 @@ class TestFeed:
     def test_list(self, mock_db):
         with (
             patch("modules.activities.activity.service.followers_integration") as f,
-            patch(
-                "modules.activities.activity.service.activities_crud.get_user_following_activities_with_pagination"
-            ) as m,
+            patch("modules.activities.activity.service.activities_crud.get_following_feed_after") as m,
         ):
             f.list_accepted_followee_ids.return_value = [5]
             m.return_value = [_valid_activity()]
-            with patch(
-                "modules.activities.activity.service.activities_crud.count_user_following_activities",
-                return_value=1,
-            ):
-                resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
-            assert resp.json()["total"] == 1
+            assert len(resp.json()["items"]) == 1
+
+    def test_last_slice_has_no_next_cursor(self, mock_db):
+        """A short slice means the end; emitting a cursor would loop the client."""
+        with (
+            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.service.activities_crud.get_following_feed_after") as m,
+        ):
+            f.list_accepted_followee_ids.return_value = [5]
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+            assert resp.json()["next_cursor"] is None
+
+    def test_rejects_a_malformed_cursor(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get(
+            "/activities/feed?cursor=not-a-cursor", headers={"Authorization": "Bearer x"}
+        )
+        assert resp.status_code == 400
 
     def test_count_endpoint_is_gone(self, mock_db):
         resp = TestClient(_build_app(mock_db)).get("/activities/feed/count", headers={"Authorization": "Bearer x"})
@@ -391,3 +402,76 @@ class TestDelete:
             resp = TestClient(_build_app(mock_db)).delete("/activities/999", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 404
             mock_pub.publish_activity_deleted.assert_not_called()
+
+
+class TestActivityConcurrency:
+    """PATCH used to be last-writer-wins: the loser's edit vanished silently."""
+
+    def test_read_returns_an_etag(self, mock_db):
+        with patch("modules.activities.activity.service.get_activity") as m:
+            m.return_value = _valid_activity()
+            m.return_value.version = 3
+            resp = TestClient(_build_app(mock_db)).get("/activities/1", headers={"Authorization": "Bearer x"})
+
+        assert resp.headers["ETag"] == '"3"'
+
+    def test_patch_without_if_match_still_works(self, mock_db):
+        """Making the header mandatory would break every existing client."""
+        with patch("modules.activities.activity.service.activities_crud") as crud:
+            crud.edit_activity.return_value = _valid_activity()
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities/1", json={"name": "x"}, headers={"Authorization": "Bearer x"}
+            )
+
+        assert resp.status_code == 200
+
+    def test_patch_with_a_stale_if_match_is_refused(self, mock_db):
+        with patch("modules.activities.activity.service.activities_crud") as crud:
+            current = _valid_activity()
+            current.version = 5
+            crud.get_activity_by_id_from_user_id.return_value = current
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities/1",
+                json={"name": "x"},
+                headers={"Authorization": "Bearer x", "If-Match": '"4"'},
+            )
+
+        assert resp.status_code == 412
+        crud.edit_activity.assert_not_called()
+
+    def test_patch_with_a_current_if_match_succeeds(self, mock_db):
+        with patch("modules.activities.activity.service.activities_crud") as crud:
+            current = _valid_activity()
+            current.version = 5
+            crud.get_activity_by_id_from_user_id.return_value = current
+            crud.edit_activity.return_value = current
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities/1",
+                json={"name": "x"},
+                headers={"Authorization": "Bearer x", "If-Match": '"5"'},
+            )
+
+        assert resp.status_code == 200
+        assert resp.headers["ETag"] == '"5"'
+
+    def test_a_write_that_races_past_the_check_is_still_refused(self, mock_db):
+        """The header check is read-then-write; the DB version guard closes it.
+
+        Without translating StaleDataError, a row changed between the
+        precondition passing and the flush would overwrite the other edit --
+        exactly the bug If-Match is meant to prevent.
+        """
+        from sqlalchemy.orm.exc import StaleDataError
+
+        with patch("modules.activities.activity.service.activities_crud") as crud:
+            current = _valid_activity()
+            current.version = 5
+            crud.get_activity_by_id_from_user_id.return_value = current
+            crud.edit_activity.side_effect = StaleDataError("row changed")
+            resp = TestClient(_build_app(mock_db)).patch(
+                "/activities/1",
+                json={"name": "x"},
+                headers={"Authorization": "Bearer x", "If-Match": '"5"'},
+            )
+
+        assert resp.status_code == 412

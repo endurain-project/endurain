@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Amaga les sèries i passos de l'entrenament",
     "hideGear": "Amaga l'equipament",
     "success": "Activitat actualitzada",
-    "error": "No s'ha pogut actualitzar l'activitat"
+    "error": "No s'ha pogut actualitzar l'activitat",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Aquesta activitat està oculta. Només tu la pots veure.",

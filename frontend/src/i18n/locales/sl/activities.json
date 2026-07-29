@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Skrij serije in korake vadbe",
     "hideGear": "Skrij opremo",
     "success": "Aktivnost posodobljena",
-    "error": "Aktivnosti ni bilo mogoče posodobiti"
+    "error": "Aktivnosti ni bilo mogoče posodobiti",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ta aktivnost je skrita. Vidite jo samo ti.",

@@ -125,7 +125,7 @@ export interface paths {
         };
         /**
          * List Following Feed
-         * @description List the authenticated user's following feed, with the matching total.
+         * @description List a keyset slice of the authenticated user's following feed.
          */
         get: operations["list_following_feed_api_v1_activities_feed_get"];
         put?: never;
@@ -385,6 +385,10 @@ export interface paths {
         /**
          * Edit Activity
          * @description Apply partial updates to one of the authenticated user's activities.
+         *
+         *     Send ``If-Match`` with the ETag from the read to make the write conditional;
+         *     a stale tag is refused with 412 rather than silently overwriting whoever
+         *     saved in between.
          */
         patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
         trace?: never;
@@ -919,51 +923,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/users/{user_id}/follow": {
+    "/api/v1/followers/follow-requests": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Follow Requests
+         * @description List the follow requests awaiting the authenticated user's decision.
+         *
+         *     Always scoped to the caller, so there is no user id to supply and no way to
+         *     read anyone else's pending requests.
+         */
+        get: operations["list_follow_requests_api_v1_followers_follow_requests_get"];
         put?: never;
-        /**
-         * Follow User
-         * @description Request to follow ``user_id`` as the authenticated user.
-         */
-        post: operations["follow_user_api_v1_followers_users__user_id__follow_post"];
-        /**
-         * Unfollow User
-         * @description Unfollow ``user_id`` as the authenticated user.
-         */
-        delete: operations["unfollow_user_api_v1_followers_users__user_id__follow_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/follow/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Accept Follow
-         * @description Accept the pending follow request from ``user_id``.
-         */
-        post: operations["accept_follow_api_v1_followers_users__user_id__follow_accept_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/users/{user_id}/follower": {
+    "/api/v1/followers/follow-requests/{requester_user_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -974,13 +957,20 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Remove Follower
-         * @description Remove ``user_id`` as a follower of the authenticated user.
+         * Reject Follow Request
+         * @description Decline the pending follow request from ``requester_user_id``.
+         *
+         *     Distinct from removing an accepted follower: this refuses access that was
+         *     never granted, which is a different decision even though the row is the same.
          */
-        delete: operations["remove_follower_api_v1_followers_users__user_id__follower_delete"];
+        delete: operations["reject_follow_request_api_v1_followers_follow_requests__requester_user_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Decide Follow Request
+         * @description Accept the pending follow request from ``requester_user_id``.
+         */
+        patch: operations["decide_follow_request_api_v1_followers_follow_requests__requester_user_id__patch"];
         trace?: never;
     };
     "/api/v1/followers/users/{user_id}/followers": {
@@ -998,30 +988,39 @@ export interface paths {
          */
         get: operations["list_user_followers_api_v1_followers_users__user_id__followers_get"];
         put?: never;
-        post?: never;
+        /**
+         * Follow User
+         * @description Add the authenticated user to ``user_id``'s followers.
+         *
+         *     Creates the relationship pending or accepted according to the target's
+         *     privacy settings; the returned ``status`` says which.
+         */
+        post: operations["follow_user_api_v1_followers_users__user_id__followers_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/users/{user_id}/followers/count": {
+    "/api/v1/followers/users/{user_id}/followers/{follower_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Count User Followers
-         * @description Count a user's followers (privacy-aware).
-         *
-         *     Pass ``accepted_only=true`` to exclude pending follow requests.
-         */
-        get: operations["count_user_followers_api_v1_followers_users__user_id__followers_count_get"];
+        get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Follow Relationship
+         * @description Delete the follow relationship where ``follower_id`` follows ``user_id``.
+         *
+         *     Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
+         *     a follower is ``user_id`` = the caller. Either party may delete it, and the
+         *     caller must be one of them.
+         */
+        delete: operations["delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1041,28 +1040,6 @@ export interface paths {
          *     Privacy-aware: only the user themselves or an accepted follower may list them.
          */
         get: operations["list_user_following_api_v1_followers_users__user_id__following_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/users/{user_id}/following/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count User Following
-         * @description Count who a user follows (privacy-aware).
-         *
-         *     Pass ``accepted_only=true`` to exclude pending follow requests.
-         */
-        get: operations["count_user_following_api_v1_followers_users__user_id__following_count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5419,6 +5396,8 @@ export interface components {
             tracker_model?: string | null;
             /** User Id */
             user_id?: number | null;
+            /** Version */
+            version?: number | null;
             /** Visibility */
             visibility?: number | null;
             /** Workout Feeling */
@@ -5990,6 +5969,15 @@ export interface components {
          * @enum {string}
          */
         Currency: "euro" | "dollar" | "pound";
+        /** CursorPage[Activity] */
+        CursorPage_Activity_: {
+            /** Items */
+            items: components["schemas"]["Activity"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Num Records */
+            num_records: number;
+        };
         /**
          * DaySummary
          * @description Daily activity summary within a week.
@@ -6241,6 +6229,17 @@ export interface components {
             followee_id: number;
             /** Follower Id */
             follower_id: number;
+            status: components["schemas"]["FollowStatus"];
+        };
+        /**
+         * FollowRequestDecision
+         * @description The decision applied to a pending follow request.
+         *
+         *     Only ``accepted`` is a valid transition: declining deletes the request rather
+         *     than parking it in a rejected state, so a later request from the same user is
+         *     a fresh decision instead of hitting a tombstone.
+         */
+        FollowRequestDecision: {
             status: components["schemas"]["FollowStatus"];
         };
         /**
@@ -9416,14 +9415,6 @@ export interface components {
             mfa_enabled: boolean;
         };
         /**
-         * MessageResponse
-         * @description Generic message response for follower mutation endpoints.
-         */
-        MessageResponse: {
-            /** Detail */
-            detail: string;
-        };
-        /**
          * MobileSessionResponse
          * @description Response for mobile password login with PKCE exchange flow.
          *
@@ -12451,7 +12442,7 @@ export interface operations {
     list_following_feed_api_v1_activities_feed_get: {
         parameters: {
             query?: {
-                page_number?: number | null;
+                cursor?: string | null;
                 num_records?: number | null;
             };
             header?: never;
@@ -12466,7 +12457,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_Activity_"];
+                    "application/json": components["schemas"]["CursorPage_Activity_"];
                 };
             };
             /** @description Validation Error */
@@ -12904,7 +12895,9 @@ export interface operations {
     edit_activity_api_v1_activities__activity_id__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 activity_id: number;
             };
@@ -13546,7 +13539,174 @@ export interface operations {
             };
         };
     };
-    follow_user_api_v1_followers_users__user_id__follow_post: {
+    list_follow_requests_api_v1_followers_follow_requests_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_FollowRelationship_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    reject_follow_request_api_v1_followers_follow_requests__requester_user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requester_user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    decide_follow_request_api_v1_followers_follow_requests__requester_user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requester_user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FollowRequestDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationship"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_followers_api_v1_followers_users__user_id__followers_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+                accepted_only?: boolean;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_FollowRelationship_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    follow_user_api_v1_followers_users__user_id__followers_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -13586,190 +13746,24 @@ export interface operations {
             };
         };
     };
-    unfollow_user_api_v1_followers_users__user_id__follow_delete: {
+    delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 user_id: number;
+                follower_id: number;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    accept_follow_api_v1_followers_users__user_id__follow_accept_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    remove_follower_api_v1_followers_users__user_id__follower_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    list_user_followers_api_v1_followers_users__user_id__followers_get: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_FollowRelationship_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    count_user_followers_api_v1_followers_users__user_id__followers_count_get: {
-        parameters: {
-            query?: {
-                accepted_only?: boolean;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -13796,47 +13790,6 @@ export interface operations {
             query?: {
                 page_number?: number | null;
                 num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_FollowRelationship_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    count_user_following_api_v1_followers_users__user_id__following_count_get: {
-        parameters: {
-            query?: {
                 accepted_only?: boolean;
             };
             header?: never;
@@ -13853,7 +13806,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": number;
+                    "application/json": components["schemas"]["Page_FollowRelationship_"];
                 };
             };
             /** @description Validation Error */

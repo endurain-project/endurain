@@ -209,7 +209,8 @@
     "hideWorkoutSetsSteps": "Hide workout sets & steps",
     "hideGear": "Hide gear",
     "success": "Activity updated",
-    "error": "Couldn't update the activity"
+    "error": "Couldn't update the activity",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "This activity is hidden. Only you can see it.",

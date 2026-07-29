@@ -15,12 +15,15 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    Header,
     Query,
+    Response,
     Security,
 )
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.etag as core_etag
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.service as activities_service
@@ -89,20 +92,20 @@ def list_activity_types(
 
 @router.get(
     "/feed",
-    response_model=activities_schema.ActivityPage,
+    response_model=activities_schema.ActivityFeedPage,
 )
 def list_following_feed(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-    page_number: Annotated[int | None, Query(ge=1)] = None,
+    cursor: Annotated[str | None, Query()] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
 ):
-    """List the authenticated user's following feed, with the matching total."""
-    return activities_service.page_following_feed(
+    """List a keyset slice of the authenticated user's following feed."""
+    return activities_service.scroll_following_feed(
         token_user_id,
         token_user_id,
-        page_number or 1,
+        cursor,
         num_records or _DEFAULT_NUM_RECORDS,
         db,
     )
@@ -254,9 +257,14 @@ def read_activity(
         Session,
         Depends(core_database.get_db),
     ],
+    response: Response = None,  # type: ignore[assignment]
 ):
     """Read a single activity the requester owns or is permitted to see."""
-    return activities_service.get_activity(activity_id, token_user_id, db)
+    activity = activities_service.get_activity(activity_id, token_user_id, db)
+    if response is not None and activity.version is not None:
+        # The tag the client echoes back in If-Match when it later saves.
+        response.headers["ETag"] = core_etag.format_etag(activity.version)
+    return activity
 
 
 @router.patch(
@@ -276,9 +284,19 @@ def edit_activity(
         Session,
         Depends(core_database.get_db),
     ],
+    if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
+    response: Response = None,  # type: ignore[assignment]
 ):
-    """Apply partial updates to one of the authenticated user's activities."""
-    return activities_service.edit_activity(activity_id, token_user_id, activity_attributes, db)
+    """Apply partial updates to one of the authenticated user's activities.
+
+    Send ``If-Match`` with the ETag from the read to make the write conditional;
+    a stale tag is refused with 412 rather than silently overwriting whoever
+    saved in between.
+    """
+    activity = activities_service.edit_activity(activity_id, token_user_id, activity_attributes, db, if_match)
+    if response is not None and activity.version is not None:
+        response.headers["ETag"] = core_etag.format_etag(activity.version)
+    return activity
 
 
 @router.delete(

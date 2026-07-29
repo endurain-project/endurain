@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Sla je herstelcodes op",
       "description": "Gebruik een herstelcode om in te loggen als je geen toegang meer hebt tot je authenticator-app.",
-      "warning": "Deze codes worden maar één keer getoond. Bewaar ze op een veilige plek — elke code werkt maar één keer.",
+      "warning": "Deze codes worden maar één keer getoond. Bewaar ze op een veilige plek, elke code werkt maar één keer.",
       "copy": "Kopiëren",
       "copied": "Herstelcodes gekopiëerd",
       "copyError": "Codes konden niet worden gekopiëerd.",
@@ -898,7 +898,7 @@
       "export": "Gegevens exporteren",
       "import": "Gegevens importeren",
       "invalidType": "Kies een .zip-archief.",
-      "exportSuccess": "Export gereed — je download begint binnenkort",
+      "exportSuccess": "Export gereed, je download begint binnenkort",
       "exportError": "Gegevens konden niet worden geëxporteerd. Probeer het opnieuw.",
       "importSuccess": "Gegevens geïmporteerd",
       "importError": "Archief kon niet worden geïmporteerd. Controleer het bestand en probeer het opnieuw."

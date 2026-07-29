@@ -110,6 +110,20 @@ class ConflictError(DomainError):
     default_detail = "Conflict"
 
 
+class PreconditionFailedError(DomainError):
+    """The request's ``If-Match`` precondition does not hold.
+
+    Distinct from :class:`ConflictError`: the resource state is fine, but the
+    caller's copy is stale, so applying their write would silently discard
+    somebody else's.
+    """
+
+    status_code = status.HTTP_412_PRECONDITION_FAILED
+    code = "precondition-failed"
+    title = "Precondition Failed"
+    default_detail = "Precondition Failed"
+
+
 class UnsupportedFormatError(DomainError):
     """The supplied payload is in a format this endpoint cannot process."""
 
