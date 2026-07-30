@@ -263,11 +263,11 @@ def read_activity(
         Session,
         Depends(core_database.get_db),
     ],
-    response: Response = None,  # type: ignore[assignment]
+    response: Response,
 ):
     """Read a single activity the requester owns or is permitted to see."""
     activity = activities_service.get_activity(activity_id, token_user_id, db)
-    if response is not None and activity.version is not None:
+    if activity.version is not None:
         # The tag the client echoes back in If-Match when it later saves.
         response.headers["ETag"] = core_etag.format_etag(activity.version)
     return activity
@@ -292,8 +292,8 @@ def edit_activity(
         Session,
         Depends(core_database.get_db),
     ],
+    response: Response,
     if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
-    response: Response = None,  # type: ignore[assignment]
 ):
     """Apply partial updates to one of the authenticated user's activities.
 
@@ -302,7 +302,7 @@ def edit_activity(
     saved in between.
     """
     activity = activities_service.edit_activity(activity_id, token_user_id, activity_attributes, db, if_match)
-    if response is not None and activity.version is not None:
+    if activity.version is not None:
         response.headers["ETag"] = core_etag.format_etag(activity.version)
     return activity
 

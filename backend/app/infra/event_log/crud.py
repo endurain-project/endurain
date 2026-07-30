@@ -11,10 +11,11 @@ portable SQL so the same code runs on PostgreSQL in production and SQLite in tes
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 import infra.event_log.schema as event_log_schema
+import infra.pruning as infra_pruning
 from infra.event_log.models import EventLog
 from infra.events import Event
 
@@ -325,15 +326,7 @@ def _recent_failures(db: Session, limit: int) -> list[event_log_schema.EventLogF
     return [event_log_schema.EventLogFailure.model_validate(row) for row in rows]
 
 
-# Rows deleted per batch when pruning; bounded so each delete transaction stays
-# short and never holds locks on the hot event_log table for long.
-_PRUNE_BATCH_SIZE = 1000
-# Safety cap on batches per pass so a pathological backlog cannot spin forever;
-# the next scheduled pass continues where this one left off.
-_PRUNE_MAX_BATCHES = 10_000
-
-
-def delete_events_before(cutoff: datetime, *, db: Session, batch_size: int = _PRUNE_BATCH_SIZE) -> int:
+def delete_events_before(cutoff: datetime, *, db: Session, batch_size: int = infra_pruning.PRUNE_BATCH_SIZE) -> int:
     """
     Delete ``event_log`` rows older than ``cutoff``, in bounded batches.
 
@@ -349,20 +342,7 @@ def delete_events_before(cutoff: datetime, *, db: Session, batch_size: int = _PR
     Returns:
         The total number of rows deleted.
     """
-    total = 0
-    for _ in range(_PRUNE_MAX_BATCHES):
-        id_stmt = select(EventLog.id).where(EventLog.created_at < cutoff).limit(batch_size)
-        if db.bind is not None and db.bind.dialect.name == "postgresql":
-            id_stmt = id_stmt.with_for_update(skip_locked=True)  # pragma: no cover - Postgres-only path
-        ids = list(db.execute(id_stmt).scalars().all())
-        if not ids:
-            break
-        db.execute(delete(EventLog).where(EventLog.id.in_(ids)))
-        db.commit()
-        total += len(ids)
-        if len(ids) < batch_size:
-            break
-    return total
+    return infra_pruning.bounded_delete(EventLog, EventLog.created_at < cutoff, db=db, batch_size=batch_size)
 
 
 def _age_seconds(moment: datetime | None, now: datetime) -> float | None:

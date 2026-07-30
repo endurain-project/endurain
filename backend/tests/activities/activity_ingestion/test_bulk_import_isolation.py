@@ -126,3 +126,36 @@ class TestBulkImportScoping:
 
         queued = publish.call_args.args[0]
         assert queued == [os.path.join(str(user_dir), "ride.gpx")]
+
+
+class TestBulkImportSymlinks:
+    def test_a_symlink_out_of_the_directory_is_not_imported(self, tmp_path):
+        """Following it would import an arbitrary file from the server's disk."""
+        user_dir = tmp_path / "bulk_import" / "3"
+        user_dir.mkdir(parents=True)
+        outside = tmp_path / "secrets.gpx"
+        outside.write_bytes(b"<gpx/>")
+        (user_dir / "ride.gpx").symlink_to(outside)
+
+        with (
+            patch.object(bulk_import_service.core_file_uploads, "validate_local_file_sync") as validate,
+            patch.object(bulk_import_service, "logger") as log,
+        ):
+            collected = bulk_import_service._collect_importable_files(3, str(user_dir))
+
+        assert collected == []
+        # Rejected before anything opens it.
+        validate.assert_not_called()
+        assert log.warning.called
+
+    def test_a_symlink_inside_the_directory_is_not_imported(self, tmp_path):
+        """It would import the same activity twice under two names."""
+        user_dir = tmp_path / "bulk_import" / "3"
+        user_dir.mkdir(parents=True)
+        (user_dir / "ride.gpx").write_bytes(b"<gpx/>")
+        (user_dir / "ride_copy.gpx").symlink_to(user_dir / "ride.gpx")
+
+        with patch.object(bulk_import_service.core_file_uploads, "validate_local_file_sync"):
+            collected = bulk_import_service._collect_importable_files(3, str(user_dir))
+
+        assert collected == [os.path.join(str(user_dir), "ride.gpx")]

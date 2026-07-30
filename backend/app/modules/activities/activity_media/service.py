@@ -97,6 +97,26 @@ def _build_storage_key(activity_id: int, original_name: str | None) -> str:
     return f"{activity_id}_{uuid.uuid4().hex}{extension}"
 
 
+def _content_type_for(storage_key: str) -> str:
+    """Return the media type implied by a storage key's extension.
+
+    Derived from the server-generated key rather than the client's
+    ``Content-Type`` header, which is unvalidated and would otherwise become the
+    stored object's metadata (a ``.jpg`` uploaded as ``text/html``).
+
+    Args:
+        storage_key: The key the blob is stored under, carrying an extension
+            already checked against :data:`_ALLOWED_MEDIA_EXTENSIONS`.
+
+    Returns:
+        An ``image/*`` media type.
+    """
+    extension = PurePosixPath(storage_key).suffix.lower().lstrip(".")
+    # ``jpg`` is the only allowed extension whose media subtype is not the suffix.
+    subtype = "jpeg" if extension == "jpg" else extension
+    return f"image/{subtype}"
+
+
 def _storage() -> platform_providers.StorageProvider:
     """Return the active platform's blob-storage provider."""
     return platform_runtime.get_active_platform().storage
@@ -126,7 +146,6 @@ def _persist_media_bytes(
     activity_id: int,
     original_filename: str | None,
     data: bytes,
-    content_type: str | None,
     db: Session,
 ) -> activity_media_contracts.ActivityMediaRecord:
     """Store validated image bytes, no-op'ing a byte-for-byte repeat.
@@ -140,8 +159,6 @@ def _persist_media_bytes(
         activity_id: The activity to attach the media to.
         original_filename: Source filename, used only for its extension.
         data: Validated image bytes.
-        content_type: Upload content type, when known (server-side ingestion
-            does not carry one).
         db: Database session.
 
     Returns:
@@ -164,7 +181,7 @@ def _persist_media_bytes(
 
     storage_key = _build_storage_key(activity_id, original_filename)
     storage = _storage()
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, content_type)
+    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, _content_type_for(storage_key))
 
     try:
         return activity_media_crud.create_activity_media(activity_id, storage_key, db, content_hash=content_hash)
@@ -270,10 +287,7 @@ def read_activity_media_blob(activity_id: int, media_id: int, db: Session) -> tu
         )
         return None
 
-    extension = PurePosixPath(media.media_path).suffix.lower().lstrip(".")
-    # ``jpg`` is the only allowed extension whose media subtype is not the suffix.
-    subtype = "jpeg" if extension == "jpg" else extension
-    return data, f"image/{subtype}"
+    return data, _content_type_for(media.media_path)
 
 
 def store_activity_media(
@@ -311,7 +325,7 @@ def store_activity_media(
     # Callers run on a worker thread (the route is synchronous), so the blocking
     # read never touches the event loop.
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    created = _persist_media_bytes(activity_id, file.filename, data, file.content_type, db)
+    created = _persist_media_bytes(activity_id, file.filename, data, db)
 
     logger.info(
         "Stored activity media",
@@ -351,7 +365,7 @@ def store_activity_media_bytes(
     Raises:
         UnsupportedMediaTypeError: For an unsupported extension.
     """
-    created = _persist_media_bytes(activity_id, original_filename, data, None, db)
+    created = _persist_media_bytes(activity_id, original_filename, data, db)
     logger.info(
         "Stored activity media from a server-side import",
         extra=core_logger.context(activity_id=activity_id, media_id=created.id),
