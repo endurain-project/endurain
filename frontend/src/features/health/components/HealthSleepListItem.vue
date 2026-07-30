@@ -123,6 +123,35 @@ const hasRespirationContent = computed(
 /** Whether there is a stage timeline to draw. */
 const hasHypnogram = computed(() => props.entry.sleepStages.length > 0)
 
+/**
+ * Minutes between the sleeper's wall clock and GMT for this night.
+ *
+ * Stage times are true GMT instants, while `sleepStartTimeLocal` holds the
+ * sleeper's wall clock (Garmin's already offset-shifted epoch, surfaced as a
+ * UTC-labelled value). Their difference is the recording offset — the only zone
+ * signal a sleep entry carries — used to label the hypnogram axis in the
+ * timezone the night was actually slept in rather than the viewer's.
+ *
+ * Rounded to a quarter hour to absorb the small skew between "sleep start" and
+ * "first stage start"; every real UTC offset is a multiple of 15 minutes.
+ */
+const recordingOffsetMinutes = computed(() => {
+  const local = props.entry.sleepStartTimeLocal
+  const earliestStageGmt = props.entry.sleepStages
+    .map((stage) => stage.startTimeGmt)
+    .filter((value): value is string => Boolean(value))
+    .sort()[0]
+  if (!local || !earliestStageGmt) {
+    return 0
+  }
+  const localMs = new Date(local).getTime()
+  const gmtMs = new Date(earliestStageGmt).getTime()
+  if (Number.isNaN(localMs) || Number.isNaN(gmtMs)) {
+    return 0
+  }
+  return Math.round((localMs - gmtMs) / 900000) * 15
+})
+
 /** Whether any optional detail is present to reveal. */
 const hasDetails = computed(
   () => hasScoreContent.value || hasDetailContent.value || hasHypnogram.value,
@@ -323,7 +352,11 @@ const hrvLabel = computed(() => {
           <p v-else class="text-hint">{{ t('health.sleep.detail.noData') }}</p>
         </TabsContent>
       </Tabs>
-      <HealthSleepHypnogram v-if="hasHypnogram" :stages="entry.sleepStages" />
+      <HealthSleepHypnogram
+        v-if="hasHypnogram"
+        :stages="entry.sleepStages"
+        :offset-minutes="recordingOffsetMinutes"
+      />
     </div>
   </div>
 </template>

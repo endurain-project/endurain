@@ -66,10 +66,63 @@ export function formatRelativeTime(
  * `<input type="date">` expects. Shared by every form that defaults a date
  * field to today.
  *
- * @returns Today's date formatted as `yyyy-mm-dd`.
+ * Uses the viewer's **local** calendar date, not the UTC one. `toISOString()`
+ * would report tomorrow for anyone east of UTC late in their day (and yesterday
+ * for anyone far west early in theirs) — for a user in UTC+13 that is wrong for
+ * 13 hours out of every 24, which silently anchored the summary view on the
+ * wrong week or month.
+ *
+ * @returns Today's local date formatted as `yyyy-mm-dd`.
  */
 export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Formats a UTC instant for display in an explicit IANA timezone.
+ *
+ * Activities are shown in the timezone they were *recorded* in, so a ride at
+ * 07:00 in Tokyo reads "07:00" to every viewer regardless of where they are.
+ * Passing the real instant plus an explicit `timeZone` is what makes that true
+ * by construction: the alternative — serving an offset-less local wall clock and
+ * letting `new Date()` reinterpret it in the browser's zone — only produces the
+ * right digits because two opposite conversions cancel, and that cancellation
+ * breaks inside the viewer's DST spring-forward gap (a 01:30 activity renders as
+ * 02:30) and yields a `Date` holding the wrong instant for any arithmetic.
+ *
+ * @param iso - The instant to format, as an ISO 8601 string carrying an offset.
+ * @param timeZone - IANA timezone to render in. When `null`/omitted or invalid,
+ *   falls back to the viewer's local timezone.
+ * @param locale - BCP-47 locale tag controlling the output language.
+ * @param options - `Intl.DateTimeFormat` options (e.g. `dateStyle`/`timeStyle`).
+ * @returns The formatted string, or an empty string when `iso` is unparseable.
+ */
+export function formatZonedDateTime(
+  iso: string | null | undefined,
+  timeZone: string | null | undefined,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  if (!iso) {
+    return ''
+  }
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+  try {
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: timeZone ?? undefined }).format(
+      date,
+    )
+  } catch {
+    // An unknown/garbage zone name makes Intl throw; showing the viewer's local
+    // time is a better outcome than blanking the field.
+    return new Intl.DateTimeFormat(locale, options).format(date)
+  }
 }
 
 /**

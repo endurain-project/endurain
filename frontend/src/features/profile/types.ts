@@ -66,6 +66,7 @@ export interface PrivacySettings {
  * @property maxHeartRate - Max heart rate in bpm, or `null`.
  * @property preferredLanguage - Backend language code.
  * @property firstDayOfWeek - First day of the week.
+ * @property timezone - IANA timezone the athlete lives in, or `null` when unset.
  * @property accessType - Authorization tier (read-only here).
  * @property hasLocalPassword - Whether the account has a local password (false for SSO-only).
  * @property stravaLinked - Whether a Strava account is connected.
@@ -88,6 +89,7 @@ export interface ProfileDetails {
   maxHeartRate: number | null
   preferredLanguage: Schemas['Language']
   firstDayOfWeek: Schemas['WeekDay']
+  timezone: string | null
   accessType: Schemas['UserAccessType']
   hasLocalPassword: boolean
   stravaLinked: boolean
@@ -115,6 +117,12 @@ export interface ProfileEditInput {
   maxHeartRate: number | null
   preferredLanguage: Schemas['Language']
   firstDayOfWeek: Schemas['WeekDay']
+  /**
+   * IANA timezone the athlete lives in. Used server-side as the fallback for
+   * activities imported without a GPS track, which would otherwise inherit the
+   * server's timezone.
+   */
+  timezone: string | null
 }
 
 /** Raw default-gear payload (snake_case wire shape). */

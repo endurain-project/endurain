@@ -320,3 +320,88 @@ class TestGetTypeBreakdown:
 
         result = crud._get_type_breakdown(mock_db, 1, date.min, date.max, activity_type="unknown_sport")
         assert result == []
+
+
+class TestLocalTimeBuckets:
+    """Summary buckets follow the athlete's local calendar, not UTC's.
+
+    A 07:00 ride in UTC+9 belongs to that local day; bucketing on the raw
+    ``timestamptz`` put it on the previous UTC day (and, at month/year edges, in
+    the wrong month or year entirely).
+    """
+
+    @staticmethod
+    def _pg_db():
+        db = MagicMock()
+        db.get_bind.return_value.dialect.name = "postgresql"
+        row = MagicMock()
+        row.day_of_week = 1
+        row.week_number = 1
+        row.month_number = 1
+        row.year_number = 2024
+        row.activity_type = 1
+        row.total_distance = 0
+        row.total_duration = 0.0
+        row.total_elevation_gain = 0
+        row.total_calories = 0
+        row.activity_count = 0
+        db.execute.return_value.all.return_value = [row]
+        db.execute.return_value.one_or_none.return_value = row
+        return db
+
+    @staticmethod
+    def _emitted_sql(db):
+        from sqlalchemy.dialects import postgresql
+        from tests._helpers.db import _import_all_models
+
+        # Compiling a statement configures the mappers, which needs every
+        # related model imported (Activity -> Gear, User, ...).
+        _import_all_models()
+
+        return " ".join(
+            str(call.args[0].compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+            for call in db.execute.call_args_list
+        )
+
+    def test_weekly_summary_buckets_in_local_time(self):
+        import modules.activities.activity_summaries.crud as crud
+
+        db = self._pg_db()
+        crud.get_weekly_summary(db=db, user_id=1, target_date=date(2024, 1, 15))
+
+        sql = self._emitted_sql(db)
+        assert "coalesce(activities.timezone, 'UTC')" in sql
+        assert "isodow" in sql
+
+    def test_monthly_summary_buckets_in_local_time(self):
+        import modules.activities.activity_summaries.crud as crud
+
+        db = self._pg_db()
+        crud.get_monthly_summary(db=db, user_id=1, target_date=date(2024, 1, 1))
+
+        assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
+
+    def test_yearly_summary_buckets_in_local_time(self):
+        import modules.activities.activity_summaries.crud as crud
+
+        db = self._pg_db()
+        crud.get_yearly_summary(db=db, user_id=1, year=2024)
+
+        assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
+
+    def test_lifetime_summary_buckets_years_in_local_time(self):
+        import modules.activities.activity_summaries.crud as crud
+
+        db = self._pg_db()
+        crud.get_lifetime_summary(db=db, user_id=1)
+
+        assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
+
+    def test_lifetime_type_breakdown_stays_unbounded(self):
+        """date.min/date.max must not be turned into date arithmetic that overflows."""
+        import modules.activities.activity_summaries.crud as crud
+
+        db = self._pg_db()
+        crud.get_lifetime_summary(db=db, user_id=1)
+
+        assert "9999" not in self._emitted_sql(db)

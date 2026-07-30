@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.models as activity_models
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
@@ -279,6 +280,13 @@ def get_components_activity_stats(
     between each component's purchase_date
     and retired_date from the gear's activities.
 
+    Both bounds are calendar dates, so they are compared against each activity's
+    date *in its own timezone* rather than against the raw UTC instant. Comparing
+    the instant put the boundary at UTC midnight: at UTC-8 an evening ride the day
+    before a purchase counted towards the new component, and at UTC+13 a morning
+    ride on the purchase day did not count at all. ``retired_date`` is inclusive,
+    so activities on the day a component was retired still count towards it.
+
     Args:
         gear_id: Gear ID to query.
         db: Database session.
@@ -302,6 +310,8 @@ def get_components_activity_stats(
         .subquery()
     )
 
+    activity_local_date = func.date(activities_crud.local_start_time_expression(db))
+
     stmt = (
         select(
             comp.c.comp_id,
@@ -318,8 +328,8 @@ def get_components_activity_stats(
         .outerjoin(
             activity_models.Activity,
             (activity_models.Activity.gear_id == gear_id)
-            & (activity_models.Activity.start_time >= comp.c.purchase_date)
-            & ((comp.c.retired_date.is_(None)) | (activity_models.Activity.start_time <= comp.c.retired_date)),
+            & (activity_local_date >= comp.c.purchase_date)
+            & ((comp.c.retired_date.is_(None)) | (activity_local_date <= comp.c.retired_date)),
         )
         .group_by(comp.c.comp_id)
     )

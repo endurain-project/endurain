@@ -549,6 +549,7 @@ def parse_gpx_file(
     file: str,
     user_id: int,
     activity_name_input: str | None = None,
+    default_timezone: str | None = None,
 ) -> ParsedGpxData:
     """
     Parse a GPX file into structured activity data.
@@ -574,7 +575,9 @@ def parse_gpx_file(
         )
         state = _init_parsing_state(
             activity_name_input,
-            core_config.settings.TZ,
+            # A GPX track normally yields a timezone from its first GPS point;
+            # this only applies when it has none (a track-less/indoor export).
+            default_timezone or core_config.settings.TZ,
         )
 
         with Path(file).open("r", encoding="utf-8") as gpx_file:

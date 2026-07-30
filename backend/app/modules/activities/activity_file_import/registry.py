@@ -34,27 +34,55 @@ import modules.activities.activity_file_import.utils_tcx as tcx_utils
 class FileParser(Protocol):
     """Callable that parses one activity file into the shared ``parsed_info`` dict."""
 
-    def __call__(self, path: str, user_id: int, activity_name: str | None = None) -> dict[str, Any]:
-        """Parse the file at ``path`` for ``user_id`` into a ``parsed_info`` dict."""
+    def __call__(
+        self,
+        path: str,
+        user_id: int,
+        activity_name: str | None = None,
+        default_timezone: str | None = None,
+    ) -> dict[str, Any]:
+        """Parse the file at ``path`` for ``user_id`` into a ``parsed_info`` dict.
+
+        ``default_timezone`` is the athlete's own IANA timezone, used only when the
+        file yields no timezone of its own (no GPS track and no reported UTC
+        offset). It is **passed in** rather than looked up so the parsers stay free
+        of any ``modules.users`` coupling, as the purity contract requires.
+        """
         ...
 
 
-def _parse_gpx(path: str, user_id: int, activity_name: str | None = None) -> dict[str, Any]:
+def _parse_gpx(
+    path: str,
+    user_id: int,
+    activity_name: str | None = None,
+    default_timezone: str | None = None,
+) -> dict[str, Any]:
     """Adapter: parse a GPX file, normalizing the ``TypedDict`` to a plain dict."""
-    return dict(gpx_utils.parse_gpx_file(path, user_id, activity_name))
+    return dict(gpx_utils.parse_gpx_file(path, user_id, activity_name, default_timezone))
 
 
-def _parse_tcx(path: str, user_id: int, activity_name: str | None = None) -> dict[str, Any]:
+def _parse_tcx(
+    path: str,
+    user_id: int,
+    activity_name: str | None = None,
+    default_timezone: str | None = None,
+) -> dict[str, Any]:
     """Adapter: parse a TCX file into a ``parsed_info`` dict."""
-    return tcx_utils.parse_tcx_file(path, user_id, activity_name)
+    return tcx_utils.parse_tcx_file(path, user_id, activity_name, default_timezone)
 
 
-def _parse_fit(path: str, user_id: int, activity_name: str | None = None) -> dict[str, Any]:
+def _parse_fit(
+    path: str,
+    user_id: int,
+    activity_name: str | None = None,
+    default_timezone: str | None = None,
+) -> dict[str, Any]:
     """Adapter: parse a FIT file.
 
-    FIT's parse stage is owner-agnostic — the owner is attached later when
-    ``create_activity_objects`` builds the ``ActivityCore`` — so ``user_id`` is
-    accepted (for the uniform :class:`FileParser` signature) but not used here.
+    FIT's parse stage is owner- and timezone-agnostic — both the owner and the
+    fallback timezone are applied later, when ``create_activity_objects`` builds
+    the ``ActivityCore`` — so ``user_id`` and ``default_timezone`` are accepted
+    (for the uniform :class:`FileParser` signature) but not used here.
     """
     return fit_utils.parse_fit_file(path, activity_name)
 

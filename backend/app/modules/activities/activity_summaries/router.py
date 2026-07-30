@@ -1,7 +1,7 @@
 """Router for activity summary endpoints."""
 
 from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import (
@@ -19,8 +19,27 @@ import modules.activities.activity_summaries.crud as summary_crud
 import modules.activities.activity_summaries.dependencies as summary_deps
 import modules.activities.activity_summaries.schema as summary_schema
 import modules.auth.dependencies as auth_dependencies
+import modules.users.users.utils as users_utils
 
 router = APIRouter()
+
+# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). The server cannot
+# know the caller's timezone, so any "is this year plausible?" check has to be
+# tolerant by at least this much or it rejects the caller's genuinely current
+# year around New Year.
+_MAX_UTC_OFFSET = timedelta(hours=14)
+
+
+def _latest_plausible_year() -> int:
+    """Return the highest year any caller could currently be in.
+
+    ``datetime.now(UTC).year`` is the *server's* year. For a user in UTC+13 that
+    is still the previous year for the first 13 hours of 1 January, so validating
+    against it rejected the year they are actually living in. Widening by the
+    maximum real UTC offset keeps the guard (it still rejects far-future years)
+    without depending on a timezone the request never carries.
+    """
+    return (datetime.now(UTC) + _MAX_UTC_OFFSET).year
 
 
 def _parse_target_date(
@@ -132,7 +151,11 @@ def read_activity_summary(
     Raises:
         HTTPException: If date/year is invalid.
     """
-    today = datetime.now(UTC).date()
+    # Server-side fallback anchor for callers that omit ``date``/``year``. The
+    # web client always sends its own local date (the request carries no
+    # timezone, so the server cannot derive it); when it does not, the caller's
+    # configured timezone is the same frame of reference it would have sent.
+    today = users_utils.user_local_today(token_user_id, db)
 
     if view_type == "week":
         current_date = _parse_target_date(target_date_str, today)
@@ -153,11 +176,12 @@ def read_activity_summary(
         )
 
     if view_type == "year":
+        max_year = _latest_plausible_year()
         current_year = target_year if target_year else today.year
-        if not (1900 <= current_year <= today.year):
+        if not (1900 <= current_year <= max_year):
             raise HTTPException(
                 status_code=(status.HTTP_400_BAD_REQUEST),
-                detail=(f"Invalid year. Must be between 1900 and {today.year}."),
+                detail=(f"Invalid year. Must be between 1900 and {max_year}."),
             )
         return summary_crud.get_yearly_summary(
             db=db,

@@ -13,6 +13,11 @@ import {
   useCreatePoopEntryMutation,
   useUpdatePoopEntryMutation,
 } from '@/features/health/composables/useHealth'
+import {
+  dateTimeLocalToIso,
+  nowDateTimeLocalInput,
+  toDateTimeLocalInput,
+} from '@/features/health/utils/healthFormat'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -60,16 +65,10 @@ interface PoopFormValues {
   notes: string
 }
 
-/** Current local date-time in the `yyyy-mm-ddTHH:mm` shape a datetime-local input expects. */
-function nowLocalInput(): string {
-  const now = new Date()
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-}
-
 /** The pristine values used for "add" and as the reset baseline. */
 function defaultValues(): PoopFormValues {
   return {
-    dateTime: nowLocalInput(),
+    dateTime: nowDateTimeLocalInput(),
     bristolType: '',
     color: '',
     notes: '',
@@ -80,7 +79,10 @@ function defaultValues(): PoopFormValues {
 function buildInput(values: PoopFormValues): PoopEntryInput {
   const notes = values.notes.trim()
   return {
-    dateTime: values.dateTime || null,
+    // The input yields an offset-less local wall clock; convert it to a real
+    // UTC instant so the backend stores the moment the user meant rather than
+    // reading their wall clock as if it were UTC.
+    dateTime: dateTimeLocalToIso(values.dateTime),
     bristolType: values.bristolType ? (Number(values.bristolType) as BristolType) : null,
     color: values.color ? (values.color as PoopColor) : null,
     notes: notes ? notes : null,
@@ -133,10 +135,12 @@ function populate(): void {
   reset()
   const entry = props.entry
   if (!entry) {
-    values.dateTime = nowLocalInput()
+    values.dateTime = nowDateTimeLocalInput()
     return
   }
-  values.dateTime = entry.dateTime ? entry.dateTime.slice(0, 16) : nowLocalInput()
+  // Render the stored instant as the viewer's wall clock; string-slicing the
+  // ISO showed the UTC time, which disagreed with the list row.
+  values.dateTime = toDateTimeLocalInput(entry.dateTime) || nowDateTimeLocalInput()
   values.bristolType = entry.bristolType !== null ? String(entry.bristolType) : ''
   values.color = entry.color ?? ''
   values.notes = entry.notes ?? ''

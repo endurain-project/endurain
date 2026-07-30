@@ -1272,12 +1272,17 @@ class TestDeleteUser:
 
         with (
             patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
+            patch("modules.users.users.crud.activities_integration") as mock_activities,
             patch(
                 "modules.users.users.crud.users_utils.delete_user_photo_filesystem", new_callable=AsyncMock
             ) as mock_del,
         ):
             await delete_user(1, mock_db)
 
+        # The user's activities are removed explicitly (rather than by the silent
+        # FK cascade) so activity.deleted is published and their stored
+        # thumbnails / source files are reclaimed instead of orphaned.
+        mock_activities.delete_all_activities_for_user.assert_called_once_with(1, mock_db)
         mock_db.delete.assert_called_once_with(mock_db_user)
         mock_db.commit.assert_called_once()
         mock_del.assert_called_once_with(1)

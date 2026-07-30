@@ -94,23 +94,18 @@ class Activity(BaseModel):
         distance: Total distance in meters.
         name: Activity name.
         activity_type: Numeric code for the sport type.
-        start_time: Activity start time (UTC) — may be a
-            pre-formatted string after serialization.
-        start_time_tz_applied: Start time with timezone applied.
-        end_time: Activity end time (UTC) — may be a
-            pre-formatted string after serialization.
-        end_time_tz_applied: End time with timezone applied.
-        timezone: IANA timezone string.
+        start_time: Activity start as a timezone-aware UTC instant.
+        end_time: Activity end as a timezone-aware UTC instant.
+        timezone: IANA timezone the activity was recorded in. Clients render
+            ``start_time``/``end_time`` in this zone to show the athlete's
+            local wall clock.
         total_elapsed_time: Total elapsed wall-clock time in
             seconds.
         total_timer_time: Active timer time in seconds.
         city: City where the activity took place.
         town: Town where the activity took place.
         country: Country where the activity took place.
-        created_at: Record creation timestamp (UTC) — may be a
-            pre-formatted string after serialization.
-        created_at_tz_applied: Creation time with timezone
-            applied.
+        created_at: Record creation as a timezone-aware UTC instant.
         elevation_gain: Total elevation gain in meters.
         elevation_loss: Total elevation loss in meters.
         pace: Average pace in seconds per kilometer.
@@ -165,9 +160,7 @@ class Activity(BaseModel):
     name: str = Field(max_length=250)
     activity_type: int = Field(ge=1)
     start_time: datetime | str | None = None
-    start_time_tz_applied: str | None = None
     end_time: datetime | str | None = None
-    end_time_tz_applied: str | None = None
     timezone: str | None = Field(default=None, max_length=250)
     total_elapsed_time: float | None = Field(default=None, ge=0)
     total_timer_time: float | None = Field(default=None, ge=0)
@@ -175,7 +168,6 @@ class Activity(BaseModel):
     town: str | None = Field(default=None, max_length=250)
     country: str | None = Field(default=None, max_length=250)
     created_at: datetime | str | None = None
-    created_at_tz_applied: str | None = None
     elevation_gain: int | None = None
     elevation_loss: int | None = None
     pace: float | None = None

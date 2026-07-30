@@ -5340,23 +5340,18 @@ export interface components {
          *         distance: Total distance in meters.
          *         name: Activity name.
          *         activity_type: Numeric code for the sport type.
-         *         start_time: Activity start time (UTC) — may be a
-         *             pre-formatted string after serialization.
-         *         start_time_tz_applied: Start time with timezone applied.
-         *         end_time: Activity end time (UTC) — may be a
-         *             pre-formatted string after serialization.
-         *         end_time_tz_applied: End time with timezone applied.
-         *         timezone: IANA timezone string.
+         *         start_time: Activity start as a timezone-aware UTC instant.
+         *         end_time: Activity end as a timezone-aware UTC instant.
+         *         timezone: IANA timezone the activity was recorded in. Clients render
+         *             ``start_time``/``end_time`` in this zone to show the athlete's
+         *             local wall clock.
          *         total_elapsed_time: Total elapsed wall-clock time in
          *             seconds.
          *         total_timer_time: Active timer time in seconds.
          *         city: City where the activity took place.
          *         town: Town where the activity took place.
          *         country: Country where the activity took place.
-         *         created_at: Record creation timestamp (UTC) — may be a
-         *             pre-formatted string after serialization.
-         *         created_at_tz_applied: Creation time with timezone
-         *             applied.
+         *         created_at: Record creation as a timezone-aware UTC instant.
          *         elevation_gain: Total elevation gain in meters.
          *         elevation_loss: Total elevation loss in meters.
          *         pace: Average pace in seconds per kilometer.
@@ -5419,8 +5414,6 @@ export interface components {
             country?: string | null;
             /** Created At */
             created_at?: string | null;
-            /** Created At Tz Applied */
-            created_at_tz_applied?: string | null;
             /** Description */
             description?: string | null;
             /** Distance */
@@ -5431,8 +5424,6 @@ export interface components {
             elevation_loss?: number | null;
             /** End Time */
             end_time?: string | null;
-            /** End Time Tz Applied */
-            end_time_tz_applied?: string | null;
             /** Garminconnect Activity Id */
             garminconnect_activity_id?: number | null;
             /** Garminconnect Gear Id */
@@ -5494,8 +5485,6 @@ export interface components {
             private_notes?: string | null;
             /** Start Time */
             start_time?: string | null;
-            /** Start Time Tz Applied */
-            start_time_tz_applied?: string | null;
             /** Strava Activity Id */
             strava_activity_id?: number | null;
             /** Strava Gear Id */
@@ -5616,12 +5605,15 @@ export interface components {
          * ActivityLapsRead
          * @description Schema for reading activity laps.
          *
+         *     ``start_time`` crosses the API as a timezone-aware UTC instant, matching the
+         *     parent activity. Clients localize it for display using that activity's
+         *     ``timezone`` — the server no longer ships a pre-formatted wall clock, which
+         *     carried no offset and so could not be converted or round-tripped.
+         *
          *     Attributes:
          *         id: Lap primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Lap start time as datetime.
-         *         timezone: Activity timezone for
-         *             serialization (excluded from output).
+         *         start_time: Lap start as a timezone-aware UTC instant.
          */
         ActivityLapsRead: {
             /** Activity Id */
@@ -5680,7 +5672,10 @@ export interface components {
             start_position_lat?: number | null;
             /** Start Position Long */
             start_position_long?: number | null;
-            /** Start Time */
+            /**
+             * Start Time
+             * Format: date-time
+             */
             start_time: string;
             /** Sub Sport */
             sub_sport?: string | null;
@@ -5719,12 +5714,15 @@ export interface components {
          * ActivitySetsRead
          * @description Schema for reading activity workout sets.
          *
+         *     ``start_time`` crosses the API as a timezone-aware UTC instant, matching the
+         *     parent activity. Clients localize it for display using that activity's
+         *     ``timezone`` — the server no longer ships a pre-formatted wall clock, which
+         *     carried no offset and so could not be converted or round-tripped.
+         *
          *     Attributes:
          *         id: Activity set primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Set start time as datetime.
-         *         timezone: Activity timezone for
-         *             serialization (excluded from output).
+         *         start_time: Set start as a timezone-aware UTC instant.
          */
         ActivitySetsRead: {
             /** Activity Id */
@@ -5741,7 +5739,10 @@ export interface components {
             repetitions?: number | null;
             /** Set Type */
             set_type: string;
-            /** Start Time */
+            /**
+             * Start Time
+             * Format: date-time
+             */
             start_time: string;
             /** Weight */
             weight?: number | null;
@@ -9681,6 +9682,7 @@ export interface components {
          *         max_heart_rate: Maximum heart rate in bpm.
          *         first_day_of_week: First day of the week.
          *         currency: Preferred currency.
+         *         timezone: IANA timezone the athlete lives in.
          *         photo_path: Server-issued photo path. Validated to
          *             stay within the user's own photo directory.
          */
@@ -9703,6 +9705,8 @@ export interface components {
             /** Photo Path */
             photo_path?: string | null;
             preferred_language?: components["schemas"]["Language"] | null;
+            /** Timezone */
+            timezone?: string | null;
             units?: components["schemas"]["Units"] | null;
             /** Username */
             username?: string | null;
@@ -10714,6 +10718,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11501,6 +11510,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11699,6 +11713,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11840,6 +11859,11 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
             /**
              * @description User units (metric, imperial)
              * @default metric
@@ -12590,6 +12614,8 @@ export interface operations {
         parameters: {
             query?: {
                 period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
+                date?: string | null;
             };
             header?: never;
             path: {

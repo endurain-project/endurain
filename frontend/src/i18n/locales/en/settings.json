@@ -228,6 +228,8 @@
         "pound": "Pound"
       },
       "firstDayOfWeek": "First day of the week",
+      "timezone": "Timezone",
+      "timezoneHint": "Used for activities recorded without GPS, such as treadmill runs and indoor rides.",
       "weekdays": {
         "sunday": "Sunday",
         "monday": "Monday",

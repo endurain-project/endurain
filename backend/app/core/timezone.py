@@ -1,13 +1,33 @@
 """Centralized timezone conversion utilities."""
 
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
-
-import core.config as core_config
 
 # ISO 8601 datetime format without offset, used for the
 # naive UTC wall-clock strings persisted by file parsers.
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
+
+
+def today_in(tz_name: str) -> date:
+    """Return today's calendar date in the given IANA timezone.
+
+    "Which day is it?" is a local question that the server cannot answer from
+    its own clock: a request carries no timezone, so ``date.today()`` silently
+    answers in the container's zone and ``datetime.now(UTC).date()`` in UTC.
+    Either is wrong for any user not on that zone — a day behind for up to 13
+    hours at UTC+13, a day ahead for up to 11 hours at UTC-11.
+
+    Callers supply the zone explicitly (typically the athlete's stored
+    ``users.timezone``, falling back to ``settings.TZ``) so the choice is
+    visible at the call site rather than buried in a default.
+
+    Args:
+        tz_name: IANA timezone name to resolve "today" in.
+
+    Returns:
+        The current calendar date in that timezone.
+    """
+    return datetime.now(ZoneInfo(tz_name)).date()
 
 
 def to_utc_aware(dt: datetime | str | None) -> datetime | None:
@@ -54,33 +74,3 @@ def format_utc(dt: datetime | str | None) -> str:
     """
     aware = to_utc_aware(dt)
     return aware.strftime(_DT_FMT) if aware else ""
-
-
-def format_aware_datetime(
-    dt: datetime | str,
-    tz_name: str | None = None,
-) -> str:
-    """
-    Convert a datetime to a timezone-aware string.
-
-    Assumes UTC if the datetime has no tzinfo.
-    Converts to the specified timezone (or the
-    server default) and formats as ISO 8601 without
-    offset.
-
-    Args:
-        dt: A datetime object or ISO 8601 string.
-        tz_name: IANA timezone name. Falls back to
-            the server TZ setting if None.
-
-    Returns:
-        Formatted datetime string without offset.
-    """
-    if isinstance(dt, str):
-        dt = datetime.fromisoformat(dt)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-
-    timezone = ZoneInfo(tz_name) if tz_name else ZoneInfo(core_config.settings.TZ)
-
-    return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")

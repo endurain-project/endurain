@@ -23,7 +23,11 @@ export function mapGearActivity(dto: GearActivityDto): GearActivity {
     id: dto.id ?? 0,
     name: dto.name,
     activityType: dto.activity_type,
+    // The raw UTC instant plus the recording timezone, matching the main
+    // activities list, so the row renders in the timezone the activity happened
+    // in rather than the viewer's.
     startTime: dto.start_time ?? null,
+    timezone: dto.timezone ?? null,
     distance: dto.distance,
     totalTimerTime: dto.total_timer_time ?? null,
   }

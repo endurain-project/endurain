@@ -60,6 +60,7 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     maxHeartRate: dto.max_heart_rate ?? null,
     preferredLanguage: dto.preferred_language,
     firstDayOfWeek: dto.first_day_of_week,
+    timezone: dto.timezone ?? null,
     accessType: dto.access_type,
     hasLocalPassword: dto.has_local_password ?? true,
     stravaLinked: dto.is_strava_linked === 1,
@@ -102,6 +103,7 @@ export async function updateProfile(input: ProfileEditInput): Promise<void> {
     max_heart_rate: input.maxHeartRate,
     preferred_language: input.preferredLanguage,
     first_day_of_week: input.firstDayOfWeek,
+    timezone: input.timezone,
   }
   await apiFetch('/profile', {
     method: 'PUT',

@@ -9,7 +9,7 @@ convention (a pure domain-exception boundary is a later refinement).
 """
 
 import calendar
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
 import modules.followers.service as followers_service
+import modules.users.users.utils as users_utils
 
 
 def get_activities_in_timeframe(
@@ -61,16 +62,61 @@ def get_activities_in_timeframe(
     )
 
 
-def _week_bounds(week_number: int = 0) -> tuple[datetime, datetime]:
-    """Return the (start, end) of the week ``week_number`` weeks ago (0 = current)."""
-    today = datetime.now(UTC)
+def _anchor_date(anchor: date | None, requester_user_id: int, db: Session) -> datetime:
+    """Return the midnight-aligned day the week/month window is built around.
+
+    ``anchor`` is the *caller's* local calendar date, sent by the client because
+    the request itself carries no timezone. When it is omitted we fall back to
+    today in the requester's own configured zone, which is the same frame of
+    reference the client would have sent. Falling back to the server's UTC date
+    instead put "this week" and "this month" one period off around their
+    boundaries: a day behind for up to 13 hours at UTC+13, a day ahead for up to
+    11 at UTC-11.
+
+    Args:
+        anchor: The caller's local date, or ``None`` to resolve it server-side.
+        requester_user_id: The authenticated user, whose timezone defines
+            "today" when ``anchor`` is omitted.
+        db: Database session.
+
+    Returns:
+        A midnight-aligned UTC datetime for the anchor day.
+    """
+    if anchor is None:
+        anchor = users_utils.user_local_today(requester_user_id, db)
+    return datetime.combine(anchor, time.min, tzinfo=UTC)
+
+
+def _week_bounds(
+    requester_user_id: int,
+    db: Session,
+    week_number: int = 0,
+    anchor: date | None = None,
+) -> tuple[datetime, datetime]:
+    """Return the (start, end) of the week ``week_number`` weeks ago (0 = current).
+
+    Both bounds are midnight-aligned so the window is a real calendar week
+    (Monday 00:00 through Sunday, inclusive). They previously carried the current
+    time of day, which made "this week" a rolling span anchored on *now* rather
+    than on the week's boundaries.
+    """
+    today = _anchor_date(anchor, requester_user_id, db)
     start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
     return start_of_week, start_of_week + timedelta(days=6)
 
 
-def _month_bounds() -> tuple[datetime, datetime]:
-    """Return the (start, end) of the current calendar month."""
-    today = datetime.now(UTC)
+def _month_bounds(
+    requester_user_id: int,
+    db: Session,
+    anchor: date | None = None,
+) -> tuple[datetime, datetime]:
+    """Return the (start, end) of the calendar month containing the anchor day.
+
+    Midnight-aligned for the same reason as :func:`_week_bounds`: keeping the
+    current time of day meant activities recorded on the 1st before "now" fell
+    outside the month window.
+    """
+    today = _anchor_date(anchor, requester_user_id, db)
     start_of_month = today.replace(day=1)
     end_of_month = start_of_month.replace(day=calendar.monthrange(today.year, today.month)[1])
     return start_of_month, end_of_month
@@ -81,33 +127,49 @@ def list_week_activities(
     week_number: int,
     requester_user_id: int,
     db: Session,
+    anchor: date | None = None,
 ) -> list[activities_schema.Activity] | None:
     """List a user's activities for the week ``week_number`` weeks ago (0 = current)."""
-    start, end = _week_bounds(week_number)
+    start, end = _week_bounds(requester_user_id, db, week_number, anchor)
     return get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
 
 
-def week_stats(user_id: int, requester_user_id: int, db: Session) -> activities_schema.ActivityStats:
+def week_stats(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    anchor: date | None = None,
+) -> activities_schema.ActivityStats:
     """Aggregate per-sport stats for a user's current-week activities."""
-    start, end = _week_bounds()
+    start, end = _week_bounds(requester_user_id, db, 0, anchor)
     activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
     if activities:
         return activities_stats.calculate_activity_stats(activities)
     return activities_schema.ActivityStats()
 
 
-def month_stats(user_id: int, requester_user_id: int, db: Session) -> activities_schema.ActivityStats:
+def month_stats(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    anchor: date | None = None,
+) -> activities_schema.ActivityStats:
     """Aggregate per-sport stats for a user's current-month activities."""
-    start, end = _month_bounds()
+    start, end = _month_bounds(requester_user_id, db, anchor)
     activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
     if activities:
         return activities_stats.calculate_activity_stats(activities)
     return activities_schema.ActivityStats()
 
 
-def count_month_activities(user_id: int, requester_user_id: int, db: Session) -> int:
+def count_month_activities(
+    user_id: int,
+    requester_user_id: int,
+    db: Session,
+    anchor: date | None = None,
+) -> int:
     """Count a user's current-month activities (requester-scoped)."""
-    start, end = _month_bounds()
+    start, end = _month_bounds(requester_user_id, db, anchor)
     activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
     return len(activities) if activities else 0
 
@@ -117,15 +179,25 @@ def period_stats(
     period: str,
     requester_user_id: int,
     db: Session,
+    anchor: date | None = None,
 ) -> activities_schema.ActivityStats:
-    """Aggregate per-sport stats for a user's ``week`` or ``month`` (default week)."""
+    """Aggregate per-sport stats for a user's ``week`` or ``month`` (default week).
+
+    Args:
+        user_id: The user whose stats to aggregate.
+        period: ``week`` or ``month``.
+        requester_user_id: The authenticated user making the request.
+        db: Database session.
+        anchor: The caller's local calendar date, used to decide which week or
+            month is "current". Falls back to today in the requester's timezone.
+    """
     core_logger.print_to_log(
-        f"period_stats: user {user_id} period={period!r} requester {requester_user_id}",
+        f"period_stats: user {user_id} period={period!r} requester {requester_user_id} anchor={anchor}",
         "debug",
     )
     if period == "month":
-        return month_stats(user_id, requester_user_id, db)
-    return week_stats(user_id, requester_user_id, db)
+        return month_stats(user_id, requester_user_id, db, anchor)
+    return week_stats(user_id, requester_user_id, db, anchor)
 
 
 def count_user_activities(

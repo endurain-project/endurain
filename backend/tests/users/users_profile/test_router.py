@@ -33,6 +33,7 @@ def _make_user_mock() -> MagicMock:
     user.max_heart_rate = None
     user.first_day_of_week = "monday"
     user.currency = "euro"
+    user.timezone = None
     user.access_type = "regular"
     user.photo_path = None
     user.active = True

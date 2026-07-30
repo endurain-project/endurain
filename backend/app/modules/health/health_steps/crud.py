@@ -10,6 +10,7 @@ import modules.health.constants as health_constants
 import modules.health.health_steps.models as health_steps_models
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.utils as health_utils
+import modules.users.users.utils as users_utils
 
 # Private internal helpers
 
@@ -106,7 +107,8 @@ def get_health_steps_number_by_user_id(
 
     if interval is not None:
         stmt = stmt.where(
-            health_steps_models.HealthSteps.date >= health_utils.get_start_date_for_interval(interval.value)
+            health_steps_models.HealthSteps.date
+            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     return db.execute(stmt).scalar_one()
@@ -147,7 +149,8 @@ def get_health_steps_by_user_id(
 
     if interval is not None:
         stmt = stmt.where(
-            health_steps_models.HealthSteps.date >= health_utils.get_start_date_for_interval(interval.value)
+            health_steps_models.HealthSteps.date
+            >= health_utils.get_start_date_for_interval(interval.value, users_utils.user_local_today(user_id, db))
         )
 
     stmt = stmt.order_by(desc(health_steps_models.HealthSteps.date))

@@ -31,7 +31,7 @@ lost*. Channel names and payload shape stay owned by the publishing domain; this
 layer only knows the generic envelope.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
 import core.config as core_config
@@ -181,3 +181,66 @@ def _durable_delivery_enabled(event_type: str) -> bool:
     path is used.
     """
     return core_config.settings.JOBS_ENABLED and bool(jobs_registry.registry.subscribers_for(event_type))
+
+
+def publish_many_committing(
+    event_type: str,
+    payloads: Sequence[dict],
+    *,
+    source: str,
+    metadata_for: Callable[[dict], dict] | None = None,
+    db: Any,
+    commit: Callable[[], None],
+) -> None:
+    """Publish many same-type events atomically around one domain commit.
+
+    The batch counterpart of :func:`publish_committing`, for producers that
+    remove or create *many* rows in a single unit of work (bulk deletes) and must
+    emit one event per affected row without committing once per event. All outbox
+    rows are staged on ``db`` uncommitted and land in the caller's transaction, so
+    the domain change and every event commit together or not at all.
+
+    Args:
+        event_type: The domain-owned channel shared by every event in the batch.
+        payloads: One payload per event. An empty sequence still runs ``commit``
+            so the caller's unit of work is committed exactly once either way.
+        source: Origin label, e.g. ``api:delete_all_strava_activities``.
+        metadata_for: Optional per-payload correlation metadata builder.
+        db: The producer's SQLAlchemy session (holds the uncommitted change).
+        commit: Zero-arg callable that commits the caller's unit of work.
+
+    Returns:
+        None.
+    """
+    if db is not None and _durable_delivery_enabled(event_type):
+        try:
+            platform = platform_runtime.get_active_platform()
+            now = platform.clock.now()
+            for payload in payloads:
+                event = _mint(event_type, payload, source, metadata_for(payload) if metadata_for else None)
+                if platform.recorder is not None:
+                    platform.recorder.record_queued(event)
+                jobs_outbox.add_to_outbox(event, now=now, db=db, commit=False)
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to stage {len(payloads)} {event_type} event(s) in the domain transaction: {err}",
+                "error",
+                exc=err,
+            )
+            raise
+        commit()
+    else:
+        # Best-effort path: the domain change is the source of truth, so commit it
+        # first, then dispatch each event on the bus (swallowing failures).
+        commit()
+        for payload in payloads:
+            try:
+                platform = platform_runtime.get_active_platform()
+                event = _mint(event_type, payload, source, metadata_for(payload) if metadata_for else None)
+                platform.events.publish(event)
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Failed to publish event {event_type}: {err}",
+                    "error",
+                    exc=err,
+                )

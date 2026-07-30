@@ -200,9 +200,19 @@ def read_user_activity_stats(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
     period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
+    anchor_date: Annotated[
+        date | None,
+        Query(
+            alias="date",
+            description=(
+                "The caller's local calendar date, used to decide which week or month "
+                "is current. Defaults to today in the caller's configured timezone."
+            ),
+        ),
+    ] = None,
 ) -> activities_schema.ActivityStats:
     """Aggregate per-sport stats for a user's current ``week`` or ``month``."""
-    return activities_service.period_stats(user_id, period, token_user_id, db)
+    return activities_service.period_stats(user_id, period, token_user_id, db, anchor_date)
 
 
 @router.get(
@@ -335,16 +345,6 @@ def delete_activity(
     ],
 ):
     """Delete one of the authenticated user's activities."""
-    # Get the activity by id from user id
-    activity = activities_crud.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
-
-    # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
-    if activity is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity ID {activity_id} for user {token_user_id} not found",
-        )
-
     # Delete the activity and publish ``activity.deleted`` atomically: the delete
     # is staged (commit=False) and the publisher owns the single commit, so when
     # durable jobs are enabled the outbox row is written in the *same* transaction
@@ -352,7 +352,11 @@ def delete_activity(
     # event unpublished (which would orphan the thumbnail / source-file blobs).
     # The route stays ignorant of who reacts; on the best-effort (no durable jobs)
     # path the commit runs first and any bus-dispatch failure is swallowed.
-    activities_crud.delete_activity(activity_id, db, commit=False)
+    #
+    # Ownership lives in the delete's WHERE clause (404 when the activity is
+    # missing *or* owned by someone else), so there is no read-then-delete gap
+    # and no route-level precondition that a future caller could forget.
+    activities_crud.delete_activity(activity_id, token_user_id, db, commit=False)
     activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db, commit=db.commit)
 
     # Return success message

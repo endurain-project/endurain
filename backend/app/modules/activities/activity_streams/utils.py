@@ -5,11 +5,13 @@ from typing import overload
 
 import numpy as np
 
+import core.timezone as core_timezone
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.users.users.schema as users_schema
+import modules.users.users.utils as users_utils
 
 # Map stream type to activity hide attribute
 _STREAM_HIDE_MAP: dict[int, str] = {
@@ -106,9 +108,30 @@ def resolve_max_heart_rate(user: users_schema.UsersRead) -> int | None:
     if user.max_heart_rate:
         return user.max_heart_rate
     if user.birthdate:
-        current_year = datetime.datetime.now(datetime.UTC).year
-        return _DEFAULT_MAX_HEART_RATE - (current_year - user.birthdate.year)
+        return _DEFAULT_MAX_HEART_RATE - _age_in_years(user.birthdate, user.timezone)
     return None
+
+
+def _age_in_years(birthdate: datetime.date, timezone_name: str | None) -> int:
+    """Return completed years lived, as of today in the athlete's own timezone.
+
+    Subtracting birth years alone counts someone born in December as a year older
+    for the eleven months before their birthday, which skews the ``220 - age``
+    fallback by a full year; comparing (month, day) fixes that. Resolving "today"
+    in the athlete's zone rather than UTC then fixes the remaining one-day error
+    around the birthday itself, which would otherwise age a user in UTC+13 a day
+    early and one in UTC-11 a day late.
+
+    Args:
+        birthdate: The user's date of birth.
+        timezone_name: The user's IANA timezone, or None to use the server's.
+
+    Returns:
+        Completed years since ``birthdate``.
+    """
+    today = core_timezone.today_in(users_utils.timezone_or_default(timezone_name))
+    had_birthday = (today.month, today.day) >= (birthdate.month, birthdate.day)
+    return today.year - birthdate.year - (0 if had_birthday else 1)
 
 
 def compute_hr_zone_breakdown_sync(

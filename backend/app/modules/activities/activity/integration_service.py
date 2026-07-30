@@ -1,14 +1,19 @@
-"""The activities surface consumed by the provider/integration modules (Strava, Garmin).
+"""The activities surface consumed by other modules (Strava, Garmin, account deletion).
 
-A small, curated interface so the provider modules depend on a stable, intentional
-set of activity operations instead of reaching into the full ``activity.crud`` (a
-large ORM surface, most of it internal to the activities module). It is the
+A small, curated interface so consumers depend on a stable, intentional set of
+activity operations instead of reaching into the full ``activity.crud`` (a large
+ORM surface, most of it internal to the activities module). It is the
 read/gear/delete counterpart to the ingestion seam: ingestion
 (:mod:`~modules.activities.activity.ingestion_service` /
-:mod:`~modules.activities.activity_ingestion.orchestrator`) is how a provider
-*stores* a parsed activity; this is how a provider *looks up*, *re-gears*, and
-*bulk-deletes* the activities it owns. Every function returns schemas/DTOs — no ORM
-row crosses the boundary.
+:mod:`~modules.activities.activity_ingestion.orchestrator`) is how a caller
+*stores* a parsed activity; this is how a caller *looks up*, *re-gears*, and
+*bulk-deletes* activities. Every function returns schemas/DTOs — no ORM row
+crosses the boundary.
+
+Bulk deletes here also publish one ``activity.deleted`` per removed row, so the
+thumbnail and source-file cleanup subscribers reclaim each activity's blobs. That
+is the whole reason account deletion and Strava unlinking route through this
+module rather than issuing their own DELETE (or relying on the FK cascade).
 
 Enforced by the ``provider-activities-boundary`` import-linter contract:
 ``modules.strava`` / ``modules.garmin`` must not import ``activity.crud`` directly;
@@ -18,6 +23,7 @@ they go through this interface.
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 
 
@@ -107,6 +113,11 @@ def bulk_set_activities_gear(
 def delete_all_strava_activities(user_id: int, db: Session) -> int:
     """Delete all of a user's Strava-sourced activities.
 
+    Emits one ``activity.deleted`` per removed activity, atomically with the
+    deletes, so the thumbnail and source-file cleanup subscribers reclaim the
+    blobs each activity owned. Without it the rows vanished silently and their
+    artifacts were orphaned in storage permanently.
+
     Args:
         user_id: The owning user id.
         db: Database session.
@@ -114,4 +125,39 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
     Returns:
         The number of activities deleted.
     """
-    return activities_crud.delete_all_strava_activities_for_user(user_id, db)
+    deleted_ids = activities_crud.delete_all_strava_activities_for_user(user_id, db, commit=False)
+    activity_event_publishers.publish_activities_deleted(
+        deleted_ids,
+        user_id,
+        db,
+        db.commit,
+        source="api:delete_all_strava_activities",
+    )
+    return len(deleted_ids)
+
+
+def delete_all_activities_for_user(user_id: int, db: Session) -> int:
+    """Delete every activity owned by a user, emitting cleanup events.
+
+    The account-deletion path. Deleting the user row alone would let the database
+    FK cascade remove the activities silently, orphaning every thumbnail and
+    stored source file the user ever produced — an incomplete erasure. Removing
+    them explicitly first yields the ids needed to publish ``activity.deleted``,
+    so the cleanup subscribers delete the blobs too.
+
+    Args:
+        user_id: The owning user id.
+        db: Database session.
+
+    Returns:
+        The number of activities deleted.
+    """
+    deleted_ids = activities_crud.delete_all_activities_for_user(user_id, db, commit=False)
+    activity_event_publishers.publish_activities_deleted(
+        deleted_ids,
+        user_id,
+        db,
+        db.commit,
+        source="api:delete_user",
+    )
+    return len(deleted_ids)

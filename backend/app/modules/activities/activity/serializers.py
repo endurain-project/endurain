@@ -1,13 +1,18 @@
 """ORM→schema serialization and visibility masking for activities.
 
 Split out of ``utils.py``: the single place that turns an ``Activity`` ORM row
-into the API ``Activity`` schema (applying timezone formatting and resolving the
-stored thumbnail key to a servable URL) and that masks hidden fields for
-non-owners. Consumed by ``crud`` at the ORM→schema boundary so ORM instances
-never leave that layer.
+into the API ``Activity`` schema (resolving the stored thumbnail key to a
+servable URL) and that masks hidden fields for non-owners. Consumed by ``crud``
+at the ORM→schema boundary so ORM instances never leave that layer.
+
+Datetimes cross the API as timezone-aware UTC instants, paired with the
+activity's IANA ``timezone``; localizing for display is the client's job
+(``Intl.DateTimeFormat`` with an explicit ``timeZone``). The server does not ship
+pre-formatted wall clocks — those carried no offset, so their meaning depended on
+server configuration, they could not be round-tripped, and they duplicated an
+instant that then had to be masked in two places.
 """
 
-import core.timezone as core_timezone
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
@@ -17,17 +22,15 @@ def serialize_activity(
     activity: activities_models.Activity,
 ) -> activities_schema.Activity:
     """
-    Convert an ORM Activity to a schema with TZ.
+    Convert an ORM Activity to its API schema.
 
-    Converts ORM model to Pydantic schema and
-    applies timezone formatting to datetime fields.
     Does NOT mutate the ORM object.
 
     Args:
         activity: The ORM Activity instance.
 
     Returns:
-        An Activity schema with formatted datetimes.
+        An Activity schema.
     """
     schema = activities_schema.Activity.model_validate(activity)
 
@@ -36,15 +39,6 @@ def serialize_activity(
     # storage). Visibility masking below strips this for non-owners of a hidden
     # map, so only permitted viewers ever receive the signed token.
     schema.map_thumbnail_path = activity_thumbnail_render.thumbnail_url(activity.map_thumbnail_path, activity.id)
-
-    tz_name = activity.timezone
-    schema.start_time_tz_applied = core_timezone.format_aware_datetime(activity.start_time, tz_name)
-    schema.end_time_tz_applied = core_timezone.format_aware_datetime(activity.end_time, tz_name)
-    schema.created_at_tz_applied = core_timezone.format_aware_datetime(activity.created_at, tz_name)
-
-    schema.start_time = core_timezone.format_aware_datetime(activity.start_time, None)
-    schema.end_time = core_timezone.format_aware_datetime(activity.end_time, None)
-    schema.created_at = core_timezone.format_aware_datetime(activity.created_at, None)
 
     return schema
 
@@ -75,6 +69,7 @@ def apply_visibility_mask(
     if mask_private_notes:
         schema.private_notes = None
     if schema.hide_start_time:
+        # One representation of the instant means one place to mask it.
         schema.start_time = None
         schema.end_time = None
     if schema.hide_location:

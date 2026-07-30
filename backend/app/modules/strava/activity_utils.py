@@ -157,7 +157,11 @@ def parse_activity(
 ) -> dict:
     # Reuse the process-wide cached TimezoneFinder instead of rebuilding it per activity.
     tf = _get_timezone_finder()
-    timezone = core_config.settings.TZ
+    # Fallback for activities with no GPS track (indoor rides, treadmill runs):
+    # prefer the athlete's own timezone over the server's, which is meaningless
+    # for a user on another continent.
+    owner = users_crud.get_user_by_id(user_id, db)
+    timezone = (owner.timezone if owner and owner.timezone else None) or core_config.settings.TZ
 
     # Check rate limit before detailed activity fetch
     if strava_utils.rate_limit_tracker.is_rate_limited():

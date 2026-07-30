@@ -1,7 +1,23 @@
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(autouse=True)
+def stub_user_local_today():
+    """Pin the fallback anchor.
+
+    Callers that omit ``date``/``year`` fall back to today in the *user's*
+    timezone, which is a DB read the mocked session cannot serve.
+    """
+    with patch(
+        "modules.activities.activity_summaries.router.users_utils.user_local_today",
+        return_value=date(2026, 3, 12),
+    ) as mock:
+        yield mock
 
 
 def _build_app(mock_db):
@@ -79,3 +95,35 @@ class TestReadLifetimeSummary:
 
         response = client.get("/activities_summaries/lifetime", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+
+
+class TestYearValidation:
+    """The year bound must not reject the caller's genuinely current year.
+
+    The request carries no timezone, so validating against the server's UTC year
+    rejected users east of UTC on 1 January (a UTC+13 user is already in the next
+    year for 13 hours before the server is).
+    """
+
+    def test_accepts_a_year_ahead_of_the_server_utc_year(self):
+        from datetime import UTC, datetime
+
+        import modules.activities.activity_summaries.router as router
+
+        assert router._latest_plausible_year() >= datetime.now(UTC).year
+
+    def test_new_year_boundary_east_of_utc_is_accepted(self):
+        import modules.activities.activity_summaries.router as router
+
+        # 31 Dec 23:00 UTC -> already 1 Jan in UTC+13.
+        with patch.object(router, "datetime") as mock_dt:
+            mock_dt.now.return_value = datetime(2026, 12, 31, 23, 0, tzinfo=UTC)
+            assert router._latest_plausible_year() == 2027
+
+    def test_far_future_year_is_still_rejected(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get(
+            "/activities_summaries/year?year=3000",
+            headers={"Authorization": "Bearer x"},
+        )
+        assert resp.status_code == 400
+        assert "Invalid year" in resp.json()["detail"]

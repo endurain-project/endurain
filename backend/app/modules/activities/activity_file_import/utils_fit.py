@@ -18,6 +18,7 @@ import modules.activities.activity_workout_steps.schema as activity_workout_step
 def create_activity_objects(
     sessions_records: list[dict],
     user_id: int,
+    default_timezone: str | None = None,
 ) -> list:
     """Build per-activity parsed payloads from the split FIT session records.
 
@@ -30,7 +31,9 @@ def create_activity_objects(
             f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}",
             "debug",
         )
-        timezone = core_config.settings.TZ
+        # Fallback for sessions with neither a GPS track nor a reported UTC
+        # offset (indoor rides, treadmill runs, pool swims).
+        timezone = default_timezone or core_config.settings.TZ
 
         activities = []
 
@@ -39,6 +42,11 @@ def create_activity_objects(
             activity_type = 10
             activity_name = "Workout"
             pace = 0
+            # Resolve each session's timezone from scratch. Reusing the loop
+            # variable let a session with neither GPS nor a time offset inherit
+            # the PREVIOUS session's timezone, which silently mislabelled every
+            # activity after the first in a multi-activity .fit file.
+            session_timezone = timezone
 
             if session_record["session"]["activity_type"]:
                 # Set the activity type based on the session record
@@ -73,17 +81,18 @@ def create_activity_objects(
 
             if activity_type != 3 and activity_type != 7:
                 if session_record["is_lat_lon_set"]:
-                    timezone = activity_file_import_utils.resolve_timezone_from_lat_lon(
+                    session_timezone = activity_file_import_utils.resolve_timezone_from_lat_lon(
                         session_record["lat_lon_waypoints"][0]["lat"],
                         session_record["lat_lon_waypoints"][0]["lon"],
                         timezone,
                     )
-                else:
-                    if session_record["time_offset"]:
-                        timezone = find_timezone_name(
-                            session_record["time_offset"],
-                            session_record["session"]["first_waypoint_time"],
-                        )
+                elif session_record["time_offset"]:
+                    session_timezone = _timezone_from_offset(
+                        session_record["time_offset"],
+                        session_record["session"]["first_waypoint_time"],
+                        default_timezone,
+                        timezone,
+                    )
 
             avg_power = session_record["session"]["avg_power"]
             max_power = session_record["session"]["max_power"]
@@ -166,7 +175,7 @@ def create_activity_objects(
                 activity_type=activity_type,
                 start_time=session_record["session"]["first_waypoint_time"].strftime("%Y-%m-%dT%H:%M:%S"),
                 end_time=session_record["session"]["last_waypoint_time"].strftime("%Y-%m-%dT%H:%M:%S"),
-                timezone=timezone,
+                timezone=session_timezone,
                 total_elapsed_time=session_record["session"]["total_elapsed_time"],
                 total_timer_time=total_timer_time,
                 city=session_record["session"]["city"],
@@ -1162,8 +1171,82 @@ def calculate_pace(distance, total_timer_time, activity_type, split_summary, len
     return total_timer_time, 0
 
 
+def _timezone_from_offset(
+    offset_seconds: int,
+    reference_date,
+    athlete_timezone: str | None,
+    fallback: str,
+) -> str:
+    """Name the timezone for a GPS-less FIT session that reports a UTC offset.
+
+    Prefers the athlete's own zone **when it agrees with the offset the device
+    recorded**. An offset is not a timezone: turning it into a fixed-offset
+    ``Etc/GMT±H`` name is DST-free by construction, so the same athlete's indoor
+    rides would be stamped ``Etc/GMT+8`` in January and ``Etc/GMT+7`` in July.
+    Their profile zone (``America/Los_Angeles``) is the stable, DST-correct
+    answer for both — and it is the *same* instant either way, so preferring it
+    loses nothing.
+
+    When the offsets disagree the athlete was somewhere other than home, and the
+    device's offset is the better evidence of where they actually were; that
+    falls through to a fixed-offset zone.
+
+    Args:
+        offset_seconds: UTC offset reported by the FIT file, in seconds.
+        reference_date: Instant the offset was observed at, used to evaluate
+            candidate zones DST-aware.
+        athlete_timezone: The owner's configured IANA timezone, if any.
+        fallback: Zone to keep when the offset names no zone at all.
+
+    Returns:
+        An IANA timezone name.
+    """
+    if athlete_timezone:
+        try:
+            athlete_offset = reference_date.astimezone(ZoneInfo(athlete_timezone)).utcoffset()
+        except (ValueError, KeyError):
+            athlete_offset = None
+        if athlete_offset is not None and athlete_offset.total_seconds() == offset_seconds:
+            return athlete_timezone
+
+    # ``find_timezone_name`` can legitimately fail to name a zone for an unusual
+    # offset; keep the caller's fallback rather than storing None (which
+    # downstream formatting cannot use).
+    return find_timezone_name(offset_seconds, reference_date) or fallback
+
+
 def find_timezone_name(offset_seconds, reference_date):
-    for tz_name in available_timezones():
+    """Name a timezone for a FIT file that reports only a UTC offset.
+
+    A bare offset does not identify a zone — dozens share any given offset, and
+    they disagree about DST. Iterating ``available_timezones()`` and returning the
+    first match was effectively a lottery (``+00:00`` could yield
+    ``Africa/Abidjan``), and the winning name then carried the wrong DST rules for
+    every other date of the year.
+
+    So prefer the fixed-offset ``Etc/GMT±H`` zones, which encode exactly what the
+    device actually told us — this offset, no DST — and are stable across runs.
+    Note the POSIX sign inversion: ``Etc/GMT-9`` is UTC**+**9. Offsets that are not
+    a whole number of hours (India +05:30, Nepal +05:45, Chatham +12:45) have no
+    ``Etc/`` equivalent, so fall back to scanning, sorted for determinism.
+
+    Args:
+        offset_seconds: UTC offset reported by the FIT file, in seconds.
+        reference_date: Instant the offset was observed at, used to evaluate
+            candidate zones DST-aware.
+
+    Returns:
+        An IANA timezone name, or ``None`` when no zone matches the offset.
+    """
+    if offset_seconds % 3600 == 0:
+        hours = int(offset_seconds // 3600)
+        if -12 <= hours <= 14:
+            # POSIX-style inverted sign: Etc/GMT-9 == UTC+9.
+            candidate = f"Etc/GMT{-hours:+d}" if hours != 0 else "UTC"
+            if candidate == "UTC" or candidate in available_timezones():
+                return candidate
+
+    for tz_name in sorted(available_timezones()):
         tz = ZoneInfo(tz_name)
 
         # Get the UTC offset of the candidate timezone for
@@ -1175,4 +1258,8 @@ def find_timezone_name(offset_seconds, reference_date):
         if utc_offset.total_seconds() == offset_seconds:
             return tz_name
 
+    core_logger.print_to_log(
+        f"FIT: no timezone matches UTC offset {offset_seconds}s; falling back to the server timezone",
+        "warning",
+    )
     return None

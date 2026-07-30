@@ -18,6 +18,7 @@ import ActivityMetricsGrid from '@/features/activities/components/ActivityMetric
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useActivityOwnerQuery } from '@/features/activities/composables/useActivityDetail'
+import { formatZonedDateTime } from '@/utils/datetime'
 import {
   activityTypeIsVirtual,
   presentActivityType,
@@ -79,19 +80,13 @@ const canSeeLocation = computed(() =>
   canViewField(props.activity, 'hideLocation', props.currentUserId),
 )
 
-const dateTimeLabel = computed(() => {
-  if (!props.activity.startTime) {
-    return null
-  }
-  const date = new Date(props.activity.startTime)
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: canSeeStartTime.value ? 'short' : undefined,
-  }).format(date)
-})
+const dateTimeLabel = computed(
+  () =>
+    formatZonedDateTime(props.activity.startTime, props.activity.timezone, locale.value, {
+      dateStyle: 'medium',
+      timeStyle: canSeeStartTime.value ? 'short' : undefined,
+    }) || null,
+)
 
 const locationLabel = computed(() => {
   if (!canSeeLocation.value) {

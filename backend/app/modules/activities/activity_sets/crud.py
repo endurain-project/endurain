@@ -12,27 +12,21 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_sets.models as activity_sets_models
 import modules.activities.activity_sets.schema as activity_sets_schema
-import modules.server_settings.utils as server_settings_utils
 
 
 def _to_read_schema(
     orm_set: activity_sets_models.ActivitySets,
-    timezone: str | None,
 ) -> activity_sets_schema.ActivitySetsRead:
     """
-    Convert an ORM ActivitySets to a Read schema.
+    Convert an ORM row to its Read schema.
 
     Args:
         orm_set: The ORM model instance.
-        timezone: IANA timezone name from the
-            parent activity.
 
     Returns:
-        An ActivitySetsRead schema instance.
+        A ActivitySetsRead schema instance.
     """
-    schema = activity_sets_schema.ActivitySetsRead.model_validate(orm_set)
-    schema.timezone = timezone
-    return schema
+    return activity_sets_schema.ActivitySetsRead.model_validate(orm_set)
 
 
 @core_decorators.handle_db_errors
@@ -72,7 +66,7 @@ def get_activity_sets(
     if not activity_sets:
         return None
 
-    return [_to_read_schema(s, activity.timezone) for s in activity_sets]
+    return [_to_read_schema(s) for s in activity_sets]
 
 
 @core_decorators.handle_db_errors
@@ -107,8 +101,6 @@ def get_activities_sets(
     if not activities:
         return []
 
-    activity_map = {activity.id: activity for activity in activities}
-
     allowed_ids = [activity.id for activity in activities if activity.user_id == token_user_id]
 
     if not allowed_ids:
@@ -122,13 +114,7 @@ def get_activities_sets(
     if not activity_sets:
         return []
 
-    return [
-        _to_read_schema(
-            s,
-            activity_map[s.activity_id].timezone,
-        )
-        for s in activity_sets
-    ]
+    return [_to_read_schema(s) for s in activity_sets]
 
 
 @core_decorators.handle_db_errors
@@ -150,20 +136,9 @@ def get_public_activity_sets(
     Raises:
         HTTPException: If database error occurs.
     """
-    activity = activity_crud.get_activity_by_id(activity_id, db)
+    activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
 
     if not activity:
-        return None
-
-    if activity.hide_workout_sets_steps:
-        return None
-
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-    if not server_settings.public_shareable_links:
-        return None
-
-    if activity.visibility != 0:
         return None
 
     stmt = select(activity_sets_models.ActivitySets).where(
@@ -174,7 +149,7 @@ def get_public_activity_sets(
     if not activity_sets:
         return None
 
-    return [_to_read_schema(s, activity.timezone) for s in activity_sets]
+    return [_to_read_schema(s) for s in activity_sets]
 
 
 @core_decorators.handle_db_errors

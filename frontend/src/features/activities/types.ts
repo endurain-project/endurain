@@ -212,8 +212,18 @@ export interface Activity {
   isHidden: boolean
   gearId: number | null
 
-  /** Start time with the activity's timezone already applied (ISO string). */
+  /**
+   * Activity start as a UTC instant (ISO 8601 with offset), or `null` when the
+   * owner hid it. Always render it through `formatZonedDateTime` with
+   * {@link Activity.timezone} — never with the viewer's local zone — so the
+   * activity reads in the timezone it was recorded in.
+   */
   startTime: string | null
+  /**
+   * IANA timezone the activity was recorded in, resolved from its GPS track at
+   * import time (or the server default for GPS-less indoor activities).
+   */
+  timezone: string | null
   city: string | null
   town: string | null
   country: string | null

@@ -23,6 +23,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -165,18 +166,19 @@ def create_activity_with_bulk_import(
                 )
 
         # Hand each validated file off for background processing. When durable jobs
-        # are enabled, publish one durable job per file: the event is staged in
-        # the transactional outbox on this request's session, then the relay fans it
-        # into a retryable, dead-letterable processing_jobs row drained by the
-        # in-process worker (local) or the worker fleet (distributed) — a crash
-        # mid-import no longer drops in-flight files, and a failing file retries then
-        # dead-letters (moved to the import-error dir) instead of vanishing on the
-        # first error. When durable jobs are off there is no worker to drain the
-        # queue, so fall back to the legacy module-level threadpool (one task
-        # processing all files, exceptions surfaced via a done-callback).
+        # are enabled, publish one durable job per file: the events are staged in
+        # the transactional outbox on this request's session and committed once,
+        # then the relay fans them into retryable, dead-letterable processing_jobs
+        # rows drained by the in-process worker (local) or the worker fleet
+        # (distributed) — a crash mid-import no longer drops in-flight files, and a
+        # failing file retries then dead-letters (moved to the import-error dir)
+        # instead of vanishing on the first error. A staging failure propagates so
+        # the caller gets a 500 rather than a 202 for files that were never queued.
+        # When durable jobs are off there is no worker to drain the queue, so fall
+        # back to the legacy module-level threadpool (one task processing all
+        # files, exceptions surfaced via a done-callback).
         if core_config.settings.JOBS_ENABLED:
-            for file_path in files_to_process:
-                activity_bulk_import_subscribers.publish_bulk_import_file(file_path, token_user_id, import_time, db)
+            activity_bulk_import_subscribers.publish_bulk_import_files(files_to_process, token_user_id, import_time, db)
         else:
             future = executor.submit(
                 orchestrator.process_all_files_sync,
@@ -209,7 +211,7 @@ def create_activity_with_bulk_import(
                 "continue in the background."
             )
         }
-    except (OSError, RuntimeError) as err:
+    except (OSError, RuntimeError, SQLAlchemyError) as err:
         # Log the exception
         core_logger.print_to_log(
             f"Error in create_activity_with_bulk_import: {err}",

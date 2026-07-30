@@ -151,7 +151,9 @@ export type GearActivityDto = Schemas['Activity']
  * @property id - Stable unique identifier.
  * @property name - Activity display name.
  * @property activityType - Numeric sport-type identifier.
- * @property startTime - Activity start timestamp (ISO string), or `null`.
+ * @property startTime - Activity start as a UTC instant (ISO 8601), or `null`.
+ * @property timezone - IANA timezone the activity was recorded in, used to
+ *   render {@link GearActivity.startTime} in the athlete's local time.
  * @property distance - Activity distance in metres.
  * @property totalTimerTime - Moving time in seconds, or `null`.
  */
@@ -160,6 +162,7 @@ export interface GearActivity {
   name: string
   activityType: number
   startTime: string | null
+  timezone: string | null
   distance: number
   totalTimerTime: number | null
 }

@@ -183,6 +183,11 @@ class Users(Base):
         nullable=False,
         comment="User currency (euro, dollar, pound)",
     )
+    timezone: Mapped[str | None] = mapped_column(
+        String(250),
+        nullable=True,
+        comment=("User IANA timezone, used as the fallback for activities with no GPS track"),
+    )
     email_verified: Mapped[bool] = mapped_column(
         default=False,
         nullable=False,

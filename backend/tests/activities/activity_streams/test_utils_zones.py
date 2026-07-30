@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
 
 
@@ -78,3 +80,74 @@ def test_compute_hr_zone_breakdown_sync_returns_none_without_hr_values():
     from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
 
     assert compute_hr_zone_breakdown_sync([{"cadence": 90}], max_heart_rate=200, total_timer_time=100) is None
+
+
+class TestResolveMaxHeartRate:
+    """``220 - age`` needs completed years, not a year subtraction."""
+
+    @staticmethod
+    def _user(**kw):
+        from unittest.mock import MagicMock
+
+        return MagicMock(**kw)
+
+    def test_stored_value_wins(self):
+        import modules.activities.activity_streams.utils as utils
+
+        assert utils.resolve_max_heart_rate(self._user(max_heart_rate=190)) == 190
+
+    def test_no_birthdate_and_no_stored_value(self):
+        import modules.activities.activity_streams.utils as utils
+
+        assert utils.resolve_max_heart_rate(self._user(max_heart_rate=None, birthdate=None)) is None
+
+    def test_birthday_not_yet_reached_this_year(self):
+        """Subtracting birth years alone aged a December-born user a year early."""
+        from datetime import date
+
+        import modules.activities.activity_streams.utils as utils
+
+        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)):
+            result = utils.resolve_max_heart_rate(
+                self._user(max_heart_rate=None, birthdate=date(1990, 12, 25), timezone="UTC")
+            )
+
+        # On 1 Mar 2026 a 1990-12-25 birthdate is 35, not 36.
+        assert result == 220 - 35
+
+    def test_birthday_already_passed_this_year(self):
+        from datetime import date
+
+        import modules.activities.activity_streams.utils as utils
+
+        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)):
+            result = utils.resolve_max_heart_rate(
+                self._user(max_heart_rate=None, birthdate=date(1990, 1, 5), timezone="UTC")
+            )
+
+        assert result == 220 - 36
+
+    def test_age_is_resolved_in_the_users_own_timezone(self):
+        """A birthday is a local date: UTC would roll it a day early or late."""
+        from datetime import date
+
+        import modules.activities.activity_streams.utils as utils
+
+        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
+            utils.resolve_max_heart_rate(
+                self._user(max_heart_rate=None, birthdate=date(1990, 1, 5), timezone="Pacific/Kiritimati")
+            )
+
+        today_in.assert_called_once_with("Pacific/Kiritimati")
+
+    def test_falls_back_to_the_server_timezone_when_the_user_has_none(self):
+        """``users.timezone`` is nullable for accounts predating the setting."""
+        from datetime import date
+
+        import core.config as core_config
+        import modules.activities.activity_streams.utils as utils
+
+        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
+            utils.resolve_max_heart_rate(self._user(max_heart_rate=None, birthdate=date(1990, 1, 5), timezone=None))
+
+        today_in.assert_called_once_with(core_config.settings.TZ)

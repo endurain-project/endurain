@@ -415,3 +415,167 @@ class TestParseFrameSession:
     def test_unknown_sub_sport_falls_through(self):
         """Unmapped sub_sport returns the sub_sport string."""
         assert self._activity_type(sport="running", sub_sport="ultramarathon") == "ultramarathon"
+
+
+class TestFindTimezoneName:
+    """A bare UTC offset does not identify a zone, so the answer must be honest.
+
+    Scanning ``available_timezones()`` and returning the first match was a lottery
+    (``+00:00`` could yield ``Africa/Abidjan``) and the winning name carried that
+    zone's DST rules for every other date of the year.
+    """
+
+    _REF = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
+
+    def test_whole_hour_offset_maps_to_a_fixed_offset_zone(self):
+        # POSIX sign inversion: Etc/GMT-9 is UTC+9.
+        assert utils_fit.find_timezone_name(9 * 3600, self._REF) == "Etc/GMT-9"
+        assert utils_fit.find_timezone_name(-5 * 3600, self._REF) == "Etc/GMT+5"
+
+    def test_zero_offset_is_utc(self):
+        assert utils_fit.find_timezone_name(0, self._REF) == "UTC"
+
+    def test_result_is_deterministic(self):
+        first = utils_fit.find_timezone_name(2 * 3600, self._REF)
+        second = utils_fit.find_timezone_name(2 * 3600, self._REF)
+        assert first == second
+
+    def test_resolved_zone_reproduces_the_offset(self):
+        from zoneinfo import ZoneInfo
+
+        name = utils_fit.find_timezone_name(9 * 3600, self._REF)
+        assert self._REF.astimezone(ZoneInfo(name)).utcoffset().total_seconds() == 9 * 3600
+
+    def test_half_hour_offset_falls_back_to_a_named_zone(self):
+        from zoneinfo import ZoneInfo
+
+        # India (+05:30) has no Etc/GMT equivalent.
+        name = utils_fit.find_timezone_name(5 * 3600 + 1800, self._REF)
+        assert name is not None
+        assert self._REF.astimezone(ZoneInfo(name)).utcoffset().total_seconds() == 5 * 3600 + 1800
+
+    def test_impossible_offset_returns_none(self):
+        assert utils_fit.find_timezone_name(1234, self._REF) is None
+
+
+class TestPerSessionTimezone:
+    """Each session in a multi-activity .fit resolves its own timezone."""
+
+    def test_session_without_offset_does_not_inherit_the_previous_one(self):
+        import core.config as core_config
+
+        with_offset = _session_record("garmin")
+        with_offset["time_offset"] = 9 * 3600
+        without_offset = _session_record("garmin")
+
+        activities = utils_fit.create_activity_objects([with_offset, without_offset], user_id=1)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+        # Previously this inherited "Etc/GMT-9" from the session before it.
+        assert activities[1]["activity"].timezone == core_config.settings.TZ
+
+    def test_unresolvable_offset_keeps_the_server_default(self):
+        import core.config as core_config
+
+        record = _session_record("garmin")
+        record["time_offset"] = 1234  # no zone has this offset
+
+        activities = utils_fit.create_activity_objects([record], user_id=1)
+
+        assert activities[0]["activity"].timezone == core_config.settings.TZ
+
+
+class TestOwnerTimezoneFallback:
+    """A GPS-less session falls back to the athlete's timezone, not the server's.
+
+    Indoor rides, treadmill runs and pool swims carry no GPS track, so there is
+    nothing in the file to resolve a zone from. Defaulting to the server's TZ
+    stamped a US athlete's treadmill run with the host's European timezone, which
+    then drove both its displayed start time and which day it was summarised into.
+    """
+
+    def test_uses_the_owner_timezone_when_the_session_has_no_gps(self):
+        record = _session_record("garmin")
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "America/Los_Angeles"
+
+    def test_falls_back_to_the_server_timezone_when_the_owner_has_none(self):
+        import core.config as core_config
+
+        record = _session_record("garmin")
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone=None)
+
+        assert activities[0]["activity"].timezone == core_config.settings.TZ
+
+    def test_the_files_own_offset_still_wins_over_the_owner_timezone(self):
+        """What the device recorded beats a profile default."""
+        record = _session_record("garmin")
+        record["time_offset"] = 9 * 3600
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+
+class TestOffsetVersusAthleteTimezone:
+    """A reported UTC offset is evidence of *where*, not of *which zone*.
+
+    Turning it straight into a fixed-offset ``Etc/GMT+-H`` name is DST-free, so
+    the same athlete's indoor rides would be stamped differently in winter and
+    summer. When the offset agrees with their configured zone, that zone is the
+    stable, DST-correct name for the same instant.
+    """
+
+    @staticmethod
+    def _record(offset_seconds: int, when: datetime) -> dict:
+        record = _session_record("garmin")
+        record["time_offset"] = offset_seconds
+        record["session"]["first_waypoint_time"] = when
+        record["session"]["last_waypoint_time"] = when
+        return record
+
+    def test_prefers_the_athlete_zone_when_the_offset_agrees(self):
+        # Los Angeles is UTC-8 in January.
+        record = self._record(-8 * 3600, datetime(2024, 1, 15, 17, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "America/Los_Angeles"
+
+    def test_same_athlete_gets_the_same_zone_across_dst(self):
+        """The whole point: winter and summer indoor rides agree."""
+        winter = self._record(-8 * 3600, datetime(2024, 1, 15, 17, 0, tzinfo=UTC))
+        # Los Angeles is UTC-7 in July, so the device reports a different offset.
+        summer = self._record(-7 * 3600, datetime(2024, 7, 15, 16, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects(
+            [winter, summer], user_id=1, default_timezone="America/Los_Angeles"
+        )
+
+        zones = [a["activity"].timezone for a in activities]
+        assert zones == ["America/Los_Angeles", "America/Los_Angeles"]
+
+    def test_falls_back_to_a_fixed_offset_when_the_athlete_was_travelling(self):
+        """A mismatch means they were not at home; trust the device."""
+        record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="America/Los_Angeles")
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+    def test_uses_a_fixed_offset_when_the_athlete_has_no_zone(self):
+        record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone=None)
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+    def test_an_unusable_athlete_zone_does_not_break_resolution(self):
+        record = self._record(9 * 3600, datetime(2024, 1, 15, 0, 0, tzinfo=UTC))
+
+        activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="Not/AZone")
+
+        assert activities[0]["activity"].timezone == "Etc/GMT-9"

@@ -35,24 +35,54 @@ from infra.jobs.registry import JobHandlerRegistry
 BULK_IMPORT_FILE_SUBSCRIBER_ID = "activity_ingestion.bulk_import_file"
 
 
-def publish_bulk_import_file(file_path: str, user_id: int, import_initiated_time: str, db: Session) -> None:
-    """Publish one durable bulk-import-file event (one retryable job per file).
+def publish_bulk_import_files(
+    file_paths: list[str],
+    user_id: int,
+    import_initiated_time: str,
+    db: Session,
+) -> None:
+    """Enqueue one durable bulk-import job per file, in a single transaction.
+
+    Unlike every other publish in the activities domain, this event **is** the
+    work rather than a notification about work already done: nothing else records
+    the intent to import the file, and the subscriber is deliberately
+    reconciliation-net exempt (a dead-lettered file is recovered by re-adding it
+    to the bulk-import directory, not by a sweeper). A swallowed publish failure
+    would therefore mean the file is silently never imported while the route still
+    answers 202 — so this goes through
+    :func:`infra.publisher.publish_many_committing`, which **propagates** staging
+    failures instead of logging and continuing.
+
+    Staging the whole batch in one transaction also replaces the previous
+    one-commit-per-file loop, so enqueuing a large export is a single commit
+    rather than thousands inside one request.
 
     Args:
-        file_path: Absolute path to the queued activity file.
+        file_paths: Absolute paths to the queued activity files.
         user_id: ID of the user performing the import.
         import_initiated_time: ISO timestamp of when the bulk import was initiated.
-        db: The request's database session (the event is staged in the outbox on
-            it when durable delivery is enabled).
+        db: The request's database session (the outbox rows are staged on it).
 
     Returns:
         None.
+
+    Raises:
+        Exception: Propagated from the outbox staging so the caller can fail the
+            request instead of reporting a false success.
     """
-    platform_publisher.publish(
+    platform_publisher.publish_many_committing(
         ingestion_events.ACTIVITY_BULK_IMPORT_FILE,
-        {"file_path": file_path, "user_id": user_id, "import_initiated_time": import_initiated_time},
+        [
+            {"file_path": file_path, "user_id": user_id, "import_initiated_time": import_initiated_time}
+            for file_path in file_paths
+        ],
         source="api:bulk_import",
         db=db,
+        commit=db.commit,
+    )
+    core_logger.print_to_log(
+        f"Bulk import: enqueued {len(file_paths)} durable file job(s) for user {user_id}",
+        "info",
     )
 
 

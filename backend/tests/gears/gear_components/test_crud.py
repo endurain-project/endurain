@@ -356,3 +356,58 @@ class TestGetComponentsActivityStats:
         with pytest.raises(HTTPException) as e:
             crud.get_components_activity_stats(gear_id=1, db=mock_db)
         assert e.value.status_code == 500
+
+
+class TestComponentWindowIsLocal:
+    """The purchase/retired window is a calendar range, not an instant range.
+
+    ``purchase_date``/``retired_date`` are dates, so comparing them against the
+    raw ``start_time`` instant put the boundary at UTC midnight: at UTC-8 an
+    evening ride the day *before* a purchase counted towards the new component,
+    and at UTC+13 a morning ride *on* the purchase day did not count at all.
+    """
+
+    @staticmethod
+    def _emitted_sql(gear_id: int = 1) -> str:
+        # Compiling an ORM statement configures the whole mapper registry, and
+        # relationships use string targets — so every related model has to be
+        # imported first or the compile fails on an unresolved name.
+        import modules.gears.gear_components.crud as crud
+        from tests._helpers.db import _import_all_models
+
+        _import_all_models()
+
+        db = MagicMock()
+        db.get_bind.return_value.dialect.name = "postgresql"
+        db.execute.return_value.all.return_value = []
+
+        crud.get_components_activity_stats(gear_id=gear_id, db=db)
+
+        from sqlalchemy.dialects import postgresql
+
+        statement = db.execute.call_args.args[0]
+        return str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    def test_window_compares_the_activitys_local_date(self):
+        sql = self._emitted_sql()
+
+        # The activity side of the join is converted through its own IANA zone
+        # and truncated to a date before being compared to the component bounds.
+        assert "coalesce(activities.timezone, 'UTC')" in sql
+        assert "date(timezone(" in sql
+
+    def test_window_does_not_compare_the_raw_instant(self):
+        """The regression itself: a bare ``start_time`` bound is the UTC-midnight bug."""
+        sql = self._emitted_sql().replace("\n", " ")
+
+        assert ">= anon_1.purchase_date" in sql
+        # ``start_time`` may only appear wrapped in the timezone conversion.
+        assert "activities.start_time >=" not in sql
+        assert "activities.start_time <=" not in sql
+
+    def test_retired_date_is_inclusive_and_nullable(self):
+        """A component still in use has no upper bound; one retired today keeps that day."""
+        sql = self._emitted_sql().replace("\n", " ")
+
+        assert "anon_1.retired_date IS NULL" in sql
+        assert "<= anon_1.retired_date" in sql

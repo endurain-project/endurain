@@ -7,15 +7,11 @@ from typing import Any
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     StrictFloat,
     StrictInt,
     StrictStr,
-    field_serializer,
     field_validator,
 )
-
-import core.timezone as core_timezone
 
 _FLOAT_FIELDS: tuple[str, ...] = (
     "start_position_lat",
@@ -151,34 +147,23 @@ class ActivityLapsRead(ActivityLapsBase):
     """
     Schema for reading activity laps.
 
+    ``start_time`` crosses the API as a timezone-aware UTC instant, matching the
+    parent activity. Clients localize it for display using that activity's
+    ``timezone`` — the server no longer ships a pre-formatted wall clock, which
+    carried no offset and so could not be converted or round-tripped.
+
     Attributes:
         id: Lap primary key.
         activity_id: Parent activity ID.
-        start_time: Lap start time as datetime.
-        timezone: Activity timezone for
-            serialization (excluded from output).
+        start_time: Lap start as a timezone-aware UTC instant.
     """
 
     id: StrictInt
     activity_id: StrictInt
     start_time: datetime  # type: ignore[assignment]
-    timezone: StrictStr | None = Field(default=None, exclude=True)
 
     model_config = ConfigDict(
         from_attributes=True,
         extra="forbid",
         validate_assignment=True,
     )
-
-    @field_serializer("start_time")
-    def serialize_start_time(self, value: datetime) -> str:
-        """
-        Format start_time with activity timezone.
-
-        Args:
-            value: The datetime value to serialize.
-
-        Returns:
-            Formatted datetime string.
-        """
-        return core_timezone.format_aware_datetime(value, self.timezone)
