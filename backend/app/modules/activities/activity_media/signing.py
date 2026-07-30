@@ -17,7 +17,11 @@ one.
 
 The token binds ``media_id`` alone; the route additionally checks the row belongs
 to the ``activity_id`` in the path, so a URL cannot be replayed against another
-activity. There is no expiry, which keeps the URL stable and browser-cacheable.
+activity. The token is bounded by :data:`_TOKEN_MAX_AGE_SECONDS` rather than
+living forever — comfortably longer than the route's own browser cache window
+(see ``activity_media.public_router``) so a still-cached image never 404s
+mid-cache, but not unbounded, matching ``activity_thumbnail`` and
+``users.users.signing``.
 """
 
 import core.config as core_config
@@ -28,6 +32,11 @@ import infra.runtime as platform_runtime
 # the activity-thumbnail signer): a media token can never be replayed as a
 # thumbnail token even though both bind a bare integer id.
 _SALT = "activity-media"
+
+# How long a signed token remains valid after it was minted. See
+# ``activity_thumbnail.signing`` for the rationale; kept identical for
+# consistency across the three signers.
+_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
 
 # The storage area (domain-owned namespace) activity media lives under. For the
 # ``local`` backend this maps to ``{DATA_DIR}/activity_media`` — the exact
@@ -49,16 +58,17 @@ def sign_media_token(media_id: int) -> str:
 
 
 def verify_media_token(media_id: int, token: str) -> bool:
-    """Return whether ``token`` is a valid signature for ``media_id``.
+    """Return whether ``token`` is a valid, unexpired signature for ``media_id``.
 
     Args:
         media_id: The media id the token must be bound to.
         token: The signed token from the request.
 
     Returns:
-        True if the token is authentic and bound to ``media_id``.
+        True if the token is authentic, bound to ``media_id``, and no older than
+        :data:`_TOKEN_MAX_AGE_SECONDS`.
     """
-    return core_signing.verify_token(_SALT, media_id, token)
+    return core_signing.verify_token(_SALT, media_id, token, max_age=_TOKEN_MAX_AGE_SECONDS)
 
 
 def media_url(key: str, activity_id: int, media_id: int) -> str:

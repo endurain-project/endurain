@@ -22,12 +22,12 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
-import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import infra.event_versioning as platform_event_versioning
 import infra.publisher as platform_publisher
 import modules.activities.activity_ingestion.bulk_entry as bulk_entry
 import modules.activities.activity_ingestion.events as ingestion_events
+import modules.activities.activity_ingestion.staging as staging
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 
@@ -73,16 +73,38 @@ def publish_bulk_import_files(
         Exception: Propagated from the outbox staging so the caller can fail the
             request instead of reporting a false success.
     """
-    platform_publisher.publish_many_committing(
-        ingestion_events.ACTIVITY_BULK_IMPORT_FILE,
-        [
-            {"file_path": file_path, "user_id": user_id, "import_initiated_time": import_initiated_time}
-            for file_path in file_paths
-        ],
-        source="api:bulk_import",
-        db=db,
-        commit=db.commit,
-    )
+    # Staged here, in the request thread, because this is the only place
+    # guaranteed to see the dropped file. A worker that claims the job may be on
+    # another node entirely.
+    staged: list[tuple[str, str]] = []
+    try:
+        for file_path in file_paths:
+            staged.append((staging.stage_file(user_id, file_path), file_path))
+
+        platform_publisher.publish_many_committing(
+            ingestion_events.ACTIVITY_BULK_IMPORT_FILE,
+            [
+                {
+                    "storage_key": key,
+                    "filename": os.path.basename(file_path),
+                    "user_id": user_id,
+                    "import_initiated_time": import_initiated_time,
+                }
+                for key, file_path in staged
+            ],
+            source="api:bulk_import",
+            db=db,
+            commit=db.commit,
+            schema_version=ingestion_events.BulkImportFilePayload.SCHEMA_VERSION,
+        )
+    except Exception:
+        # Nothing will import these blobs, and the caller gets a 500. Drop them
+        # and leave the dropped files alone so the user can simply retry.
+        staging.unstage([key for key, _ in staged])
+        raise
+
+    # Only now are the jobs durable, so consuming the originals is safe.
+    staging.settle(staged, user_id)
     logger.info(
         "Bulk import: enqueued durable file jobs",
         extra=core_logger.context(user_id=user_id, file_count=len(file_paths)),
@@ -90,79 +112,59 @@ def publish_bulk_import_files(
 
 
 def process_bulk_import_file_for_event(event: Event) -> None:
-    """Durable handler: import one bulk-import file; raises so the runner retries.
+    """Durable handler: import one staged bulk-import file; raises so the runner retries.
 
     The durable-job handler for ``activity.bulk_import_file``: any error
     propagates so the runner retries with backoff and eventually dead-letters the
-    job. On the final attempt (this failure will dead-letter the job) the
-    offending file is moved to the import-error directory first, so a
-    dead-lettered file leaves the same human trail as before — but only after the
-    retries are exhausted, not on the first error.
+    job. On the final attempt the staged blob is moved to the import-error area
+    first, so a dead-lettered file still leaves a human trail — but only after
+    the retries are exhausted, not on the first error.
 
     Args:
         event: The ``activity.bulk_import_file`` event (payload
-            ``{"file_path": str, "user_id": int, "import_initiated_time": str}``).
+            ``{"storage_key": str, "filename": str, "user_id": int,
+            "import_initiated_time": str}``).
 
     Returns:
         None.
     """
     payload = platform_event_versioning.parse_payload(ingestion_events.BulkImportFilePayload, event)
-    # The file path arrives in the (durable, replayable) event payload; re-verify
-    # it still resolves under *this user's* bulk-import directory before touching
-    # the file. Confining to the shared root would let a forged job read another
-    # user's drop directory.
-    user_dir = core_config.bulk_import_dir_for(payload.user_id)
-    file_path = str(core_file_uploads.ensure_within(payload.file_path, user_dir))
     try:
-        with core_database.SessionLocal() as db:
-            bulk_entry.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
+        with staging.materialized(payload.storage_key, payload.filename) as file_path:
+            if file_path is None:
+                # Already imported and discarded: a duplicate delivery, not a
+                # failure. Raising would retry until the job dead-lettered.
+                logger.info(
+                    "Bulk import: skipping a job whose file is no longer staged",
+                    extra=core_logger.context(
+                        user_id=payload.user_id, file=payload.filename, storage_key=payload.storage_key
+                    ),
+                )
+                return
+            with core_database.SessionLocal() as db:
+                bulk_entry.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
+        staging.discard(payload.storage_key)
         logger.debug(
             "Imported a bulk-import file",
-            extra=core_logger.context(user_id=payload.user_id, file=os.path.basename(file_path)),
+            extra=core_logger.context(user_id=payload.user_id, file=payload.filename),
         )
     except Exception as err:
         # ``retry_count`` is the (claim-incremented) attempt number; when it has
-        # reached the ceiling this failure dead-letters the job, so move the file
-        # to the import-error directory as the trail before re-raising.
+        # reached the ceiling this failure dead-letters the job.
         if event.retry_count >= core_config.settings.JOBS_MAX_ATTEMPTS:
-            _move_to_error_dir(file_path, payload.user_id)
+            staging.move_to_errors(payload.storage_key, payload.user_id, payload.filename)
         else:
             logger.warning(
                 "Bulk-import file failed; the job will be retried",
                 exc_info=err,
                 extra=core_logger.context(
                     user_id=payload.user_id,
-                    file=os.path.basename(file_path),
+                    file=payload.filename,
                     attempt=event.retry_count,
                     max_attempts=core_config.settings.JOBS_MAX_ATTEMPTS,
                 ),
             )
         raise
-
-
-def _move_to_error_dir(file_path: str, user_id: int) -> None:
-    """Move a dead-lettered bulk-import file to that user's import-error directory."""
-    try:
-        error_dir = core_config.bulk_import_error_dir_for(user_id)
-        os.makedirs(error_dir, exist_ok=True)
-        core_file_uploads.move_within(
-            file_path,
-            error_dir,
-            filename=os.path.basename(file_path),
-            src_base_dir=core_config.bulk_import_dir_for(user_id),
-        )
-        logger.error(
-            "Bulk import: dead-lettered file moved to the import-error directory",
-            extra=core_logger.context(
-                console=True, user_id=user_id, file=os.path.basename(file_path), error_dir=error_dir
-            ),
-        )
-    except OSError as err:
-        logger.error(
-            "Bulk import: failed to move a dead-lettered file to the import-error directory",
-            exc_info=err,
-            extra=core_logger.context(console=True, user_id=user_id, file=os.path.basename(file_path)),
-        )
 
 
 def register_bulk_import_durable_handlers(registry: JobHandlerRegistry) -> None:

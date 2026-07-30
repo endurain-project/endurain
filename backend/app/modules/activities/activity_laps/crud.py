@@ -90,7 +90,7 @@ def get_activity_laps(
         the endpoint cannot be used to probe which activities exist.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
@@ -133,7 +133,7 @@ def get_activities_laps(
         List of ActivityLapsRead schemas.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     if not activity_ids:
         return []
@@ -180,7 +180,7 @@ def get_public_activity_laps(
         unauthenticated.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_laps")
 
@@ -219,7 +219,7 @@ def create_activity_laps(
         None.
 
     Raises:
-        HTTPException: If database error occurs.
+        ProcessingError: If database error occurs.
     """
     laps = [
         activity_laps_models.ActivityLaps(

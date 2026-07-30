@@ -299,7 +299,7 @@ def get_all_activities(
         List of Activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     activities = db.execute(select(activities_models.Activity)).scalars().all()
     if not activities:
@@ -323,7 +323,7 @@ def get_all_activities_for_migration(
         A migration reference per activity, or an empty list when there are none.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     activities = db.execute(select(activities_models.Activity)).scalars().all()
     return [
@@ -368,7 +368,7 @@ def get_user_activities(
         List of activity schemas or None when no matches.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(activities_models.Activity.user_id == user_id)
     stmt = _apply_activity_visibility_filter(
@@ -428,7 +428,7 @@ def count_user_activities(
         Number of matching activities.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(func.count())
@@ -466,7 +466,7 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity)
@@ -522,7 +522,7 @@ def get_user_activities_with_pagination(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.user_id == user_id,
@@ -583,7 +583,7 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int,
         Dict of activity_type -> human readable name.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity.activity_type)
@@ -624,7 +624,7 @@ def get_user_activities_per_timeframe(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity)
@@ -677,7 +677,7 @@ def get_user_activities_per_timeframe_and_activity_type(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity)
@@ -734,7 +734,7 @@ def get_user_activities_per_timeframe_and_activity_types(
         List of activity schemas.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity)
@@ -781,7 +781,7 @@ def get_user_following_activities_with_pagination(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     if not followee_ids:
         return None
@@ -862,7 +862,7 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     followee_ids = followers_integration.list_accepted_followee_ids(user_id, db)
     if not followee_ids:
@@ -894,7 +894,7 @@ def count_user_following_activities(followee_ids: list[int], db: Session) -> int
         Number of following-feed activities.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     if not followee_ids:
         return 0
@@ -929,7 +929,7 @@ def get_gear_activities_count_by_user_id(
         Number of activities for the gear.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(func.count())
@@ -958,7 +958,7 @@ def get_user_activities_by_gear_id_and_user_id(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity)
@@ -998,7 +998,7 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
         List of activity schemas or None when empty.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         select(activities_models.Activity)
@@ -1034,7 +1034,7 @@ def sum_gear_usage(gear_id: int, db: Session) -> activities_contracts.ActivityUs
         The gear's totals; zeroes when it has no activities.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(
         func.coalesce(func.sum(activities_models.Activity.distance), 0),
@@ -1068,7 +1068,7 @@ def sum_gear_usage_by_window(
         so every requested key is always present.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     if not windows:
         return {}
@@ -1112,7 +1112,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         Activity schema or None if not found / not visible.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         or_(
@@ -1162,7 +1162,7 @@ def get_viewable_activity_by_id_for_user(
         The activity schema when the user may view it, otherwise ``None``.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         or_(
@@ -1189,7 +1189,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
         Activity schema or None when not public / not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     server_settings = server_settings_utils.get_server_settings_or_404(db)
     if not server_settings.public_shareable_links:
@@ -1246,7 +1246,7 @@ def get_public_activity_for_child_read(
         otherwise ``None``.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     activity = get_activity_by_id_if_is_public(activity_id, db)
     if activity is None:
@@ -1278,7 +1278,7 @@ def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activ
         Activity schema or None when not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.id == activity_id,
@@ -1304,7 +1304,7 @@ def get_activity_by_start_time(
         Activity schema or None when not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     if isinstance(start_time, str):
         start_time = datetime.fromisoformat(start_time)
@@ -1336,7 +1336,7 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
         Activity schema or None when not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.user_id == user_id,
@@ -1361,7 +1361,7 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
         Activity schema or None when not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.user_id == user_id,
@@ -1388,7 +1388,7 @@ def get_activity_by_strava_id_from_user_id(
         Activity schema or None when not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.user_id == user_id,
@@ -1415,7 +1415,7 @@ def get_activity_by_garminconnect_id_from_user_id(
         Activity schema or None when not found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.user_id == user_id,
@@ -1455,7 +1455,7 @@ def create_activity(
         forwards to the ``activity.created`` notification subscriber.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     if activity.user_id is None:
         raise core_exceptions.InvalidInputError("Activity user_id is required")
@@ -1530,7 +1530,7 @@ def set_activity_thumbnail_path(
         None
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
     db_activity = db.execute(stmt).scalar_one_or_none()
@@ -1569,7 +1569,7 @@ def update_activity_location(
         found.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
     db_activity = db.execute(stmt).scalar_one_or_none()
@@ -1769,8 +1769,8 @@ def edit_activity(
         The updated activity as a serialized schema.
 
     Raises:
-        HTTPException: 404 when the activity is missing or
-            500 on database error.
+        NotFoundError: When the activity is missing.
+        ProcessingError: On database error.
     """
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.user_id == user_id,
@@ -1821,7 +1821,7 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
         Number of activities updated.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         sa_update(activities_models.Activity)
@@ -1861,7 +1861,7 @@ def bulk_set_activities_gear_id(
         Total number of rows updated across all groups.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     if not gear_assignments:
         return 0
@@ -1904,7 +1904,7 @@ def update_activity_gear_id(
         None
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         sa_update(activities_models.Activity)
@@ -1942,8 +1942,8 @@ def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = 
         None
 
     Raises:
-        HTTPException: 404 when the activity is missing or not owned by
-            ``user_id``, or 500 on database error.
+        NotFoundError: When the activity is missing or not owned by ``user_id``.
+        ProcessingError: On database error.
     """
     try:
         stmt = sa_delete(activities_models.Activity).where(
@@ -1982,7 +1982,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: boo
         events that reclaim each activity's thumbnail and stored source file.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         sa_delete(activities_models.Activity)
@@ -2022,7 +2022,7 @@ def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = Tru
         The IDs of the deleted activities.
 
     Raises:
-        HTTPException: 500 on database error.
+        ProcessingError: On database error.
     """
     stmt = (
         sa_delete(activities_models.Activity)

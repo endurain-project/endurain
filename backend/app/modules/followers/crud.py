@@ -47,7 +47,7 @@ def get_all_followers_by_user_id(
         List of Follower records (empty list if none).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
     if accepted_only:
@@ -69,7 +69,7 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session) -> list[followe
         List of accepted Follower records (empty list if none).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.followee_id == user_id,
@@ -104,7 +104,7 @@ def get_all_following_by_user_id(
         List of Follower records (empty list if none).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(followers_models.Follower).where(followers_models.Follower.follower_id == user_id)
     if accepted_only:
@@ -126,7 +126,7 @@ def get_accepted_following_by_user_id(user_id: int, db: Session) -> list[followe
         List of accepted Follower records (empty list if none).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == user_id,
@@ -199,7 +199,7 @@ def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool
         Number of follower records.
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = (
         select(func.count())
@@ -225,7 +225,7 @@ def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool
         Number of follow records.
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = (
         select(func.count())
@@ -253,7 +253,7 @@ def get_follower_for_user_id_and_target_user_id(
         Follower record if found, otherwise None.
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == user_id,
@@ -278,7 +278,7 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
         The followee user ids (empty list if none).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(followers_models.Follower.followee_id).where(
         followers_models.Follower.follower_id == user_id,
@@ -309,8 +309,9 @@ def create_follower(
         The newly created Follower relationship as a DTO.
 
     Raises:
-        HTTPException: 400 if attempting to follow self, 409 if relationship
-            already exists, 500 on database errors.
+        InvalidInputError: If attempting to follow self.
+        ConflictError: If the relationship already exists.
+        ProcessingError: On other database errors.
     """
     # Prevent self-follow which would otherwise pollute counts and
     # notifications.
@@ -376,8 +377,8 @@ def accept_follower(
         None.
 
     Raises:
-        HTTPException: 404 if no pending request exists, 500 on database
-            errors.
+        NotFoundError: If no pending request exists.
+        ProcessingError: On other database errors.
     """
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == target_user_id,
@@ -413,8 +414,8 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
         None.
 
     Raises:
-        HTTPException: 404 if no matching follower record exists, 500 on
-            database errors.
+        NotFoundError: If no matching follower record exists.
+        ProcessingError: On other database errors.
     """
     stmt = delete(followers_models.Follower).where(
         followers_models.Follower.follower_id == user_id,

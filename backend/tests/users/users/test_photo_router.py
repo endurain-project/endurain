@@ -41,6 +41,19 @@ class TestUserImageTokenSigning:
         assert verify_user_image_token(42, sign_thumbnail_token(42)) is False
         assert verify_user_image_token(42, sign_media_token(42)) is False
 
+    def test_a_token_older_than_the_max_age_is_rejected(self, monkeypatch):
+        """A token minted for one photo must not stay valid forever once it is
+        replaced or removed."""
+        import time
+
+        import modules.users.users.signing as signing
+
+        monkeypatch.setattr(signing, "_TOKEN_MAX_AGE_SECONDS", 1)
+        token = signing.sign_user_image_token(42)
+        time.sleep(2.1)
+
+        assert signing.verify_user_image_token(42, token) is False
+
 
 class TestUserImageUrl:
     def test_none_without_a_stored_key(self):

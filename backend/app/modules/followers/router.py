@@ -3,10 +3,11 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.followers.schema as followers_schema
 import modules.followers.service as followers_service
@@ -132,7 +133,9 @@ def list_follow_requests(
     response_model=followers_schema.FollowRelationship,
     status_code=status.HTTP_201_CREATED,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def follow_user(
+    request: Request,
     user_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
@@ -152,7 +155,9 @@ def follow_user(
     response_model=followers_schema.FollowRelationship,
     status_code=status.HTTP_200_OK,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def decide_follow_request(
+    request: Request,
     requester_user_id: int,
     decision: followers_schema.FollowRequestDecision,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
@@ -172,7 +177,9 @@ def decide_follow_request(
     "/follow-requests/{requester_user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def reject_follow_request(
+    request: Request,
     requester_user_id: int,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
@@ -190,7 +197,9 @@ def reject_follow_request(
     "/users/{user_id}/followers/{follower_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_follow_relationship(
+    request: Request,
     user_id: int,
     follower_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],

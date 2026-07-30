@@ -36,7 +36,7 @@ def get_activity_streams(
         List of activity streams or None.
 
     Raises:
-        HTTPException: On database errors.
+        ProcessingError: On database errors.
     """
     activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
         activity_id, token_user_id, db
@@ -79,7 +79,7 @@ def get_activities_streams(
         List of activity streams.
 
     Raises:
-        HTTPException: On database errors.
+        ProcessingError: On database errors.
     """
     stmt = select(activity_streams_models.ActivityStreams).where(
         activity_streams_models.ActivityStreams.activity_id.in_(activity_ids)
@@ -108,7 +108,7 @@ def get_public_activity_streams(
         List of activity streams.
 
     Raises:
-        HTTPException: On database errors.
+        ProcessingError: On database errors.
     """
     server_settings = server_settings_utils.get_server_settings_or_404(db)
 
@@ -162,7 +162,7 @@ def get_activity_stream_by_type(
         The activity stream or None.
 
     Raises:
-        HTTPException: On database errors.
+        ProcessingError: On database errors.
     """
     activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
         activity_id, token_user_id, db
@@ -238,7 +238,7 @@ def get_public_activity_stream_by_type(
         The activity stream or None.
 
     Raises:
-        HTTPException: On database errors.
+        ProcessingError: On database errors.
     """
     server_settings = server_settings_utils.get_server_settings_or_404(db)
 

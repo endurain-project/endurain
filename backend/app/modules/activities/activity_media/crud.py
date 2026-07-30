@@ -47,7 +47,7 @@ def get_all_activity_media(
         The media records (empty if none exist).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(activity_media_models.ActivityMedia)
     return [_to_record(media) for media in db.scalars(stmt).all()]
@@ -69,7 +69,7 @@ def get_activity_media_by_id(
     The media record, or None when no such record exists.
 
        Raises:
-           HTTPException: If a database error occurs.
+           ProcessingError: If a database error occurs.
     """
     stmt = select(activity_media_models.ActivityMedia).where(
         activity_media_models.ActivityMedia.id == activity_media_id
@@ -97,7 +97,7 @@ def get_media_for_activity(
         The activity's media records (empty when it has none).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     stmt = select(activity_media_models.ActivityMedia).where(
         activity_media_models.ActivityMedia.activity_id == activity_id
@@ -124,7 +124,7 @@ def get_activities_media(
         (empty if none match).
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     if not activity_ids:
         return []
@@ -196,9 +196,8 @@ def create_activity_media(
         The newly created media record.
 
     Raises:
-        HTTPException:
-            - 409 Conflict: If a record with the same ``media_path`` exists.
-            - 500 Internal Server Error: For any other database error.
+        ConflictError: If a record with the same ``media_path`` exists.
+        ProcessingError: For any other database error.
     """
     try:
         db_activity_media = activity_media_models.ActivityMedia(
@@ -239,7 +238,7 @@ def create_activity_medias(
         None.
 
     Raises:
-        HTTPException: If a database error occurs.
+        ProcessingError: If a database error occurs.
     """
     media: list[activity_media_models.ActivityMedia] = []
     for media_item in activity_media:
@@ -274,9 +273,8 @@ def edit_activity_media_media_path(
         The refreshed media record.
 
     Raises:
-        HTTPException:
-            - 404 Not Found: If the record does not exist.
-            - 500 Internal Server Error: For any other database error.
+        NotFoundError: If the record does not exist.
+        ProcessingError: For any other database error.
     """
     stmt = select(activity_media_models.ActivityMedia).where(
         activity_media_models.ActivityMedia.id == activity_media_id
@@ -309,9 +307,8 @@ def delete_activity_media(activity_media_id: int, db: Session) -> None:
         None.
 
     Raises:
-        HTTPException:
-            - 404 Not Found: If the media record does not exist.
-            - 500 Internal Server Error: For database errors.
+        NotFoundError: If the media record does not exist.
+        ProcessingError: For database errors.
     """
     stmt = select(activity_media_models.ActivityMedia).where(
         activity_media_models.ActivityMedia.id == activity_media_id

@@ -91,8 +91,10 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     Decorator to handle SQLAlchemy database errors consistently.
 
     Catches SQLAlchemyError exceptions, logs them, and converts to
-    HTTPException with 500 status. Allows HTTPException and
-    IntegrityError to pass through for caller-specific handling.
+    ``core.exceptions.ProcessingError`` (a transport-agnostic domain error, not
+    an HTTP response). Allows ``DomainError``, ``HTTPException`` (transitional —
+    see ``sync_wrapper``) and ``IntegrityError`` to pass through for
+    caller-specific handling.
 
     Automatically calls rollback on the database session if found
     in function parameters.

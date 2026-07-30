@@ -23,16 +23,22 @@ class BulkImportFilePayload(VersionedPayload):
     silently marking the job complete.
 
     Attributes:
-        file_path: Absolute path to the queued activity file.
+        storage_key: Key of the staged file in the bulk-import storage area.
+            A key rather than a path so any worker in the fleet can fetch the
+            bytes, not only the node the file was dropped on.
+        filename: The dropped file's original name. Carried separately because
+            the pipeline reads meaning from it (the Strava export's
+            ``activities.csv`` is keyed by filename), while the key is minted.
         user_id: ID of the user performing the import.
         import_initiated_time: ISO timestamp of when the import began.
     """
 
     model_config = ConfigDict(extra="ignore")
 
-    SCHEMA_VERSION: ClassVar[int] = 1
+    SCHEMA_VERSION: ClassVar[int] = 2
 
-    file_path: str
+    storage_key: str
+    filename: str
     user_id: int
     import_initiated_time: str | None = None
 
