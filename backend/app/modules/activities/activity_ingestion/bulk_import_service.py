@@ -67,9 +67,9 @@ def _warn_about_unowned_files(user_id: int) -> None:
 def _collect_importable_files(user_id: int, bulk_import_dir: str) -> list[str]:
     """Return the paths in a user's drop directory that are safe to import.
 
-    A file is skipped (logged, not raised) when its extension is unsupported or
-    its contents fail the signature check — one bad file must not stop the
-    import of every other one.
+    A file is skipped (logged, not raised) when it resolves outside the drop
+    directory, its extension is unsupported, or its contents fail the signature
+    check — one bad file must not stop the import of every other one.
 
     Args:
         user_id: The owner whose directory is being scanned.
@@ -79,6 +79,7 @@ def _collect_importable_files(user_id: int, bulk_import_dir: str) -> list[str]:
         Absolute paths of the files that passed validation.
     """
     files_to_process: list[str] = []
+    base_dir = os.path.realpath(bulk_import_dir)
     for filename in os.listdir(bulk_import_dir):
         file_path = os.path.join(bulk_import_dir, filename)
         file_extension = os.path.splitext(file_path)[1].lower()
@@ -93,6 +94,17 @@ def _collect_importable_files(user_id: int, bulk_import_dir: str) -> list[str]:
                     file_extension=file_extension,
                     supported_extensions=list(core_config.SUPPORTED_FILE_FORMATS),
                 ),
+            )
+            continue
+
+        # Everything downstream opens this path (validation, then staging), so a
+        # symlink dropped here would import whatever it points at, anywhere on
+        # the server's filesystem. Only entries that resolve to themselves inside
+        # the user's own directory are imported.
+        if os.path.realpath(file_path) != os.path.join(base_dir, filename):
+            logger.warning(
+                "Skipping a bulk-import entry that does not resolve inside the user's directory",
+                extra=core_logger.context(console=True, user_id=user_id, file=filename),
             )
             continue
 

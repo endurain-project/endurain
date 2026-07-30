@@ -100,7 +100,7 @@ class TestStoreActivityMedia:
             id=9, activity_id=1, media_path="1_abc.jpg", media_type=1
         )
 
-        result = store_activity_media(1, 2, MagicMock(filename="ride.jpg", content_type="image/jpeg"), MagicMock())
+        result = store_activity_media(1, 2, MagicMock(filename="ride.jpg", content_type="text/html"), MagicMock())
 
         assert result.id == 9
         assert "/activities/1/media/9/file?t=" in result.url
@@ -108,6 +108,8 @@ class TestStoreActivityMedia:
         assert area == "activity_media"
         assert key.startswith("1_") and key.endswith(".jpg")
         assert data == b"bytes"
+        # Derived from the validated extension: the client's Content-Type header
+        # must never reach the storage backend as object metadata.
         assert content_type == "image/jpeg"
         # The row records the storage key, never a filesystem path.
         assert mock_media_crud.create_activity_media.call_args.args[1] == key
@@ -227,7 +229,7 @@ class TestStoreActivityMediaBytes:
         area, _key, data, content_type = storage.save.call_args.args
         assert area == "activity_media"
         assert data == b"bytes"
-        assert content_type is None
+        assert content_type == "image/jpeg"
         assert mock_media_crud.create_activity_media.call_args.kwargs["content_hash"]
 
     @patch(f"{_SVC}.activity_media_crud")

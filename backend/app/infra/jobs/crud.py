@@ -12,13 +12,14 @@ import uuid
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 import infra.jobs.backoff as jobs_backoff
 import infra.jobs.schema as jobs_schema
+import infra.pruning as infra_pruning
 from infra.events import Event
 from infra.jobs.models import ProcessingJob
 
@@ -419,13 +420,9 @@ def _age_seconds(moment: datetime | None, now: datetime) -> float | None:
     return (now - moment).total_seconds()
 
 
-# Rows deleted per batch when pruning; bounded so each delete transaction stays
-# short and never blocks the worker/relay for long.
-_PRUNE_BATCH_SIZE = 1000
-_PRUNE_MAX_BATCHES = 10_000
-
-
-def delete_completed_jobs_before(cutoff: datetime, *, db: Session, batch_size: int = _PRUNE_BATCH_SIZE) -> int:
+def delete_completed_jobs_before(
+    cutoff: datetime, *, db: Session, batch_size: int = infra_pruning.PRUNE_BATCH_SIZE
+) -> int:
     """
     Delete ``completed`` jobs older than ``cutoff``, in bounded batches.
 
@@ -443,24 +440,13 @@ def delete_completed_jobs_before(cutoff: datetime, *, db: Session, batch_size: i
     Returns:
         The total number of rows deleted.
     """
-    total = 0
-    for _ in range(_PRUNE_MAX_BATCHES):
-        id_stmt = (
-            select(ProcessingJob.id)
-            .where(ProcessingJob.status == STATUS_COMPLETED, ProcessingJob.completed_at < cutoff)
-            .limit(batch_size)
-        )
-        if db.bind is not None and db.bind.dialect.name == "postgresql":
-            id_stmt = id_stmt.with_for_update(skip_locked=True)  # pragma: no cover - Postgres-only path
-        ids = list(db.execute(id_stmt).scalars().all())
-        if not ids:
-            break
-        db.execute(delete(ProcessingJob).where(ProcessingJob.id.in_(ids)))
-        db.commit()
-        total += len(ids)
-        if len(ids) < batch_size:
-            break
-    return total
+    return infra_pruning.bounded_delete(
+        ProcessingJob,
+        ProcessingJob.status == STATUS_COMPLETED,
+        ProcessingJob.completed_at < cutoff,
+        db=db,
+        batch_size=batch_size,
+    )
 
 
 def _insert_ignoring_duplicate(values: dict, db: Session):
