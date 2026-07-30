@@ -61,7 +61,7 @@ class TestProcessBulkImportFileForEvent:
         with (
             patch.object(bulk_import_subscribers.core_file_uploads, "ensure_within", side_effect=lambda p, base: p),
             patch.object(bulk_import_subscribers.core_database, "SessionLocal") as session_local,
-            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file") as store,
         ):
             session_local.return_value.__enter__.return_value = "db"
             bulk_import_subscribers.process_bulk_import_file_for_event(event)
@@ -70,7 +70,7 @@ class TestProcessBulkImportFileForEvent:
     def test_raises_on_missing_file_path(self):
         event = _event({"user_id": 3})
         with (
-            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file") as store,
             pytest.raises(ValidationError),
         ):
             bulk_import_subscribers.process_bulk_import_file_for_event(event)
@@ -79,7 +79,7 @@ class TestProcessBulkImportFileForEvent:
     def test_raises_on_non_int_user(self):
         event = _event({"file_path": "/tmp/x.gpx", "user_id": None})
         with (
-            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file") as store,
             pytest.raises(ValidationError),
         ):
             bulk_import_subscribers.process_bulk_import_file_for_event(event)
@@ -91,9 +91,7 @@ class TestProcessBulkImportFileForEvent:
             patch.object(bulk_import_subscribers.core_file_uploads, "ensure_within", side_effect=lambda p, base: p),
             patch.object(bulk_import_subscribers.core_config.settings, "JOBS_MAX_ATTEMPTS", 3),
             patch.object(bulk_import_subscribers.core_database, "SessionLocal") as session_local,
-            patch.object(
-                bulk_import_subscribers.orchestrator, "store_bulk_import_file", side_effect=ValueError("boom")
-            ),
+            patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file", side_effect=ValueError("boom")),
             patch.object(bulk_import_subscribers, "_move_to_error_dir") as move,
         ):
             session_local.return_value.__enter__.return_value = "db"
@@ -107,9 +105,7 @@ class TestProcessBulkImportFileForEvent:
             patch.object(bulk_import_subscribers.core_file_uploads, "ensure_within", side_effect=lambda p, base: p),
             patch.object(bulk_import_subscribers.core_config.settings, "JOBS_MAX_ATTEMPTS", 3),
             patch.object(bulk_import_subscribers.core_database, "SessionLocal") as session_local,
-            patch.object(
-                bulk_import_subscribers.orchestrator, "store_bulk_import_file", side_effect=ValueError("boom")
-            ),
+            patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file", side_effect=ValueError("boom")),
             patch.object(bulk_import_subscribers, "_move_to_error_dir") as move,
         ):
             session_local.return_value.__enter__.return_value = "db"
@@ -123,7 +119,7 @@ class TestProcessBulkImportFileForEvent:
         # data), so ingestion is never attempted.
         event = _event({"file_path": "/etc/passwd", "user_id": 3, "import_initiated_time": "2026"})
         with (
-            patch.object(bulk_import_subscribers.orchestrator, "store_bulk_import_file") as store,
+            patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file") as store,
             pytest.raises(HTTPException),
         ):
             bulk_import_subscribers.process_bulk_import_file_for_event(event)

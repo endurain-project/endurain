@@ -13,7 +13,7 @@ Nothing here is used on the durable-job path — see
 from concurrent.futures import Future, ThreadPoolExecutor
 
 import core.logger as core_logger
-import modules.activities.activity_ingestion.orchestrator as orchestrator
+import modules.activities.activity_ingestion.bulk_entry as bulk_entry
 
 logger = core_logger.get_logger(__name__)
 
@@ -72,7 +72,7 @@ def submit_bulk_import(user_id: int, file_paths: list[str], import_initiated_tim
         extra=core_logger.context(user_id=user_id, file_count=len(file_paths)),
     )
     future = _get_executor().submit(
-        orchestrator.process_all_files_sync,
+        bulk_entry.process_all_files_sync,
         user_id,
         file_paths,
         import_initiated_time=import_initiated_time,

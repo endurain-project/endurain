@@ -2,7 +2,7 @@
 
 These endpoints stay under the ``/activities`` prefix but live here (not in
 ``activity/router.py``) because they drive the format/provider-aware ingestion flows:
-file parsing via :mod:`~modules.activities.activity_ingestion.orchestrator` and live
+file parsing via :mod:`~modules.activities.activity_ingestion.upload_entry` and live
 provider sync via the Strava/Garmin clients. Keeping them here leaves the activities
 core router fully parser- and provider-agnostic (enforced by the import-linter contract
 ``activities-parsing-boundary``).
@@ -33,7 +33,7 @@ import core.rate_limit as core_rate_limit
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
-import modules.activities.activity_ingestion.orchestrator as orchestrator
+import modules.activities.activity_ingestion.upload_entry as upload_entry
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.strava.activity_utils as strava_activity_utils
@@ -91,7 +91,7 @@ def create_activity_with_uploaded_file(
     Returns:
         List of created activity objects.
     """
-    return orchestrator.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
+    return upload_entry.store_uploaded_activity_file(token_user_id, file, db)
 
 
 @router.post(

@@ -31,7 +31,9 @@ from modules.activities.activity.schema import Activity
 if TYPE_CHECKING:
     # Imported for typing only: a runtime import would be circular (the sub-module
     # packages import activity.crud, which imports this module). These name the
-    # element types of the ingestion contract's child collections (ParsedActivity).
+    # element types of the ingestion contract's child collections (ParsedActivity,
+    # ParsedFile).
+    import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
     import modules.activities.activity_sets.schema as activity_sets_schema
     import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
@@ -227,3 +229,26 @@ class ParsedActivity:
     sets: list[activity_sets_schema.ActivitySetsCreate | list] | None = None
     workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps] | None = None
     source: ImportSource | None = None
+
+
+@dataclass
+class ParsedFile:
+    """Everything one activity file yielded — the file parsers' return contract.
+
+    A single file does not always mean a single activity: a multi-session ``.fit``
+    holds several, and the ingestion core must not have to know which formats do
+    that. Every parser therefore returns this shape, and the core simply iterates
+    ``activities``. Before this existed, the core branched on the extension and
+    called the FIT-specific split/build helpers itself, which put format knowledge
+    back in the one place that is supposed to be format-agnostic.
+
+    Attributes:
+        activities: The parsed activities, in file order. Empty when the file held
+            nothing importable.
+        exercise_titles: File-scoped exercise-title reference rows (FIT strength
+            workouts). They belong to the *file* rather than to any one activity,
+            so they are carried here and persisted once, before the activities.
+    """
+
+    activities: list[ParsedActivity] = field(default_factory=list)
+    exercise_titles: list[activity_exercise_titles_schema.ActivityExerciseTitles] | None = None

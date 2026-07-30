@@ -1,10 +1,10 @@
 """Adapt parser output dicts into the canonical :class:`ParsedActivity` contract.
 
-The file parsers (``utils_gpx`` / ``utils_tcx`` / ``utils_fit``) return an untyped
+The file parsers (``utils_gpx`` / ``utils_tcx`` / ``utils_fit``) build an untyped
 ``parsed_info`` dict shaped like::
 
     {
-        "activity": <Activity schema>,
+        "activity": <ActivityCore>,
         "laps": [...] | None,
         "sets": [...] | None,
         "workout_steps": [...] | None,
@@ -14,8 +14,10 @@ The file parsers (``utils_gpx`` / ``utils_tcx`` / ``utils_fit``) return an untyp
     }
 
 This module converts that dict into a typed
-:class:`~modules.activities.activity.schema.ParsedActivity` so the activities core can
-persist it without knowing anything about file formats.
+:class:`~modules.activities.activity.contracts.ParsedActivity`. It lives here,
+next to the parsers, because producing the canonical shape is part of parsing:
+the ingestion core receives :class:`ParsedActivity` objects and never sees the
+intermediate dict.
 """
 
 import core.logger as core_logger
@@ -40,20 +42,23 @@ _STREAM_MAPPING: dict[int, tuple[str, str]] = {
 
 def parsed_info_to_parsed_activity(
     parsed_info: dict,
-    source: activities_contracts.ImportSource | None = None,
 ) -> activities_contracts.ParsedActivity:
     """Convert a parser output dict into a :class:`ParsedActivity`.
 
+    Provenance (:class:`ImportSource`) is deliberately *not* set here: a parser
+    knows what the file contains, not where it came from or what its content hash
+    is. The ingestion pipeline attaches that after parsing.
+
     Args:
-        parsed_info: The dict returned by a file parser (or a per-activity entry
-            produced by ``utils_fit.create_activity_objects`` for multi-activity
-            ``.fit`` files). Must contain an ``"activity"`` key.
-        source: Optional provenance describing where the activity came from.
+        parsed_info: The dict a parser builds for one activity (for a
+            multi-activity ``.fit``, one entry from
+            ``utils_fit.create_activity_objects``). Must contain an
+            ``"activity"`` key.
 
     Returns:
         The canonical parsed activity, with one
-        :class:`~modules.activities.activity.schema.ParsedStream` per stream that
-        the parser flagged as set.
+        :class:`~modules.activities.activity.contracts.ParsedStream` per stream
+        that the parser flagged as set.
     """
     streams = [
         activities_contracts.ParsedStream(
@@ -70,14 +75,12 @@ def parsed_info_to_parsed_activity(
         laps=parsed_info.get("laps"),
         sets=parsed_info.get("sets"),
         workout_steps=parsed_info.get("workout_steps"),
-        source=source,
     )
     # What the parser actually produced, before anything is persisted — the first
     # thing to check when an imported activity is missing a chart or its laps.
     logger.debug(
         "Adapted parser output into a ParsedActivity",
         extra=core_logger.context(
-            source_kind=source.kind if source is not None else None,
             stream_types=[stream.stream_type for stream in streams],
             lap_count=len(parsed.laps) if parsed.laps else 0,
             set_count=len(parsed.sets) if parsed.sets else 0,

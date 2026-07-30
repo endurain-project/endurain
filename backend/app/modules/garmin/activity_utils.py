@@ -9,7 +9,8 @@ import core.file_uploads as file_uploads
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.orchestrator as ingestion_orchestrator
+import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
+import modules.activities.activity_ingestion.sources as ingestion_sources
 import modules.garmin.utils as garmin_utils
 import modules.notifications.utils as notifications_utils
 import modules.users.users.crud as users_crud
@@ -136,18 +137,16 @@ async def fetch_and_process_activities_by_dates(
 
         for full_file_path in extracted_paths:
             parsed_result = await asyncio.to_thread(
-                ingestion_orchestrator.parse_and_store_activity_from_file,
+                ingestion_bulk_entry.store_activity_file,
                 token_user_id=user_id,
                 file_path=str(full_file_path),
                 db=db,
-                from_garmin=True,
-                garminconnect_gear=activity_gear,
-                activity_name=activity_name,
+                source=ingestion_sources.GarminSource(gear=activity_gear, activity_name=activity_name),
             )
             if parsed_result:
                 parsed_activities.extend(parsed_result)
             else:
-                # parse_and_store_activity_from_file only moves the
+                # store_activity_file only moves the
                 # extracted file out of dest_dir on success. On
                 # failure (for non-bulk-import callers, which
                 # includes this Garmin sync path) the file is left in

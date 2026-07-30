@@ -5,7 +5,7 @@ activity operations instead of reaching into the full ``activity.crud`` (a large
 ORM surface, most of it internal to the activities module). It is the
 read/gear/delete counterpart to the ingestion seam: ingestion
 (:mod:`~modules.activities.activity.ingestion_service` /
-:mod:`~modules.activities.activity_ingestion.orchestrator`) is how a caller
+:mod:`~modules.activities.activity_ingestion.pipeline`) is how a caller
 *stores* a parsed activity; this is how a caller *looks up*, *re-gears*,
 *aggregates*, and *bulk-deletes* activities. Every function returns schemas/DTOs
 — no ORM row crosses the boundary.
