@@ -1603,14 +1603,18 @@ class TestImportServiceAddUserImages:
         mock_validator.config.limits.max_image_size = 1000000
         with (
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
-            ),
+            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_user_images_from_zip(z, {"user_images/old_photo.jpg"})
 
         assert service.counts["user_images"] == 1
+        # The archive's filename is discarded: the key is minted for the
+        # importing user so a crafted ZIP cannot write over someone else's blob.
+        runtime.get_active_platform.return_value.storage.save.assert_called_once_with(
+            "user_images", "1.jpg", b"image-data"
+        )
 
     async def test_add_user_images_from_zip_http_exception(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1632,15 +1636,17 @@ class TestImportServiceAddUserImages:
         with (
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.validate_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid image"),
             ),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_user_images_from_zip(z, {"user_images/old_photo.jpg"})
 
         assert service.counts.get("user_images", 0) == 0
+        runtime.get_active_platform.return_value.storage.save.assert_not_called()
 
 
 class TestImportServiceHealthEmptyBranches:

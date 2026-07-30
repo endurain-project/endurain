@@ -17,7 +17,7 @@ const baseDto: UserProfileDto = {
   access_type: 'admin',
   active: true,
   mfa_enabled: true,
-  photo_path: 'user_images/7.png',
+  photo_path: '/api/v1/users/7/photo?t=sig',
   is_strava_linked: 1,
   is_garminconnect_linked: 0,
   has_local_password: true,
@@ -38,7 +38,7 @@ describe('mapUserProfile', () => {
       accessType: 'admin',
       active: true,
       mfaEnabled: true,
-      avatarUrl: 'https://cdn.test/user_images/7.png',
+      avatarUrl: 'https://cdn.test/api/v1/users/7/photo?t=sig',
       isStravaLinked: true,
       isGarminConnectLinked: false,
       hasLocalPassword: true,
@@ -70,13 +70,11 @@ describe('mapUserProfile', () => {
     expect(mapUserProfile({ ...baseDto, photo_path: undefined }).avatarUrl).toBeNull()
   })
 
-  it('strips the absolute filesystem prefix from photo_path', () => {
+  it('passes the backend-issued photo URL through untouched', () => {
+    // The backend signs the address; rewriting it here would break the token.
     expect(
-      mapUserProfile({ ...baseDto, photo_path: '/app/backend/data/user_images/7.png' }).avatarUrl,
-    ).toBe('https://cdn.test/user_images/7.png')
-    expect(mapUserProfile({ ...baseDto, photo_path: 'data/user_images/7.png' }).avatarUrl).toBe(
-      'https://cdn.test/user_images/7.png',
-    )
+      mapUserProfile({ ...baseDto, photo_path: '/api/v1/users/7/photo?t=a.b' }).avatarUrl,
+    ).toBe('https://cdn.test/api/v1/users/7/photo?t=a.b')
   })
 
   it('defaults hasLocalPassword to false when absent', () => {

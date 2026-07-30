@@ -95,27 +95,6 @@ class TestReturnFrontendIndex:
         assert result == "response"
 
 
-class TestReturnUserImgPath:
-    """Tests for return_user_img_path."""
-
-    def test_calls_serve_from_with_user_images_dir(self):
-        from core.utils import return_user_img_path
-
-        mock_core_config = MagicMock()
-        mock_core_config.USER_IMAGES_DIR = "/mock/user_images"
-        mock_serve_from = MagicMock(return_value="response")
-
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_user_img_path("avatar.png")
-
-        mock_serve_from.assert_called_once_with("/mock/user_images", "avatar.png")
-        assert result == "response"
-
-
 class TestReturnServerImgPath:
     """Tests for return_server_img_path."""
 
@@ -138,11 +117,11 @@ class TestReturnServerImgPath:
 
 
 class TestNoBlobPathHelpers:
-    """Activity media and thumbnails must have no filename-addressed serve helper.
+    """Private blobs must have no filename-addressed serve helper.
 
-    Both are private user data served only through their token-gated routes. A
-    ``return_*_path`` helper here is what the removed public routes were built
-    on, so its absence is the regression guard.
+    Activity media, thumbnails and user photos are all served only through their
+    token-gated routes. A ``return_*_path`` helper here is what the removed
+    public routes were built on, so its absence is the regression guard.
     """
 
     def test_no_activity_media_path_helper(self):
@@ -154,3 +133,8 @@ class TestNoBlobPathHelpers:
         import core.utils
 
         assert not hasattr(core.utils, "return_activity_thumbnail_path")
+
+    def test_no_user_image_path_helper(self):
+        import core.utils
+
+        assert not hasattr(core.utils, "return_user_img_path")

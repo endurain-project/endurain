@@ -23,7 +23,6 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
 import infra.runtime as platform_runtime
@@ -53,6 +52,7 @@ import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
+import modules.users.users.signing as users_signing
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.schema as user_default_gear_schema
 import modules.users.users_goals.crud as user_goals_crud
@@ -76,6 +76,10 @@ logger = core_logger.get_logger(__name__)
 
 # An activity media storage key: ``{activity_id}_{suffix}``, no path separators.
 _MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
+
+# Extensions accepted for a profile photo restored from an archive. Anything
+# else drops the photo rather than minting a key the upload path can't produce.
+_IMPORTABLE_IMAGE_EXTENSIONS = frozenset({"png", "jpg", "jpeg"})
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
@@ -474,11 +478,17 @@ class ImportService:
             user_profile = user_data[0]
             user_profile["id"] = self.user_id
 
-            # Handle photo path
+            # The archive carries the exporter's photo key (or, for
+            # archives predating storage keys, an absolute filesystem path).
+            # Either way only the extension is trusted: the key is rebuilt for
+            # the importing user so a crafted ZIP cannot repoint the avatar at
+            # somebody else's blob.
             photo_path = user_profile.get("photo_path")
-            if isinstance(photo_path, str) and photo_path.startswith("data/user_images/"):
-                extension = photo_path.split(".")[-1]
-                user_profile["photo_path"] = f"data/user_images/{self.user_id}.{extension}"
+            extension = os.path.splitext(photo_path)[1].lstrip(".").lower() if isinstance(photo_path, str) else ""
+            if extension in _IMPORTABLE_IMAGE_EXTENSIONS:
+                user_profile["photo_path"] = f"{self.user_id}.{extension}"
+            else:
+                user_profile["photo_path"] = None
 
             # Strict allow-list before persistence: profile import is a
             # self-service operation and MUST NOT be a back door for
@@ -1181,13 +1191,17 @@ class ImportService:
                 image_limit = file_uploads.file_validator.config.limits.max_image_size
                 file_bytes = self._read_zip_entry(zipf, file_path, max_bytes=image_limit)
                 try:
-                    await file_uploads.save_validated_bytes(
+                    await file_uploads.validate_bytes(
                         file_bytes,
                         kind=file_uploads.UploadKind.IMAGE,
-                        upload_dir=core_config.USER_IMAGES_DIR,
                         filename=new_file_name,
                     )
                 except HTTPException as err:
                     logger.warning(f"Profile import dropped invalid user image {new_file_name}: {err.detail}")
                     continue
+                platform_runtime.get_active_platform().storage.save(
+                    users_signing.USER_IMAGE_STORAGE_AREA,
+                    new_file_name,
+                    file_bytes,
+                )
                 self.counts["user_images"] += 1

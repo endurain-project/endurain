@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.file_uploads as core_file_uploads
 import core.timezone as core_timezone
+import infra.runtime as platform_runtime
 import modules.health.health_targets.crud as health_targets_crud
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
+import modules.users.users.signing as users_signing
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_integrations.crud as user_integrations_crud
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
@@ -173,21 +175,23 @@ async def save_user_image_file(user_id: int, file: UploadFile, db: Session) -> s
 
     filename: str = f"{user_id}{file_extension}"
 
-    # Save file using centralized file upload handler
-    await core_file_uploads.save_validated_upload(
-        file,
-        kind=core_file_uploads.UploadKind.IMAGE,
-        upload_dir=core_config.USER_IMAGES_DIR,
-        filename=filename,
+    # Validated in memory, then written through the platform StorageProvider so
+    # the photo is not pinned to this node's disk and has no public path.
+    data = await core_file_uploads.read_validated_upload(file, kind=core_file_uploads.UploadKind.IMAGE)
+    platform_runtime.get_active_platform().storage.save(
+        users_signing.USER_IMAGE_STORAGE_AREA,
+        filename,
+        data,
+        file.content_type,
     )
 
-    # Update user photo path in database
-    return str(await users_crud.update_user_photo(user_id, db, os.path.join(core_config.USER_IMAGES_DIR, filename)))
+    # The row stores the storage key; the read schema resolves it to a URL.
+    return str(await users_crud.update_user_photo(user_id, db, filename))
 
 
 async def delete_user_photo_filesystem(user_id: int) -> None:
     """
-    Delete user photo files from filesystem.
+    Delete a user's stored photo blobs.
 
     Args:
         user_id: ID of user whose photo files to delete.
@@ -195,7 +199,9 @@ async def delete_user_photo_filesystem(user_id: int) -> None:
     Returns:
         None
     """
-    await core_file_uploads.delete_files_by_pattern(core_config.USER_IMAGES_DIR, f"{user_id}.*")
+    storage = platform_runtime.get_active_platform().storage
+    for key in storage.list_keys(users_signing.USER_IMAGE_STORAGE_AREA, f"{user_id}."):
+        storage.delete(users_signing.USER_IMAGE_STORAGE_AREA, key)
 
 
 def timezone_or_default(timezone: str | None) -> str:

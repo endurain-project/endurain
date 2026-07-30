@@ -39,23 +39,6 @@ class _FileResponseTestMixin:
         return FileResponse(str(path))
 
 
-class TestUserImages(_FileResponseTestMixin):
-    """Tests for GET /user_images/{user_img}."""
-
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_user_img_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/user_images/test.jpg")
-            assert response.status_code == 200
-
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_user_img_path") as mock:
-            mock.return_value = None
-            response = client.get("/user_images/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "User image not found"
-
-
 class TestServerImages(_FileResponseTestMixin):
     """Tests for GET /server_images/{server_img}."""
 
@@ -92,6 +75,13 @@ class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
         with patch("core.router.core_utils.return_frontend_index") as mock:
             mock.return_value = None
             response = client.get("/activity_thumbnails/5.webp")
+        assert response.status_code == 404
+
+    def test_user_photo_is_not_served_by_filename(self):
+        """Photos are stored as ``{user_id}.{ext}`` — this path enumerated users."""
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = None
+            response = client.get("/user_images/1.png")
         assert response.status_code == 404
 
 

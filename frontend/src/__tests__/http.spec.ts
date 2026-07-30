@@ -208,3 +208,41 @@ describe('apiFetch', () => {
     expect(forwardedSignal).toBeInstanceOf(AbortSignal)
   })
 })
+
+describe('RFC 9457 problem documents', () => {
+  it('carries the problem type and request id onto HttpError', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          type: 'urn:endurain:error:conflict',
+          title: 'Conflict',
+          status: 409,
+          detail: 'Follow relationship already exists',
+          instance: '/api/v1/followers/users/2/follow',
+          request_id: 'req-abc',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      ) as Response,
+    )
+
+    await expect(apiFetch('/followers/users/2/follow', { method: 'POST' })).rejects.toMatchObject({
+      status: 409,
+      type: 'urn:endurain:error:conflict',
+      requestId: 'req-abc',
+      detail: 'Follow relationship already exists',
+    })
+  })
+
+  it('tolerates a non-conforming error body', async () => {
+    // A gateway or proxy error page must not become an unhandled parse failure.
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response('<html>502</html>', { status: 502 }) as Response,
+    )
+
+    await expect(apiFetch('/anything')).rejects.toMatchObject({
+      status: 502,
+      type: null,
+      requestId: null,
+    })
+  })
+})

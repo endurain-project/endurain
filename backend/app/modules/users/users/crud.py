@@ -7,7 +7,6 @@ consumption.
 """
 
 import datetime
-import posixpath
 from typing import TYPE_CHECKING, Literal, overload
 from urllib.parse import unquote
 
@@ -28,9 +27,21 @@ import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.utils as server_settings_utils
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
+import modules.users.users.signing as users_signing
 import modules.users.users.utils as users_utils
 
 # Private internal helpers
+
+
+def _to_read_schema(user: users_models.Users) -> users_schema.UsersRead:
+    """Convert one ORM user to its read schema, resolving the photo URL.
+
+    ``photo_path`` holds a ``StorageProvider`` key, not a servable path, so this
+    is where it becomes an addressable (signed, token-gated) URL.
+    """
+    schema = users_schema.UsersRead.model_validate(user)
+    schema.photo_path = users_signing.user_image_url(user.photo_path, user.id)
+    return schema
 
 
 @overload
@@ -54,8 +65,8 @@ def _transform_users(
         The user(s) as a schema.
     """
     if isinstance(users, list):
-        return [users_schema.UsersRead.model_validate(user) for user in users]
-    return users_schema.UsersRead.model_validate(users)
+        return [_to_read_schema(user) for user in users]
+    return _to_read_schema(users)
 
 
 def _get_user_model_by_id_or_404(user_id: int, db: Session) -> users_models.Users:
@@ -143,6 +154,41 @@ def _persist_user_edits(
         activity_streams_crud.recompute_hr_zone_percentages_for_user(db_users.id, db)
 
     return _transform_users(db_users)
+
+
+def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
+    """Return every user's raw stored photo value (migration use only).
+
+    The read schema resolves ``photo_path`` into a signed URL, so a migration
+    that needs the value actually on the row cannot go through
+    :func:`get_all_users`. Scalars are returned rather than model instances so
+    no ORM object leaves this module.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        ``(user_id, photo_path)`` pairs.
+    """
+    rows = db.query(users_models.Users.id, users_models.Users.photo_path).all()
+    return [(row[0], row[1]) for row in rows]
+
+
+def set_user_photo_key(user_id: int, photo_key: str | None, db: Session) -> None:
+    """Set a user's stored photo key synchronously (migration use only).
+
+    The async :func:`update_user_photo` is the API path; a data migration runs
+    outside the event loop and needs the plain synchronous write.
+
+    Args:
+        user_id: The user to update.
+        photo_key: The ``StorageProvider`` key, or ``None`` to clear the photo.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    _apply_user_photo_update(user_id, photo_key, db)
 
 
 def _apply_user_photo_update(
@@ -651,15 +697,16 @@ async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> 
         max_heart_rate_before = db_users.max_heart_rate
         birthdate_before = db_users.birthdate
 
-        # Check if the photo_path is being updated
-        if user.photo_path:
-            # Delete the user photo in the filesystem
-            await users_utils.delete_user_photo_filesystem(db_users.id)
-
         user.username = user.username.lower()
 
-        # Dictionary of the fields to update if they are not None
-        user_data = user.model_dump(exclude_unset=True, exclude={"password", "external_auth_count", "mfa_enabled"})
+        # ``photo_path`` is excluded because the read schema exposes a
+        # resolved, signed URL while the column stores a storage key.
+        # Echoing the read model back would overwrite the key with its own
+        # URL; the photo is owned solely by the upload/delete endpoints.
+        user_data = user.model_dump(
+            exclude_unset=True,
+            exclude={"password", "external_auth_count", "mfa_enabled", "photo_path"},
+        )
         # Iterate over the fields and update the db_users dynamically
         for key, value in user_data.items():
             # Skip read-only computed properties exposed by the read schema
@@ -675,7 +722,7 @@ async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> 
         # bulk BMI recalculation, and the ``mfa_enabled`` lazy-load triggered
         # while serializing are blocking SQLAlchemy calls, so run them in a
         # worker thread to keep the API event loop responsive.
-        updated_user = await run_in_threadpool(
+        return await run_in_threadpool(
             _persist_user_edits,
             db_users,
             height_before,
@@ -684,12 +731,6 @@ async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> 
             True,
             db,
         )
-
-        if db_users.photo_path is None:
-            # Delete the user photo in the filesystem
-            await users_utils.delete_user_photo_filesystem(db_users.id)
-
-        return updated_user
     except HTTPException:
         raise
     except IntegrityError as integrity_error:
@@ -722,7 +763,6 @@ PROFILE_SELF_SERVICE_FIELDS: frozenset[str] = frozenset(
         "max_heart_rate",
         "first_day_of_week",
         "currency",
-        "photo_path",
     }
 )
 
@@ -762,7 +802,6 @@ async def edit_profile_user(
         height_before = db_users.height
         max_heart_rate_before = db_users.max_heart_rate
         birthdate_before = db_users.birthdate
-        previous_photo_path = db_users.photo_path
 
         # exclude_unset means only fields the caller actually sent
         # are considered. The intersection with the allow-list is
@@ -774,43 +813,6 @@ async def edit_profile_user(
             updates["username"] = updates["username"].lower()
         if "email" in updates and isinstance(updates["email"], str):
             updates["email"] = updates["email"].lower()
-
-        # Constrain photo_path to the user's own image directory to
-        # prevent path-traversal or pointing at another user's
-        # photo via the profile update. A naive ``startswith``
-        # against the raw payload is bypassable with traversal
-        # sequences (e.g. ``data/user_images/5./../3.jpg`` passes
-        # the prefix check for user 5 but resolves to user 3's
-        # avatar — a stored IDOR). We therefore:
-        #   1. reject any payload containing a ``..`` segment or
-        #      a backslash (Windows-style separator) outright,
-        #   2. normalise the path through ``posixpath.normpath``
-        #      so ``./`` and redundant slashes collapse,
-        #   3. then enforce the per-user prefix on the NORMALISED
-        #      value.
-        # A tampered path is silently dropped rather than 400'd —
-        # the legitimate upload flow always sets this correctly,
-        # so the only callers who reach the drop branch are
-        # malicious or buggy clients and surfacing the error
-        # would just be an oracle.
-        if "photo_path" in updates:
-            new_path = updates["photo_path"]
-            if new_path is not None:
-                expected_prefix = f"data/user_images/{user_id}."
-                has_traversal = "\\" in new_path or any(part == ".." for part in new_path.split("/"))
-                normalised = posixpath.normpath(new_path)
-                if has_traversal or not normalised.startswith(expected_prefix):
-                    updates.pop("photo_path")
-                else:
-                    # Persist the normalised form so downstream
-                    # consumers always see a canonical path.
-                    updates["photo_path"] = normalised
-
-        # If the photo_path is being cleared or replaced, delete
-        # the on-disk file (matches legacy edit_user behaviour).
-        photo_changed = "photo_path" in updates and updates["photo_path"] != previous_photo_path
-        if photo_changed and previous_photo_path:
-            await users_utils.delete_user_photo_filesystem(db_users.id)
 
         for key, value in updates.items():
             setattr(db_users, key, value)

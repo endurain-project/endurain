@@ -26,6 +26,7 @@ import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
 import core.migrations as core_migrations
 import core.network as core_network
+import core.problem_details as core_problem_details
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
 import infra.async_bridge as platform_async_bridge
@@ -521,6 +522,9 @@ def create_app() -> FastAPI:
     # status code and renders the same ``{"detail": ...}`` body HTTPException
     # produces, so the client-visible contract is unchanged.
     core_exceptions.register_exception_handlers(fastapi_app)
+    # Keep the generated schema describing the problem documents those handlers
+    # emit, rather than FastAPI's defaults.
+    core_problem_details.install_problem_schema(fastapi_app)
     fastapi_app.add_middleware(SlowAPIMiddleware)
 
     # RequestIdMiddleware is added last so it executes
@@ -534,21 +538,18 @@ def create_app() -> FastAPI:
     # Static mounts must be registered before the
     # catch-all frontend route included by api_router.
     fastapi_app.mount(
-        f"/{core_config.USER_IMAGES_DIR}",
-        StaticFiles(directory=core_config.USER_IMAGES_DIR),
-        name="user_images",
-    )
-    fastapi_app.mount(
         f"/{core_config.SERVER_IMAGES_DIR}",
         StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
         name="server_images",
     )
-    # NOTE: activity thumbnails and activity media are intentionally NOT mounted
-    # as public static files. Both are served by token-gated routes
+    # NOTE: activity thumbnails, activity media and user photos are intentionally
+    # NOT mounted as public static files. Each is served by a token-gated route
     # (modules.activities.activity_thumbnail.router,
-    # modules.activities.activity_media.public_router), so the blobs are only
-    # reachable with a valid signed URL handed to a permitted viewer rather than
-    # at a guessable public path.
+    # modules.activities.activity_media.public_router,
+    # modules.users.users.photo_router), so a blob is only reachable with a valid
+    # signed URL handed to a permitted viewer rather than at a guessable path.
+    # Server images stay public: they are the login-page branding, needed before
+    # anyone is authenticated.
 
     # Router files
     fastapi_app.include_router(api_router)

@@ -77,11 +77,6 @@ def return_frontend_index(path: str):
     return _serve_from(core_config.settings.FRONTEND_DIR, path)
 
 
-def return_user_img_path(user_img: str):
-    """Serve a user-uploaded profile image."""
-    return _serve_from(core_config.USER_IMAGES_DIR, user_img)
-
-
 def return_server_img_path(server_img: str):
     """Serve a server-managed image asset."""
     return _serve_from(core_config.SERVER_IMAGES_DIR, server_img)

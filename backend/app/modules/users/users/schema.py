@@ -304,7 +304,8 @@ class Users(UsersBase):
 
     Attributes:
         access_type: User access level.
-        photo_path: Path to user's photo.
+        photo_path: Servable URL of the user's photo, resolved from
+            the stored storage key. Read-only: writes are ignored.
         active: Whether the user is active.
         mfa_enabled: Whether MFA is enabled.
         email_verified: Whether email is verified.
@@ -317,8 +318,8 @@ class Users(UsersBase):
     )
     photo_path: StrictStr | None = Field(
         default=None,
-        max_length=250,
-        description="Path to user's photo",
+        max_length=500,
+        description="Servable URL of the user's photo (read-only)",
     )
     active: StrictBool = Field(
         ...,
@@ -596,8 +597,12 @@ class ProfileUpdate(BaseModel):
         first_day_of_week: First day of the week.
         currency: Preferred currency.
         timezone: IANA timezone the athlete lives in.
-        photo_path: Server-issued photo path. Validated to
-            stay within the user's own photo directory.
+
+    Note:
+        ``photo_path`` is deliberately absent. The photo is a
+        server-issued storage key written only by the upload and
+        delete endpoints, so accepting it here would let a caller
+        repoint their avatar at another user's blob.
     """
 
     name: StrictStr | None = Field(default=None, min_length=1, max_length=250)
@@ -618,7 +623,6 @@ class ProfileUpdate(BaseModel):
     first_day_of_week: WeekDay | None = None
     currency: server_settings_schema.Currency | None = None
     timezone: StrictStr | None = Field(default=None, max_length=250)
-    photo_path: StrictStr | None = Field(default=None, max_length=250)
 
     model_config = ConfigDict(
         from_attributes=True,
