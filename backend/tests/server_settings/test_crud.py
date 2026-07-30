@@ -11,15 +11,15 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-import server_settings.crud as server_settings_crud
-import server_settings.models as server_settings_models
-import server_settings.schema as server_settings_schema
+import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.models as server_settings_models
+import modules.server_settings.schema as server_settings_schema
 
 
 class TestGetServerSettings:
     """Test suite for get_server_settings function."""
 
-    @patch("server_settings.crud._transform_server_settings")
+    @patch("modules.server_settings.crud._transform_server_settings")
     def test_get_server_settings_success(self, mock_transform, mock_db):
         """Test successful retrieval of server settings."""
         # Arrange
@@ -70,8 +70,8 @@ class TestGetServerSettings:
 class TestEditServerSettings:
     """Test suite for edit_server_settings function."""
 
-    @patch("server_settings.crud._transform_server_settings")
-    @patch("server_settings.crud._get_server_settings_model_or_404")
+    @patch("modules.server_settings.crud._transform_server_settings")
+    @patch("modules.server_settings.crud._get_server_settings_model_or_404")
     def test_edit_server_settings_success(self, mock_get_model, mock_transform, mock_db):
         """Test successful update of server settings."""
         # Arrange
@@ -115,7 +115,7 @@ class TestEditServerSettings:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(mock_existing_settings)
 
-    @patch("server_settings.crud._get_server_settings_model_or_404")
+    @patch("modules.server_settings.crud._get_server_settings_model_or_404")
     def test_edit_server_settings_not_found(self, mock_get_model, mock_db):
         """Test update when settings don't exist."""
         # Arrange
@@ -153,8 +153,8 @@ class TestEditServerSettings:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert exc_info.value.detail == "Server settings not found."
 
-    @patch("server_settings.crud._transform_server_settings")
-    @patch("server_settings.crud._get_server_settings_model_or_404")
+    @patch("modules.server_settings.crud._transform_server_settings")
+    @patch("modules.server_settings.crud._get_server_settings_model_or_404")
     def test_edit_server_settings_partial_update(self, mock_get_model, mock_transform, mock_db):
         """Test partial update of server settings."""
         # Arrange
@@ -196,7 +196,7 @@ class TestEditServerSettings:
         assert result == mock_existing_settings
         mock_db.commit.assert_called_once()
 
-    @patch("server_settings.crud.get_server_settings")
+    @patch("modules.server_settings.crud.get_server_settings")
     def test_edit_server_settings_database_error(self, mock_get_settings, mock_db):
         """Test database error during update."""
         # Arrange

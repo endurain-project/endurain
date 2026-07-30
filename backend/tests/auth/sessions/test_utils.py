@@ -6,12 +6,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-import auth.sessions.models as users_session_models
-import auth.sessions.schema as users_session_schema
-import auth.sessions.utils as _auth_sessions_utils
-import auth.sessions.utils as users_session_utils
 import core.network as core_network
-import users.users.schema as users_schema
+import modules.auth.sessions.models as users_session_models
+import modules.auth.sessions.schema as users_session_schema
+import modules.auth.sessions.utils as _auth_sessions_utils
+import modules.auth.sessions.utils as users_session_utils
+import modules.users.users.schema as users_schema
 
 
 class TestDeviceTypeEnum:
@@ -72,9 +72,9 @@ class TestValidateSessionTimeout:
     Test suite for validate_session_timeout function.
     """
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
-    @patch("auth.sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
     def test_validate_session_timeout_valid(self):
         """
         Test valid session passes timeout validation.
@@ -88,9 +88,9 @@ class TestValidateSessionTimeout:
         # Act & Assert (should not raise)
         users_session_utils.validate_session_timeout(mock_session)
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
-    @patch("auth.sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
     def test_validate_session_timeout_idle_expired(self):
         """
         Test session with idle timeout raises exception.
@@ -108,9 +108,9 @@ class TestValidateSessionTimeout:
         assert exc_info.value.status_code == 401
         assert "inactivity" in exc_info.value.detail
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
-    @patch("auth.sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 1)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
     def test_validate_session_timeout_absolute_expired(self):
         """
         Test session with absolute timeout raises exception.
@@ -128,7 +128,7 @@ class TestValidateSessionTimeout:
         assert exc_info.value.status_code == 401
         assert "security" in exc_info.value.detail.lower()
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False)
     def test_validate_session_timeout_disabled(self):
         """
         Test timeout validation is skipped when disabled.
@@ -308,7 +308,7 @@ class TestVerifyCsrfToken:
     """
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         "test-secret-key",
     )
     def test_verify_csrf_token_valid_returns_true(self):
@@ -331,7 +331,7 @@ class TestVerifyCsrfToken:
         assert result is True
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         "test-secret-key",
     )
     def test_verify_csrf_token_wrong_candidate_returns_false(self):
@@ -355,7 +355,7 @@ class TestVerifyCsrfToken:
         assert result is False
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         "test-secret-key",
     )
     def test_hash_csrf_token_deterministic(self):
@@ -375,7 +375,7 @@ class TestVerifyCsrfToken:
         assert len(digest1) == 64  # SHA-256 hex = 64 chars
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         "key-a",
     )
     def test_hash_csrf_token_different_keys_produce_different_digests(
@@ -390,7 +390,7 @@ class TestVerifyCsrfToken:
         digest_key_a = _auth_sessions_utils._hash_csrf_token(token)
 
         with patch(
-            "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+            "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
             "key-b",
         ):
             digest_key_b = _auth_sessions_utils._hash_csrf_token(token)
@@ -660,7 +660,7 @@ class TestCleanupIdleSessions:
     Test suite for cleanup_idle_sessions function.
     """
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", False)
     def test_cleanup_idle_sessions_disabled(self):
         """
         Test cleanup is skipped when disabled.
@@ -668,10 +668,10 @@ class TestCleanupIdleSessions:
         # Act & Assert (should not raise and should return early)
         users_session_utils.cleanup_idle_sessions()
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
-    @patch("auth.sessions.utils.SessionLocal")
-    @patch("auth.sessions.utils.auth_sessions_crud.delete_idle_sessions")
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
+    @patch("modules.auth.sessions.utils.SessionLocal")
+    @patch("modules.auth.sessions.utils.auth_sessions_crud.delete_idle_sessions")
     def test_cleanup_idle_sessions_success(self, mock_delete_idle, mock_session_local):
         """
         Test successful cleanup of idle sessions.
@@ -687,11 +687,11 @@ class TestCleanupIdleSessions:
         # Assert
         mock_delete_idle.assert_called_once()
 
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
-    @patch("auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
-    @patch("auth.sessions.utils.SessionLocal")
-    @patch("auth.sessions.utils.auth_sessions_crud.delete_idle_sessions")
-    @patch("auth.sessions.utils.core_logger.print_to_log")
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_ENABLED", True)
+    @patch("modules.auth.sessions.utils.auth_constants.SESSION_IDLE_TIMEOUT_HOURS", 24)
+    @patch("modules.auth.sessions.utils.SessionLocal")
+    @patch("modules.auth.sessions.utils.auth_sessions_crud.delete_idle_sessions")
+    @patch("modules.auth.sessions.utils.core_logger.print_to_log")
     def test_cleanup_idle_sessions_error_handling(self, mock_logger, mock_delete_idle, mock_session_local):
         """
         Test error handling in cleanup.
@@ -718,10 +718,10 @@ class TestCreateSessionUtilsCsrf:
     """
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
-    @patch("auth.sessions.utils.auth_sessions_crud.create_session")
+    @patch("modules.auth.sessions.utils.auth_sessions_crud.create_session")
     def test_create_session_hashes_csrf_token_before_persistence(self, mock_crud_create, mock_db):
         """
         Test that create_session computes an HMAC-SHA256 of the
@@ -761,10 +761,10 @@ class TestCreateSessionUtilsCsrf:
         assert persisted_session.csrf_token_hash == expected_hash
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
-    @patch("auth.sessions.utils.auth_sessions_crud.create_session")
+    @patch("modules.auth.sessions.utils.auth_sessions_crud.create_session")
     def test_create_session_none_csrf_token_stores_none(self, mock_crud_create, mock_db):
         """
         Test that create_session stores None for csrf_token_hash
@@ -801,10 +801,10 @@ class TestEditSessionUtilsCsrf:
     """
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
-    @patch("auth.sessions.utils.auth_sessions_crud.edit_session")
+    @patch("modules.auth.sessions.utils.auth_sessions_crud.edit_session")
     def test_edit_session_hashes_new_csrf_token_before_persistence(self, mock_crud_edit, mock_db):
         """
         Test that edit_session computes an HMAC-SHA256 of the
@@ -857,10 +857,10 @@ class TestEditSessionUtilsCsrf:
         assert updated_session.csrf_token_hash == expected_hash
 
     @patch(
-        "auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
+        "modules.auth.sessions.utils.auth_constants.JWT_SECRET_KEY",
         _TEST_SECRET,
     )
-    @patch("auth.sessions.utils.auth_sessions_crud.edit_session")
+    @patch("modules.auth.sessions.utils.auth_sessions_crud.edit_session")
     def test_edit_session_none_csrf_token_stores_none(self, mock_crud_edit, mock_db):
         """
         Test that edit_session stores None for csrf_token_hash

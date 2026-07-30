@@ -1,6 +1,6 @@
 """Tests for auth.constants module."""
 
-import auth.constants as auth_constants
+import modules.auth.constants as auth_constants
 
 
 class TestJWTConstants:

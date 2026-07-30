@@ -1,9 +1,9 @@
-"""Tests for ``auth.mfa.crud.create_users_mfa_row``."""
+"""Tests for ``modules.auth.mfa.crud.create_users_mfa_row``."""
 
 from unittest.mock import MagicMock, patch
 
-import auth.mfa.crud as auth_mfa_crud
-import auth.mfa.models as auth_mfa_models
+import modules.auth.mfa.crud as auth_mfa_crud
+import modules.auth.mfa.models as auth_mfa_models
 
 
 class TestCreateUsersMFARow:

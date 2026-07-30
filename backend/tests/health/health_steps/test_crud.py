@@ -5,9 +5,9 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import health.health_steps.crud as health_steps_crud
-import health.health_steps.models as health_steps_models
-import health.health_steps.schema as health_steps_schema
+import modules.health.health_steps.crud as health_steps_crud
+import modules.health.health_steps.models as health_steps_models
+import modules.health.health_steps.schema as health_steps_schema
 
 
 def _make_steps_mock(record_id=1, user_id=1, **kwargs):

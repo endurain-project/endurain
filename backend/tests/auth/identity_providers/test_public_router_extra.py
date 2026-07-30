@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import auth.identity_providers.public_router as public_router
+import modules.auth.identity_providers.public_router as public_router
 
 
 def _build_app(mock_db) -> TestClient:
@@ -18,7 +18,7 @@ def _build_app(mock_db) -> TestClient:
 
 
 class TestGetEnabledProviders:
-    @patch("auth.identity_providers.public_router.idp_crud.get_enabled_identity_providers")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_enabled_identity_providers")
     def test_success(self, mock_get, mock_db):
         client = _build_app(mock_db)
         provider = MagicMock()
@@ -34,7 +34,7 @@ class TestGetEnabledProviders:
         assert len(data) == 1
         assert data[0]["name"] == "Google"
 
-    @patch("auth.identity_providers.public_router.idp_crud.get_enabled_identity_providers")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_enabled_identity_providers")
     def test_empty(self, mock_get, mock_db):
         client = _build_app(mock_db)
         mock_get.return_value = []
@@ -45,7 +45,7 @@ class TestGetEnabledProviders:
 
 
 class TestInitiateLoginErrors:
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_provider_not_found(self, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         mock_get_idp.return_value = None
@@ -59,7 +59,7 @@ class TestInitiateLoginErrors:
         )
         assert response.status_code == 404
 
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_provider_disabled(self, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         idp = MagicMock()
@@ -75,10 +75,10 @@ class TestInitiateLoginErrors:
         )
         assert response.status_code == 404
 
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_redirect_url")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
     def test_generic_exception(self, mock_login, mock_val_url, mock_val_pkce, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         idp = MagicMock()
@@ -97,12 +97,12 @@ class TestInitiateLoginErrors:
         )
         assert response.status_code == 500
 
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_redirect_url")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
-    @patch("auth.identity_providers.public_router.idp_utils.is_custom_scheme_redirect")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.is_custom_scheme_redirect")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
     def test_invalid_client_type_defaults_to_web(
         self,
         mock_create_state,
@@ -136,7 +136,7 @@ class TestInitiateLoginErrors:
 
 
 class TestHandleCallback:
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_provider_not_found(self, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         mock_get_idp.return_value = None
@@ -147,8 +147,8 @@ class TestHandleCallback:
         )
         assert response.status_code == 404
 
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
     def test_oauth_state_not_found(self, mock_get_state, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         idp = MagicMock()
@@ -163,9 +163,9 @@ class TestHandleCallback:
         )
         assert response.status_code == 400
 
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
     def test_state_replay(self, mock_mark_used, mock_get_state, mock_get_idp, mock_db):
         client = _build_app(mock_db)
         idp = MagicMock()
@@ -186,7 +186,7 @@ class TestHandleCallback:
 
 
 class TestTokenExchange:
-    @patch("auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
     def test_session_not_found(self, mock_get_session, mock_db):
         client = _build_app(mock_db)
         mock_get_session.return_value = None
@@ -197,10 +197,10 @@ class TestTokenExchange:
         )
         assert response.status_code == 404
 
-    @patch("auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
-    @patch("auth.identity_providers.public_router.auth_utils.create_tokens")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
-    @patch("auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
+    @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
     def test_client_type_mismatch_does_not_mint_tokens_or_claim_session(
         self,
         mock_get_session,
@@ -298,10 +298,10 @@ class TestHandleCallbackRedirects:
         oauth_state.idp_id = 1
         return oauth_state
 
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_link_mode_success_redirects_to_link_result_url(
         self,
         mock_get_idp,
@@ -329,13 +329,13 @@ class TestHandleCallbackRedirects:
         assert response.status_code == 307
         assert "idp_link=success" in response.headers["location"]
 
-    @patch("auth.identity_providers.public_router.auth_sessions_utils.create_session")
-    @patch("auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("auth.identity_providers.public_router.users_utils.check_user_is_active")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
+    @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
+    @patch("modules.auth.identity_providers.public_router.users_utils.check_user_is_active")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_success_redirects_with_session_id(
         self,
         mock_get_idp,
@@ -368,13 +368,13 @@ class TestHandleCallbackRedirects:
         assert "session_id=" in location
         mock_create_session.assert_called_once()
 
-    @patch("auth.identity_providers.public_router.auth_sessions_utils.create_session")
-    @patch("auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("auth.identity_providers.public_router.users_utils.check_user_is_active")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
+    @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
+    @patch("modules.auth.identity_providers.public_router.users_utils.check_user_is_active")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_appends_relative_redirect_path(
         self,
         mock_get_idp,
@@ -410,13 +410,13 @@ class TestHandleCallbackRedirects:
         assert "redirect=/dashboard" in location
         assert "external_redirect=true" not in location
 
-    @patch("auth.identity_providers.public_router.auth_sessions_utils.create_session")
-    @patch("auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
-    @patch("auth.identity_providers.public_router.users_utils.check_user_is_active")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
+    @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
+    @patch("modules.auth.identity_providers.public_router.users_utils.check_user_is_active")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_mode_custom_scheme_sets_external_redirect_flag(
         self,
         mock_get_idp,
@@ -450,10 +450,10 @@ class TestHandleCallbackRedirects:
         assert response.status_code == 307
         assert "external_redirect=true" in response.headers["location"]
 
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_login_failure_redirects_to_login_error(
         self,
         mock_get_idp,
@@ -479,10 +479,10 @@ class TestHandleCallbackRedirects:
         assert response.status_code == 307
         assert "error=sso_failed" in response.headers["location"]
 
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
-    @patch("auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
     def test_link_failure_redirects_to_link_error(
         self,
         mock_get_idp,

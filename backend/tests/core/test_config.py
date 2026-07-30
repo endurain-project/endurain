@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 import core.config as core_config
-import core.platform.profile as platform_profile
+import infra.profile as platform_profile
 
 
 class TestDeploymentProfileEnforcement:

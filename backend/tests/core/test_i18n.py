@@ -69,7 +69,7 @@ class TestSupportedLocalesSource:
 
     def test_matches_language_enum(self):
         """Every Language enum value appears in SUPPORTED_LOCALES."""
-        from users.users.schema import Language
+        from modules.users.users.schema import Language
 
         assert frozenset(language.value for language in Language) == core_i18n.SUPPORTED_LOCALES
 

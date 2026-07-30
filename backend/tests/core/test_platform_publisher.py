@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 
 
 class TestPublish:
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_publishes_event_with_payload_and_metadata(self, mock_runtime, mock_req_id):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform
@@ -24,10 +24,10 @@ class TestPublish:
         # No ambient request id, so the key is absent (not an empty string).
         assert "request_id" not in event.metadata
 
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_injects_ambient_request_id(self, mock_runtime, mock_req_id):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform
@@ -38,10 +38,10 @@ class TestPublish:
         event = platform.events.publish.call_args.args[0]
         assert event.metadata == {"request_id": "req-123", "user_id": 3}
 
-    @patch("core.platform.publisher.core_logger")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.core_logger")
+    @patch("infra.publisher.platform_runtime")
     def test_swallows_and_logs_when_platform_unavailable(self, mock_runtime, mock_logger):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         mock_runtime.get_active_platform.side_effect = RuntimeError("no platform")
 
@@ -52,13 +52,13 @@ class TestPublish:
 
 
 class TestDurableRouting:
-    @patch("core.platform.publisher.jobs_outbox")
-    @patch("core.platform.publisher.jobs_registry")
-    @patch("core.platform.publisher.core_config")
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_writes_to_outbox_when_durable(self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform
@@ -75,15 +75,15 @@ class TestDurableRouting:
         # Durable events are recorded 'queued' so event_log isn't dark.
         platform.recorder.record_queued.assert_called_once()
 
-    @patch("core.platform.publisher.jobs_outbox")
-    @patch("core.platform.publisher.jobs_registry")
-    @patch("core.platform.publisher.core_config")
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_durable_path_tolerates_no_recorder(
         self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox
     ):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         platform.recorder = None  # event logging disabled
@@ -96,13 +96,13 @@ class TestDurableRouting:
 
         mock_outbox.add_to_outbox.assert_called_once()
 
-    @patch("core.platform.publisher.jobs_outbox")
-    @patch("core.platform.publisher.jobs_registry")
-    @patch("core.platform.publisher.core_config")
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_uses_bus_when_no_db(self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform
@@ -115,15 +115,15 @@ class TestDurableRouting:
         mock_outbox.add_to_outbox.assert_not_called()
         platform.events.publish.assert_called_once()
 
-    @patch("core.platform.publisher.jobs_outbox")
-    @patch("core.platform.publisher.jobs_registry")
-    @patch("core.platform.publisher.core_config")
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_uses_bus_when_no_durable_subscribers(
         self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox
     ):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform
@@ -136,13 +136,13 @@ class TestDurableRouting:
         mock_outbox.add_to_outbox.assert_not_called()
         platform.events.publish.assert_called_once()
 
-    @patch("core.platform.publisher.jobs_outbox")
-    @patch("core.platform.publisher.jobs_registry")
-    @patch("core.platform.publisher.core_config")
-    @patch("core.platform.publisher.core_middleware_request_id")
-    @patch("core.platform.publisher.platform_runtime")
+    @patch("infra.publisher.jobs_outbox")
+    @patch("infra.publisher.jobs_registry")
+    @patch("infra.publisher.core_config")
+    @patch("infra.publisher.core_middleware_request_id")
+    @patch("infra.publisher.platform_runtime")
     def test_uses_bus_when_jobs_disabled(self, mock_runtime, mock_req_id, mock_config, mock_registry, mock_outbox):
-        from core.platform.publisher import publish
+        from infra.publisher import publish
 
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform

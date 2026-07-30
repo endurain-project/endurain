@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 
 
 class TestResolveTileSettings:
-    @patch("activities.activity_thumbnail.service.core_cryptography")
-    @patch("activities.activity_thumbnail.service.server_settings_crud")
+    @patch("modules.activities.activity_thumbnail.service.core_cryptography")
+    @patch("modules.activities.activity_thumbnail.service.server_settings_crud")
     def test_with_settings_and_key(self, mock_ss, mock_crypto):
-        from activities.activity_thumbnail.service import resolve_tile_settings
+        from modules.activities.activity_thumbnail.service import resolve_tile_settings
 
         settings = MagicMock()
         settings.tileserver_url = "https://tiles/{z}/{x}/{y}.png"
@@ -23,10 +23,10 @@ class TestResolveTileSettings:
         assert api_key == "plain"
         mock_crypto.decrypt_token_fernet.assert_called_once_with("enc")
 
-    @patch("activities.activity_thumbnail.service.server_settings_crud")
+    @patch("modules.activities.activity_thumbnail.service.server_settings_crud")
     def test_defaults_without_settings(self, mock_ss):
-        import activities.activity_thumbnail.render as render
-        from activities.activity_thumbnail.service import resolve_tile_settings
+        import modules.activities.activity_thumbnail.render as render
+        from modules.activities.activity_thumbnail.service import resolve_tile_settings
 
         mock_ss.get_server_settings.return_value = None
 
@@ -38,10 +38,10 @@ class TestResolveTileSettings:
 
 
 class TestGenerateAndStoreThumbnail:
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.activity_thumbnail_render")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
     def test_none_when_render_skipped(self, mock_render, mock_crud):
-        from activities.activity_thumbnail.service import generate_and_store_thumbnail
+        from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 
         mock_render.render_activity_thumbnail.return_value = None
         storage = MagicMock()
@@ -54,10 +54,10 @@ class TestGenerateAndStoreThumbnail:
         storage.save.assert_not_called()
         mock_crud.set_activity_thumbnail_path.assert_not_called()
 
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.activity_thumbnail_render")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
     def test_saves_and_records_key(self, mock_render, mock_crud):
-        from activities.activity_thumbnail.service import generate_and_store_thumbnail
+        from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 
         mock_render.render_activity_thumbnail.return_value = b"data"
         mock_render.thumbnail_key.return_value = "1.webp"
@@ -77,7 +77,7 @@ class TestGenerateAndStoreThumbnail:
 
 class TestDeleteActivityThumbnail:
     def test_deletes_derived_key(self):
-        from activities.activity_thumbnail.service import delete_activity_thumbnail
+        from modules.activities.activity_thumbnail.service import delete_activity_thumbnail
 
         storage = MagicMock()
 
@@ -89,13 +89,13 @@ class TestDeleteActivityThumbnail:
 class TestDeleteAndRegenerateThumbnails:
     """delete_and_regenerate_all_activity_thumbnails: storage-backed deletion."""
 
-    @patch("activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
-    @patch("activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_deletes_blobs_and_clears_db(self, mock_logger, mock_runtime, mock_crud, mock_session, mock_gen):
-        from activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
@@ -116,13 +116,13 @@ class TestDeleteAndRegenerateThumbnails:
         mock_crud.clear_all_activity_thumbnail_paths.assert_called_once_with(mock_db)
         mock_gen.assert_called_once()
 
-    @patch("activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
-    @patch("activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_logs_when_delete_fails(self, mock_logger, mock_runtime, mock_crud, mock_session, mock_gen):
-        from activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
@@ -155,10 +155,10 @@ class TestGenerateMissingThumbnails:
         platform.storage = storage if storage is not None else MagicMock()
         return platform
 
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_skips_when_lock_not_acquired(self, mock_logger, mock_runtime):
-        from activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_runtime.get_active_platform.return_value = self._platform(acquired=False)
 
@@ -169,12 +169,12 @@ class TestGenerateMissingThumbnails:
             "debug",
         )
 
-    @patch("activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_no_activities_without_thumbnail(self, mock_logger, mock_runtime, mock_crud, mock_session):
-        from activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
@@ -189,12 +189,12 @@ class TestGenerateMissingThumbnails:
             "debug",
         )
 
-    @patch("activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_clears_missing_blob_reference(self, mock_logger, mock_runtime, mock_crud, mock_session):
-        from activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
@@ -211,16 +211,16 @@ class TestGenerateMissingThumbnails:
         storage.exists.assert_called_once_with("activity_thumbnails", "1.webp")
         mock_crud.set_activity_thumbnail_path.assert_called_once_with(1, None, mock_db)
 
-    @patch("activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_generates_thumbnail_for_activity_with_gps(
         self, mock_logger, mock_runtime, mock_crud, mock_session, mock_resolve, mock_generate
     ):
-        from activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
@@ -247,16 +247,16 @@ class TestGenerateMissingThumbnails:
         assert args[0] == 1
         assert args[2] is storage
 
-    @patch("activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("activities.activity_thumbnail.service.activities_crud")
-    @patch("activities.activity_thumbnail.service.platform_runtime")
-    @patch("activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.core_logger")
     def test_skips_activity_without_gps_stream(
         self, mock_logger, mock_runtime, mock_crud, mock_session, mock_resolve, mock_generate
     ):
-        from activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db

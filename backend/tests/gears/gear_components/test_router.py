@@ -5,11 +5,11 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
-    import gears.gear.dependencies as gear_deps
-    import gears.gear_components.dependencies as gc_deps
-    import gears.gear_components.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.gears.gear.dependencies as gear_deps
+    import modules.gears.gear_components.dependencies as gc_deps
+    import modules.gears.gear_components.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/gear_components")
@@ -41,9 +41,9 @@ class TestReadGearComponentTypes:
 
 
 class TestReadGearComponents:
-    @patch("gears.gear_components.router.gear_components_crud.get_gear_components_user")
+    @patch("modules.gears.gear_components.router.gear_components_crud.get_gear_components_user")
     def test_all_success(self, mock_get, mock_db):
-        from gears.gear_components.schema import GearComponentRead
+        from modules.gears.gear_components.schema import GearComponentRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [
@@ -53,7 +53,7 @@ class TestReadGearComponents:
         response = client.get("/gear_components", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("gears.gear_components.router.gear_components_crud.get_gear_components_user")
+    @patch("modules.gears.gear_components.router.gear_components_crud.get_gear_components_user")
     def test_all_empty(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -64,10 +64,10 @@ class TestReadGearComponents:
 
 
 class TestReadGearComponentsByGearId:
-    @patch("gears.gear_components.router.gear_components_crud.get_components_activity_stats")
-    @patch("gears.gear_components.router.gear_components_crud.get_gear_components_user_by_gear_id")
+    @patch("modules.gears.gear_components.router.gear_components_crud.get_components_activity_stats")
+    @patch("modules.gears.gear_components.router.gear_components_crud.get_gear_components_user_by_gear_id")
     def test_with_components(self, mock_get_components, mock_get_stats, mock_db):
-        from gears.gear_components.schema import GearComponentRead
+        from modules.gears.gear_components.schema import GearComponentRead
 
         client = TestClient(_build_app(mock_db))
         comp = GearComponentRead(id=1, user_id=1, gear_id=1, type="chain", brand="Shimano", model="Ultegra")
@@ -80,7 +80,7 @@ class TestReadGearComponentsByGearId:
         assert len(data) == 1
         assert data[0]["current_distance"] == 1000
 
-    @patch("gears.gear_components.router.gear_components_crud.get_gear_components_user_by_gear_id")
+    @patch("modules.gears.gear_components.router.gear_components_crud.get_gear_components_user_by_gear_id")
     def test_no_components(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -91,9 +91,9 @@ class TestReadGearComponentsByGearId:
 
 
 class TestCreateGearComponent:
-    @patch("gears.gear_components.router.gear_components_crud.create_gear_component")
+    @patch("modules.gears.gear_components.router.gear_components_crud.create_gear_component")
     def test_create_success(self, mock_create, mock_db):
-        from gears.gear_components.schema import GearComponentRead
+        from modules.gears.gear_components.schema import GearComponentRead
 
         client = TestClient(_build_app(mock_db))
         mock_create.return_value = GearComponentRead(
@@ -114,9 +114,9 @@ class TestCreateGearComponent:
 
 
 class TestEditGearComponent:
-    @patch("gears.gear_components.router.gear_components_crud.edit_gear_component")
+    @patch("modules.gears.gear_components.router.gear_components_crud.edit_gear_component")
     def test_edit_success(self, mock_edit, mock_db):
-        from gears.gear_components.schema import GearComponentRead
+        from modules.gears.gear_components.schema import GearComponentRead
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = GearComponentRead(
@@ -136,7 +136,7 @@ class TestEditGearComponent:
         )
         assert response.status_code == 200
 
-    @patch("gears.gear_components.router.gear_components_crud.edit_gear_component")
+    @patch("modules.gears.gear_components.router.gear_components_crud.edit_gear_component")
     def test_edit_not_found(self, mock_edit, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_edit.side_effect = HTTPException(
@@ -177,7 +177,7 @@ class TestEditGearComponent:
 
 
 class TestDeleteGearComponent:
-    @patch("gears.gear_components.router.gear_components_crud.delete_gear_component")
+    @patch("modules.gears.gear_components.router.gear_components_crud.delete_gear_component")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_delete.return_value = None
@@ -185,7 +185,7 @@ class TestDeleteGearComponent:
         response = client.delete("/gear_components/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 204
 
-    @patch("gears.gear_components.router.gear_components_crud.delete_gear_component")
+    @patch("modules.gears.gear_components.router.gear_components_crud.delete_gear_component")
     def test_delete_not_found(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_delete.side_effect = HTTPException(

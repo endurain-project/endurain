@@ -1,7 +1,7 @@
 """Tests for the durable-job handler registry."""
 
-import core.platform.events as platform_events
-from core.jobs.registry import JobHandlerRegistry
+import infra.events as platform_events
+from infra.jobs.registry import JobHandlerRegistry
 
 
 def _handler(event: platform_events.Event) -> None:  # pragma: no cover - never invoked

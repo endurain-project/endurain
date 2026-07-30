@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock
 
-import users.users.router as users_router
-import users.users.schema as users_schema
+import modules.users.users.router as users_router
+import modules.users.users.schema as users_schema
 
 
 class TestEditUserPassword:

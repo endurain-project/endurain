@@ -478,7 +478,7 @@ class TestSecurityHeadersMiddleware:
         from fastapi.responses import HTMLResponse
         from fastapi.testclient import TestClient
 
-        import server_settings.schema as server_settings_schema
+        import modules.server_settings.schema as server_settings_schema
         from core.middleware import SecurityHeadersMiddleware
 
         app = FastAPI()

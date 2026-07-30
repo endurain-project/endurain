@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-import auth.mfa.schema as mfa_schema
+import modules.auth.mfa.schema as mfa_schema
 
 
 class TestMFARequest:

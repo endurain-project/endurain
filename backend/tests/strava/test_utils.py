@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 from stravalib.exc import Fault as StravaFault
 
-import strava.utils as strava_utils
+import modules.strava.utils as strava_utils
 
 # ---------------------------------------------------------------------------
 # Helpers

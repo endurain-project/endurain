@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
-    import health.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.health.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/health")
@@ -25,12 +25,12 @@ def _build_app(mock_db):
 
 
 class TestReadHealthDailyStats:
-    @patch("health.router.health_weight_crud.get_latest_weight_by_user_id")
-    @patch("health.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    @patch("health.router.health_steps_crud.get_health_steps_by_date_and_user_id")
-    @patch("health.router.health_fasting_crud.get_active_fasting_by_user_id")
-    @patch("health.router.health_water_crud.get_health_water_by_date_and_user_id")
-    @patch("health.router.health_poop_crud.get_health_poop_by_date_and_user_id")
+    @patch("modules.health.router.health_weight_crud.get_latest_weight_by_user_id")
+    @patch("modules.health.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
+    @patch("modules.health.router.health_steps_crud.get_health_steps_by_date_and_user_id")
+    @patch("modules.health.router.health_fasting_crud.get_active_fasting_by_user_id")
+    @patch("modules.health.router.health_water_crud.get_health_water_by_date_and_user_id")
+    @patch("modules.health.router.health_poop_crud.get_health_poop_by_date_and_user_id")
     def test_all_data_present(
         self,
         mock_poop,
@@ -71,12 +71,12 @@ class TestReadHealthDailyStats:
         assert data["poop"] is not None
         assert data["poop"]["count"] == 1
 
-    @patch("health.router.health_weight_crud.get_latest_weight_by_user_id")
-    @patch("health.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    @patch("health.router.health_steps_crud.get_health_steps_by_date_and_user_id")
-    @patch("health.router.health_fasting_crud.get_active_fasting_by_user_id")
-    @patch("health.router.health_water_crud.get_health_water_by_date_and_user_id")
-    @patch("health.router.health_poop_crud.get_health_poop_by_date_and_user_id")
+    @patch("modules.health.router.health_weight_crud.get_latest_weight_by_user_id")
+    @patch("modules.health.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
+    @patch("modules.health.router.health_steps_crud.get_health_steps_by_date_and_user_id")
+    @patch("modules.health.router.health_fasting_crud.get_active_fasting_by_user_id")
+    @patch("modules.health.router.health_water_crud.get_health_water_by_date_and_user_id")
+    @patch("modules.health.router.health_poop_crud.get_health_poop_by_date_and_user_id")
     def test_all_data_missing(
         self,
         mock_poop,

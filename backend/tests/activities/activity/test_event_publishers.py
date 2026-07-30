@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 
 class TestPublishActivityCreated:
-    @patch("activities.activity.event_publishers.platform_publisher")
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
     def test_delegates_to_facade(self, mock_publisher):
-        from activities.activity.event_publishers import publish_activity_created
+        from modules.activities.activity.event_publishers import publish_activity_created
 
         publish_activity_created(7, 3)
 
@@ -19,9 +19,9 @@ class TestPublishActivityCreated:
 
 
 class TestPublishActivityDeleted:
-    @patch("activities.activity.event_publishers.platform_publisher")
+    @patch("modules.activities.activity.event_publishers.platform_publisher")
     def test_delegates_to_facade(self, mock_publisher):
-        from activities.activity.event_publishers import publish_activity_deleted
+        from modules.activities.activity.event_publishers import publish_activity_deleted
 
         publish_activity_deleted(9, 2)
 

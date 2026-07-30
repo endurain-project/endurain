@@ -6,7 +6,7 @@ Covers:
 - UniqueConstraint / index metadata.
 """
 
-from auth.mfa.models import UsersMFA
+from modules.auth.mfa.models import UsersMFA
 
 
 class TestUsersMFAModel:

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import core.jobs.service as jobs_service
+import infra.jobs.service as jobs_service
 
 
 @pytest.fixture(autouse=True)
@@ -19,9 +19,9 @@ def _platform():
 
 
 class TestBuildRunner:
-    @patch("core.jobs.service.JobRunner")
-    @patch("core.jobs.service.core_config")
-    @patch("core.jobs.service.platform_runtime")
+    @patch("infra.jobs.service.JobRunner")
+    @patch("infra.jobs.service.core_config")
+    @patch("infra.jobs.service.platform_runtime")
     def test_builds_runner_from_settings(self, mock_runtime, mock_config, mock_runner):
         platform = MagicMock()
         mock_runtime.get_active_platform.return_value = platform
@@ -42,9 +42,9 @@ class TestBuildRunner:
 
 
 class TestWorkerLifecycle:
-    @patch("core.jobs.service.BackgroundWorker")
-    @patch("core.jobs.service.build_runner")
-    @patch("core.jobs.service.core_config")
+    @patch("infra.jobs.service.BackgroundWorker")
+    @patch("infra.jobs.service.build_runner")
+    @patch("infra.jobs.service.core_config")
     def test_start_is_idempotent(self, mock_config, mock_build, mock_worker_cls):
         mock_config.settings.JOBS_POLL_INTERVAL_SECONDS = 2.0
         jobs_service.start_job_worker()
@@ -52,9 +52,9 @@ class TestWorkerLifecycle:
         mock_worker_cls.assert_called_once()
         mock_worker_cls.return_value.start.assert_called_once()
 
-    @patch("core.jobs.service.BackgroundWorker")
-    @patch("core.jobs.service.build_runner")
-    @patch("core.jobs.service.core_config")
+    @patch("infra.jobs.service.BackgroundWorker")
+    @patch("infra.jobs.service.build_runner")
+    @patch("infra.jobs.service.core_config")
     def test_stop_stops_and_clears(self, mock_config, mock_build, mock_worker_cls):
         mock_config.settings.JOBS_POLL_INTERVAL_SECONDS = 2.0
         jobs_service.start_job_worker()
@@ -69,9 +69,9 @@ class TestWorkerLifecycle:
 
 
 class TestRelayScheduled:
-    @patch("core.jobs.service.jobs_relay")
-    @patch("core.jobs.service.core_config")
-    @patch("core.jobs.service.platform_runtime")
+    @patch("infra.jobs.service.jobs_relay")
+    @patch("infra.jobs.service.core_config")
+    @patch("infra.jobs.service.platform_runtime")
     def test_drains_until_empty(self, mock_runtime, mock_config, mock_relay):
         mock_runtime.get_active_platform.return_value = _platform()
         mock_relay.relay_outbox_once.side_effect = [3, 0]  # drain two batches then stop
@@ -80,9 +80,9 @@ class TestRelayScheduled:
 
         assert mock_relay.relay_outbox_once.call_count == 2
 
-    @patch("core.jobs.service.jobs_relay")
-    @patch("core.jobs.service.core_config")
-    @patch("core.jobs.service.platform_runtime")
+    @patch("infra.jobs.service.jobs_relay")
+    @patch("infra.jobs.service.core_config")
+    @patch("infra.jobs.service.platform_runtime")
     def test_stops_after_bounded_batches(self, mock_runtime, mock_config, mock_relay):
         mock_runtime.get_active_platform.return_value = _platform()
         mock_relay.relay_outbox_once.return_value = 10  # always full: bounded by _MAX_RELAY_BATCHES
@@ -93,9 +93,9 @@ class TestRelayScheduled:
 
 
 class TestReapScheduled:
-    @patch("core.jobs.service.core_database")
-    @patch("core.jobs.service.jobs_crud")
-    @patch("core.jobs.service.platform_runtime")
+    @patch("infra.jobs.service.core_database")
+    @patch("infra.jobs.service.jobs_crud")
+    @patch("infra.jobs.service.platform_runtime")
     def test_reclaims_expired_leases(self, mock_runtime, mock_crud, mock_db):
         mock_runtime.get_active_platform.return_value = _platform()
         mock_crud.reclaim_expired_leases.return_value = 2

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-import websocket.manager as websocket_manager
+import modules.websocket.manager as websocket_manager
 
 
 class TestWebSocketManager:
@@ -28,7 +28,7 @@ class TestWebSocketManager:
         assert isinstance(manager.active_connections, dict)
         assert len(manager.active_connections) == 0
 
-    @patch("websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.core_logger.print_to_log")
     async def test_connect(self, mock_log, manager, mock_websocket):
         """Test connecting a WebSocket."""
         user_id = 1
@@ -45,7 +45,7 @@ class TestWebSocketManager:
         # Verify logging
         mock_log.assert_called_once_with(f"WebSocket connected for user {user_id}", "debug")
 
-    @patch("websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.core_logger.print_to_log")
     async def test_connect_multiple_users(self, mock_log, manager):
         """Test connecting multiple WebSocket connections."""
         ws1 = AsyncMock()
@@ -60,7 +60,7 @@ class TestWebSocketManager:
         assert manager.active_connections[1] == ws1
         assert manager.active_connections[2] == ws2
 
-    @patch("websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.core_logger.print_to_log")
     async def test_disconnect(self, mock_log, manager, mock_websocket):
         """Test disconnecting a WebSocket."""
         user_id = 1
@@ -75,7 +75,7 @@ class TestWebSocketManager:
         assert mock_log.call_count == 2  # connect + disconnect
         mock_log.assert_any_call(f"WebSocket disconnected for user {user_id}", "debug")
 
-    @patch("websocket.manager.core_logger.print_to_log")
+    @patch("modules.websocket.manager.core_logger.print_to_log")
     def test_disconnect_nonexistent_user(self, mock_log, manager):
         """Test disconnecting a non-existent user (no error)."""
         manager.disconnect(999)

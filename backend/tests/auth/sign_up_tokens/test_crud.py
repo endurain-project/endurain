@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy.sql import operators
 
-import auth.sign_up_tokens.crud as sign_up_tokens_crud
-import auth.sign_up_tokens.schema as sign_up_tokens_schema
+import modules.auth.sign_up_tokens.crud as sign_up_tokens_crud
+import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
 
 
 class TestGetSignUpTokenByHash:
@@ -78,7 +78,7 @@ class TestGetSignUpTokenByHash:
 class TestCreateSignUpToken:
     """Test suite for create_sign_up_token CRUD function."""
 
-    @patch("auth.sign_up_tokens.crud.sign_up_tokens_models.SignUpToken")
+    @patch("modules.auth.sign_up_tokens.crud.sign_up_tokens_models.SignUpToken")
     def test_create_sign_up_token_persists_and_returns_token(self, mock_model_class, mock_db):
         """Token is added, committed, refreshed, and returned."""
         # Arrange

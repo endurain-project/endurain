@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_exercise_titles.router as router
-    import auth.dependencies as auth_deps
     import core.database as core_db
+    import modules.activities.activity_exercise_titles.router as router
+    import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
     app.include_router(router.router, prefix="/activities_exercise_titles")
@@ -25,7 +25,9 @@ def _build_app(mock_db):
 
 
 class TestReadExerciseTitles:
-    @patch("activities.activity_exercise_titles.router.activity_exercise_titles_crud.get_activity_exercise_titles")
+    @patch(
+        "modules.activities.activity_exercise_titles.router.activity_exercise_titles_crud.get_activity_exercise_titles"
+    )
     def test_read_titles_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []

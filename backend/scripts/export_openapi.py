@@ -18,7 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-# Expose the app packages (imports are top-level, e.g. ``core.routes``) without
+# Expose the app packages (imports are top-level, e.g. ``api``) without
 # relying on the caller's PYTHONPATH.
 _APP_DIR = Path(__file__).resolve().parent.parent / "app"
 if str(_APP_DIR) not in sys.path:
@@ -33,7 +33,7 @@ os.environ.setdefault("SECRET_KEY", "openapi-export-placeholder")
 from fastapi import FastAPI  # noqa: E402
 
 import core.config as core_config  # noqa: E402
-from core.routes import router as api_router  # noqa: E402
+from api import router as api_router  # noqa: E402
 
 
 def build_openapi() -> dict:

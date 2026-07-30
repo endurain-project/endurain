@@ -5,10 +5,10 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
-    import followers.router as router
-    import users.users.dependencies as users_deps
+    import modules.auth.dependencies as auth_deps
+    import modules.followers.router as router
+    import modules.users.users.dependencies as users_deps
 
     app = FastAPI()
     app.include_router(router.router)
@@ -28,9 +28,9 @@ def _build_app(mock_db):
 
 
 class TestGetUserFollowers:
-    @patch("followers.router.followers_crud.get_all_followers_by_user_id")
+    @patch("modules.followers.router.followers_crud.get_all_followers_by_user_id")
     def test_all_success(self, mock_get, mock_db):
-        from followers.schema import Follower
+        from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
@@ -40,7 +40,7 @@ class TestGetUserFollowers:
 
 
 class TestGetUserFollowerCount:
-    @patch("followers.router.followers_crud.count_followers_by_user_id")
+    @patch("modules.followers.router.followers_crud.count_followers_by_user_id")
     def test_count_all(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 5
@@ -49,7 +49,7 @@ class TestGetUserFollowerCount:
         assert response.status_code == 200
         assert response.json() == 5
 
-    @patch("followers.router.followers_crud.count_followers_by_user_id")
+    @patch("modules.followers.router.followers_crud.count_followers_by_user_id")
     def test_count_accepted(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 3
@@ -60,9 +60,9 @@ class TestGetUserFollowerCount:
 
 
 class TestGetUserFollowing:
-    @patch("followers.router.followers_crud.get_all_following_by_user_id")
+    @patch("modules.followers.router.followers_crud.get_all_following_by_user_id")
     def test_all_success(self, mock_get, mock_db):
-        from followers.schema import Follower
+        from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
@@ -72,7 +72,7 @@ class TestGetUserFollowing:
 
 
 class TestGetUserFollowingCount:
-    @patch("followers.router.followers_crud.count_following_by_user_id")
+    @patch("modules.followers.router.followers_crud.count_following_by_user_id")
     def test_count_all(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 5
@@ -81,7 +81,7 @@ class TestGetUserFollowingCount:
         assert response.status_code == 200
         assert response.json() == 5
 
-    @patch("followers.router.followers_crud.count_following_by_user_id")
+    @patch("modules.followers.router.followers_crud.count_following_by_user_id")
     def test_count_accepted(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_count.return_value = 3
@@ -92,9 +92,9 @@ class TestGetUserFollowingCount:
 
 
 class TestReadFollowerSpecificUser:
-    @patch("followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
+    @patch("modules.followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
     def test_success(self, mock_get, mock_db):
-        from followers.schema import Follower
+        from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = Follower(follower_id=1, following_id=2, is_accepted=True)
@@ -102,7 +102,7 @@ class TestReadFollowerSpecificUser:
         response = client.get("/user/1/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
+    @patch("modules.followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -113,10 +113,10 @@ class TestReadFollowerSpecificUser:
 
 
 class TestCreateFollow:
-    @patch("followers.router.websocket_manager.get_websocket_manager")
-    @patch("followers.router.followers_crud.create_follower")
+    @patch("modules.followers.router.websocket_manager.get_websocket_manager")
+    @patch("modules.followers.router.followers_crud.create_follower")
     async def test_create_success(self, mock_create, mock_ws, mock_db):
-        from followers.schema import Follower
+        from modules.followers.schema import Follower
 
         client = TestClient(_build_app(mock_db))
         mock_create.return_value = Follower(follower_id=1, following_id=2, is_accepted=False)
@@ -126,8 +126,8 @@ class TestCreateFollow:
 
 
 class TestAcceptFollow:
-    @patch("followers.router.websocket_manager.get_websocket_manager")
-    @patch("followers.router.followers_crud.accept_follower")
+    @patch("modules.followers.router.websocket_manager.get_websocket_manager")
+    @patch("modules.followers.router.followers_crud.accept_follower")
     async def test_accept_success(self, mock_accept, mock_ws, mock_db):
         client = TestClient(_build_app(mock_db))
 
@@ -137,14 +137,14 @@ class TestAcceptFollow:
 
 
 class TestDeleteFollower:
-    @patch("followers.router.followers_crud.delete_follower")
+    @patch("modules.followers.router.followers_crud.delete_follower")
     def test_delete_follower_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
 
         response = client.delete("/delete/follower/targetUser/2", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("followers.router.followers_crud.delete_follower")
+    @patch("modules.followers.router.followers_crud.delete_follower")
     def test_delete_following_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
 

@@ -1,6 +1,6 @@
 """Tests for the EventLog ORM model (attribute inspection only)."""
 
-from core.event_log.models import EventLog
+from infra.event_log.models import EventLog
 
 
 class TestEventLogModel:

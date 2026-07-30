@@ -9,9 +9,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import operators
 
-import auth.password_reset_tokens.crud as password_reset_tokens_crud
-import auth.password_reset_tokens.models as password_reset_tokens_models
-import auth.password_reset_tokens.schema as password_reset_tokens_schema
+import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
+import modules.auth.password_reset_tokens.models as password_reset_tokens_models
+import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
 
 
 class TestClaimPasswordResetToken:
@@ -73,7 +73,7 @@ class TestMarkUserPasswordResetTokensUsed:
 class TestCreatePasswordResetToken:
     """Test suite for create_password_reset_token function."""
 
-    @patch("auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
+    @patch("modules.auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
     def test_create_token_persists_and_returns_instance(self, mock_model_cls, mock_db):
         """
         Adds the token to the database, commits, refreshes, and
@@ -100,7 +100,7 @@ class TestCreatePasswordResetToken:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(mock_instance)
 
-    @patch("auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
+    @patch("modules.auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
     def test_create_token_adds_correct_model_instance(self, mock_model_cls, mock_db):
         """
         Verifies the ORM constructor is called with the correct
@@ -133,7 +133,7 @@ class TestCreatePasswordResetToken:
             used=False,
         )
 
-    @patch("auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
+    @patch("modules.auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
     def test_create_token_db_error_raises_500(self, mock_model_cls, mock_db):
         """
         Raises HTTP 500 when a database error occurs.

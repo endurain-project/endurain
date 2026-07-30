@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock
 
-import core.jobs.worker as jobs_worker
-from core.jobs.runner import JobRunner
+import infra.jobs.worker as jobs_worker
+from infra.jobs.runner import JobRunner
 
 
 class TestRunWorker:

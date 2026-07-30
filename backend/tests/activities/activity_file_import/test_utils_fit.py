@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-import activities.activity_file_import.utils_fit as utils_fit
+import modules.activities.activity_file_import.utils_fit as utils_fit
 
 
 class _MockFrame:

@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import auth.oauth_state.crud as oauth_state_crud
-import auth.oauth_state.utils as oauth_state_utils
+import modules.auth.oauth_state.crud as oauth_state_crud
+import modules.auth.oauth_state.utils as oauth_state_utils
 
 
 class TestCreateStateIdAndNonce:
@@ -76,7 +76,7 @@ class TestDeleteExpiredOAuthStatesFromDb:
         mock_db = MagicMock()
 
         with (
-            patch("auth.oauth_state.utils.SessionLocal") as mock_session_local,
+            patch("modules.auth.oauth_state.utils.SessionLocal") as mock_session_local,
             patch.object(oauth_state_crud, "delete_expired_oauth_states", return_value=num_deleted) as mock_delete,
         ):
             mock_session_local.return_value.__enter__.return_value = mock_db
@@ -95,7 +95,7 @@ class TestDeleteExpiredOAuthStatesFromDb:
         mock_db = MagicMock()
 
         with (
-            patch("auth.oauth_state.utils.SessionLocal") as mock_session_local,
+            patch("modules.auth.oauth_state.utils.SessionLocal") as mock_session_local,
             patch.object(oauth_state_crud, "delete_expired_oauth_states", return_value=num_deleted) as mock_delete,
         ):
             mock_session_local.return_value.__enter__.return_value = mock_db
@@ -112,7 +112,7 @@ class TestDeleteExpiredOAuthStatesFromDb:
         mock_db = MagicMock()
 
         with (
-            patch("auth.oauth_state.utils.SessionLocal") as mock_session_local,
+            patch("modules.auth.oauth_state.utils.SessionLocal") as mock_session_local,
             patch.object(
                 oauth_state_crud,
                 "delete_expired_oauth_states",
@@ -135,7 +135,7 @@ class TestDeleteExpiredOAuthStatesFromDb:
         mock_context.__exit__.return_value = None
 
         with (
-            patch("auth.oauth_state.utils.SessionLocal", return_value=mock_context) as mock_session_local,
+            patch("modules.auth.oauth_state.utils.SessionLocal", return_value=mock_context) as mock_session_local,
             patch.object(oauth_state_crud, "delete_expired_oauth_states", return_value=num_deleted),
         ):
             # Act

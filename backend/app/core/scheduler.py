@@ -4,14 +4,14 @@ from collections.abc import Callable, Sequence
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-import activities.activity_thumbnail.service as activity_thumbnail_service
-import auth.maintenance as auth_maintenance
 import core.logger as core_logger
 import core.network as core_network
-import garmin.activity_utils as garmin_activity_utils
-import garmin.health_utils as garmin_health_utils
-import strava.activity_utils as strava_activity_utils
-import strava.utils as strava_utils
+import modules.activities.activity_thumbnail.service as activity_thumbnail_service
+import modules.auth.maintenance as auth_maintenance
+import modules.garmin.activity_utils as garmin_activity_utils
+import modules.garmin.health_utils as garmin_health_utils
+import modules.strava.activity_utils as strava_activity_utils
+import modules.strava.utils as strava_utils
 
 scheduler = AsyncIOScheduler()
 

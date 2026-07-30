@@ -3,7 +3,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 from fastapi import HTTPException, status
 
-import health.health_steps.models as health_steps_models
+import modules.health.health_steps.models as health_steps_models
 
 
 class TestReadHealthStepsAll:
@@ -11,8 +11,8 @@ class TestReadHealthStepsAll:
     Test suite for read_health_steps_all endpoint.
     """
 
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
     def test_read_health_steps_all_success(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
         """
         Test successful retrieval of all health steps records with total count.
@@ -47,8 +47,8 @@ class TestReadHealthStepsAll:
         assert data["total"] == 2
         assert len(data["records"]) == 2
 
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
     def test_read_health_steps_all_empty(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
         """
         Test retrieval when user has no health steps records.
@@ -75,8 +75,8 @@ class TestReadHealthStepsAllPagination:
     Test suite for read_health_steps_all_pagination endpoint.
     """
 
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
     def test_read_health_steps_all_pagination_success(
         self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
     ):
@@ -108,8 +108,8 @@ class TestReadHealthStepsAllPagination:
         assert data["page_number"] == 1
         assert len(data["records"]) == 1
 
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_number_by_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_user_id")
     def test_read_health_steps_all_pagination_different_page(
         self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
     ):
@@ -141,8 +141,8 @@ class TestCreateHealthSteps:
     Test suite for create_health_steps endpoint.
     """
 
-    @patch("health.health_steps.router.health_steps_crud.create_health_steps")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.create_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
     def test_create_health_steps_success(
         self,
         mock_get_by_date,
@@ -178,8 +178,8 @@ class TestCreateHealthSteps:
         data = response.json()
         assert data["steps"] == 10000
 
-    @patch("health.health_steps.router.health_steps_crud.edit_health_steps")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.edit_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
     def test_create_health_steps_updates_existing(self, mock_get_by_date, mock_edit, fast_api_client, fast_api_app):
         """
         Test creating health steps when entry exists updates it.
@@ -211,8 +211,8 @@ class TestCreateHealthSteps:
         assert response.status_code == 201
         mock_edit.assert_called_once()
 
-    @patch("health.health_steps.router.health_steps_crud.create_health_steps")
-    @patch("health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
+    @patch("modules.health.health_steps.router.health_steps_crud.create_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.get_health_steps_by_date_and_user_id")
     def test_create_health_steps_missing_date_uses_today(
         self, mock_get_by_date, mock_create, fast_api_client, fast_api_app
     ):
@@ -248,7 +248,7 @@ class TestEditHealthSteps:
     Test suite for edit_health_steps endpoint.
     """
 
-    @patch("health.health_steps.router.health_steps_crud.edit_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.edit_health_steps")
     def test_edit_health_steps_success(self, mock_edit, fast_api_client, fast_api_app):
         """
         Test successful edit of health steps entry.
@@ -279,7 +279,7 @@ class TestEditHealthSteps:
         data = response.json()
         assert data["steps"] == 12000
 
-    @patch("health.health_steps.router.health_steps_crud.edit_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.edit_health_steps")
     def test_edit_health_steps_not_found(self, mock_edit, fast_api_client, fast_api_app):
         """
         Test edit when health steps not found.
@@ -311,7 +311,7 @@ class TestDeleteHealthSteps:
     Test suite for delete_health_steps endpoint.
     """
 
-    @patch("health.health_steps.router.health_steps_crud.delete_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.delete_health_steps")
     def test_delete_health_steps_success(self, mock_delete, fast_api_client, fast_api_app):
         """
         Test successful deletion of health steps entry.
@@ -329,7 +329,7 @@ class TestDeleteHealthSteps:
         assert response.status_code == 204
         mock_delete.assert_called_once_with(1, 1, ANY)
 
-    @patch("health.health_steps.router.health_steps_crud.delete_health_steps")
+    @patch("modules.health.health_steps.router.health_steps_crud.delete_health_steps")
     def test_delete_health_steps_not_found(self, mock_delete, fast_api_client, fast_api_app):
         """
         Test deletion when health steps not found.

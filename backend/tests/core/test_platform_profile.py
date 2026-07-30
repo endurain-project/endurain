@@ -1,8 +1,8 @@
-"""Tests for core.platform.profile."""
+"""Tests for infra.profile."""
 
 import pytest
 
-import core.platform.profile as platform_profile
+import infra.profile as platform_profile
 
 
 class TestParseProfile:

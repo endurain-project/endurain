@@ -7,26 +7,26 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-import auth.dependencies as auth_dependencies
-import auth.internal_dependencies as auth_internal_dependencies
-import auth.password_hasher as auth_password_hasher
-import auth.security_stores as auth_security_stores
-import auth.token_manager as auth_token_manager
-import users.users.schema as user_schema
+import modules.auth._internal.internal_dependencies as auth_internal_dependencies
+import modules.auth._internal.password_hasher as auth_password_hasher
+import modules.auth._internal.security_stores as auth_security_stores
+import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.dependencies as auth_dependencies
+import modules.users.users.schema as user_schema
 
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
     "session.router",
-    "health.health_sleep.router",
-    "health.health_steps.router",
-    "health.health_targets.router",
-    "health.health_weight.router",
-    "users.users_goals.router",
-    "auth.api_keys.router",
+    "modules.health.health_sleep.router",
+    "modules.health.health_steps.router",
+    "modules.health.health_targets.router",
+    "modules.health.health_weight.router",
+    "modules.users.users_goals.router",
+    "modules.auth.api_keys.router",
 ]
 
 PUBLIC_ROUTER_MODULES = [
-    "server_settings.public_router",
+    "modules.server_settings.public_router",
 ]
 
 
@@ -35,12 +35,12 @@ def _publish_local_platform():
     """Publish a fresh local ``Platform`` process-wide for every test.
 
     The auth/garmin/websocket store singletons resolve ``platform.state`` lazily
-    through ``core.platform.runtime`` (production sets it at startup). A fresh
+    through ``infra.runtime`` (production sets it at startup). A fresh
     platform per test keeps the in-memory state isolated between tests.
     """
     import core.config as core_config
-    import core.platform.container as platform_container
-    import core.platform.runtime as platform_runtime
+    import infra.container as platform_container
+    import infra.runtime as platform_runtime
 
     platform_runtime.set_active_platform(platform_container.build_platform(core_config.settings))
     yield
@@ -150,19 +150,19 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
         mod = import_module(dotted)
         router = getattr(mod, "router", None)
         if router is not None:
-            if dotted == "health.health_sleep.router":
+            if dotted == "modules.health.health_sleep.router":
                 app.include_router(router, prefix="/health_sleep")
-            elif dotted == "health.health_steps.router":
+            elif dotted == "modules.health.health_steps.router":
                 app.include_router(router, prefix="/health_steps")
-            elif dotted == "health.health_targets.router":
+            elif dotted == "modules.health.health_targets.router":
                 app.include_router(router, prefix="/health/targets")
-            elif dotted == "health.health_weight.router":
+            elif dotted == "modules.health.health_weight.router":
                 app.include_router(router, prefix="/health_weight")
-            elif dotted == "users.users_goals.router":
+            elif dotted == "modules.users.users_goals.router":
                 app.include_router(router, prefix="/user_goals")
-            elif dotted == "auth.api_keys.router":
+            elif dotted == "modules.auth.api_keys.router":
                 app.include_router(router, prefix="/api_keys")
-            elif dotted == "server_settings.public_router":
+            elif dotted == "modules.server_settings.public_router":
                 app.include_router(router, prefix="/server_settings/public")
             else:
                 app.include_router(router)
@@ -214,9 +214,9 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         _include_router_if_exists(app, dotted)
 
     # Include server_settings router with prefix
-    _include_router_if_exists(app, "server_settings.router")
+    _include_router_if_exists(app, "modules.server_settings.router")
     with contextlib.suppress(Exception):
-        mod = import_module("server_settings.router")
+        mod = import_module("modules.server_settings.router")
         router = getattr(mod, "router", None)
         if router is not None:
             app.include_router(router, prefix="/server_settings")
@@ -422,11 +422,11 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "auth.password_hasher",
+        "modules.auth._internal.password_hasher",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "auth.token_manager", "get_token_manager", lambda: token_manager)
+    _override_if_exists(app, "modules.auth._internal.token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "session.auth_token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
@@ -504,11 +504,11 @@ def fast_api_app_public(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "auth.password_hasher",
+        "modules.auth._internal.password_hasher",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "auth.token_manager", "get_token_manager", lambda: token_manager)
+    _override_if_exists(app, "modules.auth._internal.token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
     ) or _override_if_exists(app, "app.core.database", "get_db", lambda: mock_db)

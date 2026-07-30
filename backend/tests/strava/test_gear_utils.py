@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-import strava.gear_utils as gear_utils
+import modules.strava.gear_utils as gear_utils
 
 
 def test_bike_transform_strips_whitespace():

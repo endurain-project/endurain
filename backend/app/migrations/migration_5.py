@@ -2,10 +2,10 @@
 
 from sqlalchemy.orm import Session
 
-import activities.activity_media.crud as activity_media_crud
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import users.users.crud as user_crud
+import modules.activities.activity_media.crud as activity_media_crud
+import modules.users.users.crud as user_crud
 
 
 async def process_migration_5(db: Session) -> None:

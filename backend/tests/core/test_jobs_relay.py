@@ -4,11 +4,11 @@ from datetime import UTC, datetime
 
 import pytest
 
-import core.jobs.outbox as jobs_outbox
-import core.jobs.relay as jobs_relay
-import core.platform.events as platform_events
-from core.jobs.models import EventOutbox, ProcessingJob
-from core.jobs.registry import JobHandlerRegistry
+import infra.events as platform_events
+import infra.jobs.outbox as jobs_outbox
+import infra.jobs.relay as jobs_relay
+from infra.jobs.models import EventOutbox, ProcessingJob
+from infra.jobs.registry import JobHandlerRegistry
 from tests._helpers.db import create_sqlite_session_factory
 
 _NOW = datetime(2026, 7, 14, 12, 0, 0, tzinfo=UTC)

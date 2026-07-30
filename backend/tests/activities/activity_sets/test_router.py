@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_sets.router as router
-    import auth.dependencies as auth_deps
     import core.database as core_db
+    import modules.activities.activity_sets.router as router
+    import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
     app.include_router(router.router, prefix="/activities_sets")
@@ -25,7 +25,7 @@ def _build_app(mock_db):
 
 
 class TestReadActivitySets:
-    @patch("activities.activity_sets.router.activity_sets_crud.get_activity_sets")
+    @patch("modules.activities.activity_sets.router.activity_sets_crud.get_activity_sets")
     def test_read_sets_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -33,7 +33,7 @@ class TestReadActivitySets:
         response = client.get("/activities_sets/activity_id/1/all", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("activities.activity_sets.router.activity_sets_crud.get_activity_sets")
+    @patch("modules.activities.activity_sets.router.activity_sets_crud.get_activity_sets")
     def test_read_sets_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

@@ -1,4 +1,4 @@
-import auth.sessions.models as users_session_models
+import modules.auth.sessions.models as users_session_models
 
 
 class TestUsersSessionsModel:

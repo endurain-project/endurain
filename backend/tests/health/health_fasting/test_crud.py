@@ -5,9 +5,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 
-import health.health_fasting.crud as health_fasting_crud
-import health.health_fasting.models as health_fasting_models
-import health.health_fasting.schema as health_fasting_schema
+import modules.health.health_fasting.crud as health_fasting_crud
+import modules.health.health_fasting.models as health_fasting_models
+import modules.health.health_fasting.schema as health_fasting_schema
 
 
 class TestGetHealthFastingNumber:

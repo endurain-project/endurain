@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from fastapi import HTTPException
 
-import strava.bulk_import_utils as bulk_import_utils
+import modules.strava.bulk_import_utils as bulk_import_utils
 from core.file_uploads import UploadKind
 
 

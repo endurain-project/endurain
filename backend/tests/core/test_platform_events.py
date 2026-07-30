@@ -1,9 +1,9 @@
-"""Tests for core.platform.events."""
+"""Tests for infra.events."""
 
 import uuid
 from datetime import datetime
 
-import core.platform.events as platform_events
+import infra.events as platform_events
 
 
 class TestEvent:

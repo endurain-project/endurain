@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import activities.activity_file_import.utils_tcx as utils_tcx
+import modules.activities.activity_file_import.utils_tcx as utils_tcx
 
 
 def _privacy_settings() -> SimpleNamespace:
@@ -214,11 +214,11 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                "modules.activities.activity_file_import.utils_tcx._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx"
+                "modules.activities.activity_file_import.utils_tcx"
                 ".user_default_gear_utils.get_user_default_gear_by_activity_type",
                 return_value=None,
             ),
@@ -280,20 +280,20 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                "modules.activities.activity_file_import.utils_tcx._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx"
+                "modules.activities.activity_file_import.utils_tcx"
                 ".user_default_gear_utils.get_user_default_gear_by_activity_type",
                 return_value=None,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
                 return_value=None,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
@@ -351,20 +351,20 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                "modules.activities.activity_file_import.utils_tcx._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx"
+                "modules.activities.activity_file_import.utils_tcx"
                 ".user_default_gear_utils.get_user_default_gear_by_activity_type",
                 return_value=None,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
                 return_value=None,
             ),
             patch(
-                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):

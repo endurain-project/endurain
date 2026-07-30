@@ -7,8 +7,8 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-import auth.identity_providers.link_tokens.crud as idp_link_token_crud
-import auth.identity_providers.link_tokens.schema as idp_link_token_schema
+import modules.auth.identity_providers.link_tokens.crud as idp_link_token_crud
+import modules.auth.identity_providers.link_tokens.schema as idp_link_token_schema
 
 
 class TestGetIdpLinkTokenByHash:
@@ -73,7 +73,7 @@ class TestCreateIdpLinkToken:
             ip_address="192.168.1.1",
         )
 
-        with patch("auth.identity_providers.link_tokens.crud.idp_link_token_models.IdpLinkToken") as mock_model:
+        with patch("modules.auth.identity_providers.link_tokens.crud.idp_link_token_models.IdpLinkToken") as mock_model:
             mock_token = MagicMock()
             mock_model.return_value = mock_token
 

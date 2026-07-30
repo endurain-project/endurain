@@ -21,13 +21,13 @@ def _load_supported_locales() -> frozenset[str]:
     Derive the set of supported locales from the ``Language`` enum.
 
     Lazy import avoids a circular import at ``core`` package load time
-    (``users.users.schema`` transitively imports auth/CRUD modules
+    (``modules.users.users.schema`` transitively imports auth/CRUD modules
     that require runtime configuration such as ``SECRET_KEY``).
 
     Returns:
         Frozen set of locale code strings.
     """
-    from users.users.schema import Language
+    from modules.users.users.schema import Language
 
     return frozenset(language.value for language in Language)
 
@@ -54,7 +54,7 @@ def __getattr__(name: str) -> frozenset[str]:
     Module-level ``__getattr__`` (PEP 562) that lazily exposes
     :data:`SUPPORTED_LOCALES`.
 
-    Defers importing :class:`users.users.schema.Language` until the
+    Defers importing :class:`modules.users.users.schema.Language` until the
     constant is actually read so simply importing ``core.i18n`` cannot
     trigger the heavy ``users`` / ``auth`` import chain.
     """

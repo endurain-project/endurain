@@ -3,14 +3,14 @@
 from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 
-import activities.activity.crud as activities_crud
-import activities.activity_streams.constants as activity_streams_constants
-import activities.activity_streams.crud as activity_streams_crud
 import core.config as core_config
 import core.logger as core_logger
-import health.health_weight.crud as health_weight_crud
-import health.health_weight.schema as health_weight_schema
 import migrations.crud as migrations_crud
+import modules.activities.activity.crud as activities_crud
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.schema as health_weight_schema
 
 
 def process_migration_2(db: Session) -> None:

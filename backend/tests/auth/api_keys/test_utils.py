@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-import auth.api_keys.utils as api_keys_utils
+import modules.auth.api_keys.utils as api_keys_utils
 
 
 class TestGenerateApiKey:

@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import auth.identity_providers.models as idp_models
-import auth.identity_providers.public_router as public_router
+import modules.auth.identity_providers.models as idp_models
+import modules.auth.identity_providers.public_router as public_router
 
 
 def _build_app() -> TestClient:
@@ -18,11 +18,11 @@ def _build_app() -> TestClient:
 class TestInitiateLogin:
     """Test suite for initiate_login endpoint behavior."""
 
-    @patch("auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_redirect_url")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
     def test_custom_scheme_redirect_forces_mobile_client_type(
         self,
         mock_validate_pkce,
@@ -55,11 +55,11 @@ class TestInitiateLogin:
         mock_create_state.assert_called_once()
         assert mock_create_state.call_args.kwargs["client_type"] == "mobile"
 
-    @patch("auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
-    @patch("auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
-    @patch("auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_redirect_url")
-    @patch("auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.create_oauth_state")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.initiate_login")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_redirect_url")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_challenge")
     def test_relative_redirect_uses_request_client_type(
         self,
         mock_validate_pkce,

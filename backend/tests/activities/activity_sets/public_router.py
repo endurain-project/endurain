@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_sets.public_router as router
     import core.database as core_db
+    import modules.activities.activity_sets.public_router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/public/activities_sets")
@@ -16,9 +16,9 @@ def _build_app(mock_db):
 
 
 class TestReadPublicActivitySets:
-    @patch("activities.activity_sets.public_router.activity_sets_crud.get_public_activity_sets")
+    @patch("modules.activities.activity_sets.public_router.activity_sets_crud.get_public_activity_sets")
     def test_success(self, mock_get, mock_db):
-        from activities.activity_sets.schema import ActivitySetsRead
+        from modules.activities.activity_sets.schema import ActivitySetsRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [
@@ -30,7 +30,7 @@ class TestReadPublicActivitySets:
         response = client.get("/public/activities_sets/activity_id/1/all")
         assert response.status_code == 200
 
-    @patch("activities.activity_sets.public_router.activity_sets_crud.get_public_activity_sets")
+    @patch("modules.activities.activity_sets.public_router.activity_sets_crud.get_public_activity_sets")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

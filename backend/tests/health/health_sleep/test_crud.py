@@ -5,9 +5,9 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import health.health_sleep.crud as health_sleep_crud
-import health.health_sleep.models as health_sleep_models
-import health.health_sleep.schema as health_sleep_schema
+import modules.health.health_sleep.crud as health_sleep_crud
+import modules.health.health_sleep.models as health_sleep_models
+import modules.health.health_sleep.schema as health_sleep_schema
 
 
 class TestGetHealthSleepNumber:

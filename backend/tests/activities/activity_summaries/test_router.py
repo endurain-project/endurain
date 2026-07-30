@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import activities.activity_summaries.router as router
-    import auth.dependencies as auth_deps
     import core.database as core_db
+    import modules.activities.activity_summaries.router as router
+    import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
     app.include_router(router.router, prefix="/activities_summaries")
@@ -25,10 +25,10 @@ def _build_app(mock_db):
 
 
 class TestReadWeeklySummary:
-    @patch("activities.activity_summaries.router.summary_crud.get_weekly_summary")
+    @patch("modules.activities.activity_summaries.router.summary_crud.get_weekly_summary")
     def test_weekly_summary_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        from activities.activity_summaries.schema import WeeklySummaryResponse
+        from modules.activities.activity_summaries.schema import WeeklySummaryResponse
 
         mock_get.return_value = WeeklySummaryResponse(breakdown=[], type_breakdown=None)
 
@@ -40,10 +40,10 @@ class TestReadWeeklySummary:
 
 
 class TestReadMonthlySummary:
-    @patch("activities.activity_summaries.router.summary_crud.get_monthly_summary")
+    @patch("modules.activities.activity_summaries.router.summary_crud.get_monthly_summary")
     def test_monthly_summary_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        from activities.activity_summaries.schema import MonthlySummaryResponse
+        from modules.activities.activity_summaries.schema import MonthlySummaryResponse
 
         mock_get.return_value = MonthlySummaryResponse(breakdown=[], type_breakdown=None)
 
@@ -55,10 +55,10 @@ class TestReadMonthlySummary:
 
 
 class TestReadYearlySummary:
-    @patch("activities.activity_summaries.router.summary_crud.get_yearly_summary")
+    @patch("modules.activities.activity_summaries.router.summary_crud.get_yearly_summary")
     def test_yearly_summary_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        from activities.activity_summaries.schema import YearlySummaryResponse
+        from modules.activities.activity_summaries.schema import YearlySummaryResponse
 
         mock_get.return_value = YearlySummaryResponse(breakdown=[], type_breakdown=None)
 
@@ -70,10 +70,10 @@ class TestReadYearlySummary:
 
 
 class TestReadLifetimeSummary:
-    @patch("activities.activity_summaries.router.summary_crud.get_lifetime_summary")
+    @patch("modules.activities.activity_summaries.router.summary_crud.get_lifetime_summary")
     def test_lifetime_summary_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        from activities.activity_summaries.schema import LifetimeSummaryResponse
+        from modules.activities.activity_summaries.schema import LifetimeSummaryResponse
 
         mock_get.return_value = LifetimeSummaryResponse(breakdown=[], type_breakdown=None)
 
