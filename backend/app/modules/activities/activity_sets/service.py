@@ -52,6 +52,10 @@ def list_activity_sets(
         activities exist.
     """
     if not activity_child_access.may_read_child(activity_id, requester_user_id, db, hide_attr=_HIDE_ATTR):
+        logger.debug(
+            "Refused a workout sets read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
+        )
         return _page([], 0, page_number, num_records)
     items = activity_sets_crud.get_activity_sets(activity_id, db, page_number=page_number, num_records=num_records)
     total = activity_sets_crud.count_activity_sets(activity_id, db)
@@ -78,6 +82,10 @@ def list_public_activity_sets(
         publicly visible.
     """
     if not activity_child_access.may_read_public_child(activity_id, db, hide_attr=_HIDE_ATTR):
+        logger.debug(
+            "Refused a public workout sets read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         return _page([], 0, page_number, num_records)
     items = activity_sets_crud.get_activity_sets(activity_id, db, page_number=page_number, num_records=num_records)
     total = activity_sets_crud.count_activity_sets(activity_id, db)

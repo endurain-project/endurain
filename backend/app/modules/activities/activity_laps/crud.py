@@ -219,5 +219,3 @@ def create_activity_laps(
         db.commit()
     else:
         db.flush()
-
-    logger.debug("Created activity laps", extra=core_logger.context(activity_id=activity_id, count=len(laps)))

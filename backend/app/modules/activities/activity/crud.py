@@ -1104,10 +1104,6 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     schema = activities_serializers.serialize_activity(activity)
     is_owner = activity.user_id == user_id
     activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
-    logger.debug(
-        "Served activity",
-        extra=core_logger.context(activity_id=activity_id, user_id=user_id, is_owner=is_owner),
-    )
     return schema
 
 
@@ -1182,7 +1178,6 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
         return None
     schema = activities_serializers.serialize_activity(activity)
     activities_serializers.apply_visibility_mask(schema, is_owner=False)
-    logger.debug("Served public activity", extra=core_logger.context(activity_id=activity_id))
     return schema
 
 
@@ -1227,17 +1222,9 @@ def get_public_activity_for_child_read(
     """
     activity = get_activity_by_id_if_is_public(activity_id, db)
     if activity is None:
-        logger.debug(
-            "Public child read denied: activity is not publicly shareable",
-            extra=core_logger.context(activity_id=activity_id, hide_attr=hide_attr),
-        )
         return None
 
     if getattr(activity, hide_attr):
-        logger.debug(
-            "Public child read denied: the hide flag is set",
-            extra=core_logger.context(activity_id=activity_id, hide_attr=hide_attr),
-        )
         return None
 
     return activity
@@ -1477,15 +1464,6 @@ def create_activity(
     # ``created_at`` belong to the read model, which the ingestion contract
     # deliberately does not carry.
     created = activities_serializers.serialize_activity(new_activity)
-
-    logger.debug(
-        "Created activity",
-        extra=core_logger.context(
-            activity_id=created.id,
-            user_id=created.user_id,
-            duplicate_start_time=bool(activity_start_time_exists),
-        ),
-    )
 
     return created
 
@@ -1788,10 +1766,6 @@ def edit_activity(
         # otherwise hand out a stale ETag.
         db.flush()
     db.refresh(db_activity)
-    logger.debug(
-        "Edited activity",
-        extra=core_logger.context(activity_id=db_activity.id, user_id=user_id, fields=sorted(activity_data.keys())),
-    )
     return activities_serializers.serialize_activity(db_activity)
 
 
@@ -1951,7 +1925,6 @@ def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = 
             raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
         if commit:
             db.commit()
-        logger.debug("Deleted activity", extra=core_logger.context(activity_id=activity_id, user_id=user_id))
     except core_exceptions.NotFoundError:
         # Kept rather than delegated: the 404 above is raised *after* the DELETE
         # has been staged, and the decorator does not roll back for a domain
@@ -1991,10 +1964,6 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: boo
     deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
     if commit:
         db.commit()
-    logger.info(
-        "Deleted the user's Strava activities",
-        extra=core_logger.context(user_id=user_id, deleted=len(deleted_ids)),
-    )
     return deleted_ids
 
 
@@ -2028,8 +1997,4 @@ def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = Tru
     deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
     if commit:
         db.commit()
-    logger.info(
-        "Deleted the user's activities",
-        extra=core_logger.context(user_id=user_id, deleted=len(deleted_ids)),
-    )
     return deleted_ids

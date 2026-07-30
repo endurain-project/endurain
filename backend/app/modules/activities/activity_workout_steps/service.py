@@ -54,6 +54,10 @@ def list_activity_workout_steps(
         activities exist.
     """
     if not activity_child_access.may_read_child(activity_id, requester_user_id, db, hide_attr=_HIDE_ATTR):
+        logger.debug(
+            "Refused a workout steps read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
+        )
         return _page([], 0, page_number, num_records)
     items = activity_workout_steps_crud.get_activity_workout_steps(
         activity_id, db, page_number=page_number, num_records=num_records
@@ -82,6 +86,10 @@ def list_public_activity_workout_steps(
         publicly visible.
     """
     if not activity_child_access.may_read_public_child(activity_id, db, hide_attr=_HIDE_ATTR):
+        logger.debug(
+            "Refused a public workout steps read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         return _page([], 0, page_number, num_records)
     items = activity_workout_steps_crud.get_activity_workout_steps(
         activity_id, db, page_number=page_number, num_records=num_records

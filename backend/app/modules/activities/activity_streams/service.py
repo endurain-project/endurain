@@ -51,6 +51,10 @@ def list_activity_streams(
     """
     activity = activity_child_access.resolve_readable_parent(activity_id, requester_user_id, db)
     if activity is None:
+        logger.debug(
+            "Refused a streams read; answering with an empty list",
+            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
+        )
         return []
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
@@ -107,6 +111,10 @@ def list_public_activity_streams(
     """
     activity = activity_child_access.resolve_public_parent(activity_id, db)
     if activity is None:
+        logger.debug(
+            "Refused a public streams read; answering with an empty list",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         return []
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
