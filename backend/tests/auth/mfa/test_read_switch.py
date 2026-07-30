@@ -1,10 +1,9 @@
 """Tests for MFA reads sourced from the ``users_mfa`` table.
 
-Verifies that MFA logic in ``auth.mfa.service`` derives MFA state from
-``user.auth_mfa`` (the ``users_mfa`` row). Since the legacy ``users`` MFA
-columns were dropped, ``Users.mfa_enabled`` is a property computed from
-``auth_mfa``; these tests configure the mock's ``mfa_enabled`` to mirror the
-``auth_mfa`` row exactly as the real property does.
+Verifies that MFA logic in ``auth.mfa.service`` derives MFA state from the
+``users_mfa`` row (resolved via ``auth_mfa_crud.get_user_mfa_row`` — directly
+in ``verify_user_mfa`` and through ``is_mfa_enabled_for_user`` for
+setup/enable/disable) rather than from any column on the ``users`` row.
 """
 
 from typing import Any
@@ -28,10 +27,10 @@ def _make_user(
     mfa_secret: str | None = None,
 ) -> MagicMock:
     """
-    Return a mock Users row whose auth_mfa mirrors the given MFA state.
+    Return a mock Users row whose auth_mfa carries the given MFA state.
 
-    ``user.mfa_enabled`` is set to match ``auth_mfa`` exactly as the real
-    ``Users.mfa_enabled`` property would compute it.
+    The ``users_mfa`` row (``user.auth_mfa``) is the sole source of truth;
+    production resolves it via ``auth_mfa_crud.get_user_mfa_row``.
     """
     mfa_row: MagicMock | None
     if mfa_enabled or mfa_secret:
@@ -44,11 +43,8 @@ def _make_user(
     user = MagicMock(spec=users_models.Users)
     user.id = user_id
     user.username = "testuser"
-    # New source of truth
+    # Source of truth: the users_mfa row
     user.auth_mfa = mfa_row
-    # mfa_enabled property mirrors auth_mfa (legacy columns were dropped)
-    user.mfa_enabled = bool(mfa_row and mfa_row.mfa_enabled)
-    user.mfa_secret = mfa_secret
     return user
 
 
@@ -58,6 +54,25 @@ def _patch_get_user(user: MagicMock) -> Any:
         "auth.mfa.service.users_utils.get_user_by_id_or_404",
         return_value=user,
     )
+
+
+@pytest.fixture(autouse=True)
+def _wire_mfa_row():
+    """Resolve ``auth_mfa_crud.get_user_mfa_row`` from the patched user mock.
+
+    Production derives MFA state from the ``users_mfa`` row via
+    ``auth_mfa_crud.get_user_mfa_row`` — directly in ``verify_user_mfa`` and
+    through ``is_mfa_enabled_for_user`` for setup/enable/disable. Resolve that
+    row from the patched user's ``auth_mfa`` so these tests keep exercising the
+    ``users_mfa``-as-source-of-truth contract.
+    """
+
+    def _row(_user_id, _db):
+        user = mfa_service.users_utils.get_user_by_id_or_404.return_value
+        return getattr(user, "auth_mfa", None)
+
+    with patch("auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
+        yield
 
 
 # ---------------------------------------------------------------------------
@@ -168,22 +183,6 @@ class TestDisableUserMFAReadSwitch:
 
 class TestVerifyUserMFAReadSwitch:
     """verify_user_mfa reads both fields from auth_mfa."""
-
-    @pytest.fixture(autouse=True)
-    def _wire_mfa_row(self):
-        """Mirror auth_mfa_crud.get_user_mfa_row to the mocked user's auth_mfa.
-
-        Production reads the ``users_mfa`` row via
-        ``auth_mfa_crud.get_user_mfa_row``; resolve it from the patched
-        user mock so the read still derives from ``auth_mfa``.
-        """
-
-        def _row(_user_id, _db):
-            user = mfa_service.users_utils.get_user_by_id_or_404.return_value
-            return getattr(user, "auth_mfa", None)
-
-        with patch("auth.mfa.service.auth_mfa_crud.get_user_mfa_row", side_effect=_row):
-            yield
 
     def test_returns_false_when_auth_mfa_disabled(self, mock_db):
         """

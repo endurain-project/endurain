@@ -10,16 +10,6 @@ from core.database import Base
 
 if TYPE_CHECKING:
     from activities.activity.models import Activity
-    from auth.api_keys.models import UsersApiKeys
-    from auth.credentials.models import LocalCredential
-    from auth.identity_providers.link_tokens.models import IdpLinkToken
-    from auth.identity_providers.links.models import IdentityLink
-    from auth.mfa.backup_codes.models import MFABackupCode
-    from auth.mfa.models import UsersMFA
-    from auth.oauth_state.models import OAuthState
-    from auth.password_reset_tokens.models import PasswordResetToken
-    from auth.sessions.models import UsersSessions
-    from auth.sign_up_tokens.models import SignUpToken
     from followers.models import Follower
     from gears.gear.models import Gear
     from gears.gear_components.models import GearComponents
@@ -63,9 +53,6 @@ class Users(Base):
             been verified.
         pending_admin_approval: Whether the user is pending
             admin approval for activation.
-        users_sessions: List of session objects.
-        password_reset_tokens: List of password reset tokens.
-        sign_up_tokens: List of sign-up tokens.
         users_integrations: List of integrations.
         users_default_gear: List of default gear.
         users_privacy_settings: List of privacy settings.
@@ -85,16 +72,6 @@ class Users(Base):
         health_poop: List of health poop records.
         notifications: List of notifications.
         goals: List of user goals.
-        user_identity_providers: List of identity providers
-            linked to the user.
-        oauth_states: List of OAuth states for the user.
-        mfa_backup_codes: List of MFA backup codes.
-        auth_mfa: 1:1 MFA state row in ``users_mfa``
-        idp_link_tokens: List of short-lived IdP link tokens for the user.
-        local_credential: 1:1 local password credential row in
-            ``users_local_credentials`` (``None`` for SSO-only accounts).
-        mfa_enabled: Computed property — ``True`` when
-            ``auth_mfa.mfa_enabled`` is set.
     """
 
     __tablename__ = "users"
@@ -195,18 +172,6 @@ class Users(Base):
     )
 
     # Relationships
-    users_sessions: Mapped[list["UsersSessions"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    sign_up_tokens: Mapped[list["SignUpToken"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
     users_integrations: Mapped[list["UsersIntegrations"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
@@ -277,43 +242,3 @@ class Users(Base):
         back_populates="users",
         cascade="all, delete-orphan",
     )
-    user_identity_providers: Mapped[list["IdentityLink"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    oauth_states: Mapped[list["OAuthState"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    mfa_backup_codes: Mapped[list["MFABackupCode"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    auth_mfa: Mapped["UsersMFA"] = relationship(
-        back_populates="users",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
-    users_api_keys: Mapped[list["UsersApiKeys"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    idp_link_tokens: Mapped[list["IdpLinkToken"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    local_credential: Mapped["LocalCredential | None"] = relationship(
-        back_populates="users",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
-
-    @property
-    def mfa_enabled(self) -> bool:
-        """
-        Return whether MFA is active for this user.
-
-        Used by Pydantic schemas (``from_attributes=True``) and
-        any caller that checks MFA status on the profile row.
-        """
-        return bool(self.auth_mfa and self.auth_mfa.mfa_enabled)

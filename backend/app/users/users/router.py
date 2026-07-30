@@ -106,12 +106,14 @@ def read_users_all_pagination(
     # Batch fetch IdP link counts for all users in a single grouped query
     user_ids: list[int] = [user.id for user in users]
     idp_counts: dict[int, int] = identity_service.get_identity_link_counts_for_users(user_ids)
+    mfa_enabled_map: dict[int, bool] = identity_service.get_mfa_enabled_for_users(user_ids)
 
     # Enrich with IDP count before serializing
     enriched_users: list[users_schema.UsersRead] = []
     for user in users:
         idp_count: int = idp_counts.get(user.id, 0)
         user.external_auth_count = idp_count
+        user.mfa_enabled = mfa_enabled_map.get(user.id, False)
 
         # Apply external/local auth filters
         if idp_count > 0 and show_external_auth is False:
@@ -345,6 +347,11 @@ async def edit_user(
     )
     idp_count: int = idp_counts.get(db_user.id, 0)
     db_user.external_auth_count = idp_count
+
+    # Enrich MFA status the same way (blocking sync DB call offloaded to
+    # a worker thread).
+    mfa_enabled_map: dict[int, bool] = await run_in_threadpool(identity_service.get_mfa_enabled_for_users, [db_user.id])
+    db_user.mfa_enabled = mfa_enabled_map.get(db_user.id, False)
 
     return db_user
 

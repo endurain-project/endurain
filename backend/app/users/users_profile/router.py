@@ -159,6 +159,10 @@ async def read_users_me(
             # field. Fetched via the auth boundary
             # (IdentityService) so the hash never leaves it.
             "has_local_password": identity_service.has_local_password(token_user_id),
+            # MFA status is auth-owned; resolve it through the
+            # auth boundary (IdentityService) rather than the
+            # users ORM model.
+            "mfa_enabled": identity_service.get_mfa_status(token_user_id).mfa_enabled,
         }
     )
 

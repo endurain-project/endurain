@@ -142,20 +142,6 @@ Duplicate link attempts return HTTP 409. These constraints were added in migrati
 
 These items are intentionally deferred and tracked here for contributor awareness.
 
-### Credential-table split (deferred — original-plan Phase 19)
-
-`users/users/models.py` still declares ORM relationships to every auth table
-(`users_sessions`, `password_reset_tokens`, `sign_up_tokens`, `oauth_states`,
-`mfa_backup_codes`, `auth_mfa`, `users_api_keys`, `user_identity_providers`) and
-the `password` column is still a `nullable=False` column on the `Users` model.
-The import boundary is enforced by import-linter, but the data model has not been
-split. Moving credential columns and their relationships to an auth-owned model is
-a separate, higher-risk schema project and is explicitly out of scope for the
-import-boundary refactor.
-
-Until the split lands, keep auth-table relationships read-only from within `users`
-code and do not add new credential columns to `users/users/models.py`.
-
 ### Step-up verification gap for SSO-only accounts
 
 SSO-only accounts (no local password) skip the password factor in

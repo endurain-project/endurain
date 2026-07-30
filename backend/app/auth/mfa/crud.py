@@ -27,6 +27,37 @@ def get_user_mfa_row(user_id: int, db: Session) -> auth_mfa_models.UsersMFA | No
 
 
 @core_decorators.handle_db_errors
+def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, bool]:
+    """
+    Return MFA-enabled state per user in a single query.
+
+    Mirrors :func:`auth.mfa.service.is_mfa_enabled_for_user` semantics
+    (a row with ``mfa_enabled`` set and a stored secret) but resolves
+    many users at once so callers avoid an N+1 lookup.
+
+    Args:
+        user_ids: List of user IDs to resolve MFA state for.
+        db: SQLAlchemy database session.
+
+    Returns:
+        Dict mapping user_id to ``True`` for users with MFA enabled.
+        Users without MFA are absent from the result (callers should
+        use ``.get(user_id, False)``).
+
+    Raises:
+        HTTPException: 500 if a database error occurs.
+    """
+    if not user_ids:
+        return {}
+    stmt = select(auth_mfa_models.UsersMFA.user_id).where(
+        auth_mfa_models.UsersMFA.user_id.in_(user_ids),
+        auth_mfa_models.UsersMFA.mfa_enabled.is_(True),
+        auth_mfa_models.UsersMFA.mfa_secret.is_not(None),
+    )
+    return {row.user_id: True for row in db.execute(stmt).all()}
+
+
+@core_decorators.handle_db_errors
 def update_user_mfa(user_id: int, db: Session, encrypted_secret: str | None = None) -> None:
     """
     Update a user's MFA settings in the ``users_mfa`` table.

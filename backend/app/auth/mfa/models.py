@@ -8,15 +8,10 @@ state for a user. Rows are written by
 longer exist.
 """
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from users.users.models import Users
 
 
 class UsersMFA(Base):
@@ -34,8 +29,6 @@ class UsersMFA(Base):
             user.
         mfa_secret: Fernet-encrypted TOTP secret, or
             ``None`` when MFA is disabled.
-        users: Back-reference to the owning
-            ``Users`` row.
     """
 
     __tablename__ = "users_mfa"
@@ -66,9 +59,4 @@ class UsersMFA(Base):
         String(512),
         nullable=True,
         comment="Fernet-encrypted TOTP secret",
-    )
-
-    # Relationships
-    users: Mapped["Users"] = relationship(
-        back_populates="auth_mfa",
     )

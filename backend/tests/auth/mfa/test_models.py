@@ -2,7 +2,6 @@
 
 Covers:
 - Table and column definitions.
-- Relationship back-reference to Users.
 - UniqueConstraint / index metadata.
 """
 
@@ -57,7 +56,3 @@ class TestUsersMFAModel:
         """Index ix_users_mfa_user_id is defined on the table."""
         index_names = {idx.name for idx in UsersMFA.__table__.indexes}
         assert "ix_users_mfa_user_id" in index_names
-
-    def test_users_relationship_exists(self):
-        """UsersMFA.users relationship attribute is present."""
-        assert hasattr(UsersMFA, "users")

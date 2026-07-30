@@ -18,7 +18,7 @@ from fastapi import HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 import auth.password_policy as auth_password_policy
 import core.decorators as core_decorators
@@ -101,8 +101,7 @@ def _persist_user_edits(
     Bundles the blocking portion of an edit into a single unit so
     callers can offload it with ``run_in_threadpool`` and keep the API
     event loop responsive. The commit/refresh, the bulk BMI
-    recalculation, the HR zone recomputation, and the ``mfa_enabled``
-    lazy-load triggered while serializing are all synchronous
+    recalculation, and the HR zone recomputation are all synchronous
     SQLAlchemy calls.
 
     Args:
@@ -207,7 +206,7 @@ def get_all_users(db: Session) -> list[users_schema.UsersRead]:
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    stmt = select(users_models.Users).options(selectinload(users_models.Users.auth_mfa))
+    stmt = select(users_models.Users)
     users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
 
     return _transform_users(users)
@@ -281,7 +280,7 @@ def get_users_with_pagination(
             criteria, ordered by username. Returns an empty list if no users
             match the filters.
     """
-    stmt = select(users_models.Users).options(selectinload(users_models.Users.auth_mfa))
+    stmt = select(users_models.Users)
 
     if show_inactive is False:
         stmt = stmt.where(users_models.Users.active.is_(True))
@@ -344,10 +343,8 @@ def get_user_by_username(
         escaped_username = normalized_username.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
 
         # Query users with username containing the search term
-        stmt = (
-            select(users_models.Users)
-            .options(selectinload(users_models.Users.auth_mfa))
-            .where(func.lower(users_models.Users.username).like(f"%{escaped_username}%", escape="\\"))
+        stmt = select(users_models.Users).where(
+            func.lower(users_models.Users.username).like(f"%{escaped_username}%", escape="\\")
         )
         users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
         return _transform_users(users)
@@ -423,11 +420,7 @@ def get_users_admin(db: Session) -> list[users_schema.UsersRead]:
     Raises:
         HTTPException: 500 error if database query fails.
     """
-    stmt = (
-        select(users_models.Users)
-        .options(selectinload(users_models.Users.auth_mfa))
-        .where(users_models.Users.access_type == users_schema.UserAccessType.ADMIN.value)
-    )
+    stmt = select(users_models.Users).where(users_models.Users.access_type == users_schema.UserAccessType.ADMIN.value)
     users: list[users_models.Users] = list(db.execute(stmt).scalars().all())
     return _transform_users(users)
 
@@ -654,19 +647,19 @@ async def edit_user(user_id: int, user: users_schema.UsersRead, db: Session) -> 
         user_data = user.model_dump(exclude_unset=True, exclude={"password", "external_auth_count", "mfa_enabled"})
         # Iterate over the fields and update the db_users dynamically
         for key, value in user_data.items():
-            # Skip read-only computed properties exposed by the read schema
-            # (e.g. mfa_enabled, derived from the users_mfa table with no
-            # setter). They appear in UsersRead for output but must never be
-            # mass-assigned, otherwise setattr raises AttributeError.
+            # Skip attributes that are read-only properties on the ORM model
+            # with no setter. Response-only fields (e.g. mfa_enabled,
+            # external_auth_count) are already excluded above via
+            # model_dump, this is a defensive guard for any future
+            # computed property added to Users.
             class_attr = getattr(type(db_users), key, None)
             if isinstance(class_attr, property) and class_attr.fset is None:
                 continue
             setattr(db_users, key, value)
 
-        # Persist the changes off the event loop. The commit/refresh, the
-        # bulk BMI recalculation, and the ``mfa_enabled`` lazy-load triggered
-        # while serializing are blocking SQLAlchemy calls, so run them in a
-        # worker thread to keep the API event loop responsive.
+        # Persist the changes off the event loop. The commit/refresh and the
+        # bulk BMI recalculation are blocking SQLAlchemy calls, so run them
+        # in a worker thread to keep the API event loop responsive.
         updated_user = await run_in_threadpool(
             _persist_user_edits,
             db_users,
@@ -807,10 +800,9 @@ async def edit_profile_user(
         for key, value in updates.items():
             setattr(db_users, key, value)
 
-        # Persist the changes off the event loop. The commit/refresh, the
-        # bulk BMI recalculation, and the ``mfa_enabled`` lazy-load triggered
-        # while serializing are blocking SQLAlchemy calls, so run them in a
-        # worker thread to keep the API event loop responsive.
+        # Persist the changes off the event loop. The commit/refresh and the
+        # bulk BMI recalculation are blocking SQLAlchemy calls, so run them
+        # in a worker thread to keep the API event loop responsive.
         return await run_in_threadpool(
             _persist_user_edits,
             db_users,

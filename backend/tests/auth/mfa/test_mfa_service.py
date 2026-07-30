@@ -115,7 +115,8 @@ class TestSetupUserMFA:
         mock_gen_secret.return_value = "NEWSECRET"
         mock_gen_qr.return_value = "data:image/png;base64,QRCODE"
 
-        result = mfa_service.setup_user_mfa(1, MagicMock())
+        with patch("auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
+            result = mfa_service.setup_user_mfa(1, MagicMock())
 
         assert result.secret == "NEWSECRET"
         assert result.qr_code == "data:image/png;base64,QRCODE"
@@ -166,7 +167,8 @@ class TestEnableUserMFA:
 
         mock_identity_service = MagicMock()
 
-        result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_identity_service, MagicMock())
+        with patch("auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
+            result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_identity_service, MagicMock())
 
         assert result == ["CODE1", "CODE2"]
         mock_update_mfa.assert_called_once()
@@ -205,7 +207,10 @@ class TestEnableUserMFA:
         mock_get_user.return_value = mock_user
         mock_verify.return_value = False
 
-        with pytest.raises(Exception) as exc_info:
+        with (
+            patch("auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
+            pytest.raises(Exception) as exc_info,
+        ):
             mfa_service.enable_user_mfa(1, "secret", "000000", MagicMock(), MagicMock())
 
         assert exc_info.typename == "HTTPException"
@@ -221,7 +226,10 @@ class TestEnableUserMFA:
         mock_encrypt.return_value = None
         mock_verify.return_value = True
 
-        with pytest.raises(Exception) as exc_info:
+        with (
+            patch("auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
+            pytest.raises(Exception) as exc_info,
+        ):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
 
         assert exc_info.typename == "HTTPException"
@@ -263,7 +271,10 @@ class TestDisableUserMFA:
         mock_user.mfa_enabled = False
         mock_get_user.return_value = mock_user
 
-        with pytest.raises(Exception) as exc_info:
+        with (
+            patch("auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
+            pytest.raises(Exception) as exc_info,
+        ):
             mfa_service.disable_user_mfa(1, MagicMock())
 
         assert exc_info.typename == "HTTPException"

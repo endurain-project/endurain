@@ -1,15 +1,11 @@
 """Auth-owned API key database models (table: ``users_api_keys``)."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from users.users.models import Users
 
 
 class UsersApiKeys(Base):
@@ -32,7 +28,6 @@ class UsersApiKeys(Base):
         created_at: Key creation timestamp.
         is_active: Whether the key is active. Set to
             False to revoke without deleting.
-        users: Relationship to Users model.
     """
 
     __tablename__ = "users_api_keys"
@@ -91,6 +86,3 @@ class UsersApiKeys(Base):
         nullable=False,
         comment=("Whether the key is active. False = revoked (soft delete)"),
     )
-
-    # Relationship to Users model
-    users: Mapped["Users"] = relationship(back_populates="users_api_keys")

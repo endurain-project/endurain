@@ -122,7 +122,7 @@ def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupResponse:
     """
     user = users_utils.get_user_by_id_or_404(user_id, db)
 
-    if user.mfa_enabled:
+    if is_mfa_enabled_for_user(user_id, db):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is already enabled for this user",
@@ -158,9 +158,9 @@ def enable_user_mfa(
         HTTPException: If user not found, MFA already enabled, code
             invalid, or encryption fails.
     """
-    user = users_utils.get_user_by_id_or_404(user_id, db)
+    users_utils.get_user_by_id_or_404(user_id, db)
 
-    if user.mfa_enabled:
+    if is_mfa_enabled_for_user(user_id, db):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is already enabled for this user",
@@ -204,9 +204,9 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
         HTTPException: 404 if the user is not found, 400 if MFA
             is not currently enabled.
     """
-    user = users_utils.get_user_by_id_or_404(user_id, db)
+    users_utils.get_user_by_id_or_404(user_id, db)
 
-    if not user.mfa_enabled:
+    if not is_mfa_enabled_for_user(user_id, db):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA is not enabled for this user",

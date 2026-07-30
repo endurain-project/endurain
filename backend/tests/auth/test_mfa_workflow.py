@@ -404,9 +404,12 @@ class TestGenerateBackupCodes:
     def test_happy_path_returns_codes(self, mock_db, identity_service, step_up_store):
         user = MagicMock()
         user.id = 7
-        user.mfa_enabled = True
         with (
             patch("auth.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "auth.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+                return_value=True,
+            ),
             patch("auth.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
             patch(
                 "auth.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes",
@@ -453,9 +456,12 @@ class TestGenerateBackupCodes:
 
     def test_mfa_disabled_raises_400(self, mock_db, identity_service, step_up_store):
         user = MagicMock()
-        user.mfa_enabled = False
         with (
             patch("auth.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "auth.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+                return_value=False,
+            ),
             patch("auth.services.mfa_workflow.step_up_service.verify_step_up_credentials") as mock_verify,
             pytest.raises(HTTPException) as exc_info,
         ):
@@ -473,9 +479,12 @@ class TestGenerateBackupCodes:
     def test_step_up_failure_does_not_create_codes(self, mock_db, identity_service, step_up_store):
         user = MagicMock()
         user.id = 7
-        user.mfa_enabled = True
         with (
             patch("auth.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "auth.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+                return_value=True,
+            ),
             patch(
                 "auth.services.mfa_workflow.step_up_service.verify_step_up_credentials",
                 side_effect=HTTPException(status_code=401, detail="bad"),

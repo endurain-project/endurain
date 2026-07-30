@@ -25,7 +25,6 @@ class TestUsersApiKeysModel:
         assert hasattr(model, "last_used_at")
         assert hasattr(model, "created_at")
         assert hasattr(model, "is_active")
-        assert hasattr(model, "users")
 
     def test_users_api_keys_model_id_primary_key(self):
         """Test id column is a primary key."""

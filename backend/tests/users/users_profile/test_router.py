@@ -138,6 +138,7 @@ class TestReadUsersMe:
         mock_get_integrations.return_value = _make_integration_mock()
         mock_get_privacy.return_value = _make_privacy_mock()
         mock_identity_service.has_local_password.return_value = True
+        mock_identity_service.get_mfa_status.return_value = mfa_schema.MFAStatusResponse(mfa_enabled=True)
 
         response = profile_client.get(PREFIX)
 
@@ -147,6 +148,7 @@ class TestReadUsersMe:
         assert data["name"] == "Test User"
         assert data["is_strava_linked"] == 0
         assert data["has_local_password"] is True
+        assert data["mfa_enabled"] is True
 
     @patch("users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
     @patch("users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")

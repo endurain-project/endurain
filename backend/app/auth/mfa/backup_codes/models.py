@@ -1,15 +1,11 @@
 """SQLAlchemy ORM models for MFA backup codes."""
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from users.users.models import Users
 
 
 class MFABackupCode(Base):
@@ -26,9 +22,6 @@ class MFABackupCode(Base):
         used_at: Timestamp when the code was used, if applicable.
         created_at: Timestamp when the code was generated (UTC).
         expires_at: Optional expiration timestamp for code rotation.
-
-    Relationships:
-        users: Many-to-one relationship with the Users model.
 
     Indexes:
         - Index on user_id for foreign key lookups.
@@ -76,9 +69,6 @@ class MFABackupCode(Base):
         nullable=True,
         comment="Optional expiry for code rotation policy",
     )
-
-    # Establish relationship back to Users model
-    users: Mapped["Users"] = relationship(back_populates="mfa_backup_codes")
 
     # Composite index for fast unused code lookups
     __table_args__ = (Index("idx_user_unused_codes", "user_id", "used"),)

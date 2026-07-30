@@ -7,16 +7,12 @@ Rows are written and read through ``auth.credentials.crud``.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from users.users.models import Users
 
 
 class LocalCredential(Base):
@@ -32,7 +28,6 @@ class LocalCredential(Base):
         password_hash: Argon2/bcrypt password hash.
         created_at: Row creation timestamp.
         updated_at: Last update timestamp.
-        users: Back-reference to the owning ``Users`` row.
     """
 
     __tablename__ = "users_local_credentials"
@@ -57,5 +52,3 @@ class LocalCredential(Base):
         onupdate=func.now(),
         nullable=False,
     )
-
-    users: Mapped["Users"] = relationship(back_populates="local_credential")
