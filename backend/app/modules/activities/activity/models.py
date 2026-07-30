@@ -10,6 +10,7 @@ from sqlalchemy import (
     BigInteger,
     DateTime,
     ForeignKey,
+    Index,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -98,6 +99,19 @@ class Activity(Base):
     """
 
     __tablename__ = "activities"
+
+    __table_args__ = (
+        # Idempotency is enforced by the database, not just checked in the
+        # ingestion service. That check is read-then-write, so two concurrent
+        # imports of the same file or provider activity could both see "not
+        # found" and both insert — which the bulk-import ThreadPoolExecutor and
+        # durable-job retries make a realistic race rather than a theoretical
+        # one. The service now catches the resulting IntegrityError and returns
+        # the winning row, so the constraint is what makes re-import a true
+        # no-op. NULL dedup_keys stay unconstrained (Postgres treats NULLs as
+        # distinct), so activities with no stable identity are unaffected.
+        Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -355,7 +369,6 @@ class Activity(Base):
     dedup_key: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
-        index=True,
         comment=("Stable idempotency key (provider id or content hash) to no-op re-imports"),
     )
 

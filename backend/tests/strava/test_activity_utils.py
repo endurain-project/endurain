@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from unittest.mock import Mock
 
 import pytest
@@ -194,3 +195,46 @@ class TestSaveActivityStreamsLaps:
         assert parsed.streams == []
         assert parsed.laps is None
         assert parsed.source.kind == "strava"
+
+
+class TestProcessActivityOffTheEventLoop:
+    """Neither half of processing a Strava activity may run on the event loop."""
+
+    async def test_persist_runs_on_a_worker_thread(self, monkeypatch):
+        """Regression: persisting ran on the loop thread, and it is not just a DB write.
+
+        ``store_parsed_activity`` publishes ``activity.created``, and the
+        in-process bus runs subscribers *inline on the calling thread* — so map
+        thumbnail rendering (staticmap + PIL) and HR-zone computation executed on
+        the event loop, once per activity in a sync, stalling every other request
+        for the duration. Asserting the *thread* rather than that
+        ``asyncio.to_thread`` was called keeps this honest for any offloading
+        mechanism.
+        """
+        import modules.activities.activity.schema as activities_schema
+
+        loop_thread_id = threading.get_ident()
+        threads: dict[str, int] = {}
+
+        monkeypatch.setattr(
+            activity_utils.strava_utils,
+            "fetch_and_validate_activity",
+            lambda *args, **kwargs: None,
+        )
+
+        def _fake_parse(*args, **kwargs):
+            threads["parse"] = threading.get_ident()
+            return {"activity_to_store": Mock(), "stream_data": [], "laps": None}
+
+        def _fake_save(*args, **kwargs):
+            threads["persist"] = threading.get_ident()
+            return activities_schema.Activity(id=7, user_id=1, distance=0, name="X", activity_type=1)
+
+        monkeypatch.setattr(activity_utils, "parse_activity", _fake_parse)
+        monkeypatch.setattr(activity_utils, "save_activity_streams_laps", _fake_save)
+
+        result = await activity_utils.process_activity(Mock(id=555), 1, Mock(), Mock(), Mock(), Mock())
+
+        assert result.id == 7
+        assert threads["parse"] != loop_thread_id
+        assert threads["persist"] != loop_thread_id

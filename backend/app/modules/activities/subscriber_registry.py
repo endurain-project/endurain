@@ -25,6 +25,7 @@ import modules.activities.activity.subscribers as activity_subscribers
 import modules.activities.activity_file_storage.subscribers as activity_file_storage_subscribers
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
+import modules.activities.activity_media.subscribers as activity_media_subscribers
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
@@ -52,6 +53,7 @@ def register_all_activity_bus_subscribers(events: EventBusProvider) -> None:
     activity_streams_subscribers.register_hr_zone_subscribers(events)
     activity_geocoding_subscribers.register_geocoding_subscribers(events)
     activity_file_storage_subscribers.register_activity_file_cleanup_subscribers(events)
+    activity_media_subscribers.register_activity_media_cleanup_subscribers(events)
 
 
 def register_all_activity_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -74,6 +76,7 @@ def register_all_activity_durable_handlers(registry: JobHandlerRegistry) -> None
     activity_streams_subscribers.register_hr_zone_durable_handlers(registry)
     activity_geocoding_subscribers.register_geocoding_durable_handlers(registry)
     activity_file_storage_subscribers.register_activity_file_cleanup_durable_handlers(registry)
+    activity_media_subscribers.register_activity_media_cleanup_durable_handlers(registry)
     activity_bulk_import_subscribers.register_bulk_import_durable_handlers(registry)
 
 
@@ -142,6 +145,17 @@ ACTIVITY_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "the row is gone there is no create-derived state to reconcile. A stray "
             "orphaned source file is harmless (it is never served, only bundled into "
             "a profile export for activities that still exist)."
+        ),
+    ),
+    DurableSubscriberNet(
+        activity_media_subscribers.ACTIVITY_MEDIA_CLEANUP_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "Deletion cleanup is an idempotent teardown keyed by activity id; once "
+            "the row is gone there is no create-derived state to reconcile. The "
+            "media rows cascade with the activity, so nothing records which files "
+            "should have been removed — a stray orphaned image is harmless (it is "
+            "only ever served through a media row that no longer exists)."
         ),
     ),
     DurableSubscriberNet(
