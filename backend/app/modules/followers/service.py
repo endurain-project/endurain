@@ -257,7 +257,11 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
     return follower
 
 
-def accept_follow_request(accepter_user_id: int, requester_user_id: int, db: Session) -> None:
+def accept_follow_request(
+    accepter_user_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> followers_schema.FollowRelationship:
     """Accept a pending follow request and publish ``follower.accepted``.
 
     Args:
@@ -266,11 +270,12 @@ def accept_follow_request(accepter_user_id: int, requester_user_id: int, db: Ses
         db: Database session.
 
     Returns:
-        None.
+        The accepted relationship, read back from the committed row.
     """
-    followers_crud.accept_follower(accepter_user_id, requester_user_id, db)
+    relationship = followers_crud.accept_follower(accepter_user_id, requester_user_id, db)
     followers_event_publishers.publish_follower_accepted(accepter_user_id, requester_user_id, db)
     logger.debug(
         "Follow request accepted",
         extra=core_logger.context(accepter_user_id=accepter_user_id, requester_user_id=requester_user_id),
     )
+    return relationship

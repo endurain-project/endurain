@@ -360,7 +360,7 @@ def accept_follower(
     user_id: int,
     target_user_id: int,
     db: Session,
-) -> None:
+) -> followers_schema.FollowRelationship:
     """
     Accept a pending follow request from another user.
 
@@ -374,7 +374,7 @@ def accept_follower(
         db: Database session.
 
     Returns:
-        None.
+        The accepted relationship as a DTO, read back from the committed row.
 
     Raises:
         NotFoundError: If no pending request exists.
@@ -398,6 +398,7 @@ def accept_follower(
         "Accepted a follow request",
         extra=core_logger.context(follower_id=target_user_id, followee_id=user_id),
     )
+    return _transform_follower(accept_follow)
 
 
 @core_decorators.handle_db_errors

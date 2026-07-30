@@ -189,6 +189,13 @@ class TestListFollowRequests:
 class TestDecideFollowRequest:
     @patch("modules.followers.service.accept_follow_request")
     def test_accept(self, mock_accept, mock_db):
+        import modules.followers.schema as followers_schema
+
+        # The response must be the row as persisted, not one built from the
+        # request body — a fabricated body could claim a state the DB lacks.
+        mock_accept.return_value = followers_schema.FollowRelationship(
+            follower_id=2, followee_id=1, status=followers_schema.FollowStatus.ACCEPTED
+        )
         client = TestClient(_build_app(mock_db))
 
         response = client.patch(
@@ -196,7 +203,7 @@ class TestDecideFollowRequest:
         )
 
         assert response.status_code == 200
-        assert response.json()["status"] == "accepted"
+        assert response.json() == {"follower_id": 2, "followee_id": 1, "status": "accepted"}
         mock_accept.assert_called_once_with(1, 2, mock_db)
 
     @patch("modules.followers.service.accept_follow_request")

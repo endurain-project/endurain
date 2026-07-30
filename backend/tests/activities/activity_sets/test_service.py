@@ -1,43 +1,81 @@
 """Tests for the activity sets service layer."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
+
+from modules.activities.activity_sets.schema import ActivitySetsRead
+
+
+def _item():
+    """A minimal valid row; the page envelope validates its items."""
+    return ActivitySetsRead(
+        id=1, activity_id=1, duration=30.0, set_type="active", start_time=datetime(2026, 1, 1, tzinfo=UTC)
+    )
 
 
 class TestListActivitySets:
     @patch("modules.activities.activity_sets.service.activity_sets_crud")
     @patch("modules.activities.activity_sets.service.activity_child_access")
-    def test_returns_sets_when_permitted(self, mock_gate, mock_crud):
+    def test_returns_a_page_when_permitted(self, mock_gate, mock_crud):
         from modules.activities.activity_sets import service
 
         db = MagicMock()
         mock_gate.may_read_child.return_value = True
-        mock_crud.get_activity_sets.return_value = ["set"]
+        mock_crud.get_activity_sets.return_value = [_item()]
+        mock_crud.count_activity_sets.return_value = 1
 
-        assert service.list_activity_sets(5, 1, db) == ["set"]
+        page = service.list_activity_sets(5, 1, db)
+
+        assert len(page.items) == 1
+        assert page.total == 1
         mock_gate.may_read_child.assert_called_once_with(5, 1, db, hide_attr="hide_workout_sets_steps")
 
     @patch("modules.activities.activity_sets.service.activity_sets_crud")
     @patch("modules.activities.activity_sets.service.activity_child_access")
     def test_denied_never_touches_persistence(self, mock_gate, mock_crud):
+        """A refused read must not query, so it cannot leak timing or rows."""
         from modules.activities.activity_sets import service
 
         mock_gate.may_read_child.return_value = False
 
-        assert service.list_activity_sets(5, 1, MagicMock()) == []
+        page = service.list_activity_sets(5, 1, MagicMock())
+
+        assert page.items == [] and page.total == 0
         mock_crud.get_activity_sets.assert_not_called()
+        mock_crud.count_activity_sets.assert_not_called()
+
+    @patch("modules.activities.activity_sets.service.activity_sets_crud")
+    @patch("modules.activities.activity_sets.service.activity_child_access")
+    def test_paging_is_forwarded_and_the_total_spans_every_page(self, mock_gate, mock_crud):
+        """``total`` must count all matching rows, not the slice returned."""
+        from modules.activities.activity_sets import service
+
+        db = MagicMock()
+        mock_gate.may_read_child.return_value = True
+        mock_crud.get_activity_sets.return_value = [_item()]
+        mock_crud.count_activity_sets.return_value = 250
+
+        page = service.list_activity_sets(5, 1, db, page_number=2, num_records=100)
+
+        mock_crud.get_activity_sets.assert_called_once_with(5, db, page_number=2, num_records=100)
+        assert page.total == 250
+        assert page.next == 3
 
 
 class TestListPublicActivitySets:
     @patch("modules.activities.activity_sets.service.activity_sets_crud")
     @patch("modules.activities.activity_sets.service.activity_child_access")
-    def test_returns_sets_when_public(self, mock_gate, mock_crud):
+    def test_returns_a_page_when_public(self, mock_gate, mock_crud):
         from modules.activities.activity_sets import service
 
         db = MagicMock()
         mock_gate.may_read_public_child.return_value = True
-        mock_crud.get_activity_sets.return_value = ["set"]
+        mock_crud.get_activity_sets.return_value = [_item()]
+        mock_crud.count_activity_sets.return_value = 1
 
-        assert service.list_public_activity_sets(5, db) == ["set"]
+        page = service.list_public_activity_sets(5, db)
+
+        assert len(page.items) == 1
         mock_gate.may_read_public_child.assert_called_once_with(5, db, hide_attr="hide_workout_sets_steps")
 
     @patch("modules.activities.activity_sets.service.activity_sets_crud")
@@ -47,5 +85,7 @@ class TestListPublicActivitySets:
 
         mock_gate.may_read_public_child.return_value = False
 
-        assert service.list_public_activity_sets(5, MagicMock()) == []
+        page = service.list_public_activity_sets(5, MagicMock())
+
+        assert page.items == [] and page.total == 0
         mock_crud.get_activity_sets.assert_not_called()

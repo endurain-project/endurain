@@ -4,7 +4,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import core.config as core_config
-import modules.activities.activity_ingestion.router as router
+import modules.activities.activity_ingestion.bulk_import_service as bulk_import_service
 import modules.activities.activity_ingestion.sources as sources
 
 
@@ -46,9 +46,9 @@ class TestStrandedRootFiles:
 
         with (
             patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(root)),
-            patch.object(router, "logger") as log,
+            patch.object(bulk_import_service, "logger") as log,
         ):
-            router._warn_about_unowned_bulk_import_files(7)
+            bulk_import_service._warn_about_unowned_files(7)
 
         assert log.warning.called
         assert "someone_elses.fit" not in str(log.warning.call_args)
@@ -62,9 +62,9 @@ class TestStrandedRootFiles:
 
         with (
             patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(root)),
-            patch.object(router, "logger") as log,
+            patch.object(bulk_import_service, "logger") as log,
         ):
-            router._warn_about_unowned_bulk_import_files(7)
+            bulk_import_service._warn_about_unowned_files(7)
 
         log.warning.assert_not_called()
 
@@ -75,36 +75,36 @@ class TestStrandedRootFiles:
 
         with (
             patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(root)),
-            patch.object(router, "logger") as log,
+            patch.object(bulk_import_service, "logger") as log,
         ):
-            router._warn_about_unowned_bulk_import_files(7)
+            bulk_import_service._warn_about_unowned_files(7)
 
         log.warning.assert_not_called()
 
     def test_a_missing_root_is_not_an_error(self, tmp_path):
         with (
             patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(tmp_path / "nope")),
-            patch.object(router, "logger") as log,
+            patch.object(bulk_import_service, "logger") as log,
         ):
-            router._warn_about_unowned_bulk_import_files(7)
+            bulk_import_service._warn_about_unowned_files(7)
 
         log.warning.assert_not_called()
 
 
-class TestBulkImportRouteScoping:
-    def test_the_route_scans_only_the_callers_directory(self, tmp_path):
+class TestBulkImportScoping:
+    def test_it_scans_only_the_callers_directory(self, tmp_path):
         db = MagicMock()
         user_dir = tmp_path / "bulk_import" / "3"
         user_dir.mkdir(parents=True)
 
         with (
-            patch.object(router.core_config, "bulk_import_dir_for", return_value=str(user_dir)) as resolve,
-            patch.object(router, "_warn_about_unowned_bulk_import_files"),
-            patch.object(router.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files"),
-            patch.object(router.os, "listdir", return_value=[]),
+            patch.object(bulk_import_service.core_config, "bulk_import_dir_for", return_value=str(user_dir)) as resolve,
+            patch.object(bulk_import_service, "_warn_about_unowned_files"),
+            patch.object(bulk_import_service.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(bulk_import_service.activity_bulk_import_subscribers, "publish_bulk_import_files"),
+            patch.object(bulk_import_service.os, "listdir", return_value=[]),
         ):
-            router.create_activity_with_bulk_import(request=MagicMock(), token_user_id=3, _check_scopes=None, db=db)
+            bulk_import_service.start_bulk_import(3, db)
 
         # Resolved from the token's user, never from client input.
         resolve.assert_called_once_with(3)
@@ -116,13 +116,13 @@ class TestBulkImportRouteScoping:
         (user_dir / "ride.gpx").write_bytes(b"<gpx/>")
 
         with (
-            patch.object(router.core_config, "bulk_import_dir_for", return_value=str(user_dir)),
-            patch.object(router, "_warn_about_unowned_bulk_import_files"),
-            patch.object(router.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(router.core_file_uploads, "validate_local_file_sync"),
-            patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
+            patch.object(bulk_import_service.core_config, "bulk_import_dir_for", return_value=str(user_dir)),
+            patch.object(bulk_import_service, "_warn_about_unowned_files"),
+            patch.object(bulk_import_service.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(bulk_import_service.core_file_uploads, "validate_local_file_sync"),
+            patch.object(bulk_import_service.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
         ):
-            router.create_activity_with_bulk_import(request=MagicMock(), token_user_id=3, _check_scopes=None, db=db)
+            bulk_import_service.start_bulk_import(3, db)
 
         queued = publish.call_args.args[0]
         assert queued == [os.path.join(str(user_dir), "ride.gpx")]

@@ -10,6 +10,8 @@ from pydantic import (
     StrictStr,
 )
 
+import core.pagination as core_pagination
+
 
 class ActivitySetsBase(BaseModel):
     """
@@ -74,3 +76,8 @@ class ActivitySetsRead(ActivitySetsBase):
         extra="forbid",
         validate_assignment=True,
     )
+
+
+#: One page of an activity's workout sets. A strength session's set count has no
+#: domain ceiling, so the read is paginated rather than returning the whole set.
+ActivitySetsPage = core_pagination.Page[ActivitySetsRead]

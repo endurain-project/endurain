@@ -116,7 +116,9 @@ def upload_media(
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_activity_media(
+    request: Request,
     activity_id: int,
     media_id: int,
     _validate_id: Annotated[Callable, Depends(activities_media_dependencies.validate_media_id)],

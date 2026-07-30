@@ -3,6 +3,8 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_sets.schema import ActivitySetsPage
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -28,7 +30,7 @@ class TestReadActivitySets:
     @patch("modules.activities.activity_sets.router.activity_sets_service.list_activity_sets")
     def test_read_sets_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivitySetsPage.build([], 0, 1, 200)
 
         response = client.get("/activities/1/sets", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -36,8 +38,8 @@ class TestReadActivitySets:
     @patch("modules.activities.activity_sets.router.activity_sets_service.list_activity_sets")
     def test_read_sets_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivitySetsPage.build([], 0, 1, 200)
 
         response = client.get("/activities/999/sets", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == [] and response.json()["total"] == 0

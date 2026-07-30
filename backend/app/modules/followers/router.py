@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.followers.schema as followers_schema
@@ -14,11 +15,11 @@ import modules.followers.service as followers_service
 import modules.users.users.dependencies as users_dependencies
 
 # Default page size when a list request omits pagination.
-_DEFAULT_NUM_RECORDS = 25
+_DEFAULT_NUM_RECORDS = core_pagination.DEFAULT_NUM_RECORDS
 # Hard cap on the client-requested page size, bounding query and serialization
-# cost per request (defense against resource exhaustion). Mirrors the activities
-# router so the two template modules agree.
-_MAX_NUM_RECORDS = 200
+# cost per request (defense against resource exhaustion). Shared with the
+# activities router so the two template modules cannot drift.
+_MAX_NUM_RECORDS = core_pagination.MAX_NUM_RECORDS
 
 # Define the API router
 router = APIRouter()
@@ -164,13 +165,12 @@ def decide_follow_request(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.FollowRelationship:
-    """Accept the pending follow request from ``requester_user_id``."""
-    followers_service.accept_follow_request(token_user_id, requester_user_id, db)
-    return followers_schema.FollowRelationship(
-        follower_id=requester_user_id,
-        followee_id=token_user_id,
-        status=decision.status,
-    )
+    """Accept the pending follow request from ``requester_user_id``.
+
+    Returns the row as persisted rather than one assembled from the request, so
+    the response cannot claim a state the database does not hold.
+    """
+    return followers_service.accept_follow_request(token_user_id, requester_user_id, db)
 
 
 @router.delete(

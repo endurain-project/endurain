@@ -278,16 +278,33 @@ describe('fetchActivityStreams', () => {
 
 describe('fetchActivityLaps', () => {
   it('requests the authenticated and public lap endpoints', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
     await fetchActivityLaps(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/laps',
+      '/activities/5/laps?page_number=1',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityLaps(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5/laps',
+      '/public/activities/5/laps?page_number=1',
       expect.objectContaining({ auth: false }),
+    )
+  })
+
+  it('walks every page the server advertises', async () => {
+    // The read is paginated server-side; showing only page 1 would silently
+    // drop laps from a long activity.
+    const lap = { id: 1, activity_id: 5, start_time: '2024-01-15T08:00:00Z' }
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [lap], next: 2 })
+      .mockResolvedValueOnce({ items: [{ ...lap, id: 2 }], next: null })
+
+    const laps = await fetchActivityLaps(5, { authenticated: true })
+
+    expect(laps).toHaveLength(2)
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/activities/5/laps?page_number=2',
+      expect.objectContaining({ auth: true }),
     )
   })
 })

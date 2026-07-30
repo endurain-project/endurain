@@ -8,32 +8,25 @@ core router fully parser- and provider-agnostic (enforced by the import-linter c
 ``activities-parsing-boundary``).
 """
 
-import os
 from collections.abc import Callable
-from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
     Depends,
     Header,
-    HTTPException,
     Request,
     Security,
     UploadFile,
     status,
 )
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.database as core_database
-import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.background as activity_ingestion_background
-import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
+import modules.activities.activity_ingestion.bulk_import_service as bulk_import_service
 import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
@@ -165,43 +158,6 @@ def get_activity_ingestion_job(
     return ingestion_jobs.get_job(job_id, token_user_id, db)
 
 
-def _warn_about_unowned_bulk_import_files(user_id: int) -> None:
-    """Warn when importable files sit in the shared root instead of a user directory.
-
-    Bulk import used to scan the shared root, so an existing install can have
-    files there that will now be skipped. They are not imported on a guess about
-    who owns them — that is the bug this isolation removes — but the operator is
-    told exactly where to move them.
-
-    Args:
-        user_id: The user whose import was triggered, used to name the target.
-
-    Returns:
-        None.
-    """
-    root = core_config.FILES_BULK_IMPORT_DIR
-    try:
-        stranded = [
-            name
-            for name in os.listdir(root)
-            if os.path.isfile(os.path.join(root, name))
-            and os.path.splitext(name)[1].lower() in core_config.SUPPORTED_FILE_FORMATS
-        ]
-    except OSError:
-        return
-
-    if stranded:
-        logger.warning(
-            "Skipping bulk-import files in the shared root: they are not attributed to any user",
-            extra=core_logger.context(
-                console=True,
-                user_id=user_id,
-                file_count=len(stranded),
-                expected_dir=core_config.bulk_import_dir_for(user_id),
-            ),
-        )
-
-
 @router.post(
     "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
@@ -217,117 +173,30 @@ def create_activity_with_bulk_import(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> activities_schema.ActivityMessageResponse:
-    try:
-        # Get time of import initiation to pass to function for recording in import_data
-        import_time = datetime.now(UTC).isoformat()
+    """Queue every importable file in the caller's bulk-import directory.
 
-        logger.info(
-            "Bulk import initiated",
-            extra=core_logger.context(console=True, user_id=token_user_id, import_time=import_time),
+    Returns ``202``: the files are validated and queued in the request, but
+    parsing them happens on a background worker.
+
+    Args:
+        token_user_id: Authenticated user ID.
+        _check_scopes: Scope validation dependency.
+        db: Database session dependency.
+
+    Returns:
+        A message describing how many files were queued.
+
+    Raises:
+        ProcessingError: If the directory cannot be read or the jobs cannot be
+            queued.
+    """
+    queued = bulk_import_service.start_bulk_import(token_user_id, db)
+    return activities_schema.ActivityMessageResponse(
+        detail=(
+            f"Bulk import initiated for {queued} file(s) found in the "
+            "bulk_import directory. Processing of files will continue in the background."
         )
-
-        # Each user drops files into their own directory. Scanning the shared
-        # root would import whatever anyone else left there and attribute it to
-        # this caller.
-        bulk_import_dir = core_config.bulk_import_dir_for(token_user_id)
-        os.makedirs(bulk_import_dir, exist_ok=True)
-        _warn_about_unowned_bulk_import_files(token_user_id)
-
-        # Grab list of supported file formats
-        supported_file_formats = core_config.SUPPORTED_FILE_FORMATS
-
-        # Iterate over each file in the 'bulk_import' directory
-        files_to_process = []
-        for filename in os.listdir(bulk_import_dir):
-            file_path = os.path.join(bulk_import_dir, filename)
-
-            # Check if file is one we can process
-            _, file_extension = os.path.splitext(file_path)
-            file_extension = file_extension.lower()
-            if file_extension not in supported_file_formats:
-                logger.info(
-                    "Skipping a bulk-import file with an unsupported extension",
-                    extra=core_logger.context(
-                        console=True,
-                        user_id=token_user_id,
-                        file=os.path.basename(file_path),
-                        file_extension=file_extension,
-                        supported_extensions=list(supported_file_formats),
-                    ),
-                )
-                # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
-                continue
-
-            if os.path.isfile(file_path):
-                try:
-                    # Choose validator kind based on extension; the
-                    # supported-format check above guarantees one
-                    # of the four kinds below.
-                    validate_kind = (
-                        core_file_uploads.UploadKind.GZIP
-                        if file_extension == ".gz"
-                        else core_file_uploads.UploadKind.ACTIVITY
-                    )
-                    core_file_uploads.validate_local_file_sync(
-                        file_path,
-                        kind=validate_kind,
-                    )
-                except HTTPException as err:
-                    logger.warning(
-                        "Skipping a bulk-import file that failed validation",
-                        extra=core_logger.context(console=True, file=os.path.basename(file_path), reason=err.detail),
-                    )
-                    continue
-
-                files_to_process.append(file_path)
-                logger.info(
-                    "Queuing a bulk-import file for processing",
-                    extra=core_logger.context(console=True, user_id=token_user_id, file=os.path.basename(file_path)),
-                )
-
-        # Hand each validated file off for background processing. When durable jobs
-        # are enabled, publish one durable job per file: the events are staged in
-        # the transactional outbox on this request's session and committed once,
-        # then the relay fans them into retryable, dead-letterable processing_jobs
-        # rows drained by the in-process worker (local) or the worker fleet
-        # (distributed) — a crash mid-import no longer drops in-flight files, and a
-        # failing file retries then dead-letters (moved to the import-error dir)
-        # instead of vanishing on the first error. A staging failure propagates so
-        # the caller gets a 500 rather than a 202 for files that were never queued.
-        # When durable jobs are off there is no worker to drain the queue, so fall
-        # back to the background thread pool owned by ``activity_ingestion.background``
-        # (one task processing all files, exceptions surfaced via a done-callback).
-        if core_config.settings.JOBS_ENABLED:
-            activity_bulk_import_subscribers.publish_bulk_import_files(files_to_process, token_user_id, import_time, db)
-        else:
-            activity_ingestion_background.submit_bulk_import(token_user_id, files_to_process, import_time)
-
-        # Log a success message that explains processing will continue elsewhere.
-        logger.info(
-            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background.",
-            extra=core_logger.context(console=True, user_id=token_user_id, file_count=len(files_to_process)),
-        )
-
-        # Return a success message
-        return activities_schema.ActivityMessageResponse(
-            detail=(
-                "Bulk import initiated for all files found in the "
-                "bulk_import directory. Processing of files will "
-                "continue in the background."
-            )
-        )
-    except (OSError, RuntimeError, SQLAlchemyError) as err:
-        # Log the exception
-        logger.error(
-            "Error in create_activity_with_bulk_import",
-            exc_info=err,
-            extra=core_logger.context(user_id=token_user_id),
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+    )
 
 
 @router.post(

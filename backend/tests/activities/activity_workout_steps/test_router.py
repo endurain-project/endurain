@@ -3,6 +3,8 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_workout_steps.schema import ActivityWorkoutStepsPage
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -30,7 +32,7 @@ class TestReadWorkoutSteps:
     )
     def test_read_steps_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityWorkoutStepsPage.build([], 0, 1, 200)
 
         response = client.get("/activities/1/workout-steps", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200

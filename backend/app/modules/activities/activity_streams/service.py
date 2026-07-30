@@ -10,6 +10,16 @@ Streams mask differently from the other child resources: there is no single
 gate the siblings use, this module resolves the parent activity through
 :mod:`modules.activities.activity.child_access` and hands it to
 :mod:`~modules.activities.activity_streams.utils`, which decides per stream.
+
+They are also the one child resource that is **not** paginated, deliberately.
+Laps, sets and workout steps have no domain ceiling on their row count, so a
+read of "all of them" is unbounded work. A stream row count is bounded by the
+closed ``stream_type`` enum (one row per type, validated on the way in), so
+paging them would cap a number that is already capped at single digits. What is
+large here is ``stream_waypoints`` — the samples inside one row — which page
+numbers cannot bound; reducing that is a downsampling question, not a pagination
+one, and is deliberately left alone rather than answered with a control that
+looks like a fix without being one.
 """
 
 from sqlalchemy.orm import Session
