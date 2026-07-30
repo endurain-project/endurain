@@ -326,6 +326,98 @@ def _is_ssrf_allowlisted(
     return any(addr in network for network in networks)
 
 
+# Reasons a destination is refused. Phrased to read correctly after either
+# ``"URL "`` (reject_private_url) or a host value (host_rejection_reason), so the
+# two entry points share one set of checks and one vocabulary.
+_UNRESOLVABLE = "hostname could not be resolved"
+_UNPARSEABLE = "resolves to an unparseable address"
+_NON_PUBLIC = "resolves to a non-public address"
+_NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
+
+
+def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> str | None:
+    """Return why ``hostname`` must not be dialed, or None when every address is safe.
+
+    Resolves every A/AAAA record and requires all of them to be public unicast.
+    A single private/loopback/link-local answer rejects the host — this defends
+    against DNS rebinding, where an attacker-controlled name returns a public IP
+    on the first lookup and a private IP on the next.
+
+    An address that would otherwise be rejected is permitted when it (or its
+    hostname) is covered by ``SSRF_ALLOWED_HOSTS``; every such hit is logged so
+    operators can review what the exception is being used for.
+
+    Args:
+        hostname: The hostname to resolve, without a port.
+        purpose: Optional short tag identifying the outbound call, used only for
+            audit logging.
+
+    Returns:
+        A reason string, or ``None`` when the host may be dialed.
+    """
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return _UNRESOLVABLE
+
+    for info in infos:
+        ip_text = info[4][0]
+        try:
+            addr = ipaddress.ip_address(ip_text)
+        except ValueError:
+            # Defensive: if the resolver hands back something we
+            # can't parse, treat it as unsafe.
+            return _UNPARSEABLE
+        if _is_private_or_reserved(addr):
+            if _is_ssrf_allowlisted(hostname, addr):
+                # Audit trail: every allowlisted private destination is logged
+                # so operators can review what the SSRF exception is used for.
+                logger.info(
+                    f"SSRF allowlist hit: dialing private address {ip_text} for host "
+                    f"{hostname} (purpose={purpose or 'unspecified'})"
+                )
+                continue
+            return _NON_PUBLIC
+    return None
+
+
+def host_rejection_reason(host: str | None, *, purpose: str | None = None) -> str | None:
+    """Return why an operator-configured ``host[:port]`` must not be dialed, or None.
+
+    The host-authority counterpart to :func:`reject_private_url`, for callers
+    handed a bare authority from configuration rather than a full URL, and which
+    must *degrade* (disable the feature) rather than fail a request — so this
+    returns a reason instead of raising.
+
+    It adds one check the URL form does not need: the configured value must be a
+    plain ``host[:port]``. A value carrying a scheme, path, or credentials would
+    otherwise be interpolated into a URL by the caller and silently redirect the
+    request elsewhere — ``"evil.example.com/x"`` becomes
+    ``"https://evil.example.com/x/reverse"``, whose hostname check passes.
+
+    Args:
+        host: The configured host authority, or ``None``.
+        purpose: Optional short tag identifying the outbound call, used only for
+            audit logging.
+
+    Returns:
+        A short human-readable reason, or ``None`` when the host may be dialed.
+    """
+    if host is None:
+        return _NOT_AN_AUTHORITY
+
+    hostname, separator, port = host.rpartition(":")
+    if not separator:
+        hostname = host
+    elif not (port.isdigit() and len(port) <= 5):
+        return _NOT_AN_AUTHORITY
+
+    if not _is_valid_hostname(hostname):
+        return _NOT_AN_AUTHORITY
+
+    return _address_rejection_reason(hostname, purpose=purpose)
+
+
 def reject_private_url(url: str, *, purpose: str | None = None) -> None:
     """Refuse to dial URLs that resolve to private/internal hosts.
 
@@ -386,44 +478,9 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             detail="URL has no hostname",
         )
 
-    # Resolve every A/AAAA record and require that all
-    # of them be public. ``getaddrinfo`` returns a list
-    # of ``(family, type, proto, canonname, sockaddr)``
-    # tuples; ``sockaddr[0]`` is the textual IP.
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror as err:
+    reason = _address_rejection_reason(hostname, purpose=purpose)
+    if reason is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL hostname could not be resolved",
-        ) from err
-
-    for info in infos:
-        sockaddr = info[4]
-        ip_text = sockaddr[0]
-        try:
-            addr = ipaddress.ip_address(ip_text)
-        except ValueError as err:
-            # Defensive: if the resolver hands back
-            # something we can't parse, treat as unsafe.
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="URL resolves to an unparseable address",
-            ) from err
-        if _is_private_or_reserved(addr):
-            if _is_ssrf_allowlisted(hostname, addr):
-                # Audit trail: every allowlisted private
-                # destination is logged so operators can
-                # review what the SSRF exception is being
-                # used for.
-                logger.info(
-                    "SSRF allowlist hit: dialing private "
-                    f"address {ip_text} for host "
-                    f"{hostname} (purpose="
-                    f"{purpose or 'unspecified'})"
-                )
-                continue
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="URL resolves to a non-public address",
-            )
+            detail=f"URL {reason}",
+        )

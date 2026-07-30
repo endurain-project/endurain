@@ -17,7 +17,6 @@ working unchanged.
 import ipaddress
 import os
 import stat
-import threading
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
@@ -659,10 +658,6 @@ STRAVA_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/strava_import"
 STRAVA_BULK_IMPORT_ACTIVITIES_DIR = f"{STRAVA_BULK_IMPORT_DIR}/activities"
 STRAVA_BULK_IMPORT_MEDIA_DIR = f"{STRAVA_BULK_IMPORT_DIR}/media"
 STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{STRAVA_BULK_IMPORT_DIR}/import_errors"
-
-REVERSE_GEO_MIN_INTERVAL = 1.0 / settings.REVERSE_GEO_RATE_LIMIT if settings.REVERSE_GEO_RATE_LIMIT > 0 else 0
-REVERSE_GEO_LOCK = threading.Lock()
-REVERSE_GEO_LAST_CALL = 0.0
 
 
 # Secret loading and environment validation

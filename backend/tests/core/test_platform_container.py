@@ -23,6 +23,7 @@ def _settings(
     events_uri="memory://",
     lock_uri="noop://",
     event_log_enabled=False,
+    reverse_geo_provider="disabled",
 ):
     return SimpleNamespace(
         DEPLOYMENT_PROFILE=profile,
@@ -32,6 +33,15 @@ def _settings(
         resolved_events_uri=events_uri,
         resolved_lock_uri=lock_uri,
         EVENT_LOG_ENABLED=event_log_enabled,
+        # Geocoding defaults to disabled here so the container tests never touch
+        # DNS; the backend selection itself is covered in test_platform_geocoding.
+        REVERSE_GEO_PROVIDER=reverse_geo_provider,
+        REVERSE_GEO_RATE_LIMIT=1.0,
+        NOMINATIM_API_HOST="nominatim.openstreetmap.org",
+        NOMINATIM_API_USE_HTTPS=True,
+        PHOTON_API_HOST="photon.komoot.io",
+        PHOTON_API_USE_HTTPS=True,
+        GEOCODES_MAPS_API="changeme",
     )
 
 
@@ -52,6 +62,7 @@ class TestBuildPlatformLocal:
         assert isinstance(platform.events, platform_providers.EventBusProvider)
         assert isinstance(platform.lock, platform_providers.LockProvider)
         assert isinstance(platform.clock, platform_providers.ClockProvider)
+        assert isinstance(platform.geocoding, platform_providers.GeocodingProvider)
 
     def test_storage_uses_data_dir_root(self, tmp_path):
         platform = build_platform(_settings(DeploymentProfile.LOCAL, str(tmp_path)))

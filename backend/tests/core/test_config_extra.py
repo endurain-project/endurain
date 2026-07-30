@@ -805,12 +805,6 @@ class TestModuleLevelConstants:
         assert f"{settings.DATA_DIR}/user_images" == USER_IMAGES_DIR
         assert f"{settings.DATA_DIR}/server_images" == SERVER_IMAGES_DIR
 
-    def test_reverse_geo_constants(self):
-        from core.config import REVERSE_GEO_LAST_CALL, REVERSE_GEO_MIN_INTERVAL
-
-        assert isinstance(REVERSE_GEO_MIN_INTERVAL, float)
-        assert REVERSE_GEO_LAST_CALL == 0.0
-
     def test_supported_file_formats(self):
         from core.config import SUPPORTED_FILE_FORMATS
 
