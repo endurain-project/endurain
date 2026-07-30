@@ -22,6 +22,7 @@ function mapEventTypeStats(dto: EventTypeStatsDto): EventTypeStats {
     eventType: dto.event_type,
     total: dto.total,
     published: dto.published,
+    queued: dto.queued,
     processing: dto.processing,
     completed: dto.completed,
     failed: dto.failed,

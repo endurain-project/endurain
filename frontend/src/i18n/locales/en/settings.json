@@ -13,7 +13,8 @@
     "users": "Users",
     "idp": "Identity providers",
     "server": "Server settings",
-    "eventLog": "Event log"
+    "eventLog": "Event log",
+    "jobs": "Jobs"
   },
   "eventLog": {
     "title": "Event log",
@@ -43,6 +44,7 @@
       "eventType": "Event type",
       "total": "Total",
       "completed": "Completed",
+      "queued": "Queued",
       "pending": "Pending",
       "failed": "Failed",
       "deadLetter": "Dead-letter",
@@ -62,6 +64,47 @@
       "empty": "No failures in this window.",
       "activity": "Activity",
       "handler": "Handler:"
+    }
+  },
+  "jobs": {
+    "title": "Background jobs",
+    "subtitle": "Monitor durable job processing and replay failed work",
+    "window": {
+      "label": "Time window",
+      "last24h": "Last 24 hours",
+      "last7d": "Last 7 days"
+    },
+    "refresh": "Refresh",
+    "loadError": {
+      "title": "Couldn't load background jobs",
+      "description": "Something went wrong while loading the job data. Try again.",
+      "retry": "Retry"
+    },
+    "overview": {
+      "total": "Total jobs",
+      "pending": "Pending",
+      "deadLetter": "Dead-letter",
+      "oldestPending": "Oldest"
+    },
+    "empty": {
+      "title": "No jobs recorded yet",
+      "description": "Jobs appear here once durable processing is enabled and events are published."
+    },
+    "bySubscriber": {
+      "title": "By subscriber",
+      "subscriber": "Subscriber",
+      "eventType": "Event type",
+      "total": "Total",
+      "completed": "Completed",
+      "pending": "Pending",
+      "claimed": "Claimed",
+      "deadLetter": "Dead-letter"
+    },
+    "deadLetter": {
+      "title": "Dead-letter queue",
+      "empty": "No dead-lettered jobs.",
+      "attempts": "{count} attempts",
+      "replay": "Replay"
     }
   },
   "users": {

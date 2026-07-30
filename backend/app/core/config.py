@@ -170,6 +170,33 @@ class Settings(BaseSettings):
     # postgres-advisory:// for the distributed profile).
     LOCK_URI: str | None = None
 
+    # --- Durable job queue (processing_jobs + outbox) ---
+    # When enabled, derived work (thumbnails and future computations) reacting to
+    # a domain event is staged in the ``event_outbox``, relayed into per-subscriber
+    # ``processing_jobs`` rows, and run by a worker with retry/backoff and a
+    # dead-letter terminal state — so a failed or crashed handler is retried
+    # instead of silently lost. Delivery is best-effort at the publish seam (the
+    # outbox write is not atomic with the per-CRUD domain commit), so every
+    # subscriber must also have a reconciliation net. Disabled by default: derived
+    # work then dispatches inline through the event bus (the local-profile
+    # behaviour). PostgreSQL is the source of truth in both cases.
+    JOBS_ENABLED: bool = False
+    # Attempt ceiling before a job is dead-lettered.
+    JOBS_MAX_ATTEMPTS: int = 5
+    # Exponential backoff between retries: base delay and ceiling (seconds).
+    JOBS_BACKOFF_BASE_SECONDS: float = 5.0
+    JOBS_BACKOFF_MAX_SECONDS: float = 3600.0
+    # How long a claimed job's lease lasts before the reaper requeues it (seconds).
+    JOBS_LEASE_SECONDS: int = 300
+    # Maximum jobs a worker claims (and outbox rows the relay drains) per pass.
+    JOBS_BATCH_SIZE: int = 10
+    # Idle wait between empty worker polls (seconds).
+    JOBS_POLL_INTERVAL_SECONDS: float = 2.0
+    # Whether the API process also runs an in-process job worker. Keep on for
+    # single-node deployments; turn off when running dedicated worker processes
+    # (APP_ROLE=worker) so the API only publishes and schedules maintenance.
+    JOBS_RUN_IN_PROCESS_WORKER: bool = True
+
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
     # Disabled by default because query-string credentials appear in

@@ -26,6 +26,8 @@ import auth.password_reset_tokens.utils as password_reset_tokens_utils
 import auth.sign_up_tokens.utils as sign_up_tokens_utils
 import auth.utils as auth_utils
 import core.config as core_config
+import core.jobs.registry as jobs_registry
+import core.jobs.service as jobs_service
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
@@ -253,6 +255,12 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # reacting to both activity.created and activity.deleted.
     activity_thumbnail_subscribers.register_thumbnail_subscribers(platform.events)
 
+    # Also register the thumbnail handlers as durable job subscribers. Harmless
+    # when durable jobs are off (the registry is simply not consulted); when on,
+    # the outbox relay fans activity events out into retryable per-subscriber
+    # jobs run by the worker instead of the inline bus path.
+    activity_thumbnail_subscribers.register_thumbnail_durable_handlers(jobs_registry.registry)
+
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
     platform.events.start()
@@ -261,6 +269,42 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     _run_alembic_migrations()
     await core_migrations.check_migrations()
     core_scheduler.start_scheduler()
+
+    # Durable job processing (opt-in). Start the in-process worker that drains
+    # processing_jobs and register the outbox relay + lease reaper on the
+    # scheduler. The relay and reaper run on every replica (coordinated by
+    # SELECT ... FOR UPDATE SKIP LOCKED plus the idempotent job fan-out), so no
+    # single-runner lock is needed. Inert unless JOBS_ENABLED. The in-process
+    # worker can be turned off (JOBS_RUN_IN_PROCESS_WORKER=false) when running
+    # dedicated worker processes; the API still relays and reaps.
+    if core_config.settings.JOBS_ENABLED:
+        if core_config.settings.JOBS_RUN_IN_PROCESS_WORKER:
+            jobs_service.start_job_worker()
+        else:
+            core_logger.print_to_log_and_console(
+                "JOBS_ENABLED with JOBS_RUN_IN_PROCESS_WORKER=false: this API "
+                "process will not drain the durable-job queue. Run a dedicated "
+                "worker (APP_ROLE=worker) or jobs will accumulate unprocessed.",
+                "warning",
+            )
+        jobs_service.schedule_job_maintenance(core_scheduler.scheduler)
+    elif core_config.settings.resolved_events_uri.startswith(("redis://", "rediss://", "unix://")):
+        # A deployment on the Redis Streams bus (distributed, or multi-worker) with
+        # durable jobs off delivers derived work best-effort: the bus has no
+        # per-subscriber retry and no recovery of a crashed consumer's in-flight
+        # events. This is advisory, NOT fatal — a subscriber with its own
+        # reconciliation net (like the thumbnail backfill) is safe without durable
+        # jobs, and JOBS_ENABLED is orthogonal to the capability wiring the boot
+        # fail-fast validates, so it must not block startup of a valid deployment.
+        core_logger.print_to_log_and_console(
+            "JOBS_ENABLED is false while the event bus is Redis Streams "
+            "(distributed / multi-worker): derived work is delivered best-effort, "
+            "with no per-subscriber retry and no recovery of a crashed consumer's "
+            "in-flight events. Enable JOBS_ENABLED for durable, retryable delivery, "
+            "or ensure every event subscriber has a reconciliation net (e.g. the "
+            "thumbnail backfill).",
+            "warning",
+        )
 
     # Phase 2: best-effort background syncs and clean-up.
     core_logger.print_to_log_and_console("Refreshing Strava tokens on startup")
@@ -308,6 +352,9 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     platform = getattr(fastapi_app.state, "platform", None)
     if platform is not None:
         platform.events.stop()
+
+    # Stop the in-process durable-job worker (safe if it was never started).
+    jobs_service.stop_job_worker()
 
     core_scheduler.stop_scheduler()
 

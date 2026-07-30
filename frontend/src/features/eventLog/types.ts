@@ -15,6 +15,7 @@ export type EventLogFailureDto = Schemas['EventLogFailure']
  * @property eventType - The domain-event channel.
  * @property total - Total events of this type in the window.
  * @property published - Count still in the published state.
+ * @property queued - Count handed to the durable job queue (execution shown in the Jobs dashboard).
  * @property processing - Count currently processing.
  * @property completed - Count that finished successfully.
  * @property failed - Count that failed.
@@ -26,6 +27,7 @@ export interface EventTypeStats {
   eventType: string
   total: number
   published: number
+  queued: number
   processing: number
   completed: number
   failed: number

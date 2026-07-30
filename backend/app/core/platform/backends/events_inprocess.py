@@ -22,9 +22,11 @@ class InProcessEventBus:
     no background consumer.
 
     When an :class:`~core.platform.providers.EventRecorder` is injected, each
-    ``publish`` records the event's lifecycle (published -> processing ->
-    completed/failed) around the inline dispatch; a handler exception is recorded
-    as a failure and then re-raised, preserving the propagate-to-caller contract.
+    ``publish`` records the event's lifecycle (published -> completed/failed)
+    around the inline dispatch in two writes: the intermediate ``processing``
+    state is skipped because dispatch is synchronous and single-process, so that
+    state is never observed. A handler exception is recorded as a failure and
+    then re-raised, preserving the propagate-to-caller contract.
     """
 
     def __init__(self, recorder: "EventRecorder | None" = None) -> None:
@@ -40,7 +42,7 @@ class InProcessEventBus:
             return
         recorder.record_published(event)
         handler_name = ",".join(handler.__name__ for handler in handlers) or None
-        with recorder.track(event, worker_id=_INPROCESS_WORKER, handler_name=handler_name):
+        with recorder.track(event, worker_id=_INPROCESS_WORKER, handler_name=handler_name, record_processing=False):
             for handler in handlers:
                 handler(event)
 

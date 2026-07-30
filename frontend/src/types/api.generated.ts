@@ -2797,6 +2797,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Jobs Summary
+         * @description Get the durable-jobs processing summary for the admin dashboard.
+         *
+         *     Requires admin authentication with the server_settings:read scope.
+         *
+         *     Args:
+         *         hours: Look-back window in hours (1-168) for the status/subscriber counts.
+         *         db: Active database session.
+         *
+         *     Returns:
+         *         Window counts, per-subscriber breakdown, oldest pending age, and the
+         *         current dead-letter queue.
+         */
+        get: operations["read_jobs_summary_api_v1_jobs_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{job_id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replay Dead Letter Job
+         * @description Requeue a dead-lettered job for a fresh run.
+         *
+         *     Requires admin authentication with the server_settings:write scope. Returns
+         *     404 when no dead-letter job has the given id.
+         *
+         *     Args:
+         *         job_id: The job to replay.
+         *         db: Active database session.
+         *
+         *     Returns:
+         *         The replay result.
+         */
+        post: operations["replay_dead_letter_job_api_v1_jobs__job_id__replay_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/mark_all_as_read": {
         parameters: {
             query?: never;
@@ -6094,6 +6154,53 @@ export interface components {
             total_elevation_gain: number;
         };
         /**
+         * DeadLetterJob
+         * @description A dead-lettered job, shown for inspection and replay.
+         *
+         *     Attributes:
+         *         id: The job id (used to replay it).
+         *         event_id: The originating envelope event_id.
+         *         event_type: The event channel.
+         *         subscriber_id: The subscriber that failed.
+         *         source: Where the originating event came from.
+         *         attempts: Attempts made before dead-lettering.
+         *         max_attempts: The attempt ceiling that was reached.
+         *         last_error: The final failure reason.
+         *         created_at: When the job was enqueued.
+         *         updated_at: When the job was dead-lettered.
+         *         completed_at: When the job reached its terminal state.
+         */
+        DeadLetterJob: {
+            /** Attempts */
+            attempts: number;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: string;
+            /** Last Error */
+            last_error: string | null;
+            /** Max Attempts */
+            max_attempts: number;
+            /** Source */
+            source: string;
+            /** Subscriber Id */
+            subscriber_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
          * EventLogFailure
          * @description A single failed or dead-lettered event for inspection.
          *
@@ -6184,6 +6291,8 @@ export interface components {
          *         event_type: The domain-event channel.
          *         total: Total events of this type in the window.
          *         published: Count still in the published state.
+         *         queued: Count handed to the durable job queue (terminal in event_log;
+         *             execution is tracked per-subscriber in the Jobs dashboard).
          *         processing: Count currently processing.
          *         completed: Count that finished successfully.
          *         failed: Count that failed.
@@ -6208,6 +6317,8 @@ export interface components {
             processing: number;
             /** Published */
             published: number;
+            /** Queued */
+            queued: number;
             /** Total */
             total: number;
         };
@@ -9042,6 +9153,81 @@ export interface components {
          * @enum {string}
          */
         "Interval-Output": "daily" | "weekly" | "monthly" | "yearly";
+        /**
+         * JobReplayResult
+         * @description The outcome of replaying a dead-lettered job.
+         *
+         *     Attributes:
+         *         replayed: True when the job was requeued for a fresh run.
+         */
+        JobReplayResult: {
+            /** Replayed */
+            replayed: boolean;
+        };
+        /**
+         * JobSubscriberStats
+         * @description Per-subscriber job counts by status within the window.
+         *
+         *     Attributes:
+         *         subscriber_id: The durable subscriber.
+         *         event_type: The event channel it reacts to.
+         *         total: Total jobs for this subscriber in the window.
+         *         pending: Count waiting to be claimed (includes backoff).
+         *         claimed: Count currently leased by a worker.
+         *         completed: Count that finished successfully.
+         *         dead_letter: Count that exhausted retries.
+         */
+        JobSubscriberStats: {
+            /** Claimed */
+            claimed: number;
+            /** Completed */
+            completed: number;
+            /** Dead Letter */
+            dead_letter: number;
+            /** Event Type */
+            event_type: string;
+            /** Pending */
+            pending: number;
+            /** Subscriber Id */
+            subscriber_id: string;
+            /** Total */
+            total: number;
+        };
+        /**
+         * JobsSummary
+         * @description The durable-jobs admin-dashboard payload.
+         *
+         *     Attributes:
+         *         window_hours: The look-back window applied to the counts.
+         *         total_jobs: Total jobs enqueued within the window.
+         *         pending: Window count waiting to be claimed.
+         *         claimed: Window count currently leased.
+         *         completed: Window count finished successfully.
+         *         dead_letter: Window count that exhausted retries.
+         *         oldest_pending_seconds: Age of the oldest unfinished job, in seconds.
+         *         by_subscriber: Per-subscriber breakdown within the window.
+         *         recent_dead_letter: The current dead-letter queue contents (most recent first).
+         */
+        JobsSummary: {
+            /** By Subscriber */
+            by_subscriber: components["schemas"]["JobSubscriberStats"][];
+            /** Claimed */
+            claimed: number;
+            /** Completed */
+            completed: number;
+            /** Dead Letter */
+            dead_letter: number;
+            /** Oldest Pending Seconds */
+            oldest_pending_seconds: number | null;
+            /** Pending */
+            pending: number;
+            /** Recent Dead Letter */
+            recent_dead_letter: components["schemas"]["DeadLetterJob"][];
+            /** Total Jobs */
+            total_jobs: number;
+            /** Window Hours */
+            window_hours: number;
+        };
         /**
          * Language
          * @description Supported application languages.
@@ -15333,6 +15519,68 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_jobs_summary_api_v1_jobs_summary_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobsSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replay_dead_letter_job_api_v1_jobs__job_id__replay_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobReplayResult"];
+                };
             };
             /** @description Validation Error */
             422: {

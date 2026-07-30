@@ -22,6 +22,7 @@ import auth.sessions.router as auth_sessions_router
 import auth.sign_up_tokens.router as sign_up_tokens_router
 import core.config as core_config
 import core.event_log.router as event_log_router
+import core.jobs.router as jobs_router
 import core.router as core_router
 import followers.router as followers_router
 import garmin.router as garmin_router
@@ -131,6 +132,12 @@ router.include_router(
     event_log_router.router,
     prefix=core_config.ROOT_PATH + "/event_log",
     tags=["event_log"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    jobs_router.router,
+    prefix=core_config.ROOT_PATH + "/jobs",
+    tags=["jobs"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(

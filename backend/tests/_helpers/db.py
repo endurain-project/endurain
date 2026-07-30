@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 _APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "app"
@@ -99,3 +99,24 @@ def create_sqlite_session() -> Session:
     )
     Base.metadata.create_all(engine)
     return Session(engine)
+
+
+def create_sqlite_session_factory() -> sessionmaker[Session]:
+    """Create a sessionmaker over one shared in-memory SQLite engine.
+
+    Unlike ``create_sqlite_session``, sessions produced by this factory share a
+    single engine/connection (``StaticPool``), so many short-lived sessions see
+    the same data. Use it to test code that opens a fresh session per operation
+    (e.g. the durable job runner). Dispose the engine in teardown via
+    ``factory.kw["bind"].dispose()`` to avoid a ``ResourceWarning``.
+    """
+    from core.database import Base
+
+    _import_all_models()
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine)

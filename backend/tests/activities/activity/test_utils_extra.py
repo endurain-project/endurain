@@ -886,11 +886,13 @@ class TestStoreActivityExtended:
             "lat_lon_waypoints": [{"lat": 38.0, "lon": -9.0}],
         }
 
-        asyncio.run(store_activity(parsed_info, MagicMock(), MagicMock()))
+        db = MagicMock()
+        asyncio.run(store_activity(parsed_info, MagicMock(), db))
 
-        # store_activity delegates to the domain publisher; best-effort delivery
-        # and error swallowing live in the platform facade (see the publisher tests).
-        mock_publishers.publish_activity_created.assert_called_once_with(7, 3)
+        # store_activity delegates to the domain publisher, passing its session so
+        # durable-jobs delivery can use the outbox. Best-effort delivery and error
+        # swallowing live in the platform facade (see the publisher tests).
+        mock_publishers.publish_activity_created.assert_called_once_with(7, 3, db)
 
 
 class TestCalculateActivityStatsExtended:

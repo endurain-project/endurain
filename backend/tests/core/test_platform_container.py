@@ -170,12 +170,15 @@ class TestBuildPlatformEvents:
         )
         assert isinstance(platform.events, InProcessEventBus)
         assert isinstance(platform.events._recorder, EventLogRecorder)
+        # The same recorder is shared onto the platform for the durable path.
+        assert isinstance(platform.recorder, EventLogRecorder)
 
     def test_event_log_disabled_leaves_no_recorder(self, tmp_path):
         platform = build_platform(
             _settings(DeploymentProfile.LOCAL, str(tmp_path), events_uri="memory://", event_log_enabled=False)
         )
         assert platform.events._recorder is None
+        assert platform.recorder is None
 
 
 class TestBuildPlatformLock:

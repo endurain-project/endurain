@@ -2,9 +2,10 @@
 
 ``build_platform`` resolves each capability (state, storage, events, lock,
 clock) to a concrete backend based on the deployment profile and returns a
-frozen ``Platform`` holding the five providers. It is called once at startup and
-attached to ``app.state.platform``; the FastAPI dependencies in
-``core.platform.deps`` expose the providers to routes and handlers.
+frozen ``Platform`` holding the providers. It is called once at startup and
+attached to ``app.state.platform`` and published process-wide via
+``core.platform.runtime`` so both request and non-request code resolve the same
+instance.
 
 Every capability resolves its backend by URI scheme, independently of the
 profile: ``memory``/``redis`` for ``STATE_URI``; ``local``/``s3`` for
@@ -51,6 +52,9 @@ class Platform:
         events: Publish/subscribe provider.
         lock: Coordination-lock provider.
         clock: Time-source provider.
+        recorder: Event-log recorder, or ``None`` when event logging is disabled.
+            Shared by the event bus (best-effort delivery) and the publish facade
+            (durable delivery) so both paths land in the event_log dashboard.
     """
 
     profile: DeploymentProfile
@@ -59,6 +63,7 @@ class Platform:
     events: EventBusProvider
     lock: LockProvider
     clock: ClockProvider
+    recorder: EventRecorder | None
 
 
 def build_platform(settings: "Settings") -> Platform:
@@ -75,13 +80,19 @@ def build_platform(settings: "Settings") -> Platform:
         RuntimeError: When a selected Redis backend cannot be reached.
     """
     profile = settings.DEPLOYMENT_PROFILE
+    # Build the recorder once and share it: the event bus records the lifecycle
+    # of best-effort (bus-delivered) events, while the publish facade uses the
+    # same recorder to record 'published' for durable (outbox-delivered) events
+    # so the event_log dashboard never goes dark when durable jobs are enabled.
+    recorder = _build_event_recorder(settings)
     return Platform(
         profile=profile,
         state=_build_state(settings),
         storage=_build_storage(settings),
-        events=_build_events(settings),
+        events=_build_events(settings, recorder),
         lock=_build_lock(settings),
         clock=SystemClock(),
+        recorder=recorder,
     )
 
 
@@ -111,10 +122,9 @@ def _build_storage(settings: "Settings") -> StorageProvider:
     raise ValueError(f"Unsupported STORAGE_URI scheme: {scheme or storage_uri!r}")
 
 
-def _build_events(settings: "Settings") -> EventBusProvider:
+def _build_events(settings: "Settings", recorder: EventRecorder | None) -> EventBusProvider:
     events_uri = settings.resolved_events_uri
     scheme, _, _ = events_uri.partition("://")
-    recorder = _build_event_recorder(settings)
     if scheme == "memory":
         return InProcessEventBus(recorder=recorder)
     if scheme in ("redis", "rediss", "unix"):

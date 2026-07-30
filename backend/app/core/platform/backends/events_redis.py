@@ -13,22 +13,23 @@ handlers of an ``event_type`` still happens on whichever replica claims the entr
 
 Delivery is at-least-once: an entry is acked only after its handlers succeed, so
 a failed handler (or a malformed envelope) leaves the entry pending rather than
-dropping it. The matching recovery machinery — reclaiming entries orphaned by a
-crashed consumer (``XAUTOCLAIM``/``XPENDING``), retry, dead-letter, and replay —
-is deliberately deferred to F6; until then a crashed consumer's in-flight entry
-stays pending and the hourly scheduler backfill is the safety net for the
-thumbnail use case.
+dropping it. This bus is the *best-effort* delivery path and has no in-bus retry
+or reclaim of its own: an entry orphaned by a crashed consumer (which would need
+``XAUTOCLAIM``/``XPENDING`` to recover) stays pending. For at-least-once delivery
+with per-subscriber retry, backoff, dead-letter, and replay, enable durable jobs
+(``JOBS_ENABLED``, foundations plan F8): publishing then routes through the
+transactional outbox and ``processing_jobs`` instead of this bus. For the
+thumbnail use case the hourly scheduler backfill is the reconciliation net.
 """
 
 import json
-import os
-import socket
 import threading
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import core.logger as core_logger
+import core.platform.node as platform_node
 import core.platform.redis as platform_redis
 from core.platform.events import Event
 
@@ -89,7 +90,7 @@ class RedisStreamEventBus:
         self._client = client
         self._stream = stream
         self._group = group
-        self._consumer = consumer or f"{socket.gethostname()}-{os.getpid()}"
+        self._consumer = consumer or platform_node.process_identity()
         self._handlers: dict[str, list[Callable[[Event], None]]] = defaultdict(list)
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -175,5 +176,6 @@ class RedisStreamEventBus:
                 f"Event handler failed for stream entry {entry_id}; leaving it pending", "error", exc=error
             )
             return
-        # Ack only after success so a failure stays pending (at-least-once) for F6 recovery.
+        # Ack only after success so a failure stays pending (at-least-once) for
+        # reprocessing; durable jobs (F8) provide the retry/dead-letter path.
         self._client.xack(self._stream, self._group, entry_id)

@@ -1159,8 +1159,10 @@ async def store_activity(
     # any future computation — reacts by subscribing to `activity.created`;
     # store_activity has no knowledge of what consumes it. Publishing is
     # best-effort: the stored activity is the source of truth and the hourly
-    # thumbnail backfill is the safety net if the bus is unavailable.
-    activity_event_publishers.publish_activity_created(created_activity.id, created_activity.user_id)
+    # thumbnail backfill is the safety net if delivery is dropped. The session is
+    # passed so that, when durable jobs are enabled, the event is staged in the
+    # outbox for durable, retryable per-subscriber delivery.
+    activity_event_publishers.publish_activity_created(created_activity.id, created_activity.user_id, db)
 
     # Return the created activity
     return created_activity

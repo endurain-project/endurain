@@ -34,8 +34,27 @@ class EventLogRecorder:
         """
         self._safely("record_published", lambda db: event_log_crud.record_published(event, db))
 
+    def record_queued(self, event: Event) -> None:
+        """
+        Record a terminal ``queued`` row for an event routed to durable jobs.
+
+        Args:
+            event: The event envelope staged for durable delivery.
+
+        Returns:
+            None.
+        """
+        self._safely("record_queued", lambda db: event_log_crud.record_queued(event, db))
+
     @contextmanager
-    def track(self, event: Event, *, worker_id: str, handler_name: str | None) -> Iterator[None]:
+    def track(
+        self,
+        event: Event,
+        *,
+        worker_id: str,
+        handler_name: str | None,
+        record_processing: bool = True,
+    ) -> Iterator[None]:
         """
         Record ``processing`` then ``completed`` / ``failed`` around handlers.
 
@@ -43,6 +62,10 @@ class EventLogRecorder:
             event: The event being processed.
             worker_id: The process/consumer handling the event.
             handler_name: The subscriber(s) that process the event.
+            record_processing: Whether to write the intermediate ``processing``
+                row. False for the synchronous in-process bus, where the row goes
+                published -> completed within one call and the intermediate state
+                is never observed — saving a database round-trip on the hot path.
 
         Yields:
             None — control returns to the caller to run the handlers.
@@ -50,10 +73,11 @@ class EventLogRecorder:
         Raises:
             Exception: Re-raises any handler exception after recording failure.
         """
-        self._safely(
-            "mark_processing",
-            lambda db: event_log_crud.mark_processing(event.event_id, worker_id, db),
-        )
+        if record_processing:
+            self._safely(
+                "mark_processing",
+                lambda db: event_log_crud.mark_processing(event.event_id, worker_id, db),
+            )
         start = time.monotonic()
         try:
             yield

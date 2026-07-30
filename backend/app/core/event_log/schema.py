@@ -14,6 +14,8 @@ class EventTypeStats(BaseModel):
         event_type: The domain-event channel.
         total: Total events of this type in the window.
         published: Count still in the published state.
+        queued: Count handed to the durable job queue (terminal in event_log;
+            execution is tracked per-subscriber in the Jobs dashboard).
         processing: Count currently processing.
         completed: Count that finished successfully.
         failed: Count that failed.
@@ -25,6 +27,7 @@ class EventTypeStats(BaseModel):
     event_type: str
     total: int
     published: int
+    queued: int
     processing: int
     completed: int
     failed: int

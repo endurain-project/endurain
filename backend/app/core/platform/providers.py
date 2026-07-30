@@ -103,19 +103,25 @@ class EventRecorder(Protocol):
 
     Injected into the event bus by the composition root when event logging is
     enabled. Recording must never disrupt event processing, so implementations
-    swallow and log their own storage errors. :meth:`track` wraps handler
-    execution — it marks the event *processing* on entry and *completed* /
-    *failed* on exit, re-raising any handler exception so the bus keeps its own
-    error semantics (propagate in-process, leave pending on Redis Streams).
+    swallow and log their own storage errors. :meth:`record_published` and
+    :meth:`record_queued` insert the initial row for a bus-delivered or
+    durable-delivered event respectively. :meth:`track` wraps handler
+    execution — it marks the event *processing* on entry (unless
+    ``record_processing`` is False, for a synchronous single-process dispatch
+    where the intermediate state is never observed) and *completed* / *failed* on
+    exit, re-raising any handler exception so the bus keeps its own error
+    semantics (propagate in-process, leave pending on Redis Streams).
     """
 
     def record_published(self, event: Event) -> None: ...
+    def record_queued(self, event: Event) -> None: ...
     def track(
         self,
         event: Event,
         *,
         worker_id: str,
         handler_name: str | None,
+        record_processing: bool = True,
     ) -> AbstractContextManager[None]: ...
 
 

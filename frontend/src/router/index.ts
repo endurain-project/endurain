@@ -234,6 +234,12 @@ const router = createRouter({
           component: () => import('@/features/eventLog/views/EventLogView.vue'),
           meta: { requiresAdmin: true },
         },
+        {
+          path: 'jobs',
+          name: 'settings-jobs',
+          component: () => import('@/features/jobs/views/JobsView.vue'),
+          meta: { requiresAdmin: true },
+        },
       ],
     },
     {

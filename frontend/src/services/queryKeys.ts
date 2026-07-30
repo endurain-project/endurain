@@ -415,6 +415,20 @@ export const queryKeys = {
   },
 
   /**
+   * Durable-jobs domain (admin). The processing summary is keyed by its
+   * look-back window; replaying a dead-letter job invalidates the whole domain.
+   */
+  jobs: {
+    /** Broad prefix; invalidating this cascades to every jobs query. */
+    all: () => ['jobs'] as const,
+    /**
+     * @param hours - The look-back window in hours.
+     * @returns A summary query key scoped to that window.
+     */
+    summary: (hours: number) => ['jobs', 'summary', hours] as const,
+  },
+
+  /**
    * Identity providers domain (admin SSO config). `all()` is the broad prefix
    * the create/update/delete mutations invalidate on settle so the list (and
    * any derived view) refetches the server-authoritative state.

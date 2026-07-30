@@ -155,6 +155,9 @@ function timeAgo(iso: string): string {
                     {{ t('settings.eventLog.byType.completed') }}
                   </th>
                   <th scope="col" class="px-3 py-2 text-right font-medium">
+                    {{ t('settings.eventLog.byType.queued') }}
+                  </th>
+                  <th scope="col" class="px-3 py-2 text-right font-medium">
                     {{ t('settings.eventLog.byType.pending') }}
                   </th>
                   <th scope="col" class="px-3 py-2 text-right font-medium">
@@ -181,6 +184,12 @@ function timeAgo(iso: string): string {
                   <td class="px-3 py-2 text-right tabular-nums">{{ row.total }}</td>
                   <td class="px-3 py-2 text-right tabular-nums text-muted-foreground">
                     {{ row.completed }}
+                  </td>
+                  <td
+                    class="px-3 py-2 text-right tabular-nums"
+                    :class="row.queued > 0 ? 'text-effort' : 'text-muted-foreground'"
+                  >
+                    {{ row.queued }}
                   </td>
                   <td
                     class="px-3 py-2 text-right tabular-nums"

@@ -30,6 +30,35 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Optional dedicated durable-job worker (APP_ROLE=worker). Uncomment to drain
+  # the processing_jobs queue in a separate process so job execution scales
+  # independently of the API. Requires JOBS_ENABLED=true on both this service and
+  # the API. Set JOBS_RUN_IN_PROCESS_WORKER=false on the `endurain` service above
+  # so the API only publishes and schedules the outbox relay + lease reaper.
+  # endurain-worker:
+  #   container_name: endurain-worker
+  #   image: codeberg.org/endurain-project/endurain:latest
+  #   environment:
+  #     - TZ=Europe/Lisbon
+  #     - APP_ROLE=worker
+  #     - JOBS_ENABLED=true
+  #     - DB_PASSWORD=changeme
+  #     - SECRET_KEY=~changeme
+  #     - FERNET_KEY=changeme
+  #     - DEPLOYMENT_PROFILE=distributed
+  #     - REDIS_URL=redis://redis:6379/0
+  #   volumes:
+  #     - ${LOCAL_PATH:-/var/opt/endurain}/backend/data:/app/backend/data:z
+  #     - ${LOCAL_PATH:-/var/opt/endurain}/backend/logs:/app/backend/logs:z
+  #   depends_on:
+  #     endurain: # the API applies migrations before the worker starts
+  #       condition: service_started
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
   # postgres logic
   postgres:
     image: postgres:18@sha256:8ff36f3c66371cba71d20ceedccfc3de9669a68737607888c4ef0af93abe8e39

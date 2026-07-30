@@ -1,10 +1,10 @@
-"""Process-wide access to the assembled ``Platform`` for non-request contexts.
+"""Process-wide access to the assembled ``Platform``.
 
-FastAPI handlers reach the platform through ``core.platform.deps`` (which reads
-``request.app.state.platform``). Background work — the scheduler, the Garmin
-login thread — has no request, so the composition root also publishes the active
-``Platform`` here at startup via :func:`set_active_platform`. Stores that must
-work in both contexts resolve their provider lazily through :func:`get_state`.
+The composition root publishes the assembled ``Platform`` here at startup via
+:func:`set_active_platform`, and every caller — request handlers, the scheduler,
+the Garmin login thread, the durable-job worker — resolves the one instance
+through :func:`get_active_platform` (or :func:`get_state`). Stores that must work
+in any context resolve their provider lazily through :func:`get_state`.
 """
 
 from typing import TYPE_CHECKING

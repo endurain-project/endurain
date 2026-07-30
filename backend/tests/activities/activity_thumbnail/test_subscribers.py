@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from core.platform.events import new_event
 
 
@@ -155,3 +157,55 @@ class TestRegisterThumbnailSubscribers:
         assert events.subscribe.call_count == 2
         events.subscribe.assert_any_call("activity.created", on_activity_created_generate_thumbnail)
         events.subscribe.assert_any_call("activity.deleted", on_activity_deleted_cleanup_thumbnail)
+
+
+class TestDurableThumbnailHandlers:
+    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_generate_core_noops_without_owner(self, mock_runtime):
+        from activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
+
+        # No user_id -> nothing to do; the core returns (job completes, not fails).
+        generate_activity_thumbnail_for_event(new_event("activity.created", {"activity_id": 1}, source="test"))
+
+        mock_runtime.get_active_platform.assert_not_called()
+
+    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_generate_core_raises_on_error(self, mock_runtime):
+        from activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
+
+        mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
+
+        # The durable core propagates so the runner can retry/dead-letter.
+        with pytest.raises(RuntimeError):
+            generate_activity_thumbnail_for_event(
+                new_event("activity.created", {"activity_id": 1, "user_id": 2}, source="test")
+            )
+
+    @patch("activities.activity_thumbnail.service.delete_activity_thumbnail")
+    @patch("activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_cleanup_core_raises_on_error(self, mock_runtime, mock_delete):
+        from activities.activity_thumbnail.subscribers import cleanup_activity_thumbnail_for_event
+
+        mock_delete.side_effect = OSError("boom")
+        mock_runtime.get_active_platform.return_value.storage = MagicMock()
+
+        with pytest.raises(OSError):
+            cleanup_activity_thumbnail_for_event(new_event("activity.deleted", {"activity_id": 1}, source="test"))
+
+    def test_register_durable_handlers(self):
+        from activities.activity_thumbnail.subscribers import (
+            THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
+            THUMBNAIL_GENERATE_SUBSCRIBER_ID,
+            cleanup_activity_thumbnail_for_event,
+            generate_activity_thumbnail_for_event,
+            register_thumbnail_durable_handlers,
+        )
+        from core.jobs.registry import JobHandlerRegistry
+
+        registry = JobHandlerRegistry()
+        register_thumbnail_durable_handlers(registry)
+
+        assert registry.get(THUMBNAIL_GENERATE_SUBSCRIBER_ID) is generate_activity_thumbnail_for_event
+        assert registry.get(THUMBNAIL_CLEANUP_SUBSCRIBER_ID) is cleanup_activity_thumbnail_for_event
+        assert registry.subscribers_for("activity.created") == (THUMBNAIL_GENERATE_SUBSCRIBER_ID,)
+        assert registry.subscribers_for("activity.deleted") == (THUMBNAIL_CLEANUP_SUBSCRIBER_ID,)

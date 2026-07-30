@@ -26,8 +26,9 @@ class EventLog(Base):
         event_source: Where the event originated, e.g. ``api:store_activity``.
         event_payload: The domain payload, passed through untouched.
         event_metadata: Correlation context (request_id, user_id, activity_id).
-        status: Lifecycle state: published, processing, completed, failed, or
-            dead_letter.
+        status: Lifecycle state — published, processing, completed, failed, or
+            dead_letter for bus-delivered events; queued (terminal) for events
+            handed to the durable job queue.
         handler_name: The subscriber(s) that processed the event.
         worker_id: The process/consumer that handled the event.
         error_message: The failure reason when status is failed/dead_letter.
@@ -78,7 +79,7 @@ class EventLog(Base):
         nullable=False,
         default="published",
         server_default="published",
-        comment="published | processing | completed | failed | dead_letter",
+        comment="published | queued | processing | completed | failed | dead_letter",
     )
     handler_name: Mapped[str | None] = mapped_column(
         String(100),

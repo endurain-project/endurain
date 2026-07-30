@@ -297,10 +297,11 @@ class _RecorderSpy:
         self.calls.append("published")
 
     @contextmanager
-    def track(self, event, *, worker_id, handler_name):
+    def track(self, event, *, worker_id, handler_name, record_processing=True):
         self.worker_id = worker_id
         self.handler_name = handler_name
-        self.calls.append("processing")
+        if record_processing:
+            self.calls.append("processing")
         try:
             yield
         except Exception:
@@ -363,7 +364,9 @@ class TestInProcessEventBus:
         bus = InProcessEventBus(recorder=recorder)
         bus.subscribe("activity.created", _named_handler)
         bus.publish(platform_events.new_event("activity.created", {"activity_id": 1}, source="test"))
-        assert recorder.calls == ["published", "processing", "completed"]
+        # In-process dispatch is synchronous, so the intermediate 'processing'
+        # write is skipped (published -> completed in two writes).
+        assert recorder.calls == ["published", "completed"]
         assert recorder.worker_id == "inprocess"
         assert recorder.handler_name == "_named_handler"
 
@@ -377,13 +380,13 @@ class TestInProcessEventBus:
         bus.subscribe("t", boom)
         with pytest.raises(RuntimeError, match="boom"):
             bus.publish(platform_events.new_event("t", {}, source="s"))
-        assert recorder.calls == ["published", "processing", "failed"]
+        assert recorder.calls == ["published", "failed"]
 
     def test_publish_without_handlers_still_records_completed(self):
         recorder = _RecorderSpy()
         bus = InProcessEventBus(recorder=recorder)
         bus.publish(platform_events.new_event("no.subscribers", {}, source="s"))
-        assert recorder.calls == ["published", "processing", "completed"]
+        assert recorder.calls == ["published", "completed"]
         assert recorder.handler_name is None
 
 

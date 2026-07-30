@@ -132,9 +132,34 @@ esac
 
 echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY, LOG_LEVEL=$LOG_LEVEL"
 
-CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
-if [ "$BEHIND_PROXY" = "true" ]; then
-    CMD="$CMD --proxy-headers"
-fi
+# Select the process role: "api" (default) serves HTTP; "worker" drains the
+# durable-job queue (requires JOBS_ENABLED=true). One image, two shapes.
+APP_ROLE="${APP_ROLE:-api}"
 
-exec $CMD
+case "$APP_ROLE" in
+    api)
+        CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
+        if [ "$BEHIND_PROXY" = "true" ]; then
+            CMD="$CMD --proxy-headers"
+        fi
+        # Run multiple Uvicorn workers when WEB_WORKERS > 1. The backend's
+        # deployment fail-fast (Settings._enforce_deployment_topology) requires
+        # shared state (Redis) and a shared coordination lock whenever
+        # WEB_WORKERS > 1, so a multi-worker start that is not correctly
+        # configured aborts at boot rather than silently diverging.
+        WEB_WORKERS="${WEB_WORKERS:-1}"
+        if [ "$WEB_WORKERS" -gt 1 ] 2>/dev/null; then
+            CMD="$CMD --workers $WEB_WORKERS"
+            echo_info_log "Starting Uvicorn with $WEB_WORKERS workers"
+        fi
+        exec $CMD
+        ;;
+    worker)
+        echo_info_log "Starting durable-job worker (APP_ROLE=worker)"
+        exec python worker.py
+        ;;
+    *)
+        echo_error_log "Invalid APP_ROLE '$APP_ROLE'. Supported roles: api, worker."
+        exit 1
+        ;;
+esac

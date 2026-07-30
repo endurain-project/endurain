@@ -70,6 +70,12 @@ class TestRecordingWrites:
         assert len(row.error_message) == 4000
         assert row.processing_time_ms == 7
 
+    def test_record_queued_inserts_terminal_row(self, db):
+        event_log_crud.record_queued(_event(), db)
+        row = db.get(EventLog, "e1")
+        assert row.status == "queued"
+        assert row.event_type == "activity.created"
+
 
 class TestSummary:
     def test_counts_by_type_and_latency(self, db):
@@ -91,6 +97,17 @@ class TestSummary:
         assert by_type["activity.created"].max_processing_time_ms == 100
         assert by_type["user.created"].published == 1
         assert by_type["user.created"].avg_processing_time_ms is None
+
+    def test_queued_events_count_in_totals_not_pending(self, db):
+        event_log_crud.record_queued(_event("q1", "activity.created"), db)
+
+        summary = event_log_crud.get_event_log_summary(db, hours=24)
+
+        by_type = {stats.event_type: stats for stats in summary.by_type}
+        assert by_type["activity.created"].queued == 1
+        assert by_type["activity.created"].total == 1
+        # 'queued' is terminal in event_log: durable events must not show as pending.
+        assert summary.pending == []
 
     def test_pending_and_recent_failures(self, db):
         event_log_crud.record_published(_event("e1"), db)  # stays published => pending

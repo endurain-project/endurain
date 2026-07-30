@@ -1,10 +1,11 @@
 """CRUD for the event_log table — lifecycle writes and dashboard aggregates.
 
-The four recording helpers (``record_published`` / ``mark_processing`` /
-``mark_completed`` / ``mark_failed``) are called only by the event bus, via the
-recorder in :mod:`core.event_log.recorder`. The ``get_event_log_summary`` helper
-powers the admin dashboard. Every query here is portable SQL so the same code
-runs on PostgreSQL in production and SQLite in tests.
+The recording helpers write the event lifecycle: ``record_published`` /
+``mark_processing`` / ``mark_completed`` / ``mark_failed`` for bus-delivered
+events (via the recorder in :mod:`core.event_log.recorder`), and ``record_queued``
+for events handed to the durable job queue (via the publish facade). The
+``get_event_log_summary`` helper powers the admin dashboard. Every query here is
+portable SQL so the same code runs on PostgreSQL in production and SQLite in tests.
 """
 
 from collections import defaultdict
@@ -18,6 +19,7 @@ from core.event_log.models import EventLog
 from core.platform.events import Event
 
 _STATUS_PUBLISHED = "published"
+_STATUS_QUEUED = "queued"
 _STATUS_PROCESSING = "processing"
 _STATUS_COMPLETED = "completed"
 _STATUS_FAILED = "failed"
@@ -46,6 +48,37 @@ def record_published(event: Event, db: Session) -> None:
             event_payload=event.payload,
             event_metadata=event.metadata or None,
             status=_STATUS_PUBLISHED,
+            retry_count=event.retry_count,
+        )
+    )
+    db.commit()
+
+
+def record_queued(event: Event, db: Session) -> None:
+    """
+    Insert a terminal ``queued`` row for an event handed to the durable job queue.
+
+    Durable events are executed by the worker (tracked per-subscriber in
+    ``processing_jobs``), not by the event bus, so ``queued`` is terminal from the
+    event_log's perspective: it keeps durable events visible in the dashboard
+    without counting them as perpetually ``pending``. Execution detail lives in
+    the Jobs dashboard.
+
+    Args:
+        event: The event envelope being staged for durable delivery.
+        db: Active database session.
+
+    Returns:
+        None.
+    """
+    db.add(
+        EventLog(
+            id=event.event_id,
+            event_type=event.event_type,
+            event_source=event.source,
+            event_payload=event.payload,
+            event_metadata=event.metadata or None,
+            status=_STATUS_QUEUED,
             retry_count=event.retry_count,
         )
     )
@@ -201,6 +234,7 @@ def _summarize_by_type(db: Session, window_start: datetime) -> list[event_log_sc
                 event_type=event_type,
                 total=sum(statuses.values()),
                 published=statuses.get(_STATUS_PUBLISHED, 0),
+                queued=statuses.get(_STATUS_QUEUED, 0),
                 processing=statuses.get(_STATUS_PROCESSING, 0),
                 completed=statuses.get(_STATUS_COMPLETED, 0),
                 failed=statuses.get(_STATUS_FAILED, 0),

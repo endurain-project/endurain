@@ -897,8 +897,9 @@ async def delete_activity(
     # Publish the domain fact so each subsystem removes the artifacts it owns
     # (the map thumbnail today; media/search-index/... later). The route stays
     # ignorant of who reacts and publishing is best-effort — it never blocks or
-    # fails the delete.
-    activity_event_publishers.publish_activity_deleted(activity_id, token_user_id)
+    # fails the delete. The session enables durable outbox delivery when durable
+    # jobs are enabled.
+    activity_event_publishers.publish_activity_deleted(activity_id, token_user_id, db)
 
     # This activity's own processed files are removed here, in a worker thread,
     # to avoid blocking the event loop with potentially slow disk I/O.

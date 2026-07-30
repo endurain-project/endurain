@@ -65,7 +65,7 @@ forbidden_modules =
     auth.services
 
 [importlinter:contract:platform-core-no-infra]
-name = Platform core (providers/events/publisher/profile/container/deps/runtime) must not import infrastructure directly
+name = Platform core (providers/events/publisher/profile/container/runtime) must not import infrastructure directly
 type = forbidden
 allow_indirect_imports = True
 source_modules =
@@ -75,7 +75,6 @@ source_modules =
     core.platform.profile
     core.platform.capabilities
     core.platform.container
-    core.platform.deps
     core.platform.runtime
 forbidden_modules =
     redis
