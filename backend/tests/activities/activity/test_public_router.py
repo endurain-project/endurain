@@ -52,7 +52,7 @@ def _valid_activity(**kw):
 
 
 class TestReadPublicActivity:
-    @patch("modules.activities.activity.public_router.activities_crud.get_activity_by_id_if_is_public")
+    @patch("modules.activities.activity.service.activities_crud.get_activity_by_id_if_is_public")
     def test_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = _valid_activity()
@@ -61,7 +61,7 @@ class TestReadPublicActivity:
         assert response.status_code == 200
         assert response.json()["id"] == 1
 
-    @patch("modules.activities.activity.public_router.activities_crud.get_activity_by_id_if_is_public")
+    @patch("modules.activities.activity.service.activities_crud.get_activity_by_id_if_is_public")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.models as health_targets_models
 import modules.health.health_targets.schema as health_targets_schema
@@ -66,7 +67,7 @@ class TestGetHealthTargetsByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_targets_crud.get_health_targets_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -146,7 +147,7 @@ class TestCreateHealthTargets:
         mock_db.add.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_targets_crud.create_health_targets(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -271,7 +272,7 @@ class TestEditHealthTarget:
         mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_targets_crud.edit_health_target(health_target, user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

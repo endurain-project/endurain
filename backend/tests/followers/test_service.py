@@ -57,9 +57,9 @@ class TestRemoveFollower:
 
 
 class TestListAcceptedFolloweeIds:
-    @patch("modules.followers.service.followers_crud")
+    @patch("modules.followers.integration_service.followers_crud")
     def test_delegates_to_crud(self, mock_crud):
-        from modules.followers.service import list_accepted_followee_ids
+        from modules.followers.integration_service import list_accepted_followee_ids
 
         db = MagicMock()
         mock_crud.list_accepted_followee_ids.return_value = [2, 3]
@@ -68,3 +68,14 @@ class TestListAcceptedFolloweeIds:
 
         assert result == [2, 3]
         mock_crud.list_accepted_followee_ids.assert_called_once_with(1, db)
+
+    def test_is_not_on_the_internal_service(self):
+        """The cross-module read lives on ``integration_service``, not ``service``.
+
+        ``service`` is this module's own application layer; a consumer reaching
+        into it would depend on the privacy-checked follow/accept/unfollow flows
+        it has no business seeing.
+        """
+        import modules.followers.service as followers_service
+
+        assert not hasattr(followers_service, "list_accepted_followee_ids")

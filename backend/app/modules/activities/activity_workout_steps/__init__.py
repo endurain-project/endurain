@@ -1,40 +1,11 @@
+"""Activity workout steps sub-module.
+
+Step duration, targets, intensity and exercise details for structured
+workouts.
+
+Importing this package does not pull in its ORM, CRUD or services: reach for
+the submodule you need (``.crud``, ``.schema``, ``.router``). A re-export
+facade here would hand out the ORM model and the CRUD functions under a
+package path, which is a silent bypass of the boundaries the import-linter
+contracts enforce against ``*.models`` and ``*.crud``.
 """
-Activity workout steps sub-module.
-
-This module provides CRUD operations and data models for
-activity workout step records, including step duration,
-targets, intensity, and exercise details.
-
-Exports:
-    - CRUD: get_activity_workout_steps,
-      get_activities_workout_steps,
-      get_public_activity_workout_steps,
-      create_activity_workout_steps
-    - Schemas: ActivityWorkoutSteps
-    - Models: ActivityWorkoutSteps (ORM model)
-"""
-
-from .crud import (
-    create_activity_workout_steps,
-    get_activities_workout_steps,
-    get_activity_workout_steps,
-    get_public_activity_workout_steps,
-)
-from .models import (
-    ActivityWorkoutSteps as ActivityWorkoutStepsModel,
-)
-from .schema import (
-    ActivityWorkoutSteps,
-)
-
-__all__ = [
-    # Pydantic schemas
-    "ActivityWorkoutSteps",
-    # Database model
-    "ActivityWorkoutStepsModel",
-    "create_activity_workout_steps",
-    "get_activities_workout_steps",
-    # CRUD operations
-    "get_activity_workout_steps",
-    "get_public_activity_workout_steps",
-]

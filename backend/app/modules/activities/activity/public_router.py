@@ -10,10 +10,9 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import core.exceptions as core_exceptions
-import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity.service as activities_service
 
 # Define the API router
 router = APIRouter()
@@ -38,7 +37,4 @@ def read_public_activities_activity_from_id(
     used to enumerate which activity ids exist. It previously returned
     ``200 null``, which is neither a resource nor an error.
     """
-    activity = activities_crud.get_activity_by_id_if_is_public(activity_id, db)
-    if activity is None:
-        raise core_exceptions.NotFoundError("Activity not found")
-    return activity
+    return activities_service.get_public_activity(activity_id, db)

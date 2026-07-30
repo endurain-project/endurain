@@ -4,9 +4,10 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.auth.identity_providers.link_tokens.crud as idp_link_token_crud
 import modules.auth.identity_providers.link_tokens.schema as idp_link_token_schema
 
@@ -48,7 +49,7 @@ class TestGetIdpLinkTokenByHash:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             idp_link_token_crud.get_idp_link_token_by_hash("c" * 64, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

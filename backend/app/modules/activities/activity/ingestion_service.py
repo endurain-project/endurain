@@ -9,7 +9,6 @@ or Garmin — the ``activity_ingestion`` adapters produce the contract and call 
 
 from datetime import datetime
 
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -202,15 +201,11 @@ def store_parsed_activity(
             "(treating re-import as a no-op)."
         )
         return winner
-    except (core_exceptions.DomainError, HTTPException):
+    except core_exceptions.DomainError:
         # Roll back the in-flight unit of work so no partial rows survive and the
         # session stays clean for the caller (bulk import reuses one session).
-        #
-        # TRANSITIONAL: the persistence layer still reports failures as
-        # ``HTTPException`` (``core.decorators.handle_db_errors`` plus the CRUD
-        # 404/409 raises), so both arms are needed to guarantee the rollback.
-        # This layer only *catches* it to clean up — it never constructs an HTTP
-        # error. Drop the ``HTTPException`` arm once CRUD moves to DomainError.
+        # Caught only to clean up — this layer never constructs the error, and
+        # never decides its status.
         db.rollback()
         raise
     except SQLAlchemyError as err:

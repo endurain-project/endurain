@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
 import core.exceptions as core_exceptions
 
@@ -143,9 +142,9 @@ class TestStoreActivityMedia:
         mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
         mock_uploads.read_validated_upload_sync.return_value = b"bytes"
         storage = mock_storage.return_value
-        mock_media_crud.create_activity_media.side_effect = HTTPException(status_code=409, detail="dup")
+        mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.ConflictError):
             store_activity_media(1, 2, MagicMock(filename="ride.jpg", content_type="image/jpeg"), MagicMock())
 
         # A failed upload leaves no orphaned blob.

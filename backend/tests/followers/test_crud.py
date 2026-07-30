@@ -1,8 +1,9 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+import core.exceptions as core_exceptions
 
 
 class TestGetAllFollowersByUserId:
@@ -27,7 +28,7 @@ class TestGetAllFollowersByUserId:
         import modules.followers.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_all_followers_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -54,7 +55,7 @@ class TestGetAcceptedFollowersByUserId:
         import modules.followers.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_accepted_followers_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -81,7 +82,7 @@ class TestGetAllFollowingByUserId:
         import modules.followers.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_all_following_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -108,7 +109,7 @@ class TestGetAcceptedFollowingByUserId:
         import modules.followers.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_accepted_following_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -139,7 +140,7 @@ class TestCountFollowersByUserId:
         import modules.followers.crud as crud
 
         mock_db.scalar.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.count_followers_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -170,7 +171,7 @@ class TestCountFollowingByUserId:
         import modules.followers.crud as crud
 
         mock_db.scalar.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.count_following_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -197,7 +198,7 @@ class TestGetFollowerForUserIdAndTargetUserId:
         import modules.followers.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_follower_for_user_id_and_target_user_id(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 500
 
@@ -220,7 +221,7 @@ class TestListAcceptedFolloweeIds:
         import modules.followers.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.list_accepted_followee_ids(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -245,7 +246,7 @@ class TestCreateFollower:
     def test_self_follow(self, mock_db):
         import modules.followers.crud as crud
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.InvalidInputError) as e:
             crud.create_follower(user_id=1, target_user_id=1, db=mock_db)
         assert e.value.status_code == 400
 
@@ -254,7 +255,7 @@ class TestCreateFollower:
         import modules.followers.crud as crud
 
         mock_get_follow.return_value = MagicMock()
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ConflictError) as e:
             crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 409
 
@@ -268,7 +269,7 @@ class TestCreateFollower:
 
         with (
             patch.object(crud.followers_models, "Follower", return_value=MagicMock(spec=m.Follower)),
-            pytest.raises(HTTPException) as e,
+            pytest.raises(core_exceptions.ConflictError) as e,
         ):
             crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 409
@@ -284,7 +285,7 @@ class TestCreateFollower:
 
         with (
             patch.object(crud.followers_models, "Follower", return_value=MagicMock(spec=m.Follower)),
-            pytest.raises(HTTPException) as e,
+            pytest.raises(core_exceptions.ProcessingError) as e,
         ):
             crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 500
@@ -308,7 +309,7 @@ class TestAcceptFollower:
         import modules.followers.crud as crud
 
         mock_db.scalars.return_value.first.return_value = None
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.NotFoundError) as e:
             crud.accept_follower(user_id=1, target_user_id=999, db=mock_db)
         assert e.value.status_code == 404
 
@@ -320,7 +321,7 @@ class TestAcceptFollower:
         mock_db.scalars.return_value.first.return_value = accept_follow
         mock_db.commit.side_effect = SQLAlchemyError("db error")
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.accept_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
@@ -342,7 +343,7 @@ class TestDeleteFollower:
         r = MagicMock()
         r.rowcount = 0
         mock_db.execute.return_value = r
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.NotFoundError) as e:
             crud.delete_follower(user_id=1, target_user_id=999, db=mock_db)
         assert e.value.status_code == 404
         mock_db.rollback.assert_called_once()
@@ -351,6 +352,6 @@ class TestDeleteFollower:
         import modules.followers.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 500

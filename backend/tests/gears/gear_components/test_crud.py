@@ -5,6 +5,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
 
@@ -44,7 +45,7 @@ class TestGetGearComponentsUser:
         import modules.gears.gear_components.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_components_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -81,7 +82,7 @@ class TestGetGearComponentsUserByGearId:
         import modules.gears.gear_components.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_components_user_by_gear_id(user_id=1, gear_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -128,7 +129,7 @@ class TestCreateGearComponent:
             expected_kms=5000,
             purchase_value=150.0,
         )
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_gear_component(gear_component=gc, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -290,7 +291,7 @@ class TestEditGearComponent:
             id: int = 1
             brand: str = "SRAM"
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.edit_gear_component(gear_component=GCUpdate(), user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -318,7 +319,7 @@ class TestDeleteGearComponent:
         import modules.gears.gear_components.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_gear_component(user_id=1, gear_component_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -362,7 +363,7 @@ class TestGetComponentsActivityStats:
         import modules.gears.gear_components.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_components_activity_stats(gear_id=1, db=mock_db)
         assert e.value.status_code == 500
 

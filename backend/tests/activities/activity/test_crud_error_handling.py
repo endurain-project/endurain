@@ -10,10 +10,10 @@ import logging
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.activities.activity.crud as activities_crud
 
 # A realistic SQLAlchemy error string: str() on these embeds the statement and
@@ -39,12 +39,12 @@ def _failing_db() -> MagicMock:
 
 class TestDatabaseErrorsBecome500:
     def test_read_failure_raises_500(self):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             activities_crud.get_all_activities(_failing_db())
         assert exc.value.status_code == 500
 
     def test_write_failure_raises_500(self):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             activities_crud.update_activity_location(1, "Lisbon", "Belem", "Portugal", _failing_db())
         assert exc.value.status_code == 500
 
@@ -59,13 +59,13 @@ class TestSessionIsRolledBack:
 
     def test_read_failure_rolls_back(self):
         db = _failing_db()
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.ProcessingError):
             activities_crud.get_all_activities(db)
         db.rollback.assert_called_once()
 
     def test_write_failure_rolls_back(self):
         db = _failing_db()
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.ProcessingError):
             activities_crud.update_activity_location(1, "Lisbon", "Belem", "Portugal", db)
         db.rollback.assert_called_once()
 
@@ -79,7 +79,7 @@ class TestNoSqlOrParametersInLogs:
     """
 
     def test_log_excludes_sql_and_parameters(self, caplog):
-        with caplog.at_level(logging.ERROR), pytest.raises(HTTPException):
+        with caplog.at_level(logging.ERROR), pytest.raises(core_exceptions.ProcessingError):
             activities_crud.get_all_activities(_failing_db())
 
         messages = " ".join(record.getMessage() for record in caplog.records)
@@ -90,7 +90,7 @@ class TestNoSqlOrParametersInLogs:
         assert "SQLAlchemyError" in messages
 
     def test_response_detail_excludes_internals(self):
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             activities_crud.get_all_activities(_failing_db())
         assert _LEAKED_STATEMENT not in exc.value.detail
         assert _LEAKED_PARAMETER not in exc.value.detail
@@ -141,7 +141,7 @@ class TestHttpExceptionsPassThrough:
         db = MagicMock(spec=Session)
         db.execute.return_value = MagicMock(rowcount=0)
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.NotFoundError) as exc:
             activities_crud.delete_activity(1, 2, db)
 
         assert exc.value.status_code == 404
@@ -152,7 +152,7 @@ class TestHttpExceptionsPassThrough:
         db = MagicMock(spec=Session)
         db.execute.return_value = MagicMock(rowcount=0)
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.NotFoundError):
             activities_crud.delete_activity(1, 2, db, commit=False)
 
         db.rollback.assert_called_once()

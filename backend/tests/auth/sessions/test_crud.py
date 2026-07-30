@@ -5,6 +5,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.sessions.models as _auth_sessions_models
 import modules.auth.sessions.models as users_session_models
@@ -63,7 +64,7 @@ class TestGetUserSessions:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.get_user_sessions(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -118,7 +119,7 @@ class TestGetSessionById:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.get_session_by_id(session_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -173,7 +174,7 @@ class TestGetSessionByIdNotExpired:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.get_session_by_id_not_expired(session_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -332,7 +333,7 @@ class TestCreateSession:
         mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.create_session(session_data, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -592,7 +593,7 @@ class TestDeleteSession:
                 "modules.auth.sessions.crud.auth_sessions_rotated_tokens_crud.delete_by_family",
                 return_value=0,
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             # Act & Assert
             auth_sessions_crud.delete_session(session_id, user_id, mock_db)
@@ -810,7 +811,7 @@ class TestSetSessionRefreshTokenHash:
         mock_db.execute.side_effect = SQLAlchemyError("db failure")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.set_session_refresh_token_hash("session-id", "hash", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -872,7 +873,7 @@ class TestUpdateSessionCsrfHash:
         mock_db.execute.side_effect = SQLAlchemyError("db failure")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.update_session_csrf_hash("session-id", "hash", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1021,7 +1022,7 @@ class TestClaimSessionForTokenExchange:
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_sessions_crud.claim_session_for_token_exchange("session-id", "hash", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

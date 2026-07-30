@@ -1,10 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
+
+import core.exceptions as core_exceptions
 
 
 class TestCreateActivityStreams:
@@ -58,7 +59,7 @@ class TestCreateActivityStreams:
         mock_streams_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
         s = [ActivityStreamsCreate(activity_id=1, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None)]
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_activity_streams(s, mock_activity, mock_db)
         assert e.value.status_code == 500
 
@@ -136,7 +137,7 @@ class TestGetActivityStreams:
 
         mock_get_act.return_value = MagicMock(user_id=1)
         mock_db.scalars.return_value.all.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -190,7 +191,7 @@ class TestGetActivitiesStreams:
         import modules.activities.activity_streams.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[])
         assert e.value.status_code == 500
 
@@ -249,7 +250,7 @@ class TestGetPublicActivityStreams:
         mock_settings.return_value = MagicMock(public_shareable_links=True)
         mock_get_act.return_value = MagicMock()
         mock_db.scalars.return_value.all.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_public_activity_streams(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -302,7 +303,7 @@ class TestGetActivityStreamByType:
 
         mock_get_act.return_value = MagicMock(user_id=1)
         mock_db.scalars.return_value.first.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -393,7 +394,7 @@ class TestGetPublicActivityStreamByType:
         mock_settings.return_value = MagicMock(public_shareable_links=True)
         mock_get_act.return_value = MagicMock()
         mock_db.scalars.return_value.first.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
         assert e.value.status_code == 500
 

@@ -1,14 +1,17 @@
 """Application logic for follower relationships.
 
-Currently hosts the privacy-aware read surface: whether a requester may view a
-target user's follower / following graph. Access decisions live here (not only
-in the router), per the module template. The write flows (follow / accept /
-unfollow) and the pub/sub notifications move here in later FLW1 phases.
+The privacy-aware read surface (whether a requester may view a target's follower
+/ following graph) and the follow / accept / unfollow writes. Access decisions
+live here, not in the router, so the same rule applies however this module is
+reached.
 
 A user's follow graph is visible only to the user and their accepted followers.
 Endurain has no public-profile concept: profiles are never public, and only
 individual activities can be shared (via server-level public links), so no
 "public" tier applies to the follow graph.
+
+This is the module's *own* application layer. What other modules may consume
+lives in :mod:`modules.followers.integration_service`.
 """
 
 from sqlalchemy.orm import Session
@@ -256,19 +259,3 @@ def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
         "Removed a follower",
         extra=core_logger.context(user_id=user_id, follower_user_id=follower_user_id),
     )
-
-
-def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
-    """List the ids of users the given user follows (accepted only).
-
-    The clean read interface the activities feed and visibility filter consume so
-    the activities module never touches the followers table directly.
-
-    Args:
-        user_id: The follower whose accepted followees to list.
-        db: Database session.
-
-    Returns:
-        The accepted followee user ids (empty list if none).
-    """
-    return followers_crud.list_accepted_followee_ids(user_id, db)

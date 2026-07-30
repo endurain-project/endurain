@@ -7,6 +7,8 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
+
 
 @pytest.fixture(autouse=True)
 def _patch_transform_users():
@@ -45,7 +47,7 @@ class TestGetAllUsers:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_all_users(mock_db)
         assert exc.value.status_code == 500
 
@@ -94,7 +96,7 @@ class TestGetUsersNumber:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_users_number(mock_db)
         assert exc.value.status_code == 500
 
@@ -170,7 +172,7 @@ class TestGetUsersWithPagination:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_users_with_pagination(mock_db)
         assert exc.value.status_code == 500
 
@@ -226,7 +228,7 @@ class TestGetUserByUsername:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_user_by_username("test", mock_db)
         assert exc.value.status_code == 500
 
@@ -261,7 +263,7 @@ class TestGetUserByEmail:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_user_by_email("test@example.com", mock_db)
         assert exc.value.status_code == 500
 
@@ -329,7 +331,7 @@ class TestGetUserById:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_user_by_id(1, mock_db)
         assert exc.value.status_code == 500
 
@@ -364,7 +366,7 @@ class TestGetUsersAdmin:
         mock_db = MagicMock(spec=Session)
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             get_users_admin(mock_db)
         assert exc.value.status_code == 500
 
@@ -475,7 +477,7 @@ class TestCreateUser:
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(core_exceptions.ProcessingError) as exc:
                 create_user(mock_user_schema, mock_identity, mock_db)
             assert exc.value.status_code == 500
 
@@ -654,7 +656,7 @@ class TestCreateSignupUser:
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(core_exceptions.ProcessingError) as exc:
                 create_signup_user(mock_user_schema, mock_settings, mock_identity, mock_db)
             assert exc.value.status_code == 500
 
@@ -839,7 +841,7 @@ class TestEditUser:
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as e:
+            with pytest.raises(core_exceptions.ProcessingError) as e:
                 await edit_user(1, mock_user_schema, mock_db)
             assert e.value.status_code == 500
 
@@ -1100,7 +1102,7 @@ class TestEditProfileUser:
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as e:
+            with pytest.raises(core_exceptions.ProcessingError) as e:
                 await edit_profile_user(1, mock_profile, mock_db)
             assert e.value.status_code == 500
 
@@ -1147,7 +1149,7 @@ class TestApproveUser:
         with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(core_exceptions.ProcessingError) as exc:
                 approve_user(1, mock_db)
             assert exc.value.status_code == 500
 
@@ -1199,7 +1201,7 @@ class TestVerifyUserEmail:
         with patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as exc:
+            with pytest.raises(core_exceptions.ProcessingError) as exc:
                 verify_user_email(1, mock_settings, mock_db)
             assert exc.value.status_code == 500
 
@@ -1255,7 +1257,7 @@ class TestUpdateUserPhoto:
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as e:
+            with pytest.raises(core_exceptions.ProcessingError) as e:
                 await update_user_photo(1, mock_db, photo_path="path")
             assert e.value.status_code == 500
 
@@ -1300,6 +1302,6 @@ class TestDeleteUser:
         ):
             mock_db.commit.side_effect = SQLAlchemyError("DB error")
 
-            with pytest.raises(HTTPException) as e:
+            with pytest.raises(core_exceptions.ProcessingError) as e:
                 await delete_user(1, mock_db)
             assert e.value.status_code == 500

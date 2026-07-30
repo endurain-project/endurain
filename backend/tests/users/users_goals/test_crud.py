@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
@@ -69,7 +70,7 @@ class TestGetUserGoalsByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_goals_crud.get_user_goals_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -121,7 +122,7 @@ class TestGetUserGoalByUserAndGoalId:
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_goals_crud.get_user_goal_by_user_and_goal_id(user_id, goal_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -178,7 +179,7 @@ class TestCreateUserGoal:
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_goals_crud.create_user_goal(user_id, user_goal, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -330,7 +331,7 @@ class TestDeleteUserGoal:
         mock_db.delete.side_effect = SQLAlchemyError("DB error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_goals_crud.delete_user_goal(user_id, goal_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

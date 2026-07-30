@@ -17,9 +17,10 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
-import modules.followers.service as followers_service
+import modules.followers.integration_service as followers_integration
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
@@ -278,7 +279,7 @@ def get_following_feed(
 ) -> list[activities_schema.Activity] | None:
     """Return the requester's following feed (activities of users they follow)."""
     _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     feed = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
     logger.debug(
         f"get_following_feed: user {requester_user_id} page {page_number} -> {len(feed) if feed else 0} activities"
@@ -289,7 +290,7 @@ def get_following_feed(
 def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> int:
     """Count the requester's following-feed activities."""
     _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     return activities_crud.count_user_following_activities(followee_ids, db)
 
 
@@ -383,7 +384,7 @@ def page_following_feed(
     # Ownership is enforced once here; the followee lookup is then shared by the
     # page and the count rather than resolved twice.
     _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
     items = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
     total = activities_crud.count_user_following_activities(followee_ids, db)
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
@@ -411,3 +412,132 @@ def page_gear_activities(
     items = list_gear_activities(user_id, gear_id, page_number, num_records, db)
     total = count_gear_activities(user_id, gear_id, db)
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
+
+
+# ---------------------------------------------------------------------------
+# Single-activity reads and writes
+# ---------------------------------------------------------------------------
+
+
+def list_activity_types(user_id: int, db: Session) -> dict[int, str]:
+    """Return the distinct activity types a user has recorded, keyed by type code."""
+    return activities_crud.get_distinct_activity_types_for_user(user_id, db)
+
+
+def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activities_schema.Activity:
+    """Return an activity the requester owns or is permitted to see.
+
+    Args:
+        activity_id: The activity to read.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The activity, visibility-masked for a non-owner.
+
+    Raises:
+        NotFoundError: When the activity does not exist or is not visible to the
+            caller — indistinguishable on purpose, so the endpoint cannot be used
+            to enumerate activity ids.
+    """
+    activity = activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, requester_user_id, db)
+    if activity is None:
+        logger.debug(
+            "Activity read resolved to nothing visible",
+            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
+        )
+        raise core_exceptions.NotFoundError(f"Activity {activity_id} not found")
+    return activity
+
+
+def get_public_activity(activity_id: int, db: Session) -> activities_schema.Activity:
+    """Return a publicly shared activity.
+
+    Args:
+        activity_id: The activity to read.
+        db: Database session.
+
+    Returns:
+        The activity.
+
+    Raises:
+        NotFoundError: When the activity does not exist or is not public.
+    """
+    activity = activities_crud.get_activity_by_id_if_is_public(activity_id, db)
+    if activity is None:
+        raise core_exceptions.NotFoundError("Activity not found")
+    return activity
+
+
+def edit_activity(
+    activity_id: int,
+    user_id: int,
+    activity_attributes: activities_schema.ActivityEdit,
+    db: Session,
+) -> activities_schema.Activity:
+    """Apply partial updates to one of the user's activities."""
+    logger.debug(
+        "Editing an activity",
+        extra=core_logger.context(activity_id=activity_id, user_id=user_id),
+    )
+    return activities_crud.edit_activity(user_id, activity_id, activity_attributes, db)
+
+
+def bulk_edit_activities(
+    user_id: int,
+    body: activities_schema.ActivitiesBulkEdit,
+    db: Session,
+) -> int:
+    """Apply a bulk edit across all of the user's activities.
+
+    Args:
+        user_id: The owner whose activities to edit.
+        body: The fields to apply; only those present are changed.
+        db: Database session.
+
+    Returns:
+        How many activities changed.
+
+    Raises:
+        InvalidInputError: When the body asks for no change at all. An empty
+            patch is a client bug, not a no-op worth reporting as success.
+    """
+    if body.visibility is None:
+        raise core_exceptions.InvalidInputError("No supported field to update was provided")
+
+    updated = activities_crud.edit_user_activities_visibility(user_id, body.visibility, db)
+    logger.info(
+        "Bulk-edited activity visibility",
+        extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=updated or 0),
+    )
+    return updated or 0
+
+
+def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
+    """Delete one of the user's activities and publish ``activity.deleted``.
+
+    The delete is staged (``commit=False``) and the publisher owns the single
+    commit, so when durable jobs are enabled the outbox row is written in the
+    *same* transaction as the delete. A crash can no longer leave the row deleted
+    but the cleanup event unpublished, which would orphan the thumbnail and
+    source-file blobs. On the best-effort path the commit runs first and a
+    bus-dispatch failure is swallowed.
+
+    Ownership lives in the delete's ``WHERE`` clause (404 when the activity is
+    missing *or* owned by someone else), so there is no read-then-delete gap and
+    no caller-side precondition to forget.
+
+    Args:
+        activity_id: The activity to delete.
+        user_id: The authenticated owner.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    activities_crud.delete_activity(activity_id, user_id, db, commit=False)
+    activity_event_publishers.publish_activity_deleted(activity_id, user_id, db, commit=db.commit)
+    logger.info(
+        "Deleted an activity",
+        extra=core_logger.context(activity_id=activity_id, user_id=user_id),
+    )

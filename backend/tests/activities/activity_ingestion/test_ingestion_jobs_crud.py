@@ -4,11 +4,11 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
 
+import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.ingestion_jobs_crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.models as activity_ingestion_models
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -69,7 +69,7 @@ class TestCreateUploadJob:
     def test_db_error(self, model, mock_db):
         model.return_value = _row()
         mock_db.commit.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as err:
+        with pytest.raises(core_exceptions.ProcessingError) as err:
             ingestion_jobs_crud.create_ingestion_job(
                 "job-1", 7, _KIND, mock_db, filename="ride.gpx", staged_key="abc.gpx"
             )

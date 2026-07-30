@@ -8,12 +8,12 @@ carries the storage key; turning that key into a servable URL is an addressing
 concern owned by ``service.py``, not by the persistence layer.
 """
 
-from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_media.contracts as activity_media_contracts
@@ -216,9 +216,8 @@ def create_activity_media(
         return _to_record(db_activity_media)
     except IntegrityError as integrity_error:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Duplicate entry error. Check if path and file name are unique."),
+        raise core_exceptions.ConflictError(
+            "Duplicate entry error. Check if path and file name are unique."
         ) from integrity_error
 
 
@@ -285,10 +284,7 @@ def edit_activity_media_media_path(
     db_activity_media = db.scalars(stmt).first()
 
     if db_activity_media is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity media not found",
-        )
+        raise core_exceptions.NotFoundError("Activity media not found")
 
     db_activity_media.media_path = media_path
     db.commit()
@@ -323,10 +319,7 @@ def delete_activity_media(activity_media_id: int, db: Session) -> None:
     activity_media = db.scalars(stmt).first()
 
     if not activity_media:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity media not found",
-        )
+        raise core_exceptions.NotFoundError("Activity media not found")
 
     db.delete(activity_media)
     db.commit()

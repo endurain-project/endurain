@@ -1,11 +1,11 @@
 """Activity exercise titles CRUD operations."""
 
-from fastapi import HTTPException, status
 from sqlalchemy import select, tuple_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity_exercise_titles.models as activity_exercise_titles_models
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
@@ -155,7 +155,6 @@ def create_activity_exercise_titles(
             exc_info=integrity_error,
             extra=core_logger.context(attempted=len(new_entries)),
         )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=("Duplicate entry error. Check if (exercise_name, exercise_category) is unique"),
+        raise core_exceptions.ConflictError(
+            "Duplicate entry error. Check if (exercise_name, exercise_category) is unique"
         ) from integrity_error

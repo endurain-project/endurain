@@ -11,6 +11,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.users.users_default_gear.crud as user_default_gear_crud
 import modules.users.users_default_gear.models as user_default_gear_models
 import modules.users.users_default_gear.schema as user_default_gear_schema
@@ -75,7 +76,7 @@ class TestGetUserDefaultGearByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             user_default_gear_crud.get_user_default_gear_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -125,7 +126,7 @@ class TestCreateUserDefaultGear:
                 "UsersDefaultGear",
                 return_value=mock_db_gear,
             ),
-            pytest.raises(HTTPException) as exc_info,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             user_default_gear_crud.create_user_default_gear(user_id, mock_db)
 

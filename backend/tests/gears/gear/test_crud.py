@@ -4,6 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+import core.exceptions as core_exceptions
 from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
 
@@ -30,7 +31,7 @@ class TestGetGearUserById:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_user_by_id(user_id=1, gear_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -54,7 +55,7 @@ class TestGetGearActivityStats:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_activity_stats(gear_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -78,7 +79,7 @@ class TestGetGearComponentsTotalCost:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_components_total_cost(gear_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -109,7 +110,7 @@ class TestGetGearsNumber:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gears_number(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -156,7 +157,7 @@ class TestGetGearUsersWithPagination:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_users_with_pagination(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -183,7 +184,7 @@ class TestGetGearUser:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -210,7 +211,7 @@ class TestGetGearUserContainsNickname:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_user_contains_nickname(user_id=1, nickname="test", db=mock_db)
         assert e.value.status_code == 500
 
@@ -237,7 +238,7 @@ class TestGetGearUserByNickname:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_user_by_nickname(user_id=1, nickname="Test", db=mock_db)
         assert e.value.status_code == 500
 
@@ -264,7 +265,7 @@ class TestGetGearByTypeAndUser:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_by_type_and_user(gear_type=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -291,7 +292,7 @@ class TestGetGearByStravaIdFromUserId:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_by_strava_id_from_user_id(gear_strava_id="strava_123", user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -318,7 +319,7 @@ class TestGetGearByGarminconnectIdFromUserId:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_gear_by_garminconnect_id_from_user_id(gear_garminconnect_id="garmin_123", user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -425,7 +426,7 @@ class TestCreateMultipleGears:
         mock_db.commit.side_effect = SQLAlchemyError("err")
 
         gear = s.GearCreate(nickname="Test", gear_type=1)
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_multiple_gears([gear], user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -488,7 +489,7 @@ class TestCreateGear:
         mock_db.add.side_effect = SQLAlchemyError("err")
 
         gear = s.GearCreate(nickname="New Gear", gear_type=1)
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_gear(gear=gear, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -586,7 +587,7 @@ class TestEditGear:
             nickname: str = "Ghost"
             brand: str | None = None
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.edit_gear(gear=GearUpdate(), user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -614,7 +615,7 @@ class TestEditGear:
             strava_gear_id: str | None = None
             garminconnect_gear_id: str | None = None
 
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.edit_gear(gear=GearUpdate(), user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -642,7 +643,7 @@ class TestDeleteGear:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_gear(gear_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -670,7 +671,7 @@ class TestDeleteAllStravaGearForUser:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_all_strava_gear_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -698,6 +699,6 @@ class TestDeleteAllGarminconnectGearForUser:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.delete_all_garminconnect_gear_for_user(user_id=1, db=mock_db)
         assert e.value.status_code == 500

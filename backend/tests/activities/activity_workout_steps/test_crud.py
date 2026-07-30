@@ -2,9 +2,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import setup_mock_execute
+
+import core.exceptions as core_exceptions
 
 
 class TestCreateActivityWorkoutSteps:
@@ -50,7 +51,7 @@ class TestCreateActivityWorkoutSteps:
                 duration_type="time",
             )
         ]
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_activity_workout_steps(steps, 1, mock_db)
         assert e.value.status_code == 500
 
@@ -99,7 +100,7 @@ class TestGetActivityWorkoutSteps:
 
         mock_get_act.return_value = MagicMock(user_id=1, hide_workout_sets_steps=False)
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -156,7 +157,7 @@ class TestGetActivitiesWorkoutSteps:
         import modules.activities.activity_workout_steps.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activities_workout_steps(activity_ids=[1], token_user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
@@ -207,6 +208,6 @@ class TestGetPublicActivityWorkoutSteps:
 
         mock_gate.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0)
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
         assert e.value.status_code == 500

@@ -16,7 +16,7 @@ pinned to one node's disk and served from a public static path.
 import uuid
 from pathlib import PurePosixPath
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -232,7 +232,7 @@ def store_activity_media(
 
     try:
         created = activity_media_crud.create_activity_media(activity_id, storage_key, db)
-    except (core_exceptions.DomainError, HTTPException):
+    except core_exceptions.DomainError:
         # Best-effort cleanup of the orphaned blob.
         try:
             storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, storage_key)
