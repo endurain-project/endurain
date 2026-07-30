@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity_workout_steps.service as activity_workout_steps_service
 import modules.auth.dependencies as auth_dependencies
 
 # Define the API router
@@ -43,4 +43,4 @@ def read_activity_workout_steps_all(
     Returns:
         List of workout steps or None.
     """
-    return activity_workout_steps_crud.get_activity_workout_steps(activity_id, token_user_id, db)
+    return activity_workout_steps_service.list_activity_workout_steps(activity_id, token_user_id, db)

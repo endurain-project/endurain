@@ -25,7 +25,7 @@ def _build_app(mock_db):
 
 
 class TestReadActivityLaps:
-    @patch("modules.activities.activity_laps.router.activity_laps_crud.get_activity_laps")
+    @patch("modules.activities.activity_laps.router.activity_laps_service.list_activity_laps")
     def test_read_laps_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -33,7 +33,7 @@ class TestReadActivityLaps:
         response = client.get("/activities/1/laps", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("modules.activities.activity_laps.router.activity_laps_crud.get_activity_laps")
+    @patch("modules.activities.activity_laps.router.activity_laps_service.list_activity_laps")
     def test_read_laps_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []

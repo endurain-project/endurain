@@ -1,9 +1,10 @@
 """Tests for the activities read/stats/feed service orchestration."""
 
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 
@@ -241,3 +242,62 @@ class TestAnchoredPeriodBounds:
             service.period_stats(1, "month", 1, "db", date(2026, 2, 17))
 
         month_stats.assert_called_once_with(1, 1, "db", date(2026, 2, 17))
+
+
+class TestEditPublishesUpdated:
+    """An edit is a domain fact: without it consumers can only see create/delete."""
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_single_edit_publishes_only_the_fields_the_client_sent(self, mock_crud, mock_publishers):
+        import modules.activities.activity.schema as activities_schema
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        service.edit_activity(5, 1, activities_schema.ActivityEdit(name="Run"), db)
+
+        mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, commit=False)
+        mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, ["name"], db=db, commit=db.commit)
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_single_edit_lets_the_publisher_own_the_commit(self, mock_crud, mock_publishers):
+        """Staged, not committed, so the outbox row joins the same transaction."""
+        import modules.activities.activity.schema as activities_schema
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        service.edit_activity(5, 1, activities_schema.ActivityEdit(name="Run"), db)
+
+        db.commit.assert_not_called()
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_bulk_edit_publishes_one_event_per_changed_row(self, mock_crud, mock_publishers):
+        import modules.activities.activity.schema as activities_schema
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.edit_user_activities_visibility.return_value = [4, 5, 6]
+
+        updated = service.bulk_edit_activities(1, activities_schema.ActivitiesBulkEdit(visibility=1), db)
+
+        assert updated == 3
+        mock_publishers.publish_activities_updated.assert_called_once_with(
+            [4, 5, 6], 1, ["visibility"], db, db.commit, source="api:bulk_edit_activities"
+        )
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_a_stale_edit_rolls_back_and_publishes_nothing(self, mock_crud, mock_publishers):
+        import modules.activities.activity.schema as activities_schema
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.edit_activity.side_effect = StaleDataError()
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.edit_activity(5, 1, activities_schema.ActivityEdit(name="Run"), db)
+
+        db.rollback.assert_called_once()
+        mock_publishers.publish_activity_updated.assert_not_called()

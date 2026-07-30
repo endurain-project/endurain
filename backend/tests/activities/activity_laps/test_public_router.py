@@ -16,7 +16,7 @@ def _build_app(mock_db):
 
 
 class TestReadPublicActivityLaps:
-    @patch("modules.activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
+    @patch("modules.activities.activity_laps.public_router.activity_laps_service.list_public_activity_laps")
     def test_success(self, mock_get, mock_db):
         from modules.activities.activity_laps.schema import ActivityLapsRead
 
@@ -26,7 +26,7 @@ class TestReadPublicActivityLaps:
         response = client.get("/public/activities/1/laps")
         assert response.status_code == 200
 
-    @patch("modules.activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
+    @patch("modules.activities.activity_laps.public_router.activity_laps_service.list_public_activity_laps")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []

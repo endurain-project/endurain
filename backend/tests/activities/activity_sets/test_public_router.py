@@ -16,7 +16,7 @@ def _build_app(mock_db):
 
 
 class TestReadPublicActivitySets:
-    @patch("modules.activities.activity_sets.public_router.activity_sets_crud.get_public_activity_sets")
+    @patch("modules.activities.activity_sets.public_router.activity_sets_service.list_public_activity_sets")
     def test_success(self, mock_get, mock_db):
         from modules.activities.activity_sets.schema import ActivitySetsRead
 
@@ -30,7 +30,7 @@ class TestReadPublicActivitySets:
         response = client.get("/public/activities/1/sets")
         assert response.status_code == 200
 
-    @patch("modules.activities.activity_sets.public_router.activity_sets_crud.get_public_activity_sets")
+    @patch("modules.activities.activity_sets.public_router.activity_sets_service.list_public_activity_sets")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []

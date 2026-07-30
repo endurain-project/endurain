@@ -9,7 +9,6 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity_exercise_titles.models as activity_exercise_titles_models
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.server_settings.utils as server_settings_utils
 
 logger = core_logger.get_logger(__name__)
 
@@ -44,32 +43,6 @@ def get_activity_exercise_titles(
         return []
 
     return [_to_read_schema(title) for title in activity_exercise_titles]
-
-
-@core_decorators.handle_db_errors
-def get_public_activity_exercise_titles(
-    db: Session,
-) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
-    """
-    Retrieve activity exercise titles when public sharing is enabled.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        Every exercise title, empty when public links are disabled or there are
-        no entries.
-
-    Raises:
-        HTTPException: If server settings are missing or a database
-            error occurs.
-    """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-    if not server_settings.public_shareable_links:
-        return []
-
-    return get_activity_exercise_titles(db)
 
 
 @core_decorators.handle_db_errors

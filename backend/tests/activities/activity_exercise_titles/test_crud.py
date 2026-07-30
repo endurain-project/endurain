@@ -39,40 +39,6 @@ class TestGetAllExerciseTitles:
             crud.get_activity_exercise_titles(db=mock_db)
 
 
-class TestGetPublicExerciseTitles:
-    @patch("modules.activities.activity_exercise_titles.crud.server_settings_utils.get_server_settings_or_404")
-    def test_no_public_links(self, mock_settings, mock_db):
-        import modules.activities.activity_exercise_titles.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=False)
-        r = crud.get_public_activity_exercise_titles(db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_exercise_titles.crud.server_settings_utils.get_server_settings_or_404")
-    def test_success(self, mock_settings, mock_db):
-        import modules.activities.activity_exercise_titles.crud as crud
-        import modules.activities.activity_exercise_titles.models as m
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        setup_mock_execute(
-            mock_db,
-            return_scalars_all=[
-                mock_model(m.ActivityExerciseTitles, id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")
-            ],
-        )
-        r = crud.get_public_activity_exercise_titles(db=mock_db)
-        assert len(r) == 1
-
-    @patch("modules.activities.activity_exercise_titles.crud.server_settings_utils.get_server_settings_or_404")
-    def test_db_error(self, mock_settings, mock_db):
-        import modules.activities.activity_exercise_titles.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError):
-            crud.get_public_activity_exercise_titles(db=mock_db)
-
-
 class TestGetExerciseTitleByExerciseName:
     def test_found(self, mock_db):
         import modules.activities.activity_exercise_titles.crud as crud

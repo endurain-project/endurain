@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
-import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_streams.service as activity_streams_service
 import modules.auth.dependencies as auth_dependencies
 
 router = APIRouter()
@@ -51,7 +51,7 @@ def read_activities_streams_for_activity_all(
     Returns:
         List of activity streams or None.
     """
-    return activity_streams_crud.get_activity_streams(activity_id, token_user_id, db)
+    return activity_streams_service.list_activity_streams(activity_id, token_user_id, db)
 
 
 @router.get(
@@ -102,7 +102,7 @@ def read_activities_streams_for_activity_stream_type(
             error. The two cases are deliberately indistinguishable so the
             endpoint cannot be used to probe which activities exist.
     """
-    stream = activity_streams_crud.get_activity_stream_by_type(
+    stream = activity_streams_service.get_activity_stream(
         activity_id,
         stream_type,
         token_user_id,

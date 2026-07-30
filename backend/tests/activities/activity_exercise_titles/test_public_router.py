@@ -16,7 +16,7 @@ def _build_app(mock_db):
 
 class TestReadPublicExerciseTitles:
     @patch(
-        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_crud.get_public_activity_exercise_titles"
+        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_service.list_public_activity_exercise_titles"
     )
     def test_success(self, mock_get, mock_db):
         from modules.activities.activity_exercise_titles.schema import ActivityExerciseTitles
@@ -30,7 +30,7 @@ class TestReadPublicExerciseTitles:
         assert response.status_code == 200
 
     @patch(
-        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_crud.get_public_activity_exercise_titles"
+        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_service.list_public_activity_exercise_titles"
     )
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))

@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
+import modules.activities.activity_laps.service as activity_laps_service
 
 router = APIRouter()
 
@@ -32,4 +32,4 @@ def read_public_activities_laps_for_activity_all(
         is disabled, the activity is not public, or the laps are
         hidden.
     """
-    return activity_laps_crud.get_public_activity_laps(activity_id, db)
+    return activity_laps_service.list_public_activity_laps(activity_id, db)

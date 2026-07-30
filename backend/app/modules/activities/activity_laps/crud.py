@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_laps.models as activity_laps_models
 import modules.activities.activity_laps.schema as activity_laps_schema
@@ -72,41 +71,28 @@ def _to_read_schema(
 @core_decorators.handle_db_errors
 def get_activity_laps(
     activity_id: int,
-    token_user_id: int,
     db: Session,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
     """
-    Retrieve activity laps for a given activity.
+    Retrieve every lap belonging to an activity.
+
+    Performs no access check: whether the caller may read these rows is decided
+    by :mod:`modules.activities.activity_laps.service`.
 
     Args:
         activity_id: The activity ID.
-        token_user_id: The authenticated user ID.
         db: Database session.
 
     Returns:
-        The activity's laps, empty when the activity is not visible to the
-        caller, its laps are hidden, or it has none. A collection read answers
-        with a collection; the three cases are deliberately indistinguishable so
-        the endpoint cannot be used to probe which activities exist.
+        The activity's laps, empty when it has none.
 
     Raises:
         ProcessingError: If database error occurs.
     """
-    activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
-
-    if not activity:
-        return []
-
-    if token_user_id != activity.user_id and activity.hide_laps:
-        return []
-
     stmt = select(activity_laps_models.ActivityLaps).where(
         activity_laps_models.ActivityLaps.activity_id == activity_id,
     )
     activity_laps = db.scalars(stmt).all()
-
-    if not activity_laps:
-        return []
 
     return [_to_read_schema(lap) for lap in activity_laps]
 
@@ -155,42 +141,6 @@ def get_activities_laps(
         activity_laps_models.ActivityLaps.activity_id.in_(allowed_ids)
     )
     activity_laps = db.scalars(laps_stmt).all()
-
-    if not activity_laps:
-        return []
-
-    return [_to_read_schema(lap) for lap in activity_laps]
-
-
-@core_decorators.handle_db_errors
-def get_public_activity_laps(
-    activity_id: int,
-    db: Session,
-) -> list[activity_laps_schema.ActivityLapsRead]:
-    """
-    Retrieve public activity laps for an activity.
-
-    Args:
-        activity_id: The activity ID.
-        db: Database session.
-
-    Returns:
-        The activity's laps, empty when it is not found, hidden, or not
-        publicly visible — indistinguishable on purpose, since this endpoint is
-        unauthenticated.
-
-    Raises:
-        ProcessingError: If database error occurs.
-    """
-    activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_laps")
-
-    if not activity:
-        return []
-
-    stmt = select(activity_laps_models.ActivityLaps).where(
-        activity_laps_models.ActivityLaps.activity_id == activity_id,
-    )
-    activity_laps = db.scalars(stmt).all()
 
     if not activity_laps:
         return []

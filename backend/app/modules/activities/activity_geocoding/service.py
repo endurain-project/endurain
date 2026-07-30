@@ -65,7 +65,6 @@ def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Sess
     stream = activity_streams_crud.get_activity_stream_by_type(
         activity_id,
         activity_streams_constants.STREAM_TYPE_MAP,
-        user_id,
         db,
     )
     if stream is None or not stream.stream_waypoints:

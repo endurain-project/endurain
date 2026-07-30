@@ -26,7 +26,7 @@ def _build_app(mock_db):
 
 class TestReadExerciseTitles:
     @patch(
-        "modules.activities.activity_exercise_titles.router.activity_exercise_titles_crud.get_activity_exercise_titles"
+        "modules.activities.activity_exercise_titles.router.activity_exercise_titles_service.list_activity_exercise_titles"
     )
     def test_read_titles_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))

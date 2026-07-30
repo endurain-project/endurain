@@ -72,7 +72,7 @@ def process_migration_2(db: Session) -> None:
                 # Get activity stream
                 try:
                     activity_stream_coord = activity_streams_crud.get_activity_stream_by_type(
-                        activity.id, activity_streams_constants.STREAM_TYPE_MAP, activity.user_id, db
+                        activity.id, activity_streams_constants.STREAM_TYPE_MAP, db
                     )
                 except Exception as err:
                     logger.warning(

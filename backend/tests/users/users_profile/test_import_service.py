@@ -693,7 +693,7 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch("modules.users.users_profile.import_service.activity_laps_crud.create_activity_laps"):
+        with patch("modules.users.users_profile.import_service.activities_integration.restore_activity_laps"):
             await service.collect_and_import_activity_components(
                 [{"activity_id": 1, "lap_index": 1}],
                 [],
@@ -717,7 +717,7 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch("modules.users.users_profile.import_service.activity_sets_crud.create_activity_sets"):
+        with patch("modules.users.users_profile.import_service.activities_integration.restore_activity_sets"):
             await service.collect_and_import_activity_components(
                 [],
                 [{"activity_id": 1, "duration": 30.0, "set_type": "manual", "start_time": "2024-01-01T00:00:00"}],
@@ -742,7 +742,7 @@ class TestImportServiceActivityComponents:
 
         mock_activity = MagicMock(id=10, user_id=1)
         with patch(
-            "modules.users.users_profile.import_service.activity_streams_crud.create_activity_streams",
+            "modules.users.users_profile.import_service.activities_integration.restore_activity_streams",
         ):
             await service.collect_and_import_activity_components(
                 [],
@@ -767,9 +767,7 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch(
-            "modules.users.users_profile.import_service.activity_workout_steps_crud.create_activity_workout_steps"
-        ):
+        with patch("modules.users.users_profile.import_service.activities_integration.restore_activity_workout_steps"):
             await service.collect_and_import_activity_components(
                 [],
                 [],
@@ -793,9 +791,7 @@ class TestImportServiceActivityComponents:
         )
 
         mock_activity = MagicMock(id=10, user_id=1)
-        with patch(
-            "modules.users.users_profile.import_service.activity_exercise_titles_crud.create_activity_exercise_titles"
-        ):
+        with patch("modules.users.users_profile.import_service.activities_integration.restore_exercise_titles"):
             await service.collect_and_import_activity_components(
                 [],
                 [],
@@ -1126,7 +1122,7 @@ class TestImportServiceActivityComponentsMedia:
                 "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
                 return_value="/safe/path/10_photo.jpg",
             ),
-            patch("modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"),
+            patch("modules.users.users_profile.import_service.activities_integration.restore_activity_media"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1157,7 +1153,7 @@ class TestImportServiceActivityComponentsMedia:
         )
 
         with patch(
-            "modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"
+            "modules.users.users_profile.import_service.activities_integration.restore_activity_media"
         ) as mock_create:
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1185,7 +1181,7 @@ class TestImportServiceActivityComponentsMedia:
         )
 
         with patch(
-            "modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"
+            "modules.users.users_profile.import_service.activities_integration.restore_activity_media"
         ) as mock_create:
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1216,7 +1212,7 @@ class TestImportServiceActivityComponentsMedia:
                 "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
                 return_value="/safe/path/10_photo.jpg",
             ),
-            patch("modules.users.users_profile.import_service.activity_media_crud.create_activity_medias"),
+            patch("modules.users.users_profile.import_service.activities_integration.restore_activity_media"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(

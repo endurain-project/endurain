@@ -28,7 +28,6 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
-import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
@@ -36,7 +35,6 @@ import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
 import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
-import modules.activities.activity_ingestion.ingestion_jobs_crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
 
@@ -164,10 +162,7 @@ def get_activity_ingestion_job(
     Raises:
         NotFoundError: If no such job belongs to the caller.
     """
-    job = ingestion_jobs_crud.get_ingestion_job(job_id, token_user_id, db)
-    if job is None:
-        raise core_exceptions.NotFoundError("Upload job not found")
-    return job
+    return ingestion_jobs.get_job(job_id, token_user_id, db)
 
 
 def _warn_about_unowned_bulk_import_files(user_id: int) -> None:

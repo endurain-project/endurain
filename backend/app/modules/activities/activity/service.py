@@ -541,7 +541,13 @@ def edit_activity(
     db: Session,
     if_match: str | None = None,
 ) -> activities_schema.Activity:
-    """Apply partial updates to one of the user's activities."""
+    """Apply partial updates to one of the user's activities.
+
+    The update is staged (``commit=False``) and the publisher owns the single
+    commit, so when durable jobs are enabled the ``activity.updated`` outbox row
+    is written in the *same* transaction as the change — a consumer can never see
+    a row that changed without the fact that it did.
+    """
     logger.debug(
         "Editing an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
@@ -549,11 +555,14 @@ def edit_activity(
     if if_match is not None:
         current = activities_crud.get_activity_by_id_from_user_id(activity_id, user_id, db)
         core_etag.require_if_match(if_match, current.version if current else None)
+    # Only the fields the client actually sent; the CRUD applies the same set.
+    changed_fields = [field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id"]
     try:
-        return activities_crud.edit_activity(user_id, activity_id, activity_attributes, db)
+        updated = activities_crud.edit_activity(user_id, activity_id, activity_attributes, db, commit=False)
     except StaleDataError as err:
         # The row changed between the precondition check and the flush, so the
         # check alone would have let this write through.
+        db.rollback()
         logger.warning(
             "Rejected a stale activity edit",
             extra=core_logger.context(activity_id=activity_id, user_id=user_id),
@@ -561,6 +570,18 @@ def edit_activity(
         raise core_exceptions.PreconditionFailedError(
             "The activity was modified by someone else; re-read it and retry"
         ) from err
+    activity_event_publishers.publish_activity_updated(
+        activity_id,
+        user_id,
+        changed_fields,
+        db=db,
+        commit=db.commit,
+    )
+    logger.info(
+        "Edited an activity",
+        extra=core_logger.context(activity_id=activity_id, user_id=user_id, changed_fields=sorted(changed_fields)),
+    )
+    return updated
 
 
 def bulk_edit_activities(
@@ -569,6 +590,10 @@ def bulk_edit_activities(
     db: Session,
 ) -> int:
     """Apply a bulk edit across all of the user's activities.
+
+    Publishes one ``activity.updated`` per changed row, atomically with the
+    update, so a consumer of the single-activity edit needs no separate handling
+    for the bulk one — the fact is identical either way.
 
     Args:
         user_id: The owner whose activities to edit.
@@ -585,12 +610,20 @@ def bulk_edit_activities(
     if body.visibility is None:
         raise core_exceptions.InvalidInputError("No supported field to update was provided")
 
-    updated = activities_crud.edit_user_activities_visibility(user_id, body.visibility, db)
+    updated_ids = activities_crud.edit_user_activities_visibility(user_id, body.visibility, db, commit=False)
+    activity_event_publishers.publish_activities_updated(
+        updated_ids,
+        user_id,
+        ["visibility"],
+        db,
+        db.commit,
+        source="api:bulk_edit_activities",
+    )
     logger.info(
         "Bulk-edited activity visibility",
-        extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=updated or 0),
+        extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=len(updated_ids)),
     )
-    return updated or 0
+    return len(updated_ids)
 
 
 def delete_activity(activity_id: int, user_id: int, db: Session) -> None:

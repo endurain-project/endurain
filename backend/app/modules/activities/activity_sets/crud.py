@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_sets.models as activity_sets_models
 import modules.activities.activity_sets.schema as activity_sets_schema
@@ -34,39 +33,28 @@ def _to_read_schema(
 @core_decorators.handle_db_errors
 def get_activity_sets(
     activity_id: int,
-    token_user_id: int,
     db: Session,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """
-    Retrieve activity sets for a given activity.
+    Retrieve every workout set belonging to an activity.
+
+    Performs no access check: whether the caller may read these rows is decided
+    by :mod:`modules.activities.activity_sets.service`.
 
     Args:
         activity_id: The activity ID.
-        token_user_id: The authenticated user ID.
         db: Database session.
 
     Returns:
-        The activity's sets, empty when the activity is not visible to the
-        caller, its sets are hidden, or it has none.
+        The activity's sets, empty when it has none.
 
     Raises:
         ProcessingError: If database error occurs.
     """
-    activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
-
-    if not activity:
-        return []
-
-    if token_user_id != activity.user_id and activity.hide_workout_sets_steps:
-        return []
-
     stmt = select(activity_sets_models.ActivitySets).where(
         activity_sets_models.ActivitySets.activity_id == activity_id,
     )
     activity_sets = db.scalars(stmt).all()
-
-    if not activity_sets:
-        return []
 
     return [_to_read_schema(s) for s in activity_sets]
 
@@ -112,42 +100,6 @@ def get_activities_sets(
         activity_sets_models.ActivitySets.activity_id.in_(allowed_ids)
     )
     activity_sets = db.scalars(sets_stmt).all()
-
-    if not activity_sets:
-        return []
-
-    return [_to_read_schema(s) for s in activity_sets]
-
-
-@core_decorators.handle_db_errors
-def get_public_activity_sets(
-    activity_id: int,
-    db: Session,
-) -> list[activity_sets_schema.ActivitySetsRead]:
-    """
-    Retrieve public activity sets for an activity.
-
-    Args:
-        activity_id: The activity ID.
-        db: Database session.
-
-    Returns:
-        The activity's sets, empty when it is not found, hidden, or not
-        publicly visible — indistinguishable on purpose, since this endpoint is
-        unauthenticated.
-
-    Raises:
-        ProcessingError: If database error occurs.
-    """
-    activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
-
-    if not activity:
-        return []
-
-    stmt = select(activity_sets_models.ActivitySets).where(
-        activity_sets_models.ActivitySets.activity_id == activity_id,
-    )
-    activity_sets = db.scalars(stmt).all()
 
     if not activity_sets:
         return []

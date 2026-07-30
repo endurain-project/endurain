@@ -180,16 +180,22 @@ forbidden_modules =
     socket
 
 # The consumer modules — the providers (Strava, Garmin), gears, and users — must not
-# reach into the activities CRUD or its ORM directly. They go through the curated
+# reach into any activities CRUD or its ORM directly. They go through the curated
 # activity integration_service interface (activity/integration_service.py), the
 # read/gear/aggregate/delete counterpart to the ingestion seam they already use to
-# STORE activities. Going through the interface is what keeps the activities table
-# queried only by its owner, and what makes bulk deletes emit the cleanup events
+# STORE activities. Going through the interface is what keeps the activities tables
+# queried only by their owner, and what makes bulk deletes emit the cleanup events
 # that reclaim thumbnails and stored source files.
+# The forbidden list is a WILDCARD over every activities sub-package, not just the
+# parent: naming ``activity.crud`` alone left the profile export/import reaching into
+# five CHILD cruds (laps, sets, streams, workout steps, exercise titles, media) and the
+# users CRUD into activity_streams — the same boundary violation the contract exists to
+# stop, one level down. Those consumers now call the child operations the integration
+# service exposes.
 # allow_indirect_imports keeps this to DIRECT imports: the interface itself
 # legitimately imports crud (it is inside activities), so the transitive
 # consumer -> integration_service -> crud path is fine — only a bare
-# `import modules.activities.activity.crud` in a consumer module is rejected.
+# `import modules.activities.<pkg>.crud` in a consumer module is rejected.
 [importlinter:contract:consumer-activities-boundary]
 name = Consumer modules must use the activities integration service, not activities CRUD
 type = forbidden
@@ -200,7 +206,8 @@ source_modules =
     modules.gears
     modules.users
 forbidden_modules =
-    modules.activities.activity.crud
+    modules.activities.*.crud
+    modules.activities.*.*.crud
     modules.activities.activity.query
 
 # The companion ORM rule, stated structurally so it can exclude one thing: ORM
@@ -273,23 +280,25 @@ forbidden_modules =
 # to siblings that raise domain errors. Forbidding crud/models/event_publishers makes
 # "call the service" the only remaining option rather than a convention the next
 # handler can quietly drop.
-# Scoped to activity/ deliberately: the sibling sub-resource routers (laps, sets,
-# streams, workout steps, exercise titles) are still single-call reads straight to
-# their own crud. Extending the rule to them means giving each a service module, which
-# is a separate mechanical change — listing them here first would only produce
-# router-shaped services that forward a single call.
+# Stated as a WILDCARD over every activities sub-package rather than a hand-listed
+# pair. Listing modules meant the rule only applied where someone remembered to add
+# them, and the sibling sub-resource routers (laps, sets, streams, workout steps,
+# exercise titles) went straight to their own crud — which is also where their access
+# checks lived. Each now has a service.py, so the rule is general, and a new
+# sub-package inherits it instead of having to opt in.
 [importlinter:contract:activities-router-delegates]
 name = Activities routers delegate to the service — no CRUD, ORM or event publishing
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    modules.activities.activity.router
-    modules.activities.activity.public_router
+    modules.activities.*.router
+    modules.activities.*.public_router
 forbidden_modules =
-    modules.activities.activity.crud
-    modules.activities.activity.models
-    modules.activities.activity.event_publishers
-    modules.activities.activity.query
+    modules.activities.*.crud
+    modules.activities.*.models
+    modules.activities.*.query
+    modules.activities.*.event_publishers
+    modules.activities.activity_ingestion.ingestion_jobs_crud
 
 # ORM ownership: the activities ORM models are owned by their subpackage's models.py
 # and touched only by the persistence layer — crud.py (the single ORM surface) and the
@@ -325,24 +334,40 @@ forbidden_modules =
 # those into responses. Forbidding fastapi outright (not just HTTPException, which
 # import-linter cannot express) is what keeps a ``status`` or ``Depends`` from being
 # the next thing to leak in.
+# Stated as a wildcard so a new activities sub-package's crud is covered the day it
+# is written, rather than when someone remembers to add it to a list.
 [importlinter:contract:persistence-no-http]
 name = Activities and followers persistence raises domain errors, not HTTP ones
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    modules.activities.activity.crud
+    modules.activities.*.crud
     modules.activities.activity.query
     modules.activities.activity.serializers
-    modules.activities.activity_media.crud
+    modules.followers.crud
+forbidden_modules =
+    fastapi
+
+# The child sub-resources (laps, sets, streams, workout steps, exercise titles) decide
+# access in their SERVICE, through the shared activity/child_access gate — never in
+# their crud. Each crud used to answer "may this caller read these rows?" itself,
+# inline above its SELECT: four copies of one access-control rule, living in the layer
+# a reviewer looking for authorization would not think to open. This contract is what
+# stops a fifth copy appearing — a child crud that cannot import the activities core's
+# crud has nowhere to make the decision.
+[importlinter:contract:activities-child-access-gate]
+name = Activity child CRUDs hold no access rule — the shared gate decides
+type = forbidden
+allow_indirect_imports = True
+source_modules =
     modules.activities.activity_exercise_titles.crud
     modules.activities.activity_laps.crud
     modules.activities.activity_sets.crud
     modules.activities.activity_streams.crud
-    modules.activities.activity_summaries.crud
     modules.activities.activity_workout_steps.crud
-    modules.followers.crud
 forbidden_modules =
-    fastapi
+    modules.activities.activity.crud
+    modules.activities.activity.child_access
 
 # The counterpart to consumer-activities-boundary, pointing the other way: the
 # activities module consumes users through the curated users integration service

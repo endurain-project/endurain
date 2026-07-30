@@ -25,7 +25,7 @@ def _build_app(mock_db):
 
 
 class TestReadActivitySets:
-    @patch("modules.activities.activity_sets.router.activity_sets_crud.get_activity_sets")
+    @patch("modules.activities.activity_sets.router.activity_sets_service.list_activity_sets")
     def test_read_sets_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -33,7 +33,7 @@ class TestReadActivitySets:
         response = client.get("/activities/1/sets", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("modules.activities.activity_sets.router.activity_sets_crud.get_activity_sets")
+    @patch("modules.activities.activity_sets.router.activity_sets_service.list_activity_sets")
     def test_read_sets_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []

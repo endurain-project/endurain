@@ -76,7 +76,7 @@ def process_migration_1(db: Session) -> None:
 
                 # Get activity streams
                 try:
-                    activity_streams = activity_streams_crud.get_activity_streams(activity.id, activity.user_id, db)
+                    activity_streams = activity_streams_crud.get_activity_streams(activity.id, db)
                 except Exception as err:
                     logger.warning(
                         f"Migration 1 - Failed to fetch streams for activity {activity.id}: {err}",

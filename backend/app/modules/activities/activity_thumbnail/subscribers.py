@@ -58,7 +58,7 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
     storage = platform_runtime.get_active_platform().storage
     with core_database.SessionLocal() as db:
         waypoints = activity_streams_crud.get_activity_stream_by_type(
-            payload.activity_id, activity_streams_constants.STREAM_TYPE_MAP, payload.user_id, db
+            payload.activity_id, activity_streams_constants.STREAM_TYPE_MAP, db
         )
         if waypoints is None or len(waypoints.stream_waypoints) < _MIN_WAYPOINTS:
             # Logged because "my activity has no thumbnail" is otherwise

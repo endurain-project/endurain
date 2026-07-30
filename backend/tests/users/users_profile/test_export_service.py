@@ -799,7 +799,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
                 patch(
-                    "modules.users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
+                    "modules.users.users_profile.export_service.activities_integration.list_exercise_titles",
                     return_value=[MagicMock(), MagicMock()],
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"title": "t"}),
@@ -822,7 +822,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
                 patch(
-                    "modules.users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
+                    "modules.users.users_profile.export_service.activities_integration.list_exercise_titles",
                     side_effect=Exception("boom"),
                 ),
                 pytest.raises(DataCollectionError),

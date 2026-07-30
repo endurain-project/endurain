@@ -30,6 +30,18 @@ import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
+import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_laps.crud as activity_laps_crud
+import modules.activities.activity_laps.schema as activity_laps_schema
+import modules.activities.activity_media.contracts as activity_media_contracts
+import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_sets.crud as activity_sets_crud
+import modules.activities.activity_sets.schema as activity_sets_schema
+import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
+import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -106,6 +118,11 @@ def bulk_set_activities_gear(
 ) -> int:
     """Assign gear to many of a user's activities at once.
 
+    Publishes one ``activity.updated`` per changed row, atomically with the
+    updates. A provider re-syncing gear mutates activities from outside the
+    activities module, so without the event a consumer would see the same silent
+    change bulk deletes used to make.
+
     Args:
         user_id: The owning user id (ownership is enforced by the update).
         gear_assignments: Map of activity id -> gear id (or ``None`` to clear).
@@ -114,12 +131,20 @@ def bulk_set_activities_gear(
     Returns:
         The number of activities updated.
     """
-    updated = activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db)
+    updated_ids = activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db, commit=False)
+    activity_event_publishers.publish_activities_updated(
+        updated_ids,
+        user_id,
+        ["gear_id"],
+        db,
+        db.commit,
+        source="api:bulk_set_activities_gear",
+    )
     logger.info(
         "Bulk-assigned gear to activities",
-        extra=core_logger.context(user_id=user_id, requested=len(gear_assignments), updated=updated),
+        extra=core_logger.context(user_id=user_id, requested=len(gear_assignments), updated=len(updated_ids)),
     )
-    return updated
+    return len(updated_ids)
 
 
 def get_gear_usage_totals(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
@@ -314,3 +339,140 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)
+
+
+# ---------------------------------------------------------------------------
+# Child sub-resources (laps / sets / streams / workout steps / exercise titles)
+#
+# The profile export and import are the only callers outside this domain that
+# need an activity's *children*. They used to import each child package's
+# ``crud`` module directly — five persistence modules reached across a module
+# boundary, which is what the ``consumer-activities-boundary`` contract exists to
+# prevent for the parent. Routing them through here means the activities domain
+# owns which child operations are public, and a consumer keeps one import.
+# ---------------------------------------------------------------------------
+
+
+def list_activities_laps(
+    activity_ids: list[int],
+    user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] | None = None,
+) -> list[activity_laps_schema.ActivityLapsRead]:
+    """Return the laps of many of a user's activities (profile export)."""
+    return activity_laps_crud.get_activities_laps(activity_ids, user_id, db, activities)
+
+
+def list_activities_sets(
+    activity_ids: list[int],
+    user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] | None = None,
+) -> list[activity_sets_schema.ActivitySetsRead]:
+    """Return the workout sets of many of a user's activities (profile export)."""
+    return activity_sets_crud.get_activities_sets(activity_ids, user_id, db, activities)
+
+
+def list_activities_streams(
+    activity_ids: list[int],
+    user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] | None = None,
+) -> list[activity_streams_schema.ActivityStreamsRead]:
+    """Return the streams of many of a user's activities (profile export)."""
+    return activity_streams_crud.get_activities_streams(activity_ids, user_id, db, activities)
+
+
+def list_activities_workout_steps(
+    activity_ids: list[int],
+    user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] | None = None,
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
+    """Return the workout steps of many of a user's activities (profile export)."""
+    return activity_workout_steps_crud.get_activities_workout_steps(activity_ids, user_id, db, activities)
+
+
+def list_exercise_titles(db: Session) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
+    """Return the server-wide exercise-title reference rows (profile export)."""
+    return activity_exercise_titles_crud.get_activity_exercise_titles(db)
+
+
+def list_activities_media(
+    activity_ids: list[int],
+    user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] | None = None,
+) -> list[activity_media_contracts.ActivityMediaRecord]:
+    """Return the media records of many of a user's activities (profile export).
+
+    ``activities`` is accepted and ignored so every batch read in the export
+    shares one call shape; the media query resolves ownership itself.
+    """
+    return activity_media_crud.get_activities_media(activity_ids, user_id, db)
+
+
+def restore_activity_media(
+    media: list[activity_media_contracts.ActivityMediaCreate],
+    activity_id: int,
+    db: Session,
+) -> None:
+    """Persist a restored activity's media records (profile import)."""
+    activity_media_crud.create_activity_medias(media, activity_id, db)
+
+
+def restore_activity_laps(laps: list[dict], activity_id: int, db: Session) -> None:
+    """Persist a restored activity's laps (profile import)."""
+    activity_laps_crud.create_activity_laps(laps, activity_id, db)
+
+
+def restore_activity_sets(
+    sets: list[activity_sets_schema.ActivitySetsCreate | list],
+    activity_id: int,
+    db: Session,
+) -> None:
+    """Persist a restored activity's workout sets (profile import)."""
+    activity_sets_crud.create_activity_sets(sets, activity_id, db)
+
+
+def restore_activity_streams(
+    streams: list[activity_streams_schema.ActivityStreamsCreate],
+    activity: activities_schema.Activity,
+    db: Session,
+) -> None:
+    """Persist a restored activity's streams (profile import)."""
+    activity_streams_crud.create_activity_streams(streams, activity, db)
+
+
+def restore_activity_workout_steps(
+    steps: list[activity_workout_steps_schema.ActivityWorkoutSteps],
+    activity_id: int,
+    db: Session,
+) -> None:
+    """Persist a restored activity's workout steps (profile import)."""
+    activity_workout_steps_crud.create_activity_workout_steps(steps, activity_id, db)
+
+
+def restore_exercise_titles(
+    titles: list[activity_exercise_titles_schema.ActivityExerciseTitles],
+    db: Session,
+) -> None:
+    """Persist restored exercise-title reference rows (profile import)."""
+    activity_exercise_titles_crud.create_activity_exercise_titles(titles, db)
+
+
+def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
+    """Re-derive every stored HR-zone breakdown for a user.
+
+    Called by the users module when a change to max heart rate or birthdate
+    invalidates the zones computed at import time. It logs and swallows its own
+    errors, so it cannot fail the profile edit that triggered it.
+
+    Args:
+        user_id: The owning user id.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    activity_streams_crud.recompute_hr_zone_percentages_for_user(user_id, db)

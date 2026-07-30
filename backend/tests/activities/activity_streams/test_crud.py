@@ -65,80 +65,56 @@ class TestCreateActivityStreams:
 
 
 class TestGetActivityStreams:
+    """Persistence only — access and per-type masking live in ``activity_streams.service``."""
+
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_success(self, mock_get_act, mock_transform, mock_db):
+    def test_success(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
-        mock_get_act.return_value = MagicMock(user_id=1)
         mock_transform.return_value = [
             ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None)
         ]
         setup_mock_execute(
             mock_db, return_scalars_all=[mock_model(m.ActivityStreams, id=1, activity_id=1, stream_type=1)]
         )
-        r = crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
-        assert len(r) == 1
+        assert len(crud.get_activity_streams(activity_id=1, db=mock_db)) == 1
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
     @patch("modules.activities.activity_streams.crud.activity_streams_schema.ActivityStreamsRead.model_validate")
-    def test_by_type(self, mock_validate, mock_get_act, mock_db):
+    def test_by_type(self, mock_validate, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
-        mock_get_act.return_value = MagicMock(user_id=1)
         mock_validate.return_value = ActivityStreamsRead(
             id=1, activity_id=1, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None
         )
         setup_mock_execute(
             mock_db, return_one_or_none=mock_model(m.ActivityStreams, id=1, activity_id=1, stream_type=1)
         )
-        r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
-        assert r is not None
+        assert crud.get_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db) is not None
 
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_not_found(self, mock_get_act, mock_db):
+    def test_by_type_missing(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
-        mock_get_act.return_value = None
-        r = crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
-        assert r == []
+        mock_db.scalars.return_value.first.return_value = None
+        assert crud.get_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db) is None
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_empty(self, mock_get_act, mock_transform, mock_db):
+    def test_empty(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
 
-        mock_get_act.return_value = MagicMock(user_id=1)
+        mock_transform.return_value = []
         mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
-        assert r == []
+        assert crud.get_activity_streams(activity_id=1, db=mock_db) == []
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.filter_visible_streams")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_non_owner(self, mock_get_act, mock_transform, mock_filter, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-
-        mock_get_act.return_value = MagicMock(user_id=2)
-        mock_filter.return_value = [MagicMock(spec=m.ActivityStreams)]
-        mock_transform.return_value = [MagicMock()]
-        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityStreams, id=1, activity_id=1)]
-        r = crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
-        assert len(r) == 1
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_db_error(self, mock_get_act, mock_db):
+    def test_db_error(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
-        mock_get_act.return_value = MagicMock(user_id=1)
         mock_db.scalars.return_value.all.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_activity_streams(activity_id=1, token_user_id=1, db=mock_db)
+            crud.get_activity_streams(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -196,118 +172,6 @@ class TestGetActivitiesStreams:
         assert e.value.status_code == 500
 
 
-class TestGetPublicActivityStreams:
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.filter_visible_streams")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_success(self, mock_settings, mock_get_act, mock_transform, mock_filter, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_transform.return_value = [MagicMock()]
-        mock_filter.return_value = [MagicMock(spec=m.ActivityStreams)]
-        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityStreams, id=1)]
-        r = crud.get_public_activity_streams(activity_id=1, db=mock_db)
-        assert len(r) == 1
-
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_no_public_links(self, mock_settings, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=False)
-        r = crud.get_public_activity_streams(activity_id=1, db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_not_found(self, mock_settings, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = None
-        r = crud.get_public_activity_streams(activity_id=1, db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_no_streams(self, mock_settings, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_public_activity_streams(activity_id=1, db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_db_error(self, mock_settings, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_db.scalars.return_value.all.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_public_activity_streams(activity_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetActivityStreamByType:
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_success(self, mock_get_act, mock_transform, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-
-        mock_get_act.return_value = MagicMock(user_id=1)
-        mock_transform.return_value = MagicMock()
-        mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityStreams, id=1, stream_type=1)
-        r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
-        assert r is not None
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_not_found(self, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_act.return_value = None
-        r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_empty(self, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_act.return_value = MagicMock(user_id=1)
-        mock_db.scalars.return_value.first.return_value = None
-        r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.is_stream_hidden")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_hidden(self, mock_get_act, mock_hidden, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-
-        mock_get_act.return_value = MagicMock(user_id=2)
-        mock_hidden.return_value = True
-        mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityStreams, id=1, stream_type=1)
-        r = crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_db_error(self, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_act.return_value = MagicMock(user_id=1)
-        mock_db.scalars.return_value.first.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_activity_stream_by_type(activity_id=1, stream_type=1, token_user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
 class TestGetGpsStreamWaypointsForActivities:
     def test_empty_ids_short_circuits(self, mock_db):
         import modules.activities.activity_streams.crud as crud
@@ -324,79 +188,6 @@ class TestGetGpsStreamWaypointsForActivities:
         ]
         result = crud.get_gps_stream_waypoints_for_activities([1, 2], mock_db)
         assert result == {1: [{"lat": 38.0, "lon": -9.0}], 2: []}
-
-
-class TestGetPublicActivityStreamByType:
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.is_stream_hidden")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_success(self, mock_settings, mock_get_act, mock_hidden, mock_transform, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_hidden.return_value = False
-        mock_transform.return_value = MagicMock()
-        mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityStreams, id=1, stream_type=1)
-        r = crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
-        assert r is not None
-
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_no_public_links(self, mock_settings, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=False)
-        r = crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_not_found(self, mock_settings, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = None
-        r = crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_no_stream(self, mock_settings, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_db.scalars.return_value.first.return_value = None
-        r = crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.is_stream_hidden")
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_hidden(self, mock_settings, mock_get_act, mock_hidden, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_hidden.return_value = True
-        mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityStreams, id=1, stream_type=1)
-        r = crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_streams.crud.activity_crud.get_activity_by_id_if_is_public")
-    @patch("modules.activities.activity_streams.crud.server_settings_utils.get_server_settings_or_404")
-    def test_db_error(self, mock_settings, mock_get_act, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_get_act.return_value = MagicMock()
-        mock_db.scalars.return_value.first.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_public_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db)
-        assert e.value.status_code == 500
 
 
 class TestRecomputeHrZonePercentagesForUser:

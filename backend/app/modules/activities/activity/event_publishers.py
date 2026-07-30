@@ -3,15 +3,15 @@
 Thin domain layer co-locating the module's event publishers: each function knows
 its channel and correlation metadata and delegates envelope assembly, ambient
 request-id stamping, best-effort delivery, and the durable outbox to
-:mod:`infra.publisher`. Producers (``store_activity``, the delete route)
-call these instead of building events themselves, so they stay ignorant of the
-substrate and of who subscribes. They pass their DB session so that, when durable
-jobs are enabled, the event is staged in the outbox for durable per-subscriber
-delivery (best-effort at the seam; the subscriber's reconciliation net is the
-safety net).
+:mod:`infra.publisher`. Producers (``store_activity``, the edit/bulk-edit
+service, the delete route) call these instead of building events themselves, so
+they stay ignorant of the substrate and of who subscribes. They pass their DB
+session so that, when durable jobs are enabled, the event is staged in the outbox
+for durable per-subscriber delivery (best-effort at the seam; the subscriber's
+reconciliation net is the safety net).
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -77,6 +77,108 @@ def publish_activity_created(
             metadata=metadata,
             db=db,
         )
+
+
+def publish_activity_updated(
+    activity_id: int,
+    user_id: int | None,
+    changed_fields: Iterable[str],
+    db: Session | None = None,
+    commit: Callable[[], None] | None = None,
+) -> None:
+    """Publish ``activity.updated`` after an activity's own columns changed.
+
+    Args:
+        activity_id: The updated activity's ID.
+        user_id: The owning user's ID, carried in the payload (a subscriber needs
+            the owner to re-read the activity) and mirrored into the metadata for
+            event-log correlation.
+        changed_fields: The columns this update wrote. Sorted before publishing so
+            an event-log reader (and a test) sees a stable order regardless of the
+            producer's iteration order.
+        db: The producer's DB session, used for durable outbox delivery when
+            durable jobs are enabled.
+        commit: When provided, the event is published transactionally around this
+            zero-arg commit callable, so the outbox row joins the same
+            transaction as the update. When ``None`` the event is published
+            best-effort after the caller has already committed.
+
+    Returns:
+        None.
+    """
+    payload = {
+        "activity_id": activity_id,
+        "user_id": user_id,
+        "changed_fields": sorted(changed_fields),
+    }
+    metadata = {
+        platform_events.META_ACTIVITY_ID: activity_id,
+        platform_events.META_USER_ID: user_id,
+    }
+    if commit is not None:
+        platform_publisher.publish_committing(
+            activity_events.ACTIVITY_UPDATED,
+            payload,
+            source="api:edit_activity",
+            metadata=metadata,
+            db=db,
+            commit=commit,
+        )
+    else:
+        platform_publisher.publish(
+            activity_events.ACTIVITY_UPDATED,
+            payload,
+            source="api:edit_activity",
+            metadata=metadata,
+            db=db,
+        )
+
+
+def publish_activities_updated(
+    activity_ids: Sequence[int],
+    user_id: int | None,
+    changed_fields: Iterable[str],
+    db: Session,
+    commit: Callable[[], None],
+    *,
+    source: str,
+) -> None:
+    """Publish one ``activity.updated`` per activity touched by a bulk update.
+
+    One event per row rather than a single "many activities changed" event: a
+    subscriber's unit of work is one activity, so a batched fact would force
+    every consumer to re-derive the id list the producer already has — the same
+    reasoning as :func:`publish_activities_deleted`.
+
+    The whole batch is staged in the caller's transaction and committed once via
+    :func:`infra.publisher.publish_many_committing`, so the updates and their
+    events are atomic rather than one commit per activity.
+
+    Args:
+        activity_ids: IDs of the updated activities. May be empty, in which case
+            ``commit`` still runs exactly once.
+        user_id: The owning user's ID, attached as correlation metadata.
+        changed_fields: The columns the bulk update wrote (identical for every
+            row in the batch, which is what makes one field list correct here).
+        db: The producer's DB session holding the staged updates.
+        commit: Zero-arg callable that commits the caller's unit of work.
+        source: Origin label identifying the bulk operation.
+
+    Returns:
+        None.
+    """
+    fields = sorted(changed_fields)
+    platform_publisher.publish_many_committing(
+        activity_events.ACTIVITY_UPDATED,
+        [{"activity_id": activity_id, "user_id": user_id, "changed_fields": fields} for activity_id in activity_ids],
+        source=source,
+        metadata_for=lambda payload: {
+            platform_events.META_ACTIVITY_ID: payload["activity_id"],
+            platform_events.META_USER_ID: user_id,
+        },
+        db=db,
+        commit=commit,
+    )
 
 
 def publish_activity_deleted(

@@ -315,3 +315,29 @@ class TestErrorCodeFor:
         """The exception text can carry paths and parser internals."""
         code = ingestion_jobs._error_code_for(RuntimeError("/srv/data/activity_files/secret.fit exploded"))
         assert code == activity_ingestion_schema.IngestionJobErrorCode.PROCESSING_FAILED
+
+
+class TestGetJob:
+    """The status read is scoped to the caller in the service, not the route."""
+
+    @patch("modules.activities.activity_ingestion.ingestion_jobs.ingestion_jobs_crud")
+    def test_returns_the_caller_s_job(self, mock_crud):
+        import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
+
+        db = MagicMock()
+        job = MagicMock()
+        mock_crud.get_ingestion_job.return_value = job
+
+        assert ingestion_jobs.get_job("job-1", 7, db) is job
+        mock_crud.get_ingestion_job.assert_called_once_with("job-1", 7, db)
+
+    @patch("modules.activities.activity_ingestion.ingestion_jobs.ingestion_jobs_crud")
+    def test_another_user_s_job_is_absent_not_forbidden(self, mock_crud):
+        """404 rather than 403, so the endpoint cannot confirm an id exists."""
+        import core.exceptions as core_exceptions
+        import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
+
+        mock_crud.get_ingestion_job.return_value = None
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            ingestion_jobs.get_job("someone-elses-job", 7, MagicMock())
