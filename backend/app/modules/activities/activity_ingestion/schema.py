@@ -1,4 +1,4 @@
-"""Pydantic schemas for the activity upload job surface."""
+"""Pydantic schemas for the activity ingestion job surface."""
 
 from datetime import datetime
 from enum import StrEnum
@@ -6,8 +6,15 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict
 
 
-class UploadJobStatus(StrEnum):
-    """Lifecycle states of an upload job."""
+class IngestionJobKind(StrEnum):
+    """What kind of ingestion the job performs."""
+
+    UPLOAD = "upload"
+    REFRESH = "refresh"
+
+
+class IngestionJobStatus(StrEnum):
+    """Lifecycle states of an ingestion job."""
 
     PENDING = "pending"
     PROCESSING = "processing"
@@ -15,30 +22,37 @@ class UploadJobStatus(StrEnum):
     FAILED = "failed"
 
 
-class UploadJobErrorCode(StrEnum):
-    """Stable, sanitized reasons an upload job can fail.
+class IngestionJobErrorCode(StrEnum):
+    """Stable, sanitized reasons an ingestion job can fail.
 
     Deliberately a closed set. The underlying exception text can carry
-    filesystem paths and parser internals, so the client is given a code it can
-    translate instead of a message the server happened to produce.
+    filesystem paths, parser internals and provider tokens, so the client is
+    given a code it can translate instead of a message the server happened to
+    produce.
     """
 
     UNSUPPORTED_FORMAT = "unsupported_format"
     INVALID_FILE = "invalid_file"
     NO_ACTIVITIES_FOUND = "no_activities_found"
     PROCESSING_FAILED = "processing_failed"
+    PROVIDER_UNAVAILABLE = "provider_unavailable"
 
 
-class ActivityUploadJob(BaseModel):
-    """An accepted upload and the current state of its import.
+class ActivityIngestionJob(BaseModel):
+    """An accepted ingestion request and the current state of its import.
+
+    One shape for both kinds, so a client has a single thing to poll: an upload
+    and a provider refresh differ in how the activities are obtained, not in
+    what the caller needs to know about progress.
 
     Attributes:
-        id: Upload job identifier, returned by the upload route.
-        filename: Original client filename, echoed back for display.
+        id: Job identifier, returned by the route that accepted the request.
+        kind: Whether this job imports an upload or syncs from providers.
+        filename: Original client filename; only set for uploads.
         status: Current lifecycle state.
         error_code: Sanitized failure reason when ``status`` is failed.
         activity_ids: Ids created by the import once it completes.
-        created_at: When the upload was accepted.
+        created_at: When the request was accepted.
         updated_at: When the job last changed state.
         completed_at: When the job reached a terminal state.
     """
@@ -46,9 +60,10 @@ class ActivityUploadJob(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    filename: str
-    status: UploadJobStatus
-    error_code: UploadJobErrorCode | None = None
+    kind: IngestionJobKind
+    filename: str | None = None
+    status: IngestionJobStatus
+    error_code: IngestionJobErrorCode | None = None
     activity_ids: list[int] = []
     created_at: datetime
     updated_at: datetime

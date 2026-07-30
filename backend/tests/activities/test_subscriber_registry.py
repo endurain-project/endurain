@@ -29,6 +29,7 @@ _EXPECTED_DELETED_SUBSCRIBERS = {
 }
 _EXPECTED_BULK_IMPORT_SUBSCRIBERS = {"activity_ingestion.bulk_import_file"}
 _EXPECTED_UPLOAD_SUBSCRIBERS = {"activity_ingestion.uploaded_file"}
+_EXPECTED_REFRESH_SUBSCRIBERS = {"activity_ingestion.refresh_requested"}
 
 
 def _register_durable_handlers() -> JobHandlerRegistry:
@@ -44,6 +45,7 @@ def _registered_durable_ids(registry: JobHandlerRegistry) -> set[str]:
         activity_events.ACTIVITY_DELETED,
         ingestion_events.ACTIVITY_BULK_IMPORT_FILE,
         ingestion_events.ACTIVITY_FILE_UPLOADED,
+        ingestion_events.ACTIVITY_REFRESH_REQUESTED,
     ):
         ids.update(registry.subscribers_for(event_type))
     return ids
@@ -70,6 +72,9 @@ class TestRegisterAllActivityDurableHandlers:
             == _EXPECTED_BULK_IMPORT_SUBSCRIBERS
         )
         assert set(registry.subscribers_for(ingestion_events.ACTIVITY_FILE_UPLOADED)) == _EXPECTED_UPLOAD_SUBSCRIBERS
+        assert (
+            set(registry.subscribers_for(ingestion_events.ACTIVITY_REFRESH_REQUESTED)) == _EXPECTED_REFRESH_SUBSCRIBERS
+        )
 
     def test_every_handler_resolves(self):
         registry = _register_durable_handlers()

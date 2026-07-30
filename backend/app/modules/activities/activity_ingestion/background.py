@@ -10,7 +10,7 @@ module global.
 It is a fallback, not a second implementation: both paths call the same job
 bodies, so the only thing that varies is durability. Nothing here is used on the
 durable-job path — see ``activity_ingestion.bulk_import_subscribers`` and
-``activity_ingestion.upload_subscribers``.
+``activity_ingestion.ingestion_subscribers``.
 """
 
 from concurrent.futures import Future, ThreadPoolExecutor
@@ -88,21 +88,41 @@ def submit_upload(job_id: str) -> Future:
     """Import one staged upload on the background pool.
 
     Args:
-        job_id: The ``activity_upload_jobs`` row to process.
+        job_id: The ``activity_ingestion_jobs`` row to process.
 
     Returns:
         The scheduled future (failures are logged via a done-callback).
     """
-    # Imported here, not at module scope: ``upload_jobs`` owns the choice between
-    # this pool and the durable worker, so it imports this module. Deferring the
-    # import keeps the dependency one-way at module load.
-    import modules.activities.activity_ingestion.upload_jobs as upload_jobs
+    # Imported here, not at module scope: ``ingestion_jobs`` owns the choice
+    # between this pool and the durable worker, so it imports this module.
+    # Deferring the import keeps the dependency one-way at module load.
+    import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
 
     logger.info(
         "Queued an activity upload on the background pool",
         extra=core_logger.context(job_id=job_id),
     )
-    future = _get_executor().submit(upload_jobs.run_upload_job, job_id)
+    future = _get_executor().submit(ingestion_jobs.run_upload_job, job_id)
+    future.add_done_callback(_log_failure)
+    return future
+
+
+def submit_refresh(job_id: str) -> Future:
+    """Sync one user's linked providers on the background pool.
+
+    Args:
+        job_id: The ``activity_ingestion_jobs`` row to process.
+
+    Returns:
+        The scheduled future (failures are logged via a done-callback).
+    """
+    import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
+
+    logger.info(
+        "Queued a provider refresh on the background pool",
+        extra=core_logger.context(job_id=job_id),
+    )
+    future = _get_executor().submit(ingestion_jobs.run_refresh_job, job_id)
     future.add_done_callback(_log_failure)
     return future
 

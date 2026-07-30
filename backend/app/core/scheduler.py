@@ -8,7 +8,7 @@ import core.logger as core_logger
 import core.network as core_network
 import infra.retention as platform_retention
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
-import modules.activities.activity_ingestion.upload_jobs as activity_upload_jobs
+import modules.activities.activity_ingestion.ingestion_jobs as activity_ingestion_jobs
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.auth.maintenance as auth_maintenance
@@ -187,11 +187,11 @@ def start_scheduler() -> None:
     # user-facing activity_upload_jobs table. It is scheduled separately because
     # it is a domain table: infra.retention must not import a domain module.
     add_scheduler_job(
-        activity_upload_jobs.prune_expired_upload_jobs,
+        activity_ingestion_jobs.prune_expired_ingestion_jobs,
         "interval",
         1440,
         [],
-        "prune expired activity upload jobs",
+        "prune expired activity ingestion jobs",
     )
 
 

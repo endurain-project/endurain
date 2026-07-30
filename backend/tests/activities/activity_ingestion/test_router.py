@@ -17,12 +17,13 @@ def _upload_job(**overrides):
     now = datetime(2026, 7, 28, 10, 0, 0, tzinfo=UTC)
     defaults = {
         "id": "job-1",
+        "kind": activity_ingestion_schema.IngestionJobKind.UPLOAD,
         "filename": "ride.gpx",
-        "status": activity_ingestion_schema.UploadJobStatus.PENDING,
+        "status": activity_ingestion_schema.IngestionJobStatus.PENDING,
         "created_at": now,
         "updated_at": now,
     }
-    return activity_ingestion_schema.ActivityUploadJob(**{**defaults, **overrides})
+    return activity_ingestion_schema.ActivityIngestionJob(**{**defaults, **overrides})
 
 
 def _run_route(db):
@@ -112,7 +113,7 @@ class TestUploadRoute:
         db = MagicMock()
         file = MagicMock()
         job = _upload_job()
-        with patch.object(router.upload_jobs, "accept_upload") as accept:
+        with patch.object(router.ingestion_jobs, "accept_upload") as accept:
             accept.return_value = job
             result = router.create_activity_with_uploaded_file(
                 request=MagicMock(),
@@ -140,7 +141,7 @@ class TestUploadRoute:
         app.dependency_overrides[auth_dependencies.check_auth_scopes] = lambda: None
 
         with patch.object(
-            router.upload_jobs,
+            router.ingestion_jobs,
             "accept_upload",
             return_value=_upload_job(),
         ) as accept:
@@ -161,10 +162,10 @@ class TestUploadRoute:
     def test_status_route_is_scoped_to_the_caller(self):
         db = MagicMock()
         with (
-            patch.object(router.upload_crud, "get_upload_job", return_value=None) as get_job,
+            patch.object(router.ingestion_jobs_crud, "get_ingestion_job", return_value=None) as get_job,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            router.get_activity_upload_job(
+            router.get_activity_ingestion_job(
                 job_id="someone-elses-job",
                 token_user_id=7,
                 _check_scopes=None,
@@ -178,8 +179,8 @@ class TestUploadRoute:
     def test_status_route_returns_the_job(self):
         db = MagicMock()
         job = _upload_job()
-        with patch.object(router.upload_crud, "get_upload_job", return_value=job):
-            result = router.get_activity_upload_job(
+        with patch.object(router.ingestion_jobs_crud, "get_ingestion_job", return_value=job):
+            result = router.get_activity_ingestion_job(
                 job_id="job-1",
                 token_user_id=7,
                 _check_scopes=None,

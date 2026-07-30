@@ -11,8 +11,8 @@ import {
   clearAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
-import { fetchUploadJob, uploadActivityFile } from '@/features/upload/services/upload'
-import { type ActivityUploadJob, isTerminalUploadJob } from '@/features/upload/types'
+import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
+import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
 import { queryKeys } from '@/services/queryKeys'
 
 /** How long to wait between upload-job status polls. */
@@ -38,13 +38,13 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000
  * Raised when an upload's background import finishes unsuccessfully, carrying
  * the server's sanitized reason so the UI can localize it.
  */
-export class UploadJobFailedError extends Error {
+export class IngestionJobFailedError extends Error {
   /**
    * @param code - The server's sanitized failure reason, when it gave one.
    */
   constructor(readonly code: string | null | undefined) {
     super(`Activity import failed: ${code ?? 'unknown'}`)
-    this.name = 'UploadJobFailedError'
+    this.name = 'IngestionJobFailedError'
   }
 }
 
@@ -52,10 +52,10 @@ export class UploadJobFailedError extends Error {
  * Raised when an upload job is still running after {@link POLL_TIMEOUT_MS}.
  * The import may still succeed server-side; only the client stopped watching.
  */
-export class UploadJobTimeoutError extends Error {
+export class IngestionJobTimeoutError extends Error {
   constructor() {
     super('Timed out waiting for the activity import to finish.')
-    this.name = 'UploadJobTimeoutError'
+    this.name = 'IngestionJobTimeoutError'
   }
 }
 
@@ -65,27 +65,27 @@ export class UploadJobTimeoutError extends Error {
  * @param jobId - The job returned by the upload request.
  * @param options - Optional abort signal, polling interval, and timeout.
  * @returns The completed job.
- * @throws {UploadJobFailedError} When the import finished unsuccessfully.
- * @throws {UploadJobTimeoutError} When it is still running at the deadline.
+ * @throws {IngestionJobFailedError} When the import finished unsuccessfully.
+ * @throws {IngestionJobTimeoutError} When it is still running at the deadline.
  */
-export async function pollUploadJob(
+export async function pollIngestionJob(
   jobId: string,
   options: { signal?: AbortSignal; intervalMs?: number; timeoutMs?: number } = {},
-): Promise<ActivityUploadJob> {
+): Promise<ActivityIngestionJob> {
   const intervalMs = options.intervalMs ?? POLL_INTERVAL_MS
   const timeoutMs = options.timeoutMs ?? POLL_TIMEOUT_MS
   const deadline = Date.now() + timeoutMs
 
   for (;;) {
-    const job = await fetchUploadJob(jobId, { signal: options.signal })
-    if (isTerminalUploadJob(job)) {
+    const job = await fetchIngestionJob(jobId, { signal: options.signal })
+    if (isTerminalIngestionJob(job)) {
       if (job.status === 'failed') {
-        throw new UploadJobFailedError(job.error_code)
+        throw new IngestionJobFailedError(job.error_code)
       }
       return job
     }
     if (Date.now() >= deadline) {
-      throw new UploadJobTimeoutError()
+      throw new IngestionJobTimeoutError()
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs))
   }
@@ -253,10 +253,10 @@ async function backfillMissingThumbnails(
 export function useUploadActivityFileMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation<ActivityUploadJob, Error, File>({
+  return useMutation<ActivityIngestionJob, Error, File>({
     mutationFn: async (file) => {
       const job = await uploadActivityFile(file)
-      return pollUploadJob(job.id)
+      return pollIngestionJob(job.id)
     },
     onSuccess: async (job) => {
       // The job reports what it created, so fetch exactly those rows rather

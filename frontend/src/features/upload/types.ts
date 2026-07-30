@@ -13,18 +13,18 @@ export type Activity = Schemas['Activity']
  * handle rather than the parsed activities, because parsing runs on a
  * background worker; the client polls until it reaches a terminal state.
  */
-export type ActivityUploadJob = Schemas['ActivityUploadJob']
+export type ActivityIngestionJob = Schemas['ActivityIngestionJob']
 
-/** Lifecycle state of an {@link ActivityUploadJob}. */
-export type UploadJobStatus = ActivityUploadJob['status']
+/** Lifecycle state of an {@link ActivityIngestionJob}. */
+export type IngestionJobStatus = ActivityIngestionJob['status']
 
 /** Sanitized reason a background import failed. */
-export type UploadJobErrorCode = NonNullable<ActivityUploadJob['error_code']>
+export type IngestionJobErrorCode = NonNullable<ActivityIngestionJob['error_code']>
 
 /**
  * Statuses that will not change again, so polling can stop.
  */
-export const TERMINAL_UPLOAD_STATUSES = ['completed', 'failed'] as const
+export const TERMINAL_INGESTION_STATUSES = ['completed', 'failed'] as const
 
 /**
  * Whether an upload job has reached a state it will not leave.
@@ -32,8 +32,8 @@ export const TERMINAL_UPLOAD_STATUSES = ['completed', 'failed'] as const
  * @param job - The job to inspect.
  * @returns `true` when the job is finished, successfully or not.
  */
-export function isTerminalUploadJob(job: ActivityUploadJob): boolean {
-  return (TERMINAL_UPLOAD_STATUSES as readonly string[]).includes(job.status)
+export function isTerminalIngestionJob(job: ActivityIngestionJob): boolean {
+  return (TERMINAL_INGESTION_STATUSES as readonly string[]).includes(job.status)
 }
 
 /**

@@ -1,7 +1,7 @@
 import {
   ACTIVITY_FILE_EXTENSIONS,
   type ActivityFileExtension,
-  type ActivityUploadJob,
+  type ActivityIngestionJob,
   MAX_ACTIVITY_FILE_BYTES,
   UploadValidationError,
 } from '@/features/upload/types'
@@ -12,6 +12,9 @@ const UPLOAD_FIELD = 'file'
 
 /** Activity-file upload endpoint, relative to the API base URL. */
 const UPLOAD_PATH = '/activities/upload'
+
+/** Status endpoint for any accepted ingestion request (upload or refresh). */
+const INGESTION_JOBS_PATH = '/activities/ingestion-jobs'
 
 /**
  * Extracts a lowercase extension from a filename for the allowlist check.
@@ -68,7 +71,7 @@ export function assertValidActivityFile(file: File): void {
  *
  * Resolves as soon as the server has the bytes, not when the activity exists:
  * the endpoint answers `202` and parses on a background worker, so the caller
- * must poll {@link fetchUploadJob} for the outcome. Cheap rejections
+ * must poll {@link fetchIngestionJob} for the outcome. Cheap rejections
  * (unsupported extension, failed signature check, oversized body) still come
  * back as a synchronous error.
  *
@@ -96,7 +99,7 @@ export function assertValidActivityFile(file: File): void {
 export async function uploadActivityFile(
   file: File,
   options: { signal?: AbortSignal } = {},
-): Promise<ActivityUploadJob> {
+): Promise<ActivityIngestionJob> {
   assertValidActivityFile(file)
 
   const formData = new FormData()
@@ -105,7 +108,7 @@ export async function uploadActivityFile(
   // own storage filename.
   formData.append(UPLOAD_FIELD, file, file.name)
 
-  return apiFetch<ActivityUploadJob>(UPLOAD_PATH, {
+  return apiFetch<ActivityIngestionJob>(UPLOAD_PATH, {
     method: 'POST',
     body: formData,
     signal: options.signal,
@@ -114,21 +117,34 @@ export async function uploadActivityFile(
 }
 
 /**
- * Reads the current state of one of the viewer's upload jobs.
+ * Reads the current state of one of the viewer's ingestion jobs.
  *
- * The backend scopes the lookup to the authenticated user and reports another
- * user's job as `404`, so this never discloses whether an id exists.
+ * Serves both uploads and provider refreshes: the backend scopes the lookup to
+ * the authenticated user and reports another user's job as `404`, so this never
+ * discloses whether an id exists.
  *
- * @param jobId - The id returned by {@link uploadActivityFile}.
+ * @param jobId - The id returned by {@link uploadActivityFile} or the refresh call.
  * @param options - Optional abort signal for cancellation (e.g. on unmount).
- * @returns The upload job's current state.
+ * @returns The job's current state.
  * @throws {HttpError} When the job does not belong to the viewer or is gone.
  */
-export async function fetchUploadJob(
+/**
+ * Reads the current state of one of the viewer's ingestion jobs.
+ *
+ * Serves both uploads and provider refreshes: the backend scopes the lookup to
+ * the authenticated user and reports another user's job as `404`, so this never
+ * discloses whether an id exists.
+ *
+ * @param jobId - The id returned by {@link uploadActivityFile} or the refresh call.
+ * @param options - Optional abort signal for cancellation (e.g. on unmount).
+ * @returns The job's current state.
+ * @throws {HttpError} When the job does not belong to the viewer or is gone.
+ */
+export async function fetchIngestionJob(
   jobId: string,
   options: { signal?: AbortSignal } = {},
-): Promise<ActivityUploadJob> {
-  return apiFetch<ActivityUploadJob>(`${UPLOAD_PATH}/${encodeURIComponent(jobId)}`, {
+): Promise<ActivityIngestionJob> {
+  return apiFetch<ActivityIngestionJob>(`${INGESTION_JOBS_PATH}/${encodeURIComponent(jobId)}`, {
     signal: options.signal,
   })
 }

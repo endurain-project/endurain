@@ -54,7 +54,32 @@ class UploadedFilePayload(VersionedPayload):
     uploader does not own.
 
     Attributes:
-        job_id: The ``activity_upload_jobs`` row to process.
+        job_id: The ``activity_ingestion_jobs`` row to process.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    job_id: str
+
+
+# Published once per accepted provider refresh when durable jobs are enabled; a
+# durable subscriber pulls the linked providers. Durable-delivery only, for the
+# same reason as the channels above: the route falls back to the background
+# threadpool when JOBS_ENABLED is off, so no best-effort bus subscriber exists.
+ACTIVITY_REFRESH_REQUESTED = "activity.refresh_requested"
+
+
+class RefreshRequestedPayload(VersionedPayload):
+    """Validated payload for the ``activity.refresh_requested`` event.
+
+    Carries only the job id, for the same reason as
+    :class:`UploadedFilePayload`: the owner is a column on the job row, so a
+    tampered payload cannot make the worker sync somebody else's providers.
+
+    Attributes:
+        job_id: The ``activity_ingestion_jobs`` row to process.
     """
 
     model_config = ConfigDict(extra="ignore")
