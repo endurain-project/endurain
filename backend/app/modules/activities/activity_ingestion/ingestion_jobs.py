@@ -463,6 +463,9 @@ def prune_expired_ingestion_jobs() -> None:
             deleted = ingestion_jobs_crud.delete_jobs_before(cutoff, db)
 
     if deleted:
-        logger.info(f"Ingestion job prune: deleted {deleted} finished upload job row(s)")
+        logger.info(
+            "Ingestion job prune: deleted finished upload job rows",
+            extra=core_logger.context(deleted=deleted, retention_days=retention_days),
+        )
     else:
         logger.debug("Ingestion job prune: nothing to delete")

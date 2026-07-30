@@ -117,8 +117,8 @@ def render_activity_thumbnail(
     """
     if not waypoints or len(waypoints) < 2:
         logger.debug(
-            f"Activity {activity_id}: skipping thumbnail (fewer than 2 waypoints)",
-            extra=core_logger.context(console=True),
+            "Skipping thumbnail render: fewer than 2 waypoints",
+            extra=core_logger.context(console=True, activity_id=activity_id, waypoint_count=len(waypoints or [])),
         )
         return None
 
@@ -135,10 +135,8 @@ def render_activity_thumbnail(
         }
         if not api_key and "stadiamaps.com" in normalised_url:
             logger.warning(
-                f"Activity {activity_id}: warning — tile URL looks like "
-                f"Stadia Maps but no API key provided; API KEY is required "
-                "and will skip thumbnail generation",
-                extra=core_logger.context(console=True),
+                "Skipping thumbnail render: Stadia Maps tile URL requires an API key",
+                extra=core_logger.context(console=True, activity_id=activity_id),
             )
             return None
         if api_key and "stadiamaps.com" in normalised_url:
@@ -172,15 +170,16 @@ def render_activity_thumbnail(
         image.save(buffer, "WEBP", quality=_THUMBNAIL_QUALITY, method=_THUMBNAIL_METHOD)
 
         logger.info(
-            f"Activity {activity_id}: thumbnail rendered ({width}x{height} WebP)",
-            extra=core_logger.context(console=True),
+            "Thumbnail rendered",
+            extra=core_logger.context(console=True, activity_id=activity_id, width=width, height=height),
         )
 
         return buffer.getvalue()
 
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
         logger.warning(
-            f"Activity {activity_id}: thumbnail generation failed — {type(exc).__name__}: {exc}",
-            extra=core_logger.context(console=True),
+            "Thumbnail generation failed",
+            exc_info=exc,
+            extra=core_logger.context(console=True, activity_id=activity_id),
         )
         return None

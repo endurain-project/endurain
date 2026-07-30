@@ -20,6 +20,7 @@ job or reconciliation net is warranted.
 """
 
 import core.database as core_database
+import core.logger as core_logger
 import infra.async_bridge as platform_async_bridge
 import infra.event_versioning as platform_event_versioning
 import modules.followers.events as followers_events
@@ -29,6 +30,8 @@ import modules.websocket.utils as websocket_utils
 from infra.events import Event
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
+
+logger = core_logger.get_logger(__name__)
 
 
 def notify_follower_requested_for_event(event: Event) -> None:
@@ -58,6 +61,14 @@ def notify_follower_requested_for_event(event: Event) -> None:
             {"message": ws_message, "notification_id": notification.id},
         )
     )
+    logger.debug(
+        "Created follow-request notification",
+        extra=core_logger.context(
+            requester_user_id=payload.requester_user_id,
+            target_user_id=payload.target_user_id,
+            notification_id=notification.id,
+        ),
+    )
 
 
 def notify_follower_accepted_for_event(event: Event) -> None:
@@ -84,6 +95,14 @@ def notify_follower_accepted_for_event(event: Event) -> None:
             websocket_manager.get_websocket_manager(),
             {"message": ws_message, "notification_id": notification.id},
         )
+    )
+    logger.debug(
+        "Created follow-accepted notification",
+        extra=core_logger.context(
+            accepter_user_id=payload.accepter_user_id,
+            requester_user_id=payload.requester_user_id,
+            notification_id=notification.id,
+        ),
     )
 
 

@@ -98,9 +98,12 @@ def store_parsed_activity(
             existing = activities_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
             if existing is not None:
                 logger.info(
-                    f"store_parsed_activity: dedup_key {dedup_key} already ingested as "
-                    f"activity {existing.id} for user {parsed.activity.user_id}; "
-                    "skipping re-import (no-op)."
+                    "Skipping re-import: dedup key already ingested",
+                    extra=core_logger.context(
+                        dedup_key=dedup_key,
+                        activity_id=existing.id,
+                        user_id=parsed.activity.user_id,
+                    ),
                 )
                 return existing
 
@@ -115,8 +118,12 @@ def store_parsed_activity(
 
         source_kind = source.kind if source is not None else "unknown"
         logger.debug(
-            f"store_parsed_activity: created activity {created_activity.id} "
-            f"for user {created_activity.user_id} (source={source_kind})"
+            "Created activity from parsed file",
+            extra=core_logger.context(
+                activity_id=created_activity.id,
+                user_id=created_activity.user_id,
+                source_kind=source_kind,
+            ),
         )
 
         # Persist all children with commit=False so the activity and everything
@@ -147,10 +154,14 @@ def store_parsed_activity(
             activity_sets_crud.create_activity_sets(parsed.sets, created_activity.id, db, commit=False)
 
         logger.debug(
-            f"store_parsed_activity {created_activity.id}: streams={len(parsed.streams)}, "
-            f"laps={parsed.laps is not None}, "
-            f"workout_steps={parsed.workout_steps is not None}, "
-            f"sets={parsed.sets is not None}"
+            "Stored parsed activity components",
+            extra=core_logger.context(
+                activity_id=created_activity.id,
+                stream_count=len(parsed.streams),
+                has_laps=parsed.laps is not None,
+                has_workout_steps=parsed.workout_steps is not None,
+                has_sets=parsed.sets is not None,
+            ),
         )
 
         # Publish the domain fact and commit the unit of work atomically. Derived
@@ -196,9 +207,12 @@ def store_parsed_activity(
             raise core_exceptions.ProcessingError("Error creating activity") from err
 
         logger.info(
-            f"store_parsed_activity: lost the insert race for dedup_key {dedup_key}; "
-            f"activity {winner.id} was stored concurrently for user {parsed.activity.user_id} "
-            "(treating re-import as a no-op)."
+            "Lost the insert race for dedup key; treating re-import as a no-op",
+            extra=core_logger.context(
+                dedup_key=dedup_key,
+                activity_id=winner.id,
+                user_id=parsed.activity.user_id,
+            ),
         )
         return winner
     except core_exceptions.DomainError:

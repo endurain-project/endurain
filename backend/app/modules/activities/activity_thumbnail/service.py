@@ -192,7 +192,8 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
             if key is not None and not storage.exists(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key):
                 activities_crud.set_activity_thumbnail_path(activity.id, None, db)
                 logger.info(
-                    f"Thumbnail scheduler: missing blob for activity {activity.id}, cleared thumbnail path in DB"
+                    "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
+                    extra=core_logger.context(activity_id=activity.id),
                 )
 
         activities_without_thumbnail = activities_crud.get_activities_without_thumbnail(db)
@@ -234,7 +235,6 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
                 generated += 1
 
         logger.info(
-            f"Thumbnail scheduler: generated {generated} "
-            f"thumbnail(s) out of "
-            f"{len(activities_without_thumbnail)} candidate(s)"
+            "Thumbnail scheduler pass complete",
+            extra=core_logger.context(generated=generated, candidates=len(activities_without_thumbnail)),
         )

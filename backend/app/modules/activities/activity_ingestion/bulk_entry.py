@@ -77,9 +77,10 @@ def _move_failed_file_to_error_directory(source: ingestion_sources.BulkImportSou
             "Bulk file import: moved the error-producing file to the import-error directory",
             extra=core_logger.context(console=True, file=Path(file_path).name, error_directory=error_file_dir),
         )
-    except OSError:
+    except OSError as err:
         logger.error(
             "Bulk file import: failed to move the error-producing file to the import-error directory",
+            exc_info=err,
             extra=core_logger.context(console=True, file=Path(file_path).name),
         )
 

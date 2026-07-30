@@ -116,12 +116,27 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     try:
         with core_database.SessionLocal() as db:
             bulk_entry.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
-    except Exception:
+        logger.debug(
+            "Imported a bulk-import file",
+            extra=core_logger.context(user_id=payload.user_id, file=os.path.basename(file_path)),
+        )
+    except Exception as err:
         # ``retry_count`` is the (claim-incremented) attempt number; when it has
         # reached the ceiling this failure dead-letters the job, so move the file
         # to the import-error directory as the trail before re-raising.
         if event.retry_count >= core_config.settings.JOBS_MAX_ATTEMPTS:
             _move_to_error_dir(file_path, payload.user_id)
+        else:
+            logger.warning(
+                "Bulk-import file failed; the job will be retried",
+                exc_info=err,
+                extra=core_logger.context(
+                    user_id=payload.user_id,
+                    file=os.path.basename(file_path),
+                    attempt=event.retry_count,
+                    max_attempts=core_config.settings.JOBS_MAX_ATTEMPTS,
+                ),
+            )
         raise
 
 
@@ -137,12 +152,16 @@ def _move_to_error_dir(file_path: str, user_id: int) -> None:
             src_base_dir=core_config.bulk_import_dir_for(user_id),
         )
         logger.error(
-            f"Bulk import: dead-lettered file {file_path} moved to {error_dir}", extra=core_logger.context(console=True)
+            "Bulk import: dead-lettered file moved to the import-error directory",
+            extra=core_logger.context(
+                console=True, user_id=user_id, file=os.path.basename(file_path), error_dir=error_dir
+            ),
         )
-    except OSError:
+    except OSError as err:
         logger.error(
-            f"Bulk import: failed to move dead-lettered file {file_path} to the import-error directory",
-            extra=core_logger.context(console=True),
+            "Bulk import: failed to move a dead-lettered file to the import-error directory",
+            exc_info=err,
+            extra=core_logger.context(console=True, user_id=user_id, file=os.path.basename(file_path)),
         )
 
 

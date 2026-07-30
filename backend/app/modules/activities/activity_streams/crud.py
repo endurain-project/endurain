@@ -313,7 +313,7 @@ def backfill_zone_percentages_for_missing_hr_streams(
         db.commit()
     except Exception as err:
         logger.error(
-            f"Failed to backfill zone_percentages for HR streams: {err}",
+            "Failed to backfill zone percentages for HR streams",
             exc_info=err,
             extra=core_logger.context(console=True),
         )
@@ -402,9 +402,9 @@ def recompute_hr_zone_percentages_for_user(user_id: int, db: Session) -> None:
     except Exception as err:
         db.rollback()
         logger.error(
-            f"Failed to recompute HR zone_percentages for user {user_id}: {err}",
+            "Failed to recompute HR zone percentages for user",
             exc_info=err,
-            extra=core_logger.context(console=True),
+            extra=core_logger.context(console=True, user_id=user_id),
         )
 
 
@@ -431,8 +431,8 @@ def create_activity_streams(
     """
     if activity.user_id is None:
         logger.warning(
-            f"Failed to create activity streams: activity {activity.id} has no user_id",
-            extra=core_logger.context(console=True),
+            "Failed to create activity streams: activity has no user_id",
+            extra=core_logger.context(console=True, activity_id=activity.id),
         )
         return
 

@@ -18,6 +18,7 @@ There is deliberately no reconciliation net: like the sibling cleanups this is a
 idempotent teardown keyed by activity id, and a stray orphaned file is harmless.
 """
 
+import core.logger as core_logger
 import infra.event_versioning as platform_event_versioning
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_media.service as activity_media_service
@@ -25,6 +26,8 @@ from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
+
+logger = core_logger.get_logger(__name__)
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -46,6 +49,10 @@ def cleanup_activity_media_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     activity_media_service.delete_media_files_for_activity(payload.activity_id)
+    logger.debug(
+        "Deleted media files for deleted activity",
+        extra=core_logger.context(activity_id=payload.activity_id),
+    )
 
 
 # Bus subscriber: deletes a deleted activity's media files, swallowing errors so

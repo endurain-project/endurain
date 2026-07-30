@@ -15,6 +15,7 @@ reconcile after the fact.
 """
 
 import core.database as core_database
+import core.logger as core_logger
 import infra.async_bridge as platform_async_bridge
 import infra.event_versioning as platform_event_versioning
 import modules.activities.activity.events as activity_events
@@ -25,6 +26,8 @@ from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
+
+logger = core_logger.get_logger(__name__)
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -73,6 +76,14 @@ def notify_activity_created_for_event(event: Event) -> None:
             websocket_manager.get_websocket_manager(),
             {"message": ws_message, "notification_id": notification.id},
         )
+    )
+    logger.debug(
+        "Created new-activity notification",
+        extra=core_logger.context(
+            activity_id=payload.activity_id,
+            user_id=payload.user_id,
+            notification_id=notification.id,
+        ),
     )
 
 
