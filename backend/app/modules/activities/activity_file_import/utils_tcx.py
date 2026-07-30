@@ -11,7 +11,6 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 
@@ -245,9 +244,9 @@ def _build_activity(
     avg_power: float | None,
     max_power: float | None,
     norm_power: float | None,
-) -> activities_schema.Activity:
+) -> activities_contracts.ActivityCore:
     """
-    Construct an Activity schema from parsed TCX data.
+    Construct an ActivityCore ingestion contract from parsed TCX data.
 
     Domain fields (privacy, gear, provider ids) are intentionally left unset —
     the ``activity_ingestion`` enrichment seam populates them after parsing so
@@ -275,14 +274,22 @@ def _build_activity(
         (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
     )
 
+    # An activity without a start/end is not importable. Rejecting it here gives
+    # a clear reason instead of a pydantic ValidationError raised deep inside
+    # ``ActivityCore`` construction, which is what used to happen.
+    start_time = core_timezone.to_utc_second(tcx_file.start_time)
+    end_time = core_timezone.to_utc_second(tcx_file.end_time)
+    if start_time is None or end_time is None:
+        raise core_exceptions.InvalidInputError("Invalid TCX file - no activity start or end time found")
+
     return activities_contracts.ActivityCore(
         user_id=user_id,
         name=activity_name,
         distance=distance,
         activity_type=activity_type,
         timezone=timezone,
-        start_time=(core_timezone.format_utc(tcx_file.start_time) if tcx_file.start_time else None),
-        end_time=(core_timezone.format_utc(tcx_file.end_time) if tcx_file.end_time else None),
+        start_time=start_time,
+        end_time=end_time,
         total_elapsed_time=elapsed,
         total_timer_time=elapsed,
         city=city,

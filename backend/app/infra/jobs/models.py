@@ -39,6 +39,8 @@ class ProcessingJob(Base):
             ``activity_thumbnail.generate``.
         source: Where the originating event came from, e.g. ``api:store_activity``.
         payload: The domain payload the subscriber consumes.
+        schema_version: The payload-shape version, carried from the envelope so a
+            worker on a different build can upgrade or refuse it.
         job_metadata: Correlation context (request_id, user_id, activity_id).
         status: Lifecycle state: pending, claimed, completed, or dead_letter.
         attempts: Processing attempts so far; incremented when the job is claimed.
@@ -92,6 +94,13 @@ class ProcessingJob(Base):
         JSON().with_variant(JSONB(), "postgresql"),
         nullable=False,
         comment="Domain payload the subscriber consumes",
+    )
+    schema_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Version of the payload shape, carried from the originating envelope",
     )
     job_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),
@@ -183,6 +192,9 @@ class EventOutbox(Base):
         source: Where the event originated, e.g. ``api:store_activity``.
         timestamp: The envelope's ISO-8601 publish timestamp.
         payload: The domain payload.
+        schema_version: The payload-shape version, so a relay/worker on a
+            different build can upgrade or refuse the payload rather than
+            silently misreading it.
         event_metadata: Correlation context (request_id, user_id, activity_id).
         created_at: When the event was written to the outbox.
         relayed_at: When the relay fanned the event out; ``NULL`` while pending.
@@ -223,6 +235,13 @@ class EventOutbox(Base):
         JSON().with_variant(JSONB(), "postgresql"),
         nullable=False,
         comment="Domain payload",
+    )
+    schema_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Version of the payload shape, so a consumer on a different build can upgrade or refuse it",
     )
     event_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),

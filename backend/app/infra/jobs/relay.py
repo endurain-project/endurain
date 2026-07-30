@@ -31,6 +31,7 @@ class _OutboxSnapshot:
     timestamp: str
     payload: dict
     metadata: dict | None
+    schema_version: int
 
 
 def relay_outbox_once(
@@ -74,6 +75,7 @@ def _event_from(snapshot: _OutboxSnapshot) -> Event:
         payload=snapshot.payload,
         metadata=snapshot.metadata or {},
         retry_count=0,
+        schema_version=snapshot.schema_version,
     )
 
 
@@ -86,4 +88,5 @@ def _snapshot(row: EventOutbox) -> _OutboxSnapshot:
         timestamp=row.timestamp,
         payload=dict(row.payload),
         metadata=dict(row.event_metadata) if row.event_metadata else None,
+        schema_version=row.schema_version,
     )

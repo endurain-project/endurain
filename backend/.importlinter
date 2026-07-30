@@ -112,6 +112,26 @@ forbidden_modules =
     modules.strava
     modules.garmin
 
+# The ingestion PIPELINE is provider-agnostic, the same way it is already
+# format-agnostic. It owns "validate -> parse -> enrich -> store -> retain" and nothing
+# about where a file came from: the Strava-export specifics (which duplicate listings to
+# skip, what metadata to apply, the sidecar photos) are answered by the sources object it
+# is handed. It used to call ``strava_bulk_import_utils`` directly for two of those, which
+# meant the one module that must not branch on provider held two provider branches.
+# ``sources.py`` is deliberately NOT in scope here: describing what a Strava bulk import
+# is *is* its job, and it is the seam that keeps the knowledge in one place.
+[importlinter:contract:ingestion-pipeline-provider-agnostic]
+name = The ingestion pipeline must not import provider clients — sources own provider specifics
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_ingestion.pipeline
+    modules.activities.activity_ingestion.upload_entry
+    modules.activities.activity_ingestion.bulk_entry
+forbidden_modules =
+    modules.strava
+    modules.garmin
+
 # The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
 # db, privacy, gear, provider, or exercise-title-crud coupling. Every bit
 # of domain resolution they used to do inline (default/Garmin gear, privacy defaults,
@@ -263,3 +283,32 @@ source_modules =
     modules.activities.*.stats
 forbidden_modules =
     modules.activities.*.models
+
+# The counterpart to consumer-activities-boundary, pointing the other way: the
+# activities module consumes users through the curated users integration service
+# (users/users/integration_service.py), never by reaching into the users CRUD or
+# its utility grab-bag. It previously imported four separate users internals —
+# including users.users.utils, which drags in FastAPI, the file-upload helpers
+# and the health-targets CRUD for a caller that only wanted a timezone. Schemas
+# stay allowed (data shapes, not behaviour), as do the FastAPI dependencies the
+# routers mount, which are an HTTP-boundary concern rather than a domain reach.
+# The users ORM is also not listed: SQLAlchemy relationships share one registry and
+# are typed with TYPE_CHECKING imports (``Activity`` <-> ``Users``), so the model
+# cross-reference is structural rather than a behaviour-layer reach — the same
+# exception consumer-activities-orm makes in the opposite direction.
+# allow_indirect_imports keeps this to DIRECT imports: the interface itself
+# legitimately imports users crud/utils, so activities -> integration_service ->
+# crud is fine.
+[importlinter:contract:consumer-users-boundary]
+name = Activities must use the users integration service, not the users CRUD/utils
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities
+forbidden_modules =
+    modules.users.users.crud
+    modules.users.users.utils
+    modules.users.users_privacy_settings.crud
+    modules.users.users_privacy_settings.utils
+    modules.users.users_default_gear.crud
+    modules.users.users_default_gear.utils

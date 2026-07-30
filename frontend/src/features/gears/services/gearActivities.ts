@@ -52,7 +52,7 @@ export async function fetchGearActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const page_ = await apiFetch<Schemas['ActivityPage']>(
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(
     `/activities/gears/${gearId}?${params.toString()}`,
     { signal },
   )

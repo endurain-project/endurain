@@ -82,9 +82,9 @@ class EventLog(Base):
         comment="published | queued | processing | completed | failed | dead_letter",
     )
     handler_name: Mapped[str | None] = mapped_column(
-        String(100),
+        String(500),
         nullable=True,
-        comment="Subscriber(s) that processed the event",
+        comment="Subscriber(s) that processed the event, comma-separated",
     )
     worker_id: Mapped[str | None] = mapped_column(
         String(100),

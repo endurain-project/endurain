@@ -11,6 +11,7 @@ temporarily down, etc.).
 
 import core.database as core_database
 import core.logger as core_logger
+import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_geocoding.service as activity_geocoding_service
@@ -40,7 +41,7 @@ def geocode_activity_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    payload = activity_events.ActivityCreatedPayload.model_validate(event.payload)
+    payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
     with core_database.SessionLocal() as db:
         activity_geocoding_service.geocode_and_store_activity_location(payload.activity_id, payload.user_id, db)
 

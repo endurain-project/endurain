@@ -10,6 +10,7 @@ from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.ingestion_service as ingestion_service
@@ -182,7 +183,16 @@ def parse_activity(
         ) from err
 
     # Parse start and end dates
-    start_date_parsed = detailed_activity.start_date
+    start_date_parsed = core_timezone.to_utc_second(detailed_activity.start_date)
+    if start_date_parsed is None:
+        # stravalib types start_date as optional; without it there is nothing to
+        # anchor the activity to, and every downstream consumer (dedup by start
+        # time, end-time derivation) requires it.
+        logger.error(f"User {user_id}: Strava activity {activity.id} has no start date, skipping")
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Strava activity has no start date",
+        )
 
     # Ensure activity.elapsed_time is a numerical value
     total_elapsed_time = (
@@ -319,8 +329,8 @@ def parse_activity(
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
         description=detailed_activity.description,
         activity_type=activity_type,
-        start_time=start_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
-        end_time=end_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
+        start_time=start_date_parsed,
+        end_time=end_date_parsed,
         timezone=timezone,
         total_elapsed_time=total_elapsed_time,
         total_timer_time=total_timer_time,

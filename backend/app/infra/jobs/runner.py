@@ -37,6 +37,8 @@ class ClaimedJob:
         metadata: Correlation context, if any.
         attempts: The attempt number this run represents.
         timestamp: ISO-8601 enqueue time, used to rebuild the event envelope.
+        schema_version: The payload-shape version carried from the envelope, so
+            the handler can upgrade or refuse a payload written by another build.
     """
 
     id: str
@@ -48,6 +50,7 @@ class ClaimedJob:
     metadata: dict | None
     attempts: int
     timestamp: str
+    schema_version: int
 
 
 class JobRunner:
@@ -148,6 +151,7 @@ class JobRunner:
             payload=job.payload,
             metadata=job.metadata or {},
             retry_count=job.attempts,
+            schema_version=job.schema_version,
         )
 
     def _snapshot(self, job: ProcessingJob) -> ClaimedJob:
@@ -161,6 +165,7 @@ class JobRunner:
             metadata=dict(job.job_metadata) if job.job_metadata else None,
             attempts=job.attempts,
             timestamp=_iso(job.created_at),
+            schema_version=job.schema_version,
         )
 
 

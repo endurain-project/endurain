@@ -401,7 +401,7 @@ class TestGetPublicActivityStreamByType:
 class TestRecomputeHrZonePercentagesForUser:
     @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
     def test_updates_streams_and_commits(self, mock_get_user, mock_compute, mock_batch, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -418,7 +418,7 @@ class TestRecomputeHrZonePercentagesForUser:
         mock_db.commit.assert_called_once()
 
     @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
     def test_clears_zones_when_max_hr_unresolvable(self, mock_get_user, mock_batch, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -432,7 +432,7 @@ class TestRecomputeHrZonePercentagesForUser:
         mock_db.commit.assert_called_once()
 
     @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
     def test_no_user_is_noop(self, mock_get_user, mock_batch, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -444,7 +444,7 @@ class TestRecomputeHrZonePercentagesForUser:
         mock_db.commit.assert_not_called()
 
     @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id")
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
     def test_swallows_errors_and_rolls_back(self, mock_get_user, mock_batch, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -457,7 +457,7 @@ class TestRecomputeHrZonePercentagesForUser:
 
 
 class TestComputeAndStoreHrZonePercentagesForActivity:
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=None)
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=None)
     def test_noop_when_user_missing(self, mock_user, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -466,7 +466,7 @@ class TestComputeAndStoreHrZonePercentagesForActivity:
         mock_db.commit.assert_not_called()
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=None)
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
     def test_noop_when_no_max_hr(self, mock_user, mock_max, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -475,7 +475,7 @@ class TestComputeAndStoreHrZonePercentagesForActivity:
         mock_db.commit.assert_not_called()
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
     def test_noop_when_no_hr_stream(self, mock_user, mock_max, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -490,7 +490,7 @@ class TestComputeAndStoreHrZonePercentagesForActivity:
         return_value={"zone_1": 1},
     )
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
     def test_stores_zone_percentages(self, mock_user, mock_max, mock_compute, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -509,7 +509,7 @@ class TestBackfillMissingHrZonePercentages:
         return_value={"zone_1": 1},
     )
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
     def test_scores_missing_streams(self, mock_user, mock_max, mock_compute, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -523,7 +523,7 @@ class TestBackfillMissingHrZonePercentages:
         assert stream.zone_percentages == {"hr": {"zone_1": 1}}
 
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=None)
-    @patch("modules.activities.activity_streams.crud.users_crud.get_user_by_id", return_value=MagicMock())
+    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
     def test_skips_when_owner_has_no_max_hr(self, mock_user, mock_max, mock_db):
         import modules.activities.activity_streams.crud as crud
 

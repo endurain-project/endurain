@@ -24,6 +24,7 @@ import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import infra.event_versioning as platform_event_versioning
 import infra.publisher as platform_publisher
 import modules.activities.activity_ingestion.bulk_entry as bulk_entry
 import modules.activities.activity_ingestion.events as ingestion_events
@@ -105,7 +106,7 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    payload = ingestion_events.BulkImportFilePayload.model_validate(event.payload)
+    payload = platform_event_versioning.parse_payload(ingestion_events.BulkImportFilePayload, event)
     # The file path arrives in the (durable, replayable) event payload; re-verify
     # it still resolves under the trusted bulk-import directory before touching the
     # file, so a corrupted or forged job cannot read or move an arbitrary path.

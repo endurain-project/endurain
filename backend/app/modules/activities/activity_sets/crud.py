@@ -36,7 +36,7 @@ def get_activity_sets(
     activity_id: int,
     token_user_id: int,
     db: Session,
-) -> list[activity_sets_schema.ActivitySetsRead] | None:
+) -> list[activity_sets_schema.ActivitySetsRead]:
     """
     Retrieve activity sets for a given activity.
 
@@ -46,8 +46,8 @@ def get_activity_sets(
         db: Database session.
 
     Returns:
-        List of ActivitySetsRead or None if not
-            found or hidden.
+        The activity's sets, empty when the activity is not visible to the
+        caller, its sets are hidden, or it has none.
 
     Raises:
         HTTPException: If database error occurs.
@@ -55,10 +55,10 @@ def get_activity_sets(
     activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
     if not activity:
-        return None
+        return []
 
     if token_user_id != activity.user_id and activity.hide_workout_sets_steps:
-        return None
+        return []
 
     stmt = select(activity_sets_models.ActivitySets).where(
         activity_sets_models.ActivitySets.activity_id == activity_id,
@@ -66,7 +66,7 @@ def get_activity_sets(
     activity_sets = db.scalars(stmt).all()
 
     if not activity_sets:
-        return None
+        return []
 
     return [_to_read_schema(s) for s in activity_sets]
 
@@ -123,7 +123,7 @@ def get_activities_sets(
 def get_public_activity_sets(
     activity_id: int,
     db: Session,
-) -> list[activity_sets_schema.ActivitySetsRead] | None:
+) -> list[activity_sets_schema.ActivitySetsRead]:
     """
     Retrieve public activity sets for an activity.
 
@@ -132,8 +132,9 @@ def get_public_activity_sets(
         db: Database session.
 
     Returns:
-        List of ActivitySetsRead or None if not
-            found, hidden, or not publicly visible.
+        The activity's sets, empty when it is not found, hidden, or not
+        publicly visible — indistinguishable on purpose, since this endpoint is
+        unauthenticated.
 
     Raises:
         HTTPException: If database error occurs.
@@ -141,7 +142,7 @@ def get_public_activity_sets(
     activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
 
     if not activity:
-        return None
+        return []
 
     stmt = select(activity_sets_models.ActivitySets).where(
         activity_sets_models.ActivitySets.activity_id == activity_id,
@@ -149,7 +150,7 @@ def get_public_activity_sets(
     activity_sets = db.scalars(stmt).all()
 
     if not activity_sets:
-        return None
+        return []
 
     return [_to_read_schema(s) for s in activity_sets]
 

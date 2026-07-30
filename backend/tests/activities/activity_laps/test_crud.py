@@ -56,7 +56,7 @@ class TestGetActivityLaps:
         mock_get_act.return_value = MagicMock(user_id=1, hide_laps=False)
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
+        assert r == []
 
     @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_not_found(self, mock_get_act, mock_db):
@@ -64,7 +64,7 @@ class TestGetActivityLaps:
 
         mock_get_act.return_value = None
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
+        assert r == []
 
     @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_hidden(self, mock_get_act, mock_db):
@@ -72,7 +72,7 @@ class TestGetActivityLaps:
 
         mock_get_act.return_value = MagicMock(user_id=2, hide_laps=True)
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
+        assert r == []
 
     @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_db_error(self, mock_get_act, mock_db):
@@ -173,7 +173,7 @@ class TestGetPublicActivityLaps:
 
         mock_gate.return_value = None
         r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert r is None
+        assert r == []
         mock_db.scalars.assert_not_called()
 
     @patch("modules.activities.activity_laps.crud.activity_crud.get_public_activity_for_child_read")
@@ -183,7 +183,7 @@ class TestGetPublicActivityLaps:
         mock_gate.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
         mock_db.scalars.return_value.all.return_value = []
         r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert r is None
+        assert r == []
 
     @patch("modules.activities.activity_laps.crud.activity_crud.get_public_activity_for_child_read")
     def test_db_error(self, mock_gate, mock_db):

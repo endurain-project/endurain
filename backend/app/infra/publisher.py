@@ -40,12 +40,18 @@ import core.middleware_request_id as core_middleware_request_id
 import infra.jobs.outbox as jobs_outbox
 import infra.jobs.registry as jobs_registry
 import infra.runtime as platform_runtime
-from infra.events import META_REQUEST_ID, Event, new_event
+from infra.events import INITIAL_SCHEMA_VERSION, META_REQUEST_ID, Event, new_event
 
 logger = core_logger.get_logger(__name__)
 
 
-def _mint(event_type: str, payload: dict, source: str, metadata: dict | None) -> Event:
+def _mint(
+    event_type: str,
+    payload: dict,
+    source: str,
+    metadata: dict | None,
+    schema_version: int = INITIAL_SCHEMA_VERSION,
+) -> Event:
     """Build the event envelope, stamping the ambient request id for correlation."""
     merged: dict = {}
     request_id = core_middleware_request_id.get_request_id()
@@ -53,7 +59,7 @@ def _mint(event_type: str, payload: dict, source: str, metadata: dict | None) ->
         merged[META_REQUEST_ID] = request_id
     if metadata:
         merged.update(metadata)
-    return new_event(event_type, payload, source=source, metadata=merged)
+    return new_event(event_type, payload, source=source, metadata=merged, schema_version=schema_version)
 
 
 def publish(
@@ -63,6 +69,7 @@ def publish(
     source: str,
     metadata: dict | None = None,
     db: Any = None,
+    schema_version: int = INITIAL_SCHEMA_VERSION,
 ) -> None:
     """Publish a domain event through the active platform, best-effort.
 
@@ -83,7 +90,7 @@ def publish(
     """
     try:
         platform = platform_runtime.get_active_platform()
-        event = _mint(event_type, payload, source, metadata)
+        event = _mint(event_type, payload, source, metadata, schema_version)
         if db is not None and _durable_delivery_enabled(event_type):
             # Record a terminal 'queued' row so durable events stay visible in the
             # event_log dashboard without counting as perpetually pending (the bus
@@ -106,6 +113,7 @@ def publish_committing(
     metadata: dict | None = None,
     db: Any,
     commit: Callable[[], None],
+    schema_version: int = INITIAL_SCHEMA_VERSION,
 ) -> None:
     """Publish a domain event atomically around the caller's domain commit.
 
@@ -142,7 +150,7 @@ def publish_committing(
         # (no partial activity, no orphaned event).
         try:
             platform = platform_runtime.get_active_platform()
-            event = _mint(event_type, payload, source, metadata)
+            event = _mint(event_type, payload, source, metadata, schema_version)
             if platform.recorder is not None:
                 platform.recorder.record_queued(event)
             jobs_outbox.add_to_outbox(event, now=platform.clock.now(), db=db, commit=False)
@@ -157,7 +165,7 @@ def publish_committing(
         commit()
         try:
             platform = platform_runtime.get_active_platform()
-            event = _mint(event_type, payload, source, metadata)
+            event = _mint(event_type, payload, source, metadata, schema_version)
             platform.events.publish(event)
         except Exception as err:
             logger.error(f"Failed to publish event {event_type}: {err}", exc_info=err)
@@ -181,6 +189,7 @@ def publish_many_committing(
     metadata_for: Callable[[dict], dict] | None = None,
     db: Any,
     commit: Callable[[], None],
+    schema_version: int = INITIAL_SCHEMA_VERSION,
 ) -> None:
     """Publish many same-type events atomically around one domain commit.
 
@@ -207,7 +216,9 @@ def publish_many_committing(
             platform = platform_runtime.get_active_platform()
             now = platform.clock.now()
             for payload in payloads:
-                event = _mint(event_type, payload, source, metadata_for(payload) if metadata_for else None)
+                event = _mint(
+                    event_type, payload, source, metadata_for(payload) if metadata_for else None, schema_version
+                )
                 if platform.recorder is not None:
                     platform.recorder.record_queued(event)
                 jobs_outbox.add_to_outbox(event, now=now, db=db, commit=False)
@@ -224,7 +235,9 @@ def publish_many_committing(
         for payload in payloads:
             try:
                 platform = platform_runtime.get_active_platform()
-                event = _mint(event_type, payload, source, metadata_for(payload) if metadata_for else None)
+                event = _mint(
+                    event_type, payload, source, metadata_for(payload) if metadata_for else None, schema_version
+                )
                 platform.events.publish(event)
             except Exception as err:
                 logger.error(f"Failed to publish event {event_type}: {err}", exc_info=err)

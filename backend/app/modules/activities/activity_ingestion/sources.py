@@ -17,9 +17,12 @@ by the source itself instead of by re-reading the flags.
 
 from dataclasses import dataclass
 
+from sqlalchemy.orm import Session
+
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
+import modules.activities.activity.schema as activities_schema
 import modules.strava.bulk_import_utils as strava_bulk_import_utils
 
 logger = core_logger.get_logger(__name__)
@@ -107,7 +110,10 @@ class BulkImportSource:
         """
         if not self.import_initiated_time:
             return {}
-        if self.is_strava:
+        # Narrow through the attribute rather than the ``is_strava`` property:
+        # the property guarantees non-None at runtime, but that is not a fact a
+        # type checker can carry across the call.
+        if self.strava_activities:
             return strava_bulk_import_utils.build_metadata_dict(
                 file_base_name,
                 self.strava_activities,
@@ -158,6 +164,62 @@ class BulkImportSource:
             extra=core_logger.context(console=True),
         )
         return False
+
+    def apply_metadata(
+        self,
+        activity: activities_contracts.ActivityCore,
+        activity_metadata: dict,
+    ) -> None:
+        """Apply this import's supplemental metadata to a parsed activity, in place.
+
+        Sits here rather than in the pipeline because *what* a bulk import knows
+        about an activity beyond the file itself is a property of the import's
+        origin, not of the format-agnostic pipeline. Keeping the call here is what
+        lets ``pipeline.py`` stay free of any Strava import.
+
+        Args:
+            activity: The parsed activity to enrich, mutated in place.
+            activity_metadata: Metadata from :meth:`metadata_for`.
+
+        Returns:
+            None.
+        """
+        strava_bulk_import_utils.apply_bulk_import_metadata(activity, activity_metadata)
+
+    def import_side_artifacts(
+        self,
+        created_activities: list[activities_schema.Activity],
+        file_base_name: str,
+        db: Session,
+    ) -> None:
+        """Import anything that travelled alongside the file rather than inside it.
+
+        Today that means the photos a Strava export ships next to its activity
+        files and lists in ``activities.csv``; a generic bulk import has no such
+        sidecar and this is a no-op. The pipeline calls this without knowing which
+        kind of import it is running.
+
+        Note: even a multi-activity ``.fit`` is handled correctly by attaching to
+        the last created activity — a Strava export's activity directory holds one
+        imported activity per file.
+
+        Args:
+            created_activities: Activities persisted from the file, in order.
+            file_base_name: The file's original base name (the ``activities.csv``
+                lookup key).
+            db: Database session.
+
+        Returns:
+            None.
+        """
+        if not self.strava_activities or not created_activities:
+            return
+        strava_bulk_import_utils.import_media_from_strava_bulk_export(
+            self.strava_activities,
+            created_activities[-1],
+            file_base_name,
+            db,
+        )
 
 
 #: Any of the three things that can feed the ingestion pipeline.

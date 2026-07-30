@@ -88,6 +88,39 @@ class TestActivityCoreStrictRequired:
             )
 
 
+class TestServerOwnedFieldsAreNotIngestionInputs:
+    """``ActivityCore`` extends the shared base, not the read model.
+
+    While it inherited from the read ``Activity``, every field added for the API
+    silently became an accepted ingestion input — including the ones only the
+    server may set. Extending ``ActivityBase`` instead is what keeps that from
+    happening again as the read model grows.
+    """
+
+    def test_read_model_exposes_the_server_owned_fields(self):
+        from modules.activities.activity.schema import Activity
+
+        assert "id" in Activity.model_fields
+        assert "map_thumbnail_path" in Activity.model_fields
+
+    def test_ingestion_contract_does_not(self):
+        assert "id" not in ActivityCore.model_fields
+        assert "map_thumbnail_path" not in ActivityCore.model_fields
+
+    def test_a_producer_cannot_set_them(self):
+        core = _core("2026-06-20T08:00:00", "2026-06-20T09:00:00")
+        # Re-built with the server-owned fields supplied: they are dropped, not
+        # honoured, so no producer can claim an id or a thumbnail key.
+        smuggled = ActivityCore(
+            **core.model_dump(),
+            id=999,
+            map_thumbnail_path="thumbnails/999.png",
+        )
+
+        assert not hasattr(smuggled, "id")
+        assert not hasattr(smuggled, "map_thumbnail_path")
+
+
 class TestParsedActivity:
     """ParsedActivity carries the strict ActivityCore as its activity."""
 

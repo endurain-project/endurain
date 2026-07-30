@@ -74,7 +74,7 @@ def get_activity_laps(
     activity_id: int,
     token_user_id: int,
     db: Session,
-) -> list[activity_laps_schema.ActivityLapsRead] | None:
+) -> list[activity_laps_schema.ActivityLapsRead]:
     """
     Retrieve activity laps for a given activity.
 
@@ -84,8 +84,10 @@ def get_activity_laps(
         db: Database session.
 
     Returns:
-        List of ActivityLapsRead or None if not
-            found or hidden.
+        The activity's laps, empty when the activity is not visible to the
+        caller, its laps are hidden, or it has none. A collection read answers
+        with a collection; the three cases are deliberately indistinguishable so
+        the endpoint cannot be used to probe which activities exist.
 
     Raises:
         HTTPException: If database error occurs.
@@ -93,10 +95,10 @@ def get_activity_laps(
     activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
     if not activity:
-        return None
+        return []
 
     if token_user_id != activity.user_id and activity.hide_laps:
-        return None
+        return []
 
     stmt = select(activity_laps_models.ActivityLaps).where(
         activity_laps_models.ActivityLaps.activity_id == activity_id,
@@ -104,7 +106,7 @@ def get_activity_laps(
     activity_laps = db.scalars(stmt).all()
 
     if not activity_laps:
-        return None
+        return []
 
     return [_to_read_schema(lap) for lap in activity_laps]
 
@@ -164,7 +166,7 @@ def get_activities_laps(
 def get_public_activity_laps(
     activity_id: int,
     db: Session,
-) -> list[activity_laps_schema.ActivityLapsRead] | None:
+) -> list[activity_laps_schema.ActivityLapsRead]:
     """
     Retrieve public activity laps for an activity.
 
@@ -173,8 +175,9 @@ def get_public_activity_laps(
         db: Database session.
 
     Returns:
-        List of ActivityLapsRead or None if not
-            found, hidden, or not publicly visible.
+        The activity's laps, empty when it is not found, hidden, or not
+        publicly visible — indistinguishable on purpose, since this endpoint is
+        unauthenticated.
 
     Raises:
         HTTPException: If database error occurs.
@@ -182,7 +185,7 @@ def get_public_activity_laps(
     activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_laps")
 
     if not activity:
-        return None
+        return []
 
     stmt = select(activity_laps_models.ActivityLaps).where(
         activity_laps_models.ActivityLaps.activity_id == activity_id,
@@ -190,7 +193,7 @@ def get_public_activity_laps(
     activity_laps = db.scalars(stmt).all()
 
     if not activity_laps:
-        return None
+        return []
 
     return [_to_read_schema(lap) for lap in activity_laps]
 

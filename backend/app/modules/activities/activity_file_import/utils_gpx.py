@@ -15,7 +15,6 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 
@@ -102,7 +101,7 @@ class ParsedGpxData(TypedDict):
     Typed dictionary for parsed GPX file output.
 
     Attributes:
-        activity: Populated Activity schema.
+        activity: The parsed ingestion contract.
         is_elevation_set: Whether elevation data exists.
         ele_waypoints: List of elevation waypoints.
         is_power_set: Whether power data exists.
@@ -119,7 +118,7 @@ class ParsedGpxData(TypedDict):
         laps: List of computed lap metrics.
     """
 
-    activity: activities_schema.Activity
+    activity: activities_contracts.ActivityCore
     is_elevation_set: bool
     ele_waypoints: list[dict]
     is_power_set: bool
@@ -493,9 +492,9 @@ def _compute_derived_metrics(
 def _build_activity_schema(
     state: ParseState,
     user_id: int,
-) -> activities_schema.Activity:
+) -> activities_contracts.ActivityCore:
     """
-    Build an Activity Pydantic schema from parsed state.
+    Build an ActivityCore ingestion contract from parsed state.
 
     Domain fields (privacy, gear, provider ids) are intentionally left unset —
     the ``activity_ingestion`` enrichment seam populates them after parsing so
@@ -517,8 +516,8 @@ def _build_activity_schema(
         description=state.activity_description,
         distance=round(state.distance) if state.distance else 0,
         activity_type=int(state.activity_type),
-        start_time=core_timezone.format_utc(state.first_waypoint_time),
-        end_time=core_timezone.format_utc(state.last_waypoint_time),
+        start_time=core_timezone.to_utc_second(state.first_waypoint_time),
+        end_time=core_timezone.to_utc_second(state.last_waypoint_time),
         timezone=state.timezone,
         total_elapsed_time=elapsed,
         total_timer_time=elapsed,

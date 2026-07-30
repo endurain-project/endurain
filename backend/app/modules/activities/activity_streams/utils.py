@@ -10,8 +10,8 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.users.users.integration_service as users_integration_service
 import modules.users.users.schema as users_schema
-import modules.users.users.utils as users_utils
 
 # Map stream type to activity hide attribute
 _STREAM_HIDE_MAP: dict[int, str] = {
@@ -129,7 +129,7 @@ def _age_in_years(birthdate: datetime.date, timezone_name: str | None) -> int:
     Returns:
         Completed years since ``birthdate``.
     """
-    today = core_timezone.today_in(users_utils.timezone_or_default(timezone_name))
+    today = core_timezone.today_in(users_integration_service.timezone_or_default(timezone_name))
     had_birthday = (today.month, today.day) >= (birthdate.month, birthdate.day)
     return today.year - birthdate.year - (0 if had_birthday else 1)
 

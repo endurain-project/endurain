@@ -32,16 +32,50 @@ def _build_app(mock_db):
 
 
 class TestGetUserFollowers:
+    @patch("modules.followers.crud.count_followers_by_user_id")
     @patch("modules.followers.crud.get_all_followers_by_user_id")
-    def test_self_success(self, mock_get, mock_db):
+    def test_self_success(self, mock_get, mock_count, mock_db):
         from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [FollowRelationship(follower_id=3, followee_id=1, status="accepted")]
+        mock_count.return_value = 1
 
         # Requester (1) == target (1): always allowed.
         response = client.get("/users/1/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        # The list is a page envelope, matching the activities list endpoints.
+        body = response.json()
+        assert body["total"] == 1
+        assert body["page"] == 1
+        assert body["next"] is None
+        assert len(body["items"]) == 1
+
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    def test_pagination_is_passed_through_and_next_is_derived(self, mock_get, mock_count, mock_db):
+        from modules.followers.schema import FollowRelationship
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = [FollowRelationship(follower_id=3, followee_id=1, status="accepted")]
+        mock_count.return_value = 40
+
+        response = client.get(
+            "/users/1/followers?page_number=2&num_records=10",
+            headers={"Authorization": "Bearer x"},
+        )
+
+        assert response.status_code == 200
+        assert mock_get.call_args.kwargs == {"page_number": 2, "num_records": 10}
+        # 2 * 10 < 40, so another page exists.
+        assert response.json()["next"] == 3
+
+    def test_page_size_is_capped(self, mock_db):
+        response = TestClient(_build_app(mock_db)).get(
+            "/users/1/followers?num_records=5000",
+            headers={"Authorization": "Bearer x"},
+        )
+        assert response.status_code == 422
 
     @patch("modules.followers.crud.get_all_followers_by_user_id")
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
@@ -53,15 +87,17 @@ class TestGetUserFollowers:
         assert response.status_code == 403
         mock_get.assert_not_called()
 
+    @patch("modules.followers.crud.count_followers_by_user_id")
     @patch("modules.followers.crud.get_all_followers_by_user_id")
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_accepted_follower_allowed(self, mock_rel, mock_get, mock_db):
+    def test_accepted_follower_allowed(self, mock_rel, mock_get, mock_count, mock_db):
         from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
         # Requester (1) is an accepted follower of target (2).
         mock_rel.return_value = FollowRelationship(follower_id=1, followee_id=2, status="accepted")
         mock_get.return_value = []
+        mock_count.return_value = 0
 
         response = client.get("/users/2/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -100,16 +136,19 @@ class TestGetUserFollowerCount:
 
 
 class TestGetUserFollowing:
+    @patch("modules.followers.crud.count_following_by_user_id")
     @patch("modules.followers.crud.get_all_following_by_user_id")
-    def test_self_success(self, mock_get, mock_db):
+    def test_self_success(self, mock_get, mock_count, mock_db):
         from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
+        mock_count.return_value = 1
 
         # Requester (1) == target (1): always allowed.
         response = client.get("/users/1/following", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        assert response.json()["total"] == 1
 
     @patch("modules.followers.crud.get_all_following_by_user_id")
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")

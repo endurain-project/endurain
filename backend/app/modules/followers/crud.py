@@ -21,13 +21,25 @@ def _transform_follower(follower: followers_models.Follower) -> followers_schema
 
 
 @core_decorators.handle_db_errors
-def get_all_followers_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
+def get_all_followers_by_user_id(
+    user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 25,
+) -> list[followers_schema.FollowRelationship]:
     """
-    Retrieve all follower records where the user is being followed.
+    Retrieve one page of follower records where the user is being followed.
+
+    Paginated rather than unbounded: a popular account's follower list would
+    otherwise be a single unbounded query and response, growing without limit.
+    Ordered by ``id`` so paging is stable across requests.
 
     Args:
         user_id: ID of the user whose followers to retrieve.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
         List of Follower records (empty list if none).
@@ -35,7 +47,13 @@ def get_all_followers_by_user_id(user_id: int, db: Session) -> list[followers_sc
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
+    stmt = (
+        select(followers_models.Follower)
+        .where(followers_models.Follower.followee_id == user_id)
+        .order_by(followers_models.Follower.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 
@@ -62,13 +80,24 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session) -> list[followe
 
 
 @core_decorators.handle_db_errors
-def get_all_following_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
+def get_all_following_by_user_id(
+    user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 25,
+) -> list[followers_schema.FollowRelationship]:
     """
-    Retrieve all follow records where the user is the follower.
+    Retrieve one page of follow records where the user is the follower.
+
+    Paginated for the same reason as :func:`get_all_followers_by_user_id`, and
+    ordered by ``id`` so paging is stable.
 
     Args:
         user_id: ID of the user whose following list to retrieve.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
         List of Follower records (empty list if none).
@@ -76,7 +105,13 @@ def get_all_following_by_user_id(user_id: int, db: Session) -> list[followers_sc
     Raises:
         HTTPException: If a database error occurs.
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.follower_id == user_id)
+    stmt = (
+        select(followers_models.Follower)
+        .where(followers_models.Follower.follower_id == user_id)
+        .order_by(followers_models.Follower.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 

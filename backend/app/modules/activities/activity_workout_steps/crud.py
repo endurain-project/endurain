@@ -27,7 +27,7 @@ def get_activity_workout_steps(
     activity_id: int,
     token_user_id: int,
     db: Session,
-) -> list[activity_workout_steps_schema.ActivityWorkoutSteps] | None:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
     Get workout steps for a single activity.
 
@@ -37,8 +37,8 @@ def get_activity_workout_steps(
         db: Database session.
 
     Returns:
-        List of workout steps or None if not found
-        or access denied.
+        The activity's workout steps, empty when the activity is not visible to
+        the caller or has none.
 
     Raises:
         HTTPException: If database error occurs.
@@ -46,10 +46,10 @@ def get_activity_workout_steps(
     activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
     if not activity:
-        return None
+        return []
 
     if token_user_id != activity.user_id and activity.hide_workout_sets_steps:
-        return None
+        return []
 
     stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(
         activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id,
@@ -57,7 +57,7 @@ def get_activity_workout_steps(
     workout_steps = db.scalars(stmt).all()
 
     if not workout_steps:
-        return None
+        return []
 
     return [_to_read_schema(step) for step in workout_steps]
 
@@ -119,7 +119,7 @@ def get_activities_workout_steps(
 def get_public_activity_workout_steps(
     activity_id: int,
     db: Session,
-) -> list[activity_workout_steps_schema.ActivityWorkoutSteps] | None:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
     Get workout steps for a public activity.
 
@@ -128,8 +128,9 @@ def get_public_activity_workout_steps(
         db: Database session.
 
     Returns:
-        List of workout steps or None if not found,
-        hidden, not public, or feature disabled.
+        The activity's workout steps, empty when it is not found, hidden, not
+        public, or public links are disabled — indistinguishable on purpose,
+        since this endpoint is unauthenticated.
 
     Raises:
         HTTPException: If database error occurs.
@@ -137,7 +138,7 @@ def get_public_activity_workout_steps(
     activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
 
     if not activity:
-        return None
+        return []
 
     stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(
         activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id,
@@ -145,7 +146,7 @@ def get_public_activity_workout_steps(
     workout_steps = list(db.scalars(stmt).all())
 
     if not workout_steps:
-        return None
+        return []
 
     return [_to_read_schema(step) for step in workout_steps]
 

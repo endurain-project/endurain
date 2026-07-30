@@ -20,7 +20,7 @@ import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
 import modules.followers.service as followers_service
-import modules.users.users.utils as users_utils
+import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -85,7 +85,7 @@ def _anchor_date(anchor: date | None, requester_user_id: int, db: Session) -> da
         A midnight-aligned UTC datetime for the anchor day.
     """
     if anchor is None:
-        anchor = users_utils.user_local_today(requester_user_id, db)
+        anchor = users_integration_service.local_today(requester_user_id, db)
     return datetime.combine(anchor, time.min, tzinfo=UTC)
 
 

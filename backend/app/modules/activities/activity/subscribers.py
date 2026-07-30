@@ -16,6 +16,7 @@ reconcile after the fact.
 
 import core.database as core_database
 import infra.async_bridge as platform_async_bridge
+import infra.event_versioning as platform_event_versioning
 import modules.activities.activity.events as activity_events
 import modules.notifications.utils as notifications_utils
 import modules.websocket.manager as websocket_manager
@@ -44,7 +45,7 @@ def notify_activity_created_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    payload = activity_events.ActivityCreatedPayload.model_validate(event.payload)
+    payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
 
     with core_database.SessionLocal() as db:
         notification, ws_message = notifications_utils.create_activity_created_notification(

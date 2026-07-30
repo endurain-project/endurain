@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.exceptions as core_exceptions
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
@@ -55,7 +56,7 @@ def read_activities_streams_for_activity_all(
 
 @router.get(
     "/streams/{stream_type}",
-    response_model=(activity_streams_schema.ActivityStreamsRead | None),
+    response_model=activity_streams_schema.ActivityStreamsRead,
 )
 def read_activities_streams_for_activity_stream_type(
     activity_id: int,
@@ -92,11 +93,21 @@ def read_activities_streams_for_activity_stream_type(
         db: Database session.
 
     Returns:
-        The activity stream or None.
+        The activity stream.
+
+    Raises:
+        NotFoundError: When the activity has no such stream, or is not visible
+            to the caller. A single resource that does not exist is a 404; it
+            used to answer ``200 null``, which is neither a resource nor an
+            error. The two cases are deliberately indistinguishable so the
+            endpoint cannot be used to probe which activities exist.
     """
-    return activity_streams_crud.get_activity_stream_by_type(
+    stream = activity_streams_crud.get_activity_stream_by_type(
         activity_id,
         stream_type,
         token_user_id,
         db,
     )
+    if stream is None:
+        raise core_exceptions.NotFoundError("Activity stream not found")
+    return stream

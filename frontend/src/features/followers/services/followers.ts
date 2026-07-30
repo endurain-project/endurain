@@ -9,6 +9,15 @@ import type { Schemas } from '@/types'
 import { apiFetch } from '@/services/http'
 
 /**
+ * Page size used when loading a full follower/following list.
+ *
+ * The endpoints are paginated (a popular account's list would otherwise be an
+ * unbounded query and response); this matches the backend's per-request cap, so
+ * a single call still covers every list the UI renders today.
+ */
+const MAX_PAGE_SIZE = 200
+
+/**
  * Derives the viewer's {@link FollowStatus} from a raw follow-relationship
  * record (`null` when no relationship exists).
  *
@@ -26,16 +35,21 @@ export function mapFollowStatus(dto: FollowerDto | null): FollowStatus {
  * Fetches the people who follow a user (the user's followers list). Each row's
  * *other* user is the follower (`follower_id`).
  *
+ * The endpoint is paginated and returns a page envelope; this reads the first
+ * page at the maximum size, which covers every follower count the UI renders
+ * today without an unbounded response.
+ *
  * @param userId - The profile owner whose followers to load.
  * @param signal - Optional abort signal for cancellation.
  * @returns The follower edges (other user id + accepted flag).
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowers(userId: number, signal?: AbortSignal): Promise<FollowEdge[]> {
-  const dtos = await apiFetch<FollowerDto[] | null>(`/followers/users/${userId}/followers`, {
-    signal,
-  })
-  return (dtos ?? []).map((dto) => ({
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/followers?num_records=${MAX_PAGE_SIZE}`,
+    { signal },
+  )
+  return (page?.items ?? []).map((dto) => ({
     userId: dto.follower_id,
     isAccepted: dto.status === 'accepted',
   }))
@@ -51,10 +65,11 @@ export async function fetchFollowers(userId: number, signal?: AbortSignal): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowing(userId: number, signal?: AbortSignal): Promise<FollowEdge[]> {
-  const dtos = await apiFetch<FollowerDto[] | null>(`/followers/users/${userId}/following`, {
-    signal,
-  })
-  return (dtos ?? []).map((dto) => ({
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/following?num_records=${MAX_PAGE_SIZE}`,
+    { signal },
+  )
+  return (page?.items ?? []).map((dto) => ({
     userId: dto.followee_id,
     isAccepted: dto.status === 'accepted',
   }))

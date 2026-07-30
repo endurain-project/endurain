@@ -36,8 +36,8 @@ class TestReadActivitySets:
     @patch("modules.activities.activity_sets.router.activity_sets_crud.get_activity_sets")
     def test_read_sets_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+        mock_get.return_value = []
 
         response = client.get("/activities/999/sets", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() is None
+        assert response.json() == []

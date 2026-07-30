@@ -70,6 +70,7 @@ def enqueue_job(
         "subscriber_id": subscriber_id,
         "source": event.source,
         "payload": event.payload,
+        "schema_version": event.schema_version,
         "job_metadata": event.metadata or None,
         "status": STATUS_PENDING,
         "attempts": 0,

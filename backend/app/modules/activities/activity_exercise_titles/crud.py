@@ -24,7 +24,7 @@ def _to_read_schema(
 @core_decorators.handle_db_errors
 def get_activity_exercise_titles(
     db: Session,
-) -> list[activity_exercise_titles_schema.ActivityExerciseTitles] | None:
+) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
     """
     Retrieve all activity exercise titles.
 
@@ -32,7 +32,7 @@ def get_activity_exercise_titles(
         db: Database session.
 
     Returns:
-        List of ActivityExerciseTitles or None when empty.
+        Every exercise title, empty when there are none.
 
     Raises:
         HTTPException: If a database error occurs.
@@ -41,7 +41,7 @@ def get_activity_exercise_titles(
     activity_exercise_titles = db.execute(stmt).scalars().all()
 
     if not activity_exercise_titles:
-        return None
+        return []
 
     return [_to_read_schema(title) for title in activity_exercise_titles]
 
@@ -49,7 +49,7 @@ def get_activity_exercise_titles(
 @core_decorators.handle_db_errors
 def get_public_activity_exercise_titles(
     db: Session,
-) -> list[activity_exercise_titles_schema.ActivityExerciseTitles] | None:
+) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
     """
     Retrieve activity exercise titles when public sharing is enabled.
 
@@ -57,8 +57,8 @@ def get_public_activity_exercise_titles(
         db: Database session.
 
     Returns:
-        List of ActivityExerciseTitles, or None if public links
-        are disabled or no entries exist.
+        Every exercise title, empty when public links are disabled or there are
+        no entries.
 
     Raises:
         HTTPException: If server settings are missing or a database
@@ -67,7 +67,7 @@ def get_public_activity_exercise_titles(
     server_settings = server_settings_utils.get_server_settings_or_404(db)
 
     if not server_settings.public_shareable_links:
-        return None
+        return []
 
     return get_activity_exercise_titles(db)
 

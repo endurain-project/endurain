@@ -10,6 +10,7 @@ There is deliberately no reconciliation net: like thumbnail cleanup this is an
 idempotent teardown keyed by activity id, and a stray orphaned file is harmless.
 """
 
+import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_file_storage.service as activity_file_storage_service
@@ -36,7 +37,7 @@ def cleanup_activity_file_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    payload = activity_events.ActivityDeletedPayload.model_validate(event.payload)
+    payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     storage = platform_runtime.get_active_platform().storage
     activity_file_storage_service.delete_activity_file(payload.activity_id, storage)
 
