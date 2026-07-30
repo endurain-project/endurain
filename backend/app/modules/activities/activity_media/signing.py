@@ -17,26 +17,16 @@ one.
 
 The token binds ``media_id`` alone; the route additionally checks the row belongs
 to the ``activity_id`` in the path, so a URL cannot be replayed against another
-activity. The token is bounded by :data:`_TOKEN_MAX_AGE_SECONDS` rather than
-living forever — comfortably longer than the route's own browser cache window
-(see ``activity_media.public_router``) so a still-cached image never 404s
-mid-cache, but not unbounded, matching ``activity_thumbnail`` and
-``users.users.signing``.
+activity. Its lifetime is :data:`core.signing.DEFAULT_TOKEN_MAX_AGE_SECONDS`,
+shared with the thumbnail and user-photo signers.
 """
 
-import core.config as core_config
 import core.signing as core_signing
-import infra.runtime as platform_runtime
 
 # Namespaces this signer from any other ``SECRET_KEY`` use (e.g. JWT signing, and
 # the activity-thumbnail signer): a media token can never be replayed as a
 # thumbnail token even though both bind a bare integer id.
-_SALT = "activity-media"
-
-# How long a signed token remains valid after it was minted. See
-# ``activity_thumbnail.signing`` for the rationale; kept identical for
-# consistency across the three signers.
-_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
+_SIGNER = core_signing.CapabilitySigner(salt="activity-media")
 
 # The storage area (domain-owned namespace) activity media lives under. For the
 # ``local`` backend this maps to ``{DATA_DIR}/activity_media`` — the exact
@@ -54,7 +44,7 @@ def sign_media_token(media_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return core_signing.sign_token(_SALT, media_id)
+    return _SIGNER.sign(media_id)
 
 
 def verify_media_token(media_id: int, token: str) -> bool:
@@ -65,18 +55,13 @@ def verify_media_token(media_id: int, token: str) -> bool:
         token: The signed token from the request.
 
     Returns:
-        True if the token is authentic, bound to ``media_id``, and no older than
-        :data:`_TOKEN_MAX_AGE_SECONDS`.
+        True if the token is authentic, bound to ``media_id``, and unexpired.
     """
-    return core_signing.verify_token(_SALT, media_id, token, max_age=_TOKEN_MAX_AGE_SECONDS)
+    return _SIGNER.verify(media_id, token)
 
 
 def media_url(key: str, activity_id: int, media_id: int) -> str:
     """Resolve a stored media key to a signed, ``<img>``-compatible URL.
-
-    Object storage keeps its presigned, expiring URL (already access-controlled
-    and usable in an ``<img>`` tag). Local disk is served by the token-gated media
-    route, so the blob is only reachable with a valid signed token.
 
     Args:
         key: The stored storage key.
@@ -86,9 +71,9 @@ def media_url(key: str, activity_id: int, media_id: int) -> str:
     Returns:
         A servable URL.
     """
-    if core_config.settings.resolved_storage_uri.startswith("s3"):
-        try:
-            return platform_runtime.get_active_platform().storage.url(MEDIA_STORAGE_AREA, key)
-        except RuntimeError:
-            pass
-    return f"{core_config.ROOT_PATH}/activities/{activity_id}/media/{media_id}/file?t={sign_media_token(media_id)}"
+    return core_signing.blob_url(
+        MEDIA_STORAGE_AREA,
+        key,
+        local_path=f"/activities/{activity_id}/media/{media_id}/file",
+        token=sign_media_token(media_id),
+    )

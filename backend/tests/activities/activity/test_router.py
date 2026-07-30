@@ -380,7 +380,9 @@ class TestDelete:
             patch("modules.activities.activity.service.activity_event_publishers") as mock_pub,
         ):
             resp = TestClient(_build_app(mock_db)).delete("/activities/1", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200
+            # 204 with no body: the resource is gone, and the status says so.
+            assert resp.status_code == 204
+            assert resp.content == b""
             # Ownership is in the delete's WHERE clause, so the route passes the
             # requester through instead of pre-fetching (no read-then-delete gap).
             assert mock_del.call_args.args[0] == 1

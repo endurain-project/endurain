@@ -3,7 +3,6 @@
 from datetime import date, timedelta
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 
 def get_start_date_for_interval(interval: str, today: date) -> date:
@@ -39,7 +38,7 @@ def get_start_date_for_interval(interval: str, today: date) -> date:
         return today - timedelta(days=7)
 
 
-def local_date_expression(column, tz_name: str, db: Session):
+def local_date_expression(column, tz_name: str):
     """Return ``column`` (a ``timestamptz``) truncated to a calendar date in ``tz_name``.
 
     ``func.date()`` on a ``timestamptz`` truncates in the *session* timezone,
@@ -48,21 +47,12 @@ def local_date_expression(column, tz_name: str, db: Session):
     through the athlete's own zone first makes the day match the one they
     experienced.
 
-    Mirrors ``modules.activities.activity.crud.local_start_time_expression``,
-    which does the same for activity start times.
-
     Args:
         column: A timezone-aware datetime column.
         tz_name: IANA timezone to resolve the calendar date in.
-        db: Database session, used to detect the dialect.
 
     Returns:
         A SQL expression yielding the local calendar date.
     """
-    if db.get_bind().dialect.name == "postgresql":
-        # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
-        return func.date(func.timezone(tz_name, column))
-    # Production is Postgres-only (see core/database.py); other engines appear
-    # only in tests, so fall back to the raw value rather than emitting SQL the
-    # engine cannot run.
-    return func.date(column)
+    # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
+    return func.date(func.timezone(tz_name, column))

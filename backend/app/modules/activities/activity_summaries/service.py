@@ -10,23 +10,18 @@ The route previously called CRUD directly and did its own date parsing, which
 made the summaries package the one sub-module that did not follow the template.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.activities.activity_summaries.crud as summary_crud
 import modules.activities.activity_summaries.schema as summary_schema
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
-
-# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). The server cannot
-# know the caller's timezone, so any "is this year plausible?" check has to be
-# tolerant by at least this much or it rejects the caller's genuinely current
-# year around New Year.
-_MAX_UTC_OFFSET = timedelta(hours=14)
 
 # Earliest year a summary may be requested for.
 _MIN_YEAR = 1900
@@ -51,7 +46,7 @@ def _latest_plausible_year() -> int:
     Returns:
         The latest year a caller could plausibly be in.
     """
-    return (datetime.now(UTC) + _MAX_UTC_OFFSET).year
+    return (datetime.now(UTC) + core_timezone.MAX_UTC_OFFSET).year
 
 
 def _resolve_year(target_year: int | None, today: date) -> int:

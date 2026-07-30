@@ -18,8 +18,8 @@ import core.logger as core_logger
 import migrations.crud as migrations_crud
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
+import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.activities.activity_file_import.utils_fit as fit_utils
-import modules.activities.activity_file_import.utils_gpx as gpx_utils
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_streams.constants as activity_streams_constants
@@ -391,7 +391,7 @@ def process_activity_using_streams(
         streams = activity_streams_crud.get_activity_streams(activity.id, db)
         stream_map = {stream.stream_type: stream.stream_waypoints for stream in (streams or [])}
 
-        laps = gpx_utils.generate_activity_laps(
+        laps = activity_file_import_utils.generate_activity_laps(
             stream_map.get(activity_streams_constants.STREAM_TYPE_MAP) or [],
             stream_map.get(activity_streams_constants.STREAM_TYPE_ELEVATION) or [],
             stream_map.get(activity_streams_constants.STREAM_TYPE_POWER) or [],

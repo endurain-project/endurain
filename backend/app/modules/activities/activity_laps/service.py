@@ -55,6 +55,10 @@ def list_activity_laps(
         activities exist.
     """
     if not activity_child_access.may_read_child(activity_id, requester_user_id, db, hide_attr=_HIDE_ATTR):
+        logger.debug(
+            "Refused a laps read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
+        )
         return _empty_page(page_number, num_records)
     items = activity_laps_crud.get_activity_laps(activity_id, db, page_number=page_number, num_records=num_records)
     total = activity_laps_crud.count_activity_laps(activity_id, db)
@@ -81,6 +85,10 @@ def list_public_activity_laps(
         publicly visible.
     """
     if not activity_child_access.may_read_public_child(activity_id, db, hide_attr=_HIDE_ATTR):
+        logger.debug(
+            "Refused a public laps read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         return _empty_page(page_number, num_records)
     items = activity_laps_crud.get_activity_laps(activity_id, db, page_number=page_number, num_records=num_records)
     total = activity_laps_crud.count_activity_laps(activity_id, db)

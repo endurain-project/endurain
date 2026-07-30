@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 
@@ -224,6 +225,64 @@ class TestListAcceptedFolloweeIds:
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.list_accepted_followee_ids(user_id=1, db=mock_db)
         assert e.value.status_code == 500
+
+
+class TestFolloweeIdsAreMemoizedPerSession:
+    """One request asks this repeatedly; the answer cannot change underneath it.
+
+    A paginated activity list resolves it once for the page and again for the
+    matching total, and an activity detail page asks once more per child resource
+    through the visibility gate.
+    """
+
+    @staticmethod
+    def _session(followee_ids):
+        # ``Session.info`` is a real dict on a real session; the shared mock_db
+        # fixture answers with a MagicMock, which would never register a hit.
+        db = MagicMock(spec=Session)
+        db.info = {}
+        db.scalars.return_value.all.return_value = followee_ids
+        return db
+
+    def test_the_second_call_does_not_query(self):
+        import modules.followers.crud as crud
+
+        db = self._session([2, 3])
+
+        assert crud.list_accepted_followee_ids(1, db) == [2, 3]
+        assert crud.list_accepted_followee_ids(1, db) == [2, 3]
+        assert db.scalars.call_count == 1
+
+    def test_each_user_is_cached_separately(self):
+        import modules.followers.crud as crud
+
+        db = self._session([2, 3])
+        crud.list_accepted_followee_ids(1, db)
+        crud.list_accepted_followee_ids(2, db)
+
+        assert db.scalars.call_count == 2
+
+    def test_a_write_makes_the_next_read_see_it(self):
+        """Accept-then-read on one session must not answer from the stale list."""
+        import modules.followers.crud as crud
+
+        db = self._session([2])
+        assert crud.list_accepted_followee_ids(1, db) == [2]
+
+        crud._invalidate_followee_cache(db)
+        db.scalars.return_value.all.return_value = [2, 3]
+
+        assert crud.list_accepted_followee_ids(1, db) == [2, 3]
+        assert db.scalars.call_count == 2
+
+    def test_the_cache_does_not_leak_across_sessions(self):
+        import modules.followers.crud as crud
+
+        first = self._session([2])
+        second = self._session([9])
+
+        assert crud.list_accepted_followee_ids(1, first) == [2]
+        assert crud.list_accepted_followee_ids(1, second) == [9]
 
 
 class TestCreateFollower:

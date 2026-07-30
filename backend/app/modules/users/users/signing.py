@@ -14,26 +14,17 @@ minted whenever a user record is serialized, and anyone who legitimately receive
 that record can render the image. What the token removes is *enumeration*: you
 can no longer walk user ids, only fetch a photo you were handed a URL for.
 
-The token is bounded by :data:`_TOKEN_MAX_AGE_SECONDS` rather than living
-forever — comfortably longer than the route's own browser cache window (see
-``users.users.photo_router``) so a still-cached image never 404s mid-cache, but
-not unbounded, matching ``activity_thumbnail`` and ``activity_media``: a photo
-removed or replaced stops being reachable under a stale token within that
-window rather than for as long as ``SECRET_KEY`` is unchanged.
+The token is bounded by :data:`core.signing.DEFAULT_TOKEN_MAX_AGE_SECONDS` rather
+than living forever: a photo removed or replaced stops being reachable under a
+stale token within that window rather than for as long as ``SECRET_KEY`` is
+unchanged.
 """
 
-import core.config as core_config
 import core.signing as core_signing
-import infra.runtime as platform_runtime
 
 # Namespaces this signer from the activity-thumbnail and activity-media signers,
 # all of which bind a bare integer id.
-_SALT = "user-image"
-
-# How long a signed token remains valid after it was minted. See
-# ``activity_thumbnail.signing`` for the rationale; kept identical for
-# consistency across the three signers.
-_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
+_SIGNER = core_signing.CapabilitySigner(salt="user-image")
 
 # Domain-owned storage namespace. For the ``local`` backend this maps to
 # ``{DATA_DIR}/user_images`` — the directory the photos already live in — so an
@@ -50,7 +41,7 @@ def sign_user_image_token(user_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return core_signing.sign_token(_SALT, user_id)
+    return _SIGNER.sign(user_id)
 
 
 def verify_user_image_token(user_id: int, token: str) -> bool:
@@ -61,17 +52,13 @@ def verify_user_image_token(user_id: int, token: str) -> bool:
         token: The signed token from the request.
 
     Returns:
-        True if the token is authentic, bound to ``user_id``, and no older than
-        :data:`_TOKEN_MAX_AGE_SECONDS`.
+        True if the token is authentic, bound to ``user_id``, and unexpired.
     """
-    return core_signing.verify_token(_SALT, user_id, token, max_age=_TOKEN_MAX_AGE_SECONDS)
+    return _SIGNER.verify(user_id, token)
 
 
 def user_image_url(key: str | None, user_id: int | None) -> str | None:
     """Resolve a stored photo key to a signed, ``<img>``-compatible URL.
-
-    Object storage keeps its presigned, expiring URL. Local disk is served by the
-    token-gated route, so the blob is only reachable with a valid signed token.
 
     Args:
         key: The stored storage key (``{user_id}.{ext}``), or ``None``.
@@ -82,9 +69,9 @@ def user_image_url(key: str | None, user_id: int | None) -> str | None:
     """
     if not key or user_id is None:
         return None
-    if core_config.settings.resolved_storage_uri.startswith("s3"):
-        try:
-            return platform_runtime.get_active_platform().storage.url(USER_IMAGE_STORAGE_AREA, key)
-        except RuntimeError:
-            pass
-    return f"{core_config.ROOT_PATH}/users/{user_id}/photo?t={sign_user_image_token(user_id)}"
+    return core_signing.blob_url(
+        USER_IMAGE_STORAGE_AREA,
+        key,
+        local_path=f"/users/{user_id}/photo",
+        token=sign_user_image_token(user_id),
+    )

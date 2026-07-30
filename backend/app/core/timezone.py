@@ -1,12 +1,20 @@
 """Centralized timezone conversion utilities."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import overload
 from zoneinfo import ZoneInfo
 
 # ISO 8601 datetime format without offset, used for the
 # naive UTC wall-clock strings persisted by file parsers.
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
+
+#: Widest real-world UTC offset (Pacific/Kiritimati, +14:00).
+#:
+#: Used wherever the server has to be tolerant of a timezone the request never
+#: carries: widening an indexable pre-filter on a raw UTC column so it cannot
+#: exclude a row the exact local-time predicate would keep, and bounding "is this
+#: plausibly the caller's current year?" checks.
+MAX_UTC_OFFSET = timedelta(hours=14)
 
 
 def today_in(tz_name: str) -> date:

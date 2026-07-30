@@ -24,10 +24,25 @@ access decision, only against its own signature and age.
 """
 
 import functools
+from dataclasses import dataclass
 
 from itsdangerous import BadData, URLSafeTimedSerializer
 
 import core.config as core_config
+import infra.runtime as platform_runtime
+
+#: How long a capability token stays valid. Every blob signer used to declare
+#: this itself, each with a comment saying it was "kept identical for
+#: consistency across the three signers" — which is a rule three files cannot
+#: enforce between them.
+#:
+#: Bounded rather than eternal because the access decision a token was minted
+#: from can change afterwards (an activity is hidden, a photo replaced). The
+#: window self-heals: re-serializing the resource mints a fresh token, so this
+#: only caps how long an *already issued* token outlives the change. Kept
+#: comfortably longer than the routes' browser cache window so a still-cached
+#: image never 404s mid-cache.
+DEFAULT_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 @functools.cache
@@ -80,3 +95,62 @@ def verify_token(salt: str, value: object, token: str, *, max_age: int | None = 
         return _serializer(salt).loads(token, max_age=max_age) == value
     except BadData:
         return False
+
+
+@dataclass(frozen=True)
+class CapabilitySigner:
+    """A salt plus its token lifetime, bound together.
+
+    Each blob subsystem (activity thumbnails, activity media, user photos) needs
+    exactly the same pair of one-line wrappers around :func:`sign_token` and
+    :func:`verify_token`, differing only in the salt — and each was passing its
+    own copy of the max age on every verify, where forgetting it would silently
+    turn a bounded token into an eternal one. Pairing the two here means the
+    lifetime cannot be dropped at a call site.
+
+    Attributes:
+        salt: Namespaces this family of tokens; a token minted under one salt
+            never validates under another.
+        max_age_seconds: Oldest acceptable token age, applied by
+            :meth:`verify`.
+    """
+
+    salt: str
+    max_age_seconds: int = DEFAULT_TOKEN_MAX_AGE_SECONDS
+
+    def sign(self, value: object) -> str:
+        """Return a signed, URL-safe token binding ``value`` to this salt."""
+        return sign_token(self.salt, value)
+
+    def verify(self, value: object, token: str) -> bool:
+        """Return whether ``token`` authentically binds ``value`` and is unexpired."""
+        return verify_token(self.salt, value, token, max_age=self.max_age_seconds)
+
+
+def blob_url(area: str, key: str, *, local_path: str, token: str) -> str:
+    """Return a servable URL for a stored blob, however it is stored.
+
+    Object storage already issues presigned, expiring, ``<img>``-compatible URLs,
+    so those are used directly rather than round-tripping every blob through the
+    app. Local disk has no such concept, so the blob is served by a token-gated
+    route instead of a public static mount, and the capability travels as ``?t=``.
+
+    Falls back to the local route when the platform is not yet initialised
+    (``RuntimeError``), which is what keeps serialization working outside a
+    running app (tests, migrations).
+
+    Args:
+        area: The domain-owned storage namespace the blob lives under.
+        key: The stored storage key.
+        local_path: Route path serving the blob, relative to the API root.
+        token: The signed capability token for this blob.
+
+    Returns:
+        A servable URL.
+    """
+    if core_config.settings.resolved_storage_uri.startswith("s3"):
+        try:
+            return platform_runtime.get_active_platform().storage.url(area, key)
+        except RuntimeError:
+            pass
+    return f"{core_config.ROOT_PATH}{local_path}?t={token}"

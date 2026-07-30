@@ -14,6 +14,16 @@ import modules.followers.schema as followers_schema
 
 logger = core_logger.get_logger(__name__)
 
+# Key under which a request's resolved followee lists are memoized on the
+# session. ``Session.info`` is per-session storage and a session is per-request,
+# so the cache cannot outlive the request that filled it.
+_FOLLOWEE_CACHE_KEY = "followers.accepted_followee_ids"
+
+
+def _invalidate_followee_cache(db: Session) -> None:
+    """Drop the session's memoized followee lists after a write to the graph."""
+    db.info.pop(_FOLLOWEE_CACHE_KEY, None)
+
 
 def _transform_follower(follower: followers_models.Follower) -> followers_schema.FollowRelationship:
     """Convert a Follower ORM row into its serialized DTO."""
@@ -270,6 +280,14 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     This is the clean read interface the activities feed and visibility filter
     consume instead of reaching into the followers table directly.
 
+    Memoized on the session, which is per-request (``core.database.get_db``).
+    A single request asks this repeatedly for an answer that cannot change
+    underneath it: a paginated activity list resolves it once for the page and
+    again for the matching total, and an activity detail page asks once more per
+    child resource through the visibility gate. Any write to the graph clears
+    the cache (:func:`_invalidate_followee_cache`), so a request that accepts a
+    follow and then reads a feed still sees its own write.
+
     Args:
         user_id: The follower whose accepted followees to list.
         db: Database session.
@@ -280,11 +298,17 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     Raises:
         ProcessingError: If a database error occurs.
     """
+    cache: dict[int, list[int]] = db.info.setdefault(_FOLLOWEE_CACHE_KEY, {})
+    if user_id in cache:
+        return cache[user_id]
+
     stmt = select(followers_models.Follower.followee_id).where(
         followers_models.Follower.follower_id == user_id,
         followers_models.Follower.status == "accepted",
     )
-    return list(db.scalars(stmt).all())
+    followee_ids = list(db.scalars(stmt).all())
+    cache[user_id] = followee_ids
+    return followee_ids
 
 
 @core_decorators.handle_db_errors
@@ -330,15 +354,11 @@ def create_follower(
         status="pending",
     )
 
-    logger.debug(
-        "Creating a follow request",
-        extra=core_logger.context(follower_id=user_id, followee_id=target_user_id),
-    )
-
     try:
         db.add(new_follow)
         db.commit()
         db.refresh(new_follow)
+        _invalidate_followee_cache(db)
     except IntegrityError as err:
         # Kept rather than delegated: the decorator deliberately lets IntegrityError
         # through precisely so a caller can map it to its own semantics. The
@@ -393,11 +413,8 @@ def accept_follower(
     accept_follow.status = "accepted"
     db.commit()
     db.refresh(accept_follow)
+    _invalidate_followee_cache(db)
 
-    logger.debug(
-        "Accepted a follow request",
-        extra=core_logger.context(follower_id=target_user_id, followee_id=user_id),
-    )
     return _transform_follower(accept_follow)
 
 
@@ -430,7 +447,4 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
         raise core_exceptions.NotFoundError("Follower record not found")
 
     db.commit()
-    logger.debug(
-        "Deleted a follow relationship",
-        extra=core_logger.context(follower_id=user_id, followee_id=target_user_id),
-    )
+    _invalidate_followee_cache(db)

@@ -18,13 +18,6 @@ import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 
-# Re-export for backwards compatibility (migration_3.py calls
-# gpx_utils.generate_activity_laps directly).
-from modules.activities.activity_file_import.utils import (
-    LapMetrics,
-    generate_activity_laps,
-)
-
 logger = core_logger.get_logger(__name__)
 
 # Activity type IDs that do not use GPS-based timezone
@@ -132,7 +125,7 @@ class ParsedGpxData(TypedDict):
     cad_waypoints: list[dict]
     is_lat_lon_set: bool
     lat_lon_waypoints: list[dict]
-    laps: list[LapMetrics]
+    laps: list[activity_file_import_utils.LapMetrics]
 
 
 def _extension_local_name(tag: str) -> str:
@@ -621,7 +614,7 @@ def parse_gpx_file(
         laps = []
         for segment_waypoints in state.lat_lon_segments:
             laps.extend(
-                generate_activity_laps(
+                activity_file_import_utils.generate_activity_laps(
                     segment_waypoints,
                     state.ele_waypoints,
                     state.power_waypoints,

@@ -331,9 +331,8 @@ class TestLocalTimeBuckets:
     """
 
     @staticmethod
-    def _pg_db():
+    def _mock_db():
         db = MagicMock()
-        db.get_bind.return_value.dialect.name = "postgresql"
         row = MagicMock()
         row.day_of_week = 1
         row.week_number = 1
@@ -366,7 +365,7 @@ class TestLocalTimeBuckets:
     def test_weekly_summary_buckets_in_local_time(self):
         import modules.activities.activity_summaries.crud as crud
 
-        db = self._pg_db()
+        db = self._mock_db()
         crud.get_weekly_summary(db=db, user_id=1, target_date=date(2024, 1, 15))
 
         sql = self._emitted_sql(db)
@@ -376,7 +375,7 @@ class TestLocalTimeBuckets:
     def test_monthly_summary_buckets_in_local_time(self):
         import modules.activities.activity_summaries.crud as crud
 
-        db = self._pg_db()
+        db = self._mock_db()
         crud.get_monthly_summary(db=db, user_id=1, target_date=date(2024, 1, 1))
 
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
@@ -384,7 +383,7 @@ class TestLocalTimeBuckets:
     def test_yearly_summary_buckets_in_local_time(self):
         import modules.activities.activity_summaries.crud as crud
 
-        db = self._pg_db()
+        db = self._mock_db()
         crud.get_yearly_summary(db=db, user_id=1, year=2024)
 
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
@@ -392,7 +391,7 @@ class TestLocalTimeBuckets:
     def test_lifetime_summary_buckets_years_in_local_time(self):
         import modules.activities.activity_summaries.crud as crud
 
-        db = self._pg_db()
+        db = self._mock_db()
         crud.get_lifetime_summary(db=db, user_id=1)
 
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
@@ -401,7 +400,7 @@ class TestLocalTimeBuckets:
         """date.min/date.max must not be turned into date arithmetic that overflows."""
         import modules.activities.activity_summaries.crud as crud
 
-        db = self._pg_db()
+        db = self._mock_db()
         crud.get_lifetime_summary(db=db, user_id=1)
 
         assert "9999" not in self._emitted_sql(db)

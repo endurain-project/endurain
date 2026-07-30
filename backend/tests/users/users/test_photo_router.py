@@ -5,6 +5,7 @@ Profile photos were the most exposed of the three blob kinds: stored as
 ``2.png``, … enumerated the whole user base unauthenticated.
 """
 
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,7 +49,7 @@ class TestUserImageTokenSigning:
 
         import modules.users.users.signing as signing
 
-        monkeypatch.setattr(signing, "_TOKEN_MAX_AGE_SECONDS", 1)
+        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1))
         token = signing.sign_user_image_token(42)
         time.sleep(2.1)
 
@@ -56,33 +57,23 @@ class TestUserImageTokenSigning:
 
 
 class TestUserImageUrl:
-    def test_none_without_a_stored_key(self):
+    """URL shape only — the storage branching itself is covered in tests/core/test_signing.py."""
+
+    def test_no_key_means_no_url(self):
         from modules.users.users.signing import user_image_url
 
         assert user_image_url(None, 1) is None
-        assert user_image_url("", 1) is None
         assert user_image_url("1.png", None) is None
 
     @patch(f"{_SIGNING}.core_signing")
-    @patch(f"{_SIGNING}.core_config")
-    def test_local_is_a_signed_route(self, mock_config, mock_signing):
+    def test_addresses_the_photo_route_with_a_signed_token(self, mock_signing):
         from modules.users.users.signing import user_image_url
 
-        mock_config.settings.resolved_storage_uri = "local://"
-        mock_config.ROOT_PATH = "/api/v1"
-        mock_signing.sign_token.return_value = "tok"
+        mock_signing.blob_url.return_value = "/api/v1/users/1/photo?t=tok"
 
-        assert user_image_url("7.png", 7) == "/api/v1/users/7/photo?t=tok"
-
-    @patch(f"{_SIGNING}.platform_runtime")
-    @patch(f"{_SIGNING}.core_config")
-    def test_s3_uses_a_presigned_url(self, mock_config, mock_runtime):
-        from modules.users.users.signing import user_image_url
-
-        mock_config.settings.resolved_storage_uri = "s3://bucket"
-        mock_runtime.get_active_platform.return_value.storage.url.return_value = "https://cdn/7.png"
-
-        assert user_image_url("7.png", 7) == "https://cdn/7.png"
+        assert user_image_url("1.png", 1) == "/api/v1/users/1/photo?t=tok"
+        assert mock_signing.blob_url.call_args.args[:2] == ("user_images", "1.png")
+        assert mock_signing.blob_url.call_args.kwargs["local_path"] == "/users/1/photo"
 
 
 class TestReadUserPhoto:

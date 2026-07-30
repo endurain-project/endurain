@@ -326,7 +326,6 @@ def get_completed_fasting_dates_by_user_id(user_id: int, db: Session) -> list[da
     fast_date = health_utils.local_date_expression(
         health_fasting_models.HealthFasting.fast_start_time,
         users_utils.resolve_user_timezone(user_id, db),
-        db,
     )
     stmt = (
         select(fast_date)

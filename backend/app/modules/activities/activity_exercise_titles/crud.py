@@ -117,10 +117,6 @@ def create_activity_exercise_titles(
     try:
         db.add_all(new_entries)
         db.commit()
-        logger.debug(
-            "Inserted new activity exercise titles",
-            extra=core_logger.context(inserted=len(new_entries), skipped=len(incoming_keys) - len(new_entries)),
-        )
     except IntegrityError as integrity_error:
         db.rollback()
         logger.warning(

@@ -8,6 +8,7 @@ from tests._helpers.db import create_sqlite_session, setup_mock_execute
 from tests._helpers.models import mock_model
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.query as activities_query
 
 
 class TestGetUserActivities:
@@ -1716,40 +1717,22 @@ class TestLocalTimeBucketing:
     """
 
     @staticmethod
-    def _pg_db():
-        db = MagicMock()
-        db.get_bind.return_value.dialect.name = "postgresql"
-        return db
-
-    @staticmethod
     def _sql(expr):
         from sqlalchemy.dialects import postgresql
 
         return str(expr.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
 
     def test_expression_converts_through_activity_timezone(self):
-        import modules.activities.activity.crud as crud
-
-        sql = self._sql(crud.local_start_time_expression(self._pg_db()))
+        sql = self._sql(activities_query.local_start_time_expression())
 
         assert "timezone(" in sql
         assert "coalesce(activities.timezone, 'UTC')" in sql
         assert "activities.start_time" in sql
 
-    def test_falls_back_to_raw_column_off_postgres(self):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        db = MagicMock()
-        db.get_bind.return_value.dialect.name = "sqlite"
-
-        assert crud.local_start_time_expression(db) is am.Activity.start_time
-
     def test_inclusive_end_covers_the_whole_end_day(self):
-        import modules.activities.activity.crud as crud
 
-        conditions = crud.local_date_range_conditions(
-            self._pg_db(), date(2024, 5, 1), date(2024, 5, 31), end_exclusive=False
+        conditions = activities_query.local_date_range_conditions(
+            date(2024, 5, 1), date(2024, 5, 31), end_exclusive=False
         )
         sql = " ".join(self._sql(c) for c in conditions)
 
@@ -1758,10 +1741,9 @@ class TestLocalTimeBucketing:
         assert "'2024-05-01 00:00:00'" in sql
 
     def test_exclusive_end_uses_the_end_date_itself(self):
-        import modules.activities.activity.crud as crud
 
-        conditions = crud.local_date_range_conditions(
-            self._pg_db(), date(2024, 5, 1), date(2024, 6, 1), end_exclusive=True
+        conditions = activities_query.local_date_range_conditions(
+            date(2024, 5, 1), date(2024, 6, 1), end_exclusive=True
         )
         sql = " ".join(self._sql(c) for c in conditions)
 
@@ -1769,10 +1751,9 @@ class TestLocalTimeBucketing:
 
     def test_pairs_an_indexable_prefilter_with_the_exact_predicate(self):
         """The functional expression is unindexable, so a widened raw-column bound rides along."""
-        import modules.activities.activity.crud as crud
 
-        conditions = crud.local_date_range_conditions(
-            self._pg_db(), date(2024, 5, 1), date(2024, 5, 1), end_exclusive=True
+        conditions = activities_query.local_date_range_conditions(
+            date(2024, 5, 1), date(2024, 5, 1), end_exclusive=True
         )
         sql = [self._sql(c) for c in conditions]
 
@@ -1786,11 +1767,10 @@ class TestLocalTimeBucketing:
         assert "'2024-05-01 14:00:00+00:00'" in prefilters[1]
 
     def test_open_ended_bounds_emit_no_conditions(self):
-        import modules.activities.activity.crud as crud
 
-        assert crud.local_date_range_conditions(self._pg_db(), None, None, end_exclusive=False) == []
-        assert len(crud.local_date_range_conditions(self._pg_db(), date(2024, 5, 1), None, end_exclusive=False)) == 2
-        assert len(crud.local_date_range_conditions(self._pg_db(), None, date(2024, 5, 1), end_exclusive=False)) == 2
+        assert activities_query.local_date_range_conditions(None, None, end_exclusive=False) == []
+        assert len(activities_query.local_date_range_conditions(date(2024, 5, 1), None, end_exclusive=False)) == 2
+        assert len(activities_query.local_date_range_conditions(None, date(2024, 5, 1), end_exclusive=False)) == 2
 
 
 class TestSumGearUsageByWindow:

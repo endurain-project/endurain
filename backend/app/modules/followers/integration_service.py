@@ -29,6 +29,11 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     The read the activities feed and the non-owner visibility filter are built
     on, so the activities module never touches the followers table itself.
 
+    Memoized for the life of the session by the CRUD layer: one request asks this
+    repeatedly — a paginated list resolves it once for the page and again for the
+    total, and an activity detail page asks once per child resource through the
+    visibility gate.
+
     Args:
         user_id: The follower whose accepted followees to list.
         db: Database session.
