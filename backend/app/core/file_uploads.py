@@ -5,6 +5,8 @@ All file uploads in the backend MUST go through this module:
 - :func:`validate_upload` — content-type-aware validation (no write).
 - :func:`save_validated_upload` — validate + persist to disk
   (optionally streamed for large files).
+- :func:`save_validated_upload_sync` / :func:`validate_local_file_sync` —
+  synchronous variants for sync FastAPI routes and threadpool workers.
 - :data:`file_validator` — single shared :class:`FileValidator` instance.
 
 The unified pipeline gives every upload the same defenses:
@@ -25,9 +27,10 @@ import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from enum import StrEnum
 from pathlib import Path, PureWindowsPath
+from typing import Any
 
 import aiofiles
 import aiofiles.os
@@ -258,6 +261,61 @@ async def validate_local_file(
             await validate_upload(wrapped, kind=kind)
         finally:
             await wrapped.close()
+
+
+# ---------------------------------------------------------------------------
+# Synchronous entry points (for sync FastAPI routes + threadpool workers)
+# ---------------------------------------------------------------------------
+
+
+def _run_validator_sync(coro: Coroutine[Any, Any, None]) -> None:
+    """Drive an async validator coroutine to completion synchronously.
+
+    The safeuploads validators are async, but sync callers — a synchronous
+    FastAPI route (Starlette runs it on a threadpool worker) or the bulk-import
+    ``ThreadPoolExecutor`` — have no running event loop. A private loop is created
+    for the duration of validation via :func:`asyncio.run`.
+
+    Must **not** be called from the main async thread (``asyncio.run`` refuses to
+    run inside an already-running loop); use the ``async`` entry points there.
+
+    Args:
+        coro: The validator coroutine to run (e.g. ``validate_upload(...)``).
+
+    Returns:
+        None.
+
+    Raises:
+        HTTPException: Whatever the wrapped validator raises.
+    """
+    asyncio.run(coro)
+
+
+def validate_local_file_sync(
+    path: str | os.PathLike,
+    *,
+    kind: UploadKind,
+    filename: str | None = None,
+) -> None:
+    """Synchronous counterpart of :func:`validate_local_file`.
+
+    Validates a file already on disk (e.g. the inner payload after decompressing a
+    ``.gz`` activity) from a synchronous context. Runs the shared safeuploads
+    validator to completion on a private event loop.
+
+    Args:
+        path: Filesystem path of the file to validate.
+        kind: Logical content type to validate against.
+        filename: Optional logical filename used for filename and extension
+            checks. Defaults to ``os.path.basename(path)``.
+
+    Raises:
+        HTTPException: As :func:`validate_upload`.
+    """
+    actual_filename = filename or os.path.basename(os.fspath(path))
+    with open(path, "rb") as fh:
+        wrapped = UploadFile(file=fh, filename=actual_filename)
+        _run_validator_sync(validate_upload(wrapped, kind=kind))
 
 
 # ---------------------------------------------------------------------------
@@ -567,6 +625,63 @@ async def save_validated_upload(
     except Exception as err:
         core_logger.print_to_log(
             f"Error in save_validated_upload: {type(err).__name__}",
+            "error",
+            exc=err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "message": "Failed to save file",
+                "code": "FILE_SAVE_FAILED",
+            },
+        ) from err
+
+
+def save_validated_upload_sync(
+    file: UploadFile,
+    *,
+    kind: UploadKind,
+    upload_dir: str,
+    filename: str,
+) -> str:
+    """Synchronous counterpart of :func:`save_validated_upload`.
+
+    For synchronous FastAPI routes (Starlette runs them on a threadpool worker)
+    and other sync contexts. Validates the upload with the shared safeuploads
+    validator, then streams it to ``upload_dir/filename`` with the synchronous
+    streaming writer (``.part``-then-rename, size-capped) — the same defenses as
+    the async path, without touching the event loop.
+
+    Content validation runs on a private event loop (:func:`_run_validator_sync`),
+    so this must be called from a thread with **no** running loop. Use
+    :func:`save_validated_upload` from async code.
+
+    Args:
+        file: Incoming FastAPI UploadFile.
+        kind: Logical content type, drives validator + size cap.
+        upload_dir: Trusted destination directory.
+        filename: **Server-generated** filename within ``upload_dir``. Must not
+            contain path separators; verified by :func:`_resolve_upload_path`.
+
+    Returns:
+        Absolute filesystem path of the saved file.
+
+    Raises:
+        HTTPException: 400/413/500 depending on the failure mode.
+    """
+    # Validate first; safeuploads rewinds the stream on success.
+    _run_validator_sync(validate_upload(file, kind=kind))
+
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+        destination = _resolve_upload_path(upload_dir, filename)
+        _stream_to_path_sync(file, destination, _max_bytes_for(kind))
+        return str(destination)
+    except HTTPException:
+        raise
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in save_validated_upload_sync: {type(err).__name__}",
             "error",
             exc=err,
         )
@@ -1131,6 +1246,26 @@ def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
             },
         ) from err
     return resolved
+
+
+def ensure_within(path: str | os.PathLike, base_dir: str | os.PathLike) -> Path:
+    """Resolve ``path`` and verify it is contained under ``base_dir``.
+
+    Public containment guard for callers that receive a filesystem path from
+    an untrusted or replayable source (e.g. a durable-job payload) and must
+    confirm it has not escaped a trusted base directory before using it.
+
+    Args:
+        path: Filesystem path to verify.
+        base_dir: Trusted base directory.
+
+    Returns:
+        The resolved path, guaranteed to be inside ``base_dir``.
+
+    Raises:
+        HTTPException: 400 when the resolved path escapes ``base_dir``.
+    """
+    return _resolve_within(path, Path(os.fspath(base_dir)).resolve())
 
 
 def move_within(

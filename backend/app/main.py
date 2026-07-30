@@ -27,17 +27,19 @@ import core.migrations as core_migrations
 import core.network as core_network
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
+import infra.async_bridge as platform_async_bridge
 import infra.capabilities as platform_capabilities
 import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
-import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
+import modules.activities.subscriber_registry as activity_subscriber_registry
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
+import modules.followers.subscribers as followers_subscribers
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.garmin.health_utils as garmin_health_utils
 import modules.server_settings.schema as server_settings_schema
@@ -148,6 +150,26 @@ def _generate_missing_thumbnails() -> None:
     core_scheduler.schedule_missing_thumbnail_generation()
 
 
+def _backfill_missing_hr_zones() -> None:
+    """Queue HR-zone backfill for streams missing zone percentages.
+
+    Schedules a one-shot job on the background scheduler (the reconciliation net
+    for the activity.created HR-zone subscriber) instead of running the backfill
+    inline, so it cannot block lifespan startup.
+    """
+    core_scheduler.schedule_missing_hr_zone_backfill()
+
+
+def _backfill_missing_locations() -> None:
+    """Queue reverse-geocoding backfill for activities missing a location.
+
+    Schedules a one-shot job on the background scheduler (the reconciliation net
+    for the activity.created geocoding subscriber) instead of running the
+    network-bound backfill inline, so it cannot block lifespan startup.
+    """
+    core_scheduler.schedule_missing_location_backfill()
+
+
 def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
     """Populate ``app.state.allowed_tile_domains`` for CSP.
 
@@ -250,16 +272,23 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # that has no request can resolve providers via infra.runtime.
     platform_runtime.set_active_platform(platform)
 
-    # Register domain subscribers before starting the bus. The thumbnail
-    # subsystem is the first real consumer of the substrate (foundations §13),
-    # reacting to both activity.created and activity.deleted.
-    activity_thumbnail_subscribers.register_thumbnail_subscribers(platform.events)
+    # Capture the running event loop so synchronous code (sync routes in the
+    # threadpool, in-process event subscribers) can dispatch async I/O — e.g. a
+    # websocket push — back onto it via infra.async_bridge.
+    platform_async_bridge.capture_running_loop()
 
-    # Also register the thumbnail handlers as durable job subscribers. Harmless
-    # when durable jobs are off (the registry is simply not consulted); when on,
-    # the outbox relay fans activity events out into retryable per-subscriber
-    # jobs run by the worker instead of the inline bus path.
-    activity_thumbnail_subscribers.register_thumbnail_durable_handlers(jobs_registry.registry)
+    # Register every activities event-bus subscriber before starting the bus, and
+    # every activities durable-job handler on the registry — both via the single
+    # shared surface in activities.subscriber_registry so the API and the standalone
+    # worker can never drift. The bus subscribers (thumbnail, notification,
+    # HR-zone, geocoding) react to activity.created / activity.deleted; the durable
+    # handlers are the same set keyed by stable subscriber id (harmless when durable
+    # jobs are off, retryable per-subscriber when on). Each durable subscriber that
+    # writes durable derived state declares a reconciliation net (scheduled backfill)
+    # in that module.
+    activity_subscriber_registry.register_all_activity_bus_subscribers(platform.events)
+    activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
+    followers_subscribers.register_follower_notification_subscribers(platform.events)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -328,6 +357,12 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     core_logger.print_to_log_and_console("Scheduling missing activity map thumbnail generation")
     _safe_run("generate_missing_thumbnails", _generate_missing_thumbnails)
 
+    core_logger.print_to_log_and_console("Scheduling missing HR-zone backfill")
+    _safe_run("backfill_missing_hr_zones", _backfill_missing_hr_zones)
+
+    core_logger.print_to_log_and_console("Scheduling missing activity location backfill")
+    _safe_run("backfill_missing_locations", _backfill_missing_locations)
+
     core_logger.print_to_log_and_console("Initializing allowed tile domains for Content Security Policy")
     _init_allowed_tile_domains(fastapi_app)
 
@@ -357,6 +392,9 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     jobs_service.stop_job_worker()
 
     core_scheduler.stop_scheduler()
+
+    # Clear the captured event loop; nothing may dispatch onto it after shutdown.
+    platform_async_bridge.set_main_loop(None)
 
     # Dispose the SQLAlchemy engine so all pooled
     # psycopg connections are closed deterministically.
@@ -496,11 +534,11 @@ def create_app() -> FastAPI:
         StaticFiles(directory=core_config.settings.ACTIVITY_MEDIA_DIR),
         name="activity_media",
     )
-    fastapi_app.mount(
-        f"/{core_config.settings.ACTIVITY_THUMBNAILS_DIR}",
-        StaticFiles(directory=core_config.settings.ACTIVITY_THUMBNAILS_DIR),
-        name="activity_thumbnails",
-    )
+    # NOTE: activity thumbnails are intentionally NOT mounted as public static
+    # files. They are served by the token-gated route in
+    # modules.activities.activity_thumbnail.router, so the blobs are only
+    # reachable with a valid signed URL (visibility-masked per viewer) rather
+    # than at a guessable public path.
 
     # Router files
     fastapi_app.include_router(api_router)

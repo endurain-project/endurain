@@ -49,7 +49,7 @@ export function useUserActivitiesFeed(
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.userFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchUserActivities(id.value, pageParam, pageSize, signal),
+    queryFn: ({ pageParam, signal }) => fetchUserActivities(pageParam, pageSize, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
       lastPage.length < pageSize ? undefined : lastPageParam + 1,
@@ -106,8 +106,7 @@ export function useFollowersActivitiesFeed(
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) =>
-      fetchFollowersActivities(id.value, pageParam, pageSize, signal),
+    queryFn: ({ pageParam, signal }) => fetchFollowersActivities(pageParam, pageSize, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
       lastPage.length < pageSize ? undefined : lastPageParam + 1,

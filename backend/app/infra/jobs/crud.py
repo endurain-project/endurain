@@ -12,7 +12,7 @@ import uuid
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -416,6 +416,50 @@ def _age_seconds(moment: datetime | None, now: datetime) -> float | None:
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=UTC)
     return (now - moment).total_seconds()
+
+
+# Rows deleted per batch when pruning; bounded so each delete transaction stays
+# short and never blocks the worker/relay for long.
+_PRUNE_BATCH_SIZE = 1000
+_PRUNE_MAX_BATCHES = 10_000
+
+
+def delete_completed_jobs_before(cutoff: datetime, *, db: Session, batch_size: int = _PRUNE_BATCH_SIZE) -> int:
+    """
+    Delete ``completed`` jobs older than ``cutoff``, in bounded batches.
+
+    Only terminal ``completed`` rows are pruned. In-flight rows (``pending`` /
+    ``claimed``) are never touched, and ``dead_letter`` rows are deliberately kept
+    for operator review (they are rare and human-actionable). Rows whose
+    ``completed_at`` is older than the retention window are removed; the relayed
+    outbox row won't re-create them (idempotent fan-out), so this is safe.
+
+    Args:
+        cutoff: Delete rows whose ``completed_at`` is strictly before this instant.
+        db: Active database session.
+        batch_size: Maximum rows deleted per batch.
+
+    Returns:
+        The total number of rows deleted.
+    """
+    total = 0
+    for _ in range(_PRUNE_MAX_BATCHES):
+        id_stmt = (
+            select(ProcessingJob.id)
+            .where(ProcessingJob.status == STATUS_COMPLETED, ProcessingJob.completed_at < cutoff)
+            .limit(batch_size)
+        )
+        if db.bind is not None and db.bind.dialect.name == "postgresql":
+            id_stmt = id_stmt.with_for_update(skip_locked=True)  # pragma: no cover - Postgres-only path
+        ids = list(db.execute(id_stmt).scalars().all())
+        if not ids:
+            break
+        db.execute(delete(ProcessingJob).where(ProcessingJob.id.in_(ids)))
+        db.commit()
+        total += len(ids)
+        if len(ids) < batch_size:
+            break
+    return total
 
 
 def _insert_ignoring_duplicate(values: dict, db: Session):

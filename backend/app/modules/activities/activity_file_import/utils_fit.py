@@ -4,46 +4,33 @@ from zoneinfo import ZoneInfo, available_timezones
 
 import fitdecode
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
-import modules.garmin.utils as garmin_utils
-import modules.gears.gear.crud as gears_crud
-import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
 
 
 def create_activity_objects(
-    sessions_records: dict,
+    sessions_records: list[dict],
     user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
-    garmin_activity_id: int | None = None,
-    garminconnect_gear: dict | None = None,
-    db: Session = None,
 ) -> list:
+    """Build per-activity parsed payloads from the split FIT session records.
+
+    Pure: derives everything from the FIT bytes. Privacy defaults, gear, and the
+    Garmin provider ids are re-attached later by the ``activity_ingestion``
+    enrichment seam.
+    """
     try:
+        core_logger.print_to_log(
+            f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}",
+            "debug",
+        )
         timezone = core_config.settings.TZ
-
-        # Define variables
-        gear_id = None
-
-        if garminconnect_gear:
-            user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(user_id, db)
-
-            if user_integrations.garminconnect_sync_gear:
-                # set the gear id for the activity
-                gear = gears_crud.get_gear_by_garminconnect_id_from_user_id(garminconnect_gear[0]["uuid"], user_id, db)
-
-                # set the gear id for the activity
-                if gear is not None:
-                    gear_id = gear.id
 
         activities = []
 
@@ -55,10 +42,7 @@ def create_activity_objects(
 
             if session_record["session"]["activity_type"]:
                 # Set the activity type based on the session record
-                activity_type = activities_utils.define_activity_type(session_record["session"]["activity_type"])
-
-                if gear_id is None:
-                    gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
+                activity_type = activities_constants.define_activity_type(session_record["session"]["activity_type"])
 
             if session_record["activity_name"] and session_record["activity_name"] != "Workout":
                 activity_name = session_record["activity_name"]
@@ -114,15 +98,13 @@ def create_activity_objects(
                 if np_power is None:
                     np_power = calc_np
 
-            privacy_kwargs = activity_file_import_utils.build_activity_privacy_kwargs(user_privacy_settings)
-
             # Recompute avg/max HR from waypoints, excluding zeros (zero is not a
             # valid HR value — it means the sensor was disconnected). This overrides
             # the device-computed session value which may include zero-readings.
             session_avg_hr = session_record["session"]["avg_hr"]
             session_max_hr = session_record["session"]["max_hr"]
             if session_record.get("hr_waypoints"):
-                recomputed_avg, recomputed_max = activities_utils.calculate_avg_and_max(
+                recomputed_avg, recomputed_max = activities_computation.calculate_avg_and_max(
                     session_record["hr_waypoints"],
                     "hr",
                 )
@@ -141,7 +123,7 @@ def create_activity_objects(
                 # pace is s/m (moving_time / distance); invert to m/s.
                 avg_speed = 1 / pace
             if (avg_speed is None or max_speed is None) and session_record["vel_waypoints"]:
-                vel_avg, vel_max = activities_utils.calculate_avg_and_max(
+                vel_avg, vel_max = activities_computation.calculate_avg_and_max(
                     session_record["vel_waypoints"],
                     "vel",
                 )
@@ -155,7 +137,7 @@ def create_activity_objects(
             avg_cadence = session_record["session"]["avg_cadence"]
             max_cadence = session_record["session"]["max_cadence"]
             if (avg_cadence is None or max_cadence is None) and session_record["cad_waypoints"]:
-                cad_avg, cad_max = activities_utils.calculate_avg_and_max(
+                cad_avg, cad_max = activities_computation.calculate_avg_and_max(
                     session_record["cad_waypoints"],
                     "cad",
                 )
@@ -169,7 +151,7 @@ def create_activity_objects(
             ele_gain = session_record["session"]["ele_gain"]
             ele_loss = session_record["session"]["ele_loss"]
             if (ele_gain is None or ele_loss is None) and session_record["ele_waypoints"]:
-                computed_gain, computed_loss = activities_utils.compute_elevation_gain_and_loss(
+                computed_gain, computed_loss = activities_computation.compute_elevation_gain_and_loss(
                     elevations=session_record["ele_waypoints"],
                 )
                 if ele_gain is None and computed_gain:
@@ -177,7 +159,7 @@ def create_activity_objects(
                 if ele_loss is None and computed_loss:
                     ele_loss = round(computed_loss)
 
-            activity = activities_schema.Activity(
+            activity = activities_schema.ActivityCore(
                 user_id=user_id,
                 name=activity_name,
                 distance=(round(resolved_distance) if resolved_distance else 0),
@@ -205,18 +187,14 @@ def create_activity_objects(
                 workout_feeling=session_record["session"]["workout_feeling"],
                 workout_rpe=session_record["session"]["workout_rpe"],
                 calories=session_record["session"]["calories"],
-                gear_id=gear_id,
                 strava_gear_id=None,
                 strava_activity_id=None,
-                garminconnect_activity_id=garmin_activity_id,
-                garminconnect_gear_id=(garminconnect_gear[0]["uuid"] if garminconnect_gear else None),
                 tracker_manufacturer=(
                     str(manufacturer)
                     if (manufacturer := session_record["file_id"].get("manufacturer")) is not None
                     else None
                 ),
                 tracker_model=(str(model) if (model := session_record["file_id"].get("product")) is not None else None),
-                **privacy_kwargs,
                 total_cycles=session_record["session"]["total_cycles"],
             )
 
@@ -243,6 +221,10 @@ def create_activity_objects(
 
             activities.append(parsed_activity)
 
+        core_logger.print_to_log(
+            f"FIT: built {len(activities)} activity object(s) for user={user_id}",
+            "debug",
+        )
         return activities
     except HTTPException as http_err:
         raise http_err
@@ -256,7 +238,7 @@ def create_activity_objects(
         ) from err
 
 
-def split_records_by_activity(parsed_data: dict) -> dict:
+def split_records_by_activity(parsed_data: dict) -> list[dict]:
     sessions = parsed_data["sessions"]
     lat_lon_waypoints = parsed_data["lat_lon_waypoints"]
     ele_waypoints = parsed_data.get("ele_waypoints", [])
@@ -277,7 +259,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
     is_temperature_set = parsed_data.get("is_temperature_set", False)
 
     # Dictionary to hold split waypoints per activity
-    activity_waypoints = {
+    activity_waypoints: dict[int, dict[str, list[dict] | None]] = {
         i: {
             "lat_lon_waypoints": [] if is_lat_lon_set else None,
             "ele_waypoints": [] if is_elevation_set else None,
@@ -291,7 +273,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
         for i in range(len(sessions))
     }
 
-    sessions_records = []
+    sessions_records: list[dict] = []
 
     # Convert session times to datetime objects for easier comparison
     for i, session in enumerate(sessions):
@@ -385,15 +367,6 @@ def split_records_by_activity(parsed_data: dict) -> dict:
                 ):
                     parsed_session["session"]["initial_latitude"] = filtered["lat_lon_waypoints"][0]["lat"]
                     parsed_session["session"]["initial_longitude"] = filtered["lat_lon_waypoints"][0]["lon"]
-
-                # Use geocoding API to get city, town, and country
-                location_data = activity_file_import_utils.resolve_location(
-                    session["initial_latitude"], session["initial_longitude"]
-                )
-                if location_data:
-                    parsed_session["session"]["city"] = location_data["city"]
-                    parsed_session["session"]["town"] = location_data["town"]
-                    parsed_session["session"]["country"] = location_data["country"]
 
         if is_elevation_set:
             activity_waypoints[i]["ele_waypoints"] = filtered["ele_waypoints"]
@@ -522,6 +495,7 @@ class FitParseState:
             "intraday_steps": self.intraday_steps,
             "intraday_heart_rate": self.intraday_heart_rate,
             "resting_heart_rate": self.resting_heart_rate,
+            "exercise_titles": self.exercises_titles,
         }
 
 
@@ -573,12 +547,6 @@ def _handle_session_frame(frame, state: FitParseState) -> None:
     ) = parse_frame_session(frame)
 
     city, town, country = None, None, None
-    if initial_latitude is not None and initial_longitude is not None:
-        location_data = activity_file_import_utils.resolve_location(initial_latitude, initial_longitude)
-        if location_data:
-            city = location_data["city"]
-            town = location_data["town"]
-            country = location_data["country"]
 
     state.sessions.append(
         {
@@ -665,7 +633,7 @@ def _handle_record_frame(frame, state: FitParseState) -> None:
         and longitude is not None
         and state.prev_longitude is not None
     ):
-        instant_speed = activities_utils.calculate_instant_speed(
+        instant_speed = activities_computation.calculate_instant_speed(
             state.last_waypoint_time,
             time,
             latitude,
@@ -685,13 +653,13 @@ def _handle_record_frame(frame, state: FitParseState) -> None:
         state.lat_lon_waypoints.append({"time": timestamp, "lat": latitude, "lon": longitude})
         state.is_lat_lon_set = True
 
-    activities_utils.append_if_not_none(state.ele_waypoints, timestamp, elevation, "ele")
-    activities_utils.append_if_not_none(state.hr_waypoints, timestamp, heart_rate, "hr")
-    activities_utils.append_if_not_none(state.cad_waypoints, timestamp, cadence, "cad")
-    activities_utils.append_if_not_none(state.power_waypoints, timestamp, power, "power")
-    activities_utils.append_if_not_none(state.vel_waypoints, timestamp, instant_speed, "vel")
-    activities_utils.append_if_not_none(state.pace_waypoints, timestamp, instant_pace, "pace")
-    activities_utils.append_if_not_none(state.temp_waypoints, timestamp, temperature, "temp")
+    activities_computation.append_if_not_none(state.ele_waypoints, timestamp, elevation, "ele")
+    activities_computation.append_if_not_none(state.hr_waypoints, timestamp, heart_rate, "hr")
+    activities_computation.append_if_not_none(state.cad_waypoints, timestamp, cadence, "cad")
+    activities_computation.append_if_not_none(state.power_waypoints, timestamp, power, "power")
+    activities_computation.append_if_not_none(state.vel_waypoints, timestamp, instant_speed, "vel")
+    activities_computation.append_if_not_none(state.pace_waypoints, timestamp, instant_pace, "pace")
+    activities_computation.append_if_not_none(state.temp_waypoints, timestamp, temperature, "temp")
 
     state.prev_latitude = latitude
     state.prev_longitude = longitude
@@ -738,8 +706,9 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
         state.resting_heart_rate = parse_frame_monitoring_hr_data(frame)
 
 
-def parse_fit_file(file: str, db: Session, activity_name_input: str | None = None) -> dict:
+def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
     try:
+        core_logger.print_to_log(f"FIT parse start: file={file}", "debug")
         state = FitParseState(
             activity_name=activity_name_input or "Workout",
         )
@@ -750,9 +719,10 @@ def parse_fit_file(file: str, db: Session, activity_name_input: str | None = Non
                 if isinstance(frame, fitdecode.FitDataMessage):
                     _dispatch_data_message(frame, state, fit_data.last_timestamp)
 
-        if state.exercises_titles:
-            activity_exercise_titles_crud.create_activity_exercise_titles(state.exercises_titles, db)
-
+        core_logger.print_to_log(
+            f"FIT parse complete: file={file}, exercise_titles={len(state.exercises_titles)}",
+            "debug",
+        )
         return state.to_payload()
     except HTTPException as http_err:
         raise http_err

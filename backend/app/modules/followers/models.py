@@ -2,39 +2,48 @@
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from core.database import Base
+from core.database import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from modules.users.users.models import Users
 
 
-class Follower(Base):
+class Follower(Base, TimestampMixin):
     """Follow relationship between two users."""
 
     __tablename__ = "followers"
+    __table_args__ = (UniqueConstraint("follower_id", "followee_id", name="uq_followers_follower_followee"),)
 
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+        index=True,
+    )
     follower_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        primary_key=True,
-        index=True,
-        comment="ID of the follower user",
-    )
-    following_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
-        primary_key=True,
-        index=True,
-        comment="ID of the following user",
-    )
-    is_accepted: Mapped[bool] = mapped_column(
         nullable=False,
-        default=False,
-        comment="Whether the follow request is accepted or not",
+        index=True,
+        comment="ID of the follower user (the requester)",
+    )
+    followee_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="ID of the followee user (the target being followed)",
+    )
+    status: Mapped[str] = mapped_column(
+        String(length=20),
+        nullable=False,
+        default="pending",
+        server_default="pending",
+        comment="Follow request status: pending or accepted",
     )
 
-    # Define a relationship to the Users model
-    follower: Mapped["Users"] = relationship(foreign_keys=[follower_id], back_populates="followers")
-    # Define a relationship to the Users model
-    following: Mapped["Users"] = relationship(foreign_keys=[following_id], back_populates="following")
+    # Relationships to the Users model. Defined for completeness and ORM-level
+    # cascade on user deletion; the module queries by explicit columns rather
+    # than navigating these.
+    follower: Mapped["Users"] = relationship(foreign_keys=[follower_id], back_populates="following")
+    followee: Mapped["Users"] = relationship(foreign_keys=[followee_id], back_populates="followers")

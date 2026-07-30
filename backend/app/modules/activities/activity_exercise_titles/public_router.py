@@ -16,7 +16,7 @@ router = APIRouter()
     "/all",
     response_model=list[activity_exercise_titles_schema.ActivityExerciseTitles] | None,
 )
-async def read_public_activities_exercise_titles_all(
+def read_public_activities_exercise_titles_all(
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[activity_exercise_titles_schema.ActivityExerciseTitles] | None:
     """

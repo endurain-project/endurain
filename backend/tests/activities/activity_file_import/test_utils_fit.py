@@ -1,7 +1,6 @@
 """Tests for FIT activity file import utilities."""
 
 from datetime import UTC, datetime
-from types import SimpleNamespace
 
 import modules.activities.activity_file_import.utils_fit as utils_fit
 
@@ -14,30 +13,6 @@ class _MockFrame:
 
     def get_value(self, key, default=None):
         return self._values.get(key, default)
-
-
-def _privacy_settings() -> SimpleNamespace:
-    """
-    Build privacy settings for parser tests.
-
-    Returns:
-        Object with the attributes expected by privacy kwarg builder.
-    """
-    return SimpleNamespace(
-        default_activity_visibility="public",
-        hide_activity_start_time=False,
-        hide_activity_location=False,
-        hide_activity_map=False,
-        hide_activity_hr=False,
-        hide_activity_power=False,
-        hide_activity_cadence=False,
-        hide_activity_elevation=False,
-        hide_activity_speed=False,
-        hide_activity_pace=False,
-        hide_activity_laps=False,
-        hide_activity_workout_sets_steps=False,
-        hide_activity_gear=False,
-    )
 
 
 def _session_record(manufacturer, product=None) -> dict:
@@ -111,7 +86,6 @@ class TestUtilsFit:
         activities = utils_fit.create_activity_objects(
             [_session_record(339)],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert len(activities) == 1
@@ -122,7 +96,6 @@ class TestUtilsFit:
         activities = utils_fit.create_activity_objects(
             [_session_record(None)],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert activities[0]["activity"].tracker_manufacturer is None
@@ -132,7 +105,6 @@ class TestUtilsFit:
         activities = utils_fit.create_activity_objects(
             [_session_record(None, product=4567)],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert activities[0]["activity"].tracker_model == "4567"
@@ -142,7 +114,6 @@ class TestUtilsFit:
         activities = utils_fit.create_activity_objects(
             [_session_record(None, product=None)],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert activities[0]["activity"].tracker_model is None
@@ -163,7 +134,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -183,7 +153,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -204,7 +173,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -222,7 +190,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -242,7 +209,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -263,7 +229,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -292,7 +257,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -315,7 +279,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -328,7 +291,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [_session_record(None)],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -345,7 +307,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -365,7 +326,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         activity = activities_list[0]["activity"]
@@ -383,7 +343,6 @@ class TestUtilsFit:
         activities_list = utils_fit.create_activity_objects(
             [record],
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
         )
 
         assert activities_list[0]["activity"].distance == 5000

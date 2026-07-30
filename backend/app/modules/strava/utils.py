@@ -9,7 +9,7 @@ from stravalib.exc import Fault as StravaFault
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
 import modules.users.users.crud as users_crud
 import modules.users.users_integrations.crud as user_integrations_crud
@@ -224,7 +224,7 @@ def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = Fals
 
 def fetch_and_validate_activity(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
     # Get the activity by Strava ID from the user
-    activity_db = activities_crud.get_activity_by_strava_id_from_user_id(activity_id, user_id, db)
+    activity_db = activities_integration.get_activity_by_strava_id(activity_id, user_id, db)
 
     # Check if activity is None
     if activity_db:

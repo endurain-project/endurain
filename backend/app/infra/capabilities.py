@@ -5,7 +5,7 @@ clock) is wired for a human-readable startup log, and detects fatal
 inconsistencies — a deployment that *requires* a shared backend but resolves
 one to a process- or node-local implementation.
 
-Two consistency rules are enforced (see the foundations plan §9.2):
+Two consistency rules are enforced:
 
 - **Cross-process backends** — ephemeral *state* (rate-limit, auth-security,
   MFA, websocket tickets) and the *event* bus — must not resolve to

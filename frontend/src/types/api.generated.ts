@@ -85,7 +85,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/create/bulkimport": {
+    "/api/v1/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Own Activities
+         * @description List the authenticated user's activities.
+         */
+        get: operations["list_own_activities_api_v1_activities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/bulk-import": {
         parameters: {
             query?: never;
             header?: never;
@@ -95,14 +115,159 @@ export interface paths {
         get?: never;
         put?: never;
         /** Create Activity With Bulk Import */
-        post: operations["create_activity_with_bulk_import_api_v1_activities_create_bulkimport_post"];
+        post: operations["create_activity_with_bulk_import_api_v1_activities_bulk_import_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/create/upload": {
+    "/api/v1/activities/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Own Activities
+         * @description Count the authenticated user's activities matching the given filters.
+         */
+        get: operations["count_own_activities_api_v1_activities_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Following Feed
+         * @description List the authenticated user's following feed.
+         */
+        get: operations["list_following_feed_api_v1_activities_feed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/feed/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Following Feed
+         * @description Count the authenticated user's following-feed activities.
+         */
+        get: operations["count_following_feed_api_v1_activities_feed_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/gears/{gear_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Gear Activities
+         * @description List the authenticated user's activities for a gear.
+         */
+        get: operations["list_gear_activities_api_v1_activities_gears__gear_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/gears/{gear_id}/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Gear Activities
+         * @description Count the authenticated user's activities for a gear.
+         */
+        get: operations["count_gear_activities_api_v1_activities_gears__gear_id__count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Activities
+         * @description Fetch the last 24h of activities from the linked providers (Strava/Garmin).
+         *
+         *     The one documented ``async`` route: it awaits the provider HTTP
+         *     clients, which are not yet reworked. It lives in the ingestion layer (not the
+         *     activities core) because it depends on the Strava/Garmin provider clients — the
+         *     core router stays provider-agnostic.
+         */
+        post: operations["refresh_activities_api_v1_activities_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Activity Types
+         * @description Return the distinct activity types the user has recorded.
+         */
+        get: operations["list_activity_types_api_v1_activities_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/upload": {
         parameters: {
             query?: never;
             header?: never;
@@ -124,55 +289,19 @@ export interface paths {
          *         token_user_id: Authenticated user ID.
          *         file: The activity file to upload.
          *         _check_scopes: Scope validation dependency.
-         *         ws_manager: WebSocket manager for real-time
-         *             notifications.
          *         db: Database session dependency.
          *
          *     Returns:
          *         List of created activity objects.
          */
-        post: operations["create_activity_with_uploaded_file_api_v1_activities_create_upload_post"];
+        post: operations["create_activity_with_uploaded_file_api_v1_activities_upload_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/edit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Edit Activity */
-        put: operations["edit_activity_api_v1_activities_edit_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gear/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Gear Activities */
-        get: operations["read_activities_gear_activities_api_v1_activities_gear__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gear/{gear_id}/list": {
+    "/api/v1/activities/users/{user_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -180,24 +309,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Gear Activities List
-         * @description Retrieve paginated gear activities with total
-         *     count.
-         *
-         *     Args:
-         *         gear_id: Gear ID.
-         *         _validate_gear_id: Validates gear ID exists.
-         *         _check_scopes: Validates activities:read.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         page_number: Optional page number.
-         *         num_records: Optional records per page.
-         *
-         *     Returns:
-         *         GearActivitiesListResponse with total count
-         *         and paginated records.
+         * List User Activities
+         * @description List another user's activities that are visible to the requester.
          */
-        get: operations["read_gear_activities_list_api_v1_activities_gear__gear_id__list_get"];
+        get: operations["list_user_activities_api_v1_activities_users__user_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -206,219 +321,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/gear/{gear_id}/number": {
+    "/api/v1/activities/users/{user_id}/stats": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Gear Activities Number */
-        get: operations["read_activities_gear_activities_number_api_v1_activities_gear__gear_id__number_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gear/{gear_id}/page_number/{page_number}/num_records/{num_records}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Gear Activities With Pagination */
-        get: operations["read_activities_gear_activities_with_pagination_api_v1_activities_gear__gear_id__page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/name/contains/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Contain Name */
-        get: operations["read_activities_contain_name_api_v1_activities_name_contains__name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Number */
-        get: operations["read_activities_user_activities_number_api_v1_activities_number_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Refresh */
-        get: operations["read_activities_user_activities_refresh_api_v1_activities_refresh_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Types */
-        get: operations["read_activities_types_api_v1_activities_types_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/followed/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Followed User Activities Number */
-        get: operations["read_activities_followed_user_activities_number_api_v1_activities_user__user_id__followed_number_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/followed/page_number/{page_number}/num_records/{num_records}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Followed User Activities Pagination */
-        get: operations["read_activities_followed_user_activities_pagination_api_v1_activities_user__user_id__followed_page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/page_number/{page_number}/num_records/{num_records}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Pagination */
-        get: operations["read_activities_user_activities_pagination_api_v1_activities_user__user_id__page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/thismonth/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities This Month Number */
-        get: operations["read_activities_user_activities_this_month_number_api_v1_activities_user__user_id__thismonth_number_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/thismonth/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities This Month Stats */
-        get: operations["read_activities_user_activities_this_month_stats_api_v1_activities_user__user_id__thismonth_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/thisweek/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities This Week Stats */
-        get: operations["read_activities_user_activities_this_week_stats_api_v1_activities_user__user_id__thisweek_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/week/{week_number}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Week */
-        get: operations["read_activities_user_activities_week_api_v1_activities_user__user_id__week__week_number__get"];
+        /**
+         * Read User Activity Stats
+         * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
+         */
+        get: operations["read_user_activity_stats_api_v1_activities_users__user_id__stats_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -435,8 +349,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Edit Activity Visibility */
-        put: operations["edit_activity_visibility_api_v1_activities_visibility__visibility__put"];
+        /**
+         * Edit Activities Visibility
+         * @description Set the visibility of all the authenticated user's activities.
+         */
+        put: operations["edit_activities_visibility_api_v1_activities_visibility__visibility__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -451,28 +368,54 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Activity From Id */
-        get: operations["read_activities_activity_from_id_api_v1_activities__activity_id__get"];
+        /**
+         * Read Activity
+         * @description Read a single activity the requester owns or is permitted to see.
+         */
+        get: operations["read_activity_api_v1_activities__activity_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Activity
+         * @description Delete one of the authenticated user's activities.
+         */
+        delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Activity
+         * @description Apply partial updates to one of the authenticated user's activities.
+         */
+        patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
         trace?: never;
     };
-    "/api/v1/activities/{activity_id}/delete": {
+    "/api/v1/activities/{activity_id}/thumbnail": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Activity Thumbnail
+         * @description Serve an activity's map thumbnail when the signed token is valid.
+         *
+         *     Args:
+         *         activity_id: The activity whose thumbnail to serve.
+         *         token: The signed access token (``?t=``) minted at serialization time.
+         *
+         *     Returns:
+         *         The WebP thumbnail bytes.
+         *
+         *     Raises:
+         *         HTTPException: 404 when the token is invalid/forged or no thumbnail
+         *             exists (a 404 — rather than 403 — avoids confirming the resource to
+         *             an unauthorized caller).
+         */
+        get: operations["read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get"];
         put?: never;
         post?: never;
-        /** Delete Activity */
-        delete: operations["delete_activity_api_v1_activities__activity_id__delete_delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1020,7 +963,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/accept/targetUser/{target_user_id}": {
+    "/api/v1/followers/users/{user_id}/follow": {
         parameters: {
             query?: never;
             header?: never;
@@ -1028,39 +971,43 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /**
+         * Follow User
+         * @description Request to follow ``user_id`` as the authenticated user.
+         */
+        post: operations["follow_user_api_v1_followers_users__user_id__follow_post"];
+        /**
+         * Unfollow User
+         * @description Unfollow ``user_id`` as the authenticated user.
+         */
+        delete: operations["unfollow_user_api_v1_followers_users__user_id__follow_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/followers/users/{user_id}/follow/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         /**
          * Accept Follow
-         * @description Accept a pending follow request from the target user.
+         * @description Accept the pending follow request from ``user_id``.
          */
-        put: operations["accept_follow_api_v1_followers_accept_targetUser__target_user_id__put"];
-        post?: never;
+        post: operations["accept_follow_api_v1_followers_users__user_id__follow_accept_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/create/targetUser/{target_user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Follow
-         * @description Create a new follow request from the authenticated user.
-         */
-        post: operations["create_follow_api_v1_followers_create_targetUser__target_user_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/delete/follower/targetUser/{target_user_id}": {
+    "/api/v1/followers/users/{user_id}/follower": {
         parameters: {
             query?: never;
             header?: never;
@@ -1071,36 +1018,16 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete Follower
-         * @description Remove a user the authenticated user is following.
+         * Remove Follower
+         * @description Remove ``user_id`` as a follower of the authenticated user.
          */
-        delete: operations["delete_follower_api_v1_followers_delete_follower_targetUser__target_user_id__delete"];
+        delete: operations["remove_follower_api_v1_followers_users__user_id__follower_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/delete/following/targetUser/{target_user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Following
-         * @description Remove a follower of the authenticated user.
-         */
-        delete: operations["delete_following_api_v1_followers_delete_following_targetUser__target_user_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/followers/all": {
+    "/api/v1/followers/users/{user_id}/followers": {
         parameters: {
             query?: never;
             header?: never;
@@ -1108,10 +1035,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Follower All
-         * @description Return every follower record where the user is being followed.
+         * List User Followers
+         * @description List a user's followers.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them.
          */
-        get: operations["get_user_follower_all_api_v1_followers_user__user_id__followers_all_get"];
+        get: operations["list_user_followers_api_v1_followers_users__user_id__followers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1120,7 +1049,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/user/{user_id}/followers/count/accepted": {
+    "/api/v1/followers/users/{user_id}/followers/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -1128,10 +1057,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Follower Count
-         * @description Return the number of accepted followers for a user.
+         * Count User Followers
+         * @description Count a user's followers (privacy-aware).
+         *
+         *     Pass ``accepted_only=true`` to exclude pending follow requests.
          */
-        get: operations["get_user_follower_count_api_v1_followers_user__user_id__followers_count_accepted_get"];
+        get: operations["count_user_followers_api_v1_followers_users__user_id__followers_count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1140,7 +1071,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/user/{user_id}/followers/count/all": {
+    "/api/v1/followers/users/{user_id}/following": {
         parameters: {
             query?: never;
             header?: never;
@@ -1148,10 +1079,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Follower Count All
-         * @description Return the total number of followers for a user.
+         * List User Following
+         * @description List who a user follows.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them.
          */
-        get: operations["get_user_follower_count_all_api_v1_followers_user__user_id__followers_count_all_get"];
+        get: operations["list_user_following_api_v1_followers_users__user_id__following_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1160,7 +1093,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/user/{user_id}/following/all": {
+    "/api/v1/followers/users/{user_id}/following/count": {
         parameters: {
             query?: never;
             header?: never;
@@ -1168,10 +1101,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Following All
-         * @description Return every follow record where the user is the follower.
+         * Count User Following
+         * @description Count who a user follows (privacy-aware).
+         *
+         *     Pass ``accepted_only=true`` to exclude pending follow requests.
          */
-        get: operations["get_user_following_all_api_v1_followers_user__user_id__following_all_get"];
+        get: operations["count_user_following_api_v1_followers_users__user_id__following_count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1180,7 +1115,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/user/{user_id}/following/count/accepted": {
+    "/api/v1/followers/users/{user_id}/relationship": {
         parameters: {
             query?: never;
             header?: never;
@@ -1188,50 +1123,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Following Count
-         * @description Return the number of accepted follow relationships for a user.
+         * Read User Relationship
+         * @description Return the authenticated user's relationship with ``user_id``, both directions.
+         *
+         *     Reports the requester's outgoing follow of ``user_id`` and ``user_id``'s
+         *     incoming follow of the requester; only relationships the requester is part of
+         *     are ever exposed.
          */
-        get: operations["get_user_following_count_api_v1_followers_user__user_id__following_count_accepted_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/following/count/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Following Count All
-         * @description Return the total number of users a given user is following.
-         */
-        get: operations["get_user_following_count_all_api_v1_followers_user__user_id__following_count_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/targetUser/{target_user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Followers User Specific User
-         * @description Return the follow relationship between two specific users, if any.
-         */
-        get: operations["read_followers_user_specific_user_api_v1_followers_user__user_id__targetUser__target_user_id__get"];
+        get: operations["read_user_relationship_api_v1_followers_users__user_id__relationship_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5626,10 +5525,13 @@ export interface components {
         };
         /**
          * ActivityEdit
-         * @description Schema for partial updates to an activity.
+         * @description Schema for partial (PATCH) updates to an activity.
+         *
+         *     Every field is optional: only the fields present in the request body are
+         *     applied (``exclude_unset``), and unknown fields are rejected
+         *     (``extra="forbid"``). The activity id comes from the path, not the body.
          *
          *     Attributes:
-         *         id: Activity identifier to update.
          *         description: Public activity description.
          *         private_notes: Private notes (owner only).
          *         name: Activity name.
@@ -5652,7 +5554,7 @@ export interface components {
          */
         ActivityEdit: {
             /** Activity Type */
-            activity_type: number;
+            activity_type?: number | null;
             /** Description */
             description?: string | null;
             /** Gear Id */
@@ -5681,12 +5583,10 @@ export interface components {
             hide_start_time?: boolean | null;
             /** Hide Workout Sets Steps */
             hide_workout_sets_steps?: boolean | null;
-            /** Id */
-            id: number;
             /** Is Hidden */
             is_hidden?: boolean | null;
             /** Name */
-            name: string;
+            name?: string | null;
             /** Private Notes */
             private_notes?: string | null;
             /** Visibility */
@@ -6013,8 +5913,8 @@ export interface components {
             /** Weight Display Unit */
             weight_display_unit?: string | null;
         };
-        /** Body_create_activity_with_uploaded_file_api_v1_activities_create_upload_post */
-        Body_create_activity_with_uploaded_file_api_v1_activities_create_upload_post: {
+        /** Body_create_activity_with_uploaded_file_api_v1_activities_upload_post */
+        Body_create_activity_with_uploaded_file_api_v1_activities_upload_post: {
             /** File */
             file: string;
         };
@@ -6098,6 +5998,17 @@ export interface components {
          * @enum {string}
          */
         Color: "brown" | "dark_brown" | "light_brown" | "yellow" | "green" | "black" | "red" | "white";
+        /**
+         * CountResponse
+         * @description Envelope returned by activity count endpoints.
+         *
+         *     Attributes:
+         *         count: Number of matching activities.
+         */
+        CountResponse: {
+            /** Count */
+            count: number;
+        };
         /**
          * Currency
          * @description An enumeration representing supported currencies.
@@ -6352,17 +6263,26 @@ export interface components {
          */
         FastingType: "16:8" | "18:6" | "20:4" | "OMAD" | "24h" | "36h" | "48h" | "72h" | "custom";
         /**
-         * Follower
-         * @description Serialized representation of a follower relationship.
+         * FollowRelationship
+         * @description Serialized representation of a follow relationship.
          */
-        Follower: {
+        FollowRelationship: {
+            /** Followee Id */
+            followee_id: number;
             /** Follower Id */
             follower_id: number;
-            /** Following Id */
-            following_id: number;
-            /** Is Accepted */
-            is_accepted: boolean;
+            status: components["schemas"]["FollowStatus"];
         };
+        /**
+         * FollowStatus
+         * @description Status of a follow relationship.
+         *
+         *     Attributes:
+         *         PENDING: The follow request has been sent but not yet accepted.
+         *         ACCEPTED: The follow request has been accepted.
+         * @enum {string}
+         */
+        FollowStatus: "pending" | "accepted";
         /** GarminLogin */
         GarminLogin: {
             /**
@@ -6374,38 +6294,6 @@ export interface components {
             password: string;
             /** Username */
             username: string;
-        };
-        /**
-         * GearActivitiesListResponse
-         * @description Response model for paginated gear activities.
-         *
-         *     Attributes:
-         *         total: Total number of activities for gear.
-         *         num_records: Number of records returned.
-         *         page_number: Current page number.
-         *         records: List of activity records.
-         */
-        GearActivitiesListResponse: {
-            /**
-             * Num Records
-             * @description Number of records returned
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of activity records
-             */
-            records?: components["schemas"]["Activity"][];
-            /**
-             * Total
-             * @description Total number of activities for this gear
-             */
-            total: number;
         };
         /**
          * GearComponentCreate
@@ -9820,6 +9708,18 @@ export interface components {
             username?: string | null;
         };
         /**
+         * RelationshipView
+         * @description The authenticated user's relationship with another user, both directions.
+         *
+         *     Attributes:
+         *         outgoing: The authenticated user's follow of the other user, if any.
+         *         incoming: The other user's follow of the authenticated user, if any.
+         */
+        RelationshipView: {
+            incoming?: components["schemas"]["FollowRelationship"] | null;
+            outgoing?: components["schemas"]["FollowRelationship"] | null;
+        };
+        /**
          * ServerSettingsEdit
          * @description Edit schema for server settings updates.
          *
@@ -12355,7 +12255,46 @@ export interface operations {
             };
         };
     };
-    create_activity_with_bulk_import_api_v1_activities_create_bulkimport_post: {
+    list_own_activities_api_v1_activities_get: {
+        parameters: {
+            query?: {
+                type?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                name?: string | null;
+                sort_by?: string | null;
+                sort_order?: string | null;
+                page_number?: number | null;
+                num_records?: number | null;
+                activity_type?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activity"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_activity_with_bulk_import_api_v1_activities_bulk_import_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -12377,7 +12316,201 @@ export interface operations {
             };
         };
     };
-    create_activity_with_uploaded_file_api_v1_activities_create_upload_post: {
+    count_own_activities_api_v1_activities_count_get: {
+        parameters: {
+            query?: {
+                type?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                name?: string | null;
+                activity_type?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_following_feed_api_v1_activities_feed_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activity"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_following_feed_api_v1_activities_feed_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountResponse"];
+                };
+            };
+        };
+    };
+    list_gear_activities_api_v1_activities_gears__gear_id__get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activity"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_gear_activities_api_v1_activities_gears__gear_id__count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_activities_api_v1_activities_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activity"][] | null;
+                };
+            };
+        };
+    };
+    list_activity_types_api_v1_activities_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    } | null;
+                };
+            };
+        };
+    };
+    create_activity_with_uploaded_file_api_v1_activities_upload_post: {
         parameters: {
             query?: {
                 api_key?: string | null;
@@ -12388,7 +12521,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_create_activity_with_uploaded_file_api_v1_activities_create_upload_post"];
+                "multipart/form-data": components["schemas"]["Body_create_activity_with_uploaded_file_api_v1_activities_upload_post"];
             };
         };
         responses: {
@@ -12412,358 +12545,22 @@ export interface operations {
             };
         };
     };
-    edit_activity_api_v1_activities_edit_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ActivityEdit"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_gear_activities_api_v1_activities_gear__gear_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_gear_activities_list_api_v1_activities_gear__gear_id__list_get: {
-        parameters: {
-            query?: {
-                /** @description Page number */
-                page_number?: number | null;
-                /** @description Records per page */
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearActivitiesListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_gear_activities_number_api_v1_activities_gear__gear_id__number_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_gear_activities_with_pagination_api_v1_activities_gear__gear_id__page_number__page_number__num_records__num_records__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-                page_number: number;
-                num_records: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_contain_name_api_v1_activities_name_contains__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_number_api_v1_activities_number_get: {
+    list_user_activities_api_v1_activities_users__user_id__get: {
         parameters: {
             query?: {
                 type?: number | null;
                 start_date?: string | null;
                 end_date?: string | null;
-                name_search?: string | null;
-                activity_type?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_refresh_api_v1_activities_refresh_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-        };
-    };
-    read_activities_types_api_v1_activities_types_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    } | null;
-                };
-            };
-        };
-    };
-    read_activities_followed_user_activities_number_api_v1_activities_user__user_id__followed_number_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_followed_user_activities_pagination_api_v1_activities_user__user_id__followed_page_number__page_number__num_records__num_records__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                page_number: number;
-                num_records: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_pagination_api_v1_activities_user__user_id__page_number__page_number__num_records__num_records__get: {
-        parameters: {
-            query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name_search?: string | null;
+                name?: string | null;
                 sort_by?: string | null;
                 sort_order?: string | null;
+                page_number?: number | null;
+                num_records?: number | null;
                 activity_type?: number | null;
             };
             header?: never;
             path: {
                 user_id: number;
-                page_number: number;
-                num_records: number;
             };
             cookie?: never;
         };
@@ -12789,40 +12586,11 @@ export interface operations {
             };
         };
     };
-    read_activities_user_activities_this_month_number_api_v1_activities_user__user_id__thismonth_number_get: {
+    read_user_activity_stats_api_v1_activities_users__user_id__stats_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
+            query?: {
+                period?: string;
             };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_this_month_stats_api_v1_activities_user__user_id__thismonth_stats_get: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
                 user_id: number;
@@ -12851,70 +12619,7 @@ export interface operations {
             };
         };
     };
-    read_activities_user_activities_this_week_stats_api_v1_activities_user__user_id__thisweek_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStats"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_week_api_v1_activities_user__user_id__week__week_number__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                week_number: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    edit_activity_visibility_api_v1_activities_visibility__visibility__put: {
+    edit_activities_visibility_api_v1_activities_visibility__visibility__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -12947,7 +12652,7 @@ export interface operations {
             };
         };
     };
-    read_activities_activity_from_id_api_v1_activities__activity_id__get: {
+    read_activity_api_v1_activities__activity_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -12964,7 +12669,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"] | null;
+                    "application/json": components["schemas"]["Activity"];
                 };
             };
             /** @description Validation Error */
@@ -12978,7 +12683,7 @@ export interface operations {
             };
         };
     };
-    delete_activity_api_v1_activities__activity_id__delete_delete: {
+    delete_activity_api_v1_activities__activity_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -12998,6 +12703,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_activity_api_v1_activities__activity_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activity"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get: {
+        parameters: {
+            query: {
+                /** @description Signed thumbnail access token */
+                t: string;
+            };
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/webp": unknown;
                 };
             };
             /** @description Validation Error */
@@ -13463,43 +13238,12 @@ export interface operations {
             };
         };
     };
-    accept_follow_api_v1_followers_accept_targetUser__target_user_id__put: {
+    follow_user_api_v1_followers_users__user_id__follow_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                target_user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_follow_api_v1_followers_create_targetUser__target_user_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                target_user_id: number;
+                user_id: number;
             };
             cookie?: never;
         };
@@ -13511,7 +13255,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Follower"];
+                    "application/json": components["schemas"]["FollowRelationship"];
                 };
             };
             /** @description Validation Error */
@@ -13525,12 +13269,12 @@ export interface operations {
             };
         };
     };
-    delete_follower_api_v1_followers_delete_follower_targetUser__target_user_id__delete: {
+    unfollow_user_api_v1_followers_users__user_id__follow_delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                target_user_id: number;
+                user_id: number;
             };
             cookie?: never;
         };
@@ -13556,12 +13300,12 @@ export interface operations {
             };
         };
     };
-    delete_following_api_v1_followers_delete_following_targetUser__target_user_id__delete: {
+    accept_follow_api_v1_followers_users__user_id__follow_accept_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                target_user_id: number;
+                user_id: number;
             };
             cookie?: never;
         };
@@ -13587,7 +13331,7 @@ export interface operations {
             };
         };
     };
-    get_user_follower_all_api_v1_followers_user__user_id__followers_all_get: {
+    remove_follower_api_v1_followers_users__user_id__follower_delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -13604,7 +13348,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Follower"][];
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
             /** @description Validation Error */
@@ -13618,9 +13362,42 @@ export interface operations {
             };
         };
     };
-    get_user_follower_count_api_v1_followers_user__user_id__followers_count_accepted_get: {
+    list_user_followers_api_v1_followers_users__user_id__followers_get: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationship"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_user_followers_api_v1_followers_users__user_id__followers_count_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+            };
             header?: never;
             path: {
                 user_id: number;
@@ -13649,9 +13426,42 @@ export interface operations {
             };
         };
     };
-    get_user_follower_count_all_api_v1_followers_user__user_id__followers_count_all_get: {
+    list_user_following_api_v1_followers_users__user_id__following_get: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationship"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_user_following_api_v1_followers_users__user_id__following_count_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+            };
             header?: never;
             path: {
                 user_id: number;
@@ -13680,7 +13490,7 @@ export interface operations {
             };
         };
     };
-    get_user_following_all_api_v1_followers_user__user_id__following_all_get: {
+    read_user_relationship_api_v1_followers_users__user_id__relationship_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -13697,101 +13507,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Follower"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_following_count_api_v1_followers_user__user_id__following_count_accepted_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_following_count_all_api_v1_followers_user__user_id__following_count_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_followers_user_specific_user_api_v1_followers_user__user_id__targetUser__target_user_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                target_user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Follower"] | null;
+                    "application/json": components["schemas"]["RelationshipView"];
                 };
             };
             /** @description Validation Error */

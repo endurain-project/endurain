@@ -4,7 +4,7 @@ Registered once at startup (before the event bus starts). In the ``local``
 profile the in-process bus runs these inline, synchronously, before the
 producing request returns — behaviourally identical to inline generation; in a
 ``distributed`` profile a Redis-Streams consumer runs them later, at-least-once,
-against object storage (foundations plan §13).
+against object storage.
 
 Two shapes of handler live here. The ``*_for_event`` cores **raise** on failure
 so the durable-job runner can retry and eventually dead-letter them (used when
@@ -50,20 +50,17 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    activity_id = event.payload.get("activity_id")
-    user_id = event.payload.get("user_id")
-    if not isinstance(activity_id, int) or not isinstance(user_id, int):
-        return
+    payload = activity_events.ActivityCreatedPayload.model_validate(event.payload)
     storage = platform_runtime.get_active_platform().storage
     with core_database.SessionLocal() as db:
         waypoints = activity_streams_crud.get_activity_stream_by_type(
-            activity_id, activity_streams_constants.STREAM_TYPE_MAP, user_id, db
+            payload.activity_id, activity_streams_constants.STREAM_TYPE_MAP, payload.user_id, db
         )
         if waypoints is None or len(waypoints.stream_waypoints) < _MIN_WAYPOINTS:
             return
         tile_url, background_color, api_key = activity_thumbnail_service.resolve_tile_settings(db)
         activity_thumbnail_service.generate_and_store_thumbnail(
-            activity_id,
+            payload.activity_id,
             waypoints.stream_waypoints,
             storage,
             db,
@@ -109,11 +106,9 @@ def cleanup_activity_thumbnail_for_event(event: Event) -> None:
     Returns:
         None.
     """
-    activity_id = event.payload.get("activity_id")
-    if not isinstance(activity_id, int):
-        return
+    payload = activity_events.ActivityDeletedPayload.model_validate(event.payload)
     storage = platform_runtime.get_active_platform().storage
-    activity_thumbnail_service.delete_activity_thumbnail(activity_id, storage)
+    activity_thumbnail_service.delete_activity_thumbnail(payload.activity_id, storage)
 
 
 def on_activity_deleted_cleanup_thumbnail(event: Event) -> None:

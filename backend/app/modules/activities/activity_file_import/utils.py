@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from datetime import UTC, datetime
 from typing import TypedDict
 
@@ -9,8 +10,6 @@ from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
 
 import modules.activities.activity.schema as activities_schema
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
-import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
 
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -32,37 +31,6 @@ STREAM_KEYS: tuple[str, ...] = (
     "is_lat_lon_set",
     "lat_lon_waypoints",
 )
-
-
-def build_activity_privacy_kwargs(
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
-) -> dict[str, bool | int]:
-    """Build privacy field kwargs for Activity schema from ORM model.
-
-    Args:
-        user_privacy_settings: The ORM privacy-settings record for the
-            activity owner.
-
-    Returns:
-        A dict with all 16 privacy fields ready to unpack into an
-        Activity constructor call.
-    """
-    ups = user_privacy_settings
-    return {
-        "visibility": users_privacy_settings_utils.visibility_to_int(ups.default_activity_visibility),
-        "hide_start_time": ups.hide_activity_start_time or False,
-        "hide_location": ups.hide_activity_location or False,
-        "hide_map": ups.hide_activity_map or False,
-        "hide_hr": ups.hide_activity_hr or False,
-        "hide_power": ups.hide_activity_power or False,
-        "hide_cadence": ups.hide_activity_cadence or False,
-        "hide_elevation": ups.hide_activity_elevation or False,
-        "hide_speed": ups.hide_activity_speed or False,
-        "hide_pace": ups.hide_activity_pace or False,
-        "hide_laps": ups.hide_activity_laps or False,
-        "hide_workout_sets_steps": (ups.hide_activity_workout_sets_steps or False),
-        "hide_gear": ups.hide_activity_gear or False,
-    }
 
 
 def build_activity_file_payload(
@@ -210,9 +178,8 @@ def _compute_lap_metrics(
     Returns:
         Dict with all computed lap metrics.
     """
-    # Imported lazily to avoid a circular import: activities.activity.utils
-    # imports utils_gpx, which re-exports names from this module.
-    import modules.activities.activity.utils as activities_utils
+    # The metric helpers live in this package's dependency-free computation module.
+    import modules.activities.activity_file_import.computation as activities_computation
 
     lap_ele = filter_waypoints_by_time_range(
         ele_waypoints,
@@ -242,38 +209,38 @@ def _compute_lap_metrics(
 
     ele_gain, ele_loss = None, None
     if lap_ele:
-        ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
+        ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(
             elevations=lap_ele,
         )
 
     avg_hr, max_hr = None, None
     if lap_hr:
-        avg_hr, max_hr = activities_utils.calculate_avg_and_max(
+        avg_hr, max_hr = activities_computation.calculate_avg_and_max(
             lap_hr,
             "hr",
         )
 
     avg_cad, max_cad = None, None
     if lap_cad:
-        avg_cad, max_cad = activities_utils.calculate_avg_and_max(
+        avg_cad, max_cad = activities_computation.calculate_avg_and_max(
             lap_cad,
             "cad",
         )
 
     avg_speed, max_speed = None, None
     if lap_vel:
-        avg_speed, max_speed = activities_utils.calculate_avg_and_max(
+        avg_speed, max_speed = activities_computation.calculate_avg_and_max(
             lap_vel,
             "vel",
         )
 
     avg_power, max_power, norm_power = None, None, None
     if lap_power:
-        avg_power, max_power = activities_utils.calculate_avg_and_max(
+        avg_power, max_power = activities_computation.calculate_avg_and_max(
             lap_power,
             "power",
         )
-        norm_power = activities_utils.calculate_np(lap_power)
+        norm_power = activities_computation.calculate_np(lap_power)
 
     elapsed = (datetime.strptime(end_time, _DT_FMT) - datetime.strptime(start_time, _DT_FMT)).total_seconds()
 
@@ -419,26 +386,15 @@ def filter_streams_by_time_range(
     }
 
 
-def resolve_location(
-    latitude: float,
-    longitude: float,
-) -> dict[str, str] | None:
-    """Get city, town, and country via geocoding.
+@functools.lru_cache(maxsize=1)
+def _get_timezone_finder() -> TimezoneFinder:
+    """Return a process-wide cached TimezoneFinder.
 
-    Delegates to ``modules.activities.activity.utils.location_based_on_coordinates``.
-
-    Args:
-        latitude: WGS-84 latitude in decimal degrees.
-        longitude: WGS-84 longitude in decimal degrees.
-
-    Returns:
-        Dict with keys ``'city'``, ``'town'``, ``'country'``, or
-        ``None`` on geocoding error.
+    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so it
+    is built once and reused across activities instead of per parse (a single
+    instance is safe for concurrent ``timezone_at`` reads).
     """
-    # Imported lazily to avoid a circular import (see _compute_lap_metrics).
-    import modules.activities.activity.utils as activities_utils
-
-    return activities_utils.location_based_on_coordinates(latitude, longitude)
+    return TimezoneFinder()
 
 
 def resolve_timezone_from_lat_lon(
@@ -457,7 +413,7 @@ def resolve_timezone_from_lat_lon(
     Returns:
         IANA timezone string (e.g. ``'Europe/Lisbon'``).
     """
-    tf = TimezoneFinder()
+    tf = _get_timezone_finder()
     tz = tf.timezone_at(lat=latitude, lng=longitude)
     return tz if tz is not None else fallback_tz
 
@@ -475,11 +431,11 @@ def calculate_power_metrics(
         Tuple of ``(avg_power, max_power, normalized_power)``.  Any
         value may be ``None`` if the stream contains no valid readings.
     """
-    # Imported lazily to avoid a circular import (see _compute_lap_metrics).
-    import modules.activities.activity.utils as activities_utils
+    # The metric helpers live in this package's dependency-free computation module.
+    import modules.activities.activity_file_import.computation as activities_computation
 
-    avg_power, max_power = activities_utils.calculate_avg_and_max(power_waypoints, "power")
-    normalized_power = activities_utils.calculate_np(power_waypoints)
+    avg_power, max_power = activities_computation.calculate_avg_and_max(power_waypoints, "power")
+    normalized_power = activities_computation.calculate_np(power_waypoints)
     return avg_power, max_power, normalized_power
 
 

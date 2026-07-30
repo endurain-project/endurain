@@ -23,8 +23,10 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
+import infra.runtime as platform_runtime
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
+import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_sets.crud as activity_sets_crud
@@ -752,63 +754,42 @@ class ExportService:
         """
         Add activity files to ZIP archive.
 
+        Reads each activity's retained source file through the platform
+        ``StorageProvider`` (local disk or object storage) and writes it into the
+        archive under ``activity_files/{id}{ext}``.
+
         Args:
             zipf: ZipFile instance to write to.
             user_activities: List of activity objects.
-
-        Raises:
-            FileSystemError: If file system error occurs.
         """
         if not user_activities:
             return
 
-        try:
-            if not os.path.exists(core_config.FILES_PROCESSED_DIR):
+        storage = platform_runtime.get_active_platform().storage
+        for activity in user_activities:
+            try:
+                stored = activity_file_storage_service.get_activity_file(activity.id, storage)
+                if stored is None:
+                    continue
+                key, data = stored
+                zipf.writestr(os.path.join("activity_files", key), data)
+                self.counts["activity_files"] += 1
+            except MemoryAllocationError:
+                raise
+            except OSError as err:
                 core_logger.print_to_log(
-                    f"Files directory does not exist: {core_config.FILES_PROCESSED_DIR}",
+                    f"Failed to add activity file for activity {activity.id}: {err}",
                     "warning",
+                    exc=err,
                 )
-                return
-
-            for root, _, files in os.walk(core_config.FILES_PROCESSED_DIR):
-                for file in files:
-                    try:
-                        file_id, _ = os.path.splitext(file)
-                        if any(str(activity.id) == file_id for activity in user_activities):
-                            file_path = os.path.join(root, file)
-
-                            # Check if file exists and is readable
-                            if not os.path.isfile(file_path):
-                                core_logger.print_to_log(f"Activity file not found: {file_path}", "warning")
-                                continue
-
-                            arcname = os.path.join(
-                                "activity_files",
-                                os.path.relpath(file_path, core_config.FILES_PROCESSED_DIR),
-                            )
-                            zipf.write(file_path, arcname)
-                            self.counts["activity_files"] += 1
-
-                    except OSError as err:
-                        core_logger.print_to_log(
-                            f"Failed to add activity file {file}: {err}",
-                            "warning",
-                            exc=err,
-                        )
-                        continue
-                    except MemoryAllocationError:
-                        raise
-                    except Exception as err:
-                        core_logger.print_to_log(
-                            f"Unexpected error adding activity file {file}: {err}",
-                            "warning",
-                            exc=err,
-                        )
-                        continue
-
-        except OSError as err:
-            core_logger.print_to_log(f"File system error accessing activity files: {err}", "error", exc=err)
-            raise FileSystemError(f"Cannot access activity files directory: {err}") from err
+                continue
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Unexpected error adding activity file for activity {activity.id}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                continue
 
     def add_activity_media_to_zip(self, zipf: zipfile.ZipFile, user_activities: list[Any]):
         """

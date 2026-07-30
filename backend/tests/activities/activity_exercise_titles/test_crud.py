@@ -12,7 +12,12 @@ class TestGetExerciseTitles:
         import modules.activities.activity_exercise_titles.crud as crud
         import modules.activities.activity_exercise_titles.models as m
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(m.ActivityExerciseTitles, id=1, title="Run")])
+        setup_mock_execute(
+            mock_db,
+            return_scalars_all=[
+                mock_model(m.ActivityExerciseTitles, id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")
+            ],
+        )
         r = crud.get_activity_exercise_titles(db=mock_db)
         assert len(r) == 1
 
@@ -48,7 +53,12 @@ class TestGetPublicExerciseTitles:
         import modules.activities.activity_exercise_titles.models as m
 
         mock_settings.return_value = MagicMock(public_shareable_links=True)
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(m.ActivityExerciseTitles, id=1)])
+        setup_mock_execute(
+            mock_db,
+            return_scalars_all=[
+                mock_model(m.ActivityExerciseTitles, id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")
+            ],
+        )
         r = crud.get_public_activity_exercise_titles(db=mock_db)
         assert len(r) == 1
 
@@ -67,7 +77,9 @@ class TestGetExerciseTitleByExerciseName:
         import modules.activities.activity_exercise_titles.crud as crud
         import modules.activities.activity_exercise_titles.models as m
 
-        mock_title = mock_model(m.ActivityExerciseTitles, id=1, exercise_name=42)
+        mock_title = mock_model(
+            m.ActivityExerciseTitles, id=1, exercise_category=1, exercise_name=42, wkt_step_name="Run"
+        )
         setup_mock_execute(mock_db, return_one_or_none=mock_title)
         r = crud.get_activity_exercise_title_by_exercise_name(42, mock_db)
         assert r is not None

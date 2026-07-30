@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -9,12 +10,10 @@ from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 import core.logger as core_logger
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_streams.crud as activity_streams_crud
-import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.gears.gear.crud as gears_crud
 import modules.strava.utils as strava_utils
 import modules.users.users.crud as users_crud
@@ -23,7 +22,6 @@ import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
 import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
-import modules.websocket.manager as websocket_manager
 from core.database import SessionLocal
 
 
@@ -33,7 +31,6 @@ async def fetch_and_process_activities(
     end_date: datetime,
     user_id: int,
     user_integrations: user_integrations_models.UsersIntegrations,
-    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
     is_startup: bool = False,
 ) -> int:
@@ -131,13 +128,23 @@ async def fetch_and_process_activities(
                 user_privacy_settings,
                 strava_client,
                 user_integrations,
-                ws_manager,
                 db,
             )
         )
 
     # Return the activities processed
     return processed_activities if processed_activities else None
+
+
+@functools.lru_cache(maxsize=1)
+def _get_timezone_finder() -> TimezoneFinder:
+    """Return a process-wide cached TimezoneFinder.
+
+    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so it
+    is built once and reused across activities instead of per parse (a single
+    instance is safe for concurrent ``timezone_at`` reads).
+    """
+    return TimezoneFinder()
 
 
 def parse_activity(
@@ -148,8 +155,8 @@ def parse_activity(
     user_integrations: user_integrations_models.UsersIntegrations,
     db: Session,
 ) -> dict:
-    # Create an instance of TimezoneFinder
-    tf = TimezoneFinder()
+    # Reuse the process-wide cached TimezoneFinder instead of rebuilding it per activity.
+    tf = _get_timezone_finder()
     timezone = core_config.settings.TZ
 
     # Check rate limit before detailed activity fetch
@@ -238,7 +245,7 @@ def parse_activity(
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
     if ele_waypoints:
-        ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(ele_waypoints)
+        ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(ele_waypoints)
 
         if detailed_activity.total_elevation_gain is not None:
             ele_gain = round(detailed_activity.total_elevation_gain)
@@ -266,7 +273,7 @@ def parse_activity(
     avg_cadence, max_cadence = None, None
     # Calculate average and maximum cadence
     if cad_waypoints:
-        avg_cadence, max_cadence = activities_utils.calculate_avg_and_max(cad_waypoints, "cad")
+        avg_cadence, max_cadence = activities_computation.calculate_avg_and_max(cad_waypoints, "cad")
 
         if detailed_activity.average_cadence is not None:
             avg_cadence = detailed_activity.average_cadence
@@ -283,7 +290,7 @@ def parse_activity(
     # Calculate normalized power
     np = None
     if power_waypoints:
-        np = activities_utils.calculate_np(power_waypoints)
+        np = activities_computation.calculate_np(power_waypoints)
 
     # List of conditions, stream types, and corresponding waypoints
     stream_data = [
@@ -307,7 +314,7 @@ def parse_activity(
             gear_id = gear.id
 
     # Activity type
-    activity_type = activities_utils.define_activity_type(detailed_activity.sport_type.root)
+    activity_type = activities_constants.define_activity_type(detailed_activity.sport_type.root)
 
     if gear_id is None:
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
@@ -319,7 +326,7 @@ def parse_activity(
         )
 
     # Create the activity object
-    activity_to_store = activities_schema.Activity(
+    activity_to_store = activities_schema.ActivityCore(
         user_id=user_id,
         name=detailed_activity.name,
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
@@ -380,42 +387,51 @@ def parse_activity(
     }
 
 
-async def save_activity_streams_laps(
-    activity: activities_schema.Activity,
+def save_activity_streams_laps(
+    activity: activities_schema.ActivityCore,
     stream_data: list,
-    laps: dict,
-    ws_manager: websocket_manager.WebSocketManager,
+    laps: list[dict] | None,
     db: Session,
 ) -> activities_schema.Activity:
-    # Create the activity and get the ID
-    created_activity = await activities_crud.create_activity(activity, ws_manager, db)
+    """Persist a Strava-parsed activity through the canonical ingestion seam.
 
-    if stream_data is not None:
-        # Create the empty array of activity streams
-        activity_streams = []
+    Strava is a thin adapter: it builds the
+    format-agnostic :class:`~modules.activities.activity.schema.ParsedActivity`
+    from the parse result and delegates persistence + ``activity.created``
+    publication to
+    :func:`~modules.activities.activity.ingestion_service.store_parsed_activity`,
+    instead of calling ``create_activity`` and the stream/lap CRUD directly. The
+    notification, thumbnail, and HR-zone subscribers react to the published event.
 
-        # Create the activity streams objects
-        for is_set, stream_type, waypoints in stream_data:
-            if is_set:
-                activity_streams.append(
-                    activity_streams_schema.ActivityStreamsCreate(
-                        activity_id=created_activity.id,
-                        stream_type=stream_type,
-                        stream_waypoints=waypoints,
-                        strava_activity_stream_id=None,
-                    )
-                )
+    Args:
+        activity: The parsed Strava activity to persist.
+        stream_data: ``(is_set, stream_type, waypoints)`` tuples; only set streams
+            are persisted.
+        laps: Parsed lap dicts, or ``None`` when the activity has no laps.
+        db: Database session.
 
-        # Create the activity streams in the database
-        await activity_streams_crud.create_activity_streams(activity_streams, created_activity, db)
+    Returns:
+        The created activity schema.
+    """
+    parsed_streams = [
+        activities_schema.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
+        for is_set, stream_type, waypoints in (stream_data or [])
+        if is_set
+    ]
+    parsed = activities_schema.ParsedActivity(
+        activity=activity,
+        streams=parsed_streams,
+        laps=laps,
+        source=activities_schema.ImportSource(
+            kind="strava",
+            provider_activity_id=activity.strava_activity_id,
+            dedup_key=(f"strava:{activity.strava_activity_id}" if activity.strava_activity_id is not None else None),
+        ),
+    )
 
-    # Append activity id to laps
-    if laps is not None:
-        # Create the laps in the database
-        activity_laps_crud.create_activity_laps(laps, created_activity.id, db)
-
-    # return the created activity
-    return created_activity
+    # Persist + publish ``activity.created`` via the canonical seam. The seam marks
+    # duplicate start times hidden and forwards that to the notification subscriber.
+    return ingestion_service.store_parsed_activity(parsed, db)
 
 
 async def process_activity(
@@ -424,7 +440,6 @@ async def process_activity(
     user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
     strava_client: Client,
     user_integrations: user_integrations_models.UsersIntegrations,
-    ws_manager: websocket_manager.WebSocketManager,
     db: Session,
 ):
     # Get the activity by Strava ID from the user
@@ -451,11 +466,10 @@ async def process_activity(
     )
 
     # Save the activity and streams to the database
-    return await save_activity_streams_laps(
+    return save_activity_streams_laps(
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],
-        ws_manager,
         db,
     )
 
@@ -659,7 +673,7 @@ def fetch_and_process_activity_laps(
         )
 
         if cad_stream:
-            cad_avg, cad_max = activities_utils.calculate_avg_and_max(cad_stream, "cad")
+            cad_avg, cad_max = activities_computation.calculate_avg_and_max(cad_stream, "cad")
 
         power_stream = next(
             (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 2),
@@ -667,8 +681,8 @@ def fetch_and_process_activity_laps(
         )
 
         if power_stream:
-            power_avg, power_max = activities_utils.calculate_avg_and_max(power_stream, "power")
-            np = activities_utils.calculate_np(power_stream)
+            power_avg, power_max = activities_computation.calculate_avg_and_max(power_stream, "power")
+            np = activities_computation.calculate_np(power_stream)
 
         ele_stream = next(
             (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 4),
@@ -676,7 +690,7 @@ def fetch_and_process_activity_laps(
         )
 
         if ele_stream:
-            ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(ele_stream)
+            ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(ele_stream)
 
         laps_processed.append(
             {
@@ -738,7 +752,6 @@ async def retrieve_strava_users_activities_for_days(days: int, is_startup: bool 
                             calculated_end_date,
                             user.id,
                             None,
-                            None,
                             is_startup,
                         )
                     except HTTPException as err:
@@ -793,7 +806,6 @@ async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    ws_manager: websocket_manager.WebSocketManager | None = None,
     db: Session = None,
     is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:
@@ -802,10 +814,6 @@ async def get_user_strava_activities_by_dates(
         # Create a new database session
         db = SessionLocal()
         close_session = True
-
-    if ws_manager is None:
-        # Get the websocket manager instance
-        ws_manager = websocket_manager.get_websocket_manager()
 
     try:
         # Get the user integrations by user ID
@@ -829,7 +837,6 @@ async def get_user_strava_activities_by_dates(
                 end_date,
                 user_id,
                 user_integrations,
-                ws_manager,
                 db,
                 is_startup,
             )

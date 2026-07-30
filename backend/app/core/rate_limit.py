@@ -44,6 +44,11 @@ WRITE: str = "30/minute"
 #: signup, OAuth flows.
 SENSITIVE: str = "10/minute"
 
+#: Activity file uploads / imports — CPU/IO-heavy parsing
+#: of user-supplied files; tighter than WRITE to bound
+#: resource consumption on the ingestion endpoints.
+UPLOAD: str = "20/minute"
+
 
 def _get_rate_limit_key(request: Request) -> str:
     """

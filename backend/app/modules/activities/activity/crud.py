@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, cast
 from urllib.parse import unquote
 
 from fastapi import HTTPException, status
@@ -26,13 +26,13 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import core.sanitization as core_sanitization
+import core.timezone as core_timezone
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
-import modules.followers.models as followers_models
-import modules.notifications.utils as notifications_utils
+import modules.activities.activity.serializers as activities_serializers
+import modules.followers.service as followers_service
 import modules.server_settings.utils as server_settings_utils
-import modules.websocket.manager as websocket_manager
 
 # Mapping from frontend sort keys to model columns
 SORT_MAP = {
@@ -58,12 +58,30 @@ _NUMERIC_SORT_COLUMNS = {
 }
 
 
-def _visible_to_requester_condition(requester_user_id: int | None):
+def escape_like(term: str) -> str:
+    """Escape SQL LIKE wildcards in a user-provided term.
+
+    Escapes ``\\``, ``%`` and ``_`` so they are matched literally. Use together
+    with ``.like(..., escape="\\\\")`` to keep user input from injecting LIKE
+    wildcards into search filters.
+
+    Args:
+        term: Raw search term.
+
+    Returns:
+        Escaped search term safe for use inside a ``LIKE`` pattern.
+    """
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     """Build the non-owner activity visibility condition.
 
     Args:
         requester_user_id: Requesting user ID, or None for an
             anonymous/public-only read.
+        db: Database session, used to resolve the requester's accepted
+            followees through the followers service interface.
 
     Returns:
         SQLAlchemy condition limiting rows to public or accepted
@@ -71,21 +89,14 @@ def _visible_to_requester_condition(requester_user_id: int | None):
     """
     visibility_conditions = [activities_models.Activity.visibility == 0]
     if requester_user_id is not None:
-        accepted_follower_exists = (
-            select(followers_models.Follower.follower_id)
-            .where(
-                followers_models.Follower.follower_id == requester_user_id,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-                followers_models.Follower.is_accepted.is_(True),
+        followee_ids = followers_service.list_accepted_followee_ids(requester_user_id, db)
+        if followee_ids:
+            visibility_conditions.append(
+                and_(
+                    activities_models.Activity.visibility == 1,
+                    activities_models.Activity.user_id.in_(followee_ids),
+                )
             )
-            .exists()
-        )
-        visibility_conditions.append(
-            and_(
-                activities_models.Activity.visibility == 1,
-                accepted_follower_exists,
-            )
-        )
 
     return and_(
         activities_models.Activity.is_hidden.is_(False),
@@ -98,6 +109,7 @@ def _apply_activity_visibility_filter(
     *,
     user_is_owner: bool,
     requester_user_id: int | None,
+    db: Session,
 ):
     """Apply non-owner visibility filtering to an activity query.
 
@@ -106,6 +118,8 @@ def _apply_activity_visibility_filter(
         user_is_owner: Whether the requester owns all candidate
             rows.
         requester_user_id: Requesting user ID for follower checks.
+        db: Database session, used to resolve the requester's accepted
+            followees through the followers service interface.
 
     Returns:
         The original statement for owner reads, otherwise a
@@ -113,7 +127,7 @@ def _apply_activity_visibility_filter(
     """
     if user_is_owner:
         return stmt
-    return stmt.where(_visible_to_requester_condition(requester_user_id))
+    return stmt.where(_visible_to_requester_condition(requester_user_id, db))
 
 
 def _internal_server_error(err: Exception, context: str) -> HTTPException:
@@ -131,6 +145,79 @@ def _internal_server_error(err: Exception, context: str) -> HTTPException:
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Internal Server Error",
     )
+
+
+def _transform_schema_activity_to_model_activity(
+    activity: activities_schema.Activity,
+) -> activities_models.Activity:
+    # Use an explicit UTC-aware created_at when provided,
+    # otherwise let the database stamp the row with now().
+    created_date = core_timezone.to_utc_aware(activity.created_at) if activity.created_at is not None else func.now()
+
+    # Sanitize markdown fields to prevent XSS
+    sanitized_description = core_sanitization.sanitize_markdown(activity.description)
+    sanitized_private_notes = core_sanitization.sanitize_markdown(activity.private_notes)
+
+    # Create a new activity object
+    new_activity = activities_models.Activity(
+        user_id=activity.user_id,
+        description=sanitized_description,
+        private_notes=sanitized_private_notes,
+        distance=activity.distance,
+        name=activity.name,
+        activity_type=activity.activity_type,
+        start_time=core_timezone.to_utc_aware(activity.start_time),
+        end_time=core_timezone.to_utc_aware(activity.end_time),
+        timezone=activity.timezone,
+        total_elapsed_time=activity.total_elapsed_time,
+        total_timer_time=(
+            activity.total_timer_time if activity.total_timer_time is not None else activity.total_elapsed_time
+        ),
+        city=activity.city,
+        town=activity.town,
+        country=activity.country,
+        created_at=created_date,
+        elevation_gain=activity.elevation_gain,
+        elevation_loss=activity.elevation_loss,
+        pace=activity.pace,
+        average_speed=activity.average_speed,
+        max_speed=activity.max_speed,
+        average_power=activity.average_power,
+        max_power=activity.max_power,
+        normalized_power=activity.normalized_power,
+        average_hr=activity.average_hr,
+        max_hr=activity.max_hr,
+        average_cad=activity.average_cad,
+        max_cad=activity.max_cad,
+        workout_feeling=activity.workout_feeling,
+        workout_rpe=activity.workout_rpe,
+        calories=activity.calories,
+        visibility=activity.visibility,
+        gear_id=activity.gear_id,
+        strava_gear_id=activity.strava_gear_id,
+        strava_activity_id=activity.strava_activity_id,
+        garminconnect_activity_id=activity.garminconnect_activity_id,
+        garminconnect_gear_id=activity.garminconnect_gear_id,
+        import_info=activity.import_info,
+        is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
+        hide_start_time=activity.hide_start_time,
+        hide_location=activity.hide_location,
+        hide_map=activity.hide_map,
+        hide_hr=activity.hide_hr,
+        hide_power=activity.hide_power,
+        hide_cadence=activity.hide_cadence,
+        hide_elevation=activity.hide_elevation,
+        hide_speed=activity.hide_speed,
+        hide_pace=activity.hide_pace,
+        hide_laps=activity.hide_laps,
+        hide_workout_sets_steps=activity.hide_workout_sets_steps,
+        hide_gear=activity.hide_gear,
+        tracker_manufacturer=activity.tracker_manufacturer,
+        tracker_model=activity.tracker_model,
+        total_cycles=activity.total_cycles,
+    )
+
+    return new_activity
 
 
 def _serialize_and_mask(
@@ -158,9 +245,9 @@ def _serialize_and_mask(
     """
     result: list[activities_schema.Activity] = []
     for orm_activity in activities:
-        schema = activities_utils.serialize_activity(orm_activity)
+        schema = activities_serializers.serialize_activity(orm_activity)
         is_owner = not force_non_owner and requester_user_id is not None and orm_activity.user_id == requester_user_id
-        activities_utils.apply_visibility_mask(
+        activities_serializers.apply_visibility_mask(
             schema,
             is_owner=is_owner,
             mask_private_notes=mask_private_notes,
@@ -185,7 +272,7 @@ def _apply_name_search(
         Updated select statement.
     """
     raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{activities_utils.escape_like(raw)}%"
+    pattern = f"%{escape_like(raw)}%"
     return stmt.where(
         or_(
             func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
@@ -218,30 +305,43 @@ def get_all_activities(
         activities = db.execute(select(activities_models.Activity)).scalars().all()
         if not activities:
             return None
-        return [activities_utils.serialize_activity(a) for a in activities]
+        return [activities_serializers.serialize_activity(a) for a in activities]
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_all_activities") from err
 
 
-def get_all_activities_no_serialize(
+def get_all_activities_for_migration(
     db: Session,
-) -> list[activities_models.Activity] | None:
-    """Return all activities as raw ORM rows.
+) -> list[activities_schema.ActivityMigrationRef]:
+    """Return a lightweight reference for every activity (migration use only).
+
+    Projects only the identity, owner, provider ids, and time bounds the
+    data-backfill migrations read, so no ORM row leaves the CRUD layer.
 
     Args:
         db: Database session.
 
     Returns:
-        List of ORM Activity rows or None when empty.
+        A migration reference per activity, or an empty list when there are none.
 
     Raises:
         HTTPException: 500 on database error.
     """
     try:
         activities = db.execute(select(activities_models.Activity)).scalars().all()
-        return list(activities) if activities else None
+        return [
+            activities_schema.ActivityMigrationRef(
+                id=activity.id,
+                user_id=activity.user_id,
+                start_time=activity.start_time,
+                end_time=activity.end_time,
+                strava_activity_id=activity.strava_activity_id,
+                garminconnect_activity_id=activity.garminconnect_activity_id,
+            )
+            for activity in activities
+        ]
     except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_all_activities_no_serialize") from err
+        raise _internal_server_error(err, "get_all_activities_for_migration") from err
 
 
 def get_user_activities(
@@ -280,6 +380,7 @@ def get_user_activities(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -301,6 +402,65 @@ def get_user_activities(
         )
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_user_activities") from err
+
+
+def count_user_activities(
+    user_id: int,
+    db: Session,
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+    user_is_owner: bool = True,
+    requester_user_id: int | None = None,
+) -> int:
+    """Count activities owned by a user (with optional filters).
+
+    Mirrors :func:`get_user_activities`' filters with a SQL
+    ``COUNT(*)`` so counting never loads or serializes rows.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+        activity_type: Optional activity type filter.
+        start_date: Optional inclusive start date filter.
+        end_date: Optional inclusive end date filter.
+        name_search: Optional case-insensitive name search.
+        user_is_owner: When False, private (visibility=2) and
+            hidden activities are excluded from the count.
+        requester_user_id: Requesting user ID used to authorize
+            followers-only rows when ``user_is_owner`` is False.
+
+    Returns:
+        Number of matching activities.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = (
+            select(func.count())
+            .select_from(activities_models.Activity)
+            .where(activities_models.Activity.user_id == user_id)
+        )
+        stmt = _apply_activity_visibility_filter(
+            stmt,
+            user_is_owner=user_is_owner,
+            requester_user_id=requester_user_id,
+            db=db,
+        )
+        if activity_type:
+            stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
+        if start_date:
+            stmt = stmt.where(func.date(activities_models.Activity.start_time) >= start_date)
+        if end_date:
+            stmt = stmt.where(func.date(activities_models.Activity.start_time) <= end_date)
+        if name_search:
+            stmt = _apply_name_search(stmt, name_search)
+        count = db.execute(stmt).scalar()
+        return count or 0
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "count_user_activities") from err
 
 
 def get_user_activities_by_user_id_and_garminconnect_gear_set(
@@ -387,6 +547,7 @@ def get_user_activities_with_pagination(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         if activity_type:
             stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -451,7 +612,7 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int,
         )
         type_ids = db.execute(stmt).scalars().all()
         return {
-            type_id: activities_utils.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
+            type_id: activities_constants.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
             for type_id in type_ids
             if type_id is not None
         }
@@ -499,6 +660,7 @@ def get_user_activities_per_timeframe(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -555,6 +717,7 @@ def get_user_activities_per_timeframe_and_activity_type(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -619,6 +782,7 @@ def get_user_activities_per_timeframe_and_activity_types(
             stmt,
             user_is_owner=user_is_owner,
             requester_user_id=requester_user_id,
+            db=db,
         )
         activities = db.execute(stmt).scalars().all()
         if not activities:
@@ -656,17 +820,13 @@ def get_user_following_activities_per_timeframe(
         HTTPException: 500 on database error.
     """
     try:
+        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+        if not followee_ids:
+            return None
         stmt = (
             select(activities_models.Activity)
-            .join(
-                followers_models.Follower,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-            )
             .where(
-                and_(
-                    followers_models.Follower.follower_id == user_id,
-                    followers_models.Follower.is_accepted,
-                ),
+                activities_models.Activity.user_id.in_(followee_ids),
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
                 activities_models.Activity.strava_activity_id.is_(None),
@@ -684,12 +844,14 @@ def get_user_following_activities_per_timeframe(
 
 
 def get_user_following_activities_with_pagination(
-    user_id: int, page_number: int, num_records: int, db: Session
+    followee_ids: list[int], page_number: int, num_records: int, db: Session
 ) -> list[activities_schema.Activity] | None:
-    """Get a page of activities from users a user follows.
+    """Get a page of activities from a set of followed users.
 
     Args:
-        user_id: Requesting user ID.
+        followee_ids: The requester's accepted-followee user ids, resolved by the
+            caller through the followers service interface (kept out of the ORM
+            layer so the feed's cross-domain dependency lives in the service).
         page_number: 1-based page number.
         num_records: Records per page.
         db: Database session.
@@ -701,17 +863,12 @@ def get_user_following_activities_with_pagination(
         HTTPException: 500 on database error.
     """
     try:
+        if not followee_ids:
+            return None
         stmt = (
             select(activities_models.Activity)
-            .join(
-                followers_models.Follower,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-            )
             .where(
-                and_(
-                    followers_models.Follower.follower_id == user_id,
-                    followers_models.Follower.is_accepted,
-                ),
+                activities_models.Activity.user_id.in_(followee_ids),
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
                 activities_models.Activity.strava_activity_id.is_(None),
@@ -742,28 +899,56 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         HTTPException: 500 on database error.
     """
     try:
+        followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
+        if not followee_ids:
+            return None
+        stmt = select(activities_models.Activity).where(
+            activities_models.Activity.user_id.in_(followee_ids),
+            activities_models.Activity.visibility.in_([0, 1]),
+            activities_models.Activity.is_hidden.is_(False),
+            activities_models.Activity.strava_activity_id.is_(None),
+        )
+        activities = db.execute(stmt).scalars().all()
+        if not activities:
+            return None
+        return [activities_serializers.serialize_activity(a) for a in activities]
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "get_user_following_activities") from err
+
+
+def count_user_following_activities(followee_ids: list[int], db: Session) -> int:
+    """Count activities from a set of followed users.
+
+    Uses a SQL ``COUNT(*)`` so counting never loads or serializes rows.
+
+    Args:
+        followee_ids: The requester's accepted-followee user ids, resolved by the
+            caller through the followers service interface.
+        db: Database session.
+
+    Returns:
+        Number of following-feed activities.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        if not followee_ids:
+            return 0
         stmt = (
-            select(activities_models.Activity)
-            .join(
-                followers_models.Follower,
-                followers_models.Follower.following_id == activities_models.Activity.user_id,
-            )
+            select(func.count())
+            .select_from(activities_models.Activity)
             .where(
-                and_(
-                    followers_models.Follower.follower_id == user_id,
-                    followers_models.Follower.is_accepted,
-                ),
+                activities_models.Activity.user_id.in_(followee_ids),
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
                 activities_models.Activity.strava_activity_id.is_(None),
             )
         )
-        activities = db.execute(stmt).scalars().all()
-        if not activities:
-            return None
-        return [activities_utils.serialize_activity(a) for a in activities]
+        count = db.execute(stmt).scalar()
+        return count or 0
     except SQLAlchemyError as err:
-        raise _internal_server_error(err, "get_user_following_activities") from err
+        raise _internal_server_error(err, "count_user_following_activities") from err
 
 
 def get_gear_activities_count_by_user_id(
@@ -902,18 +1087,68 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         stmt = select(activities_models.Activity).where(
             or_(
                 activities_models.Activity.user_id == user_id,
-                _visible_to_requester_condition(user_id),
+                _visible_to_requester_condition(user_id, db),
             ),
             activities_models.Activity.id == activity_id,
         )
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        schema = activities_utils.serialize_activity(activity)
-        activities_utils.apply_visibility_mask(schema, is_owner=(activity.user_id == user_id))
+        schema = activities_serializers.serialize_activity(activity)
+        is_owner = activity.user_id == user_id
+        activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
+        core_logger.print_to_log(
+            f"Served activity {activity_id} to user {user_id} (owner={is_owner})",
+            "debug",
+        )
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_from_user_id_or_has_visibility") from err
+
+
+def get_viewable_activity_by_id_for_user(
+    activity_id: int, user_id: int, db: Session
+) -> activities_schema.Activity | None:
+    """Return an activity (unmasked) iff the user may view it — child-resource authz gate.
+
+    Enforces the same visibility rule as
+    :func:`get_activity_by_id_from_user_id_or_has_visibility` (the requester must
+    own the activity, or it must be public, or followers-only with an accepted
+    follow — never private or hidden for a non-owner), but returns the activity
+    **without** applying the field mask so child sub-resource reads (streams /
+    laps / sets / workout-steps) can still inspect the activity's ``hide_*`` flags
+    and ``timezone`` to apply their own per-field masking.
+
+    This is the authorization gate for child sub-resources: it stops a non-owner
+    from reading a private or followers-only activity's streams/laps/sets/steps by
+    ID (OWASP A01 / IDOR). Prefer it over :func:`get_activity_by_id` (which does no
+    permission check) whenever a request-facing read is scoped to a requester.
+
+    Args:
+        activity_id: Activity ID.
+        user_id: Requesting user ID.
+        db: Database session.
+
+    Returns:
+        The activity schema when the user may view it, otherwise ``None``.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(activities_models.Activity).where(
+            or_(
+                activities_models.Activity.user_id == user_id,
+                _visible_to_requester_condition(user_id, db),
+            ),
+            activities_models.Activity.id == activity_id,
+        )
+        activity = db.execute(stmt).scalar_one_or_none()
+        if not activity:
+            return None
+        return activities_serializers.serialize_activity(activity)
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "get_viewable_activity_by_id_for_user") from err
 
 
 def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities_schema.Activity | None:
@@ -942,8 +1177,9 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        schema = activities_utils.serialize_activity(activity)
-        activities_utils.apply_visibility_mask(schema, is_owner=False)
+        schema = activities_serializers.serialize_activity(activity)
+        activities_serializers.apply_visibility_mask(schema, is_owner=False)
+        core_logger.print_to_log(f"Served public activity {activity_id}", "debug")
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_if_is_public") from err
@@ -969,7 +1205,7 @@ def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activ
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id") from err
 
@@ -1002,9 +1238,39 @@ def get_activity_by_start_time(
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_start_time") from err
+
+
+def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> activities_schema.Activity | None:
+    """Get a user's activity by its idempotency dedup key.
+
+    Used by the ingestion seam to make re-import of an already-ingested activity
+    a no-op: a provider-scoped id now, a content hash later.
+
+    Args:
+        dedup_key: Stable idempotency key (e.g. ``"strava:123"``).
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        Activity schema or None when not found.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(activities_models.Activity).where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.dedup_key == dedup_key,
+        )
+        activity = db.execute(stmt).scalars().first()
+        if not activity:
+            return None
+        return activities_serializers.serialize_activity(activity)
+    except SQLAlchemyError as err:
+        raise _internal_server_error(err, "get_activity_by_dedup_key") from err
 
 
 def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
@@ -1029,7 +1295,7 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_from_user_id") from err
 
@@ -1058,7 +1324,7 @@ def get_activity_by_strava_id_from_user_id(
         activity = db.execute(stmt).scalar_one_or_none()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_strava_id_from_user_id") from err
 
@@ -1087,7 +1353,7 @@ def get_activity_by_garminconnect_id_from_user_id(
         activity = db.execute(stmt).scalars().first()
         if not activity:
             return None
-        return activities_utils.serialize_activity(activity)
+        return activities_serializers.serialize_activity(activity)
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_garminconnect_id_from_user_id") from err
 
@@ -1108,7 +1374,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
     """
     try:
         partial_name = unquote(name).replace("+", " ").lower()
-        pattern = f"%{activities_utils.escape_like(partial_name)}%"
+        pattern = f"%{escape_like(partial_name)}%"
         stmt = (
             select(activities_models.Activity)
             .where(
@@ -1128,50 +1394,84 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
         raise _internal_server_error(err, "get_activities_if_contains_name") from err
 
 
-async def create_activity(
-    activity: activities_schema.Activity,
-    websocket_manager: websocket_manager.WebSocketManager,
+def create_activity(
+    activity: activities_schema.ActivityCore,
     db: Session,
-    create_notification: bool = True,
+    *,
+    commit: bool = True,
+    dedup_key: str | None = None,
 ) -> activities_schema.Activity:
-    """Persist a new activity and emit notifications.
+    """Persist a new activity; duplicate start-times are marked hidden.
+
+    Pure persistence: notifications and derived work (thumbnails, HR zones) are
+    decoupled to ``activity.created`` subscribers. The caller publishes
+    the event after the activity's children are stored; this function only writes
+    the row and flags start-time duplicates as hidden.
 
     Args:
-        activity: Activity schema to persist.
-        websocket_manager: Manager used for notifications.
+        activity: Strict ``ActivityCore`` ingestion schema to persist.
         db: Database session.
-        create_notification: Whether to push a notification.
+        dedup_key: Optional stable idempotency key stored on the row so future
+            re-imports of the same source can be recognised as duplicates.
 
     Returns:
-        The provided activity schema with generated ID and
-        ``created_at`` populated.
+        The provided activity schema with generated ID and ``created_at``
+        populated. ``is_hidden`` is set ``True`` when the start time duplicates
+        an existing activity — the signal the caller forwards to the
+        ``activity.created`` notification subscriber.
 
     Raises:
         HTTPException: 500 on database error.
     """
     try:
-        activity_start_time_exists = get_activity_by_start_time(activity.start_time, activity.user_id, db)
+        if activity.user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Activity user_id is required",
+            )
+
+        # Normalize the start time to a UTC-aware datetime at the persistence
+        # boundary. Parsers emit naive UTC wall-clock values and providers emit
+        # ISO strings; to_utc_aware coerces both to aware UTC and returns None for
+        # a missing value, so we never persist or compare a naive/absent start
+        # time (this is also what keeps get_activity_by_start_time from being
+        # handed a None).
+        normalized_start_time = core_timezone.to_utc_aware(activity.start_time)
+        if normalized_start_time is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Activity start_time is required and must be a valid datetime",
+            )
+
+        activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
         if activity_start_time_exists:
             activity.is_hidden = True
 
-        new_activity = activities_utils.transform_schema_activity_to_model_activity(activity)
+        new_activity = _transform_schema_activity_to_model_activity(activity)
+        # Persist the idempotency key alongside the row so future re-imports of
+        # the same source can be recognised as duplicates.
+        new_activity.dedup_key = dedup_key
 
         db.add(new_activity)
-        db.commit()
+        # Persist the row so its generated id / created_at are available. On the
+        # ingestion path the caller drives a single commit for the whole unit of
+        # work (activity + children + outbox row), so we only flush here; other
+        # callers keep the default commit=True.
+        if commit:
+            db.commit()
+        else:
+            db.flush()
         db.refresh(new_activity)
 
         activity.id = new_activity.id
         activity.created_at = new_activity.created_at
 
-        if create_notification:
-            if activity_start_time_exists:
-                await notifications_utils.create_new_duplicate_start_time_activity_notification(
-                    activity.user_id, new_activity.id, websocket_manager
-                )
-            else:
-                await notifications_utils.create_new_activity_notification(
-                    activity.user_id, new_activity.id, websocket_manager
-                )
+        core_logger.print_to_log(
+            f"Created activity {new_activity.id} for user {activity.user_id}"
+            + (" (marked hidden: duplicate start time)" if activity_start_time_exists else ""),
+            "debug",
+        )
+
         return activity
     except SQLAlchemyError as err:
         db.rollback()
@@ -1212,6 +1512,91 @@ def set_activity_thumbnail_path(
         raise _internal_server_error(err, "set_activity_thumbnail_path") from err
 
 
+def update_activity_location(
+    activity_id: int,
+    city: str | None,
+    town: str | None,
+    country: str | None,
+    db: Session,
+) -> bool:
+    """Persist a reverse-geocoded location on an activity.
+
+    Written by the geocoding subscriber / backfill once the location for a GPS
+    activity has been resolved (geocoding no longer runs inline in the parsers).
+
+    Args:
+        activity_id: Target activity ID.
+        city: Resolved city, or None.
+        town: Resolved town, or None.
+        country: Resolved country, or None.
+        db: Database session.
+
+    Returns:
+        True when the activity existed and was updated, False when it was not
+        found.
+
+    Raises:
+        HTTPException: 500 on database error.
+    """
+    try:
+        stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
+        db_activity = db.execute(stmt).scalar_one_or_none()
+        if db_activity is None:
+            core_logger.print_to_log(
+                f"Activity {activity_id} not found when updating location",
+                "warning",
+            )
+            return False
+        db_activity.city = city
+        db_activity.town = town
+        db_activity.country = country
+        db.commit()
+        return True
+    except SQLAlchemyError as err:
+        db.rollback()
+        raise _internal_server_error(err, "update_activity_location") from err
+
+
+def get_activities_missing_location(
+    db: Session,
+    limit: int = 200,
+) -> list[activities_schema.ActivityLocationRef]:
+    """Return references to activities that have no resolved location.
+
+    Rows where ``city``, ``town`` and ``country`` are all NULL — candidates for
+    the reverse-geocoding backfill. Bounded by ``limit`` so a single backfill
+    pass makes at most ``limit`` (rate-limited) geocoding requests; the
+    remainder are picked up on the next scheduled run.
+
+    Args:
+        db: Database session.
+        limit: Maximum number of candidate rows to return.
+
+    Returns:
+        Location references (id only) ordered by id, or an empty list on error.
+    """
+    try:
+        stmt = (
+            select(activities_models.Activity.id)
+            .where(
+                activities_models.Activity.city.is_(None),
+                activities_models.Activity.town.is_(None),
+                activities_models.Activity.country.is_(None),
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
+        ids = db.execute(stmt).scalars().all()
+        return [activities_schema.ActivityLocationRef(id=activity_id) for activity_id in ids]
+    except SQLAlchemyError as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_missing_location: {err}",
+            "error",
+            exc=err,
+        )
+        return []
+
+
 def clear_all_activity_thumbnail_paths(db: Session) -> None:
     """Set ``map_thumbnail_path`` to NULL on every activity.
 
@@ -1235,19 +1620,22 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
 
 def get_activities_with_thumbnail(
     db: Session,
-) -> list[activities_models.Activity]:
-    """Return activities that have a map thumbnail.
+) -> list[activities_schema.ActivityThumbnailRef]:
+    """Return references to activities that have a map thumbnail.
 
     Args:
         db: Database session.
 
     Returns:
-        ORM rows with ``map_thumbnail_path`` set, or
-        an empty list on error.
+        Thumbnail references (id + stored key) for rows with
+        ``map_thumbnail_path`` set, or an empty list on error.
     """
     try:
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.isnot(None))
-        return list(db.execute(stmt).scalars().all())
+        rows = db.execute(stmt).scalars().all()
+        return [
+            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+        ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_with_thumbnail: {err}",
@@ -1259,19 +1647,22 @@ def get_activities_with_thumbnail(
 
 def get_activities_without_thumbnail(
     db: Session,
-) -> list[activities_models.Activity]:
-    """Return activities that have no map thumbnail.
+) -> list[activities_schema.ActivityThumbnailRef]:
+    """Return references to activities that have no map thumbnail.
 
     Args:
         db: Database session.
 
     Returns:
-        ORM rows with ``map_thumbnail_path`` set to NULL, or
-        an empty list on error.
+        Thumbnail references (id, with a null key) for rows with
+        ``map_thumbnail_path`` set to NULL, or an empty list on error.
     """
     try:
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.is_(None))
-        return list(db.execute(stmt).scalars().all())
+        rows = db.execute(stmt).scalars().all()
+        return [
+            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+        ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_without_thumbnail: {err}",
@@ -1285,12 +1676,13 @@ def get_activities_with_legacy_thumbnail_path(
     db: Session,
     after_id: int = 0,
     limit: int = 200,
-) -> list[activities_models.Activity]:
-    """Return activities whose thumbnail value is a legacy filesystem path.
+) -> list[activities_schema.ActivityThumbnailRef]:
+    """Return references to activities whose thumbnail value is a legacy filesystem path.
 
     Legacy values are absolute paths (they contain a ``/`` separator); the new
     storage keys (e.g. ``42.webp``) never do. Ordered by id and paged via
-    ``after_id`` so migration 8 can process them in bounded batches.
+    ``after_id`` so migration 8 can process them in bounded batches (migration
+    use only).
 
     Args:
         db: Database session.
@@ -1298,7 +1690,8 @@ def get_activities_with_legacy_thumbnail_path(
         limit: Maximum number of rows to return.
 
     Returns:
-        ORM rows with a legacy thumbnail path, or an empty list on error.
+        Thumbnail references (id + stored key) for rows with a legacy thumbnail
+        path, or an empty list on error.
     """
     try:
         stmt = (
@@ -1311,7 +1704,10 @@ def get_activities_with_legacy_thumbnail_path(
             .order_by(activities_models.Activity.id)
             .limit(limit)
         )
-        return list(db.execute(stmt).scalars().all())
+        rows = db.execute(stmt).scalars().all()
+        return [
+            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+        ]
     except SQLAlchemyError as err:
         core_logger.print_to_log(
             f"Error in get_activities_with_legacy_thumbnail_path: {err}",
@@ -1323,6 +1719,7 @@ def get_activities_with_legacy_thumbnail_path(
 
 def edit_activity(
     user_id: int,
+    activity_id: int,
     activity_attributes: activities_schema.ActivityEdit | activities_schema.Activity,
     db: Session,
 ) -> activities_schema.Activity:
@@ -1330,8 +1727,9 @@ def edit_activity(
 
     Args:
         user_id: Owner user ID.
-        activity_attributes: Pydantic model or object with the
-            attributes to update; ``id`` must be set.
+        activity_id: ID of the activity to update (from the request path).
+        activity_attributes: Pydantic model carrying the fields to update;
+            only the fields explicitly set are applied.
         db: Database session.
 
     Returns:
@@ -1344,7 +1742,7 @@ def edit_activity(
     try:
         stmt = select(activities_models.Activity).where(
             activities_models.Activity.user_id == user_id,
-            activities_models.Activity.id == activity_attributes.id,
+            activities_models.Activity.id == activity_id,
         )
         db_activity = db.execute(stmt).scalar_one_or_none()
         if db_activity is None:
@@ -1374,7 +1772,11 @@ def edit_activity(
 
         db.commit()
         db.refresh(db_activity)
-        return activities_utils.serialize_activity(db_activity)
+        core_logger.print_to_log(
+            f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})",
+            "debug",
+        )
+        return activities_serializers.serialize_activity(db_activity)
     except HTTPException:
         raise
     except SQLAlchemyError as err:
@@ -1402,7 +1804,9 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
             .where(activities_models.Activity.user_id == user_id)
             .values(visibility=visibility)
         )
-        result: CursorResult[Any] = db.execute(stmt)
+        # Session.execute() is typed to return the base Result; an UPDATE/DELETE
+        # always yields a CursorResult at runtime, which is what exposes rowcount.
+        result = cast("CursorResult[Any]", db.execute(stmt))
         db.commit()
         return result.rowcount or 0
     except SQLAlchemyError as err:
@@ -1452,7 +1856,7 @@ def bulk_set_activities_gear_id(
                 )
                 .values(gear_id=gear_id)
             )
-            result: CursorResult[Any] = db.execute(stmt)
+            result = cast("CursorResult[Any]", db.execute(stmt))
             total += result.rowcount or 0
         db.commit()
         return total
@@ -1497,12 +1901,16 @@ def update_activity_gear_id(
         raise _internal_server_error(err, "update_activity_gear_id") from err
 
 
-def delete_activity(activity_id: int, db: Session) -> None:
+def delete_activity(activity_id: int, db: Session, commit: bool = True) -> None:
     """Delete an activity by ID.
 
     Args:
         activity_id: Activity ID.
         db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            delete in the caller's unit of work so ``activity.deleted`` can be
+            published atomically with it (the durable outbox row joins the same
+            transaction via ``publish_committing``).
 
     Returns:
         None
@@ -1513,13 +1921,15 @@ def delete_activity(activity_id: int, db: Session) -> None:
     """
     try:
         stmt = sa_delete(activities_models.Activity).where(activities_models.Activity.id == activity_id)
-        result: CursorResult[Any] = db.execute(stmt)
+        result = cast("CursorResult[Any]", db.execute(stmt))
         if result.rowcount == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Activity with id {activity_id} not found",
             )
-        db.commit()
+        if commit:
+            db.commit()
+        core_logger.print_to_log(f"Deleted activity {activity_id}", "debug")
     except HTTPException:
         db.rollback()
         raise
@@ -1546,7 +1956,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session) -> int:
             activities_models.Activity.user_id == user_id,
             activities_models.Activity.strava_activity_id.isnot(None),
         )
-        result: CursorResult[Any] = db.execute(stmt)
+        result = cast("CursorResult[Any]", db.execute(stmt))
         if result.rowcount:
             db.commit()
         return result.rowcount or 0

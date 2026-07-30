@@ -1,10 +1,10 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
 
 
 class TestCreateActivityWorkoutSteps:
@@ -56,17 +56,19 @@ class TestCreateActivityWorkoutSteps:
 
 
 class TestGetActivityWorkoutSteps:
-    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_success(self, mock_get_act, mock_db):
         import modules.activities.activity_workout_steps.crud as crud
-        import modules.activities.activity_workout_steps.models as m
 
         mock_get_act.return_value = MagicMock(user_id=1, hide_workout_sets_steps=False)
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(m.ActivityWorkoutSteps, id=1, activity_id=1)])
+        setup_mock_execute(
+            mock_db,
+            return_scalars_all=[SimpleNamespace(id=1, activity_id=1, message_index=0, duration_type="time")],
+        )
         r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_not_found(self, mock_get_act, mock_db):
         import modules.activities.activity_workout_steps.crud as crud
 
@@ -74,7 +76,7 @@ class TestGetActivityWorkoutSteps:
         r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_hidden(self, mock_get_act, mock_db):
         import modules.activities.activity_workout_steps.crud as crud
 
@@ -82,7 +84,7 @@ class TestGetActivityWorkoutSteps:
         r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_empty(self, mock_get_act, mock_db):
         import modules.activities.activity_workout_steps.crud as crud
 
@@ -91,7 +93,7 @@ class TestGetActivityWorkoutSteps:
         r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_db_error(self, mock_get_act, mock_db):
         import modules.activities.activity_workout_steps.crud as crud
 
@@ -106,10 +108,9 @@ class TestGetActivitiesWorkoutSteps:
     def test_success(self, mock_db):
         import modules.activities.activity.models as am
         import modules.activities.activity_workout_steps.crud as crud
-        import modules.activities.activity_workout_steps.models as m
 
         mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1, hide_workout_sets_steps=False)
-        mock_steps = [MagicMock(spec=m.ActivityWorkoutSteps, id=1, activity_id=1)]
+        mock_steps = [SimpleNamespace(id=1, activity_id=1, message_index=0, duration_type="time")]
         mock_db.scalars.return_value.all.side_effect = [
             [mock_activity],
             mock_steps,
@@ -165,11 +166,12 @@ class TestGetPublicActivityWorkoutSteps:
     @patch("modules.activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
     def test_success(self, mock_get_act, mock_settings, mock_db):
         import modules.activities.activity_workout_steps.crud as crud
-        import modules.activities.activity_workout_steps.models as m
 
         mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0)
         mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityWorkoutSteps, id=1, activity_id=1)]
+        mock_db.scalars.return_value.all.return_value = [
+            SimpleNamespace(id=1, activity_id=1, message_index=0, duration_type="time")
+        ]
         r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
         assert len(r) == 1
 

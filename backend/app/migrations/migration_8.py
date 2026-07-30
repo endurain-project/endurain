@@ -1,7 +1,7 @@
 """Migration 8: re-encode legacy PNG thumbnails to WebP and store storage keys.
 
 Pre-PoC thumbnails were PNGs written to disk, with their absolute filesystem
-path stored on the activity. The thumbnail PoC (foundations plan §13) stores WebP
+path stored on the activity. The thumbnail PoC stores WebP
 blobs through the platform ``StorageProvider`` addressed by a bare key
 (e.g. ``42.webp``). This migration re-encodes each existing PNG to WebP, saves it
 through the storage provider, and rewrites the DB value from the old path to the

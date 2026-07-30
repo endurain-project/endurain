@@ -74,210 +74,137 @@ async def _create_and_notify(
     return notification
 
 
-async def create_new_activity_notification(
+def create_activity_created_notification(
     user_id: int,
     activity_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
-) -> notifications_schema.NotificationRead:
-    """
-    Create a new activity notification.
-
-    Args:
-        user_id: The user ID to notify.
-        activity_id: The new activity ID.
-        websocket_manager: WebSocket manager instance.
-
-    Returns:
-        The created NotificationRead schema.
-
-    Raises:
-        HTTPException: If creation or notify fails.
-    """
-    try:
-        return await _create_and_notify(
-            notifications_schema.NotificationCreate(
-                user_id=user_id,
-                type=(notifications_constants.NotificationType.NEW_ACTIVITY),
-                options={
-                    "activity_id": activity_id,
-                },
-            ),
-            "NEW_ACTIVITY_NOTIFICATION",
-            user_id,
-            websocket_manager,
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_new_activity_notification: {err}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Internal Server Error",
-        ) from err
-
-
-async def create_new_duplicate_start_time_activity_notification(
-    user_id: int,
-    activity_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
-) -> notifications_schema.NotificationRead:
-    """
-    Create a duplicate start time notification.
-
-    Args:
-        user_id: The user ID to notify.
-        activity_id: The duplicate activity ID.
-        websocket_manager: WebSocket manager instance.
-
-    Returns:
-        The created NotificationRead schema.
-
-    Raises:
-        HTTPException: If creation or notify fails.
-    """
-    try:
-        return await _create_and_notify(
-            notifications_schema.NotificationCreate(
-                user_id=user_id,
-                type=(notifications_constants.NotificationType.DUPLICATE_ACTIVITY),
-                options={
-                    "activity_id": activity_id,
-                },
-            ),
-            "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION",
-            user_id,
-            websocket_manager,
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_new_duplicate_start_time_activity_notification: {err}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Internal Server Error",
-        ) from err
-
-
-async def create_new_follower_request_notification(
-    user_id: int,
-    target_user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
+    duplicate_start_time: bool,
     db: Session,
-) -> notifications_schema.NotificationRead:
-    """
-    Create a new follower request notification.
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """Create the notification row for a newly stored activity (synchronous).
+
+    For the ``activity.created`` subscriber: it only writes the row (the record) and
+    returns it together with the websocket message type, leaving the best-effort
+    websocket push to the caller (dispatched onto the main loop via the async
+    bridge). No websocket work happens here, so it is safe to run on a durable
+    job worker thread or inline on the bus.
 
     Args:
-        user_id: The requesting user ID.
-        target_user_id: The user to notify.
-        websocket_manager: WebSocket manager instance.
-        db: Database session.
+        user_id: The user to notify (the activity owner).
+        activity_id: The stored activity's ID.
+        duplicate_start_time: Whether the activity was flagged as a duplicate
+            start time (raises the duplicate variant instead of the new one).
+        db: Database session used for the row write.
 
     Returns:
-        The created NotificationRead schema.
-
-    Raises:
-        HTTPException: If user not found or error.
+        Tuple of the created notification and the websocket message type string.
     """
-    try:
-        user = await run_in_threadpool(users_crud.get_user_by_id, user_id, db)
-        if not user:
-            raise HTTPException(
-                status_code=(status.HTTP_404_NOT_FOUND),
-                detail="User not found",
-            )
-        return await _create_and_notify(
-            notifications_schema.NotificationCreate(
-                user_id=target_user_id,
-                type=(notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST),
-                options={
-                    "user_id": user_id,
-                    "user_name": user.name,
-                    "user_username": user.username,
-                },
-            ),
-            "NEW_FOLLOWER_REQUEST_NOTIFICATION",
-            target_user_id,
-            websocket_manager,
-            db,
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_new_follower_request_notification: {err}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Internal Server Error",
-        ) from err
+    if duplicate_start_time:
+        notification_type = notifications_constants.NotificationType.DUPLICATE_ACTIVITY
+        ws_message = "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION"
+    else:
+        notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
+        ws_message = "NEW_ACTIVITY_NOTIFICATION"
+
+    notification = notifications_crud.create_notification(
+        notifications_schema.NotificationCreate(
+            user_id=user_id,
+            type=notification_type,
+            options={"activity_id": activity_id},
+        ),
+        db,
+    )
+    return notification, ws_message
 
 
-async def create_accepted_follower_request_notification(
-    user_id: int,
+def create_new_follower_request_notification(
+    requester_user_id: int,
     target_user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
     db: Session,
-) -> notifications_schema.NotificationRead:
-    """
-    Create an accepted follower request notification.
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """Create the 'new follower request' notification row (synchronous).
+
+    For the ``follower.requested`` subscriber: it only writes the row (the record)
+    for the target user and returns it together with the websocket message type,
+    leaving the best-effort websocket push to the caller (dispatched onto the main
+    loop via the async bridge). No websocket work happens here, so it is safe to
+    run inline on the bus consumer thread.
 
     Args:
-        user_id: The accepting user ID.
-        target_user_id: The user to notify.
-        websocket_manager: WebSocket manager instance.
-        db: Database session.
+        requester_user_id: The user who requested to follow (named in the
+            notification options).
+        target_user_id: The user to notify (owns the notification row).
+        db: Database session used for the row write.
 
     Returns:
-        The created NotificationRead schema.
+        Tuple of the created notification and the websocket message type string.
 
     Raises:
-        HTTPException: If user not found or error.
+        HTTPException: 404 if the requesting user no longer exists.
     """
-    try:
-        user = await run_in_threadpool(users_crud.get_user_by_id, user_id, db)
-        if not user:
-            raise HTTPException(
-                status_code=(status.HTTP_404_NOT_FOUND),
-                detail="User not found",
-            )
-        return await _create_and_notify(
-            notifications_schema.NotificationCreate(
-                user_id=target_user_id,
-                type=(notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED),
-                options={
-                    "user_id": user_id,
-                    "user_name": user.name,
-                    "user_username": user.username,
-                },
-            ),
-            "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
-            user_id,
-            websocket_manager,
-            db,
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in create_accepted_follower_request_notification: {err}",
-            "error",
-            exc=err,
-        )
+    user = users_crud.get_user_by_id(requester_user_id, db)
+    if not user:
         raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail="Internal Server Error",
-        ) from err
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    notification = notifications_crud.create_notification(
+        notifications_schema.NotificationCreate(
+            user_id=target_user_id,
+            type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST,
+            options={
+                "user_id": requester_user_id,
+                "user_name": user.name,
+                "user_username": user.username,
+            },
+        ),
+        db,
+    )
+    return notification, "NEW_FOLLOWER_REQUEST_NOTIFICATION"
+
+
+def create_accepted_follower_request_notification(
+    accepter_user_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """Create the 'follow request accepted' notification row (synchronous).
+
+    For the ``follower.accepted`` subscriber: it only writes the row (the record)
+    for the original requester and returns it with the websocket message type,
+    leaving the best-effort websocket push to the caller.
+
+    Args:
+        accepter_user_id: The user who accepted the request (named in the
+            notification options).
+        requester_user_id: The original requester to notify (owns the
+            notification row).
+        db: Database session used for the row write.
+
+    Returns:
+        Tuple of the created notification and the websocket message type string.
+
+    Raises:
+        HTTPException: 404 if the accepting user no longer exists.
+    """
+    user = users_crud.get_user_by_id(accepter_user_id, db)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    notification = notifications_crud.create_notification(
+        notifications_schema.NotificationCreate(
+            user_id=requester_user_id,
+            type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED,
+            options={
+                "user_id": accepter_user_id,
+                "user_name": user.name,
+                "user_username": user.username,
+            },
+        ),
+        db,
+    )
+    return notification, "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION"
 
 
 async def create_admin_new_sign_up_approval_request_notification(

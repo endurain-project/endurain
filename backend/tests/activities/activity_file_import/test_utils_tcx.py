@@ -2,33 +2,12 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
+
+import pytest
+from pydantic import ValidationError
 
 import modules.activities.activity_file_import.utils_tcx as utils_tcx
-
-
-def _privacy_settings() -> SimpleNamespace:
-    """
-    Build privacy settings for parser tests.
-
-    Returns:
-        Object with the attributes expected by privacy kwarg builder.
-    """
-    return SimpleNamespace(
-        default_activity_visibility="public",
-        hide_activity_start_time=False,
-        hide_activity_location=False,
-        hide_activity_map=False,
-        hide_activity_hr=False,
-        hide_activity_power=False,
-        hide_activity_cadence=False,
-        hide_activity_elevation=False,
-        hide_activity_speed=False,
-        hide_activity_pace=False,
-        hide_activity_laps=False,
-        hide_activity_workout_sets_steps=False,
-        hide_activity_gear=False,
-    )
 
 
 class TestUtilsTcx:
@@ -79,8 +58,8 @@ class TestUtilsTcx:
         assert len(waypoints["power_waypoints"]) == 1
         assert all(wp["time"] == "2026-04-01T10:00:00" for wp in waypoints["lat_lon_waypoints"])
 
-    def test_build_activity_handles_missing_start_and_end_time(self):
-        """Test activity schema accepts missing start/end timestamps."""
+    def test_build_activity_rejects_missing_start_and_end_time(self):
+        """A TCX with no start/end is rejected at ActivityCore construction."""
         tcx_file = SimpleNamespace(
             start_time=None,
             end_time=None,
@@ -93,28 +72,22 @@ class TestUtilsTcx:
             calories=None,
         )
 
-        activity = utils_tcx._build_activity(
-            tcx_file=tcx_file,
-            user_id=1,
-            activity_name="Indoor Session",
-            activity_type=1,
-            distance=0,
-            timezone="UTC",
-            pace=None,
-            city=None,
-            town=None,
-            country=None,
-            avg_power=None,
-            max_power=None,
-            norm_power=None,
-            gear_id=None,
-            user_privacy_settings=_privacy_settings(),
-        )
-
-        assert activity.start_time is None
-        assert activity.end_time is None
-        assert activity.total_elapsed_time is None
-        assert activity.total_timer_time is None
+        with pytest.raises(ValidationError):
+            utils_tcx._build_activity(
+                tcx_file=tcx_file,
+                user_id=1,
+                activity_name="Indoor Session",
+                activity_type=1,
+                distance=0,
+                timezone="UTC",
+                pace=None,
+                city=None,
+                town=None,
+                country=None,
+                avg_power=None,
+                max_power=None,
+                norm_power=None,
+            )
 
     def test_extract_waypoints_converts_offset_to_utc(self):
         """Offset-bearing trackpoint times are normalized to UTC (issue #588)."""
@@ -168,12 +141,10 @@ class TestUtilsTcx:
             avg_power=None,
             max_power=None,
             norm_power=None,
-            gear_id=None,
-            user_privacy_settings=_privacy_settings(),
         )
 
-        assert activity.start_time == "2026-03-28T15:19:19"
-        assert activity.end_time == "2026-03-28T16:19:19"
+        assert activity.start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
+        assert activity.end_time == datetime(2026, 3, 28, 16, 19, 19, tzinfo=UTC)
 
     def test_parse_tcx_file_recomputes_hr_from_waypoints(self):
         """parse_tcx_file overwrites hr_avg/hr_max from hr_waypoints, dropping zeros."""
@@ -217,19 +188,12 @@ class TestUtilsTcx:
                 "modules.activities.activity_file_import.utils_tcx._extract_waypoints",
                 return_value=fake_waypoints,
             ),
-            patch(
-                "modules.activities.activity_file_import.utils_tcx"
-                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
             result = utils_tcx.parse_tcx_file(
                 file="dummy.tcx",
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         activity = result["activity"]
@@ -284,15 +248,6 @@ class TestUtilsTcx:
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.utils_tcx"
-                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
-            patch(
-                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
-                return_value=None,
-            ),
-            patch(
                 "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
@@ -302,8 +257,6 @@ class TestUtilsTcx:
             result = utils_tcx.parse_tcx_file(
                 file="dummy.tcx",
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         assert 1000 < result["activity"].distance < 1200
@@ -355,15 +308,6 @@ class TestUtilsTcx:
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.utils_tcx"
-                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
-                return_value=None,
-            ),
-            patch(
-                "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
-                return_value=None,
-            ),
-            patch(
                 "modules.activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
@@ -373,8 +317,6 @@ class TestUtilsTcx:
             result = utils_tcx.parse_tcx_file(
                 file="dummy.tcx",
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         assert result["activity"].distance == 5000

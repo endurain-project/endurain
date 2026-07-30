@@ -1,10 +1,13 @@
 """Activity sets CRUD operations."""
 
+from collections.abc import Sequence
+
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_sets.models as activity_sets_models
@@ -53,7 +56,7 @@ def get_activity_sets(
     Raises:
         HTTPException: If database error occurs.
     """
-    activity = activity_crud.get_activity_by_id(activity_id, db)
+    activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
     if not activity:
         return None
@@ -77,7 +80,7 @@ def get_activities_sets(
     activity_ids: list[int],
     token_user_id: int,
     db: Session,
-    activities: list[activity_models.Activity] | None = None,
+    activities: Sequence[activity_models.Activity] | None = None,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """
     Retrieve sets for multiple activities.
@@ -179,6 +182,8 @@ def create_activity_sets(
     activity_sets: list[activity_sets_schema.ActivitySetsCreate | list],
     activity_id: int,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> None:
     """
     Bulk create activity sets for an activity.
@@ -226,7 +231,16 @@ def create_activity_sets(
         sets.append(db_activity_set)
 
     db.add_all(sets)
-    db.commit()
+    # commit=False keeps the sets in the caller's open transaction (atomic ingestion).
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+
+    core_logger.print_to_log(
+        f"Created {len(sets)} set(s) for activity {activity_id}",
+        "debug",
+    )
 
 
 def _extract_value(

@@ -196,7 +196,7 @@ describe('searchActivitiesByName', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([activityDto])
     const result = await searchActivitiesByName('morning run')
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/name/contains/morning%20run',
+      '/activities?name=morning+run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
@@ -214,7 +214,9 @@ describe('fetchUserWeekActivities', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([activityDto])
     const result = await fetchUserWeekActivities(7, 3)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/user/7/week/3',
+      expect.stringMatching(
+        /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
+      ),
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
@@ -271,9 +273,9 @@ describe('setActivityGear', () => {
 
     const updated = await setActivityGear(activity, 42)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/edit', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 5, name: 'Morning run', activity_type: 1, gear_id: 42 }),
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'PATCH',
+      body: JSON.stringify({ gear_id: 42 }),
     })
     expect(updated.gearId).toBe(42)
   })
@@ -284,9 +286,9 @@ describe('setActivityGear', () => {
 
     await setActivityGear(activity, null)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/edit', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 5, name: 'Morning run', activity_type: 1, gear_id: null }),
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'PATCH',
+      body: JSON.stringify({ gear_id: null }),
     })
   })
 })
@@ -297,7 +299,7 @@ describe('deleteActivity', () => {
 
     await deleteActivity(5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/delete', { method: 'DELETE' })
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', { method: 'DELETE' })
   })
 })
 
@@ -343,10 +345,9 @@ describe('editActivity', () => {
       hideGear: false,
     })
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/edit', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'PATCH',
       body: JSON.stringify({
-        id: 5,
         name: 'Evening run',
         activity_type: 1,
         description: null,
@@ -373,7 +374,7 @@ describe('editActivity', () => {
 
 describe('fetchUserActivitiesPage', () => {
   it('builds the list and count URLs from the shared filters and combines the results', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto]).mockResolvedValueOnce(42)
+    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto]).mockResolvedValueOnce({ count: 42 })
 
     const result = await fetchUserActivitiesPage({
       userId: 7,
@@ -386,12 +387,12 @@ describe('fetchUserActivitiesPage', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      '/activities/user/7/page_number/2/num_records/25?type=1&start_date=2024-01-01&end_date=2024-12-31&name_search=run&sort_by=distance&sort_order=asc',
+      '/activities?type=1&start_date=2024-01-01&end_date=2024-12-31&name=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      '/activities/number?type=1&start_date=2024-01-01&end_date=2024-12-31&name_search=run',
+      '/activities/count?type=1&start_date=2024-01-01&end_date=2024-12-31&name=run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.total).toBe(42)
@@ -400,7 +401,7 @@ describe('fetchUserActivitiesPage', () => {
   })
 
   it('omits empty filters and the count query when no filters are active', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+    vi.mocked(apiFetch).mockResolvedValueOnce(null).mockResolvedValueOnce({ count: 0 })
 
     const result = await fetchUserActivitiesPage({
       userId: 3,
@@ -413,19 +414,19 @@ describe('fetchUserActivitiesPage', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      '/activities/user/3/page_number/1/num_records/10?sort_by=start_time&sort_order=desc',
+      '/activities?sort_by=start_time&sort_order=desc&page_number=1&num_records=10',
       expect.objectContaining({ signal: undefined }),
     )
     expect(apiFetch).toHaveBeenNthCalledWith(
       2,
-      '/activities/number',
+      '/activities/count',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [], total: 0 })
   })
 
   it('treats the "all types" sentinel (0) as no type filter', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([]).mockResolvedValueOnce(0)
+    vi.mocked(apiFetch).mockResolvedValueOnce([]).mockResolvedValueOnce({ count: 0 })
 
     await fetchUserActivitiesPage({
       userId: 1,
@@ -438,7 +439,7 @@ describe('fetchUserActivitiesPage', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      '/activities/user/1/page_number/1/num_records/25?sort_by=name&sort_order=asc',
+      '/activities?sort_by=name&sort_order=asc&page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
   })

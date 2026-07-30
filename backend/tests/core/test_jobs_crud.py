@@ -189,3 +189,57 @@ class TestReclaimExpiredLeases:
 
     def test_nothing_to_reclaim_returns_zero(self, db):
         assert jobs_crud.reclaim_expired_leases(now=_NOW, db=db) == 0
+
+
+class TestDeleteCompletedJobsBefore:
+    @staticmethod
+    def _add(db, job_id, status, *, completed_at=None, created_at=_NOW):
+        db.add(
+            ProcessingJob(
+                id=job_id,
+                event_id=f"ev-{job_id}",
+                event_type="activity.created",
+                subscriber_id="sub.a",
+                source="api:test",
+                payload={},
+                status=status,
+                attempts=1,
+                max_attempts=3,
+                available_at=created_at,
+                created_at=created_at,
+                updated_at=created_at,
+                completed_at=completed_at,
+            )
+        )
+        db.commit()
+
+    def test_deletes_old_completed_only(self, db):
+        cutoff = _NOW - timedelta(days=90)
+        self._add(db, "old-done", "completed", completed_at=_NOW - timedelta(days=100))
+        self._add(db, "recent-done", "completed", completed_at=_NOW)
+
+        assert jobs_crud.delete_completed_jobs_before(cutoff, db=db) == 1
+        assert db.get(ProcessingJob, "old-done") is None
+        assert db.get(ProcessingJob, "recent-done") is not None
+
+    def test_preserves_in_flight_and_dead_letter(self, db):
+        cutoff = _NOW - timedelta(days=90)
+        old = _NOW - timedelta(days=100)
+        self._add(db, "pending", "pending", created_at=old)
+        self._add(db, "claimed", "claimed", created_at=old)
+        self._add(db, "dead", "dead_letter", completed_at=old, created_at=old)
+
+        # Only terminal ``completed`` rows are pruned; in-flight work and
+        # human-actionable dead-letters are kept regardless of age.
+        assert jobs_crud.delete_completed_jobs_before(cutoff, db=db) == 0
+        assert db.get(ProcessingJob, "pending") is not None
+        assert db.get(ProcessingJob, "claimed") is not None
+        assert db.get(ProcessingJob, "dead") is not None
+
+    def test_batches_until_exhausted(self, db):
+        cutoff = _NOW - timedelta(days=90)
+        old = _NOW - timedelta(days=100)
+        for i in range(5):
+            self._add(db, f"d{i}", "completed", completed_at=old)
+
+        assert jobs_crud.delete_completed_jobs_before(cutoff, db=db, batch_size=2) == 5

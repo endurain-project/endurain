@@ -37,7 +37,7 @@ class TestCreateActivityLaps:
 
 
 class TestGetActivityLaps:
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     @patch("modules.activities.activity_laps.crud._to_read_schema")
     def test_success(self, mock_to_read, mock_get_act, mock_db):
         import modules.activities.activity_laps.crud as crud
@@ -49,7 +49,7 @@ class TestGetActivityLaps:
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_empty(self, mock_get_act, mock_db):
         import modules.activities.activity_laps.crud as crud
 
@@ -58,7 +58,7 @@ class TestGetActivityLaps:
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_not_found(self, mock_get_act, mock_db):
         import modules.activities.activity_laps.crud as crud
 
@@ -66,7 +66,7 @@ class TestGetActivityLaps:
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_hidden(self, mock_get_act, mock_db):
         import modules.activities.activity_laps.crud as crud
 
@@ -74,7 +74,7 @@ class TestGetActivityLaps:
         r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
         assert r is None
 
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
     def test_db_error(self, mock_get_act, mock_db):
         import modules.activities.activity_laps.crud as crud
 

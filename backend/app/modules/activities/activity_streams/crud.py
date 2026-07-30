@@ -14,7 +14,6 @@ import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_streams.utils as activity_streams_utils
 import modules.server_settings.utils as server_settings_utils
 import modules.users.users.crud as users_crud
-import modules.users.users.models as users_models
 
 
 @core_decorators.handle_db_errors
@@ -37,7 +36,9 @@ def get_activity_streams(
     Raises:
         HTTPException: On database errors.
     """
-    activity: activity_schema.Activity | None = activity_crud.get_activity_by_id(activity_id, db)
+    activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
+        activity_id, token_user_id, db
+    )
 
     if not activity:
         return []
@@ -161,7 +162,9 @@ def get_activity_stream_by_type(
     Raises:
         HTTPException: On database errors.
     """
-    activity: activity_schema.Activity | None = activity_crud.get_activity_by_id(activity_id, db)
+    activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
+        activity_id, token_user_id, db
+    )
 
     if not activity:
         return None
@@ -182,6 +185,37 @@ def get_activity_stream_by_type(
         return None
 
     return activity_streams_utils.transform_activity_streams(activity_stream)
+
+
+def get_gps_stream_waypoints_for_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, list]:
+    """Return each activity's GPS (map) stream waypoints, keyed by activity id.
+
+    Batch helper for the reverse-geocoding backfill: it fetches only the
+    ``STREAM_TYPE_MAP`` waypoints for the given activities in one query and keeps
+    the ORM confined to this module (returning plain lists, not ORM rows).
+    Activities without a GPS stream are simply absent from the result.
+
+    Args:
+        activity_ids: Activity ids to fetch GPS waypoints for.
+        db: Database session.
+
+    Returns:
+        Mapping of ``activity_id -> waypoints`` (empty when ``activity_ids`` is
+        empty).
+    """
+    if not activity_ids:
+        return {}
+    stmt = select(
+        activity_streams_models.ActivityStreams.activity_id,
+        activity_streams_models.ActivityStreams.stream_waypoints,
+    ).where(
+        activity_streams_models.ActivityStreams.activity_id.in_(activity_ids),
+        activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_MAP,
+    )
+    return {activity_id: (waypoints or []) for activity_id, waypoints in db.execute(stmt).all()}
 
 
 @core_decorators.handle_db_errors
@@ -373,20 +407,26 @@ def recompute_hr_zone_percentages_for_user(user_id: int, db: Session) -> None:
 
 
 @core_decorators.handle_db_errors
-async def create_activity_streams(
+def create_activity_streams(
     activity_streams: list[activity_streams_schema.ActivityStreamsCreate],
     activity: activity_schema.Activity,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> None:
     """
-    Bulk create activity streams.
+    Bulk create activity streams (waypoints only).
+
+    HR ``zone_percentages`` are no longer computed here: that work is decoupled to
+    the ``activity.created`` subscriber so ingestion stays synchronous
+    and fast. Streams are persisted with ``zone_percentages=None``; the subscriber
+    (and the scheduled backfill reconciliation net) fill them in.
 
     Args:
         activity_streams: List of stream schemas.
         activity: Activity schema to associate streams with.
         db: Database session.
     """
-
     if activity.user_id is None:
         core_logger.print_to_log_and_console(
             f"Failed to create activity streams: activity {activity.id} has no user_id",
@@ -394,40 +434,130 @@ async def create_activity_streams(
         )
         return
 
-    user: users_models.Users | None = users_crud.get_user_by_id(activity.user_id, db)
-    if not user:
-        core_logger.print_to_log_and_console(
-            f"Failed to create activity streams: user {activity.user_id} not found",
-            "warning",
+    streams = [
+        activity_streams_models.ActivityStreams(
+            activity_id=stream.activity_id,
+            stream_type=stream.stream_type,
+            stream_waypoints=stream.stream_waypoints,
+            strava_activity_stream_id=stream.strava_activity_stream_id,
+            zone_percentages=None,
         )
-        return
-
-    streams: list[activity_streams_models.ActivityStreams] = []
-    for stream in activity_streams:
-        zone_percentages: dict | None = None
-        if stream.stream_type == activity_streams_constants.STREAM_TYPE_HR:
-            try:
-                zone_percentages = await activity_streams_utils.build_zone_percentages(
-                    user,
-                    activity,
-                    stream.stream_waypoints,
-                )
-            except Exception as err:
-                core_logger.print_to_log(
-                    f"Zone % computation failed for stream (activity {stream.activity_id}): {err}",
-                    "error",
-                    exc=err,
-                )
-        streams.append(
-            activity_streams_models.ActivityStreams(
-                activity_id=stream.activity_id,
-                stream_type=stream.stream_type,
-                stream_waypoints=stream.stream_waypoints,
-                strava_activity_stream_id=stream.strava_activity_stream_id,
-                zone_percentages=zone_percentages,
-            )
-        )
+        for stream in activity_streams
+    ]
 
     if streams:
         db.add_all(streams)
+        # commit=False leaves the streams in the caller's open transaction so the
+        # whole activity ingestion is one atomic unit of work.
+        if commit:
+            db.commit()
+        else:
+            db.flush()
+
+
+def compute_and_store_hr_zone_percentages_for_activity(activity_id: int, user_id: int, db: Session) -> None:
+    """Compute and store HR ``zone_percentages`` for one activity's HR stream.
+
+    The per-activity counterpart of :func:`recompute_hr_zone_percentages_for_user`,
+    driven by the ``activity.created`` subscriber so HR-zone scoring stays off the
+    synchronous ingestion path. No-ops when the owner has no resolvable max heart
+    rate or the activity has no HR stream. Raises on database error so the durable
+    handler can retry.
+
+    Args:
+        activity_id: The activity whose HR stream should be scored.
+        user_id: The owning user (for the max-heart-rate lookup).
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    user = users_crud.get_user_by_id(user_id, db)
+    if user is None:
+        return
+    max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
+    if not max_heart_rate:
+        return
+
+    row = db.execute(
+        select(
+            activity_streams_models.ActivityStreams,
+            activity_models.Activity.total_timer_time,
+        )
+        .join(
+            activity_models.Activity,
+            activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
+        )
+        .where(
+            activity_streams_models.ActivityStreams.activity_id == activity_id,
+            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
+        )
+    ).first()
+    if row is None:
+        return
+
+    stream, total_timer_time = row[0], row[1]
+    hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
+        stream.stream_waypoints,
+        max_heart_rate,
+        total_timer_time,
+    )
+    stream.zone_percentages = {"hr": hr_block} if hr_block else None
+    db.commit()
+
+
+def backfill_missing_hr_zone_percentages(db: Session, batch_size: int = 500) -> int:
+    """Score HR streams that are missing ``zone_percentages`` (reconciliation net).
+
+    The scheduled safety net for the ``activity.created`` HR-zone subscriber: scans
+    HR streams with ``NULL`` ``zone_percentages`` in id-ordered batches, resolves
+    each owner's max heart rate (cached per run), and stores the computed zones.
+    Streams whose owner has no resolvable max HR are left untouched.
+
+    Args:
+        db: Database session.
+        batch_size: Number of streams to score per batch.
+
+    Returns:
+        The number of streams updated.
+    """
+    updated = 0
+    max_hr_cache: dict[int, int | None] = {}
+    last_id = 0
+    while True:
+        rows = db.execute(
+            select(
+                activity_streams_models.ActivityStreams,
+                activity_models.Activity.total_timer_time,
+                activity_models.Activity.user_id,
+            )
+            .join(
+                activity_models.Activity,
+                activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
+            )
+            .where(
+                activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
+                activity_streams_models.ActivityStreams.zone_percentages.is_(None),
+                activity_streams_models.ActivityStreams.id > last_id,
+            )
+            .order_by(activity_streams_models.ActivityStreams.id)
+            .limit(batch_size)
+        ).all()
+        if not rows:
+            break
+        for stream, total_timer_time, owner_id in rows:
+            if owner_id not in max_hr_cache:
+                owner = users_crud.get_user_by_id(owner_id, db)
+                max_hr_cache[owner_id] = activity_streams_utils.resolve_max_heart_rate(owner) if owner else None
+            max_hr = max_hr_cache[owner_id]
+            if not max_hr:
+                continue
+            hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
+                stream.stream_waypoints, max_hr, total_timer_time
+            )
+            if hr_block:
+                stream.zone_percentages = {"hr": hr_block}
+                updated += 1
+        last_id = rows[-1][0].id
         db.commit()
+    return updated

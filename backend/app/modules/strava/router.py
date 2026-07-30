@@ -13,9 +13,9 @@ from stravalib.exc import AccessUnauthorized
 import core.config as core_config
 import core.cryptography as core_cryptography
 import core.database as core_database
+import core.file_uploads as core_file_uploads
 import core.logger as core_logger
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity.integration_service as activities_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.strava.activity_utils as strava_activity_utils
@@ -109,10 +109,6 @@ async def strava_retrieve_activities_days(
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
     # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
@@ -125,7 +121,6 @@ async def strava_retrieve_activities_days(
         start_datetime,
         end_datetime,
         token_user_id,
-        websocket_manager,
     )
 
     # Return success message and status code 202
@@ -193,7 +188,7 @@ async def import_bikes_from_strava_export(
         bikes_file_path = os.path.join(bulk_import_dir, bikes_file_name)
 
         # Move the bikes file to the processed directory
-        activities_utils.move_file(processed_dir, bikes_file_name, bikes_file_path)
+        core_file_uploads.move_within(bikes_file_path, processed_dir, filename=bikes_file_name)
         core_logger.print_to_log_and_console(f"{bikes_file_name} moved to: {processed_dir}.")
 
         # Log completion of bike import
@@ -249,7 +244,7 @@ async def import_shoes_from_strava_export(
         shoes_file_path = os.path.join(bulk_import_dir, shoes_file_name)
 
         # Move the shoes file to the processed directory and log it.
-        activities_utils.move_file(processed_dir, shoes_file_name, shoes_file_path)
+        core_file_uploads.move_within(shoes_file_path, processed_dir, filename=shoes_file_name)
         core_logger.print_to_log_and_console(f"{shoes_file_name} moved to: {processed_dir}.")
 
         # Log completion of shoe import
@@ -425,7 +420,7 @@ async def strava_unlink(
     gears_crud.delete_all_strava_gear_for_user(token_user_id, db)
 
     # delete all strava activities for user
-    activities_crud.delete_all_strava_activities_for_user(token_user_id, db)
+    activities_integration.delete_all_strava_activities(token_user_id, db)
 
     # unlink strava account
     user_integrations_crud.unlink_strava_account(token_user_id, db)

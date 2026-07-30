@@ -18,7 +18,7 @@ router = APIRouter()
     "/all",
     response_model=list[activity_exercise_titles_schema.ActivityExerciseTitles] | None,
 )
-async def read_activities_exercise_titles_all(
+def read_activities_exercise_titles_all(
     _check_scopes: Annotated[
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["activities:read"]),

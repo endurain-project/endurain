@@ -4,16 +4,14 @@ from typing import Any
 
 import tcxreader
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
-import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
 
 
 def _parse_lap_power(
@@ -188,7 +186,7 @@ def _extract_waypoints(
 
         timestamp = core_timezone.format_utc(time_val)
 
-        instant_speed = activities_utils.calculate_instant_speed(
+        instant_speed = activities_computation.calculate_instant_speed(
             last_time,
             time_val,
             lat,
@@ -199,13 +197,13 @@ def _extract_waypoints(
 
         instant_pace = 1 / instant_speed if instant_speed > 0 else 0
 
-        activities_utils.append_if_not_none(
+        activities_computation.append_if_not_none(
             vel_waypoints,
             timestamp,
             instant_speed,
             "vel",
         )
-        activities_utils.append_if_not_none(
+        activities_computation.append_if_not_none(
             pace_waypoints,
             timestamp,
             instant_pace,
@@ -243,11 +241,13 @@ def _build_activity(
     avg_power: float | None,
     max_power: float | None,
     norm_power: float | None,
-    gear_id: int | None,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
 ) -> activities_schema.Activity:
     """
     Construct an Activity schema from parsed TCX data.
+
+    Domain fields (privacy, gear, provider ids) are intentionally left unset —
+    the ``activity_ingestion`` enrichment seam populates them after parsing so
+    the parser stays pure.
 
     Args:
         tcx_file: Parsed TCX file object.
@@ -263,9 +263,6 @@ def _build_activity(
         avg_power: Average power or None.
         max_power: Maximum power or None.
         norm_power: Normalized power or None.
-        gear_id: Gear ID or None.
-        user_privacy_settings: User privacy settings
-            ORM instance.
 
     Returns:
         Populated Activity Pydantic schema.
@@ -274,9 +271,7 @@ def _build_activity(
         (tcx_file.end_time - tcx_file.start_time).total_seconds() if tcx_file.start_time and tcx_file.end_time else None
     )
 
-    privacy_kwargs = activity_file_import_utils.build_activity_privacy_kwargs(user_privacy_settings)
-
-    return activities_schema.Activity(
+    return activities_schema.ActivityCore(
         user_id=user_id,
         name=activity_name,
         distance=distance,
@@ -300,16 +295,12 @@ def _build_activity(
         average_cad=(round(tcx_file.cadence_avg) if tcx_file.cadence_avg else None),
         max_cad=(round(tcx_file.cadence_max) if tcx_file.cadence_max else None),
         calories=(tcx_file.calories if tcx_file.calories else None),
-        gear_id=gear_id,
-        **privacy_kwargs,
     )
 
 
 def parse_tcx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
-    db: Session,
     activity_name_input: str | None = None,
 ) -> dict:
     """
@@ -318,9 +309,6 @@ def parse_tcx_file(
     Args:
         file: Path to the TCX file.
         user_id: ID of the owning user.
-        user_privacy_settings: User privacy settings
-            ORM instance.
-        db: Database session.
         activity_name_input: Optional custom activity
             name.
 
@@ -333,6 +321,10 @@ def parse_tcx_file(
             parsed or processed.
     """
     try:
+        core_logger.print_to_log(
+            f"TCX parse start: file={file}, user={user_id}",
+            "debug",
+        )
         tcx_file = tcxreader.TCXReader().read(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
@@ -346,9 +338,7 @@ def parse_tcx_file(
         max_power: float | None = None
         norm_power: float | None = None
 
-        activity_type = activities_utils.define_activity_type(tcx_file.activity_type)
-
-        gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
+        activity_type = activities_constants.define_activity_type(tcx_file.activity_type)
 
         laps = _parse_laps(tcx_file)
         waypoints = _extract_waypoints(trackpoints, tcx_file)
@@ -364,21 +354,11 @@ def parse_tcx_file(
             distance = round(activity_file_import_utils.compute_distance_from_waypoints(lat_lon_wp))
 
         if lat_lon_wp:
-            pace = activities_utils.calculate_pace(
+            pace = activities_computation.calculate_pace(
                 distance,
                 trackpoints[0]["time"],
                 trackpoints[-1]["time"],
             )
-
-            location_data = activity_file_import_utils.resolve_location(
-                trackpoints[0]["latitude"],
-                trackpoints[0]["longitude"],
-            )
-
-            if location_data:
-                city = location_data["city"]
-                town = location_data["town"]
-                country = location_data["country"]
 
             timezone = activity_file_import_utils.resolve_timezone_from_lat_lon(
                 trackpoints[0]["latitude"],
@@ -394,7 +374,7 @@ def parse_tcx_file(
         # the device-computed value from the TCX file which may include zeros.
         hr_wp = waypoints.get("hr_waypoints", [])
         if hr_wp:
-            recomputed_avg, recomputed_max = activities_utils.calculate_avg_and_max(
+            recomputed_avg, recomputed_max = activities_computation.calculate_avg_and_max(
                 hr_wp,
                 "hr",
             )
@@ -417,8 +397,6 @@ def parse_tcx_file(
             avg_power=avg_power,
             max_power=max_power,
             norm_power=norm_power,
-            gear_id=gear_id,
-            user_privacy_settings=user_privacy_settings,
         )
 
         waypoints_combined = {
@@ -426,6 +404,12 @@ def parse_tcx_file(
             "power_waypoints": power_wp,
             "lat_lon_waypoints": lat_lon_wp,
         }
+        core_logger.print_to_log(
+            f"TCX parse complete: user={user_id}, type={activity_type}, distance={distance}m, "
+            f"laps={len(laps)}, gps_points={len(lat_lon_wp)}, "
+            f"streams(hr={bool(hr_wp)}, power={bool(power_wp)})",
+            "debug",
+        )
         return activity_file_import_utils.build_activity_file_payload(activity, waypoints_combined, laps)
 
     except HTTPException as http_err:

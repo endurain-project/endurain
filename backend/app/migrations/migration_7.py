@@ -13,7 +13,7 @@ import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 
 
-async def process_migration_7(db: Session) -> None:
+def process_migration_7(db: Session) -> None:
     """
     Backfill zone_percentages for existing HR streams.
 
@@ -62,11 +62,15 @@ async def process_migration_7(db: Session) -> None:
                     user_cache[activity.user_id] = user
 
                 try:
-                    zone_percentages = await activity_streams_utils.build_zone_percentages(
-                        user,
-                        activity,
-                        stream.stream_waypoints,
-                    )
+                    max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
+                    if max_heart_rate:
+                        hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
+                            stream.stream_waypoints,
+                            max_heart_rate,
+                            activity.total_timer_time,
+                        )
+                        if hr_block is not None:
+                            zone_percentages = {"hr": hr_block}
                 except Exception as err:
                     core_logger.print_to_log(
                         f"Zone % computation failed for stream (activity {stream.activity_id}): {err}",

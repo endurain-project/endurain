@@ -113,7 +113,7 @@ export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) 
 
   return useQuery<FollowStatus>({
     queryKey: computed(() => queryKeys.followers.state(viewerId.value, target.value)),
-    queryFn: ({ signal }) => fetchFollowStatus(viewerId.value, target.value, signal),
+    queryFn: ({ signal }) => fetchFollowStatus(target.value, signal),
     enabled: computed(
       () =>
         isAuthenticated.value &&

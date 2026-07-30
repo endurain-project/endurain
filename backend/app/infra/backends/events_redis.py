@@ -17,7 +17,7 @@ dropping it. This bus is the *best-effort* delivery path and has no in-bus retry
 or reclaim of its own: an entry orphaned by a crashed consumer (which would need
 ``XAUTOCLAIM``/``XPENDING`` to recover) stays pending. For at-least-once delivery
 with per-subscriber retry, backoff, dead-letter, and replay, enable durable jobs
-(``JOBS_ENABLED``, foundations plan F8): publishing then routes through the
+(``JOBS_ENABLED``): publishing then routes through the
 transactional outbox and ``processing_jobs`` instead of this bus. For the
 thumbnail use case the hourly scheduler backfill is the reconciliation net.
 """
@@ -177,5 +177,5 @@ class RedisStreamEventBus:
             )
             return
         # Ack only after success so a failure stays pending (at-least-once) for
-        # reprocessing; durable jobs (F8) provide the retry/dead-letter path.
+        # reprocessing; durable jobs provide the retry/dead-letter path.
         self._client.xack(self._stream, self._group, entry_id)

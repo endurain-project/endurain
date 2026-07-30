@@ -25,7 +25,7 @@ jobs:
 
   renovate:
 
-    runs-on: codeberg-small
+    runs-on: local-runner
 
     steps:
       - name: Checkout code

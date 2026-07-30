@@ -8,6 +8,7 @@ import modules.activities.activity.public_router as activities_public_router
 
 # Alphabetized router imports
 import modules.activities.activity.router as activities_router
+import modules.activities.activity_ingestion.router as activity_ingestion_router
 import modules.activities.activity_laps.public_router as activity_laps_public_router
 import modules.activities.activity_laps.router as activity_laps_router
 import modules.activities.activity_media.router as activity_media_router
@@ -15,6 +16,7 @@ import modules.activities.activity_sets.public_router as activity_sets_public_ro
 import modules.activities.activity_sets.router as activity_sets_router
 import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_summaries.router as activity_summaries_router
+import modules.activities.activity_thumbnail.router as activity_thumbnail_router
 import modules.auth.api_keys.router as auth_api_keys_router
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.router as identity_providers_router
@@ -69,17 +71,37 @@ from modules.auth.identity_providers import (
 router = APIRouter()
 
 # Router files (alphabetical order)
+# NOTE: the activity_ingestion routers are mounted BEFORE the activities core router on
+# purpose. They expose literal ``/activities`` paths (``/refresh``, ``/upload``,
+# ``/bulk-import``) that must be matched before the core router's dynamic
+# ``/activities/{activity_id}`` catch-all — Starlette resolves routes in registration
+# order, so a later literal would be shadowed by the earlier ``/{activity_id}``.
 router.include_router(
-    activities_router.router,
+    activity_ingestion_router.router,
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
-    activities_router.api_upload_router,
+    activity_ingestion_router.api_upload_router,
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
     dependencies=[Depends(auth_dependencies.validate_access_token_or_api_key)],
+)
+# The thumbnail route is intentionally UNAUTHENTICATED: its access control is the
+# signed ``?t=`` token in the URL (see activity_thumbnail.signing), which lets it
+# be used in an ``<img src>`` tag. Mounted before the core activities router so
+# its ``/{activity_id}/thumbnail`` path is matched ahead of the dynamic routes.
+router.include_router(
+    activity_thumbnail_router.router,
+    prefix=core_config.ROOT_PATH + "/activities",
+    tags=["activities"],
+)
+router.include_router(
+    activities_router.router,
+    prefix=core_config.ROOT_PATH + "/activities",
+    tags=["activities"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     activity_exercise_titles_router.router,

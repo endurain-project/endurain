@@ -48,12 +48,14 @@ export async function fetchGearActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const response = await apiFetch<Schemas['GearActivitiesListResponse']>(
-    `/activities/gear/${gearId}/list?${params.toString()}`,
-    { signal },
-  )
+  const [dtos, countResponse] = await Promise.all([
+    apiFetch<GearActivityDto[] | null>(`/activities/gears/${gearId}?${params.toString()}`, {
+      signal,
+    }),
+    apiFetch<Schemas['CountResponse']>(`/activities/gears/${gearId}/count`, { signal }),
+  ])
   return {
-    records: (response.records ?? []).map(mapGearActivity),
-    total: response.total,
+    records: (dtos ?? []).map(mapGearActivity),
+    total: countResponse.count,
   }
 }

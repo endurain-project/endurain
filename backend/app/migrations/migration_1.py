@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import migrations.crud as migrations_crud
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.crud as activity_streams_crud
 
@@ -105,13 +105,13 @@ def process_migration_1(db: Session) -> None:
                     proc = stream_processing.get(stream_type)
                     if proc is not None:
                         attr_avg, attr_max, stream_key = proc[:3]
-                        metrics[attr_avg], metrics[attr_max] = activities_utils.calculate_avg_and_max(
+                        metrics[attr_avg], metrics[attr_max] = activities_computation.calculate_avg_and_max(
                             stream.stream_waypoints,
                             stream_key,
                         )
                         # Special handling for normalized power
                         if stream_type == activity_streams_constants.STREAM_TYPE_POWER:
-                            metrics["np"] = activities_utils.calculate_np(stream.stream_waypoints)
+                            metrics["np"] = activities_computation.calculate_np(stream.stream_waypoints)
 
                 # Calculate elapsed time once
                 elapsed_time_seconds = round((activity.end_time - activity.start_time).total_seconds())
@@ -128,7 +128,7 @@ def process_migration_1(db: Session) -> None:
                 activity.max_cad = _optional_float_to_int(metrics["max_cadence"])
 
                 # Update the activity in the database
-                activities_crud.edit_activity(activity.user_id, activity, db)
+                activities_crud.edit_activity(activity.user_id, activity.id, activity, db)
                 core_logger.print_to_log_and_console(
                     f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
                 )

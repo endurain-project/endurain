@@ -9,16 +9,14 @@ from typing import TypedDict
 import gpxpy
 import gpxpy.gpx
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
-import modules.users.users_default_gear.utils as user_default_gear_utils
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
 
 # Re-export for backwards compatibility (migration_3.py calls
 # gpx_utils.generate_activity_laps directly).
@@ -67,7 +65,6 @@ class ParseState:
     pace: float = 0
     first_waypoint_time: datetime | None = None
     last_waypoint_time: datetime | None = None
-    location_resolved: bool = False
     gear_id: int | None = None
     city: str | None = None
     town: str | None = None
@@ -340,17 +337,6 @@ def _process_trackpoint(
     if state.first_waypoint_time is None:
         state.first_waypoint_time = time
 
-    if not state.location_resolved:
-        location_data = activity_file_import_utils.resolve_location(
-            latitude,
-            longitude,
-        )
-        if location_data:
-            state.city = location_data["city"]
-            state.town = location_data["town"]
-            state.country = location_data["country"]
-            state.location_resolved = True
-
     heart_rate, cadence, raw_power = _extract_extension_data(point)
     power: int | None = raw_power
 
@@ -363,7 +349,7 @@ def _process_trackpoint(
     else:
         power = None
 
-    instant_speed = activities_utils.calculate_instant_speed(
+    instant_speed = activities_computation.calculate_instant_speed(
         state.prev_waypoint_time,
         time,
         latitude,
@@ -389,37 +375,37 @@ def _process_trackpoint(
         )
         state.is_lat_lon_set = True
 
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.ele_waypoints,
         timestamp,
         elevation,
         "ele",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.hr_waypoints,
         timestamp,
         heart_rate,
         "hr",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.cad_waypoints,
         timestamp,
         cadence,
         "cad",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.power_waypoints,
         timestamp,
         power,
         "power",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.vel_waypoints,
         timestamp,
         instant_speed,
         "vel",
     )
-    activities_utils.append_if_not_none(
+    activities_computation.append_if_not_none(
         state.pace_waypoints,
         timestamp,
         instant_pace,
@@ -434,57 +420,47 @@ def _process_trackpoint(
 
 def _compute_derived_metrics(
     state: ParseState,
-    user_id: int,
-    db: Session,
 ) -> None:
     """
     Compute derived activity metrics and update state.
 
     Args:
         state: Mutable parse state.
-        user_id: ID of the user.
-        db: SQLAlchemy database session.
 
     Returns:
         None
     """
     if state.ele_waypoints:
-        gain, loss = activities_utils.compute_elevation_gain_and_loss(
+        gain, loss = activities_computation.compute_elevation_gain_and_loss(
             elevations=state.ele_waypoints,
         )
         state.ele_gain = gain
         state.ele_loss = loss
 
-    state.pace = activities_utils.calculate_pace(
+    state.pace = activities_computation.calculate_pace(
         state.distance,
         state.first_waypoint_time,
         state.last_waypoint_time,
     )
 
-    state.activity_type = activities_utils.define_activity_type(
+    state.activity_type = activities_constants.define_activity_type(
         str(state.activity_type),
     )
 
-    state.gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(
-        user_id,
-        state.activity_type,
-        db,
-    )
-
     if state.hr_waypoints:
-        state.avg_hr, state.max_hr = activities_utils.calculate_avg_and_max(
+        state.avg_hr, state.max_hr = activities_computation.calculate_avg_and_max(
             state.hr_waypoints,
             "hr",
         )
 
     if state.cad_waypoints:
-        state.avg_cadence, state.max_cadence = activities_utils.calculate_avg_and_max(
+        state.avg_cadence, state.max_cadence = activities_computation.calculate_avg_and_max(
             state.cad_waypoints,
             "cad",
         )
 
     if state.vel_waypoints:
-        state.avg_speed, state.max_speed = activities_utils.calculate_avg_and_max(
+        state.avg_speed, state.max_speed = activities_computation.calculate_avg_and_max(
             state.vel_waypoints,
             "vel",
         )
@@ -514,27 +490,28 @@ def _compute_derived_metrics(
 def _build_activity_schema(
     state: ParseState,
     user_id: int,
-    user_privacy_settings: (users_privacy_settings_models.UsersPrivacySettings),
 ) -> activities_schema.Activity:
     """
     Build an Activity Pydantic schema from parsed state.
 
+    Domain fields (privacy, gear, provider ids) are intentionally left unset —
+    the ``activity_ingestion`` enrichment seam populates them after parsing so
+    the parser stays pure.
+
     Args:
         state: Parsed GPX state.
         user_id: ID of the user.
-        user_privacy_settings: ORM privacy settings object.
 
     Returns:
         Populated Activity schema instance.
     """
-    privacy_kwargs = activity_file_import_utils.build_activity_privacy_kwargs(user_privacy_settings)
     if state.first_waypoint_time is None or state.last_waypoint_time is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Missing waypoint timestamps in GPX parse state",
         )
     elapsed = (state.last_waypoint_time - state.first_waypoint_time).total_seconds()
-    return activities_schema.Activity(
+    return activities_schema.ActivityCore(
         user_id=user_id,
         name=state.activity_name,
         description=state.activity_description,
@@ -561,20 +538,16 @@ def _build_activity_schema(
         average_cad=(round(state.avg_cadence) if state.avg_cadence else None),
         max_cad=(round(state.max_cadence) if state.max_cadence else None),
         calories=state.calories,
-        gear_id=state.gear_id,
         strava_gear_id=None,
         strava_activity_id=None,
         garminconnect_activity_id=None,
         garminconnect_gear_id=None,
-        **privacy_kwargs,
     )
 
 
 def parse_gpx_file(
     file: str,
     user_id: int,
-    user_privacy_settings: (users_privacy_settings_models.UsersPrivacySettings),
-    db: Session,
     activity_name_input: str | None = None,
 ) -> ParsedGpxData:
     """
@@ -583,8 +556,6 @@ def parse_gpx_file(
     Args:
         file: Path to the GPX file on disk.
         user_id: ID of the user uploading the file.
-        user_privacy_settings: ORM privacy settings for the user.
-        db: SQLAlchemy database session.
         activity_name_input: Optional override for the activity name.
 
     Returns:
@@ -597,6 +568,10 @@ def parse_gpx_file(
         HTTPException: 500 if the file cannot be read.
     """
     try:
+        core_logger.print_to_log(
+            f"GPX parse start: file={file}, user={user_id}",
+            "debug",
+        )
         state = _init_parsing_state(
             activity_name_input,
             core_config.settings.TZ,
@@ -650,9 +625,9 @@ def parse_gpx_file(
             for segment_waypoints in state.lat_lon_segments
         )
 
-        _compute_derived_metrics(state, user_id, db)
+        _compute_derived_metrics(state)
 
-        activity = _build_activity_schema(state, user_id, user_privacy_settings)
+        activity = _build_activity_schema(state, user_id)
 
         laps = []
         for segment_waypoints in state.lat_lon_segments:
@@ -666,6 +641,16 @@ def parse_gpx_file(
                     state.vel_waypoints,
                 )
             )
+
+        core_logger.print_to_log(
+            f"GPX parse complete: user={user_id}, type={activity.activity_type}, "
+            f"distance={activity.distance}m, segments={len(state.lat_lon_segments)}, "
+            f"laps={len(laps)}, gps_points={len(state.lat_lon_waypoints)}, "
+            f"streams(hr={bool(state.hr_waypoints)}, power={bool(state.power_waypoints)}, "
+            f"cadence={bool(state.cad_waypoints)}, elevation={bool(state.ele_waypoints)}, "
+            f"velocity={bool(state.vel_waypoints)})",
+            "debug",
+        )
 
         return ParsedGpxData(
             activity=activity,

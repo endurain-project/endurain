@@ -9,11 +9,12 @@ class TestGetAllFollowersByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, id=1, following_id=1)
+        f = MagicMock(spec=m.Follower, follower_id=2, followee_id=1, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_all_followers_by_user_id(user_id=1, db=mock_db)
-        assert r == [f]
+        assert r == [FollowRelationship(follower_id=2, followee_id=1, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -35,11 +36,12 @@ class TestGetAcceptedFollowersByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, id=1, following_id=1, is_accepted=True)
+        f = MagicMock(spec=m.Follower, follower_id=2, followee_id=1, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_accepted_followers_by_user_id(user_id=1, db=mock_db)
-        assert r == [f]
+        assert r == [FollowRelationship(follower_id=2, followee_id=1, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -61,11 +63,12 @@ class TestGetAllFollowingByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, id=1, follower_id=1)
+        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_all_following_by_user_id(user_id=1, db=mock_db)
-        assert r == [f]
+        assert r == [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -87,11 +90,12 @@ class TestGetAcceptedFollowingByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, id=1, follower_id=1, is_accepted=True)
+        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="accepted")
         mock_db.scalars.return_value.all.return_value = [f]
         r = crud.get_accepted_following_by_user_id(user_id=1, db=mock_db)
-        assert r == [f]
+        assert r == [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
 
     def test_empty(self, mock_db):
         import modules.followers.crud as crud
@@ -175,11 +179,12 @@ class TestGetFollowerForUserIdAndTargetUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
+        from modules.followers.schema import FollowRelationship
 
-        f = MagicMock(spec=m.Follower, id=1, follower_id=1, following_id=2)
+        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="pending")
         mock_db.scalars.return_value.first.return_value = f
         r = crud.get_follower_for_user_id_and_target_user_id(user_id=1, target_user_id=2, db=mock_db)
-        assert r is f
+        assert r == FollowRelationship(follower_id=1, followee_id=2, status="pending")
 
     def test_not_found(self, mock_db):
         import modules.followers.crud as crud
@@ -197,43 +202,65 @@ class TestGetFollowerForUserIdAndTargetUserId:
         assert e.value.status_code == 500
 
 
+class TestListAcceptedFolloweeIds:
+    def test_success(self, mock_db):
+        import modules.followers.crud as crud
+
+        mock_db.scalars.return_value.all.return_value = [2, 3]
+        r = crud.list_accepted_followee_ids(user_id=1, db=mock_db)
+        assert r == [2, 3]
+
+    def test_empty(self, mock_db):
+        import modules.followers.crud as crud
+
+        mock_db.scalars.return_value.all.return_value = []
+        assert crud.list_accepted_followee_ids(user_id=1, db=mock_db) == []
+
+    def test_db_error(self, mock_db):
+        import modules.followers.crud as crud
+
+        mock_db.scalars.side_effect = SQLAlchemyError("err")
+        with pytest.raises(HTTPException) as e:
+            crud.list_accepted_followee_ids(user_id=1, db=mock_db)
+        assert e.value.status_code == 500
+
+
 class TestCreateFollower:
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    @patch("modules.followers.crud.notifications_utils.create_new_follower_request_notification")
-    async def test_success(self, mock_notif, mock_get_follow, mock_db):
+    def test_success(self, mock_get_follow, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
+        from modules.followers.schema import FollowRelationship
 
         mock_get_follow.return_value = None
-        new_follow = MagicMock(spec=m.Follower, id=1, follower_id=1, following_id=2)
+        new_follow = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="pending")
         mock_db.refresh.side_effect = lambda x: None
 
         with patch.object(crud.followers_models, "Follower", return_value=new_follow):
-            r = await crud.create_follower(user_id=1, target_user_id=2, websocket_manager=MagicMock(), db=mock_db)
-        assert r is new_follow
+            r = crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
+        assert r == FollowRelationship(follower_id=1, followee_id=2, status="pending")
         mock_db.add.assert_called_once_with(new_follow)
         mock_db.commit.assert_called_once()
-        mock_notif.assert_awaited_once()
 
-    async def test_self_follow(self, mock_db):
+    def test_self_follow(self, mock_db):
         import modules.followers.crud as crud
 
         with pytest.raises(HTTPException) as e:
-            await crud.create_follower(user_id=1, target_user_id=1, websocket_manager=MagicMock(), db=mock_db)
+            crud.create_follower(user_id=1, target_user_id=1, db=mock_db)
         assert e.value.status_code == 400
 
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    async def test_already_exists(self, mock_get_follow, mock_db):
+    def test_already_exists(self, mock_get_follow, mock_db):
         import modules.followers.crud as crud
 
         mock_get_follow.return_value = MagicMock()
         with pytest.raises(HTTPException) as e:
-            await crud.create_follower(user_id=1, target_user_id=2, websocket_manager=MagicMock(), db=mock_db)
+            crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 409
 
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     @patch("modules.followers.crud.core_logger.print_to_log")
-    async def test_integrity_error(self, mock_log, mock_get_follow, mock_db):
+    def test_integrity_error(self, mock_log, mock_get_follow, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 
@@ -244,13 +271,13 @@ class TestCreateFollower:
             patch.object(crud.followers_models, "Follower", return_value=MagicMock(spec=m.Follower)),
             pytest.raises(HTTPException) as e,
         ):
-            await crud.create_follower(user_id=1, target_user_id=2, websocket_manager=MagicMock(), db=mock_db)
+            crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 409
         mock_db.rollback.assert_called_once()
 
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     @patch("modules.followers.crud.core_logger.print_to_log")
-    async def test_sqlalchemy_error(self, mock_log, mock_get_follow, mock_db):
+    def test_sqlalchemy_error(self, mock_log, mock_get_follow, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 
@@ -261,45 +288,43 @@ class TestCreateFollower:
             patch.object(crud.followers_models, "Follower", return_value=MagicMock(spec=m.Follower)),
             pytest.raises(HTTPException) as e,
         ):
-            await crud.create_follower(user_id=1, target_user_id=2, websocket_manager=MagicMock(), db=mock_db)
+            crud.create_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 
 
 class TestAcceptFollower:
-    @patch("modules.followers.crud.notifications_utils.create_accepted_follower_request_notification")
-    async def test_success(self, mock_notif, mock_db):
+    def test_success(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 
-        accept_follow = MagicMock(spec=m.Follower, id=1, follower_id=2, following_id=1, is_accepted=False)
+        accept_follow = MagicMock(spec=m.Follower, id=1, follower_id=2, followee_id=1, status="pending")
         mock_db.scalars.return_value.first.return_value = accept_follow
 
-        await crud.accept_follower(user_id=1, target_user_id=2, websocket_manager=MagicMock(), db=mock_db)
-        assert accept_follow.is_accepted is True
+        crud.accept_follower(user_id=1, target_user_id=2, db=mock_db)
+        assert accept_follow.status == "accepted"
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(accept_follow)
-        mock_notif.assert_awaited_once()
 
-    async def test_not_found(self, mock_db):
+    def test_not_found(self, mock_db):
         import modules.followers.crud as crud
 
         mock_db.scalars.return_value.first.return_value = None
         with pytest.raises(HTTPException) as e:
-            await crud.accept_follower(user_id=1, target_user_id=999, websocket_manager=MagicMock(), db=mock_db)
+            crud.accept_follower(user_id=1, target_user_id=999, db=mock_db)
         assert e.value.status_code == 404
 
     @patch("modules.followers.crud.core_logger.print_to_log")
-    async def test_sqlalchemy_error(self, mock_log, mock_db):
+    def test_sqlalchemy_error(self, mock_log, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 
-        accept_follow = MagicMock(spec=m.Follower, id=1, is_accepted=False)
+        accept_follow = MagicMock(spec=m.Follower, id=1, status="pending")
         mock_db.scalars.return_value.first.return_value = accept_follow
         mock_db.commit.side_effect = SQLAlchemyError("db error")
 
         with pytest.raises(HTTPException) as e:
-            await crud.accept_follower(user_id=1, target_user_id=2, websocket_manager=MagicMock(), db=mock_db)
+            crud.accept_follower(user_id=1, target_user_id=2, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 

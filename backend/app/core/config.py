@@ -32,7 +32,7 @@ import infra.capabilities as platform_capabilities
 import infra.profile as platform_profile
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.19.0-beta6"
+API_VERSION = "v0.20.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
@@ -85,6 +85,20 @@ class Settings(BaseSettings):
     # the deployment needs shared state even under the local profile.
     DEPLOYMENT_PROFILE: platform_profile.DeploymentProfile = platform_profile.DeploymentProfile.LOCAL
     WEB_WORKERS: int = 1
+    # Sync-route concurrency. Every activities/followers route is now a sync
+    # ``def`` handler, so FastAPI runs it in Starlette's shared anyio worker
+    # threadpool (default ~40 tokens per process). That thread count — not the event
+    # loop — bounds how many requests can do blocking DB work at once, so the
+    # practical per-process ceiling under sustained load is roughly the smaller of
+    # the ~40 anyio threads and the SQLAlchemy pool (60 = pool_size 20 + overflow 40,
+    # see core/database.py). Recommendation: the ~40 default threads sit safely under
+    # that 60-connection pool, so leave both as-is for typical self-host use, and
+    # scale out with WEB_WORKERS (each worker gets its own threadpool + pool) rather
+    # than inflating a single threadpool. If you raise the anyio token count
+    # (``anyio.to_thread.current_default_thread_limiter().total_tokens`` at startup),
+    # raise the DB pool to match — extra threads contending for the same 60
+    # connections just trade event-loop blocking for pool-checkout latency. Monitor
+    # DB pool-checkout wait time and threadpool saturation before tuning either.
 
     # --- Host / redirects ---
     ENDURAIN_HOST: str = "http://localhost:8080"
@@ -162,6 +176,11 @@ class Settings(BaseSettings):
     # it can be queried and summarized in the admin dashboard. Disable to skip the
     # per-event database writes if the extra import-path latency ever matters.
     EVENT_LOG_ENABLED: bool = True
+    # Age in days after which ``event_log`` rows are pruned by a scheduled cleanup
+    # (daily, plus once at startup). event_log is a best-effort, safe-to-lose
+    # observability trail, so every row past this age is removed regardless of
+    # status. Set to 0 (or negative) to disable pruning and keep rows forever.
+    EVENT_LOG_RETENTION_DAYS: int = 90
 
     # --- Coordination lock (scheduler/backfill single-runner) ---
     # noop:// always acquires (single process); postgres-advisory:// uses
@@ -196,6 +215,13 @@ class Settings(BaseSettings):
     # single-node deployments; turn off when running dedicated worker processes
     # (APP_ROLE=worker) so the API only publishes and schedules maintenance.
     JOBS_RUN_IN_PROCESS_WORKER: bool = True
+    # Age in days after which completed durable-job bookkeeping is pruned by a
+    # scheduled cleanup (daily, plus once at startup): relayed ``event_outbox``
+    # rows and ``completed`` ``processing_jobs`` rows. In-flight and
+    # human-actionable rows are never pruned — unrelayed outbox rows (pending
+    # relay), pending/claimed jobs (in-flight work), and dead-lettered jobs (kept
+    # for operator review). Set to 0 (or negative) to disable pruning.
+    JOBS_RETENTION_DAYS: int = 90
 
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.

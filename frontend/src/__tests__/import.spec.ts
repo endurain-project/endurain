@@ -20,7 +20,7 @@ describe('import service', () => {
 
   it('bulkImportActivities POSTs the bulk-import path (void)', async () => {
     await bulkImportActivities()
-    expect(apiFetch).toHaveBeenCalledWith('/activities/create/bulkimport', {
+    expect(apiFetch).toHaveBeenCalledWith('/activities/bulk-import', {
       method: 'POST',
       responseType: 'void',
     })

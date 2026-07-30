@@ -91,3 +91,106 @@ layers =
     backends
     providers
     events
+
+# The activities core (activity/) is parsing- AND provider-agnostic: it exposes the typed
+# ParsedActivity contract + ingestion_service.store_parsed_activity, but never imports a
+# file parser or a provider (Strava/Garmin) client. All format/provider knowledge lives in
+# the sibling activity_ingestion/ package, which produces the contract and calls the core.
+# The provider live-refresh route was relocated there too,
+# so the core no longer needs any Strava/Garmin import — the boundary is now the whole
+# provider packages, not just the bulk-import glue. Direct imports only
+# (allow_indirect_imports): the rule is that the core must not reach for a parser/provider
+# directly, not that it must avoid transitive shared dependencies.
+[importlinter:contract:activities-parsing-boundary]
+name = Activities core must not import file parsers or Strava/Garmin provider clients
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity
+forbidden_modules =
+    modules.activities.activity_file_import
+    modules.strava
+    modules.garmin
+
+# The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
+# db, privacy, gear, provider, or exercise-title-crud coupling. Every bit
+# of domain resolution they used to do inline (default/Garmin gear, privacy defaults,
+# exercise-title persistence) now lives in the sibling activity_ingestion/ enrichment seam,
+# which legitimately owns db + provider knowledge — so a parser is unit-testable with bytes
+# alone. The parsers may still import the activities SCHEMAS (activity.schema /
+# activity_exercise_titles.schema / activity_workout_steps.schema) — data shapes, not crud.
+[importlinter:contract:activity-file-import-purity]
+name = Activity file parsers must be pure (no db / domain / provider / crud imports)
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_file_import
+forbidden_modules =
+    modules.gears
+    modules.users
+    modules.garmin
+    modules.strava
+    modules.activities.*.crud
+    modules.activities.*.*.crud
+    sqlalchemy
+
+# The provider (integration) modules — Strava and Garmin — must not reach into the
+# activities CRUD directly. They go through the curated activity integration_service
+# interface (activity/integration_service.py) for the handful of read / gear / delete
+# operations they need, the read/gear/delete counterpart to the ingestion seam they
+# already use to STORE activities. allow_indirect_imports keeps this to DIRECT imports:
+# the interface itself legitimately imports crud (it is inside activities), so the
+# transitive strava/garmin -> integration_service -> crud path is fine — only a bare
+# `import modules.activities.activity.crud` in a provider module is rejected.
+[importlinter:contract:provider-activities-boundary]
+name = Provider modules must use the activities integration service, not activities CRUD directly
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.strava
+    modules.garmin
+forbidden_modules =
+    modules.activities.activity.crud
+
+# The activities core consumes the followers "following feed" through the curated
+# followers.service interface (list_accepted_followee_ids) — used by both the feed
+# routes and the non-owner visibility filter — never by reaching into the followers
+# ORM/CRUD directly. This inverts the old coupling where the feed + visibility filter
+# read the followers table (followers.models). allow_indirect_imports keeps this to
+# DIRECT imports: followers.service legitimately imports followers.crud/models, so the
+# transitive activities -> followers.service -> followers.crud -> followers.models path
+# is fine — only a bare `import modules.followers.models` / `.crud` in the activities
+# core is rejected.
+[importlinter:contract:activities-followers-boundary]
+name = Activities core must use the followers service interface, not the followers ORM/CRUD
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity
+forbidden_modules =
+    modules.followers.models
+    modules.followers.crud
+
+# ORM ownership: the activities ORM models are owned by their subpackage's models.py
+# and touched only by the persistence layer — crud.py (the single ORM surface) and the
+# ORM->schema transformation helpers (activity/serializers.py, activity_streams/utils.py,
+# which receive ORM rows FROM crud and return schemas/primitives). The application layers
+# — service, router, public_router, subscribers, event_publishers, stats — must never
+# reach for an ORM model directly; they go through crud (which returns schemas/DTOs). This
+# is what caught the thumbnail service loading stream ORM rows directly instead of via a
+# streams CRUD projection. allow_indirect_imports keeps this to DIRECT imports: a service
+# importing crud (which imports models) is fine; a bare `import modules.activities.X.models`
+# in a consumer layer is rejected.
+[importlinter:contract:activities-orm-ownership]
+name = Activities ORM models stay in the persistence layer — application layers must not import them
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.*.service
+    modules.activities.*.subscribers
+    modules.activities.*.router
+    modules.activities.*.public_router
+    modules.activities.*.event_publishers
+    modules.activities.*.stats
+forbidden_modules =
+    modules.activities.*.models

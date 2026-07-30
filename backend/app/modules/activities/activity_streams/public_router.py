@@ -19,7 +19,7 @@ router = APIRouter()
     "/activity_id/{activity_id}/all",
     response_model=(list[activity_streams_schema.ActivityStreamsRead]),
 )
-async def read_public_activities_streams_for_activity_all(
+def read_public_activities_streams_for_activity_all(
     activity_id: int,
     _validate_id: Annotated[
         Callable,
@@ -48,7 +48,7 @@ async def read_public_activities_streams_for_activity_all(
     "/activity_id/{activity_id}/stream_type/{stream_type}",
     response_model=(activity_streams_schema.ActivityStreamsRead | None),
 )
-async def read_public_activities_streams_for_activity_stream_type(
+def read_public_activities_streams_for_activity_stream_type(
     activity_id: int,
     _validate_activity_id: Annotated[
         Callable,

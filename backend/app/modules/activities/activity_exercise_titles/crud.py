@@ -11,10 +11,17 @@ import modules.activities.activity_exercise_titles.schema as activity_exercise_t
 import modules.server_settings.utils as server_settings_utils
 
 
+def _to_read_schema(
+    orm_title: activity_exercise_titles_models.ActivityExerciseTitles,
+) -> activity_exercise_titles_schema.ActivityExerciseTitles:
+    """Convert an ORM row to its read schema so ORM never leaves ``crud``."""
+    return activity_exercise_titles_schema.ActivityExerciseTitles.model_validate(orm_title)
+
+
 @core_decorators.handle_db_errors
 def get_activity_exercise_titles(
     db: Session,
-) -> list[activity_exercise_titles_models.ActivityExerciseTitles] | None:
+) -> list[activity_exercise_titles_schema.ActivityExerciseTitles] | None:
     """
     Retrieve all activity exercise titles.
 
@@ -33,13 +40,13 @@ def get_activity_exercise_titles(
     if not activity_exercise_titles:
         return None
 
-    return list(activity_exercise_titles)
+    return [_to_read_schema(title) for title in activity_exercise_titles]
 
 
 @core_decorators.handle_db_errors
 def get_public_activity_exercise_titles(
     db: Session,
-) -> list[activity_exercise_titles_models.ActivityExerciseTitles] | None:
+) -> list[activity_exercise_titles_schema.ActivityExerciseTitles] | None:
     """
     Retrieve activity exercise titles when public sharing is enabled.
 
@@ -66,7 +73,7 @@ def get_public_activity_exercise_titles(
 def get_activity_exercise_title_by_exercise_name(
     exercise_name: int,
     db: Session,
-) -> activity_exercise_titles_models.ActivityExerciseTitles | None:
+) -> activity_exercise_titles_schema.ActivityExerciseTitles | None:
     """
     Retrieve a single activity exercise title by exercise name.
 
@@ -83,7 +90,8 @@ def get_activity_exercise_title_by_exercise_name(
     stmt = select(activity_exercise_titles_models.ActivityExerciseTitles).where(
         activity_exercise_titles_models.ActivityExerciseTitles.exercise_name == exercise_name
     )
-    return db.execute(stmt).scalar_one_or_none()
+    row = db.execute(stmt).scalar_one_or_none()
+    return _to_read_schema(row) if row is not None else None
 
 
 @core_decorators.handle_db_errors

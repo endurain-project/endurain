@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity.utils as activities_utils
+import modules.activities.activity_ingestion.orchestrator as ingestion_orchestrator
 import modules.garmin.utils as garmin_utils
 import modules.notifications.utils as notifications_utils
 import modules.users.users.crud as users_crud
@@ -69,7 +69,7 @@ async def fetch_and_process_activities_by_dates(
         activity_name = activity["activityName"]
 
         # Check if the activity is already stored in the database
-        activity_db = activities_crud.get_activity_by_garminconnect_id_from_user_id(activity_id, user_id, db)
+        activity_db = activities_integration.get_activity_by_garminconnect_id(activity_id, user_id, db)
 
         if activity_db:
             # Log an informational event if the activity is already stored
@@ -136,10 +136,10 @@ async def fetch_and_process_activities_by_dates(
         file_uploads.safe_remove_within(output_file, base_dir=core_config.settings.FILES_DIR)
 
         for full_file_path in extracted_paths:
-            parsed_result = await activities_utils.parse_and_store_activity_from_file(
+            parsed_result = await asyncio.to_thread(
+                ingestion_orchestrator.parse_and_store_activity_from_file,
                 token_user_id=user_id,
                 file_path=str(full_file_path),
-                websocket_manager=ws_manager,
                 db=db,
                 from_garmin=True,
                 garminconnect_gear=activity_gear,

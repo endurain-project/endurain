@@ -216,10 +216,8 @@ export async function searchActivitiesByName(
   name: string,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(
-    `/activities/name/contains/${encodeURIComponent(name)}`,
-    { signal },
-  )
+  const params = new URLSearchParams({ name })
+  const dtos = await apiFetch<ActivityDto[] | null>(`/activities?${params.toString()}`, { signal })
   return (dtos ?? []).map(mapActivity)
 }
 
@@ -227,11 +225,9 @@ export async function searchActivitiesByName(
 export type ActivityStatsTimeframe = 'week' | 'month'
 
 /**
- * Fetches one page of a user's own activities for the home feed, newest first.
- * Authenticated-only; the backend scopes the result to the viewer's followees
- * and visibility rules.
+ * Fetches one page of the authenticated viewer's own activities for the home
+ * feed, newest first.
  *
- * @param userId - The feed owner's user id (the authenticated viewer).
  * @param page - 1-based page number.
  * @param numRecords - Page size.
  * @param signal - Optional abort signal for cancellation.
@@ -239,23 +235,22 @@ export type ActivityStatsTimeframe = 'week' | 'month'
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserActivities(
-  userId: number,
   page: number,
   numRecords: number,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(
-    `/activities/user/${userId}/page_number/${page}/num_records/${numRecords}`,
-    { signal },
-  )
+  const params = new URLSearchParams({
+    page_number: String(page),
+    num_records: String(numRecords),
+  })
+  const dtos = await apiFetch<ActivityDto[] | null>(`/activities?${params.toString()}`, { signal })
   return (dtos ?? []).map(mapActivity)
 }
 
 /**
- * Fetches one page of activities from the people a user follows, newest first.
- * Authenticated-only.
+ * Fetches one page of activities from the people the viewer follows (the
+ * following feed), newest first. Authenticated-only.
  *
- * @param userId - The viewer's user id.
  * @param page - 1-based page number.
  * @param numRecords - Page size.
  * @param signal - Optional abort signal for cancellation.
@@ -263,16 +258,49 @@ export async function fetchUserActivities(
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersActivities(
-  userId: number,
   page: number,
   numRecords: number,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(
-    `/activities/user/${userId}/followed/page_number/${page}/num_records/${numRecords}`,
-    { signal },
-  )
+  const params = new URLSearchParams({
+    page_number: String(page),
+    num_records: String(numRecords),
+  })
+  const dtos = await apiFetch<ActivityDto[] | null>(`/activities/feed?${params.toString()}`, {
+    signal,
+  })
   return (dtos ?? []).map(mapActivity)
+}
+
+/** Formats a `Date` as a `YYYY-MM-DD` string in UTC. */
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+/**
+ * Computes the inclusive Monday–Sunday date range (UTC) for an ISO-week offset,
+ * where `0` is the current week and each increment steps one week into the past.
+ */
+function weekDateRange(weekOffset: number): { startDate: string; endDate: string } {
+  const now = new Date()
+  const mondayIndex = (now.getUTCDay() + 6) % 7 // 0 = Monday
+  const monday = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - mondayIndex - weekOffset * 7,
+    ),
+  )
+  const sunday = new Date(monday)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
+  return { startDate: isoDate(monday), endDate: isoDate(sunday) }
+}
+
+/** Computes the inclusive first-of-month → today date range (UTC). */
+function currentMonthRange(): { startDate: string; endDate: string } {
+  const now = new Date()
+  const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+  return { startDate: isoDate(first), endDate: isoDate(now) }
 }
 
 /**
@@ -292,9 +320,16 @@ export async function fetchUserWeekActivities(
   week: number,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities/user/${userId}/week/${week}`, {
-    signal,
+  const { startDate, endDate } = weekDateRange(week)
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+    num_records: '200',
   })
+  const dtos = await apiFetch<ActivityDto[] | null>(
+    `/activities/users/${userId}?${params.toString()}`,
+    { signal },
+  )
   return (dtos ?? []).map(mapActivity)
 }
 
@@ -361,7 +396,7 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
   }
   const name = filters.nameSearch?.trim()
   if (name) {
-    params.set('name_search', name)
+    params.set('name', name)
   }
 }
 
@@ -377,30 +412,29 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
  * @throws {HttpError} When either request fails.
  */
 export async function fetchUserActivitiesPage(
-  { userId, page, numRecords, filters, sortBy, sortOrder }: ActivityListParams,
+  { page, numRecords, filters, sortBy, sortOrder }: ActivityListParams,
   signal?: AbortSignal,
 ): Promise<ActivitiesPage> {
   const listParams = new URLSearchParams()
   appendActivityFilters(listParams, filters)
   listParams.set('sort_by', sortBy)
   listParams.set('sort_order', sortOrder)
+  listParams.set('page_number', String(page))
+  listParams.set('num_records', String(numRecords))
 
   const countParams = new URLSearchParams()
   appendActivityFilters(countParams, filters)
   const countQuery = countParams.toString()
 
-  const [dtos, total] = await Promise.all([
-    apiFetch<ActivityDto[] | null>(
-      `/activities/user/${userId}/page_number/${page}/num_records/${numRecords}?${listParams.toString()}`,
-      { signal },
-    ),
-    apiFetch<number | null>(
-      countQuery ? `/activities/number?${countQuery}` : '/activities/number',
+  const [dtos, countResponse] = await Promise.all([
+    apiFetch<ActivityDto[] | null>(`/activities?${listParams.toString()}`, { signal }),
+    apiFetch<Schemas['CountResponse']>(
+      countQuery ? `/activities/count?${countQuery}` : '/activities/count',
       { signal },
     ),
   ])
 
-  return { records: (dtos ?? []).map(mapActivity), total: total ?? 0 }
+  return { records: (dtos ?? []).map(mapActivity), total: countResponse.count }
 }
 
 /**
@@ -459,10 +493,11 @@ export async function fetchActivityStats(
   timeframe: ActivityStatsTimeframe,
   signal?: AbortSignal,
 ): Promise<ActivityStats> {
-  const window = timeframe === 'week' ? 'thisweek' : 'thismonth'
-  const stats = await apiFetch<ActivityStats | null>(`/activities/user/${userId}/${window}/stats`, {
-    signal,
-  })
+  const params = new URLSearchParams({ period: timeframe })
+  const stats = await apiFetch<ActivityStats | null>(
+    `/activities/users/${userId}/stats?${params.toString()}`,
+    { signal },
+  )
   return stats ?? {}
 }
 
@@ -479,10 +514,17 @@ export async function fetchUserThisMonthActivityCount(
   userId: number,
   signal?: AbortSignal,
 ): Promise<number> {
-  const count = await apiFetch<number | null>(`/activities/user/${userId}/thismonth/number`, {
-    signal,
+  const { startDate, endDate } = currentMonthRange()
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+    num_records: '200',
   })
-  return count ?? 0
+  const dtos = await apiFetch<ActivityDto[] | null>(
+    `/activities/users/${userId}?${params.toString()}`,
+    { signal },
+  )
+  return dtos?.length ?? 0
 }
 
 /**
@@ -668,11 +710,9 @@ export async function fetchActivityExerciseTitles(
 
 /**
  * Sets the gear associated with an activity, or clears it when `gearId` is
- * `null`. The backend `PUT /activities/edit` applies a partial update, but the
- * `ActivityEdit` contract requires `id`, `name`, and `activity_type`, so those
- * are sent alongside the gear (mirroring v1's editActivity payload).
+ * `null`, via a partial `PATCH /activities/{id}` update.
  *
- * @param activity - The activity to update (supplies the required fields).
+ * @param activity - The activity to update (supplies its id).
  * @param gearId - The gear to associate, or `null` to remove the association.
  * @returns The updated activity domain model.
  * @throws {HttpError} When the update fails.
@@ -681,14 +721,9 @@ export async function setActivityGear(
   activity: Activity,
   gearId: number | null,
 ): Promise<Activity> {
-  const body: ActivityEditDto = {
-    id: activity.id,
-    name: activity.name,
-    activity_type: activity.activityType,
-    gear_id: gearId,
-  }
-  const dto = await apiFetch<ActivityDto>('/activities/edit', {
-    method: 'PUT',
+  const body: ActivityEditDto = { gear_id: gearId }
+  const dto = await apiFetch<ActivityDto>(`/activities/${activity.id}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
   })
   return mapActivity(dto)
@@ -701,7 +736,7 @@ export async function setActivityGear(
  * @throws {HttpError} When the delete fails (e.g. not found or not owned).
  */
 export async function deleteActivity(id: number): Promise<void> {
-  await apiFetch(`/activities/${id}/delete`, { method: 'DELETE' })
+  await apiFetch(`/activities/${id}`, { method: 'DELETE' })
 }
 
 /**
@@ -721,10 +756,10 @@ export async function updateUserActivitiesVisibility(
 }
 
 /**
- * Applies a full edit to an activity. Empty description / private notes are sent
- * as `null` to clear them. `id`, `name`, and `activity_type` are required by the
- * `ActivityEdit` contract; the remaining fields are sent so the partial update
- * (backend `exclude_unset`) applies every editable value, mirroring v1.
+ * Applies a full edit to an activity via `PATCH /activities/{id}`. Empty
+ * description / private notes are sent as `null` to clear them; the remaining
+ * fields are sent so the partial update (backend `exclude_unset`) applies every
+ * editable value, mirroring v1.
  *
  * @param id - Activity identifier.
  * @param input - The edited field values from the form.
@@ -733,7 +768,6 @@ export async function updateUserActivitiesVisibility(
  */
 export async function editActivity(id: number, input: ActivityEditInput): Promise<Activity> {
   const body: ActivityEditDto = {
-    id,
     name: input.name,
     activity_type: input.activityType,
     description: input.description.trim() ? input.description : null,
@@ -753,8 +787,8 @@ export async function editActivity(id: number, input: ActivityEditInput): Promis
     hide_workout_sets_steps: input.hideWorkoutSetsSteps,
     hide_gear: input.hideGear,
   }
-  const dto = await apiFetch<ActivityDto>('/activities/edit', {
-    method: 'PUT',
+  const dto = await apiFetch<ActivityDto>(`/activities/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
   })
   return mapActivity(dto)

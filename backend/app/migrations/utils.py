@@ -21,6 +21,7 @@ _SYNC_MIGRATIONS: dict[int, Callable[[Session], None]] = {
     1: migrations_migration_1.process_migration_1,
     2: migrations_migration_2.process_migration_2,
     3: migrations_migration_3.process_migration_3,
+    7: migrations_migration_7.process_migration_7,
     8: migrations_migration_8.process_migration_8,
 }
 
@@ -29,7 +30,6 @@ _ASYNC_MIGRATIONS: dict[int, Callable[[Session], Coroutine[Any, Any, None]]] = {
     4: migrations_migration_4.process_migration_4,
     5: migrations_migration_5.process_migration_5,
     6: migrations_migration_6.process_migration_6,
-    7: migrations_migration_7.process_migration_7,
 }
 
 

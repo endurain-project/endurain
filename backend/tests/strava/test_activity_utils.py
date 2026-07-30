@@ -131,3 +131,66 @@ class TestFetchAndProcessActivityStreamsNotFound:
             self._call(client)
 
         assert exc_info.value.status_code == 424
+
+
+# ---------------------------------------------------------------------------
+# save_activity_streams_laps — routes Strava sync through the ingestion seam
+# ---------------------------------------------------------------------------
+
+
+class TestSaveActivityStreamsLaps:
+    """Strava persists through the canonical store_parsed_activity seam."""
+
+    def test_builds_parsed_activity_and_delegates_to_seam(self, monkeypatch):
+        """Only set streams are forwarded; laps and Strava provenance are carried."""
+        import modules.activities.activity.schema as activities_schema
+
+        captured: dict = {}
+
+        def _fake_store(parsed, db):
+            captured["parsed"] = parsed
+            captured["db"] = db
+            return activities_schema.Activity(id=42, user_id=1, distance=0, name="X", activity_type=1)
+
+        monkeypatch.setattr(activity_utils.ingestion_service, "store_parsed_activity", _fake_store)
+
+        activity = activities_schema.Activity(
+            user_id=1, distance=1000, name="Ride", activity_type=1, strava_activity_id=555
+        )
+        stream_data = [
+            (True, 1, [{"hr": 140}]),
+            (False, 2, [{"power": 200}]),  # not set -> excluded
+            (True, 7, [{"lat": 1.0, "lon": 2.0}]),
+        ]
+        laps = [{"pace": 5.0}]
+        db = Mock()
+
+        result = activity_utils.save_activity_streams_laps(activity, stream_data, laps, db)
+
+        assert result.id == 42
+        parsed = captured["parsed"]
+        assert [s.stream_type for s in parsed.streams] == [1, 7]
+        assert parsed.laps == laps
+        assert parsed.source.kind == "strava"
+        assert parsed.source.provider_activity_id == 555
+        assert captured["db"] is db
+
+    def test_handles_empty_streams_and_no_laps(self, monkeypatch):
+        """Empty stream_data and None laps yield an empty-stream, no-lap ParsedActivity."""
+        import modules.activities.activity.schema as activities_schema
+
+        captured: dict = {}
+
+        def _fake_store(parsed, db):
+            captured["parsed"] = parsed
+            return activities_schema.Activity(id=1, user_id=1, distance=0, name="X", activity_type=1)
+
+        monkeypatch.setattr(activity_utils.ingestion_service, "store_parsed_activity", _fake_store)
+
+        activity = activities_schema.Activity(user_id=1, distance=0, name="X", activity_type=1)
+        activity_utils.save_activity_streams_laps(activity, [], None, Mock())
+
+        parsed = captured["parsed"]
+        assert parsed.streams == []
+        assert parsed.laps is None
+        assert parsed.source.kind == "strava"

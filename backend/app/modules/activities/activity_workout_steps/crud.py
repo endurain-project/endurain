@@ -1,9 +1,12 @@
 """Activity workout steps CRUD operations."""
 
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.logger as core_logger
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
@@ -11,12 +14,19 @@ import modules.activities.activity_workout_steps.schema as activity_workout_step
 import modules.server_settings.utils as server_settings_utils
 
 
+def _to_read_schema(
+    orm_step: activity_workout_steps_models.ActivityWorkoutSteps,
+) -> activity_workout_steps_schema.ActivityWorkoutSteps:
+    """Convert an ORM row to its read schema so ORM never leaves ``crud``."""
+    return activity_workout_steps_schema.ActivityWorkoutSteps.model_validate(orm_step)
+
+
 @core_decorators.handle_db_errors
 def get_activity_workout_steps(
     activity_id: int,
     token_user_id: int,
     db: Session,
-) -> list[activity_workout_steps_models.ActivityWorkoutSteps] | None:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps] | None:
     """
     Get workout steps for a single activity.
 
@@ -32,7 +42,7 @@ def get_activity_workout_steps(
     Raises:
         HTTPException: If database error occurs.
     """
-    activity = activity_crud.get_activity_by_id(activity_id, db)
+    activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
 
     if not activity:
         return None
@@ -48,7 +58,7 @@ def get_activity_workout_steps(
     if not workout_steps:
         return None
 
-    return workout_steps
+    return [_to_read_schema(step) for step in workout_steps]
 
 
 @core_decorators.handle_db_errors
@@ -56,8 +66,8 @@ def get_activities_workout_steps(
     activity_ids: list[int],
     token_user_id: int,
     db: Session,
-    activities: (list[activity_models.Activity] | None) = None,
-) -> list[activity_workout_steps_models.ActivityWorkoutSteps]:
+    activities: Sequence[activity_models.Activity] | None = None,
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
     Get workout steps for multiple activities.
 
@@ -101,14 +111,14 @@ def get_activities_workout_steps(
     if not workout_steps:
         return []
 
-    return workout_steps
+    return [_to_read_schema(step) for step in workout_steps]
 
 
 @core_decorators.handle_db_errors
 def get_public_activity_workout_steps(
     activity_id: int,
     db: Session,
-) -> list[activity_workout_steps_models.ActivityWorkoutSteps] | None:
+) -> list[activity_workout_steps_schema.ActivityWorkoutSteps] | None:
     """
     Get workout steps for a public activity.
 
@@ -147,7 +157,7 @@ def get_public_activity_workout_steps(
     if not workout_steps:
         return None
 
-    return workout_steps
+    return [_to_read_schema(step) for step in workout_steps]
 
 
 @core_decorators.handle_db_errors
@@ -155,6 +165,8 @@ def create_activity_workout_steps(
     activity_workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps],
     activity_id: int,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> None:
     """
     Bulk create workout steps for an activity.
@@ -191,4 +203,13 @@ def create_activity_workout_steps(
     ]
 
     db.add_all(workout_steps)
-    db.commit()
+    # commit=False keeps the steps in the caller's open transaction (atomic ingestion).
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+
+    core_logger.print_to_log(
+        f"Created {len(workout_steps)} workout step(s) for activity {activity_id}",
+        "debug",
+    )

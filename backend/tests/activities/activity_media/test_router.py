@@ -46,7 +46,7 @@ class TestReadActivityMedia:
 class TestUploadActivityMedia:
     @patch("modules.activities.activity_media.router.activity_crud.get_activity_by_id_from_user_id")
     @patch("modules.activities.activity_media.router.activity_media_crud.create_activity_media")
-    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload")
+    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload_sync")
     def test_upload_rejects_activity_owned_by_another_user(self, mock_save, mock_create, mock_get_activity, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get_activity.return_value = None
@@ -63,7 +63,7 @@ class TestUploadActivityMedia:
 
     @patch("modules.activities.activity_media.router.activity_crud.get_activity_by_id_from_user_id")
     @patch("modules.activities.activity_media.router.activity_media_crud.create_activity_media")
-    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload")
+    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload_sync")
     def test_upload_success(self, mock_save, mock_create, mock_get_activity, mock_db):
         from modules.activities.activity_media.schema import ActivityMedia
 
@@ -82,7 +82,7 @@ class TestUploadActivityMedia:
 
     @patch("modules.activities.activity_media.router.activity_crud.get_activity_by_id_from_user_id")
     @patch("modules.activities.activity_media.router.activity_media_crud.create_activity_media")
-    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload")
+    @patch("modules.activities.activity_media.router.core_file_uploads.save_validated_upload_sync")
     def test_upload_and_cleanup_on_failure(self, mock_save, mock_create, mock_get_activity, mock_db):
         from fastapi import HTTPException
 
@@ -91,9 +91,7 @@ class TestUploadActivityMedia:
         mock_save.return_value = "test.jpg"
         mock_create.side_effect = HTTPException(status_code=409, detail="Conflict")
 
-        with patch(
-            "modules.activities.activity_media.router.core_file_uploads.delete_files_by_pattern"
-        ) as mock_cleanup:
+        with patch("modules.activities.activity_media.router.core_file_uploads.safe_remove_within") as mock_cleanup:
             response = client.post(
                 "/activities_media/upload/activity_id/1",
                 files={"file": ("test.jpg", b"fake-image-data", "image/jpeg")},

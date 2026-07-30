@@ -1,7 +1,7 @@
-from modules.activities.activity_streams.utils import compute_hr_zone_breakdown
+from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
 
 
-async def test_compute_hr_zone_percentages_with_even_distribution():
+def test_compute_hr_zone_percentages_with_even_distribution():
     waypoints = [
         {"hr": 100},
         {"hr": 130},
@@ -10,7 +10,7 @@ async def test_compute_hr_zone_percentages_with_even_distribution():
         {"hr": 190},
     ]
 
-    result = await compute_hr_zone_breakdown(waypoints, max_heart_rate=200, total_timer_time=100)
+    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100)
 
     assert result is not None
     assert result["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 20}
@@ -20,26 +20,26 @@ async def test_compute_hr_zone_percentages_with_even_distribution():
     assert result["zone_5"] == {"percent": 20.0, "hr": ">= 180", "time_seconds": 20}
 
 
-async def test_compute_hr_zone_percentages_returns_none_for_empty_waypoints():
-    assert await compute_hr_zone_breakdown([], max_heart_rate=200, total_timer_time=100) is None
+def test_compute_hr_zone_percentages_returns_none_for_empty_waypoints():
+    assert compute_hr_zone_breakdown_sync([], max_heart_rate=200, total_timer_time=100) is None
 
 
-async def test_compute_hr_zone_percentages_returns_none_when_no_hr_values_exist():
+def test_compute_hr_zone_percentages_returns_none_when_no_hr_values_exist():
     waypoints = [{"cadence": 90}, {"cadence": 95}]
 
-    assert await compute_hr_zone_breakdown(waypoints, max_heart_rate=200, total_timer_time=100) is None
+    assert compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100) is None
 
 
-async def test_compute_hr_zone_percentages_uses_zero_time_seconds_for_falsy_timer_time():
+def test_compute_hr_zone_percentages_uses_zero_time_seconds_for_falsy_timer_time():
     waypoints = [{"hr": 100}, {"hr": 130}, {"hr": 150}, {"hr": 170}, {"hr": 190}]
 
-    result = await compute_hr_zone_breakdown(waypoints, max_heart_rate=200, total_timer_time=0)
+    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=0)
 
     assert result is not None
     assert all(zone["time_seconds"] == 0 for zone in result.values())
 
 
-async def test_compute_hr_zone_percentages_respects_known_zone_boundaries():
+def test_compute_hr_zone_percentages_respects_known_zone_boundaries():
     waypoints = [
         {"hr": 119},
         {"hr": 120},
@@ -52,7 +52,7 @@ async def test_compute_hr_zone_percentages_respects_known_zone_boundaries():
         {"hr": 199},
     ]
 
-    result = await compute_hr_zone_breakdown(waypoints, max_heart_rate=200, total_timer_time=900)
+    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=900)
 
     assert result is not None
     assert result["zone_1"]["percent"] == 11.11

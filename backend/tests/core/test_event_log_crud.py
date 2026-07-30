@@ -147,3 +147,51 @@ class TestAgeSeconds:
         now = datetime(2026, 7, 9, 12, 0, 0, tzinfo=UTC)
         moment = datetime(2026, 7, 9, 11, 0, 0, tzinfo=UTC)
         assert event_log_crud._age_seconds(moment, now) == 3600.0
+
+
+class TestDeleteEventsBefore:
+    @staticmethod
+    def _add(db, event_id, created_at, status="completed"):
+        db.add(
+            EventLog(
+                id=event_id,
+                event_type="activity.created",
+                event_source="api:test",
+                event_payload={"activity_id": 1},
+                status=status,
+                created_at=created_at,
+            )
+        )
+        db.commit()
+
+    def test_deletes_only_rows_older_than_cutoff(self, db):
+        cutoff = datetime(2026, 6, 1, tzinfo=UTC)
+        self._add(db, "old", datetime(2026, 1, 1, tzinfo=UTC))
+        self._add(db, "recent", datetime(2026, 7, 1, tzinfo=UTC))
+
+        assert event_log_crud.delete_events_before(cutoff, db=db) == 1
+        assert db.get(EventLog, "old") is None
+        assert db.get(EventLog, "recent") is not None
+
+    def test_prunes_every_status(self, db):
+        cutoff = datetime(2026, 6, 1, tzinfo=UTC)
+        old = datetime(2026, 1, 1, tzinfo=UTC)
+        for i, status in enumerate(("completed", "failed", "queued", "processing")):
+            self._add(db, f"e{i}", old, status=status)
+
+        # event_log is best-effort/safe-to-lose, so every status is prunable.
+        assert event_log_crud.delete_events_before(cutoff, db=db) == 4
+
+    def test_batches_until_exhausted(self, db):
+        cutoff = datetime(2026, 6, 1, tzinfo=UTC)
+        old = datetime(2026, 1, 1, tzinfo=UTC)
+        for i in range(5):
+            self._add(db, f"e{i}", old)
+
+        assert event_log_crud.delete_events_before(cutoff, db=db, batch_size=2) == 5
+        for i in range(5):
+            assert db.get(EventLog, f"e{i}") is None
+
+    def test_returns_zero_when_nothing_old(self, db):
+        self._add(db, "recent", datetime(2026, 7, 1, tzinfo=UTC))
+        assert event_log_crud.delete_events_before(datetime(2026, 6, 1, tzinfo=UTC), db=db) == 0
