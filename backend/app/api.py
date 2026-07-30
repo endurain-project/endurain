@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Security
 
 import core.config as core_config
 import core.router as core_router
+import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.public_router as activities_public_router
 
 # Alphabetized router imports
@@ -111,33 +112,48 @@ router.include_router(
 )
 router.include_router(
     activity_laps_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_laps",
+    prefix=core_config.ROOT_PATH + "/activities/{activity_id}",
     tags=["activity_laps"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Depends(activities_dependencies.validate_activity_id),
+    ],
 )
 router.include_router(
     activity_media_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_media",
+    prefix=core_config.ROOT_PATH + "/activities/{activity_id}",
     tags=["activity_media"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Depends(activities_dependencies.validate_activity_id),
+    ],
 )
 router.include_router(
     activity_sets_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_sets",
+    prefix=core_config.ROOT_PATH + "/activities/{activity_id}",
     tags=["activity_sets"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Depends(activities_dependencies.validate_activity_id),
+    ],
 )
 router.include_router(
     activity_streams_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_streams",
+    prefix=core_config.ROOT_PATH + "/activities/{activity_id}",
     tags=["activity_streams"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Depends(activities_dependencies.validate_activity_id),
+    ],
 )
 router.include_router(
     activity_workout_steps_router.router,
-    prefix=core_config.ROOT_PATH + "/activities_workout_steps",
+    prefix=core_config.ROOT_PATH + "/activities/{activity_id}",
     tags=["activity_workout_steps"],
-    dependencies=[Depends(auth_dependencies.validate_access_token)],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Depends(activities_dependencies.validate_activity_id),
+    ],
 )
 router.include_router(
     activity_summaries_router.router,
@@ -346,23 +362,27 @@ router.include_router(
 )
 router.include_router(
     activity_laps_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities_laps",
+    prefix=core_config.ROOT_PATH + "/public/activities/{activity_id}",
     tags=["public_activities_laps"],
+    dependencies=[Depends(activities_dependencies.validate_activity_id)],
 )
 router.include_router(
     activity_sets_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities_sets",
+    prefix=core_config.ROOT_PATH + "/public/activities/{activity_id}",
     tags=["public_activity_sets"],
+    dependencies=[Depends(activities_dependencies.validate_activity_id)],
 )
 router.include_router(
     activity_streams_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities_streams",
+    prefix=core_config.ROOT_PATH + "/public/activities/{activity_id}",
     tags=["public_activity_streams"],
+    dependencies=[Depends(activities_dependencies.validate_activity_id)],
 )
 router.include_router(
     activity_workout_steps_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities_workout_steps",
+    prefix=core_config.ROOT_PATH + "/public/activities/{activity_id}",
     tags=["public_activity_workout_steps"],
+    dependencies=[Depends(activities_dependencies.validate_activity_id)],
 )
 router.include_router(
     identity_providers_public_router.router,

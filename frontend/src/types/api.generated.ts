@@ -94,7 +94,7 @@ export interface paths {
         };
         /**
          * List Own Activities
-         * @description List the authenticated user's activities.
+         * @description List the authenticated user's activities, with the matching total.
          */
         get: operations["list_own_activities_api_v1_activities_get"];
         put?: never;
@@ -122,26 +122,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count Own Activities
-         * @description Count the authenticated user's activities matching the given filters.
-         */
-        get: operations["count_own_activities_api_v1_activities_count_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/activities/feed": {
         parameters: {
             query?: never;
@@ -151,29 +131,9 @@ export interface paths {
         };
         /**
          * List Following Feed
-         * @description List the authenticated user's following feed.
+         * @description List the authenticated user's following feed, with the matching total.
          */
         get: operations["list_following_feed_api_v1_activities_feed_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/feed/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count Following Feed
-         * @description Count the authenticated user's following-feed activities.
-         */
-        get: operations["count_following_feed_api_v1_activities_feed_count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -191,29 +151,9 @@ export interface paths {
         };
         /**
          * List Gear Activities
-         * @description List the authenticated user's activities for a gear.
+         * @description List the authenticated user's activities for a gear, with the matching total.
          */
         get: operations["list_gear_activities_api_v1_activities_gears__gear_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gears/{gear_id}/count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Count Gear Activities
-         * @description Count the authenticated user's activities for a gear.
-         */
-        get: operations["count_gear_activities_api_v1_activities_gears__gear_id__count_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -310,7 +250,7 @@ export interface paths {
         };
         /**
          * List User Activities
-         * @description List another user's activities that are visible to the requester.
+         * @description List another user's visible activities, with the matching total.
          */
         get: operations["list_user_activities_api_v1_activities_users__user_id__get"];
         put?: never;
@@ -389,6 +329,210 @@ export interface paths {
         patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
         trace?: never;
     };
+    "/api/v1/activities/{activity_id}/laps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activities Laps For Activity All
+         * @description Return all laps for the given activity visible to the caller.
+         *
+         *     Args:
+         *         activity_id: Activity primary key.
+         *         _check_scopes: FastAPI security dependency enforcing scopes.
+         *         token_user_id: Authenticated user id derived from the access
+         *             token.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of ``ActivityLapsRead`` or ``None`` if the activity is
+         *         hidden from the caller or has no laps.
+         */
+        get: operations["read_activities_laps_for_activity_all_api_v1_activities__activity_id__laps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activities Media User
+         * @description Retrieve activity media records for an activity owned by the user.
+         *
+         *     Args:
+         *         activity_id: Activity ID to fetch media for.
+         *         _validate_id: Activity ID validation dependency.
+         *         _check_scopes: Scope validation dependency.
+         *         token_user_id: Authenticated user ID.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of ActivityMedia records, or None if there are no media or
+         *         the activity is not accessible to the user.
+         */
+        get: operations["read_activities_media_user_api_v1_activities__activity_id__media_get"];
+        put?: never;
+        /**
+         * Upload Media
+         * @description Upload an image file to associate with an activity.
+         *
+         *     The file is validated by magic-number (not extension) and size limits
+         *     via the centralized image upload helper, stored under the configured
+         *     ``ACTIVITY_MEDIA_DIR``, and registered in the database.
+         *
+         *     Args:
+         *         file: Uploaded image file.
+         *         activity_id: Activity ID the media belongs to.
+         *         _validate_id: Activity ID validation dependency.
+         *         _check_scopes: Scope validation dependency.
+         *         token_user_id: Authenticated user ID.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The newly created ActivityMedia record.
+         *
+         *     Raises:
+         *         HTTPException:
+         *             - 404 Not Found: If the activity is not owned by the user.
+         *             - 400 Bad Request: If image validation fails.
+         *             - 415 Unsupported Media Type: If the extension is rejected.
+         *             - 409 Conflict: If a media with the same path already exists.
+         *             - 500 Internal Server Error: For unexpected I/O or DB errors.
+         */
+        post: operations["upload_media_api_v1_activities__activity_id__media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Activity Media
+         * @description Delete an activity media record and remove its file from disk.
+         *
+         *     Args:
+         *         activity_id: Activity the media must belong to.
+         *         media_id: Activity media ID to delete.
+         *         _validate_id: Media ID validation dependency.
+         *         _check_scopes: Scope validation dependency.
+         *         token_user_id: Authenticated user ID.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         None.
+         *
+         *     Raises:
+         *         HTTPException:
+         *             - 404 Not Found: If the media is missing, does not belong to this
+         *               activity, or its owning activity is not the user's.
+         *             - 500 Internal Server Error: For database errors.
+         */
+        delete: operations["delete_activity_media_api_v1_activities__activity_id__media__media_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Activities Sets For Activity All */
+        get: operations["read_activities_sets_for_activity_all_api_v1_activities__activity_id__sets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activities Streams For Activity All
+         * @description Get all streams for an activity.
+         *
+         *     Args:
+         *         activity_id: The activity identifier.
+         *         validate_id: Activity ID validator dep.
+         *         _check_scopes: Scope authorization dep.
+         *         token_user_id: Authenticated user ID.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of activity streams or None.
+         */
+        get: operations["read_activities_streams_for_activity_all_api_v1_activities__activity_id__streams_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/streams/{stream_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activities Streams For Activity Stream Type
+         * @description Get a specific stream type for an activity.
+         *
+         *     Args:
+         *         activity_id: The activity identifier.
+         *         stream_type: The stream type code.
+         *         validate_activity_stream_type: Type dep.
+         *         _check_scopes: Scope authorization dep.
+         *         token_user_id: Authenticated user ID.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The activity stream or None.
+         */
+        get: operations["read_activities_streams_for_activity_stream_type_api_v1_activities__activity_id__streams__stream_type__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/activities/{activity_id}/thumbnail": {
         parameters: {
             query?: never;
@@ -421,6 +565,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/activities/{activity_id}/workout-steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Workout Steps All
+         * @description Get all workout steps for an activity.
+         *
+         *     Returns:
+         *         List of workout steps or None.
+         */
+        get: operations["read_activity_workout_steps_all_api_v1_activities__activity_id__workout_steps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/activities_exercise_titles/all": {
         parameters: {
             query?: never;
@@ -443,227 +610,6 @@ export interface paths {
          *         HTTPException: If a database error occurs.
          */
         get: operations["read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_laps/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activities Laps For Activity All
-         * @description Return all laps for the given activity visible to the caller.
-         *
-         *     Args:
-         *         activity_id: Activity primary key.
-         *         validate_id: FastAPI dependency that validates the path id.
-         *         _check_scopes: FastAPI security dependency enforcing scopes.
-         *         token_user_id: Authenticated user id derived from the access
-         *             token.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ``ActivityLapsRead`` or ``None`` if the activity is
-         *         hidden from the caller or has no laps.
-         */
-        get: operations["read_activities_laps_for_activity_all_api_v1_activities_laps_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_media/activity_id/{activity_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activities Media User
-         * @description Retrieve activity media records for an activity owned by the user.
-         *
-         *     Args:
-         *         activity_id: Activity ID to fetch media for.
-         *         _validate_id: Activity ID validation dependency.
-         *         _check_scopes: Scope validation dependency.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ActivityMedia records, or None if there are no media or
-         *         the activity is not accessible to the user.
-         */
-        get: operations["read_activities_media_user_api_v1_activities_media_activity_id__activity_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_media/upload/activity_id/{activity_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Upload Media
-         * @description Upload an image file to associate with an activity.
-         *
-         *     The file is validated by magic-number (not extension) and size limits
-         *     via the centralized image upload helper, stored under the configured
-         *     ``ACTIVITY_MEDIA_DIR``, and registered in the database.
-         *
-         *     Args:
-         *         file: Uploaded image file.
-         *         activity_id: Activity ID the media belongs to.
-         *         _validate_id: Activity ID validation dependency.
-         *         _check_scopes: Scope validation dependency.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The newly created ActivityMedia record.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 404 Not Found: If the activity is not owned by the user.
-         *             - 400 Bad Request: If image validation fails.
-         *             - 415 Unsupported Media Type: If the extension is rejected.
-         *             - 409 Conflict: If a media with the same path already exists.
-         *             - 500 Internal Server Error: For unexpected I/O or DB errors.
-         */
-        post: operations["upload_media_api_v1_activities_media_upload_activity_id__activity_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_media/{media_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete Activity Media
-         * @description Delete an activity media record and remove its file from disk.
-         *
-         *     Args:
-         *         media_id: Activity media ID to delete.
-         *         _validate_id: Media ID validation dependency.
-         *         _check_scopes: Scope validation dependency.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 404 Not Found: If the media is missing or its owning activity is
-         *               not the user's.
-         *             - 500 Internal Server Error: For database errors.
-         */
-        delete: operations["delete_activity_media_api_v1_activities_media__media_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_sets/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Sets For Activity All */
-        get: operations["read_activities_sets_for_activity_all_api_v1_activities_sets_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_streams/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activities Streams For Activity All
-         * @description Get all streams for an activity.
-         *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_id: Activity ID validator dep.
-         *         _check_scopes: Scope authorization dep.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of activity streams or None.
-         */
-        get: operations["read_activities_streams_for_activity_all_api_v1_activities_streams_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_streams/activity_id/{activity_id}/stream_type/{stream_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activities Streams For Activity Stream Type
-         * @description Get a specific stream type for an activity.
-         *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_activity_id: Activity ID dep.
-         *         stream_type: The stream type code.
-         *         validate_activity_stream_type: Type dep.
-         *         _check_scopes: Scope authorization dep.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The activity stream or None.
-         */
-        get: operations["read_activities_streams_for_activity_stream_type_api_v1_activities_streams_activity_id__activity_id__stream_type__stream_type__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -705,29 +651,6 @@ export interface paths {
          *         HTTPException: If date/year is invalid.
          */
         get: operations["read_activity_summary_api_v1_activities_summaries__view_type__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_workout_steps/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activity Workout Steps All
-         * @description Get all workout steps for an activity.
-         *
-         *     Returns:
-         *         List of workout steps or None.
-         */
-        get: operations["read_activity_workout_steps_all_api_v1_activities_workout_steps_activity_id__activity_id__all_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4023,6 +3946,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/activities/{activity_id}/laps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activities Laps For Activity All
+         * @description Return public laps for an activity exposed via shareable link.
+         *
+         *     Args:
+         *         activity_id: Activity primary key.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of ``ActivityLapsRead`` or ``None`` when public sharing
+         *         is disabled, the activity is not public, or the laps are
+         *         hidden.
+         */
+        get: operations["read_public_activities_laps_for_activity_all_api_v1_public_activities__activity_id__laps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/activities/{activity_id}/sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Public Activities Sets For Activity All */
+        get: operations["read_public_activities_sets_for_activity_all_api_v1_public_activities__activity_id__sets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/activities/{activity_id}/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activities Streams For Activity All
+         * @description Get all public streams for an activity.
+         *
+         *     Args:
+         *         activity_id: The activity identifier.
+         *         validate_id: Activity ID validator dep.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of activity streams.
+         */
+        get: operations["read_public_activities_streams_for_activity_all_api_v1_public_activities__activity_id__streams_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/activities/{activity_id}/streams/{stream_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activities Streams For Activity Stream Type
+         * @description Get a public stream by type for an activity.
+         *
+         *     Args:
+         *         activity_id: The activity identifier.
+         *         stream_type: The stream type code.
+         *         validate_activity_stream_type: Type dep.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         The activity stream or None.
+         */
+        get: operations["read_public_activities_streams_for_activity_stream_type_api_v1_public_activities__activity_id__streams__stream_type__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/activities/{activity_id}/workout-steps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activity Workout Steps All
+         * @description Get all workout steps for a public activity.
+         *
+         *     Returns:
+         *         List of workout steps or None.
+         */
+        get: operations["read_public_activity_workout_steps_all_api_v1_public_activities__activity_id__workout_steps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/activities_exercise_titles/all": {
         parameters: {
             query?: never;
@@ -4046,134 +4095,6 @@ export interface paths {
          *             error occurs.
          */
         get: operations["read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_laps/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activities Laps For Activity All
-         * @description Return public laps for an activity exposed via shareable link.
-         *
-         *     Args:
-         *         activity_id: Activity primary key.
-         *         validate_id: FastAPI dependency that validates the path id.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ``ActivityLapsRead`` or ``None`` when public sharing
-         *         is disabled, the activity is not public, or the laps are
-         *         hidden.
-         */
-        get: operations["read_public_activities_laps_for_activity_all_api_v1_public_activities_laps_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_sets/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Public Activities Sets For Activity All */
-        get: operations["read_public_activities_sets_for_activity_all_api_v1_public_activities_sets_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_streams/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activities Streams For Activity All
-         * @description Get all public streams for an activity.
-         *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_id: Activity ID validator dep.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of activity streams.
-         */
-        get: operations["read_public_activities_streams_for_activity_all_api_v1_public_activities_streams_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_streams/activity_id/{activity_id}/stream_type/{stream_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activities Streams For Activity Stream Type
-         * @description Get a public stream by type for an activity.
-         *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_activity_id: Activity ID dep.
-         *         stream_type: The stream type code.
-         *         validate_activity_stream_type: Type dep.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The activity stream or None.
-         */
-        get: operations["read_public_activities_streams_for_activity_stream_type_api_v1_public_activities_streams_activity_id__activity_id__stream_type__stream_type__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_workout_steps/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activity Workout Steps All
-         * @description Get all workout steps for a public activity.
-         *
-         *     Returns:
-         *         List of workout steps or None.
-         */
-        get: operations["read_public_activity_workout_steps_all_api_v1_public_activities_workout_steps_activity_id__activity_id__all_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5727,6 +5648,36 @@ export interface components {
             detail: string;
         };
         /**
+         * ActivityPage
+         * @description One page of activities plus everything needed to paginate.
+         *
+         *     Replaces the previous "fetch the list, then fetch ``/count`` separately"
+         *     pattern: every list endpoint returned a bare array, so a client that wanted
+         *     to render "showing 20 of 340" or decide whether a next page existed had to
+         *     make a second request with the same filters. Two round trips, two chances for
+         *     the filters to disagree, and the count could change between them.
+         *
+         *     Attributes:
+         *         items: The activities on this page.
+         *         total: Total matching activities across all pages, with the same filters
+         *             and the same visibility scoping applied to ``items``.
+         *         page: The 1-based page number these items came from.
+         *         num_records: The page size used.
+         *         next: The next page number, or ``None`` when this is the last page.
+         */
+        ActivityPage: {
+            /** Items */
+            items: components["schemas"]["Activity"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /**
          * ActivitySetsRead
          * @description Schema for reading activity workout sets.
          *
@@ -5969,8 +5920,8 @@ export interface components {
             /** File */
             file: string;
         };
-        /** Body_upload_media_api_v1_activities_media_upload_activity_id__activity_id__post */
-        Body_upload_media_api_v1_activities_media_upload_activity_id__activity_id__post: {
+        /** Body_upload_media_api_v1_activities__activity_id__media_post */
+        Body_upload_media_api_v1_activities__activity_id__media_post: {
             /** File */
             file: string;
         };
@@ -6015,17 +5966,6 @@ export interface components {
          * @enum {string}
          */
         Color: "brown" | "dark_brown" | "light_brown" | "yellow" | "green" | "black" | "red" | "white";
-        /**
-         * CountResponse
-         * @description Envelope returned by activity count endpoints.
-         *
-         *     Attributes:
-         *         count: Number of matching activities.
-         */
-        CountResponse: {
-            /** Count */
-            count: number;
-        };
         /**
          * Currency
          * @description An enumeration representing supported currencies.
@@ -12334,7 +12274,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12368,41 +12308,6 @@ export interface operations {
             };
         };
     };
-    count_own_activities_api_v1_activities_count_get: {
-        parameters: {
-            query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name?: string | null;
-                activity_type?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CountResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_following_feed_api_v1_activities_feed_get: {
         parameters: {
             query?: {
@@ -12421,7 +12326,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12431,26 +12336,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    count_following_feed_api_v1_activities_feed_count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CountResponse"];
                 };
             };
         };
@@ -12475,38 +12360,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    count_gear_activities_api_v1_activities_gears__gear_id__count_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CountResponse"];
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12624,7 +12478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Validation Error */
@@ -12801,6 +12655,227 @@ export interface operations {
             };
         };
     };
+    read_activities_laps_for_activity_all_api_v1_activities__activity_id__laps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityLapsRead"][] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_activities_media_user_api_v1_activities__activity_id__media_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityMedia"][] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_media_api_v1_activities__activity_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_media_api_v1_activities__activity_id__media_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityMedia"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_activity_media_api_v1_activities__activity_id__media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+                media_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_activities_sets_for_activity_all_api_v1_activities__activity_id__sets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivitySetsRead"][] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_activities_streams_for_activity_all_api_v1_activities__activity_id__streams_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityStreamsRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_activities_streams_for_activity_stream_type_api_v1_activities__activity_id__streams__stream_type__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+                stream_type: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityStreamsRead"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get: {
         parameters: {
             query: {
@@ -12836,6 +12911,37 @@ export interface operations {
             };
         };
     };
+    read_activity_workout_steps_all_api_v1_activities__activity_id__workout_steps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get: {
         parameters: {
             query?: never;
@@ -12852,226 +12958,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
-                };
-            };
-        };
-    };
-    read_activities_laps_for_activity_all_api_v1_activities_laps_activity_id__activity_id__all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_media_user_api_v1_activities_media_activity_id__activity_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityMedia"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_media_api_v1_activities_media_upload_activity_id__activity_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_media_api_v1_activities_media_upload_activity_id__activity_id__post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityMedia"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_activity_media_api_v1_activities_media__media_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                media_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_sets_for_activity_all_api_v1_activities_sets_activity_id__activity_id__all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_streams_for_activity_all_api_v1_activities_streams_activity_id__activity_id__all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_streams_for_activity_stream_type_api_v1_activities_streams_activity_id__activity_id__stream_type__stream_type__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-                stream_type: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -13101,37 +12987,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WeeklySummaryResponse"] | components["schemas"]["MonthlySummaryResponse"] | components["schemas"]["YearlySummaryResponse"] | components["schemas"]["LifetimeSummaryResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activity_workout_steps_all_api_v1_activities_workout_steps_activity_id__activity_id__all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
                 };
             };
             /** @description Validation Error */
@@ -16516,27 +16371,7 @@ export interface operations {
             };
         };
     };
-    read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
-                };
-            };
-        };
-    };
-    read_public_activities_laps_for_activity_all_api_v1_public_activities_laps_activity_id__activity_id__all_get: {
+    read_public_activities_laps_for_activity_all_api_v1_public_activities__activity_id__laps_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16567,7 +16402,7 @@ export interface operations {
             };
         };
     };
-    read_public_activities_sets_for_activity_all_api_v1_public_activities_sets_activity_id__activity_id__all_get: {
+    read_public_activities_sets_for_activity_all_api_v1_public_activities__activity_id__sets_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16598,7 +16433,7 @@ export interface operations {
             };
         };
     };
-    read_public_activities_streams_for_activity_all_api_v1_public_activities_streams_activity_id__activity_id__all_get: {
+    read_public_activities_streams_for_activity_all_api_v1_public_activities__activity_id__streams_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16629,7 +16464,7 @@ export interface operations {
             };
         };
     };
-    read_public_activities_streams_for_activity_stream_type_api_v1_public_activities_streams_activity_id__activity_id__stream_type__stream_type__get: {
+    read_public_activities_streams_for_activity_stream_type_api_v1_public_activities__activity_id__streams__stream_type__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16661,7 +16496,7 @@ export interface operations {
             };
         };
     };
-    read_public_activity_workout_steps_all_api_v1_public_activities_workout_steps_activity_id__activity_id__all_get: {
+    read_public_activity_workout_steps_all_api_v1_public_activities__activity_id__workout_steps_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16688,6 +16523,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
                 };
             };
         };

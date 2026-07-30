@@ -71,24 +71,66 @@ def _valid_activity(**kw):
 
 
 class TestListOwnActivities:
-    def test_list(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m:
+    """The list endpoint carries its own total, so no second /count call."""
+
+    def test_list_returns_page_envelope(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m,
+            patch("modules.activities.activity.router.activities_crud.count_user_activities", return_value=1),
+        ):
             m.return_value = [_valid_activity()]
             resp = TestClient(_build_app(mock_db)).get("/activities", headers={"Authorization": "Bearer x"})
+
             assert resp.status_code == 200
-            assert len(resp.json()) == 1
+            body = resp.json()
+            assert len(body["items"]) == 1
+            assert body["total"] == 1
+            assert body["page"] == 1
+            assert body["next"] is None
 
-    def test_count(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.count_user_activities") as m:
-            m.return_value = 1
-            resp = TestClient(_build_app(mock_db)).get("/activities/count", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == {"count": 1}
+    def test_next_points_to_the_following_page(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m,
+            patch("modules.activities.activity.router.activities_crud.count_user_activities", return_value=45),
+        ):
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities?page_number=2&num_records=20", headers={"Authorization": "Bearer x"}
+            )
 
-    def test_count_empty(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.count_user_activities") as m:
-            m.return_value = 0
-            resp = TestClient(_build_app(mock_db)).get("/activities/count", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == {"count": 0}
+            body = resp.json()
+            assert body["total"] == 45
+            assert body["page"] == 2
+            assert body["next"] == 3
+
+    def test_last_page_has_no_next(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m,
+            patch("modules.activities.activity.router.activities_crud.count_user_activities", return_value=40),
+        ):
+            m.return_value = [_valid_activity()]
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities?page_number=2&num_records=20", headers={"Authorization": "Bearer x"}
+            )
+
+            assert resp.json()["next"] is None
+
+    def test_empty_result_is_a_page_not_a_bare_list(self, mock_db):
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m,
+            patch("modules.activities.activity.router.activities_crud.count_user_activities", return_value=0),
+        ):
+            m.return_value = None
+            resp = TestClient(_build_app(mock_db)).get("/activities", headers={"Authorization": "Bearer x"})
+
+            assert resp.status_code == 200
+            assert resp.json() == {"items": [], "total": 0, "page": 1, "num_records": 25, "next": None}
+
+    def test_count_endpoint_is_gone(self, mock_db):
+        # 422, not 404: with /count removed the path now falls through to
+        # GET /activities/{activity_id}, where "count" fails int validation.
+        resp = TestClient(_build_app(mock_db)).get("/activities/count", headers={"Authorization": "Bearer x"})
+        assert resp.status_code == 422
 
 
 class TestTypes:
@@ -109,18 +151,17 @@ class TestFeed:
         ):
             f.list_accepted_followee_ids.return_value = [5]
             m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
+            with patch(
+                "modules.activities.activity.router.activities_crud.count_user_following_activities",
+                return_value=1,
+            ):
+                resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            assert resp.json()["total"] == 1
 
-    def test_count(self, mock_db):
-        with (
-            patch("modules.activities.activity.service.followers_service") as f,
-            patch("modules.activities.activity.router.activities_crud.count_user_following_activities") as m,
-        ):
-            f.list_accepted_followee_ids.return_value = [5]
-            m.return_value = 2
-            resp = TestClient(_build_app(mock_db)).get("/activities/feed/count", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == {"count": 2}
+    def test_count_endpoint_is_gone(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get("/activities/feed/count", headers={"Authorization": "Bearer x"})
+        assert resp.status_code == 404
 
 
 class TestGear:
@@ -129,26 +170,31 @@ class TestGear:
             "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id"
         ) as m:
             m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get("/activities/gears/1", headers={"Authorization": "Bearer x"})
+            with patch(
+                "modules.activities.activity.router.activities_crud.get_gear_activities_count_by_user_id",
+                return_value=1,
+            ):
+                resp = TestClient(_build_app(mock_db)).get("/activities/gears/1", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            assert resp.json()["total"] == 1
 
     def test_list_paginated(self, mock_db):
         with patch(
             "modules.activities.activity.router.activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination"
         ) as m:
             m.return_value = [_valid_activity()]
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/gears/1?page_number=1&num_records=10", headers={"Authorization": "Bearer x"}
-            )
+            with patch(
+                "modules.activities.activity.router.activities_crud.get_gear_activities_count_by_user_id",
+                return_value=1,
+            ):
+                resp = TestClient(_build_app(mock_db)).get(
+                    "/activities/gears/1?page_number=1&num_records=10", headers={"Authorization": "Bearer x"}
+                )
             assert resp.status_code == 200
 
-    def test_count(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_gear_activities_count_by_user_id") as m:
-            m.return_value = 3
-            resp = TestClient(_build_app(mock_db)).get(
-                "/activities/gears/1/count", headers={"Authorization": "Bearer x"}
-            )
-            assert resp.status_code == 200 and resp.json() == {"count": 3}
+    def test_count_endpoint_is_gone(self, mock_db):
+        resp = TestClient(_build_app(mock_db)).get("/activities/gears/1/count", headers={"Authorization": "Bearer x"})
+        assert resp.status_code == 404
 
 
 class TestUserStats:
@@ -208,10 +254,14 @@ class TestUserStats:
 
 class TestListUserActivities:
     def test_success(self, mock_db):
-        with patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m:
+        with (
+            patch("modules.activities.activity.router.activities_crud.get_user_activities_with_pagination") as m,
+            patch("modules.activities.activity.router.activities_crud.count_user_activities", return_value=1),
+        ):
             m.return_value = [_valid_activity()]
             resp = TestClient(_build_app(mock_db)).get("/activities/users/2", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            assert resp.json()["total"] == 1
 
 
 class TestReadByID:

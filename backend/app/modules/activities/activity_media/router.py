@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, Security, UploadFile, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity_media.dependencies as activities_media_dependencies
 import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.service as activity_media_service
@@ -22,12 +21,11 @@ router = APIRouter()
 
 
 @router.get(
-    "/activity_id/{activity_id}",
+    "/media",
     response_model=list[activity_media_schema.ActivityMedia] | None,
 )
 def read_activities_media_user(
     activity_id: int,
-    _validate_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
     token_user_id: Annotated[
         int,
@@ -56,14 +54,13 @@ def read_activities_media_user(
 
 
 @router.post(
-    "/upload/activity_id/{activity_id}",
+    "/media",
     response_model=activity_media_schema.ActivityMedia,
     status_code=status.HTTP_201_CREATED,
 )
 def upload_media(
     file: UploadFile,
     activity_id: int,
-    _validate_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     _check_scopes: Annotated[
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["activities:write"]),
@@ -107,11 +104,12 @@ def upload_media(
 
 
 @router.delete(
-    "/{media_id}",
+    "/media/{media_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
 )
 def delete_activity_media(
+    activity_id: int,
     media_id: int,
     _validate_id: Annotated[Callable, Depends(activities_media_dependencies.validate_media_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
@@ -128,6 +126,7 @@ def delete_activity_media(
     Delete an activity media record and remove its file from disk.
 
     Args:
+        activity_id: Activity the media must belong to.
         media_id: Activity media ID to delete.
         _validate_id: Media ID validation dependency.
         _check_scopes: Scope validation dependency.
@@ -139,8 +138,8 @@ def delete_activity_media(
 
     Raises:
         HTTPException:
-            - 404 Not Found: If the media is missing or its owning activity is
-              not the user's.
+            - 404 Not Found: If the media is missing, does not belong to this
+              activity, or its owning activity is not the user's.
             - 500 Internal Server Error: For database errors.
     """
-    activity_media_service.delete_activity_media(media_id, token_user_id, db)
+    activity_media_service.delete_activity_media(activity_id, media_id, token_user_id, db)

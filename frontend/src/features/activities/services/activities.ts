@@ -222,8 +222,10 @@ export async function searchActivitiesByName(
   signal?: AbortSignal,
 ): Promise<Activity[]> {
   const params = new URLSearchParams({ name })
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities?${params.toString()}`, { signal })
-  return (dtos ?? []).map(mapActivity)
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${params.toString()}`, {
+    signal,
+  })
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** A timeframe accepted by the activity stats endpoints. */
@@ -248,8 +250,10 @@ export async function fetchUserActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities?${params.toString()}`, { signal })
-  return (dtos ?? []).map(mapActivity)
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${params.toString()}`, {
+    signal,
+  })
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /**
@@ -271,10 +275,10 @@ export async function fetchFollowersActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities/feed?${params.toString()}`, {
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities/feed?${params.toString()}`, {
     signal,
   })
-  return (dtos ?? []).map(mapActivity)
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** Formats a `Date` as a `YYYY-MM-DD` string using its local calendar fields. */
@@ -336,11 +340,11 @@ export async function fetchUserWeekActivities(
     end_date: endDate,
     num_records: '200',
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(
+  const page_ = await apiFetch<Schemas['ActivityPage']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )
-  return (dtos ?? []).map(mapActivity)
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** Backend-validated sortable columns for the user activities list. */
@@ -412,14 +416,14 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
 
 /**
  * Fetches one filtered, sorted page of a user's own activities together with the
- * total matching count, powering the activities list view. The list and count
- * requests run in parallel and share the same filters; only the list request
- * carries the paging and sort parameters. Authenticated-only.
+ * total matching count, powering the activities list view. The backend returns
+ * both in a single page envelope, so the filters cannot drift between a list and
+ * a separate count request. Authenticated-only.
  *
  * @param params - The list owner, page, size, filters, and sort.
  * @param signal - Optional abort signal for cancellation.
  * @returns The page's activities (mapped) plus the total matching count.
- * @throws {HttpError} When either request fails.
+ * @throws {HttpError} When the request fails.
  */
 export async function fetchUserActivitiesPage(
   { page, numRecords, filters, sortBy, sortOrder }: ActivityListParams,
@@ -432,19 +436,11 @@ export async function fetchUserActivitiesPage(
   listParams.set('page_number', String(page))
   listParams.set('num_records', String(numRecords))
 
-  const countParams = new URLSearchParams()
-  appendActivityFilters(countParams, filters)
-  const countQuery = countParams.toString()
+  const page_ = await apiFetch<Schemas['ActivityPage']>(`/activities?${listParams.toString()}`, {
+    signal,
+  })
 
-  const [dtos, countResponse] = await Promise.all([
-    apiFetch<ActivityDto[] | null>(`/activities?${listParams.toString()}`, { signal }),
-    apiFetch<Schemas['CountResponse']>(
-      countQuery ? `/activities/count?${countQuery}` : '/activities/count',
-      { signal },
-    ),
-  ])
-
-  return { records: (dtos ?? []).map(mapActivity), total: countResponse.count }
+  return { records: (page_.items ?? []).map(mapActivity), total: page_.total }
 }
 
 /**
@@ -533,11 +529,14 @@ export async function fetchUserThisMonthActivityCount(
     end_date: endDate,
     num_records: '200',
   })
-  const dtos = await apiFetch<ActivityDto[] | null>(
+  const page_ = await apiFetch<Schemas['ActivityPage']>(
     `/activities/users/${userId}?${params.toString()}`,
     { signal },
   )
-  return dtos?.length ?? 0
+  // The envelope's total is the real match count. This previously returned the
+  // length of the returned page, so any week with more than num_records
+  // activities under-reported.
+  return page_.total
 }
 
 /**
@@ -566,8 +565,8 @@ export async function fetchActivityStreams(
 ): Promise<ActivityStream[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_streams/activity_id/${id}/all`,
-    `/public/activities_streams/activity_id/${id}/all`,
+    `/activities/${id}/streams`,
+    `/public/activities/${id}/streams`,
   )
   const dtos = await apiFetch<ActivityStreamDto[] | null>(path, {
     auth: context.authenticated,
@@ -589,8 +588,8 @@ export async function fetchActivityLaps(
 ): Promise<ActivityLap[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_laps/activity_id/${id}/all`,
-    `/public/activities_laps/activity_id/${id}/all`,
+    `/activities/${id}/laps`,
+    `/public/activities/${id}/laps`,
   )
   const dtos = await apiFetch<ActivityLapDto[] | null>(path, {
     auth: context.authenticated,
@@ -665,8 +664,8 @@ export async function fetchActivityWorkoutSteps(
 ): Promise<ActivityWorkoutStep[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_workout_steps/activity_id/${id}/all`,
-    `/public/activities_workout_steps/activity_id/${id}/all`,
+    `/activities/${id}/workout-steps`,
+    `/public/activities/${id}/workout-steps`,
   )
   const dtos = await apiFetch<ActivityWorkoutStepDto[] | null>(path, {
     auth: context.authenticated,
@@ -688,8 +687,8 @@ export async function fetchActivitySets(
 ): Promise<ActivityWorkoutSet[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_sets/activity_id/${id}/all`,
-    `/public/activities_sets/activity_id/${id}/all`,
+    `/activities/${id}/sets`,
+    `/public/activities/${id}/sets`,
   )
   const dtos = await apiFetch<ActivitySetDto[] | null>(path, {
     auth: context.authenticated,

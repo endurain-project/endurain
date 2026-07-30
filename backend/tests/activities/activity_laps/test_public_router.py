@@ -10,7 +10,7 @@ def _build_app(mock_db):
     import modules.activities.activity_laps.public_router as router
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities_laps")
+    app.include_router(router.router, prefix="/public/activities/{activity_id}")
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -23,7 +23,7 @@ class TestReadPublicActivityLaps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [ActivityLapsRead(id=1, activity_id=1, start_time=datetime(2024, 1, 15, 8, 0, 0))]
 
-        response = client.get("/public/activities_laps/activity_id/1/all")
+        response = client.get("/public/activities/1/laps")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_laps.public_router.activity_laps_crud.get_public_activity_laps")
@@ -31,6 +31,6 @@ class TestReadPublicActivityLaps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
 
-        response = client.get("/public/activities_laps/activity_id/999/all")
+        response = client.get("/public/activities/999/laps")
         assert response.status_code == 200
         assert response.json() is None

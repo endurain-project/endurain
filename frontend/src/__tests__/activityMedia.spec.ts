@@ -50,7 +50,7 @@ describe('fetchActivityMedia', () => {
 
     const media = await fetchActivityMedia(5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities_media/activity_id/5', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5/media', { signal: undefined })
     expect(media).toHaveLength(1)
     expect(media[0]?.url).toContain('activity_media/5_abc123.jpg')
   })
@@ -69,7 +69,7 @@ describe('uploadActivityMedia', () => {
     const media = await uploadActivityMedia(5, file)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_media/upload/activity_id/5',
+      '/activities/5/media',
       expect.objectContaining({ method: 'POST', timeoutMs: 0, body: expect.any(FormData) }),
     )
     expect(media.id).toBe(3)
@@ -80,9 +80,9 @@ describe('deleteActivityMedia', () => {
   it('sends a DELETE to the media endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await deleteActivityMedia(3)
+    await deleteActivityMedia(5, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities_media/3', {
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5/media/3', {
       method: 'DELETE',
       responseType: 'void',
     })

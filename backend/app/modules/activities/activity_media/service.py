@@ -175,10 +175,13 @@ def store_activity_media(
     return created
 
 
-def delete_activity_media(media_id: int, user_id: int, db: Session) -> None:
+def delete_activity_media(activity_id: int, media_id: int, user_id: int, db: Session) -> None:
     """Delete one of the user's media records and its file on disk.
 
     Args:
+        activity_id: The activity the media must belong to, taken from the route
+            path. Checked so a media id cannot be deleted through an unrelated
+            activity's URL.
         media_id: The media record to delete.
         user_id: The authenticated user, who must own the owning activity.
         db: Database session.
@@ -187,11 +190,11 @@ def delete_activity_media(media_id: int, user_id: int, db: Session) -> None:
         None.
 
     Raises:
-        HTTPException: 404 when the media does not exist or its activity is not
-            the user's.
+        HTTPException: 404 when the media does not exist, does not belong to
+            ``activity_id``, or its activity is not the user's.
     """
     media = activity_media_crud.get_activity_media_by_id(media_id, db)
-    if media is None:
+    if media is None or media.activity_id != activity_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Activity media not found",

@@ -55,26 +55,34 @@ describe('fetchGearActivities', () => {
     vi.clearAllMocks()
   })
 
-  it('requests the paginated gear-activities list and count and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto]).mockResolvedValueOnce({ count: 1 })
+  it('requests the paginated gear-activities page and maps the records', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [activityDto],
+      total: 1,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
 
     const result = await fetchGearActivities(5, { page: 1, numRecords: 25 })
 
-    expect(apiFetch).toHaveBeenNthCalledWith(
-      1,
+    // One request: the total arrives with the page.
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    expect(apiFetch).toHaveBeenCalledWith(
       '/activities/gears/5?page_number=1&num_records=25',
-      expect.objectContaining({ signal: undefined }),
-    )
-    expect(apiFetch).toHaveBeenNthCalledWith(
-      2,
-      '/activities/gears/5/count',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedActivity], total: 1 })
   })
 
-  it('treats a null list as an empty page', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null).mockResolvedValueOnce({ count: 0 })
+  it('treats an empty page as no records', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     await expect(fetchGearActivities(5, { page: 1, numRecords: 25 })).resolves.toEqual({
       records: [],
       total: 0,

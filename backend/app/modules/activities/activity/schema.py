@@ -258,6 +258,59 @@ class CountResponse(BaseModel):
     count: int
 
 
+class ActivityPage(BaseModel):
+    """One page of activities plus everything needed to paginate.
+
+    Replaces the previous "fetch the list, then fetch ``/count`` separately"
+    pattern: every list endpoint returned a bare array, so a client that wanted
+    to render "showing 20 of 340" or decide whether a next page existed had to
+    make a second request with the same filters. Two round trips, two chances for
+    the filters to disagree, and the count could change between them.
+
+    Attributes:
+        items: The activities on this page.
+        total: Total matching activities across all pages, with the same filters
+            and the same visibility scoping applied to ``items``.
+        page: The 1-based page number these items came from.
+        num_records: The page size used.
+        next: The next page number, or ``None`` when this is the last page.
+    """
+
+    items: list[Activity]
+    total: int
+    page: int
+    num_records: int
+    next: int | None = None
+
+    @classmethod
+    def build(
+        cls,
+        items: list[Activity] | None,
+        total: int,
+        page: int,
+        num_records: int,
+    ) -> ActivityPage:
+        """Assemble a page, deriving ``next`` from the totals.
+
+        Args:
+            items: The activities on this page (``None`` is treated as empty).
+            total: Total matching activities across all pages.
+            page: The 1-based page number.
+            num_records: The page size.
+
+        Returns:
+            The populated page envelope.
+        """
+        rows = items or []
+        return cls(
+            items=rows,
+            total=total,
+            page=page,
+            num_records=num_records,
+            next=page + 1 if page * num_records < total else None,
+        )
+
+
 class ActivityMessageResponse(BaseModel):
     """Generic message response for activity mutation endpoints.
 
