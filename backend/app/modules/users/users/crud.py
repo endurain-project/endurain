@@ -148,10 +148,7 @@ def _persist_user_edits(
     # avoid a users <-> activity_streams import cycle; the recompute
     # logs and swallows its own errors so it can't fail the edit.
     if max_heart_rate_before != db_users.max_heart_rate or birthdate_before != db_users.birthdate:
-        # Lazy import to avoid a users <-> activity_streams import cycle
-        import modules.activities.activity_streams.crud as activity_streams_crud
-
-        activity_streams_crud.recompute_hr_zone_percentages_for_user(db_users.id, db)
+        activities_integration.recompute_hr_zones_for_user(db_users.id, db)
 
     return _transform_users(db_users)
 

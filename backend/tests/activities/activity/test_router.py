@@ -346,7 +346,7 @@ class TestEdit:
 class TestEditVisibility:
     def test_success(self, mock_db):
         with patch("modules.activities.activity.service.activities_crud.edit_user_activities_visibility") as m:
-            m.return_value = 5
+            m.return_value = [1, 2, 3, 4, 5]
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities", json={"visibility": 1}, headers={"Authorization": "Bearer x"}
             )

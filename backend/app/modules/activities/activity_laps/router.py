@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
+import modules.activities.activity_laps.service as activity_laps_service
 import modules.auth.dependencies as auth_dependencies
 
 router = APIRouter()
@@ -41,4 +41,4 @@ def read_activities_laps_for_activity_all(
         List of ``ActivityLapsRead`` or ``None`` if the activity is
         hidden from the caller or has no laps.
     """
-    return activity_laps_crud.get_activity_laps(activity_id, token_user_id, db)
+    return activity_laps_service.list_activity_laps(activity_id, token_user_id, db)

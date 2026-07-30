@@ -176,7 +176,9 @@ class TestUploadRoute:
     def test_status_route_is_scoped_to_the_caller(self):
         db = MagicMock()
         with (
-            patch.object(router.ingestion_jobs_crud, "get_ingestion_job", return_value=None) as get_job,
+            patch.object(
+                router.ingestion_jobs, "get_job", side_effect=core_exceptions.NotFoundError("Upload job not found")
+            ) as get_job,
             pytest.raises(core_exceptions.NotFoundError),
         ):
             router.get_activity_ingestion_job(
@@ -193,7 +195,7 @@ class TestUploadRoute:
     def test_status_route_returns_the_job(self):
         db = MagicMock()
         job = _upload_job()
-        with patch.object(router.ingestion_jobs_crud, "get_ingestion_job", return_value=job):
+        with patch.object(router.ingestion_jobs, "get_job", return_value=job):
             result = router.get_activity_ingestion_job(
                 job_id="job-1",
                 token_user_id=7,

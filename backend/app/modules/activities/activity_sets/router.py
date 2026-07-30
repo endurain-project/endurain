@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
+import modules.activities.activity_sets.service as activity_sets_service
 import modules.auth.dependencies as auth_dependencies
 
 # Define the API router
@@ -30,4 +30,4 @@ def read_activities_sets_for_activity_all(
     ],
 ):
     # Get the activity sets from the database and return them
-    return activity_sets_crud.get_activity_sets(activity_id, token_user_id, db)
+    return activity_sets_service.list_activity_sets(activity_id, token_user_id, db)

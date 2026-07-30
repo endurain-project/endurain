@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_exercise_titles.service as activity_exercise_titles_service
 import modules.auth.dependencies as auth_dependencies
 
 router = APIRouter()
@@ -38,4 +38,4 @@ def read_activities_exercise_titles_all(
     Raises:
         HTTPException: If a database error occurs.
     """
-    return activity_exercise_titles_crud.get_activity_exercise_titles(db)
+    return activity_exercise_titles_service.list_activity_exercise_titles(db)

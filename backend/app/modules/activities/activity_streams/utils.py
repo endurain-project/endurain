@@ -50,14 +50,14 @@ def is_stream_hidden(
 
 
 def filter_visible_streams(
-    streams: list[activity_streams_models.ActivityStreams],
+    streams: list[activity_streams_schema.ActivityStreamsRead],
     activity: activity_schema.Activity,
-) -> list[activity_streams_models.ActivityStreams]:
+) -> list[activity_streams_schema.ActivityStreamsRead]:
     """
     Filter out streams hidden by the activity.
 
     Args:
-        streams: List of stream ORM instances.
+        streams: The activity's streams, as read schemas.
         activity: The activity schema instance.
 
     Returns:

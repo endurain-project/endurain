@@ -25,7 +25,9 @@ def _build_app(mock_db):
 
 
 class TestReadWorkoutSteps:
-    @patch("modules.activities.activity_workout_steps.router.activity_workout_steps_crud.get_activity_workout_steps")
+    @patch(
+        "modules.activities.activity_workout_steps.router.activity_workout_steps_service.list_activity_workout_steps"
+    )
     def test_read_steps_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []

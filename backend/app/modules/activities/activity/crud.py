@@ -1755,6 +1755,7 @@ def edit_activity(
     activity_id: int,
     activity_attributes: activities_schema.ActivityEdit | activities_schema.Activity,
     db: Session,
+    commit: bool = True,
 ) -> activities_schema.Activity:
     """Apply partial updates to a user's activity.
 
@@ -1764,6 +1765,9 @@ def edit_activity(
         activity_attributes: Pydantic model carrying the fields to update;
             only the fields explicitly set are applied.
         db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            update in the caller's unit of work so ``activity.updated`` can be
+            published atomically with it.
 
     Returns:
         The updated activity as a serialized schema.
@@ -1799,7 +1803,13 @@ def edit_activity(
     for key, value in activity_data.items():
         setattr(db_activity, key, value)
 
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        # The version bump lives in the ORM's UPDATE, so flush before reading it
+        # back — the caller serializes this row into its response and would
+        # otherwise hand out a stale ETag.
+        db.flush()
     db.refresh(db_activity)
     logger.debug(
         "Edited activity",
@@ -1809,16 +1819,20 @@ def edit_activity(
 
 
 @core_decorators.handle_db_errors
-def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) -> int:
+def edit_user_activities_visibility(user_id: int, visibility: int, db: Session, commit: bool = True) -> list[int]:
     """Bulk-update the visibility for every activity of a user.
 
     Args:
         user_id: Owner user ID.
         visibility: New visibility value (0, 1, 2).
         db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            update in the caller's unit of work so one ``activity.updated`` per
+            changed row can be published atomically with it.
 
     Returns:
-        Number of activities updated.
+        The IDs of the updated activities, so the caller can publish one event
+        per row instead of re-deriving which activities the user owns.
 
     Raises:
         ProcessingError: On database error.
@@ -1829,12 +1843,12 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
         # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
         # change it should have invalidated.
         .values(visibility=visibility, version=activities_models.Activity.version + 1)
+        .returning(activities_models.Activity.id)
     )
-    # Session.execute() is typed to return the base Result; an UPDATE/DELETE
-    # always yields a CursorResult at runtime, which is what exposes rowcount.
-    result = cast("CursorResult[Any]", db.execute(stmt))
-    db.commit()
-    return result.rowcount or 0
+    updated_ids = [row_id for (row_id,) in db.execute(stmt).all()]
+    if commit:
+        db.commit()
+    return updated_ids
 
 
 @core_decorators.handle_db_errors
@@ -1842,7 +1856,8 @@ def bulk_set_activities_gear_id(
     user_id: int,
     gear_assignments: dict[int, int | None],
     db: Session,
-) -> int:
+    commit: bool = True,
+) -> list[int]:
     """Bulk-update ``gear_id`` for many activities owned by a user.
 
     Assignments are grouped by target ``gear_id`` so the database
@@ -1856,20 +1871,23 @@ def bulk_set_activities_gear_id(
         gear_assignments: Mapping of ``activity_id`` -> ``gear_id``
             (use ``None`` to clear the gear assignment).
         db: Database session.
+        commit: When True (default) commit immediately. Pass False to stage the
+            updates in the caller's unit of work.
 
     Returns:
-        Total number of rows updated across all groups.
+        The IDs of the activities actually updated — a subset of the requested
+        keys, since the ownership predicate silently drops another user's ids.
 
     Raises:
         ProcessingError: On database error.
     """
     if not gear_assignments:
-        return 0
+        return []
     by_gear: dict[int | None, list[int]] = defaultdict(list)
     for activity_id, gear_id in gear_assignments.items():
         by_gear[gear_id].append(activity_id)
 
-    total = 0
+    updated_ids: list[int] = []
     for gear_id, activity_ids in by_gear.items():
         stmt = (
             sa_update(activities_models.Activity)
@@ -1878,11 +1896,12 @@ def bulk_set_activities_gear_id(
                 activities_models.Activity.id.in_(activity_ids),
             )
             .values(gear_id=gear_id, version=activities_models.Activity.version + 1)
+            .returning(activities_models.Activity.id)
         )
-        result = cast("CursorResult[Any]", db.execute(stmt))
-        total += result.rowcount or 0
-    db.commit()
-    return total
+        updated_ids.extend(row_id for (row_id,) in db.execute(stmt).all())
+    if commit:
+        db.commit()
+    return updated_ids
 
 
 @core_decorators.handle_db_errors

@@ -212,6 +212,36 @@ def _pending_view(
     )
 
 
+def get_job(
+    job_id: str,
+    token_user_id: int,
+    db: Session,
+) -> activity_ingestion_schema.ActivityIngestionJob:
+    """Return one of the caller's ingestion jobs.
+
+    Args:
+        job_id: The job identifier returned by the upload or refresh route.
+        token_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The ingestion job.
+
+    Raises:
+        NotFoundError: When no such job belongs to the caller. A job owned by
+            someone else is reported as missing rather than forbidden, so the
+            endpoint does not confirm that an id exists.
+    """
+    job = ingestion_jobs_crud.get_ingestion_job(job_id, token_user_id, db)
+    if job is None:
+        logger.debug(
+            "Ingestion job read resolved to nothing for this caller",
+            extra=core_logger.context(job_id=job_id, user_id=token_user_id),
+        )
+        raise core_exceptions.NotFoundError("Upload job not found")
+    return job
+
+
 def accept_refresh(
     token_user_id: int,
     db: Session,

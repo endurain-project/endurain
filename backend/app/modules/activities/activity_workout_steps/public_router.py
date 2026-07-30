@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity_workout_steps.service as activity_workout_steps_service
 
 # Define the API router
 router = APIRouter()
@@ -30,4 +30,4 @@ def read_public_activity_workout_steps_all(
     Returns:
         List of workout steps or None.
     """
-    return activity_workout_steps_crud.get_public_activity_workout_steps(activity_id, db)
+    return activity_workout_steps_service.list_public_activity_workout_steps(activity_id, db)

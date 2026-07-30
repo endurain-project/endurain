@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_exercise_titles.service as activity_exercise_titles_service
 
 router = APIRouter()
 
@@ -33,4 +33,4 @@ def read_public_activities_exercise_titles_all(
         HTTPException: If server settings are missing or a database
             error occurs.
     """
-    return activity_exercise_titles_crud.get_public_activity_exercise_titles(db)
+    return activity_exercise_titles_service.list_public_activity_exercise_titles(db)

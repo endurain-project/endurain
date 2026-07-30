@@ -388,7 +388,7 @@ def process_activity_using_streams(
     )
 
     try:
-        streams = activity_streams_crud.get_activity_streams(activity.id, activity.user_id, db)
+        streams = activity_streams_crud.get_activity_streams(activity.id, db)
         stream_map = {stream.stream_type: stream.stream_waypoints for stream in (streams or [])}
 
         laps = gpx_utils.generate_activity_laps(
@@ -438,7 +438,7 @@ def process_strava_activity(
         # Skip the activity if the user does not have a Strava account linked
         return False
 
-    activity_streams = activity_streams_crud.get_activity_streams(activity.id, activity.user_id, db)
+    activity_streams = activity_streams_crud.get_activity_streams(activity.id, db)
 
     # Create a dictionary from stream_type to waypoints
     stream_map = {stream.stream_type: stream.stream_waypoints for stream in (activity_streams or [])}

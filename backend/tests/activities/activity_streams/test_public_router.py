@@ -19,7 +19,7 @@ def _build_app(mock_db):
 
 
 class TestReadPublicActivityStreams:
-    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_service.list_public_activity_streams")
     def test_all_success(self, mock_get, mock_db):
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
@@ -29,7 +29,7 @@ class TestReadPublicActivityStreams:
         response = client.get("/public/activities/1/streams")
         assert response.status_code == 200
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_streams")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_service.list_public_activity_streams")
     def test_all_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         # The "all" endpoint returns a list; not-found is an empty list, never None
@@ -40,7 +40,7 @@ class TestReadPublicActivityStreams:
         assert response.status_code == 200
         assert response.json() == []
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
     def test_by_type_success(self, mock_get, mock_db):
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
@@ -50,7 +50,7 @@ class TestReadPublicActivityStreams:
         response = client.get("/public/activities/1/streams/1")
         assert response.status_code == 200
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_crud.get_public_activity_stream_by_type")
+    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
     def test_by_type_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None

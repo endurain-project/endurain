@@ -57,18 +57,34 @@ class TestIntegrationService:
         assert result == ["a"]
         mock_crud.get_user_activities_by_user_id_and_garminconnect_gear_set.assert_called_once_with(3, db)
 
+    @patch("modules.activities.activity.integration_service.activity_event_publishers")
     @patch("modules.activities.activity.integration_service.activities_crud")
-    def test_bulk_set_activities_gear_delegates(self, mock_crud):
+    def test_bulk_set_activities_gear_delegates(self, mock_crud, mock_publishers):
         from modules.activities.activity import integration_service
 
         db = MagicMock()
         assignments = {1: 10, 2: None}
-        mock_crud.bulk_set_activities_gear_id.return_value = 2
+        mock_crud.bulk_set_activities_gear_id.return_value = [1, 2]
 
         result = integration_service.bulk_set_activities_gear(3, assignments, db)
 
         assert result == 2
-        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, assignments, db)
+        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, assignments, db, commit=False)
+
+    @patch("modules.activities.activity.integration_service.activity_event_publishers")
+    @patch("modules.activities.activity.integration_service.activities_crud")
+    def test_bulk_set_activities_gear_publishes_one_event_per_row(self, mock_crud, mock_publishers):
+        """A provider re-gearing activities is a change consumers must be able to see."""
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_crud.bulk_set_activities_gear_id.return_value = [7, 8]
+
+        integration_service.bulk_set_activities_gear(3, {7: 10, 8: 10}, db)
+
+        mock_publishers.publish_activities_updated.assert_called_once_with(
+            [7, 8], 3, ["gear_id"], db, db.commit, source="api:bulk_set_activities_gear"
+        )
 
     @patch("modules.activities.activity.integration_service.activities_crud")
     def test_delete_all_strava_activities_delegates(self, mock_crud):

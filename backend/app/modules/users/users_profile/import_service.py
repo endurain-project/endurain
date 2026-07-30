@@ -29,18 +29,12 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activity_schema
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_file_storage.service as activity_file_storage_service
-import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_media.contracts as activity_media_contracts
-import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
-import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.schema as gear_schema
@@ -661,7 +655,7 @@ class ImportService:
                 laps.append(lap_data)
 
             if laps and new_activity.id is not None:
-                activity_laps_crud.create_activity_laps(laps, new_activity.id, self.db)
+                activities_integration.restore_activity_laps(laps, new_activity.id, self.db)
                 self.counts["activity_laps"] += len(laps)
 
         # Import sets - filter for this activity
@@ -679,7 +673,7 @@ class ImportService:
                 sets.append(set_activity)
 
             if sets and new_activity.id is not None:
-                activity_sets_crud.create_activity_sets(list(sets), new_activity.id, self.db)
+                activities_integration.restore_activity_sets(list(sets), new_activity.id, self.db)
                 self.counts["activity_sets"] += len(sets)
 
         # Import streams - filter for this activity
@@ -695,7 +689,7 @@ class ImportService:
                 streams.append(stream)
 
             if streams:
-                activity_streams_crud.create_activity_streams(streams, new_activity, self.db)
+                activities_integration.restore_activity_streams(streams, new_activity, self.db)
                 self.counts["activity_streams"] += len(streams)
 
         # Import workout steps
@@ -711,7 +705,7 @@ class ImportService:
                 steps.append(step)
 
             if steps and new_activity.id is not None:
-                activity_workout_steps_crud.create_activity_workout_steps(steps, new_activity.id, self.db)
+                activities_integration.restore_activity_workout_steps(steps, new_activity.id, self.db)
                 self.counts["activity_workout_steps"] += len(steps)
 
         # Import media
@@ -745,7 +739,7 @@ class ImportService:
                 )
 
             if media and new_activity.id is not None:
-                activity_media_crud.create_activity_medias(media, new_activity.id, self.db)
+                activities_integration.restore_activity_media(media, new_activity.id, self.db)
                 self.counts["activity_media"] += len(media)
 
         # Import exercise titles
@@ -761,7 +755,7 @@ class ImportService:
                 titles.append(title)
 
             if titles:
-                activity_exercise_titles_crud.create_activity_exercise_titles(titles, self.db)
+                activities_integration.restore_exercise_titles(titles, self.db)
                 self.counts["activity_exercise_titles"] += len(titles)
 
     async def collect_and_import_activities_data_batched(

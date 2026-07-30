@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
@@ -25,39 +24,28 @@ def _to_read_schema(
 @core_decorators.handle_db_errors
 def get_activity_workout_steps(
     activity_id: int,
-    token_user_id: int,
     db: Session,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
-    Get workout steps for a single activity.
+    Get every workout step belonging to an activity.
+
+    Performs no access check: whether the caller may read these rows is decided
+    by :mod:`modules.activities.activity_workout_steps.service`.
 
     Args:
         activity_id: Activity ID to fetch steps for.
-        token_user_id: Authenticated user ID.
         db: Database session.
 
     Returns:
-        The activity's workout steps, empty when the activity is not visible to
-        the caller or has none.
+        The activity's workout steps, empty when it has none.
 
     Raises:
         ProcessingError: If database error occurs.
     """
-    activity = activity_crud.get_viewable_activity_by_id_for_user(activity_id, token_user_id, db)
-
-    if not activity:
-        return []
-
-    if token_user_id != activity.user_id and activity.hide_workout_sets_steps:
-        return []
-
     stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(
         activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id,
     )
     workout_steps = db.scalars(stmt).all()
-
-    if not workout_steps:
-        return []
 
     return [_to_read_schema(step) for step in workout_steps]
 
@@ -108,42 +96,6 @@ def get_activities_workout_steps(
         activity_workout_steps_models.ActivityWorkoutSteps.activity_id.in_(allowed_ids)
     )
     workout_steps = list(db.scalars(steps_stmt).all())
-
-    if not workout_steps:
-        return []
-
-    return [_to_read_schema(step) for step in workout_steps]
-
-
-@core_decorators.handle_db_errors
-def get_public_activity_workout_steps(
-    activity_id: int,
-    db: Session,
-) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
-    """
-    Get workout steps for a public activity.
-
-    Args:
-        activity_id: Activity ID to fetch steps for.
-        db: Database session.
-
-    Returns:
-        The activity's workout steps, empty when it is not found, hidden, not
-        public, or public links are disabled — indistinguishable on purpose,
-        since this endpoint is unauthenticated.
-
-    Raises:
-        ProcessingError: If database error occurs.
-    """
-    activity = activity_crud.get_public_activity_for_child_read(activity_id, db, hide_attr="hide_workout_sets_steps")
-
-    if not activity:
-        return []
-
-    stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(
-        activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id,
-    )
-    workout_steps = list(db.scalars(stmt).all())
 
     if not workout_steps:
         return []

@@ -14,6 +14,24 @@ import modules.server_settings.schema as server_settings_schema
 _DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
+#: Request headers a browser client may send cross-origin. A header missing from
+#: this list is not merely stripped — the browser's preflight fails outright, so
+#: the request never happens. Declared here rather than inline in ``create_app``
+#: so a test can check it against the headers the routes actually declare.
+CORS_ALLOW_HEADERS: tuple[str, ...] = (
+    "Authorization",
+    "Content-Type",
+    "Idempotency-Key",
+    "If-Match",
+    "X-Client-Type",
+    "X-CSRF-Token",
+)
+
+#: Response headers a browser client may read. Anything not listed is invisible
+#: to JavaScript even though it is on the wire — which is why ``ETag`` belongs
+#: here: it is the tag the client echoes back in ``If-Match``.
+CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID")
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """

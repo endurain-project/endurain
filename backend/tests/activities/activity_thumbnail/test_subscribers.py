@@ -79,11 +79,10 @@ class TestOnActivityCreatedGenerateThumbnail:
 
         on_activity_created_generate_thumbnail(self._event({"activity_id": 5, "user_id": 9}))
 
-        # The owner (user_id) from the payload is threaded into the ownership-checked query.
+        # The stream read is now access-free; the subscriber addresses it by activity id.
         stream_args = mock_streams.get_activity_stream_by_type.call_args.args
         assert stream_args[0] == 5
-        assert stream_args[2] == 9
-        assert stream_args[3] is db
+        assert stream_args[2] is db
         mock_generate.assert_called_once()
         gen_args = mock_generate.call_args.args
         assert gen_args[0] == 5

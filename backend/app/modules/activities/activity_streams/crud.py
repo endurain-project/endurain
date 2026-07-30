@@ -5,14 +5,12 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_streams.utils as activity_streams_utils
-import modules.server_settings.utils as server_settings_utils
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
@@ -21,40 +19,28 @@ logger = core_logger.get_logger(__name__)
 @core_decorators.handle_db_errors
 def get_activity_streams(
     activity_id: int,
-    token_user_id: int,
     db: Session,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """
-    Get all streams for an activity.
+    Get every stream belonging to an activity.
+
+    Performs no access check and no per-type masking: both are decided by
+    :mod:`modules.activities.activity_streams.service`.
 
     Args:
         activity_id: The activity identifier.
-        token_user_id: Authenticated user ID.
         db: Database session.
 
     Returns:
-        List of activity streams or None.
+        The activity's streams, empty when it has none.
 
     Raises:
         ProcessingError: On database errors.
     """
-    activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
-        activity_id, token_user_id, db
-    )
-
-    if not activity:
-        return []
-
     stmt = select(activity_streams_models.ActivityStreams).where(
         activity_streams_models.ActivityStreams.activity_id == activity_id,
     )
     activity_streams: list[activity_streams_models.ActivityStreams] = list(db.scalars(stmt).all())
-
-    if not activity_streams:
-        return []
-
-    if token_user_id != activity.user_id:
-        activity_streams = activity_streams_utils.filter_visible_streams(activity_streams, activity)
 
     return activity_streams_utils.transform_activity_streams(activity_streams)
 
@@ -93,84 +79,28 @@ def get_activities_streams(
 
 
 @core_decorators.handle_db_errors
-def get_public_activity_streams(
-    activity_id: int,
-    db: Session,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """
-    Get public streams for an activity.
-
-    Args:
-        activity_id: The activity identifier.
-        db: Database session.
-
-    Returns:
-        List of activity streams.
-
-    Raises:
-        ProcessingError: On database errors.
-    """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-    if not server_settings.public_shareable_links:
-        return []
-
-    activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
-
-    if not activity:
-        return []
-
-    stmt = (
-        select(activity_streams_models.ActivityStreams)
-        .join(
-            activity_models.Activity,
-            activity_models.Activity.id == (activity_streams_models.ActivityStreams.activity_id),
-        )
-        .where(
-            activity_streams_models.ActivityStreams.activity_id == activity_id,
-            activity_models.Activity.visibility == 0,
-            activity_models.Activity.id == activity_id,
-        )
-    )
-    activity_streams: list[activity_streams_models.ActivityStreams] = list(db.scalars(stmt).all())
-
-    if not activity_streams:
-        return []
-
-    activity_streams = activity_streams_utils.filter_visible_streams(activity_streams, activity)
-
-    return activity_streams_utils.transform_activity_streams(activity_streams)
-
-
-@core_decorators.handle_db_errors
 def get_activity_stream_by_type(
     activity_id: int,
     stream_type: int,
-    token_user_id: int,
     db: Session,
 ) -> activity_streams_schema.ActivityStreamsRead | None:
     """
     Get a specific stream type for an activity.
 
+    Performs no access check and no masking: both are decided by
+    :mod:`modules.activities.activity_streams.service`.
+
     Args:
         activity_id: The activity identifier.
         stream_type: The stream type constant.
-        token_user_id: Authenticated user ID.
         db: Database session.
 
     Returns:
-        The activity stream or None.
+        The activity stream, or ``None`` when the activity has no such stream.
 
     Raises:
         ProcessingError: On database errors.
     """
-    activity: activity_schema.Activity | None = activity_crud.get_viewable_activity_by_id_for_user(
-        activity_id, token_user_id, db
-    )
-
-    if not activity:
-        return None
-
     stmt = select(activity_streams_models.ActivityStreams).where(
         activity_streams_models.ActivityStreams.activity_id == activity_id,
         activity_streams_models.ActivityStreams.stream_type == stream_type,
@@ -178,12 +108,6 @@ def get_activity_stream_by_type(
     activity_stream: activity_streams_models.ActivityStreams | None = db.scalars(stmt).first()
 
     if not activity_stream:
-        return None
-
-    if token_user_id != activity.user_id and activity_streams_utils.is_stream_hidden(
-        activity,
-        activity_stream.stream_type,
-    ):
         return None
 
     return activity_streams_utils.transform_activity_streams(activity_stream)
@@ -221,62 +145,6 @@ def get_gps_stream_waypoints_for_activities(
 
 
 @core_decorators.handle_db_errors
-def get_public_activity_stream_by_type(
-    activity_id: int,
-    stream_type: int,
-    db: Session,
-) -> activity_streams_schema.ActivityStreamsRead | None:
-    """
-    Get a public stream by type for an activity.
-
-    Args:
-        activity_id: The activity identifier.
-        stream_type: The stream type constant.
-        db: Database session.
-
-    Returns:
-        The activity stream or None.
-
-    Raises:
-        ProcessingError: On database errors.
-    """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-
-    if not server_settings.public_shareable_links:
-        return None
-
-    activity: activity_schema.Activity | None = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
-
-    if not activity:
-        return None
-
-    stmt = (
-        select(activity_streams_models.ActivityStreams)
-        .join(
-            activity_models.Activity,
-            activity_models.Activity.id == (activity_streams_models.ActivityStreams.activity_id),
-        )
-        .where(
-            activity_streams_models.ActivityStreams.activity_id == activity_id,
-            activity_streams_models.ActivityStreams.stream_type == stream_type,
-            activity_models.Activity.visibility == 0,
-            activity_models.Activity.id == activity_id,
-        )
-    )
-    activity_stream = db.scalars(stmt).first()
-
-    if not activity_stream:
-        return None
-
-    if activity_streams_utils.is_stream_hidden(
-        activity,
-        activity_stream.stream_type,
-    ):
-        return None
-
-    return activity_streams_utils.transform_activity_streams(activity_stream)
-
-
 @core_decorators.handle_db_errors
 def get_hr_streams_without_zone_percentages(
     db: Session,

@@ -24,14 +24,8 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_integration
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_file_storage.service as activity_file_storage_service
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.activity_sets.crud as activity_sets_crud
-import modules.activities.activity_streams.crud as activity_streams_crud
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.health.health_targets.crud as health_targets_crud
@@ -227,7 +221,7 @@ class ExportService:
 
             # Exercise titles don't depend on activity IDs
             try:
-                exercise_titles = activity_exercise_titles_crud.get_activity_exercise_titles(self.db)
+                exercise_titles = activities_integration.list_exercise_titles(self.db)
                 if exercise_titles:
                     exercise_titles_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(e) for e in exercise_titles]
                     users_profile_utils.write_json_to_zip(
@@ -305,31 +299,31 @@ class ExportService:
             (
                 "laps",
                 "data/activity_laps.json",
-                activity_laps_crud.get_activities_laps,
+                activities_integration.list_activities_laps,
                 True,
             ),
             (
                 "sets",
                 "data/activity_sets.json",
-                activity_sets_crud.get_activities_sets,
+                activities_integration.list_activities_sets,
                 True,
             ),
             (
                 "streams",
                 "data/activity_streams.json",
-                activity_streams_crud.get_activities_streams,
+                activities_integration.list_activities_streams,
                 True,
             ),
             (
                 "steps",
                 "data/activity_workout_steps.json",
-                activity_workout_steps_crud.get_activities_workout_steps,
+                activities_integration.list_activities_workout_steps,
                 False,
             ),
             (
                 "media",
                 "data/activity_media.json",
-                activity_media_crud.get_activities_media,
+                activities_integration.list_activities_media,
                 False,
             ),
         ]

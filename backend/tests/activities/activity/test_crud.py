@@ -600,14 +600,24 @@ class TestBulkSetGear:
         import modules.activities.activity.crud as crud
 
         r = MagicMock()
-        r.rowcount = 2
+        r.all.return_value = [(1,), (2,)]
         mock_db.execute.return_value = r
-        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db) == 2
+        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db) == [1, 2]
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={}, db=mock_db) == 0
+        assert crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={}, db=mock_db) == []
+
+    def test_stages_without_committing(self, mock_db):
+        """commit=False leaves the update in the caller's transaction so events can join it."""
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.all.return_value = [(1,)]
+        mock_db.execute.return_value = r
+        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db, commit=False)
+        mock_db.commit.assert_not_called()
 
     def test_db_error(self, mock_db):
         import modules.activities.activity.crud as crud
@@ -1572,20 +1582,30 @@ class TestEditUserActivitiesVisibility:
         import modules.activities.activity.crud as crud
 
         r = MagicMock()
-        r.rowcount = 3
+        r.all.return_value = [(1,), (2,), (3,)]
         mock_db.execute.return_value = r
         result = crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
-        assert result == 3
+        assert result == [1, 2, 3]
         mock_db.commit.assert_called_once()
 
     def test_no_rows(self, mock_db):
         import modules.activities.activity.crud as crud
 
         r = MagicMock()
-        r.rowcount = 0
+        r.all.return_value = []
         mock_db.execute.return_value = r
         result = crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
-        assert result == 0
+        assert result == []
+
+    def test_stages_without_committing(self, mock_db):
+        """commit=False leaves the update in the caller's transaction so events can join it."""
+        import modules.activities.activity.crud as crud
+
+        r = MagicMock()
+        r.all.return_value = [(1,)]
+        mock_db.execute.return_value = r
+        crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db, commit=False)
+        mock_db.commit.assert_not_called()
 
     def test_db_error(self, mock_db):
         import modules.activities.activity.crud as crud

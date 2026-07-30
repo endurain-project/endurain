@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
-import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_streams.service as activity_streams_service
 
 router = APIRouter()
 
@@ -37,7 +37,7 @@ def read_public_activities_streams_for_activity_all(
     Returns:
         List of activity streams.
     """
-    return activity_streams_crud.get_public_activity_streams(activity_id, db)
+    return activity_streams_service.list_public_activity_streams(activity_id, db)
 
 
 @router.get(
@@ -73,7 +73,7 @@ def read_public_activities_streams_for_activity_stream_type(
             public links are disabled — indistinguishable on purpose, since this
             endpoint is unauthenticated.
     """
-    stream = activity_streams_crud.get_public_activity_stream_by_type(activity_id, stream_type, db)
+    stream = activity_streams_service.get_public_activity_stream(activity_id, stream_type, db)
     if stream is None:
         raise core_exceptions.NotFoundError("Activity stream not found")
     return stream

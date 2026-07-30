@@ -38,51 +38,30 @@ class TestCreateActivityLaps:
 
 
 class TestGetActivityLaps:
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
+    """Persistence only — the access decision lives in ``activity_laps.service``."""
+
     @patch("modules.activities.activity_laps.crud._to_read_schema")
-    def test_success(self, mock_to_read, mock_get_act, mock_db):
+    def test_success(self, mock_to_read, mock_db):
         import modules.activities.activity_laps.crud as crud
         import modules.activities.activity_laps.models as m
 
-        mock_get_act.return_value = MagicMock(user_id=1, hide_laps=False, timezone="UTC")
         mock_to_read.return_value = MagicMock()
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(m.ActivityLaps, id=1, activity_id=1)])
-        r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
+        r = crud.get_activity_laps(activity_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_empty(self, mock_get_act, mock_db):
+    def test_empty(self, mock_db):
         import modules.activities.activity_laps.crud as crud
 
-        mock_get_act.return_value = MagicMock(user_id=1, hide_laps=False)
         setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r == []
+        assert crud.get_activity_laps(activity_id=1, db=mock_db) == []
 
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_not_found(self, mock_get_act, mock_db):
+    def test_db_error(self, mock_db):
         import modules.activities.activity_laps.crud as crud
 
-        mock_get_act.return_value = None
-        r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_hidden(self, mock_get_act, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        mock_get_act.return_value = MagicMock(user_id=2, hide_laps=True)
-        r = crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_viewable_activity_by_id_for_user")
-    def test_db_error(self, mock_get_act, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        mock_get_act.return_value = MagicMock(user_id=1, hide_laps=False)
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_activity_laps(activity_id=1, token_user_id=1, db=mock_db)
+            crud.get_activity_laps(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -143,57 +122,6 @@ class TestGetActivitiesLaps:
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activities_laps(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetPublicActivityLaps:
-    """The public gate itself lives in activity_crud.get_public_activity_for_child_read.
-
-    These assert only that this CRUD delegates to it and honours its verdict; the
-    gate's own rules (public_shareable_links, visibility, is_hidden, hide_*) are
-    covered once in tests/activities/activity/test_crud.py.
-    """
-
-    @patch("modules.activities.activity_laps.crud._to_read_schema")
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_public_activity_for_child_read")
-    def test_success(self, mock_gate, mock_to_read, mock_db):
-        import modules.activities.activity_laps.crud as crud
-        import modules.activities.activity_laps.models as m
-
-        mock_gate.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
-        mock_to_read.return_value = MagicMock()
-        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityLaps, id=1, activity_id=1)]
-        r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert len(r) == 1
-        mock_gate.assert_called_once_with(1, mock_db, hide_attr="hide_laps")
-
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_public_activity_for_child_read")
-    def test_gate_denied_returns_none(self, mock_gate, mock_db):
-        """Gate says no (not public, hidden, or hide_laps set) -> no rows are read at all."""
-        import modules.activities.activity_laps.crud as crud
-
-        mock_gate.return_value = None
-        r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert r == []
-        mock_db.scalars.assert_not_called()
-
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_public_activity_for_child_read")
-    def test_no_laps(self, mock_gate, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        mock_gate.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert r == []
-
-    @patch("modules.activities.activity_laps.crud.activity_crud.get_public_activity_for_child_read")
-    def test_db_error(self, mock_gate, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        mock_gate.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
-        mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_public_activity_laps(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
