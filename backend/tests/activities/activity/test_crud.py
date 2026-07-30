@@ -1161,6 +1161,21 @@ class TestGetActivityByIdIfIsPublic:
         mock_ser.assert_not_called()
 
     @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
+    def test_excludes_live_strava_api_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_settings.return_value.public_shareable_links = True
+        sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=False, strava_activity_id=123))
+        sqlite_session.commit()
+
+        result = crud.get_activity_by_id_if_is_public(activity_id=1, db=sqlite_session)
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     def test_not_found(self, mock_settings, sqlite_session):
         """A non-existent activity id returns None."""
         import modules.activities.activity.crud as crud
@@ -1295,6 +1310,46 @@ class TestGetViewableActivityByIdForUser:
         assert result is not None
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_denied_live_strava_api_activity(self, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        sqlite_session.add(
+            _public_activity(
+                id=1,
+                user_id=2,
+                visibility=0,
+                is_hidden=False,
+                strava_activity_id=123,
+            )
+        )
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_owner_sees_own_live_strava_api_activity(self, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_ser.return_value = MagicMock()
+        sqlite_session.add(
+            _public_activity(
+                id=1,
+                user_id=2,
+                visibility=2,
+                is_hidden=False,
+                strava_activity_id=123,
+            )
+        )
+        sqlite_session.commit()
+
+        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=2, db=sqlite_session)
+
+        assert result is not None
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     def test_non_owner_denied_hidden_public_activity(self, mock_ser, sqlite_session):
         """A hidden activity is never visible to a non-owner, even when public."""
         import modules.activities.activity.crud as crud
@@ -1363,6 +1418,74 @@ class TestGetViewableActivityByIdForUser:
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
+
+
+class TestStravaApiVisibilityPolicy:
+    """Live Strava API rows remain owner-only across list and detail reads."""
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    def test_non_owner_list_excludes_live_api_but_keeps_file_import(self, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_ser.side_effect = lambda activity: MagicMock(id=activity.id)
+        sqlite_session.add_all(
+            [
+                _public_activity(id=1, user_id=2, strava_activity_id=123),
+                _public_activity(id=2, user_id=2, strava_activity_id=None),
+            ]
+        )
+        sqlite_session.commit()
+
+        activities = crud.get_user_activities_with_pagination(
+            user_id=2,
+            db=sqlite_session,
+            user_is_owner=False,
+            requester_user_id=1,
+        )
+        count = crud.count_user_activities(
+            user_id=2,
+            db=sqlite_session,
+            user_is_owner=False,
+            requester_user_id=1,
+        )
+
+        assert activities is not None
+        assert [activity.id for activity in activities] == [2]
+        assert count == 1
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
+    def test_non_owner_detail_denies_live_api_activity(self, mock_mask, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        sqlite_session.add(_public_activity(id=1, user_id=2, strava_activity_id=123))
+        sqlite_session.commit()
+
+        result = crud.get_activity_by_id_from_user_id_or_has_visibility(
+            activity_id=1,
+            user_id=1,
+            db=sqlite_session,
+        )
+
+        assert result is None
+        mock_ser.assert_not_called()
+
+    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
+    def test_owner_detail_keeps_live_api_activity(self, mock_mask, mock_ser, sqlite_session):
+        import modules.activities.activity.crud as crud
+
+        mock_ser.return_value = MagicMock()
+        sqlite_session.add(_public_activity(id=1, user_id=2, strava_activity_id=123))
+        sqlite_session.commit()
+
+        result = crud.get_activity_by_id_from_user_id_or_has_visibility(
+            activity_id=1,
+            user_id=2,
+            db=sqlite_session,
+        )
+
+        assert result is not None
 
 
 class TestGetActivityByStartTime:

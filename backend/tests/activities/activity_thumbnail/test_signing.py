@@ -47,6 +47,14 @@ class TestThumbnailTokenSigning:
         assert token
         assert " " not in token
 
+    def test_pre_policy_tokens_are_invalidated(self):
+        import core.signing as core_signing
+        from modules.activities.activity_thumbnail.signing import verify_thumbnail_token
+
+        old_token = core_signing.CapabilitySigner(salt="activity-thumbnail").sign(42)
+
+        assert verify_thumbnail_token(42, old_token) is False
+
     def test_a_token_older_than_the_max_age_is_rejected(self, monkeypatch):
         """A token minted while an activity was visible must not stay valid
         forever once it is later hidden."""
