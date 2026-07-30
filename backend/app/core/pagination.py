@@ -14,9 +14,14 @@ which keeps the call sites readable and gives the generated OpenAPI client a
 concrete component per resource.
 """
 
+import base64
+import binascii
+from datetime import datetime
 from typing import Self
 
 from pydantic import BaseModel
+
+import core.exceptions as core_exceptions
 
 
 class Page[ItemT](BaseModel):
@@ -69,3 +74,76 @@ class Page[ItemT](BaseModel):
             num_records=num_records,
             next=page + 1 if page * num_records < total else None,
         )
+
+
+# --- Keyset pagination -------------------------------------------------------
+#
+# Offset pagination is wrong for any list that grows at the head. Between a
+# client's page 1 and page 2, a newly inserted row shifts every later row down
+# one, so the client sees the boundary row twice and never sees whatever it
+# displaced. The following feed receives inserts continuously, which makes that
+# the normal case rather than a race. A keyset cursor names the last row seen
+# instead of counting how many to discard, so concurrent inserts cannot shift
+# the window. It also drops the ``COUNT(*)`` and the ``OFFSET n`` scan.
+
+# Separates the two cursor components. Neither an ISO-8601 timestamp nor an
+# integer id can contain it, so no escaping is needed.
+_CURSOR_SEPARATOR = "|"
+
+
+class CursorPage[ItemT](BaseModel):
+    """One keyset-paginated slice plus the cursor for the next one.
+
+    Deliberately carries no ``total``: producing one costs a second aggregate
+    query over the whole filtered set on every request, and for a feed it is
+    stale before the client renders it.
+
+    Attributes:
+        items: The records in this slice, newest first.
+        num_records: The page size used.
+        next_cursor: Opaque cursor for the following slice, or ``None`` when the
+            end has been reached.
+    """
+
+    items: list[ItemT]
+    num_records: int
+    next_cursor: str | None = None
+
+
+def encode_cursor(sort_value: datetime, tiebreak_id: int) -> str:
+    """Encode a keyset position into an opaque cursor.
+
+    The cursor is base64url of ``{sort_value}|{id}``. It is opaque rather than
+    signed because it cannot widen access: the rows a caller may see are derived
+    from their own identity on every request, so a forged cursor only moves the
+    window inside a result set they were already entitled to.
+
+    Args:
+        sort_value: The sort column of the last row in the slice.
+        tiebreak_id: That row's id, disambiguating equal sort values.
+
+    Returns:
+        The encoded cursor.
+    """
+    raw = f"{sort_value.isoformat()}{_CURSOR_SEPARATOR}{tiebreak_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def decode_cursor(cursor: str) -> tuple[datetime, int]:
+    """Decode an opaque cursor back into a keyset position.
+
+    Args:
+        cursor: A cursor previously produced by :func:`encode_cursor`.
+
+    Returns:
+        The ``(sort_value, id)`` pair the cursor encodes.
+
+    Raises:
+        InvalidInputError: When the cursor is not one this server issued.
+    """
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        sort_value, _, tiebreak_id = raw.rpartition(_CURSOR_SEPARATOR)
+        return datetime.fromisoformat(sort_value), int(tiebreak_id)
+    except (ValueError, UnicodeDecodeError, binascii.Error) as err:
+        raise core_exceptions.InvalidInputError("Invalid pagination cursor") from err

@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, StrictInt, field_validator
 
 import core.pagination as core_pagination
 
@@ -27,6 +27,26 @@ class FollowRelationship(BaseModel):
     follower_id: StrictInt
     followee_id: StrictInt
     status: FollowStatus
+
+
+class FollowRequestDecision(BaseModel):
+    """The decision applied to a pending follow request.
+
+    Only ``accepted`` is a valid transition: declining deletes the request rather
+    than parking it in a rejected state, so a later request from the same user is
+    a fresh decision instead of hitting a tombstone.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    status: FollowStatus
+
+    @field_validator("status")
+    @classmethod
+    def _only_accept(cls, value: FollowStatus) -> FollowStatus:
+        if value is not FollowStatus.ACCEPTED:
+            raise ValueError("a follow request can only be accepted; DELETE it to decline")
+        return value
 
 
 class RelationshipView(BaseModel):

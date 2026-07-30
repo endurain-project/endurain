@@ -13,9 +13,12 @@ import calendar
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
@@ -408,6 +411,50 @@ def page_following_feed(
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
 
 
+def scroll_following_feed(
+    user_id: int,
+    requester_user_id: int,
+    cursor: str | None,
+    num_records: int,
+    db: Session,
+) -> activities_schema.ActivityFeedPage:
+    """Return one keyset slice of the requester's following feed.
+
+    Args:
+        user_id: The feed owner (must be the requester).
+        requester_user_id: The authenticated caller.
+        cursor: Opaque cursor from the previous slice, or ``None`` to start.
+        num_records: Slice size.
+        db: Database session.
+
+    Returns:
+        The slice plus the cursor for the next one.
+    """
+    _require_feed_owner(user_id, requester_user_id)
+    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
+    after = core_pagination.decode_cursor(cursor) if cursor else None
+    # Over-fetch by one: the extra row proves another slice exists without a
+    # second query, and is dropped before serialising.
+    rows = activities_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
+    has_more = len(rows) > num_records
+    items = rows[:num_records]
+    next_cursor = (
+        core_pagination.encode_cursor(items[-1].start_time, items[-1].id)
+        if has_more and items and items[-1].start_time is not None and items[-1].id is not None
+        else None
+    )
+    logger.debug(
+        "Built following feed slice",
+        extra=core_logger.context(
+            requester_user_id=requester_user_id,
+            followee_count=len(followee_ids) if followee_ids else 0,
+            returned=len(items),
+            has_more=has_more,
+        ),
+    )
+    return activities_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor)
+
+
 def page_gear_activities(
     user_id: int,
     gear_id: int,
@@ -492,13 +539,28 @@ def edit_activity(
     user_id: int,
     activity_attributes: activities_schema.ActivityEdit,
     db: Session,
+    if_match: str | None = None,
 ) -> activities_schema.Activity:
     """Apply partial updates to one of the user's activities."""
     logger.debug(
         "Editing an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
     )
-    return activities_crud.edit_activity(user_id, activity_id, activity_attributes, db)
+    if if_match is not None:
+        current = activities_crud.get_activity_by_id_from_user_id(activity_id, user_id, db)
+        core_etag.require_if_match(if_match, current.version if current else None)
+    try:
+        return activities_crud.edit_activity(user_id, activity_id, activity_attributes, db)
+    except StaleDataError as err:
+        # The row changed between the precondition check and the flush, so the
+        # check alone would have let this write through.
+        logger.warning(
+            "Rejected a stale activity edit",
+            extra=core_logger.context(activity_id=activity_id, user_id=user_id),
+        )
+        raise core_exceptions.PreconditionFailedError(
+            "The activity was modified by someone else; re-read it and retry"
+        ) from err
 
 
 def bulk_edit_activities(

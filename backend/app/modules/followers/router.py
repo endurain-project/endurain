@@ -36,6 +36,7 @@ def list_user_followers(
     db: Annotated[Session, Depends(core_database.get_db)],
     page_number: Annotated[int | None, Query(ge=1)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
+    accepted_only: Annotated[bool, Query()] = False,
 ) -> followers_schema.FollowRelationshipPage:
     """List a user's followers, with the matching total.
 
@@ -47,27 +48,8 @@ def list_user_followers(
         db,
         page_number=page_number or 1,
         num_records=num_records or _DEFAULT_NUM_RECORDS,
+        accepted_only=accepted_only,
     )
-
-
-@router.get(
-    "/users/{user_id}/followers/count",
-    response_model=int,
-    status_code=status.HTTP_200_OK,
-)
-def count_user_followers(
-    user_id: int,
-    _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    accepted_only: Annotated[bool, Query()] = False,
-) -> int:
-    """Count a user's followers (privacy-aware).
-
-    Pass ``accepted_only=true`` to exclude pending follow requests.
-    """
-    return followers_service.count_followers(user_id, token_user_id, db, accepted_only=accepted_only)
 
 
 @router.get(
@@ -83,6 +65,7 @@ def list_user_following(
     db: Annotated[Session, Depends(core_database.get_db)],
     page_number: Annotated[int | None, Query(ge=1)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
+    accepted_only: Annotated[bool, Query()] = False,
 ) -> followers_schema.FollowRelationshipPage:
     """List who a user follows, with the matching total.
 
@@ -94,27 +77,8 @@ def list_user_following(
         db,
         page_number=page_number or 1,
         num_records=num_records or _DEFAULT_NUM_RECORDS,
+        accepted_only=accepted_only,
     )
-
-
-@router.get(
-    "/users/{user_id}/following/count",
-    response_model=int,
-    status_code=status.HTTP_200_OK,
-)
-def count_user_following(
-    user_id: int,
-    _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    accepted_only: Annotated[bool, Query()] = False,
-) -> int:
-    """Count who a user follows (privacy-aware).
-
-    Pass ``accepted_only=true`` to exclude pending follow requests.
-    """
-    return followers_service.count_following(user_id, token_user_id, db, accepted_only=accepted_only)
 
 
 @router.get(
@@ -138,8 +102,33 @@ def read_user_relationship(
     return followers_service.get_user_relationship(user_id, token_user_id, db)
 
 
+@router.get(
+    "/follow-requests",
+    response_model=followers_schema.FollowRelationshipPage,
+    status_code=status.HTTP_200_OK,
+)
+def list_follow_requests(
+    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=_MAX_NUM_RECORDS)] = None,
+) -> followers_schema.FollowRelationshipPage:
+    """List the follow requests awaiting the authenticated user's decision.
+
+    Always scoped to the caller, so there is no user id to supply and no way to
+    read anyone else's pending requests.
+    """
+    return followers_service.list_pending_requests(
+        token_user_id,
+        db,
+        page_number=page_number or 1,
+        num_records=num_records or _DEFAULT_NUM_RECORDS,
+    )
+
+
 @router.post(
-    "/users/{user_id}/follow",
+    "/users/{user_id}/followers",
     response_model=followers_schema.FollowRelationship,
     status_code=status.HTTP_201_CREATED,
 )
@@ -150,56 +139,69 @@ def follow_user(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.FollowRelationship:
-    """Request to follow ``user_id`` as the authenticated user."""
+    """Add the authenticated user to ``user_id``'s followers.
+
+    Creates the relationship pending or accepted according to the target's
+    privacy settings; the returned ``status`` says which.
+    """
     return followers_service.follow_user(token_user_id, user_id, db)
 
 
-@router.post(
-    "/users/{user_id}/follow/accept",
-    response_model=followers_schema.MessageResponse,
+@router.patch(
+    "/follow-requests/{requester_user_id}",
+    response_model=followers_schema.FollowRelationship,
     status_code=status.HTTP_200_OK,
 )
-def accept_follow(
-    user_id: int,
-    _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
+def decide_follow_request(
+    requester_user_id: int,
+    decision: followers_schema.FollowRequestDecision,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> followers_schema.MessageResponse:
-    """Accept the pending follow request from ``user_id``."""
-    followers_service.accept_follow_request(token_user_id, user_id, db)
-    return followers_schema.MessageResponse(detail="Follower accepted successfully")
+) -> followers_schema.FollowRelationship:
+    """Accept the pending follow request from ``requester_user_id``."""
+    followers_service.accept_follow_request(token_user_id, requester_user_id, db)
+    return followers_schema.FollowRelationship(
+        follower_id=requester_user_id,
+        followee_id=token_user_id,
+        status=decision.status,
+    )
 
 
 @router.delete(
-    "/users/{user_id}/follow",
-    response_model=followers_schema.MessageResponse,
-    status_code=status.HTTP_200_OK,
+    "/follow-requests/{requester_user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
 )
-def unfollow_user(
-    user_id: int,
-    _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
+def reject_follow_request(
+    requester_user_id: int,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> followers_schema.MessageResponse:
-    """Unfollow ``user_id`` as the authenticated user."""
-    followers_service.unfollow_user(token_user_id, user_id, db)
-    return followers_schema.MessageResponse(detail="Unfollowed successfully")
+) -> None:
+    """Decline the pending follow request from ``requester_user_id``.
+
+    Distinct from removing an accepted follower: this refuses access that was
+    never granted, which is a different decision even though the row is the same.
+    """
+    followers_service.reject_follow_request(token_user_id, requester_user_id, db)
 
 
 @router.delete(
-    "/users/{user_id}/follower",
-    response_model=followers_schema.MessageResponse,
-    status_code=status.HTTP_200_OK,
+    "/users/{user_id}/followers/{follower_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
 )
-def remove_follower(
+def delete_follow_relationship(
     user_id: int,
+    follower_id: int,
     _validate_user_id: Annotated[None, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> followers_schema.MessageResponse:
-    """Remove ``user_id`` as a follower of the authenticated user."""
-    followers_service.remove_follower(token_user_id, user_id, db)
-    return followers_schema.MessageResponse(detail="Follower removed successfully")
+) -> None:
+    """Delete the follow relationship where ``follower_id`` follows ``user_id``.
+
+    Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
+    a follower is ``user_id`` = the caller. Either party may delete it, and the
+    caller must be one of them.
+    """
+    followers_service.delete_relationship(user_id, follower_id, token_user_id, db)

@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Trainingssätze & -schritte verbergen",
     "hideGear": "Ausrüstung verbergen",
     "success": "Aktivität aktualisiert",
-    "error": "Aktivität konnte nicht aktualisiert werden"
+    "error": "Aktivität konnte nicht aktualisiert werden",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Diese Aktivität ist versteckt. Nur du kannst sie sehen.",

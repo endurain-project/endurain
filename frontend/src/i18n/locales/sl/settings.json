@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Shrani varnostne kode",
       "description": "Uporabi varnostno kodo za prijavo, če izgubiš dostop do aplikacije za preverjanje pristnosti.",
-      "warning": "Te kode so prikazane samo enkrat. Shrani jih na varno mesto — vsaka koda deluje samo enkrat.",
+      "warning": "Te kode so prikazane samo enkrat. Shrani jih na varno mesto, vsaka koda deluje samo enkrat.",
       "copy": "Kopiraj",
       "copied": "Varnostne kode kopirane",
       "copyError": "Kod ni bilo mogoče kopirati.",
@@ -898,7 +898,7 @@
       "export": "Izvozi podatke",
       "import": "Uvozi podatke",
       "invalidType": "Prosim, izberi .zip arhiv.",
-      "exportSuccess": "Izvoz pripravljen — prenos bi se moral kmalu začeti",
+      "exportSuccess": "Izvoz pripravljen, prenos bi se moral kmalu začeti",
       "exportError": "Tvojih podatkov ni bilo mogoče izvoziti. Prosim, poskusi znova.",
       "importSuccess": "Podatki uvoženi",
       "importError": "Arhiva ni bilo mogoče uvoziti. Prosim, preveri datoteko in poskusi znova."

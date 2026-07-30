@@ -213,6 +213,13 @@ export interface Activity {
   gearId: number | null
 
   /**
+   * Row version behind the `ETag`. Sent back as `If-Match` on save so an edit
+   * built from a stale copy is refused instead of overwriting whoever saved in
+   * between. `null` when the activity came from a response that omits it.
+   */
+  version: number | null
+
+  /**
    * Activity start as a UTC instant (ISO 8601 with offset), or `null` when the
    * owner hid it. Always render it through `formatZonedDateTime` with
    * {@link Activity.timezone} — never with the viewer's local zone — so the
@@ -313,4 +320,15 @@ export interface ActivityEditInput {
   hideLaps: boolean
   hideWorkoutSetsSteps: boolean
   hideGear: boolean
+}
+
+/**
+ * One keyset slice of the following feed.
+ *
+ * @property items - The slice's activities, newest first.
+ * @property nextCursor - Cursor for the next slice, or `null` at the end.
+ */
+export interface ActivityFeedSlice {
+  items: Activity[]
+  nextCursor: string | null
 }

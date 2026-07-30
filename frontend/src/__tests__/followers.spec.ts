@@ -86,22 +86,26 @@ describe('fetchFollowing', () => {
 })
 
 describe('follower counts', () => {
-  it('requests the accepted-followers count', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(12)
+  it('reads the accepted-followers total off the page envelope', async () => {
+    // The dedicated /count endpoints are gone: `total` describes the same
+    // filter, so a second round trip for a bare number is not needed.
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 12, page: 1, num_records: 1 })
 
     expect(await fetchFollowersCount(9)).toBe(12)
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/followers/count?accepted_only=true', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/followers/users/9/followers?accepted_only=true&num_records=1',
+      { signal: undefined },
+    )
   })
 
-  it('requests the accepted-following count', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(7)
+  it('reads the accepted-following total off the page envelope', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], total: 7, page: 1, num_records: 1 })
 
     expect(await fetchFollowingCount(9)).toBe(7)
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/9/following/count?accepted_only=true', {
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/followers/users/9/following?accepted_only=true&num_records=1',
+      { signal: undefined },
+    )
   })
 })
 
@@ -134,33 +138,42 @@ describe('follow-graph mutations', () => {
 
     await followUser(2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/2/follow', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/2/followers', { method: 'POST' })
   })
 
-  it('accepts a pending request via POST', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'ok' })
+  it('accepts a pending request by patching the follow-request resource', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      follower_id: 3,
+      followee_id: 1,
+      status: 'accepted',
+    })
 
     await acceptFollower(3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/3/follow/accept', { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith('/followers/follow-requests/3', {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'accepted' }),
+    })
   })
 
-  it('unfollows (or cancels a request) via DELETE on the follow path', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'ok' })
+  it('unfollows with the viewer as the follower', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await unfollowUser(4)
+    await unfollowUser(4, 1)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/4/follow', {
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/4/followers/1', {
       method: 'DELETE',
     })
   })
 
-  it('removes (or declines) a follower via DELETE on the follower path', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'ok' })
+  it('removes a follower with the viewer as the followee', async () => {
+    // Same route as unfollow, sides swapped -- previously two endpoints told
+    // apart only by a singular/plural path segment.
+    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
-    await removeFollower(5)
+    await removeFollower(5, 1)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/users/5/follower', {
+    expect(apiFetch).toHaveBeenCalledWith('/followers/users/1/followers/5', {
       method: 'DELETE',
     })
   })

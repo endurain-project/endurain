@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Masquer les séries et étapes de séance",
     "hideGear": "Masquer l'équipement",
     "success": "Activité mise à jour",
-    "error": "Impossible de mettre à jour l'activité"
+    "error": "Impossible de mettre à jour l'activité",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Cette activité est masquée. Seul vous pouvez la voir.",

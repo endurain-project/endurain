@@ -144,6 +144,28 @@ function useFollowGraphMutation(mutationFn: (targetId: number) => Promise<void>)
 }
 
 /**
+ * Builds a follow-graph mutation for the relationship-delete route, which takes
+ * both parties: one endpoint now serves unfollow and remove-follower, told apart
+ * by which side the viewer is on.
+ *
+ * @param mutationFn - The service call, taking the target and the viewer id.
+ * @returns A configured TanStack mutation taking the target user id.
+ */
+function useRelationshipDeleteMutation(
+  mutationFn: (targetId: number, viewerId: number) => Promise<void>,
+) {
+  const client = useQueryClient()
+  const { data: currentUser } = useCurrentUser()
+
+  return useMutation<void, Error, number>({
+    mutationFn: (targetId: number) => mutationFn(targetId, currentUser.value?.id ?? 0),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.followers.all() })
+    },
+  })
+}
+
+/**
  * Sends a follow request from the authenticated viewer to the target user.
  *
  * @returns The TanStack mutation taking the target user id.
@@ -167,7 +189,7 @@ export function useAcceptFollowerMutation() {
  * @returns The TanStack mutation taking the followed (or requested) user id.
  */
 export function useUnfollowUserMutation() {
-  return useFollowGraphMutation(unfollowUser)
+  return useRelationshipDeleteMutation(unfollowUser)
 }
 
 /**
@@ -177,5 +199,5 @@ export function useUnfollowUserMutation() {
  * @returns The TanStack mutation taking the follower's user id.
  */
 export function useRemoveFollowerMutation() {
-  return useFollowGraphMutation(removeFollower)
+  return useRelationshipDeleteMutation(removeFollower)
 }

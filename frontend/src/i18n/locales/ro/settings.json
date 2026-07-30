@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Salvează-ți codurile de rezervă",
       "description": "Folosește un cod de rezervă pentru a te autentifica dacă pierzi accesul la aplicația ta de autentificare.",
-      "warning": "Aceste coduri sunt afișate o singură dată. Păstrează-le într-un loc sigur — fiecare cod funcționează o singură dată.",
+      "warning": "Aceste coduri sunt afișate o singură dată. Păstrează-le într-un loc sigur, fiecare cod funcționează o singură dată.",
       "copy": "Copiază",
       "copied": "Coduri de rezervă copiate",
       "copyError": "Nu am putut copia codurile.",
@@ -898,7 +898,7 @@
       "export": "Exportă datele",
       "import": "Importă datele",
       "invalidType": "Te rugăm să alegi o arhivă .zip.",
-      "exportSuccess": "Export pregătit — descărcarea ta ar trebui să înceapă în curând",
+      "exportSuccess": "Export pregătit, descărcarea ta ar trebui să înceapă în curând",
       "exportError": "Nu am putut exporta datele tale. Te rugăm să încerci din nou.",
       "importSuccess": "Date importate",
       "importError": "Nu am putut importa arhiva. Te rugăm să verifici fișierul și să încerci din nou."

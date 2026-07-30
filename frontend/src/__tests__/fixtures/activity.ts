@@ -26,6 +26,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
     id: 1,
     userId: 7,
+    version: 1,
     name: 'Morning run',
     description: null,
     privateNotes: null,

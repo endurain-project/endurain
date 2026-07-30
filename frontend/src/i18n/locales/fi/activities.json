@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Piilota harjoituksen sarjat ja vaiheet",
     "hideGear": "Piilota varusteet",
     "success": "Aktiviteetti päivitetty",
-    "error": "Aktiviteettia ei voitu päivittää"
+    "error": "Aktiviteettia ei voitu päivittää",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Tämä aktiviteetti on piilotettu. Vain sinä näet sen.",

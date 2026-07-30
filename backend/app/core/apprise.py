@@ -42,9 +42,9 @@ class AppriseService:
         intended way to reload configuration.
         """
         s = core_config.settings
-        self.smtp_host: str = s.SMTP_HOST
+        self.smtp_host: str | None = s.SMTP_HOST
         self.smtp_port: int = s.SMTP_PORT
-        self.smtp_username: str = s.SMTP_USERNAME
+        self.smtp_username: str | None = s.SMTP_USERNAME
         # Optional explicit "From" address. When unset,
         # Apprise auto-detects it from the URL. Needed for
         # providers like Brevo that validate the sender
@@ -87,7 +87,8 @@ class AppriseService:
         if self.smtp_username and self.smtp_password:
             params.append(("user", self.smtp_username))
             params.append(("pass", self.smtp_password))
-        params.append(("smtp", self.smtp_host))
+        if self.smtp_host:
+            params.append(("smtp", self.smtp_host))
         params.append(("port", str(self.smtp_port)))
         params.append(("name", "Endurain"))
         # Set the "From" address so providers that validate

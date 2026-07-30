@@ -66,6 +66,7 @@ def list_followers(
     *,
     page_number: int = 1,
     num_records: int = 25,
+    accepted_only: bool = False,
 ) -> followers_schema.FollowRelationshipPage:
     """Return one page of the target's followers with the matching total.
 
@@ -75,9 +76,11 @@ def list_followers(
         db: Database session.
         page_number: 1-based page number.
         num_records: Page size.
+        accepted_only: Exclude pending follow requests when True.
 
     Returns:
-        The page envelope. ``total`` counts every follower, not just this page.
+        The page envelope. ``total`` counts every follower matching the same
+        filter, not just this page.
 
     Raises:
         PermissionDeniedError: When the requester may not view this network.
@@ -86,9 +89,9 @@ def list_followers(
     # decision rather than each re-deriving it.
     _ensure_may_view_network(target_user_id, requester_user_id, db)
     items = followers_crud.get_all_followers_by_user_id(
-        target_user_id, db, page_number=page_number, num_records=num_records
+        target_user_id, db, page_number=page_number, num_records=num_records, accepted_only=accepted_only
     )
-    total = followers_crud.count_followers_by_user_id(target_user_id, db)
+    total = followers_crud.count_followers_by_user_id(target_user_id, db, accepted_only=accepted_only)
     return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
@@ -99,6 +102,7 @@ def list_following(
     *,
     page_number: int = 1,
     num_records: int = 25,
+    accepted_only: bool = False,
 ) -> followers_schema.FollowRelationshipPage:
     """Return one page of who the target follows with the matching total.
 
@@ -108,57 +112,104 @@ def list_following(
         db: Database session.
         page_number: 1-based page number.
         num_records: Page size.
+        accepted_only: Exclude pending follow requests when True.
 
     Returns:
-        The page envelope. ``total`` counts every followee, not just this page.
+        The page envelope. ``total`` counts every followee matching the same
+        filter, not just this page.
 
     Raises:
         PermissionDeniedError: When the requester may not view this network.
     """
     _ensure_may_view_network(target_user_id, requester_user_id, db)
     items = followers_crud.get_all_following_by_user_id(
-        target_user_id, db, page_number=page_number, num_records=num_records
+        target_user_id, db, page_number=page_number, num_records=num_records, accepted_only=accepted_only
     )
-    total = followers_crud.count_following_by_user_id(target_user_id, db)
+    total = followers_crud.count_following_by_user_id(target_user_id, db, accepted_only=accepted_only)
     return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
-def count_followers(target_user_id: int, requester_user_id: int, db: Session, *, accepted_only: bool = False) -> int:
-    """Count the target's followers, enforcing profile privacy.
+def list_pending_requests(
+    requester_user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 25,
+) -> followers_schema.FollowRelationshipPage:
+    """Return one page of follow requests awaiting the caller's decision.
+
+    Always scoped to the caller: a pending request is private to the two parties,
+    so there is no ``target_user_id`` to pass and therefore nothing to probe.
 
     Args:
-        target_user_id: The user whose followers to count.
-        requester_user_id: The authenticated requester.
+        requester_user_id: The authenticated caller.
         db: Database session.
-        accepted_only: Count only accepted followers when True.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The number of follower records.
-
-    Raises:
-        PermissionDeniedError: When the requester may not view this network.
+        The page envelope.
     """
-    _ensure_may_view_network(target_user_id, requester_user_id, db)
-    return followers_crud.count_followers_by_user_id(target_user_id, db, accepted_only=accepted_only)
+    items = followers_crud.get_pending_requests_for_user_id(
+        requester_user_id, db, page_number=page_number, num_records=num_records
+    )
+    total = followers_crud.count_pending_requests_for_user_id(requester_user_id, db)
+    return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
-def count_following(target_user_id: int, requester_user_id: int, db: Session, *, accepted_only: bool = False) -> int:
-    """Count who the target follows, enforcing profile privacy.
+def reject_follow_request(target_user_id: int, requester_user_id: int, db: Session) -> None:
+    """Decline a pending follow request addressed to the caller.
+
+    Distinct from :func:`remove_follower`, which severs an already-accepted
+    relationship. Both delete the same row, but only one of them is a decision
+    the requester never had granted.
 
     Args:
-        target_user_id: The user whose following to count.
-        requester_user_id: The authenticated requester.
+        target_user_id: The authenticated user declining the request.
+        requester_user_id: The user whose pending request is declined.
         db: Database session.
-        accepted_only: Count only accepted relationships when True.
 
     Returns:
-        The number of following records.
+        None.
+    """
+    followers_crud.delete_follower(requester_user_id, target_user_id, db)
+    logger.debug(
+        "Follow request rejected",
+        extra=core_logger.context(target_user_id=target_user_id, requester_user_id=requester_user_id),
+    )
+
+
+def delete_relationship(followee_id: int, follower_id: int, caller_user_id: int, db: Session) -> None:
+    """Delete a follow relationship on behalf of either party.
+
+    One operation instead of separate unfollow/remove-follower endpoints: the
+    row is the same and the direction is explicit in the arguments, so the only
+    difference was which of the two parties asked. Splitting it meant two routes
+    distinguished by a singular/plural path segment.
+
+    Args:
+        followee_id: The user being followed.
+        follower_id: The user doing the following.
+        caller_user_id: The authenticated caller, who must be one of the two.
+        db: Database session.
+
+    Returns:
+        None.
 
     Raises:
-        PermissionDeniedError: When the requester may not view this network.
+        PermissionDeniedError: When the caller is not part of the relationship.
     """
-    _ensure_may_view_network(target_user_id, requester_user_id, db)
-    return followers_crud.count_following_by_user_id(target_user_id, db, accepted_only=accepted_only)
+    if caller_user_id not in (followee_id, follower_id):
+        logger.warning(
+            "Blocked an attempt to delete a follow relationship the caller is not part of",
+            extra=core_logger.context(caller_user_id=caller_user_id, followee_id=followee_id, follower_id=follower_id),
+        )
+        raise core_exceptions.PermissionDeniedError()
+    followers_crud.delete_follower(follower_id, followee_id, db)
+    logger.debug(
+        "Deleted a follow relationship",
+        extra=core_logger.context(caller_user_id=caller_user_id, followee_id=followee_id, follower_id=follower_id),
+    )
 
 
 def get_user_relationship(other_user_id: int, requester_user_id: int, db: Session) -> followers_schema.RelationshipView:
@@ -222,40 +273,4 @@ def accept_follow_request(accepter_user_id: int, requester_user_id: int, db: Ses
     logger.debug(
         "Follow request accepted",
         extra=core_logger.context(accepter_user_id=accepter_user_id, requester_user_id=requester_user_id),
-    )
-
-
-def unfollow_user(requester_user_id: int, target_user_id: int, db: Session) -> None:
-    """Stop following a user (the requester unfollows the target).
-
-    Args:
-        requester_user_id: The authenticated user who is unfollowing.
-        target_user_id: The user being unfollowed.
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    followers_crud.delete_follower(requester_user_id, target_user_id, db)
-    logger.debug(
-        "Unfollowed a user",
-        extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
-    )
-
-
-def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
-    """Remove one of the authenticated user's followers.
-
-    Args:
-        user_id: The authenticated user removing a follower.
-        follower_user_id: The follower to remove.
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    followers_crud.delete_follower(follower_user_id, user_id, db)
-    logger.debug(
-        "Removed a follower",
-        extra=core_logger.context(user_id=user_id, follower_user_id=follower_user_id),
     )
