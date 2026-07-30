@@ -19,8 +19,16 @@ Why this shape:
   param), so no ``Authorization`` header is required — the same capability-URL
   model object storage already uses for presigned URLs.
 
-The token has no expiry so the URL is stable and browser-cacheable; its security
-rests on being unforgeable and only ever handed to permitted viewers.
+The token is bounded by :data:`_TOKEN_MAX_AGE_SECONDS` rather than living forever:
+an activity that was public (or ``hide_map``-off) when a viewer's page loaded can
+later be hidden, and a token already handed out would otherwise still open the
+blob until ``SECRET_KEY`` rotates. The window self-heals on every fresh view —
+serializing the activity again mints a new token with a new timestamp — so this
+only bounds how long a *previously issued* token survives a later visibility
+change, without needing a revocation list. It is kept comfortably longer than the
+route's own browser ``Cache-Control`` window (see ``activity_thumbnail.router``)
+so a still-cached image never 404s mid-cache; this mirrors ``activity_media`` and
+``users.users.signing``, which use the same policy for the same reason.
 
 Addressing lives here rather than in ``render.py`` so serializing an activity does
 not drag the rendering stack (staticmap, PIL) into the request path: the read path
@@ -33,6 +41,11 @@ import infra.runtime as platform_runtime
 
 # Namespaces this signer from any other ``SECRET_KEY`` use (e.g. JWT signing).
 _SALT = "activity-thumbnail"
+
+# How long a signed token remains valid after it was minted, bounding exposure
+# after a later visibility change. Well past the route's 1-hour browser cache
+# window so a cached image never expires mid-cache.
+_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
 
 # The storage area (domain-owned namespace) activity thumbnails live under.
 THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
@@ -56,16 +69,17 @@ def sign_thumbnail_token(activity_id: int) -> str:
 
 
 def verify_thumbnail_token(activity_id: int, token: str) -> bool:
-    """Return whether ``token`` is a valid signature for ``activity_id``.
+    """Return whether ``token`` is a valid, unexpired signature for ``activity_id``.
 
     Args:
         activity_id: The activity id the token must be bound to.
         token: The signed token from the request.
 
     Returns:
-        True if the token is authentic and bound to ``activity_id``.
+        True if the token is authentic, bound to ``activity_id``, and no older
+        than :data:`_TOKEN_MAX_AGE_SECONDS`.
     """
-    return core_signing.verify_token(_SALT, activity_id, token)
+    return core_signing.verify_token(_SALT, activity_id, token, max_age=_TOKEN_MAX_AGE_SECONDS)
 
 
 def thumbnail_url(key: str | None, activity_id: int) -> str | None:

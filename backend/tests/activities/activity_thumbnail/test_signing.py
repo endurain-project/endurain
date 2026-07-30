@@ -46,6 +46,19 @@ class TestThumbnailTokenSigning:
         assert token
         assert " " not in token
 
+    def test_a_token_older_than_the_max_age_is_rejected(self, monkeypatch):
+        """A token minted while an activity was visible must not stay valid
+        forever once it is later hidden."""
+        import time
+
+        import modules.activities.activity_thumbnail.signing as signing
+
+        monkeypatch.setattr(signing, "_TOKEN_MAX_AGE_SECONDS", 1)
+        token = signing.sign_thumbnail_token(42)
+        time.sleep(2.1)
+
+        assert signing.verify_thumbnail_token(42, token) is False
+
 
 class TestThumbnailKeyAndUrl:
     def test_key_format(self):

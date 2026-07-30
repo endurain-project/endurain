@@ -36,6 +36,19 @@ class TestMediaTokenSigning:
 
         assert verify_media_token(42, sign_thumbnail_token(42)) is False
 
+    def test_a_token_older_than_the_max_age_is_rejected(self, monkeypatch):
+        """A token minted while the caller could see the media must not stay
+        valid forever once that access decision changes."""
+        import time
+
+        import modules.activities.activity_media.signing as signing
+
+        monkeypatch.setattr(signing, "_TOKEN_MAX_AGE_SECONDS", 1)
+        token = signing.sign_media_token(42)
+        time.sleep(2.1)
+
+        assert signing.verify_media_token(42, token) is False
+
 
 class TestMediaUrl:
     @patch(f"{_SIGNING}.core_signing")

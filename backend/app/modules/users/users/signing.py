@@ -13,6 +13,13 @@ list, an activity feed, and on a publicly shared activity — so the token is
 minted whenever a user record is serialized, and anyone who legitimately receives
 that record can render the image. What the token removes is *enumeration*: you
 can no longer walk user ids, only fetch a photo you were handed a URL for.
+
+The token is bounded by :data:`_TOKEN_MAX_AGE_SECONDS` rather than living
+forever — comfortably longer than the route's own browser cache window (see
+``users.users.photo_router``) so a still-cached image never 404s mid-cache, but
+not unbounded, matching ``activity_thumbnail`` and ``activity_media``: a photo
+removed or replaced stops being reachable under a stale token within that
+window rather than for as long as ``SECRET_KEY`` is unchanged.
 """
 
 import core.config as core_config
@@ -22,6 +29,11 @@ import infra.runtime as platform_runtime
 # Namespaces this signer from the activity-thumbnail and activity-media signers,
 # all of which bind a bare integer id.
 _SALT = "user-image"
+
+# How long a signed token remains valid after it was minted. See
+# ``activity_thumbnail.signing`` for the rationale; kept identical for
+# consistency across the three signers.
+_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
 
 # Domain-owned storage namespace. For the ``local`` backend this maps to
 # ``{DATA_DIR}/user_images`` — the directory the photos already live in — so an
@@ -42,16 +54,17 @@ def sign_user_image_token(user_id: int) -> str:
 
 
 def verify_user_image_token(user_id: int, token: str) -> bool:
-    """Return whether ``token`` is a valid signature for ``user_id``.
+    """Return whether ``token`` is a valid, unexpired signature for ``user_id``.
 
     Args:
         user_id: The user id the token must be bound to.
         token: The signed token from the request.
 
     Returns:
-        True if the token is authentic and bound to ``user_id``.
+        True if the token is authentic, bound to ``user_id``, and no older than
+        :data:`_TOKEN_MAX_AGE_SECONDS`.
     """
-    return core_signing.verify_token(_SALT, user_id, token)
+    return core_signing.verify_token(_SALT, user_id, token, max_age=_TOKEN_MAX_AGE_SECONDS)
 
 
 def user_image_url(key: str | None, user_id: int | None) -> str | None:
