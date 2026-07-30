@@ -27,13 +27,16 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
-import modules.activities.activity_ingestion.upload_entry as upload_entry
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+import modules.activities.activity_ingestion.upload_crud as upload_crud
+import modules.activities.activity_ingestion.upload_jobs as upload_jobs
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.strava.activity_utils as strava_activity_utils
@@ -51,8 +54,8 @@ api_upload_router = APIRouter()
 
 @api_upload_router.post(
     "/upload",
-    status_code=201,
-    response_model=list[activities_schema.Activity],
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=activity_ingestion_schema.ActivityUploadJob,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_uploaded_file(
@@ -73,9 +76,17 @@ def create_activity_with_uploaded_file(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> activity_ingestion_schema.ActivityUploadJob:
     """
-    Upload an activity file (GPX, FIT, TCX, GZ).
+    Upload an activity file (GPX, FIT, TCX, GZ) for import.
+
+    Returns ``202`` once the file is stored and queued: parsing is seconds of
+    CPU work, and doing it inline held a shared request thread for the duration.
+    Poll ``GET /activities/upload/{job_id}`` for the outcome.
+
+    Rejections that can be decided cheaply — unsupported extension, failed
+    signature check, oversized body — still come back synchronously as a 4xx, so
+    only files that plausibly import get a job.
 
     Accepts both JWT bearer token and API key
     authentication (X-API-Key header or ?api_key=
@@ -89,9 +100,57 @@ def create_activity_with_uploaded_file(
         db: Database session dependency.
 
     Returns:
-        List of created activity objects.
+        The accepted upload job, in the pending state.
     """
-    return upload_entry.store_uploaded_activity_file(token_user_id, file, db)
+    return upload_jobs.accept_upload(token_user_id, file, db)
+
+
+@api_upload_router.get(
+    "/upload/{job_id}",
+    status_code=200,
+    response_model=activity_ingestion_schema.ActivityUploadJob,
+)
+def get_activity_upload_job(
+    job_id: str,
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_user_id_from_auth),
+    ],
+    _check_scopes: Annotated[
+        Callable,
+        Security(
+            auth_dependencies.check_auth_scopes,
+            scopes=["activities:upload"],
+        ),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> activity_ingestion_schema.ActivityUploadJob:
+    """
+    Read the state of one of your uploads.
+
+    Scoped to the caller: a job belonging to another user is reported as not
+    found rather than forbidden, so the endpoint does not confirm that an id
+    exists.
+
+    Args:
+        job_id: The upload job identifier returned by the upload route.
+        token_user_id: Authenticated user ID.
+        _check_scopes: Scope validation dependency.
+        db: Database session dependency.
+
+    Returns:
+        The upload job.
+
+    Raises:
+        NotFoundError: If no such job belongs to the caller.
+    """
+    job = upload_crud.get_upload_job(job_id, token_user_id, db)
+    if job is None:
+        raise core_exceptions.NotFoundError("Upload job not found")
+    return job
 
 
 @router.post(

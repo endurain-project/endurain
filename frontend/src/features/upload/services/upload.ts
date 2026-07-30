@@ -1,7 +1,7 @@
 import {
   ACTIVITY_FILE_EXTENSIONS,
-  type Activity,
   type ActivityFileExtension,
+  type ActivityUploadJob,
   MAX_ACTIVITY_FILE_BYTES,
   UploadValidationError,
 } from '@/features/upload/types'
@@ -63,8 +63,14 @@ export function assertValidActivityFile(file: File): void {
 }
 
 /**
- * Uploads a single activity file (GPX/TCX/FIT/GZ) and returns the activities
- * the backend parsed from it.
+ * Uploads a single activity file (GPX/TCX/FIT/GZ) and returns the queued import
+ * job.
+ *
+ * Resolves as soon as the server has the bytes, not when the activity exists:
+ * the endpoint answers `202` and parses on a background worker, so the caller
+ * must poll {@link fetchUploadJob} for the outcome. Cheap rejections
+ * (unsupported extension, failed signature check, oversized body) still come
+ * back as a synchronous error.
  *
  * The reference upload pattern — security-sensitive:
  *
@@ -82,15 +88,15 @@ export function assertValidActivityFile(file: File): void {
  *
  * @param file - The activity file to upload.
  * @param options - Optional abort signal for cancellation (e.g. on unmount).
- * @returns The list of activities created from the file.
+ * @returns The accepted upload job, in the pending state.
  * @throws {UploadValidationError} When client-side validation fails (no request
  *   is sent).
- * @throws {HttpError} When the server rejects or fails the upload.
+ * @throws {HttpError} When the server rejects the upload.
  */
 export async function uploadActivityFile(
   file: File,
   options: { signal?: AbortSignal } = {},
-): Promise<Activity[]> {
+): Promise<ActivityUploadJob> {
   assertValidActivityFile(file)
 
   const formData = new FormData()
@@ -99,10 +105,30 @@ export async function uploadActivityFile(
   // own storage filename.
   formData.append(UPLOAD_FIELD, file, file.name)
 
-  return apiFetch<Activity[]>(UPLOAD_PATH, {
+  return apiFetch<ActivityUploadJob>(UPLOAD_PATH, {
     method: 'POST',
     body: formData,
     signal: options.signal,
     timeoutMs: 0,
+  })
+}
+
+/**
+ * Reads the current state of one of the viewer's upload jobs.
+ *
+ * The backend scopes the lookup to the authenticated user and reports another
+ * user's job as `404`, so this never discloses whether an id exists.
+ *
+ * @param jobId - The id returned by {@link uploadActivityFile}.
+ * @param options - Optional abort signal for cancellation (e.g. on unmount).
+ * @returns The upload job's current state.
+ * @throws {HttpError} When the job does not belong to the viewer or is gone.
+ */
+export async function fetchUploadJob(
+  jobId: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<ActivityUploadJob> {
+  return apiFetch<ActivityUploadJob>(`${UPLOAD_PATH}/${encodeURIComponent(jobId)}`, {
+    signal: options.signal,
   })
 }

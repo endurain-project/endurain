@@ -154,7 +154,11 @@ function timeAgo(iso: string): string {
                   <th scope="col" class="px-3 py-2 text-right font-medium">
                     {{ t('settings.eventLog.byType.completed') }}
                   </th>
-                  <th scope="col" class="px-3 py-2 text-right font-medium">
+                  <th
+                    scope="col"
+                    class="px-3 py-2 text-right font-medium"
+                    :title="t('settings.eventLog.byType.queuedHint')"
+                  >
                     {{ t('settings.eventLog.byType.queued') }}
                   </th>
                   <th scope="col" class="px-3 py-2 text-right font-medium">

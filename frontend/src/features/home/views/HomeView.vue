@@ -21,7 +21,11 @@ import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
 import { ACTIVITY_FILE_EXTENSIONS } from '@/features/upload/types'
-import { useUploadActivityFileMutation } from '@/features/upload/composables/useUpload'
+import {
+  UploadJobFailedError,
+  UploadJobTimeoutError,
+  useUploadActivityFileMutation,
+} from '@/features/upload/composables/useUpload'
 import {
   useActivityStatsQuery,
   useFollowersActivitiesFeed,
@@ -140,6 +144,28 @@ function pickFile(): void {
   fileInput.value?.click()
 }
 
+/**
+ * Maps an upload failure to a user-facing message.
+ *
+ * The import now finishes after the request does, so a failure can come from
+ * the upload itself or from the background parse. The backend reports the
+ * latter as a closed set of sanitized codes, which are translated here; a
+ * timeout is not a failure (the import may still succeed) so it gets its own
+ * wording.
+ *
+ * @param error - The error the mutation rejected with.
+ * @returns The localized message to show.
+ */
+function uploadErrorMessage(error: unknown): string {
+  if (error instanceof UploadJobTimeoutError) {
+    return t('home.upload.timeout')
+  }
+  if (error instanceof UploadJobFailedError && error.code) {
+    return t(`home.upload.failed.${error.code}`)
+  }
+  return t('home.upload.error')
+}
+
 /** Uploads the chosen file, surfacing the outcome as a toast. */
 function onFileChange(event: Event): void {
   const input = event.target as HTMLInputElement
@@ -150,7 +176,7 @@ function onFileChange(event: Event): void {
   }
   uploadMutation.mutate(file, {
     onSuccess: () => toasts.success(t('home.upload.success')),
-    onError: () => toasts.error(t('home.upload.error')),
+    onError: (error) => toasts.error(uploadErrorMessage(error)),
   })
 }
 

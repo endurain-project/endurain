@@ -18,6 +18,7 @@ import ActivityMetricsGrid from '@/features/activities/components/ActivityMetric
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useActivityOwnerQuery } from '@/features/activities/composables/useActivityDetail'
+import { isAwaitingThumbnail } from '@/features/upload/composables/usePendingThumbnails'
 import { formatZonedDateTime } from '@/utils/datetime'
 import {
   activityTypeIsVirtual,
@@ -124,6 +125,19 @@ const thumbnailUrl = computed(() => {
   return /^https?:\/\//i.test(path) ? path : getBackendAssetUrl(path)
 })
 
+/**
+ * Whether to hold the map slot with a placeholder: the activity was just
+ * uploaded and its thumbnail is still being rendered by a background job. Only
+ * ever true for activities this session uploaded, so the many activities that
+ * legitimately have no map (no GPS track) never show a placeholder.
+ */
+const thumbnailPending = computed(
+  () =>
+    thumbnailUrl.value === null &&
+    canViewField(props.activity, 'hideMap', props.currentUserId) &&
+    isAwaitingThumbnail(props.activity.id),
+)
+
 const activityRoute = computed(() => ({ name: 'activity', params: { id: props.activity.id } }))
 
 /** Route to the activity owner's profile, when their user id is known. */
@@ -217,6 +231,7 @@ const ownerRoute = computed(() =>
       :points="[]"
       :thumbnail-url="thumbnailUrl"
       :thumbnail-to="activityRoute"
+      :thumbnail-pending="thumbnailPending"
       :activity-id="activity.id"
       :is-owner="isOwner"
       height-class="h-65"

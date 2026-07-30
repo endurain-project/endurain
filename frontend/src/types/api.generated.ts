@@ -271,7 +271,15 @@ export interface paths {
         put?: never;
         /**
          * Create Activity With Uploaded File
-         * @description Upload an activity file (GPX, FIT, TCX, GZ).
+         * @description Upload an activity file (GPX, FIT, TCX, GZ) for import.
+         *
+         *     Returns ``202`` once the file is stored and queued: parsing is seconds of
+         *     CPU work, and doing it inline held a shared request thread for the duration.
+         *     Poll ``GET /activities/upload/{job_id}`` for the outcome.
+         *
+         *     Rejections that can be decided cheaply — unsupported extension, failed
+         *     signature check, oversized body — still come back synchronously as a 4xx, so
+         *     only files that plausibly import get a job.
          *
          *     Accepts both JWT bearer token and API key
          *     authentication (X-API-Key header or ?api_key=
@@ -285,9 +293,45 @@ export interface paths {
          *         db: Database session dependency.
          *
          *     Returns:
-         *         List of created activity objects.
+         *         The accepted upload job, in the pending state.
          */
         post: operations["create_activity_with_uploaded_file_api_v1_activities_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/upload/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Activity Upload Job
+         * @description Read the state of one of your uploads.
+         *
+         *     Scoped to the caller: a job belonging to another user is reported as not
+         *     found rather than forbidden, so the endpoint does not confirm that an id
+         *     exists.
+         *
+         *     Args:
+         *         job_id: The upload job identifier returned by the upload route.
+         *         token_user_id: Authenticated user ID.
+         *         _check_scopes: Scope validation dependency.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The upload job.
+         *
+         *     Raises:
+         *         NotFoundError: If no such job belongs to the caller.
+         */
+        get: operations["get_activity_upload_job_api_v1_activities_upload__job_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5736,6 +5780,45 @@ export interface components {
          */
         ActivityType: "run" | "bike" | "swim" | "walk" | "strength" | "cardio";
         /**
+         * ActivityUploadJob
+         * @description An accepted upload and the current state of its import.
+         *
+         *     Attributes:
+         *         id: Upload job identifier, returned by the upload route.
+         *         filename: Original client filename, echoed back for display.
+         *         status: Current lifecycle state.
+         *         error_code: Sanitized failure reason when ``status`` is failed.
+         *         activity_ids: Ids created by the import once it completes.
+         *         created_at: When the upload was accepted.
+         *         updated_at: When the job last changed state.
+         *         completed_at: When the job reached a terminal state.
+         */
+        ActivityUploadJob: {
+            /**
+             * Activity Ids
+             * @default []
+             */
+            activity_ids: number[];
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            error_code?: components["schemas"]["UploadJobErrorCode"] | null;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: string;
+            status: components["schemas"]["UploadJobStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
          * ActivityVisibility
          * @description Activity visibility levels.
          *
@@ -10310,6 +10393,22 @@ export interface components {
          */
         Units: "metric" | "imperial";
         /**
+         * UploadJobErrorCode
+         * @description Stable, sanitized reasons an upload job can fail.
+         *
+         *     Deliberately a closed set. The underlying exception text can carry
+         *     filesystem paths and parser internals, so the client is given a code it can
+         *     translate instead of a message the server happened to produce.
+         * @enum {string}
+         */
+        UploadJobErrorCode: "unsupported_format" | "invalid_file" | "no_activities_found" | "processing_failed";
+        /**
+         * UploadJobStatus
+         * @description Lifecycle states of an upload job.
+         * @enum {string}
+         */
+        UploadJobStatus: "pending" | "processing" | "completed" | "failed";
+        /**
          * UserAccessType
          * @description User access level enumeration.
          *
@@ -12433,12 +12532,45 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityUploadJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_activity_upload_job_api_v1_activities_upload__job_id__get: {
+        parameters: {
+            query?: {
+                api_key?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityUploadJob"];
                 };
             };
             /** @description Validation Error */

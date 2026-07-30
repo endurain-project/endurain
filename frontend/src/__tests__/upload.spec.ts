@@ -1,9 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InfiniteData } from '@tanstack/vue-query'
 
-import { prependActivitiesToFeed } from '@/features/upload/composables/useUpload'
-import { assertValidActivityFile, uploadActivityFile } from '@/features/upload/services/upload'
-import { UploadValidationError } from '@/features/upload/types'
+import {
+  prependActivitiesToFeed,
+  pollUploadJob,
+  replaceActivitiesInFeed,
+  UploadJobFailedError,
+  UploadJobTimeoutError,
+} from '@/features/upload/composables/useUpload'
+import {
+  clearAwaitingThumbnail,
+  isAwaitingThumbnail,
+  markAwaitingThumbnail,
+} from '@/features/upload/composables/usePendingThumbnails'
+import {
+  assertValidActivityFile,
+  fetchUploadJob,
+  uploadActivityFile,
+} from '@/features/upload/services/upload'
+import { type ActivityUploadJob, UploadValidationError } from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
 
 import { makeActivity } from './fixtures/activity'
@@ -33,6 +48,24 @@ function jsonResponse(body: unknown, status = 201): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+/**
+ * Builds an upload job in the shape the 202 upload response returns.
+ *
+ * @param overrides - Fields to override on the default pending job.
+ * @returns An upload job.
+ */
+function uploadJob(overrides: Partial<ActivityUploadJob> = {}): ActivityUploadJob {
+  return {
+    id: 'job-1',
+    filename: 'ride.gpx',
+    status: 'pending',
+    activity_ids: [],
+    created_at: '2026-07-28T10:00:00Z',
+    updated_at: '2026-07-28T10:00:00Z',
+    ...overrides,
+  }
 }
 
 /**
@@ -105,8 +138,8 @@ describe('assertValidActivityFile', () => {
 })
 
 describe('uploadActivityFile', () => {
-  it('posts the file as multipart/form-data and returns the created activities', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse([{ id: 7 }, { id: 8 }]))
+  it('posts the file as multipart/form-data and returns the queued job', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob()))
 
     const result = await uploadActivityFile(fileOfSize('ride.gpx', 2048))
 
@@ -126,12 +159,13 @@ describe('uploadActivityFile', () => {
     const headers = init.headers as Headers
     expect(headers.get('Content-Type')).toBeNull()
 
-    expect(result).toHaveLength(2)
-    expect(result[0]?.id).toBe(7)
+    // A handle to poll, not the parsed activities: parsing happens on a worker.
+    expect(result.id).toBe('job-1')
+    expect(result.status).toBe('pending')
   })
 
   it('never interpolates a hostile filename into the request URL', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse([]))
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob()))
 
     await uploadActivityFile(fileOfSize('../../../etc/passwd.gpx', 1024))
 
@@ -149,6 +183,51 @@ describe('uploadActivityFile', () => {
       UploadValidationError,
     )
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('fetchUploadJob', () => {
+  it('encodes the job id into the path', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob()))
+
+    await fetchUploadJob('../admin/jobs')
+
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
+    // A hostile id must not climb out of the upload namespace.
+    expect(url).toBe('/activities/upload/..%2Fadmin%2Fjobs')
+  })
+})
+
+describe('pollUploadJob', () => {
+  it('polls until the import reaches a terminal state', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'pending' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7, 8] })))
+
+    const job = await pollUploadJob('job-1', { intervalMs: 0 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(job.activity_ids).toEqual([7, 8])
+  })
+
+  it('surfaces the sanitized failure code', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(uploadJob({ status: 'failed', error_code: 'invalid_file' })),
+    )
+
+    const error = await pollUploadJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
+
+    expect(error).toBeInstanceOf(UploadJobFailedError)
+    expect((error as UploadJobFailedError).code).toBe('invalid_file')
+  })
+
+  it('gives up once the deadline passes', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'processing' })))
+
+    await expect(pollUploadJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
+      UploadJobTimeoutError,
+    )
   })
 })
 
@@ -188,5 +267,66 @@ describe('prependActivitiesToFeed', () => {
     const data = feed([[makeActivity({ id: 1 })]])
 
     expect(prependActivitiesToFeed(data, [])).toBe(data)
+  })
+})
+
+describe('replaceActivitiesInFeed', () => {
+  it('swaps the matching row in place, on any page', () => {
+    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
+
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({ id: 2, mapThumbnailPath: '2.webp' }),
+    ])
+
+    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([1])
+    expect(result?.pages[1]?.[0]?.mapThumbnailPath).toBe('2.webp')
+  })
+
+  it('leaves rows it has no replacement for untouched', () => {
+    const data = feed([[makeActivity({ id: 1 }), makeActivity({ id: 2 })]])
+
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({ id: 2, mapThumbnailPath: '2.webp' }),
+    ])
+
+    expect(result?.pages[0]?.[0]?.mapThumbnailPath).toBeNull()
+    expect(result?.pages[0]?.[1]?.mapThumbnailPath).toBe('2.webp')
+  })
+
+  it('returns the value untouched when there is nothing cached', () => {
+    expect(replaceActivitiesInFeed(undefined, [makeActivity()])).toBeUndefined()
+  })
+
+  it('returns the value untouched when there are no replacements', () => {
+    const data = feed([[makeActivity({ id: 1 })]])
+
+    expect(replaceActivitiesInFeed(data, [])).toBe(data)
+  })
+})
+
+describe('pending thumbnails', () => {
+  afterEach(() => {
+    clearAwaitingThumbnail([1, 2])
+  })
+
+  it('reports nothing as awaiting by default', () => {
+    expect(isAwaitingThumbnail(1)).toBe(false)
+  })
+
+  it('reports marked activities as awaiting', () => {
+    markAwaitingThumbnail([1, 2])
+
+    expect(isAwaitingThumbnail(1)).toBe(true)
+    expect(isAwaitingThumbnail(2)).toBe(true)
+    expect(isAwaitingThumbnail(3)).toBe(false)
+  })
+
+  it('stops reporting an activity once it is cleared', () => {
+    markAwaitingThumbnail([1, 2])
+
+    clearAwaitingThumbnail([1])
+
+    expect(isAwaitingThumbnail(1)).toBe(false)
+    expect(isAwaitingThumbnail(2)).toBe(true)
   })
 })

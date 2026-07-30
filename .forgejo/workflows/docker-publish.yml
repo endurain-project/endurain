@@ -2,6 +2,12 @@ name: Create Docker image on new release or using manual trigger
 
 on:
   workflow_dispatch:
+    inputs:
+      python_extras:
+        description: 'Optional backend extra to bake into the image (e.g. "distributed" for Redis + S3 support). Leave empty for the lean default.'
+        required: false
+        default: ''
+        type: string
   release:
     types:
       - published
@@ -60,12 +66,15 @@ jobs:
 
       - name: Publish development architecture image
         if: ${{ forgejo.event_name == 'workflow_dispatch' }}
+        env:
+          PYTHON_EXTRAS: ${{ forgejo.event.inputs.python_extras }}
         run: |
           set -eu
           docker buildx build \
             --platform "${{ matrix.platform }}" \
             --network host \
             --file docker/Dockerfile \
+            --build-arg "PYTHON_EXTRAS=${PYTHON_EXTRAS}" \
             --tag "${IMAGE_NAME}:dev-${{ forgejo.sha }}-${{ matrix.arch }}" \
             --push \
             .

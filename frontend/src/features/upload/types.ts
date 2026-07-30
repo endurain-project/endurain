@@ -9,6 +9,34 @@ import type { Schemas } from '@/types'
 export type Activity = Schemas['Activity']
 
 /**
+ * A queued activity-file import. The upload endpoint answers `202` with this
+ * handle rather than the parsed activities, because parsing runs on a
+ * background worker; the client polls until it reaches a terminal state.
+ */
+export type ActivityUploadJob = Schemas['ActivityUploadJob']
+
+/** Lifecycle state of an {@link ActivityUploadJob}. */
+export type UploadJobStatus = ActivityUploadJob['status']
+
+/** Sanitized reason a background import failed. */
+export type UploadJobErrorCode = NonNullable<ActivityUploadJob['error_code']>
+
+/**
+ * Statuses that will not change again, so polling can stop.
+ */
+export const TERMINAL_UPLOAD_STATUSES = ['completed', 'failed'] as const
+
+/**
+ * Whether an upload job has reached a state it will not leave.
+ *
+ * @param job - The job to inspect.
+ * @returns `true` when the job is finished, successfully or not.
+ */
+export function isTerminalUploadJob(job: ActivityUploadJob): boolean {
+  return (TERMINAL_UPLOAD_STATUSES as readonly string[]).includes(job.status)
+}
+
+/**
  * Accepted activity-file extensions, mirroring the backend's `ACTIVITY` and
  * `GZIP` upload kinds (`backend/app/core/file_uploads.py`).
  *
