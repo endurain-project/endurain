@@ -14,6 +14,8 @@ import core.logger as core_logger
 import infra.runtime as platform_runtime
 from infra.providers import StateBackendUnavailableError, StateProvider
 
+logger = core_logger.get_logger(__name__)
+
 _MFA_SECRET_KEY_PREFIX = "endurain:auth:mfa:setup_secret"  # noqa: S105 - storage key prefix, not a credential
 _DEFAULT_TTL_SECONDS: int = 300
 
@@ -38,7 +40,7 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     Raises:
         MFASecretStoreUnavailableError: Always raised.
     """
-    core_logger.print_to_log(f"MFA secret storage failed: {operation}", "error", exc=err)
+    logger.error(f"MFA secret storage failed: {operation}", exc_info=err)
     raise MFASecretStoreUnavailableError("MFA secret storage is unavailable") from err
 
 
@@ -95,11 +97,7 @@ def _decrypt_secret(encrypted_secret: str, user_id: int) -> str | None:
     try:
         return core_cryptography.decrypt_token_fernet(encrypted_secret)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Failed to decrypt MFA secret for user {user_id}: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Failed to decrypt MFA secret for user {user_id}: {type(err).__name__}", exc_info=err)
         return None
 
 
@@ -117,10 +115,7 @@ def _log_secret_stored(user_id: int, ttl_seconds: int) -> None:
     Raises:
         None.
     """
-    core_logger.print_to_log(
-        f"Securely stored MFA secret for user {user_id} (expires in {ttl_seconds}s)",
-        "debug",
-    )
+    logger.debug(f"Securely stored MFA secret for user {user_id} (expires in {ttl_seconds}s)")
 
 
 class MFASecretStore:
@@ -211,11 +206,7 @@ class MFASecretStore:
         try:
             self._state.delete(self._key(user_id))
         except StateBackendUnavailableError as err:
-            core_logger.print_to_log(
-                "Failed to delete MFA setup secret; entry will expire naturally via TTL",
-                "warning",
-                exc=err,
-            )
+            logger.warning("Failed to delete MFA setup secret; entry will expire naturally via TTL", exc_info=err)
 
     def has_secret(self, user_id: int) -> bool:
         """

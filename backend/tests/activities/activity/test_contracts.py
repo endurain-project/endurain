@@ -1,11 +1,11 @@
-"""Tests for activity ingestion-contract schemas (ActivityCore, ParsedActivity)."""
+"""Tests for the activity ingestion contract (ActivityCore, ParsedActivity)."""
 
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
 
-from modules.activities.activity.schema import ActivityCore, ParsedActivity
+from modules.activities.activity.contracts import ActivityCore, ParsedActivity
 
 
 def _core(start, end, **overrides):

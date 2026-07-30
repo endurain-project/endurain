@@ -23,6 +23,8 @@ import core.logger as core_logger
 import infra.runtime as platform_runtime
 from infra.providers import StateBackendUnavailableError, StateProvider
 
+logger = core_logger.get_logger(__name__)
+
 _GARMIN_MFA_KEY_PREFIX = "endurain:garmin:mfa:code"
 # TTL must exceed the 65-second blocking_login timeout in garmin/utils.py.
 _DEFAULT_TTL_SECONDS: int = 90
@@ -48,7 +50,7 @@ def _raise_store_unavailable(operation: str, err: StateBackendUnavailableError) 
     Raises:
         GarminMFACodeStoreUnavailableError: Always raised.
     """
-    core_logger.print_to_log(f"Garmin MFA code storage failed: {operation}", "error", exc=err)
+    logger.error(f"Garmin MFA code storage failed: {operation}", exc_info=err)
     raise GarminMFACodeStoreUnavailableError("Garmin MFA code storage is unavailable") from err
 
 
@@ -112,7 +114,7 @@ class GarminMFACodeStore:
             self._state.set(self._key(user_id), code.encode(), ttl_seconds=self._ttl_seconds)
         except StateBackendUnavailableError as err:
             _raise_store_unavailable("add Garmin MFA code", err)
-        core_logger.print_to_log(f"Stored Garmin MFA code for user {user_id}", "debug")
+        logger.debug(f"Stored Garmin MFA code for user {user_id}")
 
     def get_code(self, user_id: int) -> str | None:
         """
@@ -148,11 +150,7 @@ class GarminMFACodeStore:
         try:
             self._state.delete(self._key(user_id))
         except StateBackendUnavailableError as err:
-            core_logger.print_to_log(
-                "Failed to delete Garmin MFA code; entry will expire naturally via TTL",
-                "warning",
-                exc=err,
-            )
+            logger.warning("Failed to delete Garmin MFA code; entry will expire naturally via TTL", exc_info=err)
 
     def has_code(self, user_id: int) -> bool:
         """

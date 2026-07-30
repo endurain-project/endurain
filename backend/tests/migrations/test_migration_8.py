@@ -8,7 +8,7 @@ class TestProcessMigration8:
     @patch("migrations.migration_8.Path")
     @patch("migrations.migration_8.migrations_crud")
     @patch("migrations.migration_8.activities_crud")
-    @patch("migrations.migration_8.activity_thumbnail_render")
+    @patch("migrations.migration_8.activity_thumbnail_signing")
     @patch("migrations.migration_8.platform_runtime")
     @patch("migrations.migration_8.core_logger")
     def test_converts_legacy_png_to_webp_key(
@@ -43,7 +43,7 @@ class TestProcessMigration8:
     @patch("migrations.migration_8.Path")
     @patch("migrations.migration_8.migrations_crud")
     @patch("migrations.migration_8.activities_crud")
-    @patch("migrations.migration_8.activity_thumbnail_render")
+    @patch("migrations.migration_8.activity_thumbnail_signing")
     @patch("migrations.migration_8.platform_runtime")
     @patch("migrations.migration_8.core_logger")
     def test_clears_path_when_file_missing(

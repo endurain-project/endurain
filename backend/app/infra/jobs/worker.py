@@ -12,6 +12,8 @@ import threading
 import core.logger as core_logger
 from infra.jobs.runner import JobRunner
 
+logger = core_logger.get_logger(__name__)
+
 _STOP_JOIN_TIMEOUT = 5.0
 
 
@@ -31,16 +33,16 @@ def run_worker(runner: JobRunner, *, poll_interval_seconds: float, stop: threadi
     Returns:
         None.
     """
-    core_logger.print_to_log_and_console("Durable job worker started")
+    logger.info("Durable job worker started", extra=core_logger.context(console=True))
     while not stop.is_set():
         try:
             processed = runner.run_once()
         except Exception as error:
-            core_logger.print_to_log("Durable job worker iteration failed", "error", exc=error)
+            logger.error("Durable job worker iteration failed", exc_info=error)
             processed = 0
         if processed == 0:
             stop.wait(poll_interval_seconds)
-    core_logger.print_to_log_and_console("Durable job worker stopped")
+    logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 
 class BackgroundWorker:

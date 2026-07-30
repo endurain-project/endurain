@@ -6,6 +6,8 @@ import core.logger as core_logger
 import migrations.crud as migrations_crud
 import modules.users.users.crud as user_crud
 
+logger = core_logger.get_logger(__name__)
+
 
 async def process_migration_4(db: Session) -> None:
     """
@@ -20,7 +22,7 @@ async def process_migration_4(db: Session) -> None:
     Raises:
         Exception: Logs errors per-user; does not re-raise.
     """
-    core_logger.print_to_log_and_console("Started migration 4")
+    logger.info("Started migration 4", extra=core_logger.context(console=True))
 
     users_processed_with_no_errors = True
 
@@ -33,10 +35,10 @@ async def process_migration_4(db: Session) -> None:
                 new_photo_path = "data/" + photo_old_path if photo_old_path else None
                 await user_crud.update_user_photo(user.id, db, new_photo_path)
             except Exception as err:
-                core_logger.print_to_log_and_console(
+                logger.error(
                     f"Migration 4 - Error processing user {user.id}: {err}",
-                    "error",
-                    exc=err,
+                    exc_info=err,
+                    extra=core_logger.context(console=True),
                 )
                 users_processed_with_no_errors = False
                 continue
@@ -46,16 +48,15 @@ async def process_migration_4(db: Session) -> None:
         try:
             migrations_crud.set_migration_as_executed(4, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Migration 4 - Failed to set migration as executed: {err}",
-                "error",
-                exc=err,
+                exc_info=err,
+                extra=core_logger.context(console=True),
             )
             return
     else:
-        core_logger.print_to_log_and_console(
-            "Migration 4 failed to process all users. Will try again later.",
-            "error",
+        logger.error(
+            "Migration 4 failed to process all users. Will try again later.", extra=core_logger.context(console=True)
         )
 
-    core_logger.print_to_log_and_console("Finished migration 4")
+    logger.info("Finished migration 4", extra=core_logger.context(console=True))

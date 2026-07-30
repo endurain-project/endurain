@@ -19,6 +19,8 @@ from fastapi import HTTPException, Request, status
 import core.config as core_config
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 _TRUSTED_PROXY_HOSTNAME_REFRESH_SECONDS = 60.0
 _trusted_proxy_hostname_refresh_lock = threading.Lock()
 _trusted_proxy_hostname_last_refresh = float("-inf")
@@ -94,9 +96,8 @@ def _resolve_hostname(hostname: str) -> list[str]:
                 unique_ips.append(ip)
         return unique_ips
     except socket.gaierror as err:
-        core_logger.print_to_log_and_console(
-            f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}",
-            "warning",
+        logger.warning(
+            f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}", extra=core_logger.context(console=True)
         )
         return []
 
@@ -171,9 +172,8 @@ def refresh_trusted_proxy_hostnames(
             resolved_map[hostname] = ips
             all_resolved_ips.update(ips)
             if log_success:
-                core_logger.print_to_log_and_console(
-                    f"Resolved TRUSTED_PROXIES hostname '{hostname}' to {ips}",
-                    "info",
+                logger.info(
+                    f"Resolved TRUSTED_PROXIES hostname '{hostname}' to {ips}", extra=core_logger.context(console=True)
                 )
 
         core_config.settings._resolved_trusted_proxy_ips = all_resolved_ips
@@ -416,12 +416,11 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
                 # destination is logged so operators can
                 # review what the SSRF exception is being
                 # used for.
-                core_logger.print_to_log(
+                logger.info(
                     "SSRF allowlist hit: dialing private "
                     f"address {ip_text} for host "
                     f"{hostname} (purpose="
-                    f"{purpose or 'unspecified'})",
-                    "info",
+                    f"{purpose or 'unspecified'})"
                 )
                 continue
             raise HTTPException(

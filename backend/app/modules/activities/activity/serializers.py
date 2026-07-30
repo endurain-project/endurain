@@ -15,7 +15,7 @@ instant that then had to be masked in two places.
 
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_thumbnail.render as activity_thumbnail_render
+import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
 
 def serialize_activity(
@@ -38,7 +38,7 @@ def serialize_activity(
     # (a signed, token-gated app route locally, or a presigned URL for object
     # storage). Visibility masking below strips this for non-owners of a hidden
     # map, so only permitted viewers ever receive the signed token.
-    schema.map_thumbnail_path = activity_thumbnail_render.thumbnail_url(activity.map_thumbnail_path, activity.id)
+    schema.map_thumbnail_path = activity_thumbnail_signing.thumbnail_url(activity.map_thumbnail_path, activity.id)
 
     return schema
 

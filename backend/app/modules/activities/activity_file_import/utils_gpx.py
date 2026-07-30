@@ -14,6 +14,7 @@ import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
@@ -24,6 +25,8 @@ from modules.activities.activity_file_import.utils import (
     LapMetrics,
     generate_activity_laps,
 )
+
+logger = core_logger.get_logger(__name__)
 
 # Activity type IDs that do not use GPS-based timezone
 # detection (e.g. indoor/pool activities)
@@ -511,7 +514,7 @@ def _build_activity_schema(
             detail="Missing waypoint timestamps in GPX parse state",
         )
     elapsed = (state.last_waypoint_time - state.first_waypoint_time).total_seconds()
-    return activities_schema.ActivityCore(
+    return activities_contracts.ActivityCore(
         user_id=user_id,
         name=state.activity_name,
         description=state.activity_description,
@@ -569,10 +572,7 @@ def parse_gpx_file(
         HTTPException: 500 if the file cannot be read.
     """
     try:
-        core_logger.print_to_log(
-            f"GPX parse start: file={file}, user={user_id}",
-            "debug",
-        )
+        logger.debug(f"GPX parse start: file={file}, user={user_id}")
         state = _init_parsing_state(
             activity_name_input,
             # A GPX track normally yields a timezone from its first GPS point;
@@ -645,14 +645,13 @@ def parse_gpx_file(
                 )
             )
 
-        core_logger.print_to_log(
+        logger.debug(
             f"GPX parse complete: user={user_id}, type={activity.activity_type}, "
             f"distance={activity.distance}m, segments={len(state.lat_lon_segments)}, "
             f"laps={len(laps)}, gps_points={len(state.lat_lon_waypoints)}, "
             f"streams(hr={bool(state.hr_waypoints)}, power={bool(state.power_waypoints)}, "
             f"cadence={bool(state.cad_waypoints)}, elevation={bool(state.ele_waypoints)}, "
-            f"velocity={bool(state.vel_waypoints)})",
-            "debug",
+            f"velocity={bool(state.vel_waypoints)})"
         )
 
         return ParsedGpxData(
@@ -680,11 +679,7 @@ def parse_gpx_file(
         OSError,
         ValueError,
     ) as err:
-        core_logger.print_to_log(
-            f"Error in parse_gpx_file - {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in parse_gpx_file - {err}", exc_info=err)
         raise HTTPException(
             status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
             detail="Failed to parse GPX file",

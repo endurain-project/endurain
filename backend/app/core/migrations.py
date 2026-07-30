@@ -4,6 +4,8 @@ import core.logger as core_logger
 import migrations.utils as migrations_utils
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 async def check_migrations() -> None:
     """
@@ -18,9 +20,9 @@ async def check_migrations() -> None:
     Raises:
         Exception: Propagates migration check failures.
     """
-    core_logger.print_to_log_and_console("Checking for migrations not executed")
+    logger.info("Checking for migrations not executed", extra=core_logger.context(console=True))
 
     with SessionLocal() as db:
         await migrations_utils.check_migrations_not_executed(db)
 
-    core_logger.print_to_log_and_console("Migration check completed")
+    logger.info("Migration check completed", extra=core_logger.context(console=True))

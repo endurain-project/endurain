@@ -55,13 +55,14 @@ class TestGenerateAndStoreThumbnail:
         mock_crud.set_activity_thumbnail_path.assert_not_called()
 
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
-    def test_saves_and_records_key(self, mock_render, mock_crud):
+    def test_saves_and_records_key(self, mock_render, mock_signing, mock_crud):
         from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 
         mock_render.render_activity_thumbnail.return_value = b"data"
-        mock_render.thumbnail_key.return_value = "1.webp"
-        mock_render.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
+        mock_signing.thumbnail_key.return_value = "1.webp"
+        mock_signing.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
         mock_render.THUMBNAIL_CONTENT_TYPE = "image/webp"
         storage = MagicMock()
         db = MagicMock()
@@ -93,7 +94,7 @@ class TestDeleteAndRegenerateThumbnails:
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_deletes_blobs_and_clears_db(self, mock_logger, mock_runtime, mock_crud, mock_session, mock_gen):
         from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
 
@@ -120,7 +121,7 @@ class TestDeleteAndRegenerateThumbnails:
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_logs_when_delete_fails(self, mock_logger, mock_runtime, mock_crud, mock_session, mock_gen):
         from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
 
@@ -137,9 +138,8 @@ class TestDeleteAndRegenerateThumbnails:
 
         delete_and_regenerate_all_activity_thumbnails()
 
-        mock_logger.print_to_log.assert_any_call(
+        mock_logger.warning.assert_any_call(
             "Thumbnail regeneration: could not delete thumbnail for activity 1: boom",
-            "warning",
         )
         mock_crud.clear_all_activity_thumbnail_paths.assert_called_once()
         mock_gen.assert_called_once()
@@ -156,7 +156,7 @@ class TestGenerateMissingThumbnails:
         return platform
 
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_skips_when_lock_not_acquired(self, mock_logger, mock_runtime):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -164,15 +164,14 @@ class TestGenerateMissingThumbnails:
 
         generate_missing_activity_thumbnails()
 
-        mock_logger.print_to_log.assert_any_call(
+        mock_logger.debug.assert_any_call(
             "Thumbnail scheduler: another replica holds the backfill lock; skipping",
-            "debug",
         )
 
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_no_activities_without_thumbnail(self, mock_logger, mock_runtime, mock_crud, mock_session):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -184,15 +183,14 @@ class TestGenerateMissingThumbnails:
 
         generate_missing_activity_thumbnails()
 
-        mock_logger.print_to_log.assert_any_call(
+        mock_logger.debug.assert_any_call(
             "Thumbnail scheduler: no activities without thumbnail found",
-            "debug",
         )
 
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_clears_missing_blob_reference(self, mock_logger, mock_runtime, mock_crud, mock_session):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -217,7 +215,7 @@ class TestGenerateMissingThumbnails:
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
     @patch("modules.activities.activity_thumbnail.service.activity_streams_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_generates_thumbnail_for_activity_with_gps(
         self, mock_logger, mock_runtime, mock_streams_crud, mock_crud, mock_session, mock_resolve, mock_generate
     ):
@@ -251,7 +249,7 @@ class TestGenerateMissingThumbnails:
     @patch("modules.activities.activity_thumbnail.service.activities_crud")
     @patch("modules.activities.activity_thumbnail.service.activity_streams_crud")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
-    @patch("modules.activities.activity_thumbnail.service.core_logger")
+    @patch("modules.activities.activity_thumbnail.service.logger")
     def test_skips_activity_without_gps_stream(
         self, mock_logger, mock_runtime, mock_streams_crud, mock_crud, mock_session, mock_resolve, mock_generate
     ):

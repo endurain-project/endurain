@@ -306,7 +306,7 @@ class TestUseSignUpToken:
 
         assert exc_info.value is http_err
 
-    @patch("modules.auth.sign_up_tokens.utils.core_logger.print_to_log")
+    @patch("modules.auth.sign_up_tokens.utils.logger")
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_sign_up_token_used")
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.get_sign_up_token_by_hash")
     def test_use_sign_up_token_unexpected_error_raises_500(
@@ -327,13 +327,13 @@ class TestUseSignUpToken:
             sign_up_tokens_utils.use_sign_up_token("valid-token", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
 
 
 class TestDeleteInvalidTokensFromDb:
     """Test suite for delete_invalid_tokens_from_db function."""
 
-    @patch("modules.auth.sign_up_tokens.utils.core_logger.print_to_log_and_console")
+    @patch("modules.auth.sign_up_tokens.utils.logger")
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.delete_expired_sign_up_tokens")
     @patch("modules.auth.sign_up_tokens.utils.SessionLocal")
     def test_delete_invalid_tokens_from_db_logs_on_deletion(
@@ -353,9 +353,9 @@ class TestDeleteInvalidTokensFromDb:
 
         # Assert
         mock_delete_expired.assert_called_once_with(mock_db_ctx)
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
 
-    @patch("modules.auth.sign_up_tokens.utils.core_logger.print_to_log_and_console")
+    @patch("modules.auth.sign_up_tokens.utils.logger")
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.delete_expired_sign_up_tokens")
     @patch("modules.auth.sign_up_tokens.utils.SessionLocal")
     def test_delete_invalid_tokens_from_db_no_log_when_zero(

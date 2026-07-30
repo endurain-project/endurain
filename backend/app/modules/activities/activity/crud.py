@@ -28,11 +28,14 @@ import core.logger as core_logger
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
 import modules.followers.service as followers_service
 import modules.server_settings.utils as server_settings_utils
+
+logger = core_logger.get_logger(__name__)
 
 # Mapping from frontend sort keys to model columns
 SORT_MAP = {
@@ -220,7 +223,7 @@ def _internal_server_error(err: Exception, context: str) -> HTTPException:
     Returns:
         HTTPException with a 500 status code.
     """
-    core_logger.print_to_log(f"Error in {context}: {err}", "error", exc=err)
+    logger.error(f"Error in {context}: {err}", exc_info=err)
     return HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail="Internal Server Error",
@@ -392,7 +395,7 @@ def get_all_activities(
 
 def get_all_activities_for_migration(
     db: Session,
-) -> list[activities_schema.ActivityMigrationRef]:
+) -> list[activities_contracts.ActivityMigrationRef]:
     """Return a lightweight reference for every activity (migration use only).
 
     Projects only the identity, owner, provider ids, and time bounds the
@@ -410,7 +413,7 @@ def get_all_activities_for_migration(
     try:
         activities = db.execute(select(activities_models.Activity)).scalars().all()
         return [
-            activities_schema.ActivityMigrationRef(
+            activities_contracts.ActivityMigrationRef(
                 id=activity.id,
                 user_id=activity.user_id,
                 start_time=activity.start_time,
@@ -1170,10 +1173,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         schema = activities_serializers.serialize_activity(activity)
         is_owner = activity.user_id == user_id
         activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
-        core_logger.print_to_log(
-            f"Served activity {activity_id} to user {user_id} (owner={is_owner})",
-            "debug",
-        )
+        logger.debug(f"Served activity {activity_id} to user {user_id} (owner={is_owner})")
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_from_user_id_or_has_visibility") from err
@@ -1252,7 +1252,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
             return None
         schema = activities_serializers.serialize_activity(activity)
         activities_serializers.apply_visibility_mask(schema, is_owner=False)
-        core_logger.print_to_log(f"Served public activity {activity_id}", "debug")
+        logger.debug(f"Served public activity {activity_id}")
         return schema
     except SQLAlchemyError as err:
         raise _internal_server_error(err, "get_activity_by_id_if_is_public") from err
@@ -1299,17 +1299,11 @@ def get_public_activity_for_child_read(
     """
     activity = get_activity_by_id_if_is_public(activity_id, db)
     if activity is None:
-        core_logger.print_to_log(
-            f"Public child read denied for activity {activity_id} ({hide_attr}): not publicly shareable",
-            "debug",
-        )
+        logger.debug(f"Public child read denied for activity {activity_id} ({hide_attr}): not publicly shareable")
         return None
 
     if getattr(activity, hide_attr):
-        core_logger.print_to_log(
-            f"Public child read denied for activity {activity_id}: {hide_attr} is set",
-            "debug",
-        )
+        logger.debug(f"Public child read denied for activity {activity_id}: {hide_attr} is set")
         return None
 
     return activity
@@ -1525,7 +1519,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> lis
 
 
 def create_activity(
-    activity: activities_schema.ActivityCore,
+    activity: activities_contracts.ActivityCore,
     db: Session,
     *,
     commit: bool = True,
@@ -1596,10 +1590,9 @@ def create_activity(
         activity.id = new_activity.id
         activity.created_at = new_activity.created_at
 
-        core_logger.print_to_log(
+        logger.debug(
             f"Created activity {new_activity.id} for user {activity.user_id}"
-            + (" (marked hidden: duplicate start time)" if activity_start_time_exists else ""),
-            "debug",
+            + (" (marked hidden: duplicate start time)" if activity_start_time_exists else "")
         )
 
         return activity
@@ -1630,10 +1623,7 @@ def set_activity_thumbnail_path(
         stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
         db_activity = db.execute(stmt).scalar_one_or_none()
         if db_activity is None:
-            core_logger.print_to_log(
-                f"Activity {activity_id} not found when setting thumbnail path",
-                "warning",
-            )
+            logger.warning(f"Activity {activity_id} not found when setting thumbnail path")
             return
         db_activity.map_thumbnail_path = thumbnail_path
         db.commit()
@@ -1672,10 +1662,7 @@ def update_activity_location(
         stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
         db_activity = db.execute(stmt).scalar_one_or_none()
         if db_activity is None:
-            core_logger.print_to_log(
-                f"Activity {activity_id} not found when updating location",
-                "warning",
-            )
+            logger.warning(f"Activity {activity_id} not found when updating location")
             return False
         db_activity.city = city
         db_activity.town = town
@@ -1690,7 +1677,7 @@ def update_activity_location(
 def get_activities_missing_location(
     db: Session,
     limit: int = 200,
-) -> list[activities_schema.ActivityLocationRef]:
+) -> list[activities_contracts.ActivityLocationRef]:
     """Return references to activities that have no resolved location.
 
     Rows where ``city``, ``town`` and ``country`` are all NULL — candidates for
@@ -1717,13 +1704,9 @@ def get_activities_missing_location(
             .limit(limit)
         )
         ids = db.execute(stmt).scalars().all()
-        return [activities_schema.ActivityLocationRef(id=activity_id) for activity_id in ids]
+        return [activities_contracts.ActivityLocationRef(id=activity_id) for activity_id in ids]
     except SQLAlchemyError as err:
-        core_logger.print_to_log(
-            f"Error in get_activities_missing_location: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in get_activities_missing_location: {err}", exc_info=err)
         return []
 
 
@@ -1741,16 +1724,12 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
         db.commit()
     except SQLAlchemyError as err:
         db.rollback()
-        core_logger.print_to_log(
-            f"Error in clear_all_activity_thumbnail_paths: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in clear_all_activity_thumbnail_paths: {err}", exc_info=err)
 
 
 def get_activities_with_thumbnail(
     db: Session,
-) -> list[activities_schema.ActivityThumbnailRef]:
+) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have a map thumbnail.
 
     Args:
@@ -1764,20 +1743,17 @@ def get_activities_with_thumbnail(
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.isnot(None))
         rows = db.execute(stmt).scalars().all()
         return [
-            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+            activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+            for row in rows
         ]
     except SQLAlchemyError as err:
-        core_logger.print_to_log(
-            f"Error in get_activities_with_thumbnail: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in get_activities_with_thumbnail: {err}", exc_info=err)
         return []
 
 
 def get_activities_without_thumbnail(
     db: Session,
-) -> list[activities_schema.ActivityThumbnailRef]:
+) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have no map thumbnail.
 
     Args:
@@ -1791,14 +1767,11 @@ def get_activities_without_thumbnail(
         stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.is_(None))
         rows = db.execute(stmt).scalars().all()
         return [
-            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+            activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+            for row in rows
         ]
     except SQLAlchemyError as err:
-        core_logger.print_to_log(
-            f"Error in get_activities_without_thumbnail: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in get_activities_without_thumbnail: {err}", exc_info=err)
         return []
 
 
@@ -1806,7 +1779,7 @@ def get_activities_with_legacy_thumbnail_path(
     db: Session,
     after_id: int = 0,
     limit: int = 200,
-) -> list[activities_schema.ActivityThumbnailRef]:
+) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities whose thumbnail value is a legacy filesystem path.
 
     Legacy values are absolute paths (they contain a ``/`` separator); the new
@@ -1836,14 +1809,11 @@ def get_activities_with_legacy_thumbnail_path(
         )
         rows = db.execute(stmt).scalars().all()
         return [
-            activities_schema.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path) for row in rows
+            activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+            for row in rows
         ]
     except SQLAlchemyError as err:
-        core_logger.print_to_log(
-            f"Error in get_activities_with_legacy_thumbnail_path: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in get_activities_with_legacy_thumbnail_path: {err}", exc_info=err)
         return []
 
 
@@ -1902,10 +1872,7 @@ def edit_activity(
 
         db.commit()
         db.refresh(db_activity)
-        core_logger.print_to_log(
-            f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})",
-            "debug",
-        )
+        logger.debug(f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})")
         return activities_serializers.serialize_activity(db_activity)
     except HTTPException:
         raise
@@ -2070,7 +2037,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = 
             )
         if commit:
             db.commit()
-        core_logger.print_to_log(f"Deleted activity {activity_id} for user {user_id}", "debug")
+        logger.debug(f"Deleted activity {activity_id} for user {user_id}")
     except HTTPException:
         db.rollback()
         raise
@@ -2108,10 +2075,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: boo
         deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
         if commit:
             db.commit()
-        core_logger.print_to_log(
-            f"Deleted {len(deleted_ids)} Strava activity/activities for user {user_id}",
-            "info",
-        )
+        logger.info(f"Deleted {len(deleted_ids)} Strava activity/activities for user {user_id}")
         return deleted_ids
     except SQLAlchemyError as err:
         db.rollback()
@@ -2148,10 +2112,7 @@ def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = Tru
         deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
         if commit:
             db.commit()
-        core_logger.print_to_log(
-            f"Deleted {len(deleted_ids)} activity/activities for user {user_id}",
-            "info",
-        )
+        logger.info(f"Deleted {len(deleted_ids)} activity/activities for user {user_id}")
         return deleted_ids
     except SQLAlchemyError as err:
         db.rollback()

@@ -15,6 +15,8 @@ import modules.auth.identity_providers.links.crud as auth_identity_links_crud
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.service as idp_service
 
+logger = core_logger.get_logger(__name__)
+
 
 def validate_redirect_url(redirect: str | None) -> None:
     """
@@ -173,9 +175,8 @@ def validate_pkce_verifier(code_verifier: str, code_challenge: str, code_challen
 
     # Constant-time comparison to prevent timing attacks
     if not _secure_compare(computed_challenge, code_challenge):
-        core_logger.print_to_log(
-            f"PKCE verification failed: computed={computed_challenge[:10]}..., expected={code_challenge[:10]}...",
-            "warning",
+        logger.warning(
+            f"PKCE verification failed: computed={computed_challenge[:10]}..., expected={code_challenge[:10]}..."
         )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -347,48 +348,34 @@ async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
 
                 if action == idp_service.TokenAction.REFRESH:
                     # Token is close to expiry - attempt to refresh
-                    core_logger.print_to_log(
-                        f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}",
-                        "debug",
-                    )
+                    logger.debug(f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}")
 
                     # Attempt to refresh the IdP session
                     result = await idp_service.idp_service.refresh_idp_session(user_id, link.idp_id, db)
 
                     if result:
-                        core_logger.print_to_log(
-                            f"Successfully refreshed IdP token for user {user_id}, idp {link.idp_id}",
-                            "debug",
-                        )
+                        logger.debug(f"Successfully refreshed IdP token for user {user_id}, idp {link.idp_id}")
                     else:
-                        core_logger.print_to_log(
+                        logger.debug(
                             f"IdP token refresh failed for user {user_id}, idp {link.idp_id}. "
-                            "User may need to re-authenticate with IdP later.",
-                            "debug",
+                            "User may need to re-authenticate with IdP later."
                         )
 
                 elif action == idp_service.TokenAction.CLEAR:
                     # Token has exceeded maximum age - clear it for security
-                    core_logger.print_to_log(
-                        f"Clearing expired IdP token (max age exceeded) for user {user_id}, idp {link.idp_id}",
-                        "info",
-                    )
+                    logger.info(f"Clearing expired IdP token (max age exceeded) for user {user_id}, idp {link.idp_id}")
 
                     success = auth_identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
                         user_id, link.idp_id, db
                     )
 
                     if success:
-                        core_logger.print_to_log(
+                        logger.info(
                             f"Successfully cleared expired IdP token for user {user_id}, idp {link.idp_id}. "
-                            "User will need to re-authenticate with IdP.",
-                            "info",
+                            "User will need to re-authenticate with IdP."
                         )
                     else:
-                        core_logger.print_to_log(
-                            f"Failed to clear expired IdP token for user {user_id}, idp {link.idp_id}",
-                            "warning",
-                        )
+                        logger.warning(f"Failed to clear expired IdP token for user {user_id}, idp {link.idp_id}")
 
                 else:  # idp_service.TokenAction.SKIP
                     # Token is still valid and not close to expiry - no action needed
@@ -396,20 +383,14 @@ async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
 
             except Exception as err:
                 # Log individual IdP operation failure but continue with other IdPs
-                core_logger.print_to_log(
-                    f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}",
-                    "warning",
-                    exc=err,
+                logger.warning(
+                    f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}", exc_info=err
                 )
                 # Continue to next IdP link
 
     except Exception as err:
         # Catch-all for unexpected errors (e.g., database query failure)
-        core_logger.print_to_log(
-            f"Error retrieving IdP links for user {user_id}: {err}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"Error retrieving IdP links for user {user_id}: {err}", exc_info=err)
         # Don't raise - IdP token refresh is opportunistic and non-blocking
 
 
@@ -458,23 +439,18 @@ async def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = 
                     try:
                         revoked = await idp_service.idp_service.revoke_idp_token(user_id, link.idp_id, db)
                         if revoked:
-                            core_logger.print_to_log(
-                                f"Revoked IdP token at provider for user {user_id}, idp {link.idp_id}",
-                                "info",
-                            )
+                            logger.info(f"Revoked IdP token at provider for user {user_id}, idp {link.idp_id}")
                         else:
-                            core_logger.print_to_log(
+                            logger.debug(
                                 f"IdP token revocation not supported or failed for user {user_id}, idp {link.idp_id}. "
-                                "Will clear locally.",
-                                "debug",
+                                "Will clear locally."
                             )
                     except Exception as revoke_err:
                         # Log revocation failure but continue with local clearing
-                        core_logger.print_to_log(
+                        logger.warning(
                             f"Error revoking IdP token for user {user_id}, idp {link.idp_id}: {revoke_err}. "
                             "Will clear locally.",
-                            "warning",
-                            exc=revoke_err,
+                            exc_info=revoke_err,
                         )
 
                 # Always clear locally regardless of revocation result
@@ -483,30 +459,16 @@ async def clear_all_idp_tokens(user_id: int, db: Session, revoke_at_idp: bool = 
                 )
 
                 if success:
-                    core_logger.print_to_log(
-                        f"Cleared IdP refresh token for user {user_id}, idp {link.idp_id} on logout",
-                        "debug",
-                    )
+                    logger.debug(f"Cleared IdP refresh token for user {user_id}, idp {link.idp_id} on logout")
                 else:
-                    core_logger.print_to_log(
-                        f"No IdP refresh token to clear for user {user_id}, idp {link.idp_id}",
-                        "debug",
-                    )
+                    logger.debug(f"No IdP refresh token to clear for user {user_id}, idp {link.idp_id}")
 
             except Exception as err:
                 # Log individual IdP token clearing failure but continue with other IdPs
-                core_logger.print_to_log(
-                    f"Error clearing IdP token for user {user_id}, idp {link.idp_id}: {err}",
-                    "warning",
-                    exc=err,
-                )
+                logger.warning(f"Error clearing IdP token for user {user_id}, idp {link.idp_id}: {err}", exc_info=err)
                 # Continue to next IdP link
 
     except Exception as err:
         # Catch-all for unexpected errors (e.g., database query failure)
-        core_logger.print_to_log(
-            f"Error retrieving IdP links for user {user_id} during logout: {err}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"Error retrieving IdP links for user {user_id} during logout: {err}", exc_info=err)
         # Don't raise - IdP token clearing is a best-effort security measure

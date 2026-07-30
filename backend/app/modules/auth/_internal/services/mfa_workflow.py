@@ -31,6 +31,8 @@ import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 from modules.auth.mfa.setup_store import MFASecretStoreBackend
 
+logger = core_logger.get_logger(__name__)
+
 if TYPE_CHECKING:
     from modules.auth.identity_service import IdentityService
 
@@ -118,10 +120,7 @@ def enable_mfa(
             db,
         )
         mfa_secret_store.delete_secret(token_user_id)
-        core_logger.print_to_log(
-            f"User {token_user_id} enabled MFA (step-up verified)",
-            "info",
-        )
+        logger.info(f"User {token_user_id} enabled MFA (step-up verified)")
         return {
             "message": "MFA enabled successfully",
             "backup_codes": backup_codes,
@@ -149,10 +148,7 @@ def disable_mfa(
         db,
     )
     mfa_service.disable_user_mfa(token_user_id, db)
-    core_logger.print_to_log(
-        f"User {token_user_id} disabled MFA (step-up verified)",
-        "info",
-    )
+    logger.info(f"User {token_user_id} disabled MFA (step-up verified)")
     return {"message": "MFA disabled successfully"}
 
 
@@ -215,10 +211,7 @@ def generate_backup_codes(
         db,
     )
 
-    core_logger.print_to_log(
-        f"User {user.id} generated MFA backup codes (step-up verified)",
-        "info",
-    )
+    logger.info(f"User {user.id} generated MFA backup codes (step-up verified)")
 
     return mfa_backup_codes_schema.MFABackupCodesResponse(
         codes=codes,

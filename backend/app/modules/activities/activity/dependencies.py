@@ -1,7 +1,27 @@
 from fastapi import HTTPException, Query, status
 
 import core.dependencies as core_dependencies
+import core.logger as core_logger
 from modules.activities.activity.constants import ACTIVITY_ID_TO_NAME
+
+logger = core_logger.get_logger(__name__)
+
+# Sort fields the activity list endpoints accept, in the order they appear in the
+# UI. Declared once so the validator and its error message cannot drift.
+SORTABLE_FIELDS: tuple[str, ...] = (
+    "type",
+    "name",
+    "location",
+    "start_time",
+    "duration",
+    "distance",
+    "pace",
+    "calories",
+    "elevation",
+    "average_hr",
+)
+
+SORT_ORDERS: tuple[str, ...] = ("asc", "desc")
 
 
 def validate_activity_id(activity_id: int):
@@ -63,6 +83,10 @@ def validate_activity_type(activity_type: int | None = Query(None)):
 
     """
     if activity_type not in ACTIVITY_ID_TO_NAME and activity_type is not None:
+        logger.debug(
+            "Rejected activity list request with an unknown activity type",
+            extra=core_logger.context(activity_type=activity_type),
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid activity type",
@@ -72,46 +96,21 @@ def validate_activity_type(activity_type: int | None = Query(None)):
 def validate_sort_by(sort_by: str | None = Query(None)):
     """
     Validates the `sort_by` query parameter to ensure it is either `None` or one of the
-    allowed sorting fields.
+    allowed sorting fields (:data:`SORTABLE_FIELDS`).
 
     Args:
         sort_by (str | None): The sorting field provided as a query parameter.
-            It can be one of the following values:
-            - "type"
-            - "name"
-            - "location"
-            - "start_time"
-            - "duration"
-            - "distance"
-            - "pace"
-            - "calories"
-            - "elevation"
-            - "avreage_hr"
-            or `None`.
 
     Raises:
         HTTPException: If `sort_by` is not `None` and is not one of the allowed values,
             an HTTP 422 Unprocessable Entity exception is raised with the detail
             "Invalid sort by field".
     """
-    # check if sort_by is one of the following or not None
-    # sort_by can be "type", "name", "location", "start_time", "duration", "distance",
-    if (
-        sort_by
-        not in [
-            "type",
-            "name",
-            "location",
-            "start_time",
-            "duration",
-            "distance",
-            "pace",
-            "calories",
-            "elevation",
-            "average_hr",
-        ]
-        and sort_by is not None
-    ):
+    if sort_by is not None and sort_by not in SORTABLE_FIELDS:
+        logger.debug(
+            "Rejected activity list request with an unsupported sort field",
+            extra=core_logger.context(sort_by=sort_by),
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid sort by field",
@@ -128,9 +127,11 @@ def validate_sort_order(sort_order: str | None = Query(None)):
     Raises:
         HTTPException: If the sort_order is not "asc", "desc", or None, an HTTP 422 Unprocessable Entity error is raised.
     """
-    # check if sort_order is one of the following or not None
-    # sort_order can be "asc", "desc" or None
-    if sort_order not in ["asc", "desc"] and sort_order is not None:
+    if sort_order is not None and sort_order not in SORT_ORDERS:
+        logger.debug(
+            "Rejected activity list request with an unsupported sort order",
+            extra=core_logger.context(sort_order=sort_order),
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid sort order",

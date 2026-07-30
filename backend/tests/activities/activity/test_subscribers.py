@@ -68,7 +68,7 @@ class TestOnActivityCreatedNotify:
 
         assert mock_notif.create_activity_created_notification.call_args.args[:3] == (8, 4, True)
 
-    @patch("modules.activities.activity.subscribers.core_logger")
+    @patch("infra.subscribers.logger")
     @patch("modules.activities.activity.subscribers.core_database")
     @patch("modules.activities.activity.subscribers.notifications_utils")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
@@ -79,7 +79,7 @@ class TestOnActivityCreatedNotify:
         # Must not raise — a notification failure never breaks activity import.
         on_activity_created_notify(_event({"activity_id": 1, "user_id": 2}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
     def test_subscribes_to_created(self):
         from modules.activities.activity.subscribers import (

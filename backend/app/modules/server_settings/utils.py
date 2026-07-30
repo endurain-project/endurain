@@ -9,6 +9,8 @@ import core.logger as core_logger
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
 
+logger = core_logger.get_logger(__name__)
+
 TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
     "openstreetmap": {
         "name": "OpenStreetMap",
@@ -210,10 +212,7 @@ def get_allowed_tile_domains(db: Session) -> list[str]:
                 allowed_domains.append(custom_domain)
     except Exception:
         # If we can't get server settings, just use built-in providers
-        core_logger.print_to_log(
-            "Error retrieving server settings for allowed tile domains, using defaults",
-            "debug",
-        )
+        logger.debug("Error retrieving server settings for allowed tile domains, using defaults")
         pass
 
     return allowed_domains

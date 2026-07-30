@@ -16,6 +16,8 @@ import modules.garmin.utils as garmin_utils
 import modules.users.users_integrations.crud as user_integrations_crud
 import modules.websocket.manager as websocket_manager
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -103,7 +105,7 @@ async def garminconnect_retrieve_activities_days(
     )
 
     # Return success message and status code 202
-    core_logger.print_to_log(f"Garmin Connect activities will be processed in the background for user {token_user_id}")
+    logger.info(f"Garmin Connect activities will be processed in the background for user {token_user_id}")
     return {"detail": f"Garmin Connect activities will be processed in the background for for {token_user_id}"}
 
 
@@ -122,7 +124,7 @@ async def garminconnect_retrieve_gear(
     )
 
     # Return success message and status code 202
-    core_logger.print_to_log(f"Garmin Connect gear will be processed in the background for user {token_user_id}")
+    logger.info(f"Garmin Connect gear will be processed in the background for user {token_user_id}")
     return {"detail": f"Garmin Connect gear will be processed in the background for for {token_user_id}"}
 
 
@@ -157,7 +159,7 @@ async def garminconnect_retrieve_health_days(
     )
 
     # Return success message and status code 202
-    core_logger.print_to_log(f"Garmin Connect health data will be processed in the background for user {token_user_id}")
+    logger.info(f"Garmin Connect health data will be processed in the background for user {token_user_id}")
     return {"detail": f"Garmin Connect health data will be processed in the background for for {token_user_id}"}
 
 

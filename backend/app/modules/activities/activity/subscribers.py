@@ -15,7 +15,6 @@ reconcile after the fact.
 """
 
 import core.database as core_database
-import core.logger as core_logger
 import infra.async_bridge as platform_async_bridge
 import modules.activities.activity.events as activity_events
 import modules.notifications.utils as notifications_utils
@@ -24,6 +23,7 @@ import modules.websocket.utils as websocket_utils
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
+from infra.subscribers import best_effort
 
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
@@ -75,26 +75,9 @@ def notify_activity_created_for_event(event: Event) -> None:
     )
 
 
-def on_activity_created_notify(event: Event) -> None:
-    """Bus subscriber: create the new-activity notification, swallowing any error.
-
-    Wraps :func:`notify_activity_created_for_event` so a notification failure
-    never breaks activity import.
-
-    Args:
-        event: The ``activity.created`` event.
-
-    Returns:
-        None.
-    """
-    try:
-        notify_activity_created_for_event(event)
-    except Exception as err:
-        core_logger.print_to_log(
-            f"activity.created notification handler failed for activity {event.payload.get('activity_id')}: {err}",
-            "error",
-            exc=err,
-        )
+# Bus subscriber: creates the new-activity notification, swallowing any error so a
+# notification failure never breaks activity import.
+on_activity_created_notify = best_effort(notify_activity_created_for_event)
 
 
 def register_activity_notification_subscribers(events: EventBusProvider) -> None:

@@ -31,6 +31,8 @@ import core.network as core_network
 import infra.capabilities as platform_capabilities
 import infra.profile as platform_profile
 
+logger = core_logger.get_logger(__name__)
+
 # Pure constants — neither env-driven nor derived from settings.
 API_VERSION = "v0.20.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
@@ -280,9 +282,9 @@ class Settings(BaseSettings):
         try:
             parsed = int(v)
         except (TypeError, ValueError):
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 "Invalid WEB_WORKERS value, expected a positive integer; defaulting to 1",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return 1
         return parsed if parsed >= 1 else 1
@@ -306,9 +308,9 @@ class Settings(BaseSettings):
             return "starttls"
         normalised = v.lower().strip()
         if normalised not in ("starttls", "ssl"):
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 "Invalid SMTP_SECURE_TYPE value, expected 'starttls' or 'ssl'; defaulting to 'starttls'",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return "starttls"
         return normalised
@@ -401,25 +403,25 @@ class Settings(BaseSettings):
             if not entry:
                 continue
             if ";" in entry or any(c.isspace() for c in entry):
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Ignoring invalid CSP_ADDITIONAL_CONNECT_SRC entry '{entry}': must not contain whitespace or ';'.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             if entry == "*":
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     "Ignoring wildcard '*' in CSP_ADDITIONAL_CONNECT_SRC: it would allow "
                     "connections to any origin and defeats the connect-src protection.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             # Scheme-only sources (e.g. "https:", "ws:") end in ':' with no host
             # and allow any host on that scheme — too broad for an allowlist.
             if entry.endswith(":") and "/" not in entry:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Ignoring scheme-only CSP_ADDITIONAL_CONNECT_SRC entry '{entry}': "
                     "it allows any host on that scheme and is too broad for connect-src.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             cleaned.append(entry)
@@ -461,9 +463,9 @@ class Settings(BaseSettings):
         for entry in raw_entries:
             if not entry or entry == "*":
                 if entry == "*":
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         "Ignoring wildcard '*' entry in SSRF_ALLOWED_HOSTS (not permitted).",
-                        "warning",
+                        extra=core_logger.context(console=True),
                     )
                 continue
 
@@ -472,19 +474,19 @@ class Settings(BaseSettings):
                 try:
                     network = ipaddress.ip_network(entry, strict=False)
                 except ValueError:
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         f"Ignoring invalid SSRF_ALLOWED_HOSTS entry '{entry}': not a valid IP or CIDR.",
-                        "warning",
+                        extra=core_logger.context(console=True),
                     )
                     continue
                 min_prefix = 8 if network.version == 4 else 32
                 if network.prefixlen < min_prefix:
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         f"Ignoring overly broad SSRF_ALLOWED_HOSTS "
                         f"entry '{entry}': prefix /{network.prefixlen} "
                         f"is wider than the minimum /{min_prefix} for "
                         f"IPv{network.version}.",
-                        "warning",
+                        extra=core_logger.context(console=True),
                     )
                     continue
                 cleaned.append(str(network))
@@ -502,9 +504,9 @@ class Settings(BaseSettings):
             elif ":" in host and host.count(":") == 1:
                 host = host.split(":", 1)[0]
             if not host:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Ignoring empty SSRF_ALLOWED_HOSTS hostname from entry '{entry}'.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             cleaned.append(host)
@@ -520,9 +522,9 @@ class Settings(BaseSettings):
         try:
             return float(v)
         except (TypeError, ValueError):
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number; defaulting to 1.0",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return 1.0
 
@@ -697,29 +699,28 @@ def read_secret(
 
             # Security: Validate file path to prevent path traversal
             if not _is_safe_path(file_path):
-                core_logger.print_to_log_and_console(f"Unsafe file path detected for {file_env_var}", "error")
+                logger.error(f"Unsafe file path detected for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Unsafe file path for {file_env_var}")
 
             # Check if file exists and is readable
             if not file_path.exists():
-                core_logger.print_to_log_and_console(f"Secret file not found for {file_env_var}", "error")
+                logger.error(f"Secret file not found for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Secret file not found for {file_env_var}")
 
             if not file_path.is_file():
-                core_logger.print_to_log_and_console(f"Secret path is not a file for {file_env_var}", "error")
+                logger.error(f"Secret path is not a file for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Secret path is not a file for {file_env_var}")
 
             # Security: Check file permissions (should not be world-readable)
             file_stat = file_path.stat()
             if file_stat.st_mode & stat.S_IROTH:
-                core_logger.print_to_log_and_console(
-                    f"Secret file is world-readable for {file_env_var}",
-                    "warning",
+                logger.warning(
+                    f"Secret file is world-readable for {file_env_var}", extra=core_logger.context(console=True)
                 )
 
             # Security: limit file size to prevent memory exhaustion.
             if file_stat.st_size > 65536:  # 64KB
-                core_logger.print_to_log_and_console(f"Secret file too large for {file_env_var}", "error")
+                logger.error(f"Secret file too large for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Secret file too large for {file_env_var}")
 
             # Read the secret file
@@ -727,25 +728,25 @@ def read_secret(
                 content = secret_file.read().strip()
 
                 if content:
-                    core_logger.print_to_log_and_console(
+                    logger.debug(
                         f"Successfully loaded secret from file for {env_var_name}",
-                        "debug",
+                        extra=core_logger.context(console=True),
                     )
                     return content
                 else:
-                    core_logger.print_to_log_and_console(f"Secret file is empty for {file_env_var}", "warning")
+                    logger.warning(f"Secret file is empty for {file_env_var}", extra=core_logger.context(console=True))
 
         except (OSError, UnicodeDecodeError) as e:
             # Log error without exposing file path details
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Error reading secret file for {file_env_var}: {type(e).__name__}",
-                "error",
+                extra=core_logger.context(console=True),
             )
             raise OSError(f"Error reading secret file for {file_env_var}") from e
         except Exception as e:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Unexpected error reading secret for {file_env_var}: {type(e).__name__}",
-                "error",
+                extra=core_logger.context(console=True),
             )
             raise OSError(f"Unexpected error reading secret for {file_env_var}") from e
 
@@ -798,10 +799,7 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         True if key is valid, False otherwise.
     """
     if not fernet_key:
-        core_logger.print_to_log_and_console(
-            "FERNET_KEY is not set or empty",
-            "error",
-        )
+        logger.error("FERNET_KEY is not set or empty", extra=core_logger.context(console=True))
         return False
 
     try:
@@ -809,18 +807,18 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         fernet_key_bytes = fernet_key.encode("utf-8")
         Fernet(fernet_key_bytes)
 
-        core_logger.print_to_log_and_console("FERNET_KEY validation successful", "debug")
+        logger.debug("FERNET_KEY validation successful", extra=core_logger.context(console=True))
         return True
     except ValueError as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"FERNET_KEY validation failed: Invalid key format ({type(err).__name__})",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return False
     except Exception as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"FERNET_KEY validation failed: Unexpected error ({type(err).__name__})",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return False
 
@@ -840,9 +838,9 @@ def validate_log_level(log_level: str) -> bool:
         return True
     else:
         allowed_values = ", ".join(sorted(valid_levels))
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Log level '{log_level}' is invalid. Must be one of: {allowed_values}",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return False
 
@@ -867,9 +865,9 @@ def check_required_env_vars():
     for var in email_vars:
         value = read_secret(var) if var == "SMTP_PASSWORD" else os.getenv(var)
         if not value:
-            core_logger.print_to_log_and_console(
+            logger.info(
                 f"Email not configured (missing: {var}). Password reset feature will not work.",
-                "info",
+                extra=core_logger.context(console=True),
             )
 
     # Check secret variables. Direct env var or _FILE must be present.
@@ -877,20 +875,14 @@ def check_required_env_vars():
         file_var = f"{var}_FILE"
         if var not in os.environ and file_var not in os.environ:
             message = f"Missing required environment variable: {var} (or {file_var} for Docker secrets)"
-            core_logger.print_to_log_and_console(
-                message,
-                "error",
-            )
+            logger.error(message, extra=core_logger.context(console=True))
             raise OSError(message)
 
     # Check non-secret required variables
     for var in required_env_vars:
         if var not in os.environ:
             message = f"Missing required environment variable: {var}"
-            core_logger.print_to_log_and_console(
-                message,
-                "error",
-            )
+            logger.error(message, extra=core_logger.context(console=True))
             raise OSError(message)
 
     # Validate FERNET_KEY if it's available
@@ -899,10 +891,7 @@ def check_required_env_vars():
         is_valid = validate_fernet_key(fernet_key)
         if not is_valid:
             message = "FERNET_KEY validation failed. Please check the key format and regenerate if necessary."
-            core_logger.print_to_log_and_console(
-                message,
-                "warning",
-            )
+            logger.warning(message, extra=core_logger.context(console=True))
             raise ValueError(message)
 
     validate_log_level(settings.LOG_LEVEL)
@@ -950,16 +939,13 @@ def check_deprecated_env_vars() -> None:
     if not found:
         return
 
-    core_logger.print_to_log_and_console(
+    logger.error(
         "Deprecated environment variable(s) detected. Endurain will not start "
         "until they are removed from your configuration:",
-        "error",
+        extra=core_logger.context(console=True),
     )
     for name in found:
-        core_logger.print_to_log_and_console(
-            f"  - {name}: {DEPRECATED_ENV_VARS[name]}",
-            "error",
-        )
+        logger.error(f"  - {name}: {DEPRECATED_ENV_VARS[name]}", extra=core_logger.context(console=True))
 
     message = (
         f"Deprecated environment variable(s) in use: {', '.join(found)}. "
@@ -995,8 +981,7 @@ def check_required_dirs():
         if not required_path.exists():
             required_path.mkdir(parents=True)
         elif not required_path.is_dir():
-            core_logger.print_to_log_and_console(
-                f"Required directory is not a directory: {required_dir}",
-                "error",
+            logger.error(
+                f"Required directory is not a directory: {required_dir}", extra=core_logger.context(console=True)
             )
             raise OSError(f"Required directory is not a directory: {required_dir}")

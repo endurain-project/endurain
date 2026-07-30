@@ -23,12 +23,14 @@ import infra.runtime as platform_runtime
 import modules.activities.subscriber_registry as activity_subscriber_registry
 from infra.jobs.worker import run_worker
 
+logger = core_logger.get_logger(__name__)
+
 
 def _install_signal_handlers(stop: threading.Event) -> None:
     """Set the stop event on SIGTERM/SIGINT for graceful shutdown."""
 
     def _handle(signum: int, _frame: FrameType | None) -> None:
-        core_logger.print_to_log_and_console(f"Worker received signal {signum}; shutting down")
+        logger.info(f"Worker received signal {signum}; shutting down", extra=core_logger.context(console=True))
         stop.set()
 
     signal.signal(signal.SIGTERM, _handle)
@@ -45,9 +47,11 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     Returns:
         None.
     """
-    core_logger.print_to_log_and_console(f"Durable job worker starting - {core_config.API_VERSION}")
+    logger.info(f"Durable job worker starting - {core_config.API_VERSION}", extra=core_logger.context(console=True))
     if not core_config.settings.JOBS_ENABLED:
-        core_logger.print_to_log_and_console("JOBS_ENABLED is false; the worker has nothing to do. Exiting.")
+        logger.info(
+            "JOBS_ENABLED is false; the worker has nothing to do. Exiting.", extra=core_logger.context(console=True)
+        )
         return
     platform = platform_container.build_platform(core_config.settings)
     platform_runtime.set_active_platform(platform)
@@ -61,7 +65,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     _install_signal_handlers(stop)
     runner = jobs_service.build_runner()
     run_worker(runner, poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS, stop=stop)
-    core_logger.print_to_log_and_console("Durable job worker stopped")
+    logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 
 def main() -> None:

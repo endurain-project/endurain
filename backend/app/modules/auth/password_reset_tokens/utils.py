@@ -30,6 +30,8 @@ from modules.auth.password_reset_tokens import (
     email_messages as password_reset_tokens_email_messages,
 )
 
+logger = core_logger.get_logger(__name__)
+
 
 def create_password_reset_token(user_id: int, db: Session) -> str:
     """
@@ -214,4 +216,4 @@ def delete_invalid_tokens_from_db() -> None:
 
         # Log the number of deleted tokens
         if num_deleted > 0:
-            core_logger.print_to_log_and_console(f"Deleted {num_deleted} expired password reset tokens", "info")
+            logger.info(f"Deleted {num_deleted} expired password reset tokens", extra=core_logger.context(console=True))

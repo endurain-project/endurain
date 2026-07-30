@@ -12,6 +12,8 @@ import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.models as gear_components_models
 
+logger = core_logger.get_logger(__name__)
+
 # Fields that must never be reassigned through an update payload
 _IMMUTABLE_FIELDS: frozenset[str] = frozenset({"id", "user_id"})
 
@@ -480,9 +482,9 @@ def create_multiple_gears(
             seen.add(nickname_normalized)
             deduped.append(gear)
         else:
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 f"Duplicate nickname '{gear.nickname}' in request for user {user_id}, skipping",
-                "warning",
+                extra=core_logger.context(console=True),
             )
 
     # Fetch all already-existing nicknames for this user in one query
@@ -498,9 +500,9 @@ def create_multiple_gears(
     for gear in deduped:
         normalised = str(gear.nickname).lower().strip()
         if normalised in existing_nicknames:
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 f"Gear with nickname '{gear.nickname}' already exists for user {user_id}, skipping",
-                "warning",
+                extra=core_logger.context(console=True),
             )
         else:
             gears_to_create.append(gear)

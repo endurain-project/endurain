@@ -464,9 +464,9 @@ class TestRejectPrivateUrl:
         with (
             patch("core.network.socket.getaddrinfo") as mock_gai,
             patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
-            patch.object(core_network.core_logger, "print_to_log") as mock_log,
+            patch.object(core_network, "logger") as mock_log,
         ):
             mock_gai.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 0))]
             core_network.reject_private_url("http://internal.example.com", purpose="test")
-            mock_log.assert_called_once()
-            assert "SSRF allowlist hit" in mock_log.call_args[0][0]
+            mock_log.info.assert_called_once()
+            assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]

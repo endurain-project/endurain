@@ -6,6 +6,8 @@ import core.logger as core_logger
 import modules.auth.oauth_state.crud as oauth_state_crud
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 def create_state_id_and_nonce() -> tuple[str, str]:
     """Generate a new random state ID and nonce for OAuth flows.
@@ -34,7 +36,4 @@ def delete_expired_oauth_states_from_db() -> None:
         num_deleted = oauth_state_crud.delete_expired_oauth_states(db)
 
         if num_deleted > 0:
-            core_logger.print_to_log(
-                f"Deleted {num_deleted} expired OAuth states from database",
-                "info",
-            )
+            logger.info(f"Deleted {num_deleted} expired OAuth states from database")

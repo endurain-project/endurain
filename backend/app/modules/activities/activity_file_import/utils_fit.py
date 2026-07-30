@@ -8,11 +8,13 @@ from fastapi import HTTPException, status
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
-import modules.activities.activity.schema as activities_schema
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+
+logger = core_logger.get_logger(__name__)
 
 
 def create_activity_objects(
@@ -27,10 +29,7 @@ def create_activity_objects(
     enrichment seam.
     """
     try:
-        core_logger.print_to_log(
-            f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}",
-            "debug",
-        )
+        logger.debug(f"FIT: building activity objects for user={user_id}, sessions={len(sessions_records)}")
         # Fallback for sessions with neither a GPS track nor a reported UTC
         # offset (indoor rides, treadmill runs, pool swims).
         timezone = default_timezone or core_config.settings.TZ
@@ -168,7 +167,7 @@ def create_activity_objects(
                 if ele_loss is None and computed_loss:
                     ele_loss = round(computed_loss)
 
-            activity = activities_schema.ActivityCore(
+            activity = activities_contracts.ActivityCore(
                 user_id=user_id,
                 name=activity_name,
                 distance=(round(resolved_distance) if resolved_distance else 0),
@@ -230,16 +229,13 @@ def create_activity_objects(
 
             activities.append(parsed_activity)
 
-        core_logger.print_to_log(
-            f"FIT: built {len(activities)} activity object(s) for user={user_id}",
-            "debug",
-        )
+        logger.debug(f"FIT: built {len(activities)} activity object(s) for user={user_id}")
         return activities
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in create_activity_objects: {err}", "error", exc=err)
+        logger.error(f"Error in create_activity_objects: {err}", exc_info=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -717,7 +713,7 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
 
 def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
     try:
-        core_logger.print_to_log(f"FIT parse start: file={file}", "debug")
+        logger.debug(f"FIT parse start: file={file}")
         state = FitParseState(
             activity_name=activity_name_input or "Workout",
         )
@@ -728,16 +724,13 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
                 if isinstance(frame, fitdecode.FitDataMessage):
                     _dispatch_data_message(frame, state, fit_data.last_timestamp)
 
-        core_logger.print_to_log(
-            f"FIT parse complete: file={file}, exercise_titles={len(state.exercises_titles)}",
-            "debug",
-        )
+        logger.debug(f"FIT parse complete: file={file}, exercise_titles={len(state.exercises_titles)}")
         return state.to_payload()
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in parse_fit_file: {err}", "error", exc=err)
+        logger.error(f"Error in parse_fit_file: {err}", exc_info=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1258,8 +1251,5 @@ def find_timezone_name(offset_seconds, reference_date):
         if utc_offset.total_seconds() == offset_seconds:
             return tz_name
 
-    core_logger.print_to_log(
-        f"FIT: no timezone matches UTC offset {offset_seconds}s; falling back to the server timezone",
-        "warning",
-    )
+    logger.warning(f"FIT: no timezone matches UTC offset {offset_seconds}s; falling back to the server timezone")
     return None

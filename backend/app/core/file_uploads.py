@@ -22,12 +22,14 @@ The unified pipeline gives every upload the same defenses:
 import asyncio
 import contextlib
 import glob
+import gzip
+import hashlib
 import io
 import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine, Iterable
 from enum import StrEnum
 from pathlib import Path, PureWindowsPath
 from typing import Any
@@ -57,6 +59,8 @@ from safeuploads.exceptions import (
 )
 
 import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level configuration and shared validator
@@ -224,11 +228,7 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     try:
         await validator(file)
     except FileSecurityError as err:
-        core_logger.print_to_log(
-            f"Upload validation failed: kind={kind.value} type={type(err).__name__}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"Upload validation failed: kind={kind.value} type={type(err).__name__}", exc_info=err)
         raise _to_http_exception(err) from err
 
 
@@ -426,20 +426,13 @@ async def save_file(
         async with aiofiles.open(file_path, "wb") as save_file:
             await save_file.write(content)
 
-        core_logger.print_to_log(
-            f"File saved successfully: {file_path}",
-            "debug",
-        )
+        logger.debug(f"File saved successfully: {file_path}")
 
         return str(file_path)
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_file: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_file: {type(err).__name__}", exc_info=err)
 
         # Remove the file if it was created
         if file_path and await aiofiles.os.path.exists(file_path):
@@ -623,11 +616,7 @@ async def save_validated_upload(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_validated_upload: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_validated_upload: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -680,11 +669,7 @@ def save_validated_upload_sync(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_validated_upload_sync: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_validated_upload_sync: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -729,19 +714,11 @@ async def delete_files_by_pattern(directory: str, pattern: str) -> None:
                 if await aiofiles.os.path.exists(file_path):
                     await aiofiles.os.remove(file_path)
 
-                core_logger.print_to_log(f"File deleted successfully: {file_path}", "debug")
+                logger.debug(f"File deleted successfully: {file_path}")
             except OSError as err:
-                core_logger.print_to_log(
-                    f"Failed to delete file {file_path}: {err}",
-                    "warning",
-                    exc=err,
-                )
+                logger.warning(f"Failed to delete file {file_path}: {err}", exc_info=err)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error deleting files matching pattern {pattern}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error deleting files matching pattern {pattern}: {err}", exc_info=err)
 
 
 # ---------------------------------------------------------------------------
@@ -810,11 +787,7 @@ async def save_validated_bytes(
     except HTTPException:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"save_validated_bytes failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"save_validated_bytes failed: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -1153,11 +1126,7 @@ async def extract_validated_zip(
     except HTTPException:
         raise
     except (zipfile.BadZipFile, OSError) as err:
-        core_logger.print_to_log(
-            f"extract_validated_zip failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"extract_validated_zip failed: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -1179,10 +1148,7 @@ async def extract_validated_zip(
                 except HTTPException:
                     with contextlib.suppress(OSError):
                         staged_entry.unlink(missing_ok=True)
-                    core_logger.print_to_log(
-                        f"extract_validated_zip dropped invalid entry: {final_entry.name}",
-                        "warning",
-                    )
+                    logger.warning(f"extract_validated_zip dropped invalid entry: {final_entry.name}")
                     continue
                 kept.append((staged_entry, final_entry))
             extracted = kept
@@ -1196,11 +1162,7 @@ async def extract_validated_zip(
         except HTTPException:
             raise
         except OSError as err:
-            core_logger.print_to_log(
-                f"extract_validated_zip promotion failed: {type(err).__name__}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"extract_validated_zip promotion failed: {type(err).__name__}", exc_info=err)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
@@ -1324,11 +1286,7 @@ def move_within(
     except HTTPException:
         raise
     except (OSError, shutil.Error) as err:
-        core_logger.print_to_log(
-            f"move_within failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"move_within failed: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -1369,9 +1327,122 @@ def safe_remove_within(
     except FileNotFoundError:
         return False
     except OSError as err:
-        core_logger.print_to_log(
-            f"safe_remove_within failed for {target.name}: {type(err).__name__}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"safe_remove_within failed for {target.name}: {type(err).__name__}", exc_info=err)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Generic on-disk file helpers
+# ---------------------------------------------------------------------------
+
+
+def sha256_file(file_path: str | os.PathLike) -> str:
+    """Return the hex SHA-256 of a file's contents, streamed in chunks.
+
+    Streaming (rather than reading the whole file) keeps memory bounded for the
+    large payloads this codebase handles. Callers use the digest as a stable
+    content fingerprint — e.g. to make re-importing an identical file a no-op.
+
+    Args:
+        file_path: File to hash.
+
+    Returns:
+        The lowercase hex digest.
+    """
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(_STREAM_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def remove_files(file_paths: Iterable[str | os.PathLike]) -> None:
+    """Best-effort removal of files, logging (not raising) on failure.
+
+    Used to clean up artifacts left behind by a failed multi-step operation, where
+    a cleanup failure must not mask the original error.
+
+    Args:
+        file_paths: Files to remove if they still exist.
+
+    Returns:
+        None.
+    """
+    for file_path in file_paths:
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except OSError as err:
+            logger.warning(f"Failed to clean up file {os.fspath(file_path)}: {err}", exc_info=err)
+
+
+def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
+    """Decompress a ``.gz`` file to a temp file with a bounded output size.
+
+    The output is capped at the same limit a direct activity upload gets, so a
+    decompression bomb cannot fill the disk (defense in depth: the wrapping
+    ``.gz`` upload is already size-checked before it reaches here). The source
+    ``.gz`` is consumed (removed) on success — the decompressed payload is what
+    downstream code retains.
+
+    Args:
+        file_path: Path to the gzipped file.
+
+    Returns:
+        A ``(temp_file_path, inner_extension)`` tuple, where the extension is
+        derived from the filename inside the ``.gz`` (e.g. ``".fit"``).
+
+    Raises:
+        HTTPException: 400 for invalid gzip content, 413 when the decompressed
+            content exceeds the allowed size.
+    """
+    path = Path(os.fspath(file_path))
+
+    inner_filename = path.stem  # eg "activity_1234567890.fit"
+    inner_file_extension = Path(inner_filename).suffix
+    temp_file_path: str | None = None
+    bytes_written = 0
+
+    try:
+        with (
+            gzip.open(path, "rb") as gzipped_file,
+            tempfile.NamedTemporaryFile(suffix=inner_file_extension, delete=False) as temp_file,
+        ):
+            temp_file_path = temp_file.name
+            while True:
+                chunk = gzipped_file.read(_STREAM_CHUNK_BYTES)
+                if not chunk:
+                    break
+                bytes_written += len(chunk)
+                if bytes_written > _MAX_ACTIVITY_BYTES:
+                    temp_file.close()
+                    with contextlib.suppress(OSError):
+                        os.remove(temp_file_path)
+                    raise HTTPException(
+                        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                        detail="Decompressed file exceeds maximum allowed size",
+                    )
+                temp_file.write(chunk)
+            temp_file.flush()
+
+        logger.info(
+            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}",
+            extra=core_logger.context(console=True),
+        )
+
+        # The original .gz is consumed once decompressed: the decompressed file is
+        # what downstream code retains, so remove the staging archive.
+        with contextlib.suppress(OSError):
+            os.remove(str(path))
+
+        return temp_file_path, inner_file_extension
+    except HTTPException:
+        raise
+    except (OSError, EOFError, gzip.BadGzipFile) as err:
+        if temp_file_path is not None:
+            with contextlib.suppress(OSError):
+                os.remove(temp_file_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid gzip file",
+        ) from err

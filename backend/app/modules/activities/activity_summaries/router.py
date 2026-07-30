@@ -15,11 +15,14 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.logger as core_logger
 import modules.activities.activity_summaries.crud as summary_crud
 import modules.activities.activity_summaries.dependencies as summary_deps
 import modules.activities.activity_summaries.schema as summary_schema
 import modules.auth.dependencies as auth_dependencies
 import modules.users.users.utils as users_utils
+
+logger = core_logger.get_logger(__name__)
 
 router = APIRouter()
 
@@ -64,6 +67,10 @@ def _parse_target_date(
     try:
         return date.fromisoformat(target_date_str)
     except (ValueError, TypeError):
+        logger.debug(
+            "Rejected a summary request with an unparseable target date",
+            extra=core_logger.context(target_date=target_date_str),
+        )
         raise HTTPException(
             status_code=(status.HTTP_400_BAD_REQUEST),
             detail=("Invalid date format. Use YYYY-MM-DD."),
@@ -157,6 +164,21 @@ def read_activity_summary(
     # configured timezone is the same frame of reference it would have sent.
     today = users_utils.user_local_today(token_user_id, db)
 
+    # Which day the server thinks "today" is drives every bucket boundary, so log
+    # it alongside what the caller asked for — off-by-one summary reports are
+    # almost always an anchor/timezone mismatch.
+    logger.debug(
+        "Building an activity summary",
+        extra=core_logger.context(
+            user_id=token_user_id,
+            view_type=view_type,
+            target_date=target_date_str,
+            target_year=target_year,
+            activity_type=activity_type,
+            resolved_today=today.isoformat(),
+        ),
+    )
+
     if view_type == "week":
         current_date = _parse_target_date(target_date_str, today)
         return summary_crud.get_weekly_summary(
@@ -179,6 +201,10 @@ def read_activity_summary(
         max_year = _latest_plausible_year()
         current_year = target_year if target_year else today.year
         if not (1900 <= current_year <= max_year):
+            logger.debug(
+                "Rejected a yearly summary request with an implausible year",
+                extra=core_logger.context(target_year=current_year, max_year=max_year),
+            )
             raise HTTPException(
                 status_code=(status.HTTP_400_BAD_REQUEST),
                 detail=(f"Invalid year. Must be between 1900 and {max_year}."),

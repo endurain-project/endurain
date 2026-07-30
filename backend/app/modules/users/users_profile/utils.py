@@ -20,6 +20,8 @@ from modules.users.users_profile.exceptions import (
     MemoryAllocationError,
 )
 
+logger = core_logger.get_logger(__name__)
+
 # Type variable for performance config classes
 T_PerformanceConfig = TypeVar("T_PerformanceConfig", bound="BasePerformanceConfig")
 
@@ -79,10 +81,10 @@ class BasePerformanceConfig:
                 config_dict = tier_configs[tier]
                 return cls(**config_dict)
             else:
-                core_logger.print_to_log(f"Unknown memory tier '{tier}', using default config", "warning")
+                logger.warning(f"Unknown memory tier '{tier}', using default config")
                 return cls()
         except Exception as err:
-            core_logger.print_to_log(f"Failed to create auto config, using defaults: {err}", "warning")
+            logger.warning(f"Failed to create auto config, using defaults: {err}")
             return cls()
 
 
@@ -168,7 +170,7 @@ def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
         process = psutil.Process()
         return process.memory_info().rss / (1024 * 1024)  # Convert to MB
     except Exception as err:
-        core_logger.print_to_log(f"Failed to get memory usage: {err}", "warning")
+        logger.warning(f"Failed to get memory usage: {err}")
         return 0.0
 
 
@@ -220,15 +222,12 @@ def check_memory_usage(
             f"Memory usage ({current_memory:.1f}MB) critically exceeded limit "
             f"({max_memory_mb}MB, effective: {effective_limit:.1f}MB) during {operation}"
         )
-        core_logger.print_to_log(error_msg, "error")
+        logger.error(error_msg)
         raise MemoryAllocationError(error_msg)
 
     # Warn at 90%
     if current_memory > max_memory_mb * 0.9:
-        core_logger.print_to_log(
-            f"High memory usage: {current_memory:.1f}MB (limit: {max_memory_mb}MB) during {operation}",
-            "info",
-        )
+        logger.info(f"High memory usage: {current_memory:.1f}MB (limit: {max_memory_mb}MB) during {operation}")
 
 
 def initialize_operation_counts(include_user_count: bool = False) -> dict[str, int]:
@@ -283,5 +282,5 @@ def detect_system_memory_tier() -> tuple[str, int]:
         else:  # Low memory system
             return "low", available_mb
     except Exception as err:
-        core_logger.print_to_log(f"Failed to detect system memory, using defaults: {err}", "warning")
+        logger.warning(f"Failed to detect system memory, using defaults: {err}")
         return "medium", 1024  # Default to medium tier with 1GB

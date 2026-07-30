@@ -22,6 +22,8 @@ import infra.runtime as platform_runtime
 from infra.jobs.runner import JobRunner
 from infra.jobs.worker import BackgroundWorker
 
+logger = core_logger.get_logger(__name__)
+
 # How often the scheduler relays the outbox and reaps expired leases (seconds).
 _RELAY_INTERVAL_SECONDS = 5
 _REAP_INTERVAL_SECONDS = 60
@@ -76,7 +78,7 @@ def start_job_worker() -> None:
         return
     _worker = BackgroundWorker(build_runner(), poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS)
     _worker.start()
-    core_logger.print_to_log_and_console("Durable job worker started")
+    logger.info("Durable job worker started", extra=core_logger.context(console=True))
 
 
 def stop_job_worker() -> None:
@@ -94,7 +96,7 @@ def stop_job_worker() -> None:
         return
     _worker.stop()
     _worker = None
-    core_logger.print_to_log_and_console("Durable job worker stopped")
+    logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 
 def relay_outbox_scheduled() -> None:
@@ -142,7 +144,7 @@ def reap_expired_jobs_scheduled() -> None:
     with core_database.SessionLocal() as db:
         reclaimed = jobs_crud.reclaim_expired_leases(now=platform.clock.now(), db=db)
     if reclaimed:
-        core_logger.print_to_log(f"Reaped {reclaimed} expired job lease(s)")
+        logger.info(f"Reaped {reclaimed} expired job lease(s)")
 
 
 def schedule_job_maintenance(scheduler: AsyncIOScheduler) -> None:
@@ -169,4 +171,4 @@ def schedule_job_maintenance(scheduler: AsyncIOScheduler) -> None:
         id=_REAP_JOB_ID,
         replace_existing=True,
     )
-    core_logger.print_to_log("Scheduled durable-job outbox relay and lease reaper")
+    logger.info("Scheduled durable-job outbox relay and lease reaper")

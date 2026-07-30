@@ -335,8 +335,7 @@ def patched_gear():
 
 
 class TestCreateMultipleGears:
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_success_single(self, mock_log, mock_db, patched_gear):
+    def test_success_single(self, mock_db, patched_gear):
         import modules.gears.gear.crud as crud
         import modules.gears.gear.schema as s
 
@@ -348,8 +347,7 @@ class TestCreateMultipleGears:
         mock_db.add_all.assert_called_once()
         mock_db.commit.assert_called_once()
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_success_multiple(self, mock_log, mock_db, patched_gear):
+    def test_success_multiple(self, mock_db, patched_gear):
         import modules.gears.gear.crud as crud
         import modules.gears.gear.schema as s
 
@@ -364,7 +362,7 @@ class TestCreateMultipleGears:
         assert mock_db.add_all.call_count == 1
         mock_db.commit.assert_called_once()
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
+    @patch("modules.gears.gear.crud.logger")
     def test_dedup_by_nickname(self, mock_log, mock_db, patched_gear):
         import modules.gears.gear.crud as crud
         import modules.gears.gear.schema as s
@@ -378,10 +376,9 @@ class TestCreateMultipleGears:
         ]
         crud.create_multiple_gears(gears_list, user_id=1, db=mock_db)
         mock_db.add_all.assert_called_once()
-        assert mock_log.call_count == 1
+        assert len(mock_log.method_calls) == 1
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_skip_existing(self, mock_log, mock_db):
+    def test_skip_existing(self, mock_db):
         import modules.gears.gear.crud as crud
         import modules.gears.gear.schema as s
 
@@ -392,23 +389,20 @@ class TestCreateMultipleGears:
         crud.create_multiple_gears([gear], user_id=1, db=mock_db)
         mock_db.add_all.assert_not_called()
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_empty_input(self, mock_log, mock_db):
+    def test_empty_input(self, mock_db):
         import modules.gears.gear.crud as crud
 
         crud.create_multiple_gears([], user_id=1, db=mock_db)
         mock_db.add_all.assert_not_called()
         mock_db.commit.assert_not_called()
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_all_invalid(self, mock_log, mock_db):
+    def test_all_invalid(self, mock_db):
         import modules.gears.gear.crud as crud
 
         crud.create_multiple_gears([None, None], user_id=1, db=mock_db)
         mock_db.add_all.assert_not_called()
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_integrity_error(self, mock_log, mock_db, patched_gear):
+    def test_integrity_error(self, mock_db, patched_gear):
         import modules.gears.gear.crud as crud
         import modules.gears.gear.schema as s
 
@@ -422,8 +416,7 @@ class TestCreateMultipleGears:
         assert e.value.status_code == 409
         mock_db.rollback.assert_called_once()
 
-    @patch("modules.gears.gear.crud.core_logger.print_to_log_and_console")
-    def test_db_error(self, mock_log, mock_db, patched_gear):
+    def test_db_error(self, mock_db, patched_gear):
         import modules.gears.gear.crud as crud
         import modules.gears.gear.schema as s
 

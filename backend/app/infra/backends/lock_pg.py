@@ -22,6 +22,8 @@ from sqlalchemy import text
 import core.database as core_database
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 
 def advisory_key(name: str) -> int:
     """Map a lock name to a signed 64-bit key for ``pg_advisory_lock``.
@@ -70,6 +72,6 @@ class PgAdvisoryLock:
                     # Never let an unlock failure mask a body exception; drop the
                     # still-locked connection so its backend session (and the
                     # lock) is discarded instead of returned to the pool.
-                    core_logger.print_to_log(f"Failed to release advisory lock {name!r}", "error", exc=error)
+                    logger.error(f"Failed to release advisory lock {name!r}", exc_info=error)
                     connection.invalidate()
             connection.close()

@@ -16,6 +16,8 @@ import migrations.migration_6 as migrations_migration_6
 import migrations.migration_7 as migrations_migration_7
 import migrations.migration_8 as migrations_migration_8
 
+logger = core_logger.get_logger(__name__)
+
 # Synchronous migration handlers keyed by migration ID.
 _SYNC_MIGRATIONS: dict[int, Callable[[Session], None]] = {
     1: migrations_migration_1.process_migration_1,
@@ -54,7 +56,7 @@ async def check_migrations_not_executed(
         return
 
     for migration in migrations_not_executed:
-        core_logger.print_to_log(f"Migration not executed: {migration.name} - Migration will be executed")
+        logger.info(f"Migration not executed: {migration.name} - Migration will be executed")
 
         if migration.id in _SYNC_MIGRATIONS:
             _SYNC_MIGRATIONS[migration.id](db)

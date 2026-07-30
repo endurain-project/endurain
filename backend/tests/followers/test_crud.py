@@ -259,8 +259,7 @@ class TestCreateFollower:
         assert e.value.status_code == 409
 
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    @patch("modules.followers.crud.core_logger.print_to_log")
-    def test_integrity_error(self, mock_log, mock_get_follow, mock_db):
+    def test_integrity_error(self, mock_get_follow, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 
@@ -276,8 +275,7 @@ class TestCreateFollower:
         mock_db.rollback.assert_called_once()
 
     @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    @patch("modules.followers.crud.core_logger.print_to_log")
-    def test_sqlalchemy_error(self, mock_log, mock_get_follow, mock_db):
+    def test_sqlalchemy_error(self, mock_get_follow, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 
@@ -314,8 +312,7 @@ class TestAcceptFollower:
             crud.accept_follower(user_id=1, target_user_id=999, db=mock_db)
         assert e.value.status_code == 404
 
-    @patch("modules.followers.crud.core_logger.print_to_log")
-    def test_sqlalchemy_error(self, mock_log, mock_db):
+    def test_sqlalchemy_error(self, mock_db):
         import modules.followers.crud as crud
         import modules.followers.models as m
 

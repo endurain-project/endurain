@@ -11,6 +11,7 @@ from timezonefinder import TimezoneFinder
 import core.config as core_config
 import core.logger as core_logger
 import modules.activities.activity.constants as activities_constants
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_file_import.computation as activities_computation
@@ -23,6 +24,8 @@ import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
 import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
 from core.database import SessionLocal
+
+logger = core_logger.get_logger(__name__)
 
 
 async def fetch_and_process_activities(
@@ -37,9 +40,9 @@ async def fetch_and_process_activities(
     # Check if we're currently rate-limited before
     # making any Strava API calls
     if strava_utils.rate_limit_tracker.is_rate_limited():
-        core_logger.print_to_log_and_console(
+        logger.warning(
             f"User {user_id}: Strava rate limit active, skipping activity fetch",
-            "warning",
+            extra=core_logger.context(console=True),
         )
         return 0
 
@@ -56,11 +59,7 @@ async def fetch_and_process_activities(
         )
     except AccessUnauthorized as auth_err:
         # Log a more specific error for auth issues
-        core_logger.print_to_log(
-            f"User {user_id}: Authentication error with Strava: {auth_err!s}",
-            "error",
-            exc=auth_err,
-        )
+        logger.error(f"User {user_id}: Authentication error with Strava: {auth_err!s}", exc_info=auth_err)
         if not is_startup:
             raise HTTPException(
                 status_code=(status.HTTP_424_FAILED_DEPENDENCY),
@@ -75,10 +74,7 @@ async def fetch_and_process_activities(
             err_str = str(err).lower()
             is_long = "long" in err_str or ("daily" in err_str)
             strava_utils.rate_limit_tracker.mark_rate_limited(is_long_term=is_long)
-            core_logger.print_to_log(
-                f"User {user_id}: Strava rate limit exceeded, skipping activity fetch",
-                "warning",
-            )
+            logger.warning(f"User {user_id}: Strava rate limit exceeded, skipping activity fetch")
             if not is_startup:
                 raise HTTPException(
                     status_code=(status.HTTP_429_TOO_MANY_REQUESTS),
@@ -87,11 +83,7 @@ async def fetch_and_process_activities(
             return 0
 
         # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"User {user_id}: Error fetching Strava activities: {err!s}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"User {user_id}: Error fetching Strava activities: {err!s}", exc_info=err)
         if not is_startup:
             raise HTTPException(
                 status_code=(status.HTTP_424_FAILED_DEPENDENCY),
@@ -101,9 +93,7 @@ async def fetch_and_process_activities(
 
     if strava_activities is None:
         # Log an informational event if no activities were found
-        core_logger.print_to_log(
-            f"User {user_id}: No new Strava activities found after {start_date}: strava_activities is None"
-        )
+        logger.info(f"User {user_id}: No new Strava activities found after {start_date}: strava_activities is None")
 
         # Return 0 to indicate no activities were processed
         return 0
@@ -165,10 +155,7 @@ def parse_activity(
 
     # Check rate limit before detailed activity fetch
     if strava_utils.rate_limit_tracker.is_rate_limited():
-        core_logger.print_to_log(
-            f"User {user_id}: Strava rate limit active, skipping activity parse",
-            "warning",
-        )
+        logger.warning(f"User {user_id}: Strava rate limit active, skipping activity parse")
         raise HTTPException(
             status_code=(status.HTTP_429_TOO_MANY_REQUESTS),
             detail=("Strava API rate limit exceeded. Please try again later."),
@@ -188,11 +175,7 @@ def parse_activity(
                 detail=("Strava API rate limit exceeded. Please try again later."),
             ) from err
         # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"User {user_id}: Error fetching detailed Strava activity {activity.id}: {err!s}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"User {user_id}: Error fetching detailed Strava activity {activity.id}: {err!s}", exc_info=err)
         raise HTTPException(
             status_code=(status.HTTP_424_FAILED_DEPENDENCY),
             detail=("Not able to fetch Strava activity"),
@@ -330,7 +313,7 @@ def parse_activity(
         )
 
     # Create the activity object
-    activity_to_store = activities_schema.ActivityCore(
+    activity_to_store = activities_contracts.ActivityCore(
         user_id=user_id,
         name=detailed_activity.name,
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
@@ -392,7 +375,7 @@ def parse_activity(
 
 
 def save_activity_streams_laps(
-    activity: activities_schema.ActivityCore,
+    activity: activities_contracts.ActivityCore,
     stream_data: list,
     laps: list[dict] | None,
     db: Session,
@@ -418,15 +401,15 @@ def save_activity_streams_laps(
         The created activity schema.
     """
     parsed_streams = [
-        activities_schema.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
+        activities_contracts.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
         for is_set, stream_type, waypoints in (stream_data or [])
         if is_set
     ]
-    parsed = activities_schema.ParsedActivity(
+    parsed = activities_contracts.ParsedActivity(
         activity=activity,
         streams=parsed_streams,
         laps=laps,
-        source=activities_schema.ImportSource(
+        source=activities_contracts.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,
             dedup_key=(f"strava:{activity.strava_activity_id}" if activity.strava_activity_id is not None else None),
@@ -454,7 +437,7 @@ async def process_activity(
         return None
 
     # Log an informational event for activity processing
-    core_logger.print_to_log(f"User {user_id}: Strava activity {activity.id} will be processed")
+    logger.info(f"User {user_id}: Strava activity {activity.id} will be processed")
 
     # Parse the activity and streams — run in a thread pool because parse_activity
     # makes multiple blocking synchronous HTTP calls (get_activity, get_activity_streams,
@@ -485,10 +468,7 @@ def fetch_and_process_activity_streams(
 ):
     # Check rate limit before fetching streams
     if strava_utils.rate_limit_tracker.is_rate_limited():
-        core_logger.print_to_log(
-            f"User {user_id}: Strava rate limit active, skipping streams fetch",
-            "warning",
-        )
+        logger.warning(f"User {user_id}: Strava rate limit active, skipping streams fetch")
         raise HTTPException(
             status_code=(status.HTTP_429_TOO_MANY_REQUESTS),
             detail=("Strava API rate limit exceeded. Please try again later."),
@@ -522,9 +502,8 @@ def fetch_and_process_activity_streams(
         # added activities from Apple Health have no GPS/sensor streams).
         # In that case return empty data so the activity can still be imported.
         if strava_utils.is_strava_not_found_error(err):
-            core_logger.print_to_log(
-                f"User {user_id}: No streams found for Strava activity {strava_activity_id} (activity has no sensor data). Continuing without streams.",
-                "info",
+            logger.info(
+                f"User {user_id}: No streams found for Strava activity {strava_activity_id} (activity has no sensor data). Continuing without streams."
             )
             return (
                 [],
@@ -542,10 +521,8 @@ def fetch_and_process_activity_streams(
                 [],  # pace_waypoints
             )
         # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"User {user_id}: Error fetching Strava activity streams {strava_activity_id}: {err!s}",
-            "error",
-            exc=err,
+        logger.error(
+            f"User {user_id}: Error fetching Strava activity streams {strava_activity_id}: {err!s}", exc_info=err
         )
         raise HTTPException(
             status_code=(status.HTTP_424_FAILED_DEPENDENCY),
@@ -641,10 +618,9 @@ def fetch_and_process_activity_laps(
         laps = strava_client.get_activity_laps(strava_activity_id)
     except Exception as err:
         # Log an error event if an exception occurred
-        core_logger.print_to_log(
+        logger.error(
             f"User {user_id}: Error fetching Strava activity laps for Strava activity {strava_activity_id}: {err!s}",
-            "error",
-            exc=err,
+            exc_info=err,
         )
         # Return None to indicate the activity was not processed
         return None
@@ -731,10 +707,7 @@ def fetch_and_process_activity_laps(
 async def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = False):
     # Skip entirely if Strava rate limit is active
     if strava_utils.rate_limit_tracker.is_rate_limited():
-        core_logger.print_to_log(
-            "Strava rate limit active, skipping scheduled activity retrieval",
-            "warning",
-        )
+        logger.warning("Strava rate limit active, skipping scheduled activity retrieval")
         return
 
     # Create a new database session using context manager
@@ -760,20 +733,14 @@ async def retrieve_strava_users_activities_for_days(days: int, is_startup: bool 
                         )
                     except HTTPException as err:
                         # Log the error but continue processing other users
-                        core_logger.print_to_log(
-                            f"User {user.id}: Error processing Strava activities: {err!s}",
-                            "error",
-                            exc=err,
-                        )
+                        logger.error(f"User {user.id}: Error processing Strava activities: {err!s}", exc_info=err)
                         # Don't reraise the exception if we're in startup mode
                         if not is_startup:
                             raise err
                     except Exception as err:
                         # Log the error but continue processing other users
-                        core_logger.print_to_log(
-                            f"User {user.id}: Unexpected error processing Strava activities: {err!s}",
-                            "error",
-                            exc=err,
+                        logger.error(
+                            f"User {user.id}: Unexpected error processing Strava activities: {err!s}", exc_info=err
                         )
                         # Don't reraise the exception if we're in startup mode
                         if not is_startup:
@@ -783,21 +750,13 @@ async def retrieve_strava_users_activities_for_days(days: int, is_startup: bool 
                             ) from err
         except HTTPException as err:
             # Log an error event if an HTTPException occurred
-            core_logger.print_to_log(
-                f"Error retrieving users: {err!s}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"Error retrieving users: {err!s}", exc_info=err)
             # Raise the HTTPException to propagate the error
             if not is_startup:
                 raise err
         except Exception as err:
             # Log an error event if an exception occurred
-            core_logger.print_to_log(
-                f"Error retrieving users: {err!s}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"Error retrieving users: {err!s}", exc_info=err)
             # Raise an HTTPException with a 500 Internal Server Error status code
             if not is_startup:
                 raise HTTPException(
@@ -824,11 +783,11 @@ async def get_user_strava_activities_by_dates(
         user_integrations = strava_utils.fetch_user_integrations_and_validate_token(user_id, db)
 
         if user_integrations is None:
-            core_logger.print_to_log(f"User {user_id}: Strava not linked")
+            logger.info(f"User {user_id}: Strava not linked")
             return None
 
         # Log the start of the activities processing
-        core_logger.print_to_log(f"User {user_id}: Started Strava activities processing")
+        logger.info(f"User {user_id}: Started Strava activities processing")
 
         # Create a Strava client with the user's access token
         strava_client = strava_utils.create_strava_client(user_integrations)
@@ -846,28 +805,20 @@ async def get_user_strava_activities_by_dates(
             )
 
             # Log an informational event for tracing
-            core_logger.print_to_log(
+            logger.info(
                 f"User {user_id}: {len(strava_activities_processed) if strava_activities_processed else 0} Strava activities processed"
             )
 
             return strava_activities_processed
         except HTTPException as err:
             # Log an error event if an exception occurred
-            core_logger.print_to_log(
-                f"User {user_id}: Error processing Strava activities: {err!s}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"User {user_id}: Error processing Strava activities: {err!s}", exc_info=err)
             # Raise the HTTPException to propagate the error
             if not is_startup:
                 raise err
         except Exception as err:
             # Log an error event if an exception occurred
-            core_logger.print_to_log(
-                f"User {user_id}: Error processing Strava activities: {err!s}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"User {user_id}: Error processing Strava activities: {err!s}", exc_info=err)
             # Raise an HTTPException with a 500 Internal Server Error status code
             if not is_startup:
                 raise HTTPException(
@@ -876,21 +827,13 @@ async def get_user_strava_activities_by_dates(
                 ) from err
     except HTTPException as err:
         # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"User {user_id}: Error getting user integrations and Strava client: {err!s}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"User {user_id}: Error getting user integrations and Strava client: {err!s}", exc_info=err)
         # Raise the HTTPException to propagate the error
         if not is_startup:
             raise err
     except Exception as err:
         # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"User {user_id}: Error getting user integrations and Strava client: {err!s}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"User {user_id}: Error getting user integrations and Strava client: {err!s}", exc_info=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         if not is_startup:
             raise HTTPException(

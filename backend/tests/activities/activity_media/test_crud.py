@@ -278,7 +278,7 @@ class TestDeleteActivityMedia:
             crud.delete_activity_media(1, 1, mock_db)
         assert e.value.status_code == 500
 
-    @patch("modules.activities.activity_media.crud.core_logger.print_to_log")
+    @patch("modules.activities.activity_media.crud.logger")
     @patch("modules.activities.activity_media.crud.core_file_uploads.safe_remove_within")
     @patch("modules.activities.activity_media.crud.core_config.settings")
     @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
@@ -294,4 +294,4 @@ class TestDeleteActivityMedia:
         mock_db.delete.assert_called_once()
         mock_db.commit.assert_called_once()
         # delete logs a debug line on success and a warning when cleanup fails
-        assert any(call.args[1] == "warning" for call in mock_log.call_args_list)
+        mock_log.warning.assert_called_once()

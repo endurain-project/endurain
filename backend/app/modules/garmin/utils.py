@@ -17,6 +17,8 @@ import modules.users.users_integrations.models as user_integrations_models
 import modules.websocket.manager as websocket_manager
 import modules.websocket.utils as websocket_utils
 
+logger = core_logger.get_logger(__name__)
+
 
 async def get_mfa(
     user_id: int,
@@ -96,10 +98,10 @@ async def link_garminconnect(
         requests.exceptions.HTTPError,
     ) as err:
         # Print error info to check dedicated log in main log
-        core_logger.print_to_log_and_console(
+        logger.error(
             "There was an authentication error using Garmin Connect. Check credentials: {err}",
-            "error",
-            err,
+            exc_info=err,
+            extra=core_logger.context(console=True),
         )
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
@@ -116,10 +118,10 @@ async def link_garminconnect(
             detail="Incorrect MFA code",
         ) from err
     except Exception as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Internal server error while linking Garmin Connect: {err}",
-            "error",
-            err,
+            exc_info=err,
+            extra=core_logger.context(console=True),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -148,10 +150,10 @@ def login_garminconnect_using_tokens(token):
         requests.exceptions.HTTPError,
     ) as err:
         # Print error info to check dedicated log in main log
-        core_logger.print_to_log_and_console(
+        logger.error(
             "There was an authentication error using Garmin Connect: {err}",
-            "error",
-            err,
+            exc_info=err,
+            extra=core_logger.context(console=True),
         )
         return None
 
@@ -167,7 +169,7 @@ def serialize_garmin_token(client, is_cn: bool = False) -> dict:
             "is_cn": is_cn,
         }
     except Exception as err:
-        core_logger.print_to_log_and_console(f"Error in serialize_garmin_token: {err}", "error", err)
+        logger.error(f"Error in serialize_garmin_token: {err}", exc_info=err, extra=core_logger.context(console=True))
         raise err
 
 
@@ -187,7 +189,7 @@ def deserialize_garmin_token(data: dict) -> str:
             }
         )
     except Exception as err:
-        core_logger.print_to_log_and_console(f"Error in deserialize_garmin_token: {err}", "error", err)
+        logger.error(f"Error in deserialize_garmin_token: {err}", exc_info=err, extra=core_logger.context(console=True))
         raise err
 
 

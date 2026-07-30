@@ -13,7 +13,7 @@ def _parsed(**overrides):
     ``_derive_dedup_key`` yields ``None`` and the idempotency no-op path stays
     inert unless a test opts in via ``source``/``activity`` overrides.
     """
-    import modules.activities.activity.schema as schema
+    import modules.activities.activity.contracts as schema
 
     data = {
         "activity": MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=3),
@@ -32,8 +32,8 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_stores_activity_and_streams(self, mock_crud, mock_streams_crud, mock_pub):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         created = MagicMock(id=7, user_id=3)
         mock_crud.create_activity = MagicMock(return_value=created)
@@ -107,8 +107,8 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_persists_children_and_activity_without_committing(self, mock_crud, mock_streams_crud, mock_pub):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=7, user_id=3, is_hidden=False))
         db = MagicMock()
@@ -128,8 +128,8 @@ class TestStoreParsedActivity:
     def test_rolls_back_and_raises_when_child_fails(self, mock_crud, mock_streams_crud, mock_pub):
         from sqlalchemy.exc import SQLAlchemyError
 
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=5, user_id=2, is_hidden=False))
         mock_streams_crud.create_activity_streams = MagicMock(side_effect=SQLAlchemyError("boom"))
@@ -149,8 +149,8 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_noop_when_dedup_key_already_ingested(self, mock_crud, mock_streams_crud, mock_pub):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         existing = MagicMock(id=42, user_id=3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
@@ -176,8 +176,8 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_derives_and_passes_strava_dedup_key(self, mock_crud, mock_streams_crud, mock_pub):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=7, user_id=3, is_hidden=False))
@@ -197,8 +197,8 @@ class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_streams_crud")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_derives_garmin_dedup_key_when_no_strava(self, mock_crud, mock_streams_crud, mock_pub):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=None)
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=8, user_id=3, is_hidden=False))
@@ -216,8 +216,8 @@ class TestStoreParsedActivity:
     def test_noop_on_existing_content_hash(self, mock_crud, mock_streams_crud, mock_pub):
         from datetime import UTC, datetime
 
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         existing = MagicMock(id=99, user_id=3)
         mock_crud.get_activity_by_dedup_key = MagicMock(return_value=existing)
@@ -302,8 +302,8 @@ class TestDeriveDedupKey:
         )
 
     def test_none_for_plain_upload_without_hash(self):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=None)
         assert ingestion_service._derive_dedup_key(activity, schema.ImportSource(kind="upload")) is None
@@ -311,8 +311,8 @@ class TestDeriveDedupKey:
     def test_content_hash_key_when_no_provider_id(self):
         from datetime import UTC, datetime
 
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         activity = MagicMock(
             strava_activity_id=None,
@@ -324,8 +324,8 @@ class TestDeriveDedupKey:
         assert ingestion_service._derive_dedup_key(activity, source) == f"file:abc123:{epoch}"
 
     def test_provider_id_wins_over_content_hash(self):
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         activity = MagicMock(strava_activity_id=9, garminconnect_activity_id=None)
         source = schema.ImportSource(kind="upload", content_hash="abc123")
@@ -334,8 +334,8 @@ class TestDeriveDedupKey:
     def test_multi_activity_distinct_start_times_yield_distinct_keys(self):
         from datetime import UTC, datetime
 
+        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
-        import modules.activities.activity.schema as schema
 
         # Two activities parsed from the SAME multi-activity file share the file
         # hash but differ by start time, so the start-time salt keeps their keys

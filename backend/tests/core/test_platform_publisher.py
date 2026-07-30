@@ -38,7 +38,7 @@ class TestPublish:
         event = platform.events.publish.call_args.args[0]
         assert event.metadata == {"request_id": "req-123", "user_id": 3}
 
-    @patch("infra.publisher.core_logger")
+    @patch("infra.publisher.logger")
     @patch("infra.publisher.platform_runtime")
     def test_swallows_and_logs_when_platform_unavailable(self, mock_runtime, mock_logger):
         from infra.publisher import publish
@@ -48,7 +48,7 @@ class TestPublish:
         # Must not raise — publishing is best-effort so it never breaks the producer.
         publish("activity.created", {"activity_id": 1}, source="api:test")
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
 
 class TestDurableRouting:

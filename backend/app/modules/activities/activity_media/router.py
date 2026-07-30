@@ -19,6 +19,8 @@ import modules.activities.activity_media.dependencies as activities_media_depend
 import modules.activities.activity_media.schema as activity_media_schema
 import modules.auth.dependencies as auth_dependencies
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -171,16 +173,10 @@ def upload_media(
                 base_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
             )
         except HTTPException as fs_err:
-            core_logger.print_to_log(
-                f"Failed to clean up orphaned media file {new_file_name}: {fs_err.detail}",
-                "warning",
-            )
+            logger.warning(f"Failed to clean up orphaned media file {new_file_name}: {fs_err.detail}")
         raise
 
-    core_logger.print_to_log(
-        f"Uploaded media for activity {activity_id} by user {token_user_id}",
-        "info",
-    )
+    logger.info(f"Uploaded media for activity {activity_id} by user {token_user_id}")
     return created
 
 

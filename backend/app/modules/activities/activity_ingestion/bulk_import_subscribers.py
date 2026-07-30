@@ -30,6 +30,8 @@ import modules.activities.activity_ingestion.orchestrator as orchestrator
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 
+logger = core_logger.get_logger(__name__)
+
 # Stable durable-subscriber id (independent of module path) so job history and
 # dedup survive refactors.
 BULK_IMPORT_FILE_SUBSCRIBER_ID = "activity_ingestion.bulk_import_file"
@@ -80,10 +82,7 @@ def publish_bulk_import_files(
         db=db,
         commit=db.commit,
     )
-    core_logger.print_to_log(
-        f"Bulk import: enqueued {len(file_paths)} durable file job(s) for user {user_id}",
-        "info",
-    )
+    logger.info(f"Bulk import: enqueued {len(file_paths)} durable file job(s) for user {user_id}")
 
 
 def process_bulk_import_file_for_event(event: Event) -> None:
@@ -131,14 +130,13 @@ def _move_to_error_dir(file_path: str) -> None:
             filename=os.path.basename(file_path),
             src_base_dir=core_config.FILES_BULK_IMPORT_DIR,
         )
-        core_logger.print_to_log_and_console(
-            f"Bulk import: dead-lettered file {file_path} moved to {error_dir}",
-            "error",
+        logger.error(
+            f"Bulk import: dead-lettered file {file_path} moved to {error_dir}", extra=core_logger.context(console=True)
         )
     except OSError:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Bulk import: failed to move dead-lettered file {file_path} to the import-error directory",
-            "error",
+            extra=core_logger.context(console=True),
         )
 
 

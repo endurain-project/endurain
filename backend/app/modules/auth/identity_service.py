@@ -61,6 +61,8 @@ from modules.auth.principal import (
     SessionCookieCred,
 )
 
+logger = core_logger.get_logger(__name__)
+
 if TYPE_CHECKING:
     import modules.auth._internal.security_stores as auth_security_stores
     import modules.auth.identity_providers.link_tokens.schema as auth_idp_link_tokens_schema
@@ -888,21 +890,16 @@ class DefaultIdentityService:
         try:
             auth_api_keys_crud.update_last_used(db_key.id, self._db)
         except SQLAlchemyError as err:
-            core_logger.print_to_log(
-                f"Failed to update last_used_at for API key {db_key.id}: {err}",
-                "warning",
-                exc=err,
-            )
+            logger.warning(f"Failed to update last_used_at for API key {db_key.id}: {err}", exc_info=err)
 
-        core_logger.print_to_log(
+        logger.info(
             "API key authenticated",
-            "info",
-            context={
-                "key_prefix": db_key.key_prefix,
-                "user_id": db_key.user_id,
-                "endpoint": request.url.path,
-                "ip": (request.client.host if request.client else "unknown"),
-            },
+            extra=core_logger.context(
+                key_prefix=db_key.key_prefix,
+                user_id=db_key.user_id,
+                endpoint=request.url.path,
+                ip=request.client.host if request.client else "unknown",
+            ),
         )
 
         scopes = auth_api_keys_utils.json_to_scopes(db_key.scopes)

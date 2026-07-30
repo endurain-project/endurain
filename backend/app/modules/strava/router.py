@@ -26,6 +26,8 @@ import modules.strava.utils as strava_utils
 import modules.users.users_integrations.crud as user_integrations_crud
 import modules.websocket.manager as websocket_manager
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -78,7 +80,7 @@ async def strava_link(
         # Return success message
         return {"detail": f"Strava linked successfully for user {user_integrations.user_id}"}
     except Exception as err:
-        core_logger.print_to_log(f"Unable to link Strava account: {err}", "error", exc=err)
+        logger.error(f"Unable to link Strava account: {err}", exc_info=err)
 
         # Clean up by setting Strava
         user_integrations_crud.unlink_strava_account(user_integrations.user_id, db)
@@ -124,7 +126,7 @@ async def strava_retrieve_activities_days(
     )
 
     # Return success message and status code 202
-    core_logger.print_to_log(f"Strava activities will be processed in the background for user {token_user_id}")
+    logger.info(f"Strava activities will be processed in the background for user {token_user_id}")
     return {"detail": f"Strava activities will be processed in the background for for {token_user_id}"}
 
 
@@ -151,7 +153,7 @@ async def strava_retrieve_gear(
     )
 
     # Return success message and status code 202
-    core_logger.print_to_log(f"Strava gear will be processed in the background for user {token_user_id}")
+    logger.info(f"Strava gear will be processed in the background for user {token_user_id}")
     return {"detail": f"Strava gear will be processed in the background for for {token_user_id}"}
 
 
@@ -168,7 +170,7 @@ async def import_bikes_from_strava_export(
 ):
     try:
         # Log beginning of bike import
-        core_logger.print_to_log("Entering bike importing function")
+        logger.info("Entering bike importing function")
 
         # Get bikes from Strava export CSV file
         bikes_dict = strava_gear_utils.iterate_over_bikes_csv()
@@ -189,15 +191,15 @@ async def import_bikes_from_strava_export(
 
         # Move the bikes file to the processed directory
         core_file_uploads.move_within(bikes_file_path, processed_dir, filename=bikes_file_name)
-        core_logger.print_to_log_and_console(f"{bikes_file_name} moved to: {processed_dir}.")
+        logger.info(f"{bikes_file_name} moved to: {processed_dir}.", extra=core_logger.context(console=True))
 
         # Log completion of bike import
-        core_logger.print_to_log_and_console("Bike import complete.")
+        logger.info("Bike import complete.", extra=core_logger.context(console=True))
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log_and_console(f"Error in import_bikes_from_strava_export: {err}", "error")
+        logger.error(f"Error in import_bikes_from_strava_export: {err}", extra=core_logger.context(console=True))
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -218,24 +220,24 @@ async def import_shoes_from_strava_export(
 ):
     try:
         # Log beginning of shoe import
-        core_logger.print_to_log("Entering shoe importing function")
+        logger.info("Entering shoe importing function")
 
         # Get shoes from Strava export CSV file
         shoes_list = strava_gear_utils.iterate_over_shoes_csv()
 
-        core_logger.print_to_log_and_console("Shoe list created.", "debug")
+        logger.debug("Shoe list created.", extra=core_logger.context(console=True))
 
         # Transform shoes list to list of Gear schema objects
         if shoes_list:
             shoes = strava_gear_utils.transform_csv_shoe_gear_to_schema_gear(shoes_list, token_user_id, db)
 
-            core_logger.print_to_log_and_console("Shoe list converted to schema gear.", "debug")
+            logger.debug("Shoe list converted to schema gear.", extra=core_logger.context(console=True))
 
             # Add shoes to the database
             if shoes:
                 gears_crud.create_multiple_gears(shoes, token_user_id, db)
 
-        core_logger.print_to_log_and_console("Shoes added to db.", "debug")
+        logger.debug("Shoes added to db.", extra=core_logger.context(console=True))
 
         # Define variables for moving the shoes file
         processed_dir = core_config.FILES_PROCESSED_DIR
@@ -245,15 +247,15 @@ async def import_shoes_from_strava_export(
 
         # Move the shoes file to the processed directory and log it.
         core_file_uploads.move_within(shoes_file_path, processed_dir, filename=shoes_file_name)
-        core_logger.print_to_log_and_console(f"{shoes_file_name} moved to: {processed_dir}.")
+        logger.info(f"{shoes_file_name} moved to: {processed_dir}.", extra=core_logger.context(console=True))
 
         # Log completion of shoe import
-        core_logger.print_to_log_and_console("Shoe import complete.")
+        logger.info("Shoe import complete.", extra=core_logger.context(console=True))
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log_and_console(f"Error in import_shoes_from_strava_export: {err}", "error")
+        logger.error(f"Error in import_shoes_from_strava_export: {err}", extra=core_logger.context(console=True))
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -277,14 +279,15 @@ async def import_activities_and_media_from_strava_export(
     try:
         # Get time of import initiation to pass to function for recording in import_data dictionary, ensuring all activities imported via this bulk import action share an identical import time.
         import_time = datetime.now(UTC).isoformat()
-        core_logger.print_to_log_and_console(f"Strava bulk import: Initiated at {import_time}.", "info")
+        logger.info(f"Strava bulk import: Initiated at {import_time}.", extra=core_logger.context(console=True))
 
         # Parse activities data from activities.csv into a dictionary
         strava_activities_dict = strava_bulk_import_utils.iterate_over_activities_csv()
 
         if strava_activities_dict is None:
-            core_logger.print_to_log_and_console(
-                "ABORTING IMPORT: Aborting strava bulk import due to improperly parsed CSV.", "error"
+            logger.error(
+                "ABORTING IMPORT: Aborting strava bulk import due to improperly parsed CSV.",
+                extra=core_logger.context(console=True),
             )
             return {"Strava import ABORTED due to lack of, or improperly parsed, activities.csv file."}
 
@@ -310,20 +313,21 @@ async def import_activities_and_media_from_strava_export(
             )
 
             # Log a success message that explains processing will continue elsewhere.
-            core_logger.print_to_log_and_console(
-                "Strava bulk import initiated. Processing of files will continue in the background."
+            logger.info(
+                "Strava bulk import initiated. Processing of files will continue in the background.",
+                extra=core_logger.context(console=True),
             )
         else:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 "ABORTING IMPORT: Aborting strava bulk import due to failure in creating gear nickname to id dictionary.",
-                "error",
+                extra=core_logger.context(console=True),
             )
 
         # Return a success message
         return {"Strava bulk import initiated. Processing of files will continue in the background."}
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log_and_console(f"Error in strava_bulk_import: {err}", "error")
+        logger.error(f"Error in strava_bulk_import: {err}", extra=core_logger.context(console=True))
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -410,10 +414,9 @@ async def strava_unlink(
         try:
             strava_client.deauthorize()
         except (AccessUnauthorized, Exception) as err:
-            core_logger.print_to_log(
+            logger.info(
                 "Unable to deauthorize Strava account, using stravalib deauthorize logic. Will unlink forcibly",
-                "info",
-                exc=err,
+                exc_info=err,
             )
 
     # delete all strava gear for user

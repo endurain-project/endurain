@@ -18,6 +18,8 @@ import infra.event_log.crud as event_log_crud
 from core.database import SessionLocal
 from infra.events import Event
 
+logger = core_logger.get_logger(__name__)
+
 
 class EventLogRecorder:
     """Records event lifecycle transitions to the ``event_log`` table."""
@@ -110,4 +112,4 @@ class EventLogRecorder:
             with SessionLocal() as db:
                 write(db)
         except Exception as error:  # observability must never break event processing
-            core_logger.print_to_log(f"event_log {operation} failed: {error!r}", "warning")
+            logger.warning(f"event_log {operation} failed: {error!r}")

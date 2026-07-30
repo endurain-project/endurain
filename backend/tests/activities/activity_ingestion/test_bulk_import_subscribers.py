@@ -137,7 +137,7 @@ class TestMoveToErrorDir:
             patch.object(bulk_import_subscribers.core_config, "FILES_BULK_IMPORT_DIR", "/bulk"),
             patch.object(bulk_import_subscribers.os, "makedirs") as makedirs,
             patch.object(bulk_import_subscribers.core_file_uploads, "move_within") as move_within,
-            patch.object(bulk_import_subscribers.core_logger, "print_to_log_and_console"),
+            patch.object(bulk_import_subscribers, "logger"),
         ):
             bulk_import_subscribers._move_to_error_dir("/tmp/x.gpx")
         makedirs.assert_called_once_with("/errs", exist_ok=True)
@@ -146,10 +146,10 @@ class TestMoveToErrorDir:
     def test_swallows_oserror(self):
         with (
             patch.object(bulk_import_subscribers.os, "makedirs", side_effect=OSError("nope")),
-            patch.object(bulk_import_subscribers.core_logger, "print_to_log_and_console") as log,
+            patch.object(bulk_import_subscribers, "logger") as log,
         ):
             bulk_import_subscribers._move_to_error_dir("/tmp/x.gpx")
-        assert log.called
+        assert log.method_calls
 
 
 class TestRegisterBulkImportDurableHandlers:

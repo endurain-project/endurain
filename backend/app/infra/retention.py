@@ -30,6 +30,8 @@ import infra.jobs.crud as jobs_crud
 import infra.jobs.outbox as jobs_outbox
 import infra.runtime as platform_runtime
 
+logger = core_logger.get_logger(__name__)
+
 # Single-runner lock name: the deletes are idempotent, but the lock keeps the
 # work from being duplicated across replicas.
 _PRUNE_LOCK_NAME = "platform_retention_prune"
@@ -54,10 +56,7 @@ def prune_expired_records() -> None:
     platform = platform_runtime.get_active_platform()
     with platform.lock.try_acquire(_PRUNE_LOCK_NAME) as acquired:
         if not acquired:
-            core_logger.print_to_log(
-                "Retention prune: another replica holds the lock; skipping",
-                "debug",
-            )
+            logger.debug("Retention prune: another replica holds the lock; skipping")
             return
         _run_prune(platform.clock.now(), event_log_days, jobs_days)
 
@@ -91,9 +90,8 @@ def _run_prune(now: datetime, event_log_days: int, jobs_days: int) -> None:
             jobs = jobs_crud.delete_completed_jobs_before(cutoff, db=db)
 
     if events or outbox or jobs:
-        core_logger.print_to_log(
-            f"Retention prune: deleted {events} event_log, {outbox} relayed outbox, and {jobs} completed job row(s)",
-            "info",
+        logger.info(
+            f"Retention prune: deleted {events} event_log, {outbox} relayed outbox, and {jobs} completed job row(s)"
         )
     else:
-        core_logger.print_to_log("Retention prune: nothing to delete", "debug")
+        logger.debug("Retention prune: nothing to delete")

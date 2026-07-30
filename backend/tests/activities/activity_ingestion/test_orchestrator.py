@@ -1,153 +1,14 @@
 """Tests for the activity_ingestion orchestrator.
 
-Moved from ``tests/activities/activity/test_utils_extra.py`` when the parser-aware
-ingestion flow (``handle_gzipped_file``, ``parse_file``, ``_prepare_bulk_import_activity``,
-``_cleanup_upload_artifacts``) relocated out of ``activity/utils.py`` into
-``activity_ingestion/orchestrator.py``.
+Covers the parser-aware ingestion flow (``parse_file``,
+``_prepare_bulk_import_activity``, the store/upload entry points). The generic
+file plumbing it used to own — gzip expansion, content hashing, artifact cleanup
+— now lives in ``core.file_uploads`` and is tested there.
 """
 
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-
-class TestSha256File:
-    def test_matches_hashlib(self, tmp_path):
-        import hashlib
-
-        import modules.activities.activity_ingestion.orchestrator as orchestrator
-
-        path = tmp_path / "activity.gpx"
-        payload = b"<gpx>some deterministic content</gpx>"
-        path.write_bytes(payload)
-
-        assert orchestrator._sha256_file(str(path)) == hashlib.sha256(payload).hexdigest()
-
-    def test_stable_across_reads(self, tmp_path):
-        import modules.activities.activity_ingestion.orchestrator as orchestrator
-
-        path = tmp_path / "activity.fit"
-        path.write_bytes(b"\x00\x01\x02repeatable\xff")
-
-        # The same file bytes must hash identically on every read (the property
-        # that makes re-importing the same file a no-op).
-        assert orchestrator._sha256_file(str(path)) == orchestrator._sha256_file(str(path))
-
-
-class TestHandleGzippedFile:
-    @patch("modules.activities.activity_ingestion.orchestrator.gzip.open")
-    @patch("modules.activities.activity_ingestion.orchestrator.NamedTemporaryFile")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_file_uploads")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
-    @patch("modules.activities.activity_ingestion.orchestrator.Path")
-    def test_handle_decompresses_successfully(
-        self, mock_path_cls, mock_logger, mock_move, mock_tempfile, mock_gzip_open
-    ):
-        from modules.activities.activity_ingestion.orchestrator import handle_gzipped_file
-
-        mock_path_cls.return_value.stem = "activity_123.fit"
-        mock_path_cls.return_value.suffix = ".fit"
-        mock_path_cls.return_value.name = "activity_123.fit.gz"
-        mock_path = mock_path_cls.return_value
-
-        mock_file = MagicMock()
-        mock_file.name = "/safe/tmp/tmpabc123.fit"
-        mock_tempfile.return_value.__enter__.return_value = mock_file
-
-        mock_gz = MagicMock()
-        mock_gzip_open.return_value.__enter__.return_value = mock_gz
-        mock_gz.read.side_effect = [b"some data", b""]
-
-        result_path, result_ext = handle_gzipped_file("/uploads/activity_123.fit.gz")
-
-        assert result_path == "/safe/tmp/tmpabc123.fit"
-        assert result_ext == ".fit"
-        mock_gzip_open.assert_called_once_with(mock_path, "rb")
-
-    @patch("modules.activities.activity_ingestion.orchestrator.gzip.open")
-    @patch("modules.activities.activity_ingestion.orchestrator.NamedTemporaryFile")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_file_uploads")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
-    @patch("modules.activities.activity_ingestion.orchestrator.Path")
-    def test_handle_invalid_gzip_raises_400(self, mock_path_cls, mock_logger, mock_move, mock_tempfile, mock_gzip_open):
-        from fastapi import HTTPException
-
-        from modules.activities.activity_ingestion.orchestrator import handle_gzipped_file
-
-        mock_path_cls.return_value.stem = "activity_123.fit"
-        mock_path_cls.return_value.suffix = ".fit"
-        mock_path_cls.return_value.name = "bad.gz"
-
-        mock_file = MagicMock()
-        mock_file.name = "/safe/tmp/tmpabc.fit"
-        mock_tempfile.return_value.__enter__.return_value = mock_file
-
-        mock_gzip_open.return_value.__enter__.side_effect = EOFError("Not a gzip file")
-
-        with pytest.raises(HTTPException) as exc:
-            handle_gzipped_file("/uploads/bad.gz")
-        assert exc.value.status_code == 400
-
-    @patch("modules.activities.activity_ingestion.orchestrator.gzip.open")
-    @patch("modules.activities.activity_ingestion.orchestrator.NamedTemporaryFile")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_file_uploads")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
-    @patch("modules.activities.activity_ingestion.orchestrator.Path")
-    def test_handle_exceeds_max_size_raises_413(
-        self, mock_path_cls, mock_logger, mock_move, mock_tempfile, mock_gzip_open
-    ):
-        from fastapi import HTTPException
-
-        import modules.activities.activity_ingestion.orchestrator as orchestrator
-        from modules.activities.activity_ingestion.orchestrator import handle_gzipped_file
-
-        mock_path_cls.return_value.stem = "activity_123.fit"
-        mock_path_cls.return_value.suffix = ".fit"
-        mock_path_cls.return_value.name = "big.gz"
-
-        mock_file = MagicMock()
-        mock_file.name = "/safe/tmp/tmpabc.fit"
-        mock_tempfile.return_value.__enter__.return_value = mock_file
-
-        mock_gz = MagicMock()
-        mock_gzip_open.return_value.__enter__.return_value = mock_gz
-        chunk = b"x" * 1024 * 1024
-        mock_gz.read.side_effect = [chunk, chunk, b""]
-
-        orig_max = orchestrator._MAX_DECOMPRESSED_ACTIVITY_BYTES
-        orchestrator._MAX_DECOMPRESSED_ACTIVITY_BYTES = 1
-
-        with pytest.raises(HTTPException) as exc:
-            handle_gzipped_file("/uploads/big.gz")
-        orchestrator._MAX_DECOMPRESSED_ACTIVITY_BYTES = orig_max
-        assert exc.value.status_code == 413
-
-
-class TestCleanupUploadArtifacts:
-    @patch("modules.activities.activity_ingestion.orchestrator.os")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
-    def test_removes_existing_files(self, mock_logger, mock_os):
-        from modules.activities.activity_ingestion.orchestrator import _cleanup_upload_artifacts
-
-        mock_os.path.isfile.side_effect = lambda p: p in ["/safe/tmp/a", "/safe/tmp/b"]
-
-        _cleanup_upload_artifacts(["/safe/tmp/a", "/safe/tmp/b", "/safe/tmp/c"])
-
-        assert mock_os.remove.call_count == 2
-        mock_os.remove.assert_any_call("/safe/tmp/a")
-        mock_os.remove.assert_any_call("/safe/tmp/b")
-
-    @patch("modules.activities.activity_ingestion.orchestrator.os")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
-    def test_logs_warning_on_oserror(self, mock_logger, mock_os):
-        from modules.activities.activity_ingestion.orchestrator import _cleanup_upload_artifacts
-
-        mock_os.path.isfile.return_value = True
-        mock_os.remove.side_effect = OSError("Permission denied")
-
-        _cleanup_upload_artifacts(["/safe/tmp/a"])
-
-        mock_logger.print_to_log.assert_called_once()
 
 
 class TestPrepareBulkImportActivity:
@@ -268,36 +129,6 @@ class TestParseFile:
             filename="bulk_import/__init__.py",
         )
         assert result is None
-
-
-class TestHandleGzippedFileCleanup:
-    """Cleanup on EOFError during read (temp_file_path set)."""
-
-    @patch("modules.activities.activity_ingestion.orchestrator.gzip.open")
-    @patch("modules.activities.activity_ingestion.orchestrator.NamedTemporaryFile")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_file_uploads")
-    @patch("modules.activities.activity_ingestion.orchestrator.core_logger")
-    @patch("modules.activities.activity_ingestion.orchestrator.Path")
-    def test_cleanup_on_eof_during_read(self, mock_path_cls, mock_logger, mock_move, mock_tempfile, mock_gzip_open):
-        from fastapi import HTTPException
-
-        from modules.activities.activity_ingestion.orchestrator import handle_gzipped_file
-
-        mock_path_cls.return_value.stem = "activity.fit"
-        mock_path_cls.return_value.suffix = ".fit"
-        mock_path_cls.return_value.name = "bad.gz"
-
-        mock_file = MagicMock()
-        mock_file.name = "/safe/tmp/tmp.fit"
-        mock_tempfile.return_value.__enter__.return_value = mock_file
-
-        mock_gz = MagicMock()
-        mock_gzip_open.return_value.__enter__.return_value = mock_gz
-        mock_gz.read.side_effect = EOFError("corrupted read")
-
-        with pytest.raises(HTTPException) as exc:
-            handle_gzipped_file("/uploads/bad.gz")
-        assert exc.value.status_code == 400
 
 
 class TestParseFileError:

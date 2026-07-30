@@ -6,6 +6,7 @@ log). A successful run marks the job ``completed``; a failure reschedules it
 with backoff, or dead-letters it once the attempt ceiling is reached.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -18,6 +19,8 @@ from infra.events import Event
 from infra.jobs.models import ProcessingJob
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import ClockProvider
+
+logger = core_logger.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -94,7 +97,7 @@ class JobRunner:
             try:
                 self._run_job(snapshot)
             except Exception as error:
-                core_logger.print_to_log(f"Durable job {snapshot.id} could not be finalized", "error", exc=error)
+                logger.error(f"Durable job {snapshot.id} could not be finalized", exc_info=error)
         return len(snapshots)
 
     def reap_once(self) -> int:
@@ -133,10 +136,8 @@ class JobRunner:
                 now=now,
                 db=db,
             )
-        level = "error" if status == jobs_crud.STATUS_DEAD_LETTER else "warning"
-        core_logger.print_to_log(
-            f"Durable job {job.id} ({job.subscriber_id}) failed -> {status or 'unknown'}", level, exc=error
-        )
+        level = logging.ERROR if status == jobs_crud.STATUS_DEAD_LETTER else logging.WARNING
+        logger.log(level, f"Durable job {job.id} ({job.subscriber_id}) failed -> {status or 'unknown'}", exc_info=error)
 
     def _event_from(self, job: ClaimedJob) -> Event:
         return Event(

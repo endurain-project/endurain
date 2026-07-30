@@ -48,6 +48,8 @@ import modules.users.users_profile.import_service as profile_import_service
 import modules.users.users_profile.utils as profile_utils
 import modules.websocket.manager as websocket_manager
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -64,11 +66,7 @@ def _raise_mfa_secret_store_unavailable(
     Raises:
         HTTPException: Always raised with a 503 status.
     """
-    core_logger.print_to_log(
-        "MFA setup secret storage unavailable",
-        "error",
-        exc=err,
-    )
+    logger.error("MFA setup secret storage unavailable", exc_info=err)
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="MFA setup temporarily unavailable",
@@ -591,19 +589,11 @@ async def export_profile_data(
     ) as err:
         # Handle specific export errors with appropriate HTTP responses
         http_exception = profile_exceptions.handle_import_export_exception(err, "profile data export")
-        core_logger.print_to_log(
-            f"Export error for user {token_user_id}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Export error for user {token_user_id}: {err}", exc_info=err)
         raise http_exception from err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Unexpected error in export_profile_data for user {token_user_id}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Unexpected error in export_profile_data for user {token_user_id}: {err}", exc_info=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -650,10 +640,7 @@ async def import_profile_data(
         import_service = profile_import_service.ImportService(token_user_id, db, websocket_manager)
         result = await import_service.import_from_zip_data(zip_data)
 
-        core_logger.print_to_log(
-            f"Successfully imported profile data for user {token_user_id}: {result['imported']}",
-            "info",
-        )
+        logger.info(f"Successfully imported profile data for user {token_user_id}: {result['imported']}")
 
         return result
 
@@ -668,10 +655,7 @@ async def import_profile_data(
     ) as err:
         # Handle import validation and format errors
         http_exception = profile_exceptions.handle_import_export_exception(err, "profile data import")
-        core_logger.print_to_log(
-            f"Import validation error for user {token_user_id}: {err}",
-            "warning",
-        )
+        logger.warning(f"Import validation error for user {token_user_id}: {err}")
         raise http_exception from err
     except (
         profile_exceptions.DataIntegrityError,
@@ -680,18 +664,11 @@ async def import_profile_data(
     ) as err:
         # Handle import operation errors
         http_exception = profile_exceptions.handle_import_export_exception(err, "profile data import")
-        core_logger.print_to_log(
-            f"Import operation error for user {token_user_id}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Import operation error for user {token_user_id}: {err}", exc_info=err)
         raise http_exception from err
     except ValueError as err:
         # Handle remaining validation errors for backward compatibility
-        core_logger.print_to_log(
-            f"Validation error in import_profile_data for user {token_user_id}: {err}",
-            "warning",
-        )
+        logger.warning(f"Validation error in import_profile_data for user {token_user_id}: {err}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err),
@@ -699,10 +676,7 @@ async def import_profile_data(
     except (profile_exceptions.MemoryAllocationError, MemoryError) as err:
         # Handle memory-related errors
         http_exception = profile_exceptions.handle_import_export_exception(err, "profile data import")
-        core_logger.print_to_log(
-            f"Memory error for user {token_user_id}: {err}",
-            "error",
-        )
+        logger.error(f"Memory error for user {token_user_id}: {err}")
         raise http_exception from err
     except (
         profile_exceptions.DatabaseConnectionError,
@@ -713,19 +687,11 @@ async def import_profile_data(
     ) as err:
         # Handle specific import/export errors with appropriate HTTP responses
         http_exception = profile_exceptions.handle_import_export_exception(err, "profile data import")
-        core_logger.print_to_log(
-            f"Import system error for user {token_user_id}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Import system error for user {token_user_id}: {err}", exc_info=err)
         raise http_exception from err
     except Exception as err:
         # Handle unexpected errors
-        core_logger.print_to_log(
-            f"Unexpected error in import_profile_data for user {token_user_id}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Unexpected error in import_profile_data for user {token_user_id}: {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Import failed due to an internal error. Please try again or contact support.",

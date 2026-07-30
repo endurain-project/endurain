@@ -34,6 +34,8 @@ import core.config as core_config
 import core.logger as core_logger
 import core.network as core_network
 
+logger = core_logger.get_logger(__name__)
+
 #: Baseline applied globally via ``SlowAPIMiddleware``.
 DEFAULT: str = "120/minute"
 
@@ -101,10 +103,7 @@ def rate_limit_exceeded_handler(
         JSON response with 429 status and rate-limit
         headers attached when available.
     """
-    core_logger.print_to_log(
-        f"Rate limit exceeded: {_get_rate_limit_key(request)} on {request.method} {request.url.path}",
-        "warning",
-    )
+    logger.warning(f"Rate limit exceeded: {_get_rate_limit_key(request)} on {request.method} {request.url.path}")
     response = JSONResponse(
         status_code=429,
         content={
@@ -122,8 +121,5 @@ def rate_limit_exceeded_handler(
     except Exception as header_err:
         # Headers are informational — never let injection
         # errors break the 429 response itself.
-        core_logger.print_to_log(
-            f"Failed to inject rate-limit headers: {header_err}",
-            "debug",
-        )
+        logger.debug(f"Failed to inject rate-limit headers: {header_err}")
     return response

@@ -32,7 +32,7 @@ class TestOnActivityCreatedComputeHrZones:
 
         assert mock_crud.compute_and_store_hr_zone_percentages_for_activity.call_args.args[:2] == (1, 2)
 
-    @patch("modules.activities.activity_streams.subscribers.core_logger")
+    @patch("infra.subscribers.logger")
     @patch("modules.activities.activity_streams.subscribers.core_database")
     @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
     def test_swallows_errors(self, mock_crud, mock_db, mock_logger):
@@ -43,7 +43,7 @@ class TestOnActivityCreatedComputeHrZones:
         # Must not raise — an HR-zone failure never breaks activity import.
         on_activity_created_compute_hr_zones(_event({"activity_id": 1, "user_id": 2}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
     def test_subscribes_to_created(self):
         from modules.activities.activity_streams.subscribers import (
@@ -99,7 +99,7 @@ class TestComputeHrZonesForEvent:
 class TestRunMissingHrZoneBackfill:
     """The scheduled reconciliation net: lock + batched backfill."""
 
-    @patch("modules.activities.activity_streams.subscribers.core_logger")
+    @patch("modules.activities.activity_streams.subscribers.logger")
     @patch("modules.activities.activity_streams.subscribers.platform_runtime")
     def test_skips_when_lock_not_acquired(self, mock_runtime, mock_logger):
         from modules.activities.activity_streams.subscribers import run_missing_hr_zone_backfill
@@ -110,12 +110,11 @@ class TestRunMissingHrZoneBackfill:
 
         run_missing_hr_zone_backfill()
 
-        mock_logger.print_to_log.assert_any_call(
+        mock_logger.debug.assert_any_call(
             "HR-zone scheduler: another replica holds the backfill lock; skipping",
-            "debug",
         )
 
-    @patch("modules.activities.activity_streams.subscribers.core_logger")
+    @patch("modules.activities.activity_streams.subscribers.logger")
     @patch("modules.activities.activity_streams.subscribers.core_database")
     @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
     @patch("modules.activities.activity_streams.subscribers.platform_runtime")

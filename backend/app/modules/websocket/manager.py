@@ -4,6 +4,8 @@ from fastapi import WebSocket
 
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 
 class WebSocketManager:
     """
@@ -31,7 +33,7 @@ class WebSocketManager:
         """
         await websocket.accept()
         self.active_connections[user_id] = websocket
-        core_logger.print_to_log(f"WebSocket connected for user {user_id}", "debug")
+        logger.debug(f"WebSocket connected for user {user_id}")
 
     def disconnect(self, user_id: int) -> None:
         """
@@ -41,10 +43,7 @@ class WebSocketManager:
             user_id: The user's unique identifier.
         """
         if self.active_connections.pop(user_id, None):
-            core_logger.print_to_log(
-                f"WebSocket disconnected for user {user_id}",
-                "debug",
-            )
+            logger.debug(f"WebSocket disconnected for user {user_id}")
 
     async def send_message(self, user_id: int, message: dict) -> None:
         """

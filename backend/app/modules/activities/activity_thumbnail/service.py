@@ -17,7 +17,10 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
+import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 import modules.server_settings.crud as server_settings_crud
+
+logger = core_logger.get_logger(__name__)
 
 
 def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
@@ -77,9 +80,9 @@ def generate_and_store_thumbnail(
     )
     if data is None:
         return None
-    key = activity_thumbnail_render.thumbnail_key(activity_id)
+    key = activity_thumbnail_signing.thumbnail_key(activity_id)
     storage.save(
-        activity_thumbnail_render.THUMBNAIL_STORAGE_AREA,
+        activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA,
         key,
         data,
         activity_thumbnail_render.THUMBNAIL_CONTENT_TYPE,
@@ -103,7 +106,7 @@ def delete_activity_thumbnail(activity_id: int, storage: platform_providers.Stor
         None.
     """
     storage.delete(
-        activity_thumbnail_render.THUMBNAIL_STORAGE_AREA, activity_thumbnail_render.thumbnail_key(activity_id)
+        activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, activity_thumbnail_signing.thumbnail_key(activity_id)
     )
 
 
@@ -122,10 +125,7 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
     Raises:
         None — errors are logged; execution continues.
     """
-    core_logger.print_to_log(
-        "Thumbnail regeneration: deleting all existing thumbnails",
-        "info",
-    )
+    logger.info("Thumbnail regeneration: deleting all existing thumbnails")
 
     storage = platform_runtime.get_active_platform().storage
 
@@ -136,20 +136,14 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
             if key is None:
                 continue
             try:
-                storage.delete(activity_thumbnail_render.THUMBNAIL_STORAGE_AREA, key)
+                storage.delete(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key)
                 deleted += 1
             except Exception as err:
-                core_logger.print_to_log(
-                    f"Thumbnail regeneration: could not delete thumbnail for activity {activity.id}: {err}",
-                    "warning",
-                )
+                logger.warning(f"Thumbnail regeneration: could not delete thumbnail for activity {activity.id}: {err}")
         # Clear DB references so generate_missing picks them all up.
         activities_crud.clear_all_activity_thumbnail_paths(db)
 
-    core_logger.print_to_log(
-        f"Thumbnail regeneration: deleted {deleted} thumbnail(s)",
-        "info",
-    )
+    logger.info(f"Thumbnail regeneration: deleted {deleted} thumbnail(s)")
 
     # Regenerate all thumbnails
     generate_missing_activity_thumbnails()
@@ -173,10 +167,7 @@ def generate_missing_activity_thumbnails() -> None:
     platform = platform_runtime.get_active_platform()
     with platform.lock.try_acquire("thumbnail_backfill") as acquired:
         if not acquired:
-            core_logger.print_to_log(
-                "Thumbnail scheduler: another replica holds the backfill lock; skipping",
-                "debug",
-            )
+            logger.debug("Thumbnail scheduler: another replica holds the backfill lock; skipping")
             return
         _run_missing_thumbnail_generation(platform.storage)
 
@@ -195,26 +186,19 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
         # they are regenerated below.
         for activity in activities_crud.get_activities_with_thumbnail(db):
             key = activity.map_thumbnail_path
-            if key is not None and not storage.exists(activity_thumbnail_render.THUMBNAIL_STORAGE_AREA, key):
+            if key is not None and not storage.exists(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key):
                 activities_crud.set_activity_thumbnail_path(activity.id, None, db)
-                core_logger.print_to_log(
-                    f"Thumbnail scheduler: missing blob for activity {activity.id}, cleared thumbnail path in DB",
-                    "info",
+                logger.info(
+                    f"Thumbnail scheduler: missing blob for activity {activity.id}, cleared thumbnail path in DB"
                 )
 
         activities_without_thumbnail = activities_crud.get_activities_without_thumbnail(db)
 
         if not activities_without_thumbnail:
-            core_logger.print_to_log(
-                "Thumbnail scheduler: no activities without thumbnail found",
-                "debug",
-            )
+            logger.debug("Thumbnail scheduler: no activities without thumbnail found")
             return
 
-        core_logger.print_to_log(
-            f"Thumbnail scheduler: generating thumbnails for {len(activities_without_thumbnail)} activities",
-            "info",
-        )
+        logger.info(f"Thumbnail scheduler: generating thumbnails for {len(activities_without_thumbnail)} activities")
 
         tile_url, background_color, api_key = resolve_tile_settings(db)
 
@@ -243,9 +227,8 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
             if key is not None:
                 generated += 1
 
-        core_logger.print_to_log(
+        logger.info(
             f"Thumbnail scheduler: generated {generated} "
             f"thumbnail(s) out of "
-            f"{len(activities_without_thumbnail)} candidate(s)",
-            "info",
+            f"{len(activities_without_thumbnail)} candidate(s)"
         )

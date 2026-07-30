@@ -7,6 +7,8 @@ import modules.auth.dependencies as auth_dependencies
 import modules.websocket.manager as websocket_manager
 import modules.websocket.ticket_store as ws_ticket_store
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -81,9 +83,6 @@ async def websocket_endpoint(
                 await websocket.receive_json()
             except ValueError:
                 # Log malformed JSON, keep connection alive
-                core_logger.print_to_log(
-                    f"Received malformed JSON from user {user_id}",
-                    "warning",
-                )
+                logger.warning(f"Received malformed JSON from user {user_id}")
     except WebSocketDisconnect:
         manager.disconnect(user_id)

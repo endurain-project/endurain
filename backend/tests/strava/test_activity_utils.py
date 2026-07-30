@@ -46,7 +46,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
         client.get_activity_streams.side_effect = _make_strava_fault(404)
 
         monkeypatch.setattr(strava_utils.rate_limit_tracker, "is_rate_limited", lambda: False)
-        monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+        monkeypatch.setattr(activity_utils, "logger", Mock())
 
         result = self._call(client)
 
@@ -72,7 +72,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
         client.get_activity_streams.side_effect = RuntimeError("404 not found")
 
         monkeypatch.setattr(strava_utils.rate_limit_tracker, "is_rate_limited", lambda: False)
-        monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+        monkeypatch.setattr(activity_utils, "logger", Mock())
 
         result = self._call(client)
 
@@ -99,7 +99,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
 
         monkeypatch.setattr(strava_utils.rate_limit_tracker, "is_rate_limited", lambda: False)
         monkeypatch.setattr(strava_utils.rate_limit_tracker, "mark_rate_limited", Mock())
-        monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+        monkeypatch.setattr(activity_utils, "logger", Mock())
 
         with pytest.raises(HTTPException) as exc_info:
             self._call(client)
@@ -111,7 +111,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
         client = Mock()
 
         monkeypatch.setattr(strava_utils.rate_limit_tracker, "is_rate_limited", lambda: True)
-        monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+        monkeypatch.setattr(activity_utils, "logger", Mock())
 
         with pytest.raises(HTTPException) as exc_info:
             self._call(client)
@@ -125,7 +125,7 @@ class TestFetchAndProcessActivityStreamsNotFound:
         client.get_activity_streams.side_effect = RuntimeError("network failure")
 
         monkeypatch.setattr(strava_utils.rate_limit_tracker, "is_rate_limited", lambda: False)
-        monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+        monkeypatch.setattr(activity_utils, "logger", Mock())
 
         with pytest.raises(HTTPException) as exc_info:
             self._call(client)

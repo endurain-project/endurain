@@ -49,7 +49,7 @@ def _patch_common(monkeypatch):
         AsyncMock(return_value=Path("/data/12345.zip")),
     )
     monkeypatch.setattr(activity_utils.file_uploads, "safe_remove_within", Mock(return_value=True))
-    monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+    monkeypatch.setattr(activity_utils, "logger", Mock())
 
 
 class TestExtractionFailureLogging:
@@ -76,7 +76,7 @@ class TestExtractionFailureLogging:
         result = await _call(client)
 
         assert result is None
-        logged_messages = [call.args[0] for call in activity_utils.core_logger.print_to_log.call_args_list]
+        logged_messages = [call.args[0] for call in activity_utils.logger.warning.call_args_list]
         assert any(str(detail) in message for message in logged_messages)
         assert any("HTTPException" in message for message in logged_messages)
 
@@ -92,7 +92,7 @@ class TestExtractionFailureLogging:
         result = await _call(client)
 
         assert result is None
-        logged_messages = [call.args[0] for call in activity_utils.core_logger.print_to_log.call_args_list]
+        logged_messages = [call.args[0] for call in activity_utils.logger.warning.call_args_list]
         assert any(message.endswith("OSError") for message in logged_messages)
 
 

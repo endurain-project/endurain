@@ -7,6 +7,8 @@ import migrations.crud as migrations_crud
 import modules.users.users.crud as user_crud
 import modules.users.users.schema as users_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 async def process_migration_6(db: Session) -> None:
     """
@@ -21,7 +23,7 @@ async def process_migration_6(db: Session) -> None:
     Raises:
         Exception: Logs errors per-user; does not re-raise.
     """
-    core_logger.print_to_log_and_console("Started migration 6")
+    logger.info("Started migration 6", extra=core_logger.context(console=True))
 
     users_processed_with_no_errors = True
     users = []
@@ -29,10 +31,8 @@ async def process_migration_6(db: Session) -> None:
     try:
         users = user_crud.get_all_users(db)
     except Exception as err:
-        core_logger.print_to_log_and_console(
-            f"Migration 6 - Error fetching users: {err}",
-            "error",
-            exc=err,
+        logger.error(
+            f"Migration 6 - Error fetching users: {err}", exc_info=err, extra=core_logger.context(console=True)
         )
         users_processed_with_no_errors = False
 
@@ -50,10 +50,10 @@ async def process_migration_6(db: Session) -> None:
 
                 await user_crud.edit_user(user.id, user_converted, db)
             except Exception as err:
-                core_logger.print_to_log_and_console(
+                logger.error(
                     f"Migration 6 - Error processing user {user.id}: {err}",
-                    "error",
-                    exc=err,
+                    exc_info=err,
+                    extra=core_logger.context(console=True),
                 )
                 users_processed_with_no_errors = False
                 continue
@@ -63,16 +63,15 @@ async def process_migration_6(db: Session) -> None:
         try:
             migrations_crud.set_migration_as_executed(6, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Migration 6 - Failed to set migration as executed: {err}",
-                "error",
-                exc=err,
+                exc_info=err,
+                extra=core_logger.context(console=True),
             )
             return
     else:
-        core_logger.print_to_log_and_console(
-            "Migration 6 failed to process all users. Will try again later.",
-            "error",
+        logger.error(
+            "Migration 6 failed to process all users. Will try again later.", extra=core_logger.context(console=True)
         )
 
-    core_logger.print_to_log_and_console("Finished migration 6")
+    logger.info("Finished migration 6", extra=core_logger.context(console=True))

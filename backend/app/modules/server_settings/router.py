@@ -22,6 +22,8 @@ import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.utils as server_settings_utils
 
+logger = core_logger.get_logger(__name__)
+
 # Define the API router
 router = APIRouter()
 
@@ -114,19 +116,16 @@ def edit_server_settings(
     if server_settings_attributes.tileserver_url is not None:
         try:
             request.app.state.allowed_tile_domains = server_settings_utils.get_allowed_tile_domains(db)
-            core_logger.print_to_log(f"Updated allowed tile domains: {request.app.state.allowed_tile_domains}")
+            logger.info(f"Updated allowed tile domains: {request.app.state.allowed_tile_domains}")
         except Exception as e:
-            core_logger.print_to_log(f"Error updating tile domains in app.state: {e}", "error", exc=e)
+            logger.error(f"Error updating tile domains in app.state: {e}", exc_info=e)
 
     # Trigger full thumbnail regeneration if the setting is enabled
     # and any map-related field was part of this update
     _map_fields = {"tileserver_url", "tileserver_api_key", "map_background_color"}
     changed_fields = set(server_settings_attributes.model_dump(exclude_unset=True).keys())
     if server_settings_updated.tileserver_regenerate_thumbnails_on_change and (changed_fields & _map_fields):
-        core_logger.print_to_log(
-            "Tile server settings changed with regeneration enabled — scheduling thumbnail regeneration",
-            "info",
-        )
+        logger.info("Tile server settings changed with regeneration enabled — scheduling thumbnail regeneration")
         core_scheduler.schedule_thumbnail_regeneration()
 
     return server_settings_updated

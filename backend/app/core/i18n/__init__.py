@@ -13,6 +13,8 @@ from typing import Final
 
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 DEFAULT_LOCALE: Final[str] = "en"
 
 
@@ -178,10 +180,7 @@ def _load_catalog(locale: str) -> dict[str, str]:
     catalog_path = _LOCALES_DIR / locale / "email.json"
     if not catalog_path.exists():
         if locale != DEFAULT_LOCALE:
-            core_logger.print_to_log(
-                (f"i18n: missing email catalog for locale '{locale}', falling back to '{DEFAULT_LOCALE}'"),
-                "warning",
-            )
+            logger.warning(f"i18n: missing email catalog for locale '{locale}', falling back to '{DEFAULT_LOCALE}'")
         catalog_path = _LOCALES_DIR / DEFAULT_LOCALE / "email.json"
     with catalog_path.open(encoding="utf-8") as fh:
         return json.load(fh)

@@ -78,7 +78,7 @@ class TestAddSchedulerJob:
     def test_adds_job_successfully(self):
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
-            patch("core.scheduler.core_logger.print_to_log") as mock_log,
+            patch("core.scheduler.logger") as mock_log,
         ):
             from core.scheduler import add_scheduler_job
 
@@ -94,12 +94,12 @@ class TestAddSchedulerJob:
                 id="endurain_test_job_every_60_minutes",
                 replace_existing=True,
             )
-            mock_log.assert_called_once()
+            assert len(mock_log.method_calls) == 1
 
     def test_logs_error_when_add_job_fails(self):
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
-            patch("core.scheduler.core_logger.print_to_log") as mock_log,
+            patch("core.scheduler.logger") as mock_log,
         ):
             mock_scheduler.add_job.side_effect = ValueError("something went wrong")
             from core.scheduler import add_scheduler_job
@@ -108,10 +108,8 @@ class TestAddSchedulerJob:
                 pass
 
             add_scheduler_job(dummy, "interval", 60, [], "failing job")
-            mock_log.assert_any_call(
-                "Failed to add scheduler job to failing job: ValueError",
-                "error",
-                exc=mock_scheduler.add_job.side_effect,
+            mock_log.error.assert_any_call(
+                "Failed to add scheduler job to failing job: ValueError", exc_info=mock_scheduler.add_job.side_effect
             )
 
 

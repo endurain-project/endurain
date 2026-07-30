@@ -23,17 +23,17 @@ class TestBulkImportRoute:
             patch.object(router.os.path, "isfile", return_value=True),
             patch.object(router.core_file_uploads, "validate_local_file_sync"),
             patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
-            patch.object(router, "executor") as executor,
+            patch.object(router.activity_ingestion_background, "submit_bulk_import") as submit,
         ):
             result = _run_route(db)
 
-        assert result["detail"]
+        assert result.detail
         # One batched publish for every file, staged in a single transaction.
         publish.assert_called_once()
         assert len(publish.call_args.args[0]) == 2
         assert publish.call_args.args[1] == 3
         assert publish.call_args.args[3] is db
-        executor.submit.assert_not_called()
+        submit.assert_not_called()
 
     def test_enqueue_failure_surfaces_as_500(self):
         """A failed enqueue must not answer 202 for files that were never queued."""
@@ -49,7 +49,7 @@ class TestBulkImportRoute:
                 "publish_bulk_import_files",
                 side_effect=SQLAlchemyError("outbox down"),
             ),
-            patch.object(router, "executor"),
+            patch.object(router.activity_ingestion_background, "submit_bulk_import"),
             pytest.raises(HTTPException) as exc,
         ):
             _run_route(db)
@@ -65,13 +65,13 @@ class TestBulkImportRoute:
             patch.object(router.os.path, "isfile", return_value=True),
             patch.object(router.core_file_uploads, "validate_local_file_sync"),
             patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
-            patch.object(router, "executor") as executor,
+            patch.object(router.activity_ingestion_background, "submit_bulk_import") as submit,
         ):
             result = _run_route(db)
 
-        assert result["detail"]
+        assert result.detail
         publish.assert_not_called()
-        executor.submit.assert_called_once()
+        submit.assert_called_once()
 
     def test_skips_unsupported_extensions(self):
         db = MagicMock()
@@ -82,7 +82,7 @@ class TestBulkImportRoute:
             patch.object(router.os.path, "isfile", return_value=True),
             patch.object(router.core_file_uploads, "validate_local_file_sync"),
             patch.object(router.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
-            patch.object(router, "executor"),
+            patch.object(router.activity_ingestion_background, "submit_bulk_import"),
         ):
             _run_route(db)
 

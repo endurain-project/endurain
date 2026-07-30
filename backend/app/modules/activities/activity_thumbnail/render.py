@@ -1,10 +1,10 @@
-"""Render activity map thumbnails and address them in storage.
+"""Render activity map thumbnails.
 
 Renders a static WebP map image (OpenStreetMap tiles + a polyline of the
-activity route) as raw bytes. Persisting the bytes, addressing them by storage
-key, and turning a key back into a servable URL all go through the platform
-``StorageProvider``, so the same code serves local disk
-or remote object storage without change.
+activity route) as raw bytes, and nothing else: persisting the bytes goes through
+the platform ``StorageProvider`` in ``service.py``, and addressing them (storage
+key, signed URL) lives in ``signing.py``. Keeping this module purely
+bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
 import re
@@ -14,11 +14,8 @@ from staticmap import CircleMarker, Line, StaticMap
 
 import core.config as core_config
 import core.logger as core_logger
-import infra.runtime as platform_runtime
-import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
-# The storage area (domain-owned namespace) activity thumbnails live under.
-THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
+logger = core_logger.get_logger(__name__)
 
 # Thumbnail geometry and encoding. Kept at 1200x400 so the map stays crisp in
 # the large desktop feed/detail cards; WebP at quality 75 keeps the file far
@@ -48,43 +45,6 @@ _MARKER_OUTER_RADIUS = 20
 _START_COLOR = "#639922"  # --color-goal (green)
 _END_COLOR = "#e24b4a"  # --color-hr (red)
 _MARKER_INNER_RADIUS = 13
-
-
-def thumbnail_key(activity_id: int) -> str:
-    """Return the storage key for an activity's thumbnail (e.g. ``42.webp``)."""
-    return f"{activity_id}.webp"
-
-
-def thumbnail_url(key: str | None, activity_id: int) -> str | None:
-    """Resolve a stored thumbnail to a signed, ``<img>``-compatible URL.
-
-    Object storage keeps its presigned, expiring URL (already access-controlled
-    and usable in an ``<img>`` tag). Local disk is served by the token-gated
-    thumbnail route instead of a public static path, so the blob is only reachable
-    with a valid signed token — minted here and handed only to permitted viewers
-    via visibility masking, so a non-owner of a ``hide_map`` activity can neither
-    receive nor forge one. The activity owner keeps their map.
-
-    Args:
-        key: The stored storage key, or ``None``.
-        activity_id: The owning activity's id, bound into the signed token.
-
-    Returns:
-        A servable URL, or ``None`` when ``key`` is falsy.
-    """
-    if not key:
-        return None
-    # Object storage already serves via presigned, expiring, <img>-compatible
-    # URLs; use them directly to avoid round-tripping every thumbnail through the
-    # app.
-    if core_config.settings.resolved_storage_uri.startswith("s3"):
-        try:
-            return platform_runtime.get_active_platform().storage.url(THUMBNAIL_STORAGE_AREA, key)
-        except RuntimeError:
-            pass
-    # Local disk: a signed, token-gated app URL (no public static mount).
-    token = activity_thumbnail_signing.sign_thumbnail_token(activity_id)
-    return f"{core_config.ROOT_PATH}/activities/{activity_id}/thumbnail?t={token}"
 
 
 def _normalise_tile_url(url: str) -> str:
@@ -156,9 +116,9 @@ def render_activity_thumbnail(
         None — errors are logged and None is returned.
     """
     if not waypoints or len(waypoints) < 2:
-        core_logger.print_to_log_and_console(
+        logger.debug(
             f"Activity {activity_id}: skipping thumbnail (fewer than 2 waypoints)",
-            "debug",
+            extra=core_logger.context(console=True),
         )
         return None
 
@@ -174,11 +134,11 @@ def render_activity_thumbnail(
             "User-Agent": f"Endurain {core_config.API_VERSION} - StaticMap backend thumbnail generator"
         }
         if not api_key and "stadiamaps.com" in normalised_url:
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 f"Activity {activity_id}: warning — tile URL looks like "
                 f"Stadia Maps but no API key provided; API KEY is required "
                 "and will skip thumbnail generation",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return None
         if api_key and "stadiamaps.com" in normalised_url:
@@ -211,16 +171,16 @@ def render_activity_thumbnail(
         buffer = BytesIO()
         image.save(buffer, "WEBP", quality=_THUMBNAIL_QUALITY, method=_THUMBNAIL_METHOD)
 
-        core_logger.print_to_log_and_console(
+        logger.info(
             f"Activity {activity_id}: thumbnail rendered ({width}x{height} WebP)",
-            "info",
+            extra=core_logger.context(console=True),
         )
 
         return buffer.getvalue()
 
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
-        core_logger.print_to_log_and_console(
+        logger.warning(
             f"Activity {activity_id}: thumbnail generation failed — {type(exc).__name__}: {exc}",
-            "warning",
+            extra=core_logger.context(console=True),
         )
         return None

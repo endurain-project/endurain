@@ -156,7 +156,7 @@ class TestEnableMfa:
                 "modules.auth._internal.services.mfa_workflow.mfa_service.enable_user_mfa",
                 return_value=["code-1", "code-2"],
             ) as mock_enable,
-            patch("modules.auth._internal.services.mfa_workflow.core_logger.print_to_log") as mock_log,
+            patch("modules.auth._internal.services.mfa_workflow.logger") as mock_log,
         ):
             result = mfa_workflow.enable_mfa(
                 self._request(),
@@ -177,7 +177,7 @@ class TestEnableMfa:
         )
         mock_enable.assert_called_once_with(7, "pending-secret", "123456", identity_service, mock_db)
         mfa_secret_store.delete_secret.assert_called_once_with(7)
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
         assert result == {"message": "MFA enabled successfully", "backup_codes": ["code-1", "code-2"]}
 
     def test_step_up_failure_propagates_before_secret_lookup(
@@ -316,7 +316,7 @@ class TestDisableMfa:
                 "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
             ) as mock_verify,
             patch("modules.auth._internal.services.mfa_workflow.mfa_service.disable_user_mfa") as mock_disable,
-            patch("modules.auth._internal.services.mfa_workflow.core_logger.print_to_log") as mock_log,
+            patch("modules.auth._internal.services.mfa_workflow.logger") as mock_log,
         ):
             result = mfa_workflow.disable_mfa(
                 self._request(),
@@ -335,7 +335,7 @@ class TestDisableMfa:
             mock_db,
         )
         mock_disable.assert_called_once_with(7, mock_db)
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
         assert result == {"message": "MFA disabled successfully"}
 
     def test_step_up_failure_does_not_disable(self, mock_db, identity_service, step_up_store):
@@ -418,7 +418,7 @@ class TestGenerateBackupCodes:
                 "modules.auth._internal.services.mfa_workflow.mfa_backup_codes_crud.create_backup_codes",
                 return_value=["a", "b", "c"],
             ) as mock_create,
-            patch("modules.auth._internal.services.mfa_workflow.core_logger.print_to_log"),
+            patch("modules.auth._internal.services.mfa_workflow.logger"),
         ):
             result = mfa_workflow.generate_backup_codes(
                 self._step_up(),

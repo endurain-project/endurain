@@ -30,6 +30,8 @@ from typing import Any
 
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 _main_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -91,10 +93,7 @@ def dispatch(coro: Coroutine[Any, Any, Any]) -> Future[Any] | None:
     """
     loop = _main_loop
     if loop is None or loop.is_closed():
-        core_logger.print_to_log(
-            "async_bridge.dispatch called with no running main loop; dropping coroutine",
-            "warning",
-        )
+        logger.warning("async_bridge.dispatch called with no running main loop; dropping coroutine")
         coro.close()
         return None
 
@@ -108,12 +107,9 @@ def dispatch(coro: Coroutine[Any, Any, Any]) -> Future[Any] | None:
         error = completed.exception()
         if error is None:
             return
-        core_logger.print_to_log(
+        logger.error(
             f"async_bridge dispatched coroutine failed: {type(error).__name__}",
-            "error",
-            # exception() may return a BaseException (e.g. cancellation); only the
-            # Exception subset is loggable with a traceback.
-            exc=error if isinstance(error, Exception) else None,
+            exc_info=error if isinstance(error, Exception) else None,
         )
 
     future.add_done_callback(_log_failure)

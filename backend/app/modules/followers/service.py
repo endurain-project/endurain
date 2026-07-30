@@ -19,6 +19,8 @@ import modules.followers.crud as followers_crud
 import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 def requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
     """Return whether the requester may view the target's follower/following graph.
@@ -47,10 +49,7 @@ def requester_may_view_network(target_user_id: int, requester_user_id: int, db: 
 def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> None:
     """Raise 403 unless the requester may view the target's network."""
     if not requester_may_view_network(target_user_id, requester_user_id, db):
-        core_logger.print_to_log(
-            f"User {requester_user_id} was denied access to user {target_user_id}'s follower network",
-            "warning",
-        )
+        logger.warning(f"User {requester_user_id} was denied access to user {target_user_id}'s follower network")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this user's followers",
@@ -173,10 +172,7 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
     """
     follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
     followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db)
-    core_logger.print_to_log(
-        f"User {requester_user_id} requested to follow user {target_user_id}",
-        "debug",
-    )
+    logger.debug(f"User {requester_user_id} requested to follow user {target_user_id}")
     return follower
 
 
@@ -193,10 +189,7 @@ def accept_follow_request(accepter_user_id: int, requester_user_id: int, db: Ses
     """
     followers_crud.accept_follower(accepter_user_id, requester_user_id, db)
     followers_event_publishers.publish_follower_accepted(accepter_user_id, requester_user_id, db)
-    core_logger.print_to_log(
-        f"User {accepter_user_id} accepted the follow request from user {requester_user_id}",
-        "debug",
-    )
+    logger.debug(f"User {accepter_user_id} accepted the follow request from user {requester_user_id}")
 
 
 def unfollow_user(requester_user_id: int, target_user_id: int, db: Session) -> None:
@@ -211,10 +204,7 @@ def unfollow_user(requester_user_id: int, target_user_id: int, db: Session) -> N
         None.
     """
     followers_crud.delete_follower(requester_user_id, target_user_id, db)
-    core_logger.print_to_log(
-        f"User {requester_user_id} unfollowed user {target_user_id}",
-        "debug",
-    )
+    logger.debug(f"User {requester_user_id} unfollowed user {target_user_id}")
 
 
 def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
@@ -229,10 +219,7 @@ def remove_follower(user_id: int, follower_user_id: int, db: Session) -> None:
         None.
     """
     followers_crud.delete_follower(follower_user_id, user_id, db)
-    core_logger.print_to_log(
-        f"User {user_id} removed follower {follower_user_id}",
-        "debug",
-    )
+    logger.debug(f"User {user_id} removed follower {follower_user_id}")
 
 
 def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:

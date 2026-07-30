@@ -18,7 +18,10 @@ This module converts that dict into a typed
 persist it without knowing anything about file formats.
 """
 
-import modules.activities.activity.schema as activities_schema
+import core.logger as core_logger
+import modules.activities.activity.contracts as activities_contracts
+
+logger = core_logger.get_logger(__name__)
 
 # stream_type -> (is-set flag key, waypoints key) in the parser output dict.
 # Mirrors the mapping the parsers populate. Stream types 5 and 6 both derive from
@@ -37,8 +40,8 @@ _STREAM_MAPPING: dict[int, tuple[str, str]] = {
 
 def parsed_info_to_parsed_activity(
     parsed_info: dict,
-    source: activities_schema.ImportSource | None = None,
-) -> activities_schema.ParsedActivity:
+    source: activities_contracts.ImportSource | None = None,
+) -> activities_contracts.ParsedActivity:
     """Convert a parser output dict into a :class:`ParsedActivity`.
 
     Args:
@@ -53,7 +56,7 @@ def parsed_info_to_parsed_activity(
         the parser flagged as set.
     """
     streams = [
-        activities_schema.ParsedStream(
+        activities_contracts.ParsedStream(
             stream_type=stream_type,
             stream_waypoints=parsed_info.get(waypoints_key, []),
         )
@@ -61,7 +64,7 @@ def parsed_info_to_parsed_activity(
         if (is_set_key(parsed_info) if callable(is_set_key) else parsed_info.get(is_set_key, False))
     ]
 
-    return activities_schema.ParsedActivity(
+    parsed = activities_contracts.ParsedActivity(
         activity=parsed_info["activity"],
         streams=streams,
         laps=parsed_info.get("laps"),
@@ -69,3 +72,16 @@ def parsed_info_to_parsed_activity(
         workout_steps=parsed_info.get("workout_steps"),
         source=source,
     )
+    # What the parser actually produced, before anything is persisted — the first
+    # thing to check when an imported activity is missing a chart or its laps.
+    logger.debug(
+        "Adapted parser output into a ParsedActivity",
+        extra=core_logger.context(
+            source_kind=source.kind if source is not None else None,
+            stream_types=[stream.stream_type for stream in streams],
+            lap_count=len(parsed.laps) if parsed.laps else 0,
+            set_count=len(parsed.sets) if parsed.sets else 0,
+            workout_step_count=len(parsed.workout_steps) if parsed.workout_steps else 0,
+        ),
+    )
+    return parsed

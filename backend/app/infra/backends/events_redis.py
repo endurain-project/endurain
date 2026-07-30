@@ -33,6 +33,8 @@ import infra.node as platform_node
 import infra.redis as platform_redis
 from infra.events import Event
 
+logger = core_logger.get_logger(__name__)
+
 if TYPE_CHECKING:
     from infra.providers import EventRecorder
 
@@ -147,7 +149,7 @@ class RedisStreamEventBus:
             try:
                 self._poll_once()
             except platform_redis.RedisError as error:
-                core_logger.print_to_log("Event bus consumer poll failed", "error", exc=error)
+                logger.error("Event bus consumer poll failed", exc_info=error)
                 self._stop.wait(timeout=1.0)
 
     def _poll_once(self) -> None:
@@ -172,9 +174,7 @@ class RedisStreamEventBus:
                     for handler in handlers:
                         handler(event)
         except Exception as error:  # a poisoned entry or handler must not kill the consumer thread
-            core_logger.print_to_log(
-                f"Event handler failed for stream entry {entry_id}; leaving it pending", "error", exc=error
-            )
+            logger.error(f"Event handler failed for stream entry {entry_id}; leaving it pending", exc_info=error)
             return
         # Ack only after success so a failure stays pending (at-least-once) for
         # reprocessing; durable jobs provide the retry/dead-letter path.

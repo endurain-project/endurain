@@ -20,6 +20,8 @@ import modules.gears.gear.crud as gears_crud
 import modules.users.users.crud as users_crud
 import modules.websocket.manager as websocket_manager
 
+logger = core_logger.get_logger(__name__)
+
 _STRAVA_ACTIVITIES_HEADERS = {
     "Filename",
     "Activity Description",
@@ -49,9 +51,9 @@ def iterate_over_activities_csv() -> dict | None:
     # Importing data from Strava activities file.
     # Using Python's core CSV module here - https://docs.python.org/3/library/csv.html
     if os.path.isfile(strava_activities_file):
-        core_logger.print_to_log_and_console(
+        logger.debug(
             f"Strava {strava_activities_file_name} file present. Going to try to parse it.",
-            "debug",
+            extra=core_logger.context(console=True),
         )
         try:
             strava_activities_dict = {}
@@ -59,11 +61,11 @@ def iterate_over_activities_csv() -> dict | None:
                 # Check to see if file has headers that will be used during parsing of the file.
                 missing_headers = _STRAVA_ACTIVITIES_HEADERS - row.keys()
                 if missing_headers:
-                    core_logger.print_to_log_and_console(
+                    logger.error(
                         "Aborting Strava bulk activities import: Proper headers not found in "
                         f"{strava_activities_file_name}. Missing: "
                         f"{', '.join(sorted(missing_headers))}.",
-                        "error",
+                        extra=core_logger.context(console=True),
                     )
                     return None
                 _, strava_act_file_name = os.path.split(
@@ -72,8 +74,9 @@ def iterate_over_activities_csv() -> dict | None:
                 strava_activities_dict[strava_act_file_name] = (
                     row  # Store activity information in a dictionary using filename as the key
                 )
-            core_logger.print_to_log_and_console(
-                f"Strava bulk import: Strava activities csv file parsed, and it is {len(strava_activities_dict)} rows long"
+            logger.info(
+                f"Strava bulk import: Strava activities csv file parsed, and it is {len(strava_activities_dict)} rows long",
+                extra=core_logger.context(console=True),
             )
             return strava_activities_dict
         except HTTPException as http_err:
@@ -81,18 +84,19 @@ def iterate_over_activities_csv() -> dict | None:
             # files or stat/open failures. Surface the structured
             # detail so the operator sees the actual cause instead
             # of a generic ``None`` return.
-            core_logger.print_to_log_and_console(
-                f"Strava activities CSV parsing aborted: {http_err.detail}",
-                "error",
+            logger.error(
+                f"Strava activities CSV parsing aborted: {http_err.detail}", extra=core_logger.context(console=True)
             )
             return None
         except Exception as err:
-            core_logger.print_to_log_and_console(f"Strava activities CSV parsing failed with error: {err}.", "error")
+            logger.error(
+                f"Strava activities CSV parsing failed with error: {err}.", extra=core_logger.context(console=True)
+            )
             return None
     else:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Strava bulk import: Strava activities file not found. File should be at: {strava_activities_file}",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return None
 
@@ -171,8 +175,9 @@ def queue_bulk_export_activities_for_import(
 
     # Get total file count and log it
     totalfilecount = len(filelist)
-    core_logger.print_to_log_and_console(
-        f"Strava bulk import: Found {totalfilecount} files in the {strava_activities_import_dir}."
+    logger.info(
+        f"Strava bulk import: Found {totalfilecount} files in the {strava_activities_import_dir}.",
+        extra=core_logger.context(console=True),
     )
 
     # Build a list of importable files. Validation is async (it
@@ -190,11 +195,11 @@ def queue_bulk_export_activities_for_import(
             # Check if file is one we can process
             _, fext = os.path.splitext(fpath)
             if fext not in supported_file_formats:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Strava bulk import: Skipping file {fpath} - "
                     "due to not having a supported file extension. "
                     f"Supported extensions are: {supported_file_formats}.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 skipped += 1
                 continue
@@ -206,9 +211,9 @@ def queue_bulk_export_activities_for_import(
             try:
                 await file_uploads.validate_local_file(fpath, kind=entry_kind, filename=fname)
             except HTTPException as err:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Strava bulk import: Skipping file {fpath} - failed validation: {err.detail}",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 skipped += 1
                 continue
@@ -226,13 +231,14 @@ def queue_bulk_export_activities_for_import(
     # Check if there are any importable files and log status
     number_of_importable_files = len(importable_files)
     if number_of_importable_files == 0:
-        core_logger.print_to_log_and_console(
+        logger.warning(
             f"Strava bulk import:There are no importable files in {strava_activities_import_dir} directory - aborting import.",
-            "warning",
+            extra=core_logger.context(console=True),
         )
         return 0
-    core_logger.print_to_log_and_console(
-        f"Strava bulk import: Skipped a total of {skippedprocessingcount} files due to not having a supported file extension. There are now {number_of_importable_files} files to queue for processing. "
+    logger.info(
+        f"Strava bulk import: Skipped a total of {skippedprocessingcount} files due to not having a supported file extension. There are now {number_of_importable_files} files to queue for processing. ",
+        extra=core_logger.context(console=True),
     )
 
     # Iterate over each importable file and queue import
@@ -243,8 +249,9 @@ def queue_bulk_export_activities_for_import(
         file_path = os.path.join(strava_activities_import_dir, filename)
 
         if os.path.isfile(file_path):
-            core_logger.print_to_log_and_console(
-                f"Strava bulk import: Processing file {filenumber} of {number_of_importable_files} - {file_path}"
+            logger.info(
+                f"Strava bulk import: Processing file {filenumber} of {number_of_importable_files} - {file_path}",
+                extra=core_logger.context(console=True),
             )
             # Parse and store the activity. The ingestion entry is
             # synchronous; this queue function runs on a worker thread
@@ -263,8 +270,9 @@ def queue_bulk_export_activities_for_import(
             # Small delay between files
             time.sleep(0.1)
 
-    core_logger.print_to_log_and_console(
-        f"Strava bulk import: Import complete! A total of {filenumber} files were processed."
+    logger.info(
+        f"Strava bulk import: Import complete! A total of {filenumber} files were processed.",
+        extra=core_logger.context(console=True),
     )
 
     return queuedforprocessingcount
@@ -307,16 +315,18 @@ def build_metadata_dict(
                 strava_activity_metadata["gear_id"] = users_existing_gear_nickname_to_id[activity_gear][0]
             else:
                 strava_activity_metadata["gear_id"] = None
-                core_logger.print_to_log_and_console(
-                    f"Bulk file import: Gear for activity {file_base_name}, which activities.csv shows as {activity_gear}, was not found in the user's existing gear. Not adding gear to activity."
+                logger.info(
+                    f"Bulk file import: Gear for activity {file_base_name}, which activities.csv shows as {activity_gear}, was not found in the user's existing gear. Not adding gear to activity.",
+                    extra=core_logger.context(console=True),
                 )
         else:
             strava_activity_metadata["gear_id"] = None
         import_dict = build_import_dictionary(file_base_name, import_initiated_time, True, strava_activities)
         strava_activity_metadata["import_dict"] = import_dict
         strava_activity_metadata["metadata_found_in_csv"] = True  # We found metadata in the CSV!
-        core_logger.print_to_log_and_console(
-            f"Bulk file import: Strava activities.csv metadata extracted for activity {file_base_name}."
+        logger.info(
+            f"Bulk file import: Strava activities.csv metadata extracted for activity {file_base_name}.",
+            extra=core_logger.context(console=True),
         )
     else:
         # We are in a Strava import, but don't have data on the file.  Just do a basic metadata addition.
@@ -326,8 +336,9 @@ def build_metadata_dict(
         )
         strava_activity_metadata["import_dict"] = import_dict
 
-        core_logger.print_to_log_and_console(
-            f"Bulk file import: No data in Strava activities.csv file for activity {file_base_name}."
+        logger.info(
+            f"Bulk file import: No data in Strava activities.csv file for activity {file_base_name}.",
+            extra=core_logger.context(console=True),
         )
 
     return strava_activity_metadata
@@ -356,9 +367,9 @@ def build_import_dictionary(
             try:
                 import_dict["strava_activity_id"] = int(activity_id_value)
             except (TypeError, ValueError):
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Bulk file import: Ignoring invalid Strava Activity ID for {file_base_name}.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
         import_dict["import_ISO_time"] = import_initiated_time
     else:
@@ -390,24 +401,29 @@ def append_bulk_import_metadata_to_activity(
         #    if activity["activity"].import_info is None and activity_metadata_dict.get("import_dict"):
     Note that basic bulk imports will not have many of these field names in activity_metadata_dict, so ensure that they are checked for existence before value checking.
 
-    I am leaving some testing code commented here, due to the high liklihood that this may be something we will need to look at in the future. -F-Stop
-
     Returns the activity (as a dictionary)
     """
-    # core_logger.print_to_log_and_console(f"TESTING CODE: Activity metadata is: {activity["activity"]}", "debug")  # Testing code
-    # core_logger.print_to_log_and_console(f"TESTING CODE: Strava extracted metadata is: {activity_metadata_dict}", "debug")  # Testing code
+    logger.debug(
+        "Applying Strava bulk-import metadata to a parsed activity",
+        extra=core_logger.context(fields=sorted(activity_metadata_dict)),
+    )
+    applied = []
     if activity_metadata_dict.get("name"):
         activity["activity"].name = activity_metadata_dict["name"]
-        # core_logger.print_to_log_and_console(f"TESTING CODE: Added metadata from Strava to the activity for NAME", "debug") # Testing code
+        applied.append("name")
     if activity_metadata_dict.get("description"):
         activity["activity"].description = activity_metadata_dict["description"]
-        # core_logger.print_to_log_and_console(f"TESTING CODE: Added metadata from Strava to the activity for DESCRIPTION", "debug") # Testing code
+        applied.append("description")
     if activity_metadata_dict.get("gear_id"):
         activity["activity"].gear_id = activity_metadata_dict["gear_id"]
-        # core_logger.print_to_log_and_console(f"TESTING CODE: Added metadata from Strava to the activity for GEAR ID", "debug") # Testing code
+        applied.append("gear_id")
     if activity_metadata_dict.get("import_dict"):
         activity["activity"].import_info = activity_metadata_dict["import_dict"]
-        # core_logger.print_to_log_and_console(f"TESTING CODE: Added metadata from Strava to the activity for IMPORT DICT", "debug") # Testing code
+        applied.append("import_info")
+    logger.debug(
+        "Applied Strava bulk-import metadata",
+        extra=core_logger.context(applied=applied),
+    )
     return activity
 
 
@@ -467,17 +483,18 @@ def import_media_from_strava_bulk_export(
         None
     """
     if created_activity.id is None:
-        core_logger.print_to_log_and_console(
+        logger.warning(
             f"Bulk file import: cannot import media for {file_base_name} - created activity has no id",
-            "warning",
+            extra=core_logger.context(console=True),
         )
         return
     if strava_activities.get(file_base_name):
         media_string = strava_activities[file_base_name]["Media"].strip()
         media_list = []
         if media_string is None or not media_string:
-            core_logger.print_to_log_and_console(
-                f"Bulk file import: Media import section - no media list in activities.csv for {file_base_name}"
+            logger.info(
+                f"Bulk file import: Media import section - no media list in activities.csv for {file_base_name}",
+                extra=core_logger.context(console=True),
             )
         else:
             media_list = media_string.split("|")
@@ -507,7 +524,9 @@ def create_activity_media_from_strava_bulk_import(
     Returns: nothing
     """
 
-    core_logger.print_to_log_and_console(f"Media import: Beginning processing of {media_path_from_strava}", "debug")
+    logger.debug(
+        f"Media import: Beginning processing of {media_path_from_strava}", extra=core_logger.context(console=True)
+    )
     try:
         # Ensure the 'data/activity_media' directory exists
         final_media_dir = core_config.settings.ACTIVITY_MEDIA_DIR
@@ -528,11 +547,11 @@ def create_activity_media_from_strava_bulk_import(
                     filename=media_strava_filename,
                 )
             except HTTPException as err:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Bulk file import media import: Rejecting "
                     f"{media_path_from_strava} - failed image "
                     f"validation: {err.detail}",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 return
 
@@ -545,17 +564,18 @@ def create_activity_media_from_strava_bulk_import(
 
             # Add media file to db
             activity_media_crud.create_activity_media(activity_id, new_file_path, db)
-            core_logger.print_to_log_and_console(
-                f"Bulk file import media import: Media file {media_strava_filename} has been imported to db."
+            logger.info(
+                f"Bulk file import media import: Media file {media_strava_filename} has been imported to db.",
+                extra=core_logger.context(console=True),
             )
         else:
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 f"Bulk file import media import warning: Media file {media_strava_filename} does not exist, skipping import of it - {media_path_from_strava}",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return
     except Exception as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Bulk file import media import: Error during processing of {media_path_from_strava}: {err}",
-            "error",
+            extra=core_logger.context(console=True),
         )

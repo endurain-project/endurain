@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Security, status
+from fastapi import APIRouter, Depends, Query, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -46,7 +46,7 @@ def count_user_followers(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-    accepted_only: bool = False,
+    accepted_only: Annotated[bool, Query()] = False,
 ) -> int:
     """Count a user's followers (privacy-aware).
 
@@ -85,7 +85,7 @@ def count_user_following(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-    accepted_only: bool = False,
+    accepted_only: Annotated[bool, Query()] = False,
 ) -> int:
     """Count who a user follows (privacy-aware).
 

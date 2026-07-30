@@ -37,7 +37,7 @@ class TestOnFollowerRequestedNotify:
         assert mock_notif.create_new_follower_request_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("modules.followers.subscribers.core_logger")
+    @patch("infra.subscribers.logger")
     @patch("modules.followers.subscribers.core_database")
     @patch("modules.followers.subscribers.notifications_utils")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
@@ -48,7 +48,7 @@ class TestOnFollowerRequestedNotify:
         # Must not raise — a notification failure never breaks the follow request.
         on_follower_requested_notify(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
 
 class TestOnFollowerAcceptedNotify:
@@ -79,7 +79,7 @@ class TestOnFollowerAcceptedNotify:
         assert mock_notif.create_accepted_follower_request_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("modules.followers.subscribers.core_logger")
+    @patch("infra.subscribers.logger")
     @patch("modules.followers.subscribers.core_database")
     @patch("modules.followers.subscribers.notifications_utils")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
@@ -89,7 +89,7 @@ class TestOnFollowerAcceptedNotify:
 
         on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
 
 class TestRegisterFollowerNotificationSubscribers:

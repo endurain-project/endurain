@@ -1,7 +1,7 @@
 """Core activity ingestion — persist a canonical :class:`ParsedActivity`.
 
 This is the seam that makes parsing irrelevant to the activities core:
-it accepts a format-agnostic :class:`~modules.activities.activity.schema.ParsedActivity`
+it accepts a format-agnostic :class:`~modules.activities.activity.contracts.ParsedActivity`
 and persists the activity plus its streams/laps/sets/workout-steps, then publishes
 ``activity.created``. It has **no** knowledge of ``.gpx``/``.tcx``/``.fit``, Strava,
 or Garmin — the ``activity_ingestion`` adapters produce the contract and call here.
@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
@@ -23,10 +24,12 @@ import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 
+logger = core_logger.get_logger(__name__)
+
 
 def _derive_dedup_key(
     activity: activities_schema.Activity,
-    source: activities_schema.ImportSource | None,
+    source: activities_contracts.ImportSource | None,
 ) -> str | None:
     """Derive a stable idempotency key for an activity.
 
@@ -62,7 +65,7 @@ def _derive_dedup_key(
 
 
 def store_parsed_activity(
-    parsed: activities_schema.ParsedActivity,
+    parsed: activities_contracts.ParsedActivity,
     db: Session,
 ) -> activities_schema.Activity:
     """Persist a parsed activity and its children, then publish ``activity.created``.
@@ -92,31 +95,26 @@ def store_parsed_activity(
         if dedup_key is not None and parsed.activity.user_id is not None:
             existing = activities_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
             if existing is not None:
-                core_logger.print_to_log(
+                logger.info(
                     f"store_parsed_activity: dedup_key {dedup_key} already ingested as "
                     f"activity {existing.id} for user {parsed.activity.user_id}; "
-                    "skipping re-import (no-op).",
-                    "info",
+                    "skipping re-import (no-op)."
                 )
                 return existing
 
         created_activity = activities_crud.create_activity(parsed.activity, db, commit=False, dedup_key=dedup_key)
 
         if created_activity is None or created_activity.id is None:
-            core_logger.print_to_log(
-                "Error in store_parsed_activity - activity is None, error creating activity",
-                "error",
-            )
+            logger.error("Error in store_parsed_activity - activity is None, error creating activity")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error creating activity",
             )
 
         source_kind = source.kind if source is not None else "unknown"
-        core_logger.print_to_log(
+        logger.debug(
             f"store_parsed_activity: created activity {created_activity.id} "
-            f"for user {created_activity.user_id} (source={source_kind})",
-            "debug",
+            f"for user {created_activity.user_id} (source={source_kind})"
         )
 
         # Persist all children with commit=False so the activity and everything
@@ -146,12 +144,11 @@ def store_parsed_activity(
         if parsed.sets is not None:
             activity_sets_crud.create_activity_sets(parsed.sets, created_activity.id, db, commit=False)
 
-        core_logger.print_to_log(
+        logger.debug(
             f"store_parsed_activity {created_activity.id}: streams={len(parsed.streams)}, "
             f"laps={parsed.laps is not None}, "
             f"workout_steps={parsed.workout_steps is not None}, "
-            f"sets={parsed.sets is not None}",
-            "debug",
+            f"sets={parsed.sets is not None}"
         )
 
         # Publish the domain fact and commit the unit of work atomically. Derived
@@ -177,11 +174,7 @@ def store_parsed_activity(
         raise
     except SQLAlchemyError as err:
         db.rollback()
-        core_logger.print_to_log(
-            f"Error in store_parsed_activity - {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in store_parsed_activity - {err}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error creating activity",

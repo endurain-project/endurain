@@ -16,6 +16,8 @@ import modules.users.users_integrations.crud as user_integrations_crud
 import modules.users.users_integrations.models as user_integrations_models
 from core.database import SessionLocal
 
+logger = core_logger.get_logger(__name__)
+
 
 class StravaRateLimitTracker:
     """
@@ -57,17 +59,11 @@ class StravaRateLimitTracker:
                     microsecond=0,
                 )
                 self._long_term_reset = tomorrow
-                core_logger.print_to_log(
-                    f"Strava daily rate limit hit. Skipping until {tomorrow}",
-                    "warning",
-                )
+                logger.warning(f"Strava daily rate limit hit. Skipping until {tomorrow}")
             else:
                 reset_at = now + timedelta(seconds=self.SHORT_TERM_COOLDOWN_SECONDS)
                 self._short_term_reset = reset_at
-                core_logger.print_to_log(
-                    f"Strava 15-min rate limit hit. Skipping until {reset_at}",
-                    "warning",
-                )
+                logger.warning(f"Strava 15-min rate limit hit. Skipping until {reset_at}")
 
     def is_rate_limited(self) -> bool:
         """
@@ -145,10 +141,7 @@ def _noop_rate_limiter(response_headers: dict, method: str) -> None:
 def refresh_strava_tokens(is_startup: bool = False):
     # Skip if Strava rate limit is active
     if rate_limit_tracker.is_rate_limited():
-        core_logger.print_to_log(
-            "Strava rate limit active, skipping token refresh",
-            "warning",
-        )
+        logger.warning("Strava rate limit active, skipping token refresh")
         return
 
     # Create a new database session using context manager
@@ -168,7 +161,7 @@ def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = Fals
 
     if user_integrations is None:
         # Log an informational event if the user integrations are not found
-        core_logger.print_to_log(f"User {user_id}: User integrations not found. Will skip processing")
+        logger.info(f"User {user_id}: User integrations not found. Will skip processing")
 
         # Return early since we cannot refresh tokens without user integrations
         return
@@ -195,21 +188,18 @@ def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = Fals
                 # Update the user integrations with the tokens
                 user_integrations_crud.link_strava_account(user_integrations.user_id, tokens, db)
 
-                core_logger.print_to_log(f"User {user_id}: Strava tokens refreshed")
+                logger.info(f"User {user_id}: Strava tokens refreshed")
             except Exception as err:
                 # Check for rate limit errors
                 if is_strava_rate_limit_error(err):
                     err_str = str(err).lower()
                     is_long = "long" in err_str or "daily" in err_str
                     rate_limit_tracker.mark_rate_limited(is_long_term=is_long)
-                    core_logger.print_to_log(
-                        f"User {user_id}: Strava rate limit hit during token refresh",
-                        "warning",
-                    )
+                    logger.warning(f"User {user_id}: Strava rate limit hit during token refresh")
                     return
 
                 # Log the exception
-                core_logger.print_to_log(f"Error in refresh_strava_token: {err}", "error")
+                logger.error(f"Error in refresh_strava_token: {err}")
 
                 # Raise an HTTPException with a 500 Internal Server Error status code
                 if not is_startup:
@@ -219,7 +209,7 @@ def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = Fals
                     ) from err
     else:
         # Log an informational event if the user does not have a Strava token
-        core_logger.print_to_log(f"User {user_id}: No Strava token found. Will skip processing")
+        logger.info(f"User {user_id}: No Strava token found. Will skip processing")
 
 
 def fetch_and_validate_activity(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
@@ -229,7 +219,7 @@ def fetch_and_validate_activity(activity_id: int, user_id: int, db: Session) -> 
     # Check if activity is None
     if activity_db:
         # Log an informational event if the activity already exists
-        core_logger.print_to_log(f"User {user_id}: Activity {activity_id} already exists. Will skip processing")
+        logger.info(f"User {user_id}: Activity {activity_id} already exists. Will skip processing")
 
         # Return None
         return activity_db
@@ -292,5 +282,5 @@ def create_strava_client(
         return client
     except Exception as err:
         # Log the error and re-raise the exception
-        core_logger.print_to_log_and_console(f"Error in create_strava_client: {err}", "error", err)
+        logger.error(f"Error in create_strava_client: {err}", exc_info=err, extra=core_logger.context(console=True))
         raise err

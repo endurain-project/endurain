@@ -7,6 +7,8 @@ Split out of ``utils.py``: pure computation over already-serialized
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
 
+logger = core_logger.get_logger(__name__)
+
 
 def calculate_activity_stats(
     activities: list[activities_schema.Activity],
@@ -53,6 +55,6 @@ def calculate_activity_stats(
                     bucket.calories += float(activity.calories or 0)
                     break
     except (TypeError, ValueError, AttributeError) as err:
-        core_logger.print_to_log(f"Error in calculate_activity_stats - {err!s}", "error", exc=err)
+        logger.error(f"Error in calculate_activity_stats - {err!s}", exc_info=err)
 
     return stats

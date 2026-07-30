@@ -33,6 +33,7 @@ import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
+import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.subscriber_registry as activity_subscriber_registry
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
@@ -49,6 +50,8 @@ import modules.strava.utils as strava_utils
 from api import router as api_router
 from core.database import SessionLocal
 from core.database import engine as core_db_engine
+
+logger = core_logger.get_logger(__name__)
 
 _DEPLOYED_ENVIRONMENTS = {"production", "demo"}
 
@@ -69,11 +72,7 @@ def _safe_run[T, **P](
     try:
         return func(*args, **kwargs)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Startup task '{label}' failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Startup task '{label}' failed: {type(err).__name__}", exc_info=err)
         return None
 
 
@@ -87,11 +86,7 @@ async def _safe_run_async[T, **P](
     try:
         return await coro_func(*args, **kwargs)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Startup task '{label}' failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Startup task '{label}' failed: {type(err).__name__}", exc_info=err)
         return None
 
 
@@ -181,13 +176,9 @@ def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
         try:
             fastapi_app.state.allowed_tile_domains = server_settings_utils.get_allowed_tile_domains(db)
             allowed_tile_domains = fastapi_app.state.allowed_tile_domains
-            core_logger.print_to_log_and_console(f"Allowed tile domains: {allowed_tile_domains}")
+            logger.info(f"Allowed tile domains: {allowed_tile_domains}", extra=core_logger.context(console=True))
         except Exception as err:
-            core_logger.print_to_log(
-                f"Error initializing tile domains, using defaults: {type(err).__name__}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"Error initializing tile domains, using defaults: {type(err).__name__}", exc_info=err)
             # Fallback to built-in providers so CSP
             # remains restrictive but functional.
             fastapi_app.state.allowed_tile_domains = server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
@@ -242,9 +233,9 @@ def _log_capability_report() -> None:
     )
     # Emit each line as its own record so every line carries the standard log
     # prefix; a single multi-line message only prefixes the first line.
-    core_logger.print_to_log_and_console("Deployment capability report:")
+    logger.info("Deployment capability report:", extra=core_logger.context(console=True))
     for line in report.render().splitlines():
-        core_logger.print_to_log_and_console(line)
+        logger.info(line, extra=core_logger.context(console=True))
 
 
 async def startup_event(fastapi_app: FastAPI) -> None:
@@ -259,7 +250,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     failure cannot prevent the backend from serving
     requests.
     """
-    core_logger.print_to_log_and_console(f"Backend startup event - {core_config.API_VERSION}")
+    logger.info(f"Backend startup event - {core_config.API_VERSION}", extra=core_logger.context(console=True))
 
     # Observational capability report (reflects today's effective wiring).
     _log_capability_report()
@@ -310,11 +301,11 @@ async def startup_event(fastapi_app: FastAPI) -> None:
         if core_config.settings.JOBS_RUN_IN_PROCESS_WORKER:
             jobs_service.start_job_worker()
         else:
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 "JOBS_ENABLED with JOBS_RUN_IN_PROCESS_WORKER=false: this API "
                 "process will not drain the durable-job queue. Run a dedicated "
                 "worker (APP_ROLE=worker) or jobs will accumulate unprocessed.",
-                "warning",
+                extra=core_logger.context(console=True),
             )
         jobs_service.schedule_job_maintenance(core_scheduler.scheduler)
     elif core_config.settings.resolved_events_uri.startswith(("redis://", "rediss://", "unix://")):
@@ -325,61 +316,72 @@ async def startup_event(fastapi_app: FastAPI) -> None:
         # reconciliation net (like the thumbnail backfill) is safe without durable
         # jobs, and JOBS_ENABLED is orthogonal to the capability wiring the boot
         # fail-fast validates, so it must not block startup of a valid deployment.
-        core_logger.print_to_log_and_console(
+        logger.warning(
             "JOBS_ENABLED is false while the event bus is Redis Streams "
             "(distributed / multi-worker): derived work is delivered best-effort, "
             "with no per-subscriber retry and no recovery of a crashed consumer's "
             "in-flight events. Enable JOBS_ENABLED for durable, retryable delivery, "
             "or ensure every event subscriber has a reconciliation net (e.g. the "
             "thumbnail backfill).",
-            "warning",
+            extra=core_logger.context(console=True),
         )
 
     # Phase 2: best-effort background syncs and clean-up.
-    core_logger.print_to_log_and_console("Refreshing Strava tokens on startup")
+    logger.info("Refreshing Strava tokens on startup", extra=core_logger.context(console=True))
     _safe_run("refresh_strava_tokens", _refresh_strava_tokens)
 
-    core_logger.print_to_log_and_console("Retrieving last day activities from Garmin Connect on startup")
+    logger.info(
+        "Retrieving last day activities from Garmin Connect on startup", extra=core_logger.context(console=True)
+    )
     await _safe_run_async("retrieve_recent_garmin_activities", _retrieve_recent_garmin_activities)
 
-    core_logger.print_to_log_and_console("Retrieving last day activities from Strava on startup")
+    logger.info("Retrieving last day activities from Strava on startup", extra=core_logger.context(console=True))
     await _safe_run_async("retrieve_recent_strava_activities", _retrieve_recent_strava_activities)
 
-    core_logger.print_to_log_and_console("Retrieving last day health stats from Garmin Connect on startup")
+    logger.info(
+        "Retrieving last day health stats from Garmin Connect on startup", extra=core_logger.context(console=True)
+    )
     await _safe_run_async(
         "retrieve_recent_garmin_health",
         _retrieve_recent_garmin_health,
     )
 
-    core_logger.print_to_log_and_console("Purging expired tokens (password reset, sign-up, OAuth state, IdP link)")
+    logger.info(
+        "Purging expired tokens (password reset, sign-up, OAuth state, IdP link)",
+        extra=core_logger.context(console=True),
+    )
     _safe_run("purge_expired_tokens", _purge_expired_tokens)
 
-    core_logger.print_to_log_and_console("Scheduling missing activity map thumbnail generation")
+    logger.info("Scheduling missing activity map thumbnail generation", extra=core_logger.context(console=True))
     _safe_run("generate_missing_thumbnails", _generate_missing_thumbnails)
 
-    core_logger.print_to_log_and_console("Scheduling missing HR-zone backfill")
+    logger.info("Scheduling missing HR-zone backfill", extra=core_logger.context(console=True))
     _safe_run("backfill_missing_hr_zones", _backfill_missing_hr_zones)
 
-    core_logger.print_to_log_and_console("Scheduling missing activity location backfill")
+    logger.info("Scheduling missing activity location backfill", extra=core_logger.context(console=True))
     _safe_run("backfill_missing_locations", _backfill_missing_locations)
 
-    core_logger.print_to_log_and_console("Initializing allowed tile domains for Content Security Policy")
+    logger.info(
+        "Initializing allowed tile domains for Content Security Policy", extra=core_logger.context(console=True)
+    )
     _init_allowed_tile_domains(fastapi_app)
 
-    core_logger.print_to_log_and_console("Resolving TRUSTED_PROXIES hostnames")
+    logger.info("Resolving TRUSTED_PROXIES hostnames", extra=core_logger.context(console=True))
     await _safe_run_async("resolve_trusted_proxy_hostnames", _resolve_trusted_proxy_hostnames)
 
-    core_logger.print_to_log_and_console(f"Allowed trusted proxies: {core_config.settings.TRUSTED_PROXIES}")
+    logger.info(
+        f"Allowed trusted proxies: {core_config.settings.TRUSTED_PROXIES}", extra=core_logger.context(console=True)
+    )
     if core_config.settings._resolved_trusted_proxy_ips:
-        core_logger.print_to_log_and_console(
+        logger.info(
             f"Resolved trusted proxy IPs: {sorted(core_config.settings._resolved_trusted_proxy_ips)}",
-            "info",
+            extra=core_logger.context(console=True),
         )
 
 
 def shutdown_event(fastapi_app: FastAPI) -> None:
     """Stop the event bus and scheduler and release DB resources on shutdown."""
-    core_logger.print_to_log_and_console("Backend shutdown event")
+    logger.info("Backend shutdown event", extra=core_logger.context(console=True))
 
     # Stop the event bus consumer (no-op for the in-process bus; joins the Redis
     # Streams consumer thread in distributed mode). Guarded because startup may
@@ -391,6 +393,10 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     # Stop the in-process durable-job worker (safe if it was never started).
     jobs_service.stop_job_worker()
 
+    # Stop the bulk-import background pool (no-op when it was never started, i.e.
+    # when durable jobs handle imports instead).
+    activity_ingestion_background.shutdown()
+
     core_scheduler.stop_scheduler()
 
     # Clear the captured event loop; nothing may dispatch onto it after shutdown.
@@ -401,9 +407,9 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     try:
         core_db_engine.dispose()
     except Exception as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Error disposing database engine on shutdown: {type(err).__name__}",
-            "error",
+            extra=core_logger.context(console=True),
         )
 
 

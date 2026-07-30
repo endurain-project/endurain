@@ -90,7 +90,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         assert gen_args[1] == waypoints
         assert gen_args[2] is storage
 
-    @patch("modules.activities.activity_thumbnail.subscribers.core_logger")
+    @patch("infra.subscribers.logger")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_swallows_errors(self, mock_runtime, mock_logger):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
@@ -100,7 +100,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         # Must not raise — a thumbnail failure never breaks activity import.
         on_activity_created_generate_thumbnail(self._event({"activity_id": 1, "user_id": 2}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
 
 class TestOnActivityDeletedCleanupThumbnail:
@@ -129,7 +129,7 @@ class TestOnActivityDeletedCleanupThumbnail:
         mock_delete.assert_called_once_with(9, storage)
 
     @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("modules.activities.activity_thumbnail.subscribers.core_logger")
+    @patch("infra.subscribers.logger")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_swallows_errors(self, mock_runtime, mock_logger, mock_delete):
         from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
@@ -140,7 +140,7 @@ class TestOnActivityDeletedCleanupThumbnail:
         # Must not raise — a cleanup failure never breaks activity deletion.
         on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": 1}))
 
-        mock_logger.print_to_log.assert_called()
+        mock_logger.error.assert_called()
 
 
 class TestRegisterThumbnailSubscribers:
