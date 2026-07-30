@@ -4,7 +4,7 @@ from typing import Any, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy import CursorResult, delete, func, select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
@@ -204,6 +204,7 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     return list(db.scalars(stmt).all())
 
 
+@core_decorators.handle_db_errors
 def create_follower(
     user_id: int,
     target_user_id: int,
@@ -256,23 +257,21 @@ def create_follower(
         db.commit()
         db.refresh(new_follow)
     except IntegrityError as err:
+        # Kept rather than delegated: the decorator deliberately lets IntegrityError
+        # through precisely so a caller can map it to its own semantics. The
+        # pre-check above races, so a concurrent follow lands here and must be a
+        # 409, not a 500. Everything else is the decorator's job.
         db.rollback()
         logger.warning(f"Integrity error in create_follower: {type(err).__name__}", exc_info=err)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Follow relationship already exists",
         ) from err
-    except SQLAlchemyError as err:
-        db.rollback()
-        logger.error(f"Database error in create_follower: {type(err).__name__}", exc_info=err)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from err
 
     return _transform_follower(new_follow)
 
 
+@core_decorators.handle_db_errors
 def accept_follower(
     user_id: int,
     target_user_id: int,
@@ -303,26 +302,16 @@ def accept_follower(
         followers_models.Follower.status == "pending",
     )
 
-    try:
-        accept_follow = db.scalars(stmt).first()
-        if accept_follow is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Follower record not found",
-            )
-
-        accept_follow.status = "accepted"
-        db.commit()
-        db.refresh(accept_follow)
-    except HTTPException:
-        raise
-    except SQLAlchemyError as err:
-        db.rollback()
-        logger.error(f"Database error in accept_follower: {type(err).__name__}", exc_info=err)
+    accept_follow = db.scalars(stmt).first()
+    if accept_follow is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
-        ) from err
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Follower record not found",
+        )
+
+    accept_follow.status = "accepted"
+    db.commit()
+    db.refresh(accept_follow)
 
 
 @core_decorators.handle_db_errors
