@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
+import core.hashing as core_hashing
 import core.logger as core_logger
 import infra.providers as platform_providers
 import infra.runtime as platform_runtime
@@ -99,6 +100,89 @@ def _build_storage_key(activity_id: int, original_name: str | None) -> str:
 def _storage() -> platform_providers.StorageProvider:
     """Return the active platform's blob-storage provider."""
     return platform_runtime.get_active_platform().storage
+
+
+def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_key: str, activity_id: int) -> None:
+    """Best-effort delete of a blob whose database row was never created.
+
+    Args:
+        storage: The storage provider the blob was saved through.
+        storage_key: The key to remove.
+        activity_id: The activity it was being attached to, for the log context.
+
+    Returns:
+        None.
+    """
+    try:
+        storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, storage_key)
+    except Exception as storage_err:
+        logger.warning(
+            "Failed to clean up an orphaned activity media blob",
+            extra=core_logger.context(activity_id=activity_id, storage_key=storage_key, reason=str(storage_err)),
+        )
+
+
+def _persist_media_bytes(
+    activity_id: int,
+    original_filename: str | None,
+    data: bytes,
+    content_type: str | None,
+    db: Session,
+) -> activity_media_contracts.ActivityMediaRecord:
+    """Store validated image bytes, no-op'ing a byte-for-byte repeat.
+
+    Shared by the multipart upload and server-side ingestion paths — both hand
+    over already-validated bytes for one activity, and neither should create a
+    second row for a photo already stored there (a retried upload, or a Strava
+    bulk-export re-run reprocessing files it already imported).
+
+    Args:
+        activity_id: The activity to attach the media to.
+        original_filename: Source filename, used only for its extension.
+        data: Validated image bytes.
+        content_type: Upload content type, when known (server-side ingestion
+            does not carry one).
+        db: Database session.
+
+    Returns:
+        The stored record — freshly created, or the existing one when the exact
+        same bytes were already stored for this activity.
+
+    Raises:
+        UnsupportedMediaTypeError: For an unsupported extension.
+        ConflictError: On a ``media_path`` collision (astronomically unlikely —
+            the key is a server-generated UUID — so not a content duplicate).
+    """
+    content_hash = core_hashing.sha256_hex(data)
+    existing = activity_media_crud.get_activity_media_by_content_hash(activity_id, content_hash, db)
+    if existing is not None:
+        logger.info(
+            "Skipping re-store: identical media already stored for this activity",
+            extra=core_logger.context(activity_id=activity_id, media_id=existing.id),
+        )
+        return existing
+
+    storage_key = _build_storage_key(activity_id, original_filename)
+    storage = _storage()
+    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, content_type)
+
+    try:
+        return activity_media_crud.create_activity_media(activity_id, storage_key, db, content_hash=content_hash)
+    except core_exceptions.ConflictError:
+        # The pre-check above is read-then-write: a concurrent store of the same
+        # bytes for this activity can race it. The unique (activity_id,
+        # content_hash) index is what actually guarantees the no-op; losing that
+        # race means the other caller stored it, which is the outcome this one
+        # wanted too — return the winner rather than surfacing a conflict for
+        # what the caller experiences as a successful store.
+        winner = activity_media_crud.get_activity_media_by_content_hash(activity_id, content_hash, db)
+        _cleanup_orphaned_blob(storage, storage_key, activity_id)
+        if winner is None:
+            raise
+        return winner
+    except core_exceptions.DomainError:
+        _cleanup_orphaned_blob(storage, storage_key, activity_id)
+        raise
 
 
 def _to_read_model(
@@ -212,7 +296,9 @@ def store_activity_media(
         db: Database session.
 
     Returns:
-        The created media record, carrying its signed servable URL.
+        The created media record, carrying its signed servable URL. The same
+        record is returned, without writing anything new, when the exact same
+        bytes are already stored for this activity.
 
     Raises:
         NotFoundError: When the activity is not the user's.
@@ -221,33 +307,15 @@ def store_activity_media(
     """
     _require_owned_activity(activity_id, user_id, db)
 
-    storage_key = _build_storage_key(activity_id, file.filename)
-    storage = _storage()
-
     # SafeUploads validates magic number and size before anything is stored.
     # Callers run on a worker thread (the route is synchronous), so the blocking
     # read never touches the event loop.
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, file.content_type)
-
-    try:
-        created = activity_media_crud.create_activity_media(activity_id, storage_key, db)
-    except core_exceptions.DomainError:
-        # Best-effort cleanup of the orphaned blob.
-        try:
-            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, storage_key)
-        except Exception as storage_err:
-            logger.warning(
-                "Failed to clean up an orphaned activity media blob",
-                extra=core_logger.context(activity_id=activity_id, storage_key=storage_key, reason=str(storage_err)),
-            )
-        raise
+    created = _persist_media_bytes(activity_id, file.filename, data, file.content_type, db)
 
     logger.info(
         "Stored activity media",
-        extra=core_logger.context(
-            activity_id=activity_id, user_id=user_id, media_id=created.id, storage_key=storage_key
-        ),
+        extra=core_logger.context(activity_id=activity_id, user_id=user_id, media_id=created.id),
     )
     return _to_read_model(created)
 
@@ -277,17 +345,16 @@ def store_activity_media_bytes(
         db: Database session.
 
     Returns:
-        The created media record.
+        The stored record — freshly created, or the existing one when a
+        bulk-import re-run hands back a photo already stored for this activity.
 
     Raises:
         UnsupportedMediaTypeError: For an unsupported extension.
     """
-    storage_key = _build_storage_key(activity_id, original_filename)
-    _storage().save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data)
-    created = activity_media_crud.create_activity_media(activity_id, storage_key, db)
+    created = _persist_media_bytes(activity_id, original_filename, data, None, db)
     logger.info(
         "Stored activity media from a server-side import",
-        extra=core_logger.context(activity_id=activity_id, media_id=created.id, storage_key=storage_key),
+        extra=core_logger.context(activity_id=activity_id, media_id=created.id),
     )
     return created
 
