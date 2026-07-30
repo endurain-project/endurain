@@ -822,57 +822,6 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
         assert e.value.status_code == 500
 
 
-class TestGetUserFollowingActivitiesPerTimeframe:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_following_activities_per_timeframe(
-            user_id=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-        )
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert (
-            crud.get_user_following_activities_per_timeframe(
-                user_id=1,
-                start=datetime(2024, 1, 1, tzinfo=UTC),
-                end=datetime(2024, 1, 31, tzinfo=UTC),
-                db=mock_db,
-            )
-            is None
-        )
-
-    @patch("modules.activities.activity.crud.followers_service.list_accepted_followee_ids", return_value=[2])
-    def test_db_error(self, _mock_followees, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
-            crud.get_user_following_activities_per_timeframe(
-                user_id=1,
-                start=datetime(2024, 1, 1, tzinfo=UTC),
-                end=datetime(2024, 1, 31, tzinfo=UTC),
-                db=mock_db,
-            )
-        assert e.value.status_code == 500
-
-
 class TestGetUserFollowingActivitiesWithPagination:
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     def test_success(self, mock_ser, mock_db):
@@ -1432,32 +1381,6 @@ class TestGetActivityByIdFromUserId:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
             crud.get_activity_by_id_from_user_id(activity_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetActivitiesIfContainsName:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_activities_if_contains_name(name="Test", user_id=1, db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_activities_if_contains_name(name="Test", user_id=1, db=mock_db) is None
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
-            crud.get_activities_if_contains_name(name="Test", user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 

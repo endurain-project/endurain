@@ -10,6 +10,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.exceptions as core_exceptions
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.schema as activities_schema
@@ -20,7 +21,7 @@ router = APIRouter()
 
 @router.get(
     "/{activity_id}",
-    response_model=activities_schema.Activity | None,
+    response_model=activities_schema.Activity,
 )
 def read_public_activities_activity_from_id(
     activity_id: int,
@@ -30,5 +31,14 @@ def read_public_activities_activity_from_id(
         Depends(core_database.get_db),
     ],
 ):
-    """Return a public activity by ID, or None if not found/not public."""
-    return activities_crud.get_activity_by_id_if_is_public(activity_id, db)
+    """Return a public activity by ID.
+
+    Answers 404 when the activity does not exist *or* is not public — the two are
+    deliberately indistinguishable so this unauthenticated endpoint cannot be
+    used to enumerate which activity ids exist. It previously returned
+    ``200 null``, which is neither a resource nor an error.
+    """
+    activity = activities_crud.get_activity_by_id_if_is_public(activity_id, db)
+    if activity is None:
+        raise core_exceptions.NotFoundError("Activity not found")
+    return activity

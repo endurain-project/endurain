@@ -20,11 +20,11 @@ import gzip
 import os
 from pathlib import Path
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import infra.runtime as platform_runtime
@@ -64,14 +64,14 @@ def parse_file(
         The parsed file, or ``None`` for the bulk-import package marker file.
 
     Raises:
-        HTTPException: 406 when no parser is registered for the extension, 500 on
-            a parse failure.
+        UnsupportedFormatError: When no parser is registered for the extension.
+        ProcessingError: On a parse failure.
     """
     try:
         if filename.lower() == "bulk_import/__init__.py":
             return None
 
-        logger.info(f"Parsing file: {Path(filename).name}")
+        logger.info("Parsing activity file", extra=core_logger.context(file=Path(filename).name, user_id=token_user_id))
         # Dispatch to the parser registered for this extension. The parsers
         # are pure (no db / privacy / gear / provider coupling); the
         # pipeline re-attaches that domain context afterwards — including
@@ -79,13 +79,12 @@ def parse_file(
         parser = parser_registry.get_parser(file_extension)
         if parser is None:
             supported = ", ".join(parser_registry.supported_extensions())
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail=f"File extension not supported. Supported file extensions are {supported}",
+            raise core_exceptions.UnsupportedFormatError(
+                f"File extension not supported. Supported file extensions are {supported}"
             )
         return parser(filename, token_user_id, activity_name, default_timezone)
-    except HTTPException as http_err:
-        raise http_err
+    except core_exceptions.DomainError:
+        raise
     except (
         OSError,
         EOFError,
@@ -98,11 +97,12 @@ def parse_file(
     ) as err:
         # Log the exception with full traceback but return a generic
         # error message to the caller to avoid internal info disclosure.
-        logger.error(f"Error in parse_file - {err}", exc_info=err)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        logger.error(
+            "Error in parse_file",
+            exc_info=err,
+            extra=core_logger.context(file=Path(filename).name, user_id=token_user_id),
+        )
+        raise core_exceptions.ProcessingError() from err
 
 
 def _retain_source_file(
@@ -177,22 +177,16 @@ def store_activities_from_file(
         parseable activity.
 
     Raises:
-        HTTPException: When the user (or privacy settings) cannot be found, or on
-            an internal parse/persist failure.
+        NotFoundError: When the user (or their privacy settings) cannot be found.
+        ProcessingError: On an internal parse/persist failure.
     """
     user = users_crud.get_user_by_id(token_user_id, db)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        raise core_exceptions.NotFoundError("User not found")
 
     user_privacy_settings = users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user.id, db)
     if user_privacy_settings is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User privacy settings not found",
-        )
+        raise core_exceptions.NotFoundError("User privacy settings not found")
 
     from_garmin = isinstance(source, ingestion_sources.GarminSource)
     bulk_source = source if isinstance(source, ingestion_sources.BulkImportSource) else None
@@ -293,8 +287,13 @@ def _finish_bulk_import_file(
     """
     ids_to_filename = "_".join(str(activity.id) for activity in created_activities)
     logger.info(
-        f"Bulk file import: file {file_base_name} successfully processed and stored for activities {ids_to_filename}",
-        extra=core_logger.context(console=True),
+        "Bulk file import: file processed and stored",
+        extra=core_logger.context(
+            console=True,
+            file=file_base_name,
+            activity_ids=ids_to_filename,
+            activity_count=len(created_activities),
+        ),
     )
 
     # Deal with Strava bulk import media. Note - even multi-activity .fit files
@@ -309,8 +308,8 @@ def _finish_bulk_import_file(
         )
 
     logger.info(
-        f"Bulk file import: Import work complete for file {file_base_name}.",
-        extra=core_logger.context(console=True),
+        "Bulk file import: import work complete for file",
+        extra=core_logger.context(console=True, file=file_base_name),
     )
 
 
@@ -342,16 +341,15 @@ def validate_prepare_and_store_file(
         List of created activity schema objects.
 
     Raises:
-        HTTPException: 406 for an unsupported extension, 400 when a ``.gz``
-            decompresses to an unsupported payload.
+        UnsupportedFormatError: For an unsupported extension.
+        InvalidInputError: When a ``.gz`` decompresses to an unsupported payload.
     """
     _, file_extension = os.path.splitext(file_path)
     file_extension = file_extension.lower()
 
     if file_extension not in core_config.SUPPORTED_FILE_FORMATS:
-        raise HTTPException(
-            status_code=status.HTTP_406_NOT_ACCEPTABLE,
-            detail=("File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"),
+        raise core_exceptions.UnsupportedFormatError(
+            "File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"
         )
 
     # Defense-in-depth signature check on files queued for
@@ -374,10 +372,7 @@ def validate_prepare_and_store_file(
         file_path, file_extension = core_file_uploads.decompress_gzip(file_path)
         file_extension = file_extension.lower()
         if file_extension not in core_config.SUPPORTED_FILE_FORMATS or file_extension == ".gz":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=("Decompressed file extension is not supported"),
-            )
+            raise core_exceptions.InvalidInputError("Decompressed file extension is not supported")
         core_file_uploads.validate_local_file_sync(
             file_path,
             kind=core_file_uploads.UploadKind.ACTIVITY,

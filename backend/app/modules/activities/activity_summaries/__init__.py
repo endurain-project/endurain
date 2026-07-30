@@ -7,6 +7,7 @@ lifetime) with breakdowns by day, week, month, year, and
 activity type.
 
 Exports:
+    - Service: build_summary
     - CRUD: get_weekly_summary, get_monthly_summary,
       get_yearly_summary, get_lifetime_summary
     - Schemas: SummaryMetrics, DaySummary, WeekSummary,
@@ -14,7 +15,6 @@ Exports:
       TypeBreakdownItem, WeeklySummaryResponse,
       MonthlySummaryResponse, YearlySummaryResponse,
       LifetimeSummaryResponse
-    - Dependencies: validate_view_type
 """
 
 from .crud import (
@@ -23,7 +23,6 @@ from .crud import (
     get_weekly_summary,
     get_yearly_summary,
 )
-from .dependencies import validate_view_type
 from .schema import (
     DaySummary,
     LifetimeSummaryResponse,
@@ -36,6 +35,7 @@ from .schema import (
     YearlyPeriodSummary,
     YearlySummaryResponse,
 )
+from .service import build_summary
 
 __all__ = [
     "DaySummary",
@@ -49,11 +49,11 @@ __all__ = [
     "WeeklySummaryResponse",
     "YearlyPeriodSummary",
     "YearlySummaryResponse",
+    # Service
+    "build_summary",
     "get_lifetime_summary",
     "get_monthly_summary",
     # CRUD operations
     "get_weekly_summary",
     "get_yearly_summary",
-    # Dependencies
-    "validate_view_type",
 ]

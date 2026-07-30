@@ -82,7 +82,10 @@ def publish_bulk_import_files(
         db=db,
         commit=db.commit,
     )
-    logger.info(f"Bulk import: enqueued {len(file_paths)} durable file job(s) for user {user_id}")
+    logger.info(
+        "Bulk import: enqueued durable file jobs",
+        extra=core_logger.context(user_id=user_id, file_count=len(file_paths)),
+    )
 
 
 def process_bulk_import_file_for_event(event: Event) -> None:

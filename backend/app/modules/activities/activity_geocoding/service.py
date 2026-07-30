@@ -83,7 +83,12 @@ def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Sess
         location.country,
         db,
     )
-    logger.debug(f"Stored location for activity {activity_id}: {location.city} / {location.town} / {location.country}")
+    logger.debug(
+        "Stored the resolved activity location",
+        extra=core_logger.context(
+            activity_id=activity_id, city=location.city, town=location.town, country=location.country
+        ),
+    )
     return True
 
 

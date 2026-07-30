@@ -762,47 +762,6 @@ def get_user_activities_per_timeframe_and_activity_types(
 
 
 @core_decorators.handle_db_errors
-def get_user_following_activities_per_timeframe(
-    user_id: int,
-    start: datetime,
-    end: datetime,
-    db: Session,
-) -> list[activities_schema.Activity] | None:
-    """Get followed users' activities within a date range.
-
-    Args:
-        user_id: Requesting user ID (the follower).
-        start: Inclusive start datetime.
-        end: Inclusive end datetime.
-        db: Database session.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        HTTPException: 500 on database error.
-    """
-    followee_ids = followers_service.list_accepted_followee_ids(user_id, db)
-    if not followee_ids:
-        return None
-    stmt = (
-        select(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id.in_(followee_ids),
-            activities_models.Activity.visibility.in_([0, 1]),
-            activities_models.Activity.is_hidden.is_(False),
-            activities_models.Activity.strava_activity_id.is_(None),
-            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
-        )
-        .order_by(desc(activities_models.Activity.start_time))
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return _serialize_and_mask(list(activities), force_non_owner=True)
-
-
-@core_decorators.handle_db_errors
 def get_user_following_activities_with_pagination(
     followee_ids: list[int], page_number: int, num_records: int, db: Session
 ) -> list[activities_schema.Activity] | None:
@@ -1119,7 +1078,10 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     schema = activities_serializers.serialize_activity(activity)
     is_owner = activity.user_id == user_id
     activities_serializers.apply_visibility_mask(schema, is_owner=is_owner)
-    logger.debug(f"Served activity {activity_id} to user {user_id} (owner={is_owner})")
+    logger.debug(
+        "Served activity",
+        extra=core_logger.context(activity_id=activity_id, user_id=user_id, is_owner=is_owner),
+    )
     return schema
 
 
@@ -1194,7 +1156,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
         return None
     schema = activities_serializers.serialize_activity(activity)
     activities_serializers.apply_visibility_mask(schema, is_owner=False)
-    logger.debug(f"Served public activity {activity_id}")
+    logger.debug("Served public activity", extra=core_logger.context(activity_id=activity_id))
     return schema
 
 
@@ -1239,11 +1201,17 @@ def get_public_activity_for_child_read(
     """
     activity = get_activity_by_id_if_is_public(activity_id, db)
     if activity is None:
-        logger.debug(f"Public child read denied for activity {activity_id} ({hide_attr}): not publicly shareable")
+        logger.debug(
+            "Public child read denied: activity is not publicly shareable",
+            extra=core_logger.context(activity_id=activity_id, hide_attr=hide_attr),
+        )
         return None
 
     if getattr(activity, hide_attr):
-        logger.debug(f"Public child read denied for activity {activity_id}: {hide_attr} is set")
+        logger.debug(
+            "Public child read denied: the hide flag is set",
+            extra=core_logger.context(activity_id=activity_id, hide_attr=hide_attr),
+        )
         return None
 
     return activity
@@ -1411,40 +1379,6 @@ def get_activity_by_garminconnect_id_from_user_id(
 
 
 @core_decorators.handle_db_errors
-def get_activities_if_contains_name(name: str, user_id: int, db: Session) -> list[activities_schema.Activity] | None:
-    """Search a user's activities by partial name match.
-
-    Args:
-        name: URL-encoded partial name.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        List of activity schemas or None when no matches.
-
-    Raises:
-        HTTPException: 500 on database error.
-    """
-    partial_name = unquote(name).replace("+", " ").lower()
-    pattern = f"%{escape_like(partial_name)}%"
-    stmt = (
-        select(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id == user_id,
-            func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
-        )
-        .order_by(desc(activities_models.Activity.start_time))
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return _serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id,
-    )
-
-
-@core_decorators.handle_db_errors
 def create_activity(
     activity: activities_contracts.ActivityCore,
     db: Session,
@@ -1546,7 +1480,10 @@ def set_activity_thumbnail_path(
     stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
     db_activity = db.execute(stmt).scalar_one_or_none()
     if db_activity is None:
-        logger.warning(f"Activity {activity_id} not found when setting thumbnail path")
+        logger.warning(
+            "Activity not found when setting the thumbnail path",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         return
     db_activity.map_thumbnail_path = thumbnail_path
     db.commit()
@@ -1582,7 +1519,10 @@ def update_activity_location(
     stmt = select(activities_models.Activity).where(activities_models.Activity.id == activity_id)
     db_activity = db.execute(stmt).scalar_one_or_none()
     if db_activity is None:
-        logger.warning(f"Activity {activity_id} not found when updating location")
+        logger.warning(
+            "Activity not found when updating the location",
+            extra=core_logger.context(activity_id=activity_id),
+        )
         return False
     db_activity.city = city
     db_activity.town = town
@@ -1623,7 +1563,11 @@ def get_activities_missing_location(
         ids = db.execute(stmt).scalars().all()
         return [activities_contracts.ActivityLocationRef(id=activity_id) for activity_id in ids]
     except SQLAlchemyError as err:
-        logger.error(f"Database error in get_activities_missing_location: {type(err).__name__}", exc_info=err)
+        logger.error(
+            "Database error in get_activities_missing_location",
+            exc_info=err,
+            extra=core_logger.context(error=type(err).__name__),
+        )
         return []
 
 
@@ -1641,7 +1585,11 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
         db.commit()
     except SQLAlchemyError as err:
         db.rollback()
-        logger.error(f"Database error in clear_all_activity_thumbnail_paths: {type(err).__name__}", exc_info=err)
+        logger.error(
+            "Database error in clear_all_activity_thumbnail_paths",
+            exc_info=err,
+            extra=core_logger.context(error=type(err).__name__),
+        )
 
 
 def get_activities_with_thumbnail(
@@ -1664,7 +1612,11 @@ def get_activities_with_thumbnail(
             for row in rows
         ]
     except SQLAlchemyError as err:
-        logger.error(f"Database error in get_activities_with_thumbnail: {type(err).__name__}", exc_info=err)
+        logger.error(
+            "Database error in get_activities_with_thumbnail",
+            exc_info=err,
+            extra=core_logger.context(error=type(err).__name__),
+        )
         return []
 
 
@@ -1688,7 +1640,11 @@ def get_activities_without_thumbnail(
             for row in rows
         ]
     except SQLAlchemyError as err:
-        logger.error(f"Database error in get_activities_without_thumbnail: {type(err).__name__}", exc_info=err)
+        logger.error(
+            "Database error in get_activities_without_thumbnail",
+            exc_info=err,
+            extra=core_logger.context(error=type(err).__name__),
+        )
         return []
 
 
@@ -1730,7 +1686,11 @@ def get_activities_with_legacy_thumbnail_path(
             for row in rows
         ]
     except SQLAlchemyError as err:
-        logger.error(f"Database error in get_activities_with_legacy_thumbnail_path: {type(err).__name__}", exc_info=err)
+        logger.error(
+            "Database error in get_activities_with_legacy_thumbnail_path",
+            exc_info=err,
+            extra=core_logger.context(error=type(err).__name__),
+        )
         return []
 
 
@@ -1789,7 +1749,10 @@ def edit_activity(
 
     db.commit()
     db.refresh(db_activity)
-    logger.debug(f"Edited activity {db_activity.id} for user {user_id} (fields: {sorted(activity_data.keys())})")
+    logger.debug(
+        "Edited activity",
+        extra=core_logger.context(activity_id=db_activity.id, user_id=user_id, fields=sorted(activity_data.keys())),
+    )
     return activities_serializers.serialize_activity(db_activity)
 
 
@@ -1941,7 +1904,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, commit: bool = 
             )
         if commit:
             db.commit()
-        logger.debug(f"Deleted activity {activity_id} for user {user_id}")
+        logger.debug("Deleted activity", extra=core_logger.context(activity_id=activity_id, user_id=user_id))
     except HTTPException:
         # Kept rather than delegated: the 404 above is raised *after* the DELETE
         # has been staged, and the decorator does not roll back for an
@@ -1981,7 +1944,10 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session, commit: boo
     deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
     if commit:
         db.commit()
-    logger.info(f"Deleted {len(deleted_ids)} Strava activity/activities for user {user_id}")
+    logger.info(
+        "Deleted the user's Strava activities",
+        extra=core_logger.context(user_id=user_id, deleted=len(deleted_ids)),
+    )
     return deleted_ids
 
 
@@ -2015,5 +1981,8 @@ def delete_all_activities_for_user(user_id: int, db: Session, commit: bool = Tru
     deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
     if commit:
         db.commit()
-    logger.info(f"Deleted {len(deleted_ids)} activity/activities for user {user_id}")
+    logger.info(
+        "Deleted the user's activities",
+        extra=core_logger.context(user_id=user_id, deleted=len(deleted_ids)),
+    )
     return deleted_ids

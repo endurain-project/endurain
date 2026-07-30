@@ -3,7 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+
+import core.exceptions as core_exceptions
 
 
 def _parsed(**overrides):
@@ -89,7 +90,7 @@ class TestStoreParsedActivity:
 
         mock_crud.create_activity = MagicMock(return_value=None)
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             ingestion_service.store_parsed_activity(_parsed(), MagicMock())
         assert exc.value.status_code == 500
 
@@ -99,7 +100,7 @@ class TestStoreParsedActivity:
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=None))
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             ingestion_service.store_parsed_activity(_parsed(), MagicMock())
         assert exc.value.status_code == 500
 
@@ -137,7 +138,7 @@ class TestStoreParsedActivity:
 
         parsed = _parsed(streams=[schema.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 100}])])
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             ingestion_service.store_parsed_activity(parsed, db)
         assert exc.value.status_code == 500
         # The whole unit of work rolls back (no partial activity) and no event is
@@ -222,7 +223,7 @@ class TestStoreParsedActivity:
 
         parsed = _parsed(source=schema.ImportSource(kind="strava", dedup_key="strava:123"))
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             ingestion_service.store_parsed_activity(parsed, db)
 
         assert exc.value.status_code == 500
@@ -244,7 +245,7 @@ class TestStoreParsedActivity:
         activity = MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=3)
         db = MagicMock()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.ProcessingError) as exc:
             ingestion_service.store_parsed_activity(_parsed(activity=activity), db)
 
         assert exc.value.status_code == 500

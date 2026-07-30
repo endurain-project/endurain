@@ -6,6 +6,7 @@ import gpxpy
 import pytest
 from geopy.distance import geodesic
 
+import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils_gpx as utils_gpx
 
@@ -222,7 +223,7 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        with pytest.raises(utils_gpx.HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             utils_gpx.parse_gpx_file(
                 gpx_path,
                 user_id=1,

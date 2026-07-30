@@ -1,11 +1,12 @@
 """Utilities for parsing TCX files into activity data."""
 
+from pathlib import Path
 from typing import Any
 
 import tcxreader
-from fastapi import HTTPException, status
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
@@ -321,11 +322,11 @@ def parse_tcx_file(
         associated metadata.
 
     Raises:
-        HTTPException: When the TCX file cannot be
+        ProcessingError: When the TCX file cannot be
             parsed or processed.
     """
     try:
-        logger.debug(f"TCX parse start: file={file}, user={user_id}")
+        logger.debug("TCX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
         tcx_file = tcxreader.TCXReader().read(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
@@ -407,17 +408,23 @@ def parse_tcx_file(
             "lat_lon_waypoints": lat_lon_wp,
         }
         logger.debug(
-            f"TCX parse complete: user={user_id}, type={activity_type}, distance={distance}m, "
-            f"laps={len(laps)}, gps_points={len(lat_lon_wp)}, "
-            f"streams(hr={bool(hr_wp)}, power={bool(power_wp)})"
+            "TCX parse complete",
+            extra=core_logger.context(
+                user_id=user_id,
+                activity_type=activity_type,
+                distance_m=distance,
+                laps=len(laps),
+                gps_points=len(lat_lon_wp),
+                has_hr=bool(hr_wp),
+                has_power=bool(power_wp),
+            ),
         )
         return activity_file_import_utils.build_activity_file_payload(activity, waypoints_combined, laps)
 
-    except HTTPException as http_err:
-        raise http_err
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        logger.error(f"Error in parse_tcx_file - {err}", exc_info=err)
-        raise HTTPException(
-            status_code=(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            detail=(f"Can't open TCX file: {err}"),
-        ) from err
+        # The exception text can carry file paths / parser internals, so it is
+        # logged but never returned to the caller (OWASP A09).
+        logger.error("Error in parse_tcx_file", exc_info=err, extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.ProcessingError("Can't open TCX file") from err

@@ -6,12 +6,16 @@ from fastapi.testclient import TestClient
 
 def _build_app(mock_db):
     import core.database as core_db
+    import core.exceptions as core_exceptions
     import modules.auth.dependencies as auth_deps
     import modules.followers.router as router
     import modules.users.users.dependencies as users_deps
 
     app = FastAPI()
     app.include_router(router.router)
+    # Same domain-error boundary the real app registers, so these tests assert
+    # the status codes clients actually receive.
+    core_exceptions.register_exception_handlers(app)
 
     def _mock():
         return None

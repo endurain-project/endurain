@@ -122,6 +122,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/activities/exercise-titles/all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activities Exercise Titles All
+         * @description Return all activity exercise titles.
+         *
+         *     Args:
+         *         _check_scopes: Scope check dependency for authorization.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of ActivityExerciseTitles or None when empty.
+         *
+         *     Raises:
+         *         HTTPException: If a database error occurs.
+         */
+        get: operations["read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/activities/feed": {
         parameters: {
             query?: never;
@@ -179,8 +209,31 @@ export interface paths {
          *     clients, which are not yet reworked. It lives in the ingestion layer (not the
          *     activities core) because it depends on the Strava/Garmin provider clients — the
          *     core router stays provider-agnostic.
+         *
+         *     Returns an empty list when the providers had nothing new; it used to answer
+         *     ``200 null``, which forced every client to null-check a collection endpoint.
          */
         post: operations["refresh_activities_api_v1_activities_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Summary
+         * @description Return the authenticated user's activity summary for one period.
+         */
+        get: operations["read_activity_summary_api_v1_activities_summaries_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -371,16 +424,18 @@ export interface paths {
          * Read Activities Media User
          * @description Retrieve activity media records for an activity owned by the user.
          *
+         *     Returns an empty list when the activity has no media or is not accessible to
+         *     the caller — previously ``200 null``, which made a collection endpoint answer
+         *     with a scalar and forced every client to null-check it.
+         *
          *     Args:
          *         activity_id: Activity ID to fetch media for.
-         *         _validate_id: Activity ID validation dependency.
          *         _check_scopes: Scope validation dependency.
          *         token_user_id: Authenticated user ID.
          *         db: Database session.
          *
          *     Returns:
-         *         List of ActivityMedia records, or None if there are no media or
-         *         the activity is not accessible to the user.
+         *         The activity's media records, empty when there are none.
          */
         get: operations["read_activities_media_user_api_v1_activities__activity_id__media_get"];
         put?: never;
@@ -392,10 +447,14 @@ export interface paths {
          *     via the centralized image upload helper, stored under the configured
          *     ``ACTIVITY_MEDIA_DIR``, and registered in the database.
          *
+         *     Rate limited on the ``UPLOAD`` tier: it is an authenticated endpoint that
+         *     writes caller-supplied bytes to disk, so without a cap a single account can
+         *     fill the media volume.
+         *
          *     Args:
+         *         request: Incoming request, required by the rate limiter.
          *         file: Uploaded image file.
          *         activity_id: Activity ID the media belongs to.
-         *         _validate_id: Activity ID validation dependency.
          *         _check_scopes: Scope validation dependency.
          *         token_user_id: Authenticated user ID.
          *         db: Database session.
@@ -404,12 +463,9 @@ export interface paths {
          *         The newly created ActivityMedia record.
          *
          *     Raises:
-         *         HTTPException:
-         *             - 404 Not Found: If the activity is not owned by the user.
-         *             - 400 Bad Request: If image validation fails.
-         *             - 415 Unsupported Media Type: If the extension is rejected.
-         *             - 409 Conflict: If a media with the same path already exists.
-         *             - 500 Internal Server Error: For unexpected I/O or DB errors.
+         *         NotFoundError: If the activity is not owned by the user.
+         *         UnsupportedMediaTypeError: If the extension is rejected.
+         *         ConflictError: If a media with the same path already exists.
          */
         post: operations["upload_media_api_v1_activities__activity_id__media_post"];
         delete?: never;
@@ -580,77 +636,6 @@ export interface paths {
          *         List of workout steps or None.
          */
         get: operations["read_activity_workout_steps_all_api_v1_activities__activity_id__workout_steps_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_exercise_titles/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activities Exercise Titles All
-         * @description Return all activity exercise titles.
-         *
-         *     Args:
-         *         _check_scopes: Scope check dependency for authorization.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ActivityExerciseTitles or None when empty.
-         *
-         *     Raises:
-         *         HTTPException: If a database error occurs.
-         */
-        get: operations["read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_summaries/{view_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activity Summary
-         * @description Read activity summary for a given view type.
-         *
-         *     Args:
-         *         view_type: One of week, month, year,
-         *             lifetime.
-         *         validate_view_type: Dependency that
-         *             validates view_type.
-         *         _check_scopes: Dependency that checks
-         *             required scopes.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         target_date_str: Optional ISO date for
-         *             week/month views.
-         *         target_year: Optional year for year view.
-         *         activity_type: Optional activity type name
-         *             filter.
-         *
-         *     Returns:
-         *         Summary response matching the view type.
-         *
-         *     Raises:
-         *         HTTPException: If date/year is invalid.
-         */
-        get: operations["read_activity_summary_api_v1_activities_summaries__view_type__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3926,6 +3911,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/activities/exercise-titles/all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activities Exercise Titles All
+         * @description Return all activity exercise titles via the public endpoint.
+         *
+         *     Args:
+         *         db: Database session.
+         *
+         *     Returns:
+         *         List of ActivityExerciseTitles, or None if public sharable
+         *         links are disabled or no entries exist.
+         *
+         *     Raises:
+         *         HTTPException: If server settings are missing or a database
+         *             error occurs.
+         */
+        get: operations["read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/activities/{activity_id}": {
         parameters: {
             query?: never;
@@ -3935,7 +3951,12 @@ export interface paths {
         };
         /**
          * Read Public Activities Activity From Id
-         * @description Return a public activity by ID, or None if not found/not public.
+         * @description Return a public activity by ID.
+         *
+         *     Answers 404 when the activity does not exist *or* is not public — the two are
+         *     deliberately indistinguishable so this unauthenticated endpoint cannot be
+         *     used to enumerate which activity ids exist. It previously returned
+         *     ``200 null``, which is neither a resource nor an error.
          */
         get: operations["read_public_activities_activity_from_id_api_v1_public_activities__activity_id__get"];
         put?: never;
@@ -4064,37 +4085,6 @@ export interface paths {
          *         List of workout steps or None.
          */
         get: operations["read_public_activity_workout_steps_all_api_v1_public_activities__activity_id__workout_steps_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_exercise_titles/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activities Exercise Titles All
-         * @description Return all activity exercise titles via the public endpoint.
-         *
-         *     Args:
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ActivityExerciseTitles, or None if public sharable
-         *         links are disabled or no entries exist.
-         *
-         *     Raises:
-         *         HTTPException: If server settings are missing or a database
-         *             error occurs.
-         */
-        get: operations["read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12308,6 +12298,26 @@ export interface operations {
             };
         };
     };
+    read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
+                };
+            };
+        };
+    };
     list_following_feed_api_v1_activities_feed_get: {
         parameters: {
             query?: {
@@ -12389,7 +12399,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
+                    "application/json": components["schemas"]["Activity"][];
+                };
+            };
+        };
+    };
+    read_activity_summary_api_v1_activities_summaries_get: {
+        parameters: {
+            query?: {
+                period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
+                date?: string | null;
+                /** @description Target year for the yearly summary. Defaults to the anchor date's year. */
+                year?: number | null;
+                /** @description Filter the summary by activity type name. */
+                type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklySummaryResponse"] | components["schemas"]["MonthlySummaryResponse"] | components["schemas"]["YearlySummaryResponse"] | components["schemas"]["LifetimeSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -12703,7 +12750,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityMedia"][] | null;
+                    "application/json": components["schemas"]["ActivityMedia"][];
                 };
             };
             /** @description Validation Error */
@@ -12929,64 +12976,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
-                };
-            };
-        };
-    };
-    read_activity_summary_api_v1_activities_summaries__view_type__get: {
-        parameters: {
-            query?: {
-                /** @description Target date (YYYY-MM-DD) for week/month view. Defaults to today. */
-                date?: string | null;
-                /** @description Target year for year view. Defaults to current year. */
-                year?: number | null;
-                /** @description Filter summary by activity type name. */
-                type?: string | null;
-            };
-            header?: never;
-            path: {
-                view_type: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WeeklySummaryResponse"] | components["schemas"]["MonthlySummaryResponse"] | components["schemas"]["YearlySummaryResponse"] | components["schemas"]["LifetimeSummaryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16340,6 +16329,26 @@ export interface operations {
             };
         };
     };
+    read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
+                };
+            };
+        };
+    };
     read_public_activities_activity_from_id_api_v1_public_activities__activity_id__get: {
         parameters: {
             query?: never;
@@ -16357,7 +16366,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"] | null;
+                    "application/json": components["schemas"]["Activity"];
                 };
             };
             /** @description Validation Error */
@@ -16523,26 +16532,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
                 };
             };
         };

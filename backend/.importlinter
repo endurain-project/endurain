@@ -120,7 +120,7 @@ forbidden_modules =
 # alone. The parsers may still import the activities SCHEMAS (activity.schema /
 # activity_exercise_titles.schema / activity_workout_steps.schema) — data shapes, not crud.
 [importlinter:contract:activity-file-import-purity]
-name = Activity file parsers must be pure (no db / domain / provider / crud imports)
+name = Activity file parsers must be pure (no db / domain / provider / crud / HTTP imports)
 type = forbidden
 allow_indirect_imports = True
 source_modules =
@@ -133,6 +133,7 @@ forbidden_modules =
     modules.activities.*.crud
     modules.activities.*.*.crud
     sqlalchemy
+    fastapi
 
 # The activities module performs no raw network egress. Reverse geocoding was the
 # one exception: it built provider URLs, resolved and denylisted the configured

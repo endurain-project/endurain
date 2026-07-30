@@ -8,7 +8,7 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
@@ -17,7 +17,10 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    field_validator,
 )
+
+import core.timezone as core_timezone
 
 PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
@@ -102,15 +105,15 @@ class Activity(BaseModel):
     distance: int = Field(ge=0)
     name: str = Field(max_length=250)
     activity_type: int = Field(ge=1)
-    start_time: datetime | str | None = None
-    end_time: datetime | str | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
     timezone: str | None = Field(default=None, max_length=250)
     total_elapsed_time: float | None = Field(default=None, ge=0)
     total_timer_time: float | None = Field(default=None, ge=0)
     city: str | None = Field(default=None, max_length=250)
     town: str | None = Field(default=None, max_length=250)
     country: str | None = Field(default=None, max_length=250)
-    created_at: datetime | str | None = None
+    created_at: datetime | None = None
     elevation_gain: int | None = None
     elevation_loss: int | None = None
     pace: float | None = None
@@ -150,6 +153,22 @@ class Activity(BaseModel):
     tracker_model: str | None = Field(default=None, max_length=250)
     map_thumbnail_path: str | None = Field(default=None, max_length=500)
     total_cycles: int | None = Field(default=None, ge=0)
+
+    @field_validator("start_time", "end_time", "created_at", mode="before")
+    @classmethod
+    def _normalize_to_utc_aware(cls, value: Any) -> Any:
+        """Accept the ingestion producers' ISO strings, expose an aware UTC datetime.
+
+        The field type used to be ``datetime | str | None``, which leaked the
+        parsers' internal wall-clock string format into the API: OpenAPI emitted
+        ``anyOf[date-time, string, null]``, so the generated clients typed a
+        timestamp as ``string | Date``. The union is gone from the *type* — the
+        API now promises a ``date-time`` — while this pre-validator keeps every
+        existing producer working by normalizing whatever it passes (naive UTC
+        wall clock from the file parsers, offset-carrying ISO strings from the
+        providers) to an aware UTC instant.
+        """
+        return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
 
 
 class ActivitySportStats(BaseModel):
@@ -208,54 +227,6 @@ class ActivityStats(BaseModel):
     sailing: ActivitySportStats = Field(default_factory=ActivitySportStats)
     snowshoeing: ActivitySportStats = Field(default_factory=ActivitySportStats)
     inline_skating: ActivitySportStats = Field(default_factory=ActivitySportStats)
-
-
-class GearActivitiesListResponse(BaseModel):
-    """
-    Response model for paginated gear activities.
-
-    Attributes:
-        total: Total number of activities for gear.
-        num_records: Number of records returned.
-        page_number: Current page number.
-        records: List of activity records.
-    """
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
-    )
-
-    total: int = Field(
-        ...,
-        ge=0,
-        description="Total number of activities for this gear",
-    )
-    num_records: int | None = Field(
-        default=None,
-        ge=0,
-        description="Number of records returned",
-    )
-    page_number: int | None = Field(
-        default=None,
-        ge=1,
-        description="Current page number",
-    )
-    records: list[Activity] = Field(
-        default_factory=list,
-        description="List of activity records",
-    )
-
-
-class CountResponse(BaseModel):
-    """Envelope returned by activity count endpoints.
-
-    Attributes:
-        count: Number of matching activities.
-    """
-
-    count: int
 
 
 class ActivityPage(BaseModel):

@@ -233,4 +233,4 @@ def create_activity_laps(
     else:
         db.flush()
 
-    logger.debug(f"Created {len(laps)} lap(s) for activity {activity_id}")
+    logger.debug("Created activity laps", extra=core_logger.context(activity_id=activity_id, count=len(laps)))

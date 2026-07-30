@@ -57,6 +57,14 @@ ACTIVITIES_SCOPE: Final[tuple[str, ...]] = (
 )
 IDENTITY_PROVIDERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("identity_providers:read",)
 IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity_providers:write",)
+# The social graph gets its own scopes rather than riding the broad ``profile``
+# scope: following/unfollowing is a distinct, externally visible action, and an
+# integration token issued to edit a profile should not silently be able to
+# rearrange who the user follows (least privilege, OWASP A01).
+FOLLOWERS_SCOPE: Final[tuple[str, ...]] = (
+    "followers:read",
+    "followers:write",
+)
 HEALTH_SCOPE: Final[tuple[str, ...]] = (
     "health:read",
     "health:write",
@@ -84,6 +92,8 @@ SCOPE_DICT: Final[dict[str, str]] = {
     "activities:read": "Read privileges over activities",
     "activities:write": "Write privileges over activities",
     "activities:upload": "Upload privileges over activities",
+    "followers:read": "Read privileges over the follower/following graph",
+    "followers:write": "Follow, unfollow, accept and remove followers",
     "health:read": "Read privileges over health data",
     "health:write": "Write privileges over health data",
     "health_targets:read": "Read privileges over health targets data",
@@ -99,6 +109,7 @@ SCOPE_DICT: Final[dict[str, str]] = {
 REGULAR_ACCESS_SCOPE: Final[tuple[str, ...]] = (
     USERS_REGULAR_SCOPE
     + ACTIVITIES_SCOPE
+    + FOLLOWERS_SCOPE
     + GEARS_SCOPE
     + IDENTITY_PROVIDERS_REGULAR_SCOPE
     + HEALTH_SCOPE

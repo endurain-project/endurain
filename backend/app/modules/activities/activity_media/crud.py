@@ -167,7 +167,10 @@ def create_activity_media(activity_id: int, media_path: str, db: Session) -> act
         db.add(db_activity_media)
         db.commit()
         db.refresh(db_activity_media)
-        logger.debug(f"Created activity media {db_activity_media.id} for activity {activity_id}")
+        logger.debug(
+            "Created activity media",
+            extra=core_logger.context(activity_id=activity_id, media_id=db_activity_media.id),
+        )
         return _to_read_schema(db_activity_media)
     except IntegrityError as integrity_error:
         db.rollback()
@@ -248,7 +251,7 @@ def edit_activity_media_media_path(
     db_activity_media.media_path = media_path
     db.commit()
     db.refresh(db_activity_media)
-    logger.debug(f"Updated media path for activity media {activity_media_id}")
+    logger.debug("Updated the activity media path", extra=core_logger.context(media_id=activity_media_id))
     return _to_read_schema(db_activity_media)
 
 
@@ -285,4 +288,4 @@ def delete_activity_media(activity_media_id: int, db: Session) -> None:
 
     db.delete(activity_media)
     db.commit()
-    logger.debug(f"Deleted activity media {activity_media_id}")
+    logger.debug("Deleted activity media", extra=core_logger.context(media_id=activity_media_id))

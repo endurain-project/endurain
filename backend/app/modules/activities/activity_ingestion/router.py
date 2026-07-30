@@ -113,7 +113,10 @@ def create_activity_with_bulk_import(
         # Get time of import initiation to pass to function for recording in import_data
         import_time = datetime.now(UTC).isoformat()
 
-        logger.info(f"Bulk import initiated at {import_time}.", extra=core_logger.context(console=True))
+        logger.info(
+            "Bulk import initiated",
+            extra=core_logger.context(console=True, user_id=token_user_id, import_time=import_time),
+        )
 
         # Ensure the 'bulk_import' directory exists
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
@@ -153,7 +156,10 @@ def create_activity_with_bulk_import(
                         kind=validate_kind,
                     )
                 except HTTPException as err:
-                    logger.warning(f"Skipping file {file_path}: {err.detail}", extra=core_logger.context(console=True))
+                    logger.warning(
+                        "Skipping a bulk-import file that failed validation",
+                        extra=core_logger.context(console=True, file=os.path.basename(file_path), reason=err.detail),
+                    )
                     continue
 
                 files_to_process.append(file_path)
@@ -196,7 +202,11 @@ def create_activity_with_bulk_import(
         )
     except (OSError, RuntimeError, SQLAlchemyError) as err:
         # Log the exception
-        logger.error(f"Error in create_activity_with_bulk_import: {err}", exc_info=err)
+        logger.error(
+            "Error in create_activity_with_bulk_import",
+            exc_info=err,
+            extra=core_logger.context(user_id=token_user_id),
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -206,9 +216,11 @@ def create_activity_with_bulk_import(
 
 @router.post(
     "/refresh",
-    response_model=list[activities_schema.Activity] | None,
+    response_model=list[activities_schema.Activity],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 async def refresh_activities(
+    request: Request,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     token_user_id: Annotated[
         int,
@@ -229,6 +241,9 @@ async def refresh_activities(
     clients, which are not yet reworked. It lives in the ingestion layer (not the
     activities core) because it depends on the Strava/Garmin provider clients — the
     core router stays provider-agnostic.
+
+    Returns an empty list when the providers had nothing new; it used to answer
+    ``200 null``, which forced every client to null-check a collection endpoint.
     """
     # Set the activities to empty list
     activities = []
@@ -258,7 +273,4 @@ async def refresh_activities(
         activities.extend(garmin_activities)
 
     # Filter out None values from the activities list
-    activities = [activity for activity in activities if activity is not None]
-
-    # Return the activities or None if the list is empty
-    return activities if activities else None
+    return [activity for activity in activities if activity is not None]

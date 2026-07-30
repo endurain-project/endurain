@@ -9,10 +9,11 @@ or Garmin — the ``activity_ingestion`` adapters produce the contract and call 
 
 from datetime import datetime
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
@@ -78,7 +79,7 @@ def store_parsed_activity(
         The created activity schema (with generated id / ``created_at``).
 
     Raises:
-        HTTPException: 500 when the activity could not be created.
+        ProcessingError: When the activity could not be created.
     """
     # Bound before the try so the IntegrityError handler can always read it.
     dedup_key: str | None = None
@@ -107,11 +108,11 @@ def store_parsed_activity(
         created_activity = activities_crud.create_activity(parsed.activity, db, commit=False, dedup_key=dedup_key)
 
         if created_activity is None or created_activity.id is None:
-            logger.error("Error in store_parsed_activity - activity is None, error creating activity")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error creating activity",
+            logger.error(
+                "store_parsed_activity: create_activity returned no activity",
+                extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
             )
+            raise core_exceptions.ProcessingError("Error creating activity")
 
         source_kind = source.kind if source is not None else "unknown"
         logger.debug(
@@ -178,20 +179,22 @@ def store_parsed_activity(
         # winner rather than surfacing a 500 for a successful import.
         db.rollback()
         if dedup_key is None or parsed.activity.user_id is None:
-            logger.error(f"Error in store_parsed_activity - {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error creating activity",
-            ) from err
+            logger.error(
+                "Error in store_parsed_activity",
+                exc_info=err,
+                extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
+            )
+            raise core_exceptions.ProcessingError("Error creating activity") from err
 
         winner = activities_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
         if winner is None:
             # The integrity error was not the dedup race (some other constraint).
-            logger.error(f"Error in store_parsed_activity - {err}", exc_info=err)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error creating activity",
-            ) from err
+            logger.error(
+                "Error in store_parsed_activity",
+                exc_info=err,
+                extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
+            )
+            raise core_exceptions.ProcessingError("Error creating activity") from err
 
         logger.info(
             f"store_parsed_activity: lost the insert race for dedup_key {dedup_key}; "
@@ -199,15 +202,22 @@ def store_parsed_activity(
             "(treating re-import as a no-op)."
         )
         return winner
-    except HTTPException:
+    except (core_exceptions.DomainError, HTTPException):
         # Roll back the in-flight unit of work so no partial rows survive and the
         # session stays clean for the caller (bulk import reuses one session).
+        #
+        # TRANSITIONAL: the persistence layer still reports failures as
+        # ``HTTPException`` (``core.decorators.handle_db_errors`` plus the CRUD
+        # 404/409 raises), so both arms are needed to guarantee the rollback.
+        # This layer only *catches* it to clean up — it never constructs an HTTP
+        # error. Drop the ``HTTPException`` arm once CRUD moves to DomainError.
         db.rollback()
         raise
     except SQLAlchemyError as err:
         db.rollback()
-        logger.error(f"Error in store_parsed_activity - {err}", exc_info=err)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error creating activity",
-        ) from err
+        logger.error(
+            "Error in store_parsed_activity",
+            exc_info=err,
+            extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
+        )
+        raise core_exceptions.ProcessingError("Error creating activity") from err

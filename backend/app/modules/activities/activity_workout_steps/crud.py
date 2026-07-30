@@ -199,4 +199,7 @@ def create_activity_workout_steps(
     else:
         db.flush()
 
-    logger.debug(f"Created {len(workout_steps)} workout step(s) for activity {activity_id}")
+    logger.debug(
+        "Created activity workout steps",
+        extra=core_logger.context(activity_id=activity_id, count=len(workout_steps)),
+    )
