@@ -23,6 +23,22 @@ from pydantic import BaseModel
 
 import core.exceptions as core_exceptions
 
+#: Default page size for a *browse* list (activities, followers) when the request
+#: omits pagination. Declared here so the routers stop each keeping a private
+#: copy of the same two numbers.
+DEFAULT_NUM_RECORDS = 25
+
+#: Hard cap on the client-requested page size, bounding query and serialization
+#: cost per request (defense against resource exhaustion).
+MAX_NUM_RECORDS = 200
+
+#: Default page size for an activity's *child* collections (laps, sets, workout
+#: steps). Unlike a browse list these are "everything hanging off one parent",
+#: which a client almost always wants in full, so the default is the cap rather
+#: than a small window — the parameter exists to bound the response, not to make
+#: the common read a multi-page walk.
+DEFAULT_CHILD_NUM_RECORDS = MAX_NUM_RECORDS
+
 
 class Page[ItemT](BaseModel):
     """One page of results plus everything needed to paginate.

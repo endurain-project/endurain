@@ -3,6 +3,8 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_laps.schema import ActivityLapsPage
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -28,7 +30,7 @@ class TestReadActivityLaps:
     @patch("modules.activities.activity_laps.router.activity_laps_service.list_activity_laps")
     def test_read_laps_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityLapsPage.build([], 0, 1, 200)
 
         response = client.get("/activities/1/laps", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -36,8 +38,8 @@ class TestReadActivityLaps:
     @patch("modules.activities.activity_laps.router.activity_laps_service.list_activity_laps")
     def test_read_laps_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityLapsPage.build([], 0, 1, 200)
 
         response = client.get("/activities/999/laps", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == [] and response.json()["total"] == 0

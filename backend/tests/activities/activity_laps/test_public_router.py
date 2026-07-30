@@ -4,6 +4,8 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_laps.schema import ActivityLapsPage
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -21,7 +23,9 @@ class TestReadPublicActivityLaps:
         from modules.activities.activity_laps.schema import ActivityLapsRead
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [ActivityLapsRead(id=1, activity_id=1, start_time=datetime(2024, 1, 15, 8, 0, 0))]
+        mock_get.return_value = ActivityLapsPage.build(
+            [ActivityLapsRead(id=1, activity_id=1, start_time=datetime(2024, 1, 15, 8, 0, 0))], 1, 1, 200
+        )
 
         response = client.get("/public/activities/1/laps")
         assert response.status_code == 200
@@ -29,8 +33,8 @@ class TestReadPublicActivityLaps:
     @patch("modules.activities.activity_laps.public_router.activity_laps_service.list_public_activity_laps")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityLapsPage.build([], 0, 1, 200)
 
         response = client.get("/public/activities/999/laps")
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == [] and response.json()["total"] == 0

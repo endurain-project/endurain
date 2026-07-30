@@ -41,6 +41,43 @@ function resourcePath(authenticated: boolean, authedPath: string, publicPath: st
   return authenticated ? authedPath : publicPath
 }
 
+/** One page of an activity child collection, as the API returns it. */
+interface ChildPage<T> {
+  items: T[] | null
+  /** Next page number, or `null`/absent on the last page. */
+  next?: number | null
+}
+
+/**
+ * Reads every page of an activity child collection (laps, sets, workout steps).
+ *
+ * These reads are paginated server-side so a single request cannot ask for an
+ * unbounded number of rows. The views want the whole collection, so this walks
+ * the pages the server advertises via `next` rather than silently rendering only
+ * the first one — in practice a single request, since the default page size
+ * covers any realistic activity.
+ *
+ * @param path - The collection path, without pagination query parameters.
+ * @param context - Auth + cancellation context.
+ * @returns Every row across all pages, in server order.
+ */
+async function fetchAllChildPages<T>(path: string, context: ActivityFetchContext): Promise<T[]> {
+  const rows: T[] = []
+  let page: number | null = 1
+
+  while (page !== null) {
+    const separator = path.includes('?') ? '&' : '?'
+    const dto: ChildPage<T> = await apiFetch<ChildPage<T>>(
+      `${path}${separator}page_number=${page}`,
+      { auth: context.authenticated, signal: context.signal },
+    )
+    rows.push(...(dto?.items ?? []))
+    page = dto?.next ?? null
+  }
+
+  return rows
+}
+
 /**
  * Maps an activity DTO to the clean camelCase domain model, collapsing the
  * nullable wire fields into stable defaults.
@@ -607,11 +644,8 @@ export async function fetchActivityLaps(
     `/activities/${id}/laps`,
     `/public/activities/${id}/laps`,
   )
-  const dtos = await apiFetch<ActivityLapDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityLap)
+  const dtos = await fetchAllChildPages<ActivityLapDto>(path, context)
+  return dtos.map(mapActivityLap)
 }
 
 /**
@@ -683,11 +717,8 @@ export async function fetchActivityWorkoutSteps(
     `/activities/${id}/workout-steps`,
     `/public/activities/${id}/workout-steps`,
   )
-  const dtos = await apiFetch<ActivityWorkoutStepDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityWorkoutStep)
+  const dtos = await fetchAllChildPages<ActivityWorkoutStepDto>(path, context)
+  return dtos.map(mapActivityWorkoutStep)
 }
 
 /**
@@ -706,11 +737,8 @@ export async function fetchActivitySets(
     `/activities/${id}/sets`,
     `/public/activities/${id}/sets`,
   )
-  const dtos = await apiFetch<ActivitySetDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivitySet)
+  const dtos = await fetchAllChildPages<ActivitySetDto>(path, context)
+  return dtos.map(mapActivitySet)
 }
 
 /**

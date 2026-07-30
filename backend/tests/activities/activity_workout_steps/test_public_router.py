@@ -3,6 +3,8 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_workout_steps.schema import ActivityWorkoutStepsPage
+
 
 def _build_app(mock_db):
     import core.database as core_db
@@ -22,7 +24,9 @@ class TestReadPublicWorkoutSteps:
         from modules.activities.activity_workout_steps.schema import ActivityWorkoutSteps
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [ActivityWorkoutSteps(id=1, activity_id=1, message_index=0, duration_type="active")]
+        mock_get.return_value = ActivityWorkoutStepsPage.build(
+            [ActivityWorkoutSteps(id=1, activity_id=1, message_index=0, duration_type="active")], 1, 1, 200
+        )
 
         response = client.get("/public/activities/1/workout-steps")
         assert response.status_code == 200
@@ -32,8 +36,8 @@ class TestReadPublicWorkoutSteps:
     )
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityWorkoutStepsPage.build([], 0, 1, 200)
 
         response = client.get("/public/activities/999/workout-steps")
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == [] and response.json()["total"] == 0

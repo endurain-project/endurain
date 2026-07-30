@@ -13,6 +13,8 @@ from pydantic import (
     field_validator,
 )
 
+import core.pagination as core_pagination
+
 _FLOAT_FIELDS: tuple[str, ...] = (
     "start_position_lat",
     "start_position_long",
@@ -167,3 +169,9 @@ class ActivityLapsRead(ActivityLapsBase):
         extra="forbid",
         validate_assignment=True,
     )
+
+
+#: One page of an activity's laps. A lap count has no domain ceiling (a lap per
+#: kilometre over an ultra), so the read is paginated rather than returning the
+#: whole set — and the shared envelope means it paginates like every other list.
+ActivityLapsPage = core_pagination.Page[ActivityLapsRead]

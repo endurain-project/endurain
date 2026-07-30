@@ -17,6 +17,7 @@ from fastapi import (
     Depends,
     Header,
     Query,
+    Request,
     Response,
     Security,
 )
@@ -24,6 +25,8 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.etag as core_etag
+import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.service as activities_service
@@ -32,10 +35,10 @@ import modules.gears.gear.dependencies as gears_dependencies
 import modules.users.users.dependencies as users_dependencies
 
 # Default page size when a list request omits pagination.
-_DEFAULT_NUM_RECORDS = 25
+_DEFAULT_NUM_RECORDS = core_pagination.DEFAULT_NUM_RECORDS
 # Hard cap on the client-requested page size, bounding query and
 # serialization cost per request (defense against resource exhaustion).
-_MAX_NUM_RECORDS = 200
+_MAX_NUM_RECORDS = core_pagination.MAX_NUM_RECORDS
 
 # Define the API router
 router = APIRouter()
@@ -202,7 +205,9 @@ def list_user_activities(
     "",
     response_model=activities_schema.VisibilityUpdateResponse,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activities(
+    request: Request,
     body: activities_schema.ActivitiesBulkEdit,
     token_user_id: Annotated[
         int,
@@ -271,7 +276,9 @@ def read_activity(
     "/{activity_id}",
     response_model=activities_schema.Activity,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activity(
+    request: Request,
     activity_id: int,
     _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     activity_attributes: activities_schema.ActivityEdit,
@@ -303,7 +310,9 @@ def edit_activity(
     "/{activity_id}",
     response_model=activities_schema.ActivityMessageResponse,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_activity(
+    request: Request,
     activity_id: int,
     _validate_activity_id: Annotated[Callable, Depends(activities_dependencies.validate_activity_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],

@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
@@ -72,9 +72,12 @@ def _to_read_schema(
 def get_activity_laps(
     activity_id: int,
     db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 200,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
     """
-    Retrieve every lap belonging to an activity.
+    Retrieve one page of an activity's laps, in recorded order.
 
     Performs no access check: whether the caller may read these rows is decided
     by :mod:`modules.activities.activity_laps.service`.
@@ -82,19 +85,50 @@ def get_activity_laps(
     Args:
         activity_id: The activity ID.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The activity's laps, empty when it has none.
+        The page of laps, empty when the activity has none.
 
     Raises:
         ProcessingError: If database error occurs.
     """
-    stmt = select(activity_laps_models.ActivityLaps).where(
-        activity_laps_models.ActivityLaps.activity_id == activity_id,
+    stmt = (
+        select(activity_laps_models.ActivityLaps)
+        .where(activity_laps_models.ActivityLaps.activity_id == activity_id)
+        # Ordered so paging is stable; the id is the insertion order the parser
+        # produced, which is the order the laps were recorded in.
+        .order_by(activity_laps_models.ActivityLaps.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
     )
     activity_laps = db.scalars(stmt).all()
 
     return [_to_read_schema(lap) for lap in activity_laps]
+
+
+@core_decorators.handle_db_errors
+def count_activity_laps(activity_id: int, db: Session) -> int:
+    """
+    Count an activity's laps.
+
+    Args:
+        activity_id: The activity ID.
+        db: Database session.
+
+    Returns:
+        The total number of laps.
+
+    Raises:
+        ProcessingError: If database error occurs.
+    """
+    stmt = select(func.count()).select_from(
+        select(activity_laps_models.ActivityLaps.id)
+        .where(activity_laps_models.ActivityLaps.activity_id == activity_id)
+        .subquery()
+    )
+    return db.scalar(stmt) or 0
 
 
 @core_decorators.handle_db_errors

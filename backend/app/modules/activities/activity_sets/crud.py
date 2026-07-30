@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
@@ -34,9 +34,12 @@ def _to_read_schema(
 def get_activity_sets(
     activity_id: int,
     db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = 200,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """
-    Retrieve every workout set belonging to an activity.
+    Retrieve one page of an activity's workout sets, in recorded order.
 
     Performs no access check: whether the caller may read these rows is decided
     by :mod:`modules.activities.activity_sets.service`.
@@ -44,19 +47,48 @@ def get_activity_sets(
     Args:
         activity_id: The activity ID.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The activity's sets, empty when it has none.
+        The page of sets, empty when the activity has none.
 
     Raises:
         ProcessingError: If database error occurs.
     """
-    stmt = select(activity_sets_models.ActivitySets).where(
-        activity_sets_models.ActivitySets.activity_id == activity_id,
+    stmt = (
+        select(activity_sets_models.ActivitySets)
+        .where(activity_sets_models.ActivitySets.activity_id == activity_id)
+        .order_by(activity_sets_models.ActivitySets.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
     )
     activity_sets = db.scalars(stmt).all()
 
     return [_to_read_schema(s) for s in activity_sets]
+
+
+@core_decorators.handle_db_errors
+def count_activity_sets(activity_id: int, db: Session) -> int:
+    """
+    Count an activity's workout sets.
+
+    Args:
+        activity_id: The activity ID.
+        db: Database session.
+
+    Returns:
+        The total number of sets.
+
+    Raises:
+        ProcessingError: If database error occurs.
+    """
+    stmt = select(func.count()).select_from(
+        select(activity_sets_models.ActivitySets.id)
+        .where(activity_sets_models.ActivitySets.activity_id == activity_id)
+        .subquery()
+    )
+    return db.scalar(stmt) or 0
 
 
 @core_decorators.handle_db_errors

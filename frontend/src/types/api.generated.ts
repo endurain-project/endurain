@@ -78,7 +78,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Activity With Bulk Import */
+        /**
+         * Create Activity With Bulk Import
+         * @description Queue every importable file in the caller's bulk-import directory.
+         *
+         *     Returns ``202``: the files are validated and queued in the request, but
+         *     parsing them happens on a background worker.
+         *
+         *     Args:
+         *         token_user_id: Authenticated user ID.
+         *         _check_scopes: Scope validation dependency.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         A message describing how many files were queued.
+         *
+         *     Raises:
+         *         ProcessingError: If the directory cannot be read or the jobs cannot be
+         *             queued.
+         */
         post: operations["create_activity_with_bulk_import_api_v1_activities_bulk_import_post"];
         delete?: never;
         options?: never;
@@ -402,7 +420,7 @@ export interface paths {
         };
         /**
          * Read Activities Laps For Activity All
-         * @description Return all laps for the given activity visible to the caller.
+         * @description Return one page of the given activity's laps, with the matching total.
          *
          *     Args:
          *         activity_id: Activity primary key.
@@ -410,10 +428,13 @@ export interface paths {
          *         token_user_id: Authenticated user id derived from the access
          *             token.
          *         db: Database session.
+         *         page_number: 1-based page number.
+         *         num_records: Page size, capped so one request cannot ask for an
+         *             unbounded number of rows.
          *
          *     Returns:
-         *         List of ``ActivityLapsRead`` or ``None`` if the activity is
-         *         hidden from the caller or has no laps.
+         *         The page envelope. Empty when the activity is hidden from the caller or
+         *         has no laps.
          */
         get: operations["read_activities_laps_for_activity_all_api_v1_activities__activity_id__laps_get"];
         put?: never;
@@ -563,7 +584,23 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Sets For Activity All */
+        /**
+         * Read Activities Sets For Activity All
+         * @description Return one page of the activity's sets, with the matching total.
+         *
+         *     Args:
+         *         activity_id: Activity primary key.
+         *         _check_scopes: FastAPI security dependency enforcing scopes.
+         *         token_user_id: Authenticated user id derived from the access token.
+         *         db: Database session.
+         *         page_number: 1-based page number.
+         *         num_records: Page size, capped so one request cannot ask for an
+         *             unbounded number of rows.
+         *
+         *     Returns:
+         *         The page envelope. Empty when the activity is hidden from the caller or
+         *         has no sets.
+         */
         get: operations["read_activities_sets_for_activity_all_api_v1_activities__activity_id__sets_get"];
         put?: never;
         post?: never;
@@ -682,10 +719,20 @@ export interface paths {
         };
         /**
          * Read Activity Workout Steps All
-         * @description Get all workout steps for an activity.
+         * @description Return one page of the activity's workout steps, with the matching total.
+         *
+         *     Args:
+         *         activity_id: Activity primary key.
+         *         _check_scopes: FastAPI security dependency enforcing scopes.
+         *         token_user_id: Authenticated user id derived from the access token.
+         *         db: Database session.
+         *         page_number: 1-based page number.
+         *         num_records: Page size, capped so one request cannot ask for an
+         *             unbounded number of rows.
          *
          *     Returns:
-         *         List of workout steps or None.
+         *         The page envelope. Empty when the activity is hidden from the caller or
+         *         has no workout steps.
          */
         get: operations["read_activity_workout_steps_all_api_v1_activities__activity_id__workout_steps_get"];
         put?: never;
@@ -969,6 +1016,9 @@ export interface paths {
         /**
          * Decide Follow Request
          * @description Accept the pending follow request from ``requester_user_id``.
+         *
+         *     Returns the row as persisted rather than one assembled from the request, so
+         *     the response cannot claim a state the database does not hold.
          */
         patch: operations["decide_follow_request_api_v1_followers_follow_requests__requester_user_id__patch"];
         trace?: never;
@@ -4001,7 +4051,7 @@ export interface paths {
         };
         /**
          * Read Public Activities Laps For Activity All
-         * @description Return public laps for an activity exposed via shareable link.
+         * @description Return one page of public laps for an activity exposed via shareable link.
          *
          *     Args:
          *         activity_id: Activity primary key.
@@ -4028,7 +4078,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Public Activities Sets For Activity All */
+        /**
+         * Read Public Activities Sets For Activity All
+         * @description Return one page of a publicly shared activity's sets.
+         *
+         *     Args:
+         *         activity_id: Activity primary key.
+         *         db: Database session.
+         *         page_number: 1-based page number.
+         *         num_records: Page size, capped so one request cannot ask for an
+         *             unbounded number of rows.
+         *
+         *     Returns:
+         *         The page envelope. Empty when public sharing is disabled, the activity is
+         *         not public, or the sets are hidden.
+         */
         get: operations["read_public_activities_sets_for_activity_all_api_v1_public_activities__activity_id__sets_get"];
         put?: never;
         post?: never;
@@ -4109,10 +4173,18 @@ export interface paths {
         };
         /**
          * Read Public Activity Workout Steps All
-         * @description Get all workout steps for a public activity.
+         * @description Return one page of a publicly shared activity's workout steps.
+         *
+         *     Args:
+         *         activity_id: Activity primary key.
+         *         db: Database session.
+         *         page_number: 1-based page number.
+         *         num_records: Page size, capped so one request cannot ask for an
+         *             unbounded number of rows.
          *
          *     Returns:
-         *         List of workout steps or None.
+         *         The page envelope. Empty when public sharing is disabled, the activity is
+         *         not public, or the workout steps are hidden.
          */
         get: operations["read_public_activity_workout_steps_all_api_v1_public_activities__activity_id__workout_steps_get"];
         put?: never;
@@ -9578,6 +9650,45 @@ export interface components {
              */
             user_id: number;
         };
+        /** Page[ActivityLapsRead] */
+        Page_ActivityLapsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityLapsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivitySetsRead] */
+        Page_ActivitySetsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivitySetsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivityWorkoutSteps] */
+        Page_ActivityWorkoutSteps_: {
+            /** Items */
+            items: components["schemas"]["ActivityWorkoutSteps"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /** Page[Activity] */
         Page_Activity_: {
             /** Items */
@@ -12942,7 +13053,10 @@ export interface operations {
     };
     read_activities_laps_for_activity_all_api_v1_activities__activity_id__laps_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -12957,7 +13071,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][];
+                    "application/json": components["schemas"]["Page_ActivityLapsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13150,7 +13264,10 @@ export interface operations {
     };
     read_activities_sets_for_activity_all_api_v1_activities__activity_id__sets_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -13165,7 +13282,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][];
+                    "application/json": components["schemas"]["Page_ActivitySetsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13315,7 +13432,10 @@ export interface operations {
     };
     read_activity_workout_steps_all_api_v1_activities__activity_id__workout_steps_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -13330,7 +13450,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][];
+                    "application/json": components["schemas"]["Page_ActivityWorkoutSteps_"];
                 };
             };
             /** @description Validation Error */
@@ -17747,7 +17867,10 @@ export interface operations {
     };
     read_public_activities_laps_for_activity_all_api_v1_public_activities__activity_id__laps_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -17762,7 +17885,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][];
+                    "application/json": components["schemas"]["Page_ActivityLapsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -17787,7 +17910,10 @@ export interface operations {
     };
     read_public_activities_sets_for_activity_all_api_v1_public_activities__activity_id__sets_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -17802,7 +17928,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][];
+                    "application/json": components["schemas"]["Page_ActivitySetsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -17908,7 +18034,10 @@ export interface operations {
     };
     read_public_activity_workout_steps_all_api_v1_public_activities__activity_id__workout_steps_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -17923,7 +18052,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][];
+                    "application/json": components["schemas"]["Page_ActivityWorkoutSteps_"];
                 };
             };
             /** @description Validation Error */
