@@ -209,6 +209,21 @@ class TestDecideFollowRequest:
         assert response.status_code == 422
         mock_accept.assert_not_called()
 
+    @patch("modules.followers.service.accept_follow_request")
+    def test_rejects_an_unknown_field(self, mock_accept, mock_db):
+        """Mass-assignment guard: an unrecognized field 422s instead of being
+        silently ignored."""
+        client = TestClient(_build_app(mock_db))
+
+        response = client.patch(
+            "/follow-requests/2",
+            json={"status": "accepted", "followee_id": 99},
+            headers={"Authorization": "Bearer x"},
+        )
+
+        assert response.status_code == 422
+        mock_accept.assert_not_called()
+
 
 class TestRejectFollowRequest:
     @patch("modules.followers.service.reject_follow_request")

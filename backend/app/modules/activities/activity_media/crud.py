@@ -144,6 +144,37 @@ def get_activities_media(
 
 
 @core_decorators.handle_db_errors
+def get_activity_media_by_content_hash(
+    activity_id: int,
+    content_hash: str,
+    db: Session,
+) -> activity_media_contracts.ActivityMediaRecord | None:
+    """Get an activity's media record by the content hash of its bytes.
+
+    Used to make re-storing the same photo for an activity a no-op — a retried
+    upload, or a Strava bulk-export re-run — the media counterpart of
+    :func:`modules.activities.activity.crud.get_activity_by_dedup_key`.
+
+    Args:
+        activity_id: The activity the media must belong to.
+        content_hash: SHA-256 of the media bytes.
+        db: Database session.
+
+    Returns:
+        The matching media record, or None when there isn't one.
+
+    Raises:
+        ProcessingError: If a database error occurs.
+    """
+    stmt = select(activity_media_models.ActivityMedia).where(
+        activity_media_models.ActivityMedia.activity_id == activity_id,
+        activity_media_models.ActivityMedia.content_hash == content_hash,
+    )
+    media = db.scalars(stmt).first()
+    return _to_record(media) if media is not None else None
+
+
+@core_decorators.handle_db_errors
 def get_media_with_legacy_path(
     db: Session,
     after_id: int = 0,
@@ -182,7 +213,11 @@ def get_media_with_legacy_path(
 
 @core_decorators.handle_db_errors
 def create_activity_media(
-    activity_id: int, media_key: str, db: Session
+    activity_id: int,
+    media_key: str,
+    db: Session,
+    *,
+    content_hash: str | None = None,
 ) -> activity_media_contracts.ActivityMediaRecord:
     """
     Create a new activity media record.
@@ -191,12 +226,16 @@ def create_activity_media(
         activity_id: Activity ID the media belongs to.
         media_key: ``StorageProvider`` key the blob was saved under.
         db: Database session.
+        content_hash: SHA-256 of the media bytes, when known. Persisted so a
+            later store of the same photo for this activity can be recognised
+            as a duplicate instead of creating a second row.
 
     Returns:
         The newly created media record.
 
     Raises:
-        ConflictError: If a record with the same ``media_path`` exists.
+        ConflictError: If a record with the same ``media_path`` exists, or the
+            same ``content_hash`` is already stored for this activity.
         ProcessingError: For any other database error.
     """
     try:
@@ -204,6 +243,7 @@ def create_activity_media(
             activity_id=activity_id,
             media_path=media_key,
             media_type=1,
+            content_hash=content_hash,
         )
         db.add(db_activity_media)
         db.commit()
@@ -216,7 +256,7 @@ def create_activity_media(
     except IntegrityError as integrity_error:
         db.rollback()
         raise core_exceptions.ConflictError(
-            "Duplicate entry error. Check if path and file name are unique."
+            "Duplicate entry error. Check if path/file name or content are unique."
         ) from integrity_error
 
 

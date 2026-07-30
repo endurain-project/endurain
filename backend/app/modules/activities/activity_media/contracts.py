@@ -45,6 +45,9 @@ class ActivityMediaRecord(BaseModel):
             servable; :func:`modules.activities.activity_media.signing.media_url`
             turns it into an address.
         media_type: Media kind (1 = photo).
+        content_hash: SHA-256 of the media bytes, when known. Used to no-op a
+            re-import of the same photo (a retried upload, or a Strava
+            bulk-export re-run); ``None`` for rows stored before this existed.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -53,3 +56,4 @@ class ActivityMediaRecord(BaseModel):
     activity_id: StrictInt = Field(ge=1)
     media_path: str = Field(min_length=1, max_length=250)
     media_type: StrictInt = Field(ge=1, le=1)
+    content_hash: str | None = Field(default=None, max_length=64)

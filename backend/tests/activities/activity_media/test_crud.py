@@ -26,6 +26,23 @@ class TestCreateActivityMedia:
         assert not hasattr(result, "url")
 
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
+    def test_persists_the_content_hash(self, mock_media_model, mock_db):
+        import modules.activities.activity_media.crud as crud
+
+        row = MagicMock(spec=["id", "activity_id", "media_path", "media_type", "content_hash"])
+        row.id, row.activity_id, row.media_path, row.media_type, row.content_hash = 1, 1, "1_abc123.jpg", 1, "deadbeef"
+        mock_media_model.return_value = row
+
+        result = crud.create_activity_media(
+            activity_id=1, media_key="1_abc123.jpg", db=mock_db, content_hash="deadbeef"
+        )
+
+        mock_media_model.assert_called_once_with(
+            activity_id=1, media_path="1_abc123.jpg", media_type=1, content_hash="deadbeef"
+        )
+        assert result.content_hash == "deadbeef"
+
+    @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_db_error(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
 
@@ -43,7 +60,9 @@ class TestGetMediaForActivity:
 
         setup_mock_execute(
             mock_db,
-            return_scalars_all=[mock_model(am.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)],
+            return_scalars_all=[
+                mock_model(am.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1, content_hash=None)
+            ],
         )
         r = crud.get_media_for_activity(activity_id=1, db=mock_db)
         assert len(r) == 1
@@ -69,7 +88,7 @@ class TestGetActivityMediaById:
         import modules.activities.activity_media.models as am
 
         mock_db.scalars.return_value.first.return_value = mock_model(
-            am.ActivityMedia, id=7, activity_id=1, media_path="x.jpg", media_type=1
+            am.ActivityMedia, id=7, activity_id=1, media_path="x.jpg", media_type=1, content_hash=None
         )
         result = crud.get_activity_media_by_id(7, mock_db)
         assert result is not None
@@ -82,6 +101,33 @@ class TestGetActivityMediaById:
         assert crud.get_activity_media_by_id(7, mock_db) is None
 
 
+class TestGetActivityMediaByContentHash:
+    def test_success(self, mock_db):
+        import modules.activities.activity_media.crud as crud
+        import modules.activities.activity_media.models as am
+
+        mock_db.scalars.return_value.first.return_value = mock_model(
+            am.ActivityMedia, id=7, activity_id=1, media_path="x.jpg", media_type=1, content_hash="deadbeef"
+        )
+        result = crud.get_activity_media_by_content_hash(1, "deadbeef", mock_db)
+        assert result is not None
+        assert result.id == 7
+
+    def test_missing_returns_none(self, mock_db):
+        import modules.activities.activity_media.crud as crud
+
+        mock_db.scalars.return_value.first.return_value = None
+        assert crud.get_activity_media_by_content_hash(1, "deadbeef", mock_db) is None
+
+    def test_db_error(self, mock_db):
+        import modules.activities.activity_media.crud as crud
+
+        mock_db.scalars.side_effect = SQLAlchemyError("err")
+        with pytest.raises(core_exceptions.ProcessingError) as e:
+            crud.get_activity_media_by_content_hash(1, "deadbeef", mock_db)
+        assert e.value.status_code == 500
+
+
 class TestGetAllActivityMedia:
     def test_success(self, mock_db):
         import modules.activities.activity_media.crud as crud
@@ -89,7 +135,11 @@ class TestGetAllActivityMedia:
 
         setup_mock_execute(
             mock_db,
-            return_scalars_all=[MagicMock(spec=m.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)],
+            return_scalars_all=[
+                MagicMock(
+                    spec=m.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1, content_hash=None
+                )
+            ],
         )
         r = crud.get_all_activity_media(mock_db)
         assert len(r) == 1
@@ -115,7 +165,9 @@ class TestGetActivitiesMedia:
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as mm
 
-        mock_media = MagicMock(spec=mm.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)
+        mock_media = MagicMock(
+            spec=mm.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1, content_hash=None
+        )
         # First scalars() call returns the owned activity ids, second the media.
         mock_db.scalars.return_value.all.side_effect = [[1], [mock_media]]
         r = crud.get_activities_media(activity_ids=[1], token_user_id=1, db=mock_db)
@@ -192,7 +244,9 @@ class TestEditActivityMediaMediaPath:
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as m
 
-        mock_media = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1, media_path="/old/path", media_type=1)
+        mock_media = MagicMock(
+            spec=m.ActivityMedia, id=1, activity_id=1, media_path="/old/path", media_type=1, content_hash=None
+        )
         mock_db.scalars.return_value.first.return_value = mock_media
         result = crud.edit_activity_media_media_path(1, "/new/path", mock_db)
         mock_db.commit.assert_called_once()

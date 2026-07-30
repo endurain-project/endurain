@@ -34,10 +34,12 @@ class FollowRequestDecision(BaseModel):
 
     Only ``accepted`` is a valid transition: declining deletes the request rather
     than parking it in a rejected state, so a later request from the same user is
-    a fresh decision instead of hitting a tombstone.
+    a fresh decision instead of hitting a tombstone. Unknown fields are rejected
+    (``extra="forbid"``) rather than silently ignored, matching every other
+    request-body schema in the activities/followers template modules.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(extra="forbid")
 
     status: FollowStatus
 
