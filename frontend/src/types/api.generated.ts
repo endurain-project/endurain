@@ -4,64 +4,6 @@
  */
 
 export interface paths {
-    "/activity_media/{media}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Activity Media Return
-         * @description Retrieves the server path for a given activity media file.
-         *
-         *     Args:
-         *         media (str): The name or identifier of the activity media file.
-         *
-         *     Returns:
-         *         str: The server path to the activity media file.
-         *
-         *     Raises:
-         *         HTTPException: If the media file is not found.
-         */
-        get: operations["activity_media_return_activity_media__media__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/activity_thumbnails/{thumbnail}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Activity Thumbnail Return
-         * @description Retrieves the server path for a given activity thumbnail.
-         *
-         *     Args:
-         *         thumbnail (str): The name or identifier of the activity thumbnail.
-         *
-         *     Returns:
-         *         str: The server path to the activity thumbnail.
-         *
-         *     Raises:
-         *         HTTPException: If the thumbnail is not found.
-         */
-        get: operations["activity_thumbnail_return_activity_thumbnails__thumbnail__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/about": {
         parameters: {
             query?: never;
@@ -508,13 +450,15 @@ export interface paths {
          * Upload Media
          * @description Upload an image file to associate with an activity.
          *
-         *     The file is validated by magic-number (not extension) and size limits
-         *     via the centralized image upload helper, stored under the configured
-         *     ``ACTIVITY_MEDIA_DIR``, and registered in the database.
+         *     The file is validated by magic number (not extension) and size limits via
+         *     the centralized image upload helper, stored through the platform
+         *     ``StorageProvider`` under a server-generated key, and registered in the
+         *     database. The response carries a signed URL; the blob itself has no public
+         *     path.
          *
          *     Rate limited on the ``UPLOAD`` tier: it is an authenticated endpoint that
-         *     writes caller-supplied bytes to disk, so without a cap a single account can
-         *     fill the media volume.
+         *     writes caller-supplied bytes to storage, so without a cap a single account
+         *     can fill the media volume.
          *
          *     Args:
          *         request: Incoming request, required by the rate limiter.
@@ -551,7 +495,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Activity Media
-         * @description Delete an activity media record and remove its file from disk.
+         * @description Delete an activity media record and remove its stored blob.
          *
          *     Args:
          *         activity_id: Activity the media must belong to.
@@ -565,12 +509,44 @@ export interface paths {
          *         None.
          *
          *     Raises:
-         *         HTTPException:
-         *             - 404 Not Found: If the media is missing, does not belong to this
-         *               activity, or its owning activity is not the user's.
-         *             - 500 Internal Server Error: For database errors.
+         *         NotFoundError: If the media is missing, does not belong to this activity,
+         *             or its owning activity is not the user's.
          */
         delete: operations["delete_activity_media_api_v1_activities__activity_id__media__media_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/media/{media_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Media File
+         * @description Serve an activity media blob when the signed token is valid.
+         *
+         *     Args:
+         *         activity_id: The activity the media must belong to.
+         *         media_id: The media record to serve.
+         *         token: The signed access token (``?t=``) minted at serialization time.
+         *         db: Database session dependency.
+         *
+         *     Returns:
+         *         The image bytes.
+         *
+         *     Raises:
+         *         HTTPException: 404 when the token is invalid/forged, the record does not
+         *             belong to ``activity_id``, or no blob exists (a 404 — rather than
+         *             403 — avoids confirming the resource to an unauthorized caller).
+         */
+        get: operations["read_activity_media_file_api_v1_activities__activity_id__media__media_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5695,17 +5671,22 @@ export interface components {
         };
         /**
          * ActivityMedia
-         * @description Activity media payload (photo/video attached to an activity).
+         * @description A photo attached to an activity, as returned to a client.
+         *
+         *     Read-only by construction: every field is populated for a media record that
+         *     exists, so none is optional. The stored ``StorageProvider`` key is
+         *     deliberately absent — it is not an address, and a client has nothing to do
+         *     with it; see :class:`~modules.activities.activity_media.contracts.ActivityMediaRecord`.
          */
         ActivityMedia: {
             /** Activity Id */
             activity_id: number;
             /** Id */
-            id?: number | null;
-            /** Media Path */
-            media_path: string;
+            id: number;
             /** Media Type */
             media_type: number;
+            /** Url */
+            url: string;
         };
         /**
          * ActivityMessageResponse
@@ -12266,64 +12247,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    activity_media_return_activity_media__media__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                media: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    activity_thumbnail_return_activity_thumbnails__thumbnail__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                thumbnail: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     about_api_v1_about_get: {
         parameters: {
             query?: never;
@@ -12960,6 +12883,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_activity_media_file_api_v1_activities__activity_id__media__media_id__file_get: {
+        parameters: {
+            query: {
+                /** @description Signed media access token */
+                t: string;
+            };
+            header?: never;
+            path: {
+                activity_id: number;
+                media_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/*": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

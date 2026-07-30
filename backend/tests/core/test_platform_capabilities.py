@@ -26,7 +26,7 @@ class TestBuildCapabilityReport:
             web_workers=workers,
             primary_state=platform_capabilities.StateSource("STATE_URI", uri),
             storage_backend=storage_backend,
-            storage_source="ACTIVITY_THUMBNAILS_DIR",
+            storage_source="STORAGE_URI",
             events_backend=events_backend,
             events_source="EVENTS_URI",
             lock_backend=lock_backend,
@@ -48,7 +48,7 @@ class TestBuildCapabilityReport:
         report = self._report(platform_profile.DeploymentProfile.LOCAL, 1, "memory://")
         storage_row = next(row for row in report.rows if row.name == "storage")
         assert storage_row.backend == "local"
-        assert storage_row.source == "ACTIVITY_THUMBNAILS_DIR"
+        assert storage_row.source == "STORAGE_URI"
 
     def test_storage_row_reflects_backend(self):
         report = self._report(platform_profile.DeploymentProfile.LOCAL, 1, "memory://", storage_backend="s3")
@@ -73,7 +73,7 @@ class TestBuildCapabilityReport:
         assert "requires_shared_state=False" in rendered
         assert "state" in rendered
         assert "memory" in rendered
-        assert "ACTIVITY_THUMBNAILS_DIR" in rendered
+        assert "STORAGE_URI" in rendered
         # header + five capability rows
         assert len(rendered.splitlines()) == 6
 

@@ -12,12 +12,17 @@ class TestCreateActivityMedia:
     def test_success(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
 
-        mock_media_model.return_value = MagicMock(id=1, activity_id=1, media_path="/path/to/file.jpg", media_type=1)
-        result = crud.create_activity_media(activity_id=1, media_path="/path/to/file.jpg", db=mock_db)
+        row = MagicMock(spec=["id", "activity_id", "media_path", "media_type"])
+        row.id, row.activity_id, row.media_path, row.media_type = 1, 1, "1_abc123.jpg", 1
+        mock_media_model.return_value = row
+
+        result = crud.create_activity_media(activity_id=1, media_key="1_abc123.jpg", db=mock_db)
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
         assert result.id == 1
-        assert result.media_path == "/path/to/file.jpg"
+        # CRUD hands back the storage key; resolving it to a URL is the service's job.
+        assert result.media_path == "1_abc123.jpg"
+        assert not hasattr(result, "url")
 
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_db_error(self, mock_media_model, mock_db):
@@ -26,7 +31,7 @@ class TestCreateActivityMedia:
         mock_media_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
-            crud.create_activity_media(activity_id=1, media_path="/path/to/file.jpg", db=mock_db)
+            crud.create_activity_media(activity_id=1, media_key="1_abc123.jpg", db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -146,7 +151,7 @@ class TestCreateActivityMediaIntegrity:
         mock_media_model.return_value = MagicMock()
         mock_db.commit.side_effect = IntegrityError("stmt", "params", "orig")
         with pytest.raises(HTTPException) as e:
-            crud.create_activity_media(activity_id=1, media_path="/path/to/file.jpg", db=mock_db)
+            crud.create_activity_media(activity_id=1, media_key="1_abc123.jpg", db=mock_db)
         assert e.value.status_code == 409
 
 
@@ -154,10 +159,10 @@ class TestCreateActivityMedias:
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_success(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
-        from modules.activities.activity_media.schema import ActivityMedia
+        from modules.activities.activity_media.contracts import ActivityMediaCreate
 
         mock_media_model.return_value = MagicMock()
-        media_list = [ActivityMedia(activity_id=1, media_path="/p.jpg", media_type=1)]
+        media_list = [ActivityMediaCreate(media_path="1_p.jpg", media_type=1)]
         crud.create_activity_medias(media_list, 1, mock_db)
         mock_db.add_all.assert_called_once()
         mock_db.commit.assert_called_once()
@@ -171,11 +176,11 @@ class TestCreateActivityMedias:
     @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
     def test_db_error(self, mock_media_model, mock_db):
         import modules.activities.activity_media.crud as crud
-        from modules.activities.activity_media.schema import ActivityMedia
+        from modules.activities.activity_media.contracts import ActivityMediaCreate
 
         mock_media_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
-        media_list = [ActivityMedia(activity_id=1, media_path="/p.jpg", media_type=1)]
+        media_list = [ActivityMediaCreate(media_path="1_p.jpg", media_type=1)]
         with pytest.raises(HTTPException) as e:
             crud.create_activity_medias(media_list, 1, mock_db)
         assert e.value.status_code == 500

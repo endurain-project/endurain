@@ -1,32 +1,40 @@
 """Application logic for activity media (photos attached to an activity).
 
 Owns everything that is not persistence: the ownership checks, the
-server-generated storage filename, writing the validated upload to the storage
-directory, and removing the file when the record goes away. ``crud.py`` is left
-as pure persistence, and the router is left as a thin HTTP adapter — previously
-both of those carried pieces of this logic, so an ownership rule lived in three
-places at once.
+server-generated storage key, writing the validated upload through the platform
+``StorageProvider``, and removing the blob when the record goes away. ``crud.py``
+is left as pure persistence, and the router is left as a thin HTTP adapter —
+previously both of those carried pieces of this logic, so an ownership rule lived
+in three places at once.
+
+Blobs go through the ``StorageProvider`` rather than to a local directory, the
+same as thumbnails and retained source files: photos then survive on object
+storage and are reachable only through the token-gated route, instead of being
+pinned to one node's disk and served from a public static path.
 """
 
 import uuid
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import infra.providers as platform_providers
+import infra.runtime as platform_runtime
 import modules.activities.activity.crud as activity_crud
+import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
+import modules.activities.activity_media.signing as activity_media_signing
 
 logger = core_logger.get_logger(__name__)
 
 # Allow-list of safe image extensions for activity media uploads. The upload is
 # also magic-number validated by safeuploads; this only bounds the extension we
-# are willing to write to disk.
+# are willing to record in a storage key.
 _ALLOWED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"})
 
 
@@ -56,19 +64,21 @@ def _require_owned_activity(activity_id: int, user_id: int, db: Session) -> None
         raise core_exceptions.NotFoundError("Activity not found")
 
 
-def _build_storage_filename(activity_id: int, original_name: str | None) -> str:
-    """Build a path-traversal-safe storage filename for an uploaded media file.
+def _build_storage_key(activity_id: int, original_name: str | None) -> str:
+    """Build a storage key for an uploaded media file.
 
     The original filename is reduced to its basename and its extension checked
-    against the allow-list; the stored name is then generated server-side, so a
-    hostile filename can neither escape the media directory nor be echoed back.
+    against the allow-list; the key itself is generated server-side, so a hostile
+    filename is never used to address a blob nor echoed back.
 
     Args:
         activity_id: ID of the activity the media belongs to.
         original_name: Original ``UploadFile.filename`` value.
 
     Returns:
-        A safe filename of the form ``"{activity_id}_{uuid}{ext}"``.
+        A key of the form ``"{activity_id}_{uuid}{ext}"``. The ``{activity_id}_``
+        prefix is what lets the deletion cleanup find every blob for an activity
+        after its rows have cascaded away.
 
     Raises:
         UnsupportedMediaTypeError: When the extension is not allowed.
@@ -84,6 +94,35 @@ def _build_storage_filename(activity_id: int, original_name: str | None) -> str:
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported media file type")
 
     return f"{activity_id}_{uuid.uuid4().hex}{extension}"
+
+
+def _storage() -> platform_providers.StorageProvider:
+    """Return the active platform's blob-storage provider."""
+    return platform_runtime.get_active_platform().storage
+
+
+def _to_read_model(
+    record: activity_media_contracts.ActivityMediaRecord,
+) -> activity_media_schema.ActivityMedia:
+    """Resolve a stored record to the client-facing read model.
+
+    The record→URL step lives here rather than in ``crud`` because addressing a
+    blob is a storage/signing concern, not a persistence one — the persistence
+    layer has no business knowing that a key becomes a signed route on local disk
+    and a presigned URL on S3.
+
+    Args:
+        record: The persisted media record.
+
+    Returns:
+        The read model, with the servable URL resolved.
+    """
+    return activity_media_schema.ActivityMedia(
+        id=record.id,
+        activity_id=record.activity_id,
+        media_type=record.media_type,
+        url=activity_media_signing.media_url(record.media_path, record.activity_id, record.id),
+    )
 
 
 def list_activity_media(
@@ -105,8 +144,52 @@ def list_activity_media(
         endpoint cannot be used to probe which activity ids exist.
     """
     if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
+        logger.debug(
+            "Listing activity media for an activity the caller does not own; returning empty",
+            extra=core_logger.context(activity_id=activity_id, user_id=user_id),
+        )
         return []
-    return activity_media_crud.get_media_for_activity(activity_id, db) or []
+    records = activity_media_crud.get_media_for_activity(activity_id, db) or []
+    logger.debug(
+        "Listed activity media",
+        extra=core_logger.context(activity_id=activity_id, user_id=user_id, count=len(records)),
+    )
+    return [_to_read_model(record) for record in records]
+
+
+def read_activity_media_blob(activity_id: int, media_id: int, db: Session) -> tuple[bytes, str] | None:
+    """Read one media blob for the token-gated serve route.
+
+    Authorization is the signed token the caller already presented; this only
+    resolves the record to its bytes and confirms it belongs to ``activity_id``,
+    so a token minted for one activity's photo cannot be replayed under another
+    activity's URL.
+
+    Args:
+        activity_id: The activity from the request path.
+        media_id: The media record from the request path.
+        db: Database session.
+
+    Returns:
+        A ``(data, content_type)`` tuple, or ``None`` when the record or its blob
+        is missing, or the record belongs to a different activity.
+    """
+    media = activity_media_crud.get_activity_media_by_id(media_id, db)
+    if media is None or media.activity_id != activity_id:
+        return None
+
+    data = _storage().get(activity_media_signing.MEDIA_STORAGE_AREA, media.media_path)
+    if data is None:
+        logger.warning(
+            "Activity media row has no blob behind its storage key",
+            extra=core_logger.context(activity_id=activity_id, media_id=media_id),
+        )
+        return None
+
+    extension = PurePosixPath(media.media_path).suffix.lower().lstrip(".")
+    # ``jpg`` is the only allowed extension whose media subtype is not the suffix.
+    subtype = "jpeg" if extension == "jpg" else extension
+    return data, f"image/{subtype}"
 
 
 def store_activity_media(
@@ -117,9 +200,10 @@ def store_activity_media(
 ) -> activity_media_schema.ActivityMedia:
     """Persist an uploaded image and register it against an activity.
 
-    The upload is magic-number and size validated before any bytes reach disk,
-    then written under a server-generated filename. If the database row cannot be
-    created the file is removed again, so a failed upload leaves nothing behind.
+    The upload is magic-number and size validated before any bytes are stored,
+    then written through the storage provider under a server-generated key. If
+    the database row cannot be created the blob is removed again, so a failed
+    upload leaves nothing behind.
 
     Args:
         activity_id: The activity to attach the media to.
@@ -128,52 +212,88 @@ def store_activity_media(
         db: Database session.
 
     Returns:
-        The created media record.
+        The created media record, carrying its signed servable URL.
 
     Raises:
         NotFoundError: When the activity is not the user's.
         UnsupportedMediaTypeError: For an unsupported extension.
-        ConflictError: On a duplicate path.
+        ConflictError: On a duplicate key.
     """
     _require_owned_activity(activity_id, user_id, db)
 
-    storage_name = _build_storage_filename(activity_id, file.filename)
+    storage_key = _build_storage_key(activity_id, file.filename)
+    storage = _storage()
 
-    # SafeUploads validates magic number and size before writing to disk. Callers
-    # run on a worker thread (the route is synchronous), so the blocking save
-    # never touches the event loop.
-    file_path = core_file_uploads.save_validated_upload_sync(
-        file,
-        kind=core_file_uploads.UploadKind.IMAGE,
-        upload_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
-        filename=storage_name,
-    )
+    # SafeUploads validates magic number and size before anything is stored.
+    # Callers run on a worker thread (the route is synchronous), so the blocking
+    # read never touches the event loop.
+    data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
+    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, file.content_type)
 
     try:
-        created = activity_media_crud.create_activity_media(activity_id, file_path, db)
+        created = activity_media_crud.create_activity_media(activity_id, storage_key, db)
     except (core_exceptions.DomainError, HTTPException):
-        # Best-effort cleanup of the orphaned file, confined to the media dir.
+        # Best-effort cleanup of the orphaned blob.
         try:
-            core_file_uploads.safe_remove_within(
-                file_path,
-                base_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
-            )
-        except HTTPException as fs_err:
+            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, storage_key)
+        except Exception as storage_err:
             logger.warning(
-                "Failed to clean up an orphaned activity media file",
-                extra=core_logger.context(activity_id=activity_id, file=storage_name, reason=fs_err.detail),
+                "Failed to clean up an orphaned activity media blob",
+                extra=core_logger.context(activity_id=activity_id, storage_key=storage_key, reason=str(storage_err)),
             )
         raise
 
     logger.info(
         "Stored activity media",
-        extra=core_logger.context(activity_id=activity_id, user_id=user_id, media_id=created.id),
+        extra=core_logger.context(
+            activity_id=activity_id, user_id=user_id, media_id=created.id, storage_key=storage_key
+        ),
+    )
+    return _to_read_model(created)
+
+
+def store_activity_media_bytes(
+    activity_id: int,
+    original_filename: str | None,
+    data: bytes,
+    db: Session,
+) -> activity_media_contracts.ActivityMediaRecord:
+    """Register already-validated image bytes as media for an activity.
+
+    The server-side ingestion counterpart of :func:`store_activity_media`, for
+    bytes that did not arrive as a multipart upload (a Strava bulk export's
+    sidecar photos). Callers own the validation — they hold the file, not an
+    ``UploadFile`` — but everything after that (the server-generated key, the
+    storage area, the row) stays here, so there is one definition of what a
+    stored activity media is.
+
+    No ownership check: the caller is a server-side import that just created the
+    activity, not a request acting on someone else's data.
+
+    Args:
+        activity_id: The activity to attach the media to.
+        original_filename: The source filename, used only for its extension.
+        data: The validated image bytes.
+        db: Database session.
+
+    Returns:
+        The created media record.
+
+    Raises:
+        UnsupportedMediaTypeError: For an unsupported extension.
+    """
+    storage_key = _build_storage_key(activity_id, original_filename)
+    _storage().save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data)
+    created = activity_media_crud.create_activity_media(activity_id, storage_key, db)
+    logger.info(
+        "Stored activity media from a server-side import",
+        extra=core_logger.context(activity_id=activity_id, media_id=created.id, storage_key=storage_key),
     )
     return created
 
 
 def delete_activity_media(activity_id: int, media_id: int, user_id: int, db: Session) -> None:
-    """Delete one of the user's media records and its file on disk.
+    """Delete one of the user's media records and its stored blob.
 
     Args:
         activity_id: The activity the media must belong to, taken from the route
@@ -198,70 +318,60 @@ def delete_activity_media(activity_id: int, media_id: int, user_id: int, db: Ses
 
     activity_media_crud.delete_activity_media(media_id, db)
 
-    # Best-effort filesystem cleanup, confined to ACTIVITY_MEDIA_DIR so a
-    # tampered media_path cannot delete anything outside it.
     if media.media_path:
+        # Best-effort: the row is the source of truth, and a stray blob is
+        # harmless now that nothing serves it without a signed token.
         try:
-            core_file_uploads.safe_remove_within(
-                media.media_path,
-                base_dir=core_config.settings.ACTIVITY_MEDIA_DIR,
-            )
-        except HTTPException as fs_err:
+            _storage().delete(activity_media_signing.MEDIA_STORAGE_AREA, media.media_path)
+        except Exception as storage_err:
             logger.warning(
-                "Refused to remove an activity media file outside the media directory",
-                extra=core_logger.context(media_id=media_id, reason=fs_err.detail),
+                "Failed to remove the stored blob for a deleted activity media record",
+                extra=core_logger.context(media_id=media_id, reason=str(storage_err)),
             )
 
     logger.info(
         "Deleted activity media",
-        extra=core_logger.context(media_id=media_id, user_id=user_id),
+        extra=core_logger.context(activity_id=activity_id, media_id=media_id, user_id=user_id),
     )
 
 
 def delete_media_files_for_activity(activity_id: int) -> int:
-    """Remove every stored media file belonging to one activity.
+    """Remove every stored media blob belonging to one activity.
 
     Used by the ``activity.deleted`` cleanup subscriber. It works from the
     activity id alone and never touches the database, which is the only thing
     that *can* work here: ``activity_media`` rows are ``ON DELETE CASCADE``, so by
-    the time the event is handled the rows carrying ``media_path`` are already
-    gone. Stored filenames are ``{activity_id}_{uuid}{ext}``, so the id is enough
-    to find them.
+    the time the event is handled the rows carrying the storage key are already
+    gone. Keys are ``{activity_id}_{uuid}{ext}``, so the id is enough to list them
+    back off the provider.
 
     Idempotent, and safe to run for an activity that never had media.
 
     Args:
-        activity_id: The deleted activity whose media files to remove.
+        activity_id: The deleted activity whose media blobs to remove.
 
     Returns:
-        The number of files removed.
+        The number of blobs removed.
     """
-    media_dir = Path(core_config.settings.ACTIVITY_MEDIA_DIR)
-    if not media_dir.is_dir():
-        return 0
+    storage = _storage()
+    # ``activity_id`` is an int, so the prefix carries no metacharacters. The
+    # trailing underscore keeps activity 42 from matching activity 421's keys.
+    prefix = f"{activity_id}_"
 
-    base = media_dir.resolve()
     removed = 0
-    # ``activity_id`` is an int, so the pattern cannot contain glob or traversal
-    # metacharacters. The trailing underscore keeps activity 42 from matching
-    # activity 421's files.
-    for candidate in media_dir.glob(f"{activity_id}_*"):
-        resolved = candidate.resolve()
-        # Defence in depth: never follow a symlink out of the media directory.
-        if not resolved.is_relative_to(base) or not resolved.is_file():
-            continue
+    for key in storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, prefix):
         try:
-            resolved.unlink()
+            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, key)
             removed += 1
-        except OSError as err:
+        except Exception as storage_err:
             logger.warning(
-                "Failed to remove an activity media file",
-                extra=core_logger.context(activity_id=activity_id, file=candidate.name, reason=str(err)),
+                "Failed to remove an activity media blob",
+                extra=core_logger.context(activity_id=activity_id, storage_key=key, reason=str(storage_err)),
             )
 
     if removed:
         logger.info(
-            "Removed media files for a deleted activity",
+            "Removed media blobs for a deleted activity",
             extra=core_logger.context(activity_id=activity_id, removed=removed),
         )
     return removed

@@ -91,6 +91,17 @@ class S3Storage:
     def delete(self, area: str, key: str) -> None:
         self._client.delete_object(Bucket=self._bucket, Key=self._object_key(area, key))
 
+    def list_keys(self, area: str, prefix: str = "") -> list[str]:
+        object_prefix = self._object_key(area, prefix)
+        # Strip back to the area root so the returned values are plain keys.
+        strip_from = len(self._object_key(area, "").rstrip("/")) + 1
+        keys = []
+        paginator = self._client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self._bucket, Prefix=object_prefix):
+            for entry in page.get("Contents", []):
+                keys.append(entry["Key"][strip_from:])
+        return sorted(keys)
+
     def url(self, area: str, key: str, expires_in: int = 3600) -> str:
         return self._client.generate_presigned_url(
             "get_object",

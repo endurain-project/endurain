@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from unittest.mock import Mock
 
 from fastapi import HTTPException
@@ -87,85 +86,86 @@ class _MockGear:
         self.nickname = nickname
 
 
-def test_bulk_media_import_validates_before_move(tmp_path, monkeypatch):
-    """Media import validates images before moving them into storage."""
+def test_bulk_media_import_validates_before_storing(tmp_path, monkeypatch):
+    """Media import validates images before handing the bytes to the media module."""
     validate = Mock()
-    create_media = Mock()
-    moves = []
-    media_dir = str(tmp_path / "activity-media")
+    store_media = Mock()
 
-    monkeypatch.setattr(bulk_import_utils.os.path, "exists", lambda _: True)
-    monkeypatch.setattr(bulk_import_utils.os, "makedirs", Mock())
+    strava_dir = tmp_path / "strava"
+    strava_dir.mkdir()
+    photo = strava_dir / "photo.jpg"
+    photo.write_bytes(b"image-bytes")
+
     monkeypatch.setattr(
-        bulk_import_utils.core_config.settings,
-        "ACTIVITY_MEDIA_DIR",
-        media_dir,
+        bulk_import_utils.core_config,
+        "STRAVA_BULK_IMPORT_MEDIA_DIR",
+        str(strava_dir),
         raising=False,
     )
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(
-        bulk_import_utils.file_uploads,
-        "move_within",
-        lambda src, dest, *, filename, src_base_dir=None: moves.append((src, dest, filename, src_base_dir)),
-    )
-    monkeypatch.setattr(
-        bulk_import_utils.activity_media_crud,
-        "create_activity_media",
-        create_media,
+        bulk_import_utils.activity_media_service,
+        "store_activity_media_bytes",
+        store_media,
     )
 
-    photo_path = str(tmp_path / "strava" / "photo.jpg")
-    bulk_import_utils.create_activity_media_from_strava_bulk_import(
-        7,
-        "photo.jpg",
-        photo_path,
-        Mock(),
-    )
+    bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", str(photo), Mock())
 
     validate.assert_called_once_with(
-        photo_path,
+        str(photo),
         kind=UploadKind.IMAGE,
         filename="photo.jpg",
     )
-    assert moves == [
-        (
-            photo_path,
-            media_dir,
-            "7_photo.jpg",
-            bulk_import_utils.core_config.STRAVA_BULK_IMPORT_MEDIA_DIR,
-        )
-    ]
-    create_media.assert_called_once()
-    assert create_media.call_args.args[1] == os.path.join(media_dir, "7_photo.jpg")
+    # The media module owns the key and the storage area; only bytes cross over.
+    assert store_media.call_args.args[0] == 7
+    assert store_media.call_args.args[1] == "photo.jpg"
+    assert store_media.call_args.args[2] == b"image-bytes"
+    # The staged Strava copy is consumed.
+    assert not photo.exists()
 
 
 def test_bulk_media_import_rejects_invalid_image(tmp_path, monkeypatch):
-    """Invalid media is rejected before move or DB insert."""
+    """Invalid media is rejected before it is stored or recorded."""
     validate = Mock(side_effect=HTTPException(status_code=400, detail="bad image"))
-    move = Mock()
-    create_media = Mock()
-    photo_path = str(tmp_path / "strava" / "photo.jpg")
+    store_media = Mock()
 
-    monkeypatch.setattr(bulk_import_utils.os.path, "exists", lambda _: True)
-    monkeypatch.setattr(bulk_import_utils.os, "makedirs", Mock())
-    monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
-    monkeypatch.setattr(bulk_import_utils.file_uploads, "move_within", move)
+    strava_dir = tmp_path / "strava"
+    strava_dir.mkdir()
+    photo = strava_dir / "photo.jpg"
+    photo.write_bytes(b"not an image")
+
     monkeypatch.setattr(
-        bulk_import_utils.activity_media_crud,
-        "create_activity_media",
-        create_media,
+        bulk_import_utils.core_config,
+        "STRAVA_BULK_IMPORT_MEDIA_DIR",
+        str(strava_dir),
+        raising=False,
+    )
+    monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
+    monkeypatch.setattr(
+        bulk_import_utils.activity_media_service,
+        "store_activity_media_bytes",
+        store_media,
     )
 
-    bulk_import_utils.create_activity_media_from_strava_bulk_import(
-        7,
-        "photo.jpg",
-        photo_path,
-        Mock(),
-    )
+    bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", str(photo), Mock())
 
     validate.assert_called_once()
-    move.assert_not_called()
-    create_media.assert_not_called()
+    store_media.assert_not_called()
+    assert photo.exists()
+
+
+def test_bulk_media_import_skips_a_missing_file(tmp_path, monkeypatch):
+    """A media entry with no file on disk is skipped without storing anything."""
+    store_media = Mock()
+    monkeypatch.setattr(
+        bulk_import_utils.activity_media_service,
+        "store_activity_media_bytes",
+        store_media,
+    )
+
+    bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", str(tmp_path / "gone.jpg"), Mock())
+
+    store_media.assert_not_called()
 
 
 def test_gear_dictionary_normal(monkeypatch):

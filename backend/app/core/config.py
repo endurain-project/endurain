@@ -135,13 +135,15 @@ class Settings(BaseSettings):
     _resolved_trusted_proxy_ips: set[str] = set()
 
     # --- Filesystem layout ---
+    # Activity media and thumbnails are deliberately absent: they are blobs
+    # addressed through the platform StorageProvider, whose local backend owns
+    # the ``{DATA_DIR}/{area}`` layout. A settable directory here would be a
+    # second source of truth for the same path, and meaningless on object storage.
     FRONTEND_DIR: str = "/app/frontend/dist"
     BACKEND_DIR: str = "/app/backend"
     DATA_DIR: str = ""
     LOGS_DIR: str = ""
     FILES_DIR: str = ""
-    ACTIVITY_MEDIA_DIR: str = ""
-    ACTIVITY_THUMBNAILS_DIR: str = ""
 
     # --- Rate limiting ---
     RATE_LIMIT_ENABLED: bool = True
@@ -536,10 +538,6 @@ class Settings(BaseSettings):
             self.LOGS_DIR = f"{self.BACKEND_DIR}/logs"
         if not self.FILES_DIR:
             self.FILES_DIR = f"{self.DATA_DIR}/activity_files"
-        if not self.ACTIVITY_MEDIA_DIR:
-            self.ACTIVITY_MEDIA_DIR = f"{self.DATA_DIR}/activity_media"
-        if not self.ACTIVITY_THUMBNAILS_DIR:
-            self.ACTIVITY_THUMBNAILS_DIR = f"{self.DATA_DIR}/activity_thumbnails"
         if not self.TRUSTED_PROXIES and self.ENVIRONMENT == "development" and "TRUSTED_PROXIES" not in os.environ:
             self.TRUSTED_PROXIES = ["*"]
         return self
@@ -1001,8 +999,6 @@ def check_required_dirs():
         settings.DATA_DIR,
         USER_IMAGES_DIR,
         SERVER_IMAGES_DIR,
-        settings.ACTIVITY_MEDIA_DIR,
-        settings.ACTIVITY_THUMBNAILS_DIR,
         settings.FILES_DIR,
         FILES_PROCESSED_DIR,
         FILES_BULK_IMPORT_DIR,

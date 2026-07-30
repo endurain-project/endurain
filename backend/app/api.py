@@ -12,6 +12,7 @@ import modules.activities.activity.router as activities_router
 import modules.activities.activity_ingestion.router as activity_ingestion_router
 import modules.activities.activity_laps.public_router as activity_laps_public_router
 import modules.activities.activity_laps.router as activity_laps_router
+import modules.activities.activity_media.public_router as activity_media_public_router
 import modules.activities.activity_media.router as activity_media_router
 import modules.activities.activity_sets.public_router as activity_sets_public_router
 import modules.activities.activity_sets.router as activity_sets_router
@@ -97,6 +98,12 @@ router.include_router(
     activity_thumbnail_router.router,
     prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
+)
+# Activity media blobs are token-gated for the same reason and in the same way.
+router.include_router(
+    activity_media_public_router.router,
+    prefix=core_config.ROOT_PATH + "/activities",
+    tags=["activity_media"],
 )
 # Literal ``/activities/<name>`` sub-resources, mounted for the same reason as the
 # ingestion routers above: they must be matched before the core router's dynamic

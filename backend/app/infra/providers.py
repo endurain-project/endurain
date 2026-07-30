@@ -84,12 +84,20 @@ class StorageProvider(Protocol):
     thumbnails), but some need the bytes back in-process (e.g. bundling an
     activity's stored source file into a profile export); ``get`` is that read
     path, returning ``None`` when the blob is absent.
+
+    ``list_keys`` exists for the subsystems whose keys are *not* derivable from a
+    domain id. Thumbnails and retained source files can address every blob they
+    own from an activity id alone; activity media cannot, because its keys carry
+    a random component. Without a prefix listing that subsystem would have to
+    reach past the provider to the filesystem to clean up after a deleted
+    activity, which is exactly what this port exists to prevent.
     """
 
     def save(self, area: str, key: str, data: bytes, content_type: str | None = None) -> str: ...
     def get(self, area: str, key: str) -> bytes | None: ...
     def exists(self, area: str, key: str) -> bool: ...
     def delete(self, area: str, key: str) -> None: ...
+    def list_keys(self, area: str, prefix: str = "") -> list[str]: ...
     def url(self, area: str, key: str, expires_in: int = 3600) -> str: ...
 
 

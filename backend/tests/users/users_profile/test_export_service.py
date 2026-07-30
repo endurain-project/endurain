@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import modules.users.users_profile.export_service as profile_export_service
 import modules.users.users_profile.utils as profile_utils
 from modules.users.users_profile.exceptions import (
@@ -573,11 +572,11 @@ class TestExportServiceActivityMedia:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=False),
-            ):
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                runtime.get_active_platform.return_value.storage.list_keys.return_value = []
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts["media"] == 0
 
     def test_add_activity_media_no_activities(self) -> None:
         buf = io.BytesIO()
@@ -594,17 +593,29 @@ class TestExportServiceActivityMedia:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-                patch.object(z, "write"),
-            ):
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.return_value = ["1_image.jpg"]
+                storage.get.return_value = b"image-bytes"
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts["media"] == 1
+        with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as written:
+            assert written.read("activity_media/1_image.jpg") == b"image-bytes"
+
+    def test_add_activity_media_skips_a_missing_blob(self) -> None:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+            mock_db = MagicMock(spec=Session)
+            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.return_value = ["1_image.jpg"]
+                storage.get.return_value = None
+                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts["media"] == 0
 
 
 def _make_scandir_mock(entries: list) -> MagicMock:
@@ -1243,78 +1254,35 @@ class TestExportServiceActivityFilesEdgeCases:
 
 
 class TestExportServiceActivityMediaEdgeCases:
-    """Cover lines 864-865, 874-891 of add_activity_media_to_zip."""
+    """Failure handling while reading media blobs out of storage."""
 
-    def test_media_file_not_found_skipped(self) -> None:
-        """os.path.isfile returns False -> skip file (lines 864-865)."""
+    def test_a_failing_blob_does_not_abort_the_rest(self) -> None:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=False),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-            ):
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.return_value = ["1_bad.jpg", "1_good.jpg"]
+                storage.get.side_effect = [OSError("backend down"), b"good-bytes"]
+                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts.get("media", 0) == 1
+
+    def test_media_listing_failure_does_not_abort_the_export(self) -> None:
+        """A storage outage skips that activity's media rather than failing the export."""
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+            mock_db = MagicMock(spec=Session)
+            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.side_effect = OSError("permission denied")
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts.get("media", 0) == 0
-
-    def test_media_oserror_during_add_continues(self) -> None:
-        """OSError from zipf.write caught and loop continues (lines 874-880)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-                patch.object(z, "write", side_effect=OSError("disk full")),
-            ):
-                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
-
-        assert service.counts.get("media", 0) == 0
-
-    def test_media_unexpected_error_during_add_continues(self) -> None:
-        """Generic exception from zipf.write caught (lines 881-886)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-                patch.object(z, "write", side_effect=ValueError("unexpected")),
-            ):
-                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
-
-        assert service.counts.get("media", 0) == 0
-
-    def test_media_outer_os_error_raises_file_system_error(self) -> None:
-        """OSError from os.walk raises FileSystemError (lines 889-891)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", side_effect=OSError("permission denied")),
-                pytest.raises(FileSystemError),
-            ):
-                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
 
 
 class TestExportServiceUserImagesEdgeCases:

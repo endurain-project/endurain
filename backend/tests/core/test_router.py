@@ -73,38 +73,26 @@ class TestServerImages(_FileResponseTestMixin):
             assert response.json()["detail"] == "Server image not found"
 
 
-class TestActivityMedia(_FileResponseTestMixin):
-    """Tests for GET /activity_media/{media}."""
+class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
+    """Activity media and thumbnails must not be reachable by filename.
 
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_activity_media_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/activity_media/test.jpg")
-            assert response.status_code == 200
+    Both used to have an unauthenticated ``GET /<dir>/{name}`` route here, which
+    was a complete bypass of the signed-token gates that guard them. The catch-all
+    frontend fallback answers these paths now, so the assertion is that no image
+    is returned — not merely that the status is non-200.
+    """
 
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_activity_media_path") as mock:
+    def test_activity_media_is_not_served_by_filename(self):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
             mock.return_value = None
-            response = client.get("/activity_media/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Activity media not found"
+            response = client.get("/activity_media/5_abc123.jpg")
+        assert response.status_code == 404
 
-
-class TestActivityThumbnails(_FileResponseTestMixin):
-    """Tests for GET /activity_thumbnails/{thumbnail}."""
-
-    def test_returns_file_response_when_path_found(self, tmp_path):
-        with patch("core.router.core_utils.return_activity_thumbnail_path") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/activity_thumbnails/test.jpg")
-            assert response.status_code == 200
-
-    def test_returns_404_when_path_not_found(self):
-        with patch("core.router.core_utils.return_activity_thumbnail_path") as mock:
+    def test_activity_thumbnail_is_not_served_by_filename(self):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
             mock.return_value = None
-            response = client.get("/activity_thumbnails/test.jpg")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Activity thumbnail not found"
+            response = client.get("/activity_thumbnails/5.webp")
+        assert response.status_code == 404
 
 
 class TestCatchAll(_FileResponseTestMixin):
