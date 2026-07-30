@@ -266,8 +266,8 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
     Returns:
         The newly created follow relationship as a DTO.
     """
-    follower = followers_crud.create_follower(requester_user_id, target_user_id, db)
-    followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db)
+    follower = followers_crud.create_follower(requester_user_id, target_user_id, db, commit=False)
+    followers_event_publishers.publish_follower_requested(requester_user_id, target_user_id, db, db.commit)
     logger.debug(
         "Follow requested",
         extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
@@ -290,8 +290,8 @@ def accept_follow_request(
     Returns:
         The accepted relationship, read back from the committed row.
     """
-    relationship = followers_crud.accept_follower(accepter_user_id, requester_user_id, db)
-    followers_event_publishers.publish_follower_accepted(accepter_user_id, requester_user_id, db)
+    relationship = followers_crud.accept_follower(accepter_user_id, requester_user_id, db, commit=False)
+    followers_event_publishers.publish_follower_accepted(accepter_user_id, requester_user_id, db, db.commit)
     logger.debug(
         "Follow request accepted",
         extra=core_logger.context(accepter_user_id=accepter_user_id, requester_user_id=requester_user_id),

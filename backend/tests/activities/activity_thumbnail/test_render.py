@@ -1,18 +1,15 @@
 """Tests for the thumbnail render + storage-addressing helpers."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
 class TestRenderActivityThumbnail:
-    @patch("modules.activities.activity_thumbnail.render.StaticMap")
-    def test_returns_webp_bytes(self, mock_staticmap):
+    @patch("modules.activities.activity_thumbnail.render.platform_runtime")
+    def test_returns_webp_bytes(self, mock_runtime):
         from modules.activities.activity_thumbnail.render import render_activity_thumbnail
 
-        mock_map = MagicMock()
-        mock_image = MagicMock()
-        mock_image.save.side_effect = lambda buf, *a, **k: buf.write(b"webpdata")
-        mock_map.render.return_value = mock_image
-        mock_staticmap.return_value = mock_map
+        renderer = mock_runtime.get_active_platform.return_value.route_map_renderer
+        renderer.render.return_value = b"webpdata"
 
         data = render_activity_thumbnail(
             1,
@@ -21,9 +18,11 @@ class TestRenderActivityThumbnail:
         )
 
         assert data == b"webpdata"
-        mock_map.render.assert_called_once()
-        assert mock_image.save.call_args.args[1] == "WEBP"
-        assert mock_image.save.call_args.kwargs["quality"] == 75
+        request = renderer.render.call_args.args[0]
+        assert request.coordinates == ((-9.0, 38.0), (-9.1, 38.1))
+        assert request.tile_url == "https://tiles/{z}/{x}/{y}.png"
+        assert request.quality == 75
+        assert request.request_timeout_seconds == 10.0
 
     def test_none_when_too_few_waypoints(self):
         from modules.activities.activity_thumbnail.render import render_activity_thumbnail
@@ -31,8 +30,8 @@ class TestRenderActivityThumbnail:
         assert render_activity_thumbnail(1, [{"lat": 1.0, "lon": 2.0}]) is None
         assert render_activity_thumbnail(1, []) is None
 
-    @patch("modules.activities.activity_thumbnail.render.StaticMap")
-    def test_none_for_stadia_without_key(self, mock_staticmap):
+    @patch("modules.activities.activity_thumbnail.render.platform_runtime")
+    def test_none_for_stadia_without_key(self, mock_runtime):
         from modules.activities.activity_thumbnail.render import render_activity_thumbnail
 
         data = render_activity_thumbnail(
@@ -42,4 +41,4 @@ class TestRenderActivityThumbnail:
         )
 
         assert data is None
-        mock_staticmap.assert_not_called()
+        mock_runtime.get_active_platform.assert_not_called()

@@ -316,6 +316,8 @@ def create_follower(
     user_id: int,
     target_user_id: int,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> followers_schema.FollowRelationship:
     """
     Create a new follow request between two users.
@@ -328,6 +330,8 @@ def create_follower(
         user_id: ID of the follower user.
         target_user_id: ID of the user being followed.
         db: Database session.
+        commit: Commit immediately when true; otherwise flush for a caller-owned
+            transaction.
 
     Returns:
         The newly created Follower relationship as a DTO.
@@ -356,7 +360,10 @@ def create_follower(
 
     try:
         db.add(new_follow)
-        db.commit()
+        if commit:
+            db.commit()
+        else:
+            db.flush()
         db.refresh(new_follow)
         _invalidate_followee_cache(db)
     except IntegrityError as err:
@@ -380,6 +387,8 @@ def accept_follower(
     user_id: int,
     target_user_id: int,
     db: Session,
+    *,
+    commit: bool = True,
 ) -> followers_schema.FollowRelationship:
     """
     Accept a pending follow request from another user.
@@ -392,6 +401,8 @@ def accept_follower(
         user_id: ID of the user accepting the request (the followed user).
         target_user_id: ID of the user whose follow request is accepted.
         db: Database session.
+        commit: Commit immediately when true; otherwise flush for a caller-owned
+            transaction.
 
     Returns:
         The accepted relationship as a DTO, read back from the committed row.
@@ -411,7 +422,10 @@ def accept_follower(
         raise core_exceptions.NotFoundError("Follower record not found")
 
     accept_follow.status = "accepted"
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     db.refresh(accept_follow)
     _invalidate_followee_cache(db)
 

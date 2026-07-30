@@ -282,6 +282,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     activity_subscriber_registry.register_all_activity_bus_subscribers(platform.events)
     activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
     followers_subscribers.register_follower_notification_subscribers(platform.events)
+    followers_subscribers.register_follower_notification_durable_handlers(jobs_registry.registry)
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.

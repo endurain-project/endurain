@@ -63,8 +63,8 @@ class TestFollowUser:
         result = follow_user(1, 2, db)
 
         assert result.follower_id == 1
-        mock_crud.create_follower.assert_called_once_with(1, 2, db)
-        mock_pub.publish_follower_requested.assert_called_once_with(1, 2, db)
+        mock_crud.create_follower.assert_called_once_with(1, 2, db, commit=False)
+        mock_pub.publish_follower_requested.assert_called_once_with(1, 2, db, db.commit)
 
 
 class TestAcceptFollowRequest:
@@ -76,8 +76,8 @@ class TestAcceptFollowRequest:
         db = MagicMock()
         accept_follow_request(1, 2, db)
 
-        mock_crud.accept_follower.assert_called_once_with(1, 2, db)
-        mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db)
+        mock_crud.accept_follower.assert_called_once_with(1, 2, db, commit=False)
+        mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db, db.commit)
 
 
 class TestDeleteRelationship:

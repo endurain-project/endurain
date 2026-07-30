@@ -302,6 +302,20 @@ class TestCreateFollower:
         mock_db.add.assert_called_once_with(new_follow)
         mock_db.commit.assert_called_once()
 
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_stages_without_committing(self, mock_get_follow, mock_db):
+        import modules.followers.crud as crud
+        import modules.followers.models as models
+
+        mock_get_follow.return_value = None
+        new_follow = MagicMock(spec=models.Follower, follower_id=1, followee_id=2, status="pending")
+
+        with patch.object(crud.followers_models, "Follower", return_value=new_follow):
+            crud.create_follower(user_id=1, target_user_id=2, db=mock_db, commit=False)
+
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
+
     def test_self_follow(self, mock_db):
         import modules.followers.crud as crud
 
@@ -363,6 +377,18 @@ class TestAcceptFollower:
         assert accept_follow.status == "accepted"
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(accept_follow)
+
+    def test_stages_without_committing(self, mock_db):
+        import modules.followers.crud as crud
+        import modules.followers.models as models
+
+        accept_follow = MagicMock(spec=models.Follower, id=1, follower_id=2, followee_id=1, status="pending")
+        mock_db.scalars.return_value.first.return_value = accept_follow
+
+        crud.accept_follower(user_id=1, target_user_id=2, db=mock_db, commit=False)
+
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     def test_not_found(self, mock_db):
         import modules.followers.crud as crud

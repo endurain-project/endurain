@@ -1,6 +1,6 @@
 """Tests for the followers event publishers."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 class TestPublishFollowerRequested:
@@ -11,14 +11,16 @@ class TestPublishFollowerRequested:
         from modules.followers.event_publishers import publish_follower_requested
 
         db = object()
-        publish_follower_requested(1, 2, db)
+        commit = MagicMock()
+        publish_follower_requested(1, 2, db, commit)
 
-        mock_publisher.publish.assert_called_once()
-        args, kwargs = mock_publisher.publish.call_args
+        mock_publisher.publish_committing.assert_called_once()
+        args, kwargs = mock_publisher.publish_committing.call_args
         assert args[0] == followers_events.FOLLOWER_REQUESTED
         assert args[1] == {"requester_user_id": 1, "target_user_id": 2}
         assert kwargs["metadata"] == {platform_events.META_USER_ID: 2}
         assert kwargs["db"] is db
+        assert kwargs["commit"] is commit
 
 
 class TestPublishFollowerAccepted:
@@ -29,11 +31,13 @@ class TestPublishFollowerAccepted:
         from modules.followers.event_publishers import publish_follower_accepted
 
         db = object()
-        publish_follower_accepted(1, 2, db)
+        commit = MagicMock()
+        publish_follower_accepted(1, 2, db, commit)
 
-        mock_publisher.publish.assert_called_once()
-        args, kwargs = mock_publisher.publish.call_args
+        mock_publisher.publish_committing.assert_called_once()
+        args, kwargs = mock_publisher.publish_committing.call_args
         assert args[0] == followers_events.FOLLOWER_ACCEPTED
         assert args[1] == {"accepter_user_id": 1, "requester_user_id": 2}
         assert kwargs["metadata"] == {platform_events.META_USER_ID: 2}
         assert kwargs["db"] is db
+        assert kwargs["commit"] is commit

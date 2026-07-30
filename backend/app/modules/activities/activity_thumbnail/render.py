@@ -8,12 +8,11 @@ bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
 import re
-from io import BytesIO
-
-from staticmap import CircleMarker, Line, StaticMap
 
 import core.config as core_config
 import core.logger as core_logger
+import infra.runtime as platform_runtime
+from infra.providers import RouteMapRenderRequest
 
 logger = core_logger.get_logger(__name__)
 
@@ -145,36 +144,32 @@ def render_activity_thumbnail(
             separator = "&" if "?" in normalised_url else "?"
             normalised_url += f"{separator}api_key={api_key}"
 
-        static_map = StaticMap(
-            width,
-            height,
-            url_template=normalised_url,
-            background_color=background_color,
-            headers=headers,
+        data = platform_runtime.get_active_platform().route_map_renderer.render(
+            RouteMapRenderRequest(
+                coordinates=tuple(coords),
+                tile_url=normalised_url,
+                background_color=background_color,
+                headers=headers,
+                width=width,
+                height=height,
+                line_color=_LINE_COLOR,
+                line_width=_LINE_WIDTH,
+                marker_outer_color=_MARKER_OUTER_COLOR,
+                marker_outer_radius=_MARKER_OUTER_RADIUS,
+                start_color=_START_COLOR,
+                end_color=_END_COLOR,
+                marker_inner_radius=_MARKER_INNER_RADIUS,
+                quality=_THUMBNAIL_QUALITY,
+                encoder_method=_THUMBNAIL_METHOD,
+            )
         )
-
-        # Route polyline — matches Leaflet color and weight
-        static_map.add_line(Line(coords, _LINE_COLOR, _LINE_WIDTH))
-
-        # Start marker: white outer ring + green inner dot
-        static_map.add_marker(CircleMarker(coords[0], _MARKER_OUTER_COLOR, _MARKER_OUTER_RADIUS))
-        static_map.add_marker(CircleMarker(coords[0], _START_COLOR, _MARKER_INNER_RADIUS))
-
-        # End marker: white outer ring + red inner dot
-        static_map.add_marker(CircleMarker(coords[-1], _MARKER_OUTER_COLOR, _MARKER_OUTER_RADIUS))
-        static_map.add_marker(CircleMarker(coords[-1], _END_COLOR, _MARKER_INNER_RADIUS))
-
-        image = static_map.render()
-
-        buffer = BytesIO()
-        image.save(buffer, "WEBP", quality=_THUMBNAIL_QUALITY, method=_THUMBNAIL_METHOD)
 
         logger.info(
             "Thumbnail rendered",
             extra=core_logger.context(console=True, activity_id=activity_id, width=width, height=height),
         )
 
-        return buffer.getvalue()
+        return data
 
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
         logger.warning(

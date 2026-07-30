@@ -22,6 +22,7 @@ import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
 import modules.activities.subscriber_registry as activity_subscriber_registry
+import modules.followers.subscribers as followers_subscribers
 from infra.jobs.worker import run_worker
 
 logger = core_logger.get_logger(__name__)
@@ -67,6 +68,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # cannot drift — a handler registered in one but not the other would leave its
     # jobs unresolvable (and dead-lettered) on a dedicated worker.
     activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
+    followers_subscribers.register_follower_notification_durable_handlers(jobs_registry.registry)
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     runner = jobs_service.build_runner()

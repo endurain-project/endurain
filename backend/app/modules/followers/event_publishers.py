@@ -7,6 +7,8 @@ follow service calls these instead of building events itself, so it stays
 ignorant of the substrate and of who subscribes.
 """
 
+from collections.abc import Callable
+
 from sqlalchemy.orm import Session
 
 import infra.events as platform_events
@@ -14,7 +16,12 @@ import infra.publisher as platform_publisher
 import modules.followers.events as followers_events
 
 
-def publish_follower_requested(requester_user_id: int, target_user_id: int, db: Session | None = None) -> None:
+def publish_follower_requested(
+    requester_user_id: int,
+    target_user_id: int,
+    db: Session,
+    commit: Callable[[], None],
+) -> None:
     """Publish ``follower.requested`` after a follow-request row is created.
 
     Args:
@@ -24,20 +31,27 @@ def publish_follower_requested(requester_user_id: int, target_user_id: int, db: 
             for event-log correlation.
         db: The producer's DB session, used for durable outbox delivery when
             durable jobs are enabled for this event type.
+        commit: Commit the relationship row and outbox event together.
 
     Returns:
         None.
     """
-    platform_publisher.publish(
+    platform_publisher.publish_committing(
         followers_events.FOLLOWER_REQUESTED,
         {"requester_user_id": requester_user_id, "target_user_id": target_user_id},
         source="api:create_follower",
         metadata={platform_events.META_USER_ID: target_user_id},
         db=db,
+        commit=commit,
     )
 
 
-def publish_follower_accepted(accepter_user_id: int, requester_user_id: int, db: Session | None = None) -> None:
+def publish_follower_accepted(
+    accepter_user_id: int,
+    requester_user_id: int,
+    db: Session,
+    commit: Callable[[], None],
+) -> None:
     """Publish ``follower.accepted`` after a pending request is accepted.
 
     Args:
@@ -45,14 +59,16 @@ def publish_follower_accepted(accepter_user_id: int, requester_user_id: int, db:
         requester_user_id: The original requester (who is notified). Carried in
             the payload and mirrored into the metadata for correlation.
         db: The producer's DB session (see :func:`publish_follower_requested`).
+        commit: Commit the relationship row and outbox event together.
 
     Returns:
         None.
     """
-    platform_publisher.publish(
+    platform_publisher.publish_committing(
         followers_events.FOLLOWER_ACCEPTED,
         {"accepter_user_id": accepter_user_id, "requester_user_id": requester_user_id},
         source="api:accept_follower",
         metadata={platform_events.META_USER_ID: requester_user_id},
         db=db,
+        commit=commit,
     )
