@@ -1,6 +1,7 @@
 """Tests for activity media addressing: signed tokens and servable URLs."""
 
-from unittest.mock import MagicMock, patch
+from dataclasses import replace
+from unittest.mock import patch
 
 _SIGNING = "modules.activities.activity_media.signing"
 
@@ -43,7 +44,7 @@ class TestMediaTokenSigning:
 
         import modules.activities.activity_media.signing as signing
 
-        monkeypatch.setattr(signing, "_TOKEN_MAX_AGE_SECONDS", 1)
+        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1))
         token = signing.sign_media_token(42)
         time.sleep(2.1)
 
@@ -51,41 +52,15 @@ class TestMediaTokenSigning:
 
 
 class TestMediaUrl:
-    @patch(f"{_SIGNING}.core_signing")
-    @patch(f"{_SIGNING}.core_config")
-    def test_url_local_is_signed_route(self, mock_config, mock_signing):
-        from modules.activities.activity_media.signing import media_url
-
-        mock_config.settings.resolved_storage_uri = "local://data"
-        mock_config.ROOT_PATH = "/api/v1"
-        mock_signing.sign_token.return_value = "tok123"
-
-        assert media_url("1_abc.jpg", 1, 5) == "/api/v1/activities/1/media/5/file?t=tok123"
-
-    @patch(f"{_SIGNING}.platform_runtime")
-    @patch(f"{_SIGNING}.core_config")
-    def test_url_s3_uses_presigned_storage_url(self, mock_config, mock_runtime):
-        from modules.activities.activity_media.signing import media_url
-
-        mock_config.settings.resolved_storage_uri = "s3://bucket"
-        storage = MagicMock()
-        storage.url.return_value = "https://cdn/activity_media/1_abc.jpg"
-        mock_runtime.get_active_platform.return_value.storage = storage
-
-        assert media_url("1_abc.jpg", 1, 5) == "https://cdn/activity_media/1_abc.jpg"
-        storage.url.assert_called_once_with("activity_media", "1_abc.jpg")
+    """URL shape only — the storage branching itself is covered in tests/core/test_signing.py."""
 
     @patch(f"{_SIGNING}.core_signing")
-    @patch(f"{_SIGNING}.platform_runtime")
-    @patch(f"{_SIGNING}.core_config")
-    def test_url_s3_falls_back_to_signed_route_when_platform_uninitialised(
-        self, mock_config, mock_runtime, mock_signing
-    ):
+    def test_addresses_the_media_route_with_a_signed_token(self, mock_signing):
         from modules.activities.activity_media.signing import media_url
 
-        mock_config.settings.resolved_storage_uri = "s3://bucket"
-        mock_config.ROOT_PATH = "/api/v1"
-        mock_runtime.get_active_platform.side_effect = RuntimeError("no platform")
-        mock_signing.sign_token.return_value = "tok"
+        mock_signing.blob_url.return_value = "/api/v1/activities/1/media/5/file?t=tok"
 
         assert media_url("1_abc.jpg", 1, 5) == "/api/v1/activities/1/media/5/file?t=tok"
+        kwargs = mock_signing.blob_url.call_args.kwargs
+        assert mock_signing.blob_url.call_args.args[:2] == ("activity_media", "1_abc.jpg")
+        assert kwargs["local_path"] == "/activities/1/media/5/file"

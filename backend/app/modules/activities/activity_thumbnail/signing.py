@@ -19,33 +19,23 @@ Why this shape:
   param), so no ``Authorization`` header is required — the same capability-URL
   model object storage already uses for presigned URLs.
 
-The token is bounded by :data:`_TOKEN_MAX_AGE_SECONDS` rather than living forever:
-an activity that was public (or ``hide_map``-off) when a viewer's page loaded can
-later be hidden, and a token already handed out would otherwise still open the
-blob until ``SECRET_KEY`` rotates. The window self-heals on every fresh view —
-serializing the activity again mints a new token with a new timestamp — so this
-only bounds how long a *previously issued* token survives a later visibility
-change, without needing a revocation list. It is kept comfortably longer than the
-route's own browser ``Cache-Control`` window (see ``activity_thumbnail.router``)
-so a still-cached image never 404s mid-cache; this mirrors ``activity_media`` and
-``users.users.signing``, which use the same policy for the same reason.
+The token is bounded by :data:`core.signing.DEFAULT_TOKEN_MAX_AGE_SECONDS` rather
+than living forever: an activity that was public (or ``hide_map``-off) when a
+viewer's page loaded can later be hidden, and a token already handed out would
+otherwise still open the blob until ``SECRET_KEY`` rotates. The window self-heals
+on every fresh view — serializing the activity again mints a new token with a new
+timestamp — so this only bounds how long a *previously issued* token survives a
+later visibility change, without needing a revocation list.
 
 Addressing lives here rather than in ``render.py`` so serializing an activity does
 not drag the rendering stack (staticmap, PIL) into the request path: the read path
 only ever needs the URL, never the renderer.
 """
 
-import core.config as core_config
 import core.signing as core_signing
-import infra.runtime as platform_runtime
 
 # Namespaces this signer from any other ``SECRET_KEY`` use (e.g. JWT signing).
-_SALT = "activity-thumbnail"
-
-# How long a signed token remains valid after it was minted, bounding exposure
-# after a later visibility change. Well past the route's 1-hour browser cache
-# window so a cached image never expires mid-cache.
-_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
+_SIGNER = core_signing.CapabilitySigner(salt="activity-thumbnail")
 
 # The storage area (domain-owned namespace) activity thumbnails live under.
 THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
@@ -65,7 +55,7 @@ def sign_thumbnail_token(activity_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return core_signing.sign_token(_SALT, activity_id)
+    return _SIGNER.sign(activity_id)
 
 
 def verify_thumbnail_token(activity_id: int, token: str) -> bool:
@@ -76,21 +66,19 @@ def verify_thumbnail_token(activity_id: int, token: str) -> bool:
         token: The signed token from the request.
 
     Returns:
-        True if the token is authentic, bound to ``activity_id``, and no older
-        than :data:`_TOKEN_MAX_AGE_SECONDS`.
+        True if the token is authentic, bound to ``activity_id``, and unexpired.
     """
-    return core_signing.verify_token(_SALT, activity_id, token, max_age=_TOKEN_MAX_AGE_SECONDS)
+    return _SIGNER.verify(activity_id, token)
 
 
 def thumbnail_url(key: str | None, activity_id: int) -> str | None:
     """Resolve a stored thumbnail to a signed, ``<img>``-compatible URL.
 
-    Object storage keeps its presigned, expiring URL (already access-controlled
-    and usable in an ``<img>`` tag). Local disk is served by the token-gated
-    thumbnail route instead of a public static path, so the blob is only reachable
-    with a valid signed token — minted here and handed only to permitted viewers
-    via visibility masking, so a non-owner of a ``hide_map`` activity can neither
-    receive nor forge one. The activity owner keeps their map.
+    Local disk is served by the token-gated thumbnail route instead of a public
+    static path, so the blob is only reachable with a valid signed token — minted
+    here and handed only to permitted viewers via visibility masking, so a
+    non-owner of a ``hide_map`` activity can neither receive nor forge one. The
+    activity owner keeps their map.
 
     Args:
         key: The stored storage key, or ``None``.
@@ -101,13 +89,9 @@ def thumbnail_url(key: str | None, activity_id: int) -> str | None:
     """
     if not key:
         return None
-    # Object storage already serves via presigned, expiring, <img>-compatible
-    # URLs; use them directly to avoid round-tripping every thumbnail through the
-    # app.
-    if core_config.settings.resolved_storage_uri.startswith("s3"):
-        try:
-            return platform_runtime.get_active_platform().storage.url(THUMBNAIL_STORAGE_AREA, key)
-        except RuntimeError:
-            pass
-    # Local disk: a signed, token-gated app URL (no public static mount).
-    return f"{core_config.ROOT_PATH}/activities/{activity_id}/thumbnail?t={sign_thumbnail_token(activity_id)}"
+    return core_signing.blob_url(
+        THUMBNAIL_STORAGE_AREA,
+        key,
+        local_path=f"/activities/{activity_id}/thumbnail",
+        token=sign_thumbnail_token(activity_id),
+    )

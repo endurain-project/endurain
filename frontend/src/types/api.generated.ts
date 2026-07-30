@@ -396,6 +396,10 @@ export interface paths {
         /**
          * Delete Activity
          * @description Delete one of the authenticated user's activities.
+         *
+         *     Answers ``204`` with no body, like every other delete in the API. It used to
+         *     return ``200`` with a confirmation sentence, which is a representation of
+         *     nothing: the resource is gone, and the status already says so.
          */
         delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
         options?: never;
@@ -12977,13 +12981,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["ActivityMessageResponse"];
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

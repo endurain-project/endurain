@@ -14,14 +14,12 @@ fetched, no ORM instances returned.
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
+import core.timezone as core_timezone
 import modules.activities.activity.models as activities_models
 
-# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). Used to widen the
-# indexable pre-filter on the raw UTC column so it can never exclude a row that
-# the exact local-time predicate would keep.
-MAX_UTC_OFFSET = timedelta(hours=14)
+#: Re-exported for the callers that reason about the widened pre-filter below.
+MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
 
 
 def escape_like(term: str) -> str:
@@ -40,7 +38,7 @@ def escape_like(term: str) -> str:
     return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def local_start_time_expression(db: Session):
+def local_start_time_expression():
     """``Activity.start_time`` as a naive wall clock in the activity's own timezone.
 
     "Which day did this activity happen on?" is a *local* question: a 07:00 ride
@@ -55,26 +53,17 @@ def local_start_time_expression(db: Session):
     Activities with no stored timezone (indoor imports that carried no GPS) fall
     back to UTC.
 
-    Args:
-        db: Database session, used to detect the dialect.
-
     Returns:
         A SQL expression yielding each activity's local wall clock.
     """
-    if db.get_bind().dialect.name == "postgresql":
-        # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
-        return func.timezone(
-            func.coalesce(activities_models.Activity.timezone, "UTC"),
-            activities_models.Activity.start_time,
-        )
-    # Production is Postgres-only (see core/database.py); other engines appear
-    # only in tests, so fall back to the raw UTC value rather than emitting SQL
-    # the engine cannot run.
-    return activities_models.Activity.start_time
+    # ``timezone(zone, timestamptz) -> timestamp`` is Postgres' AT TIME ZONE.
+    return func.timezone(
+        func.coalesce(activities_models.Activity.timezone, "UTC"),
+        activities_models.Activity.start_time,
+    )
 
 
 def local_date_range_conditions(
-    db: Session,
     start_date: date | None,
     end_date: date | None,
     *,
@@ -89,7 +78,6 @@ def local_date_range_conditions(
     index at all.
 
     Args:
-        db: Database session.
         start_date: Inclusive local start of the range, or ``None`` for open-ended.
         end_date: End of the local range, or ``None`` for open-ended.
         end_exclusive: Whether ``end_date`` is excluded from the range.
@@ -98,7 +86,7 @@ def local_date_range_conditions(
         The conditions to apply to the statement. Empty when both bounds are
         ``None``.
     """
-    local = local_start_time_expression(db)
+    local = local_start_time_expression()
     conditions: list = []
 
     if start_date is not None:

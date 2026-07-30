@@ -67,21 +67,6 @@ _NUMERIC_SORT_COLUMNS = {
 }
 
 
-def escape_like(term: str) -> str:
-    """Escape SQL LIKE wildcards in a user-provided term.
-
-    Thin re-export of :func:`modules.activities.activity.query.escape_like`, kept
-    so existing CRUD callers keep one import.
-
-    Args:
-        term: Raw search term.
-
-    Returns:
-        Escaped search term safe for use inside a ``LIKE`` pattern.
-    """
-    return activities_query.escape_like(term)
-
-
 def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     """Build the non-owner activity visibility condition.
 
@@ -136,14 +121,6 @@ def _apply_activity_visibility_filter(
     if user_is_owner:
         return stmt
     return stmt.where(_visible_to_requester_condition(requester_user_id, db))
-
-
-# Widest real-world UTC offset (Pacific/Kiritimati, +14:00). Re-exported from the
-# shared query module so existing CRUD references keep working.
-_MAX_UTC_OFFSET = activities_query.MAX_UTC_OFFSET
-
-local_start_time_expression = activities_query.local_start_time_expression
-local_date_range_conditions = activities_query.local_date_range_conditions
 
 
 def _transform_schema_activity_to_model_activity(
@@ -271,7 +248,7 @@ def _apply_name_search(
         Updated select statement.
     """
     raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{escape_like(raw)}%"
+    pattern = f"%{activities_query.escape_like(raw)}%"
     return stmt.where(
         or_(
             func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
@@ -381,7 +358,7 @@ def get_user_activities(
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
     # Date filters are evaluated in each activity's own timezone, so a
     # user filtering "1 May" gets their 1 May, not UTC's.
-    stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
+    stmt = stmt.where(*activities_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
     if name_search:
         stmt = _apply_name_search(stmt, name_search)
     stmt = stmt.order_by(desc(activities_models.Activity.start_time))
@@ -445,7 +422,7 @@ def count_user_activities(
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
     # Date filters are evaluated in each activity's own timezone, so a
     # user filtering "1 May" gets their 1 May, not UTC's.
-    stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
+    stmt = stmt.where(*activities_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
     if name_search:
         stmt = _apply_name_search(stmt, name_search)
     count = db.execute(stmt).scalar()
@@ -537,7 +514,7 @@ def get_user_activities_with_pagination(
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
     # Date filters are evaluated in each activity's own timezone, so a
     # user filtering "1 May" gets their 1 May, not UTC's.
-    stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=False))
+    stmt = stmt.where(*activities_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
     if name_search:
         stmt = _apply_name_search(stmt, name_search)
 
@@ -630,7 +607,7 @@ def get_user_activities_per_timeframe(
         select(activities_models.Activity)
         .where(
             activities_models.Activity.user_id == user_id,
-            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
+            *activities_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
         )
         .order_by(desc(activities_models.Activity.start_time))
     )
@@ -684,7 +661,7 @@ def get_user_activities_per_timeframe_and_activity_type(
         .where(
             activities_models.Activity.user_id == user_id,
             activities_models.Activity.activity_type == activity_type,
-            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
+            *activities_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
         )
         .order_by(desc(activities_models.Activity.start_time))
     )
@@ -741,7 +718,7 @@ def get_user_activities_per_timeframe_and_activity_types(
         .where(
             activities_models.Activity.user_id == user_id,
             activities_models.Activity.activity_type.in_(activity_types),
-            *local_date_range_conditions(db, start.date(), end.date(), end_exclusive=False),
+            *activities_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
         )
         .order_by(desc(activities_models.Activity.start_time))
     )
@@ -1073,7 +1050,7 @@ def sum_gear_usage_by_window(
     if not windows:
         return {}
 
-    local_date = func.date(activities_query.local_start_time_expression(db))
+    local_date = func.date(activities_query.local_start_time_expression())
 
     columns = []
     for window in windows:

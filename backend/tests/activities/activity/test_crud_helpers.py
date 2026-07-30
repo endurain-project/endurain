@@ -10,31 +10,31 @@ from unittest.mock import MagicMock, patch
 
 class TestEscapeLike:
     def test_escape_percent(self):
-        from modules.activities.activity.crud import escape_like
+        from modules.activities.activity.query import escape_like
 
         result = escape_like("100%")
         assert result == "100\\%"
 
     def test_escape_underscore(self):
-        from modules.activities.activity.crud import escape_like
+        from modules.activities.activity.query import escape_like
 
         result = escape_like("test_name")
         assert result == "test\\_name"
 
     def test_escape_backslash(self):
-        from modules.activities.activity.crud import escape_like
+        from modules.activities.activity.query import escape_like
 
         result = escape_like("foo\\bar")
         assert result == "foo\\\\bar"
 
     def test_no_escaping_needed(self):
-        from modules.activities.activity.crud import escape_like
+        from modules.activities.activity.query import escape_like
 
         result = escape_like("hello")
         assert result == "hello"
 
     def test_escape_all(self):
-        from modules.activities.activity.crud import escape_like
+        from modules.activities.activity.query import escape_like
 
         result = escape_like("a%b_c\\d")
         assert result == "a\\%b\\_c\\\\d"

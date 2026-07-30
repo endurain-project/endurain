@@ -20,6 +20,7 @@ from fastapi import (
     Request,
     Response,
     Security,
+    status,
 )
 from sqlalchemy.orm import Session
 
@@ -308,7 +309,8 @@ def edit_activity(
 
 @router.delete(
     "/{activity_id}",
-    response_model=activities_schema.ActivityMessageResponse,
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_activity(
@@ -324,7 +326,11 @@ def delete_activity(
         Session,
         Depends(core_database.get_db),
     ],
-) -> activities_schema.ActivityMessageResponse:
-    """Delete one of the authenticated user's activities."""
+) -> None:
+    """Delete one of the authenticated user's activities.
+
+    Answers ``204`` with no body, like every other delete in the API. It used to
+    return ``200`` with a confirmation sentence, which is a representation of
+    nothing: the resource is gone, and the status already says so.
+    """
     activities_service.delete_activity(activity_id, token_user_id, db)
-    return activities_schema.ActivityMessageResponse(detail=f"Activity {activity_id} deleted successfully")

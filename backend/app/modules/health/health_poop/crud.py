@@ -219,7 +219,6 @@ def get_health_poop_by_date_and_user_id(
             health_utils.local_date_expression(
                 health_poop_models.HealthPoop.date_time,
                 users_utils.resolve_user_timezone(user_id, db),
-                db,
             )
             == func.date(date),
             health_poop_models.HealthPoop.user_id == user_id,

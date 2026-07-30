@@ -70,11 +70,3 @@ class RelationshipView(BaseModel):
 #: the activities lists do — they previously returned bare, unbounded arrays,
 #: which made the two template modules disagree on what a list response is.
 FollowRelationshipPage = core_pagination.Page[FollowRelationship]
-
-
-class MessageResponse(BaseModel):
-    """Generic message response for follower mutation endpoints."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    detail: str

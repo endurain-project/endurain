@@ -9,7 +9,7 @@ over the activities table.
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, Select, case, extract, func, select
+from sqlalchemy import ColumnElement, Select, extract, func, select
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -99,7 +99,7 @@ def _get_type_breakdown(
 
     is_unbounded = start_date == date.min and end_date == date.max
     if not is_unbounded:
-        stmt = stmt.where(*local_date_range_conditions(db, start_date, end_date, end_exclusive=True))
+        stmt = stmt.where(*local_date_range_conditions(start_date, end_date, end_exclusive=True))
 
     if activity_type:
         type_id = ACTIVITY_NAME_TO_ID.get(activity_type.lower())
@@ -154,23 +154,11 @@ def get_weekly_summary(
     start_of_week = target_date - timedelta(days=target_date.weekday())
     end_of_week = start_of_week + timedelta(days=7)
 
-    local_start_time = local_start_time_expression(db)
+    local_start_time = local_start_time_expression()
 
-    # Database-agnostic ISO day of week, evaluated on the activity's LOCAL wall
-    # clock so a ride lands on the day the athlete rode it.
-    # PostgreSQL: extract('isodow') -> 1-7 Mon-Sun
-    # MySQL: DAYOFWEEK (1=Sun, 7=Sat) -> ISO
-    engine_name = db.get_bind().dialect.name
-    if engine_name == "postgresql":
-        iso_dow: ColumnElement[Any] = extract("isodow", local_start_time)
-    else:
-        iso_dow = case(
-            (
-                func.dayofweek(local_start_time) == 1,
-                7,
-            ),
-            else_=(func.dayofweek(local_start_time) - 1),
-        )
+    # ISO day of week (1-7, Mon-Sun) evaluated on the activity's LOCAL wall clock
+    # so a ride lands on the day the athlete rode it.
+    iso_dow: ColumnElement[Any] = extract("isodow", local_start_time)
 
     stmt = select(
         iso_dow.label("day_of_week"),
@@ -184,7 +172,7 @@ def get_weekly_summary(
         func.count(Activity.id).label("activity_count"),
     ).where(
         Activity.user_id == user_id,
-        *local_date_range_conditions(db, start_of_week, end_of_week, end_exclusive=True),
+        *local_date_range_conditions(start_of_week, end_of_week, end_exclusive=True),
     )
 
     stmt, _ = _apply_activity_type_filter(stmt, activity_type)
@@ -266,7 +254,7 @@ def get_monthly_summary(
     start_of_month = target_date.replace(day=1)
     end_of_month = (start_of_month + timedelta(days=32)).replace(day=1)
 
-    week_expr = extract("week", local_start_time_expression(db))
+    week_expr = extract("week", local_start_time_expression())
 
     stmt = select(
         week_expr.label("week_number"),
@@ -280,7 +268,7 @@ def get_monthly_summary(
         func.count(Activity.id).label("activity_count"),
     ).where(
         Activity.user_id == user_id,
-        *local_date_range_conditions(db, start_of_month, end_of_month, end_exclusive=True),
+        *local_date_range_conditions(start_of_month, end_of_month, end_exclusive=True),
     )
 
     stmt, _ = _apply_activity_type_filter(stmt, activity_type)
@@ -356,7 +344,7 @@ def get_yearly_summary(
     start_of_year = date(year, 1, 1)
     end_of_year = date(year + 1, 1, 1)
 
-    month_expr = extract("month", local_start_time_expression(db))
+    month_expr = extract("month", local_start_time_expression())
 
     stmt = select(
         month_expr.label("month_number"),
@@ -370,7 +358,7 @@ def get_yearly_summary(
         func.count(Activity.id).label("activity_count"),
     ).where(
         Activity.user_id == user_id,
-        *local_date_range_conditions(db, start_of_year, end_of_year, end_exclusive=True),
+        *local_date_range_conditions(start_of_year, end_of_year, end_exclusive=True),
     )
 
     stmt, _ = _apply_activity_type_filter(stmt, activity_type)
@@ -467,7 +455,7 @@ def get_lifetime_summary(
     totals = db.execute(metrics_stmt).one_or_none()
 
     # Yearly breakdown
-    year_expr = extract("year", local_start_time_expression(db))
+    year_expr = extract("year", local_start_time_expression())
     yearly_stmt = select(
         year_expr.label("year_number"),
         func.coalesce(func.sum(Activity.distance), 0.0).label("total_distance"),
