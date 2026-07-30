@@ -13,7 +13,7 @@ import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
 import modules.users.users.crud as users_crud
 import modules.users.users_integrations.crud as user_integrations_crud
-import modules.users.users_integrations.models as user_integrations_models
+import modules.users.users_integrations.schema as user_integrations_schema
 from core.database import SessionLocal
 
 logger = core_logger.get_logger(__name__)
@@ -229,7 +229,7 @@ def fetch_and_validate_activity(activity_id: int, user_id: int, db: Session) -> 
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> user_integrations_models.UsersIntegrations | None:
+) -> user_integrations_schema.UsersIntegrationsRead | None:
     # Get the user integrations by user ID
     user_integrations = user_integrations_crud.get_user_integrations_by_user_id(user_id, db)
 
@@ -249,7 +249,7 @@ def fetch_user_integrations_and_validate_token(
 
 
 def create_strava_client(
-    user_integrations: user_integrations_models.UsersIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrationsRead,
 ) -> StravaClient:
     # Convert to epoch timestamp
     epoch_time = (

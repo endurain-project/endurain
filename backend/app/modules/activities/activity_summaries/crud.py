@@ -2,8 +2,8 @@
 
 Every bucket (day / week / month / year) is derived from the activity's **local**
 wall clock rather than the UTC value stored in the column — see
-:func:`modules.activities.activity.crud.local_start_time_expression`, which owns
-that rule for the whole activities domain.
+:mod:`modules.activities.activity.query`, which owns that rule for every query
+over the activities table.
 """
 
 from datetime import date, timedelta
@@ -16,11 +16,11 @@ from modules.activities.activity.constants import (
     ACTIVITY_NAME_TO_ID,
     set_activity_name_based_on_activity_type,
 )
-from modules.activities.activity.crud import (
+from modules.activities.activity.models import Activity
+from modules.activities.activity.query import (
     local_date_range_conditions,
     local_start_time_expression,
 )
-from modules.activities.activity.models import Activity
 from modules.activities.activity_summaries.schema import (
     DaySummary,
     LifetimeSummaryResponse,

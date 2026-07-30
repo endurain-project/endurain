@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.logger as core_logger
 import infra.runtime as platform_runtime
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_laps.crud as activity_laps_crud
@@ -268,19 +268,12 @@ class ExportService:
             # Convert offset to page number (1-based indexing)
             page_number = (offset // limit) + 1
 
-            # Use the existing pagination function from activities CRUD
-            activities = activities_crud.get_user_activities_with_pagination(
-                user_id=self.user_id,
-                db=self.db,
-                page_number=page_number,
-                num_records=limit,
-                # Sort by start_time descending (most recent first) for consistency
-                sort_by="start_time",
-                sort_order="desc",
-                user_is_owner=True,
+            return activities_integration.list_user_activities_page(
+                self.user_id,
+                page_number,
+                limit,
+                self.db,
             )
-
-            return activities or []
 
         except Exception as err:
             logger.error(f"Failed to get activities batch (offset={offset}, limit={limit}): {err}", exc_info=err)

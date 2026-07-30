@@ -583,8 +583,8 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException:
-         *             - 404 Not Found: If the media or owning activity is missing.
-         *             - 403 Forbidden: If the user does not own the activity.
+         *             - 404 Not Found: If the media is missing or its owning activity is
+         *               not the user's.
          *             - 500 Internal Server Error: For database errors.
          */
         delete: operations["delete_activity_media_api_v1_activities_media__media_id__delete"];

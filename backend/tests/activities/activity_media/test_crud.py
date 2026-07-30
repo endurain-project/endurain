@@ -30,46 +30,50 @@ class TestCreateActivityMedia:
         assert e.value.status_code == 500
 
 
-class TestGetActivityMedia:
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_success(self, mock_get_act, mock_db):
+class TestGetMediaForActivity:
+    def test_success(self, mock_db):
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as am
 
-        mock_get_act.return_value = MagicMock()
         setup_mock_execute(
             mock_db,
             return_scalars_all=[mock_model(am.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)],
         )
-        r = crud.get_activity_media(activity_id=1, token_user_id=1, db=mock_db)
+        r = crud.get_media_for_activity(activity_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_empty(self, mock_get_act, mock_db):
+    def test_empty(self, mock_db):
         import modules.activities.activity_media.crud as crud
 
-        mock_get_act.return_value = MagicMock()
         setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_activity_media(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
+        assert crud.get_media_for_activity(activity_id=1, db=mock_db) == []
 
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_not_found(self, mock_get_act, mock_db):
+    def test_db_error(self, mock_db):
         import modules.activities.activity_media.crud as crud
 
-        mock_get_act.return_value = None
-        r = crud.get_activity_media(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
-
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_db_error(self, mock_get_act, mock_db):
-        import modules.activities.activity_media.crud as crud
-
-        mock_get_act.return_value = MagicMock()
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
-            crud.get_activity_media(activity_id=1, token_user_id=1, db=mock_db)
+            crud.get_media_for_activity(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
+
+
+class TestGetActivityMediaById:
+    def test_success(self, mock_db):
+        import modules.activities.activity_media.crud as crud
+        import modules.activities.activity_media.models as am
+
+        mock_db.scalars.return_value.first.return_value = mock_model(
+            am.ActivityMedia, id=7, activity_id=1, media_path="x.jpg", media_type=1
+        )
+        result = crud.get_activity_media_by_id(7, mock_db)
+        assert result is not None
+        assert result.id == 7
+
+    def test_missing_returns_none(self, mock_db):
+        import modules.activities.activity_media.crud as crud
+
+        mock_db.scalars.return_value.first.return_value = None
+        assert crud.get_activity_media_by_id(7, mock_db) is None
 
 
 class TestGetAllActivityMedia:
@@ -102,16 +106,12 @@ class TestGetAllActivityMedia:
 
 class TestGetActivitiesMedia:
     def test_success(self, mock_db):
-        import modules.activities.activity.models as am
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as mm
 
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1)
         mock_media = MagicMock(spec=mm.ActivityMedia, id=1, activity_id=1, media_path="x.jpg", media_type=1)
-        mock_db.scalars.return_value.all.side_effect = [
-            [mock_activity],
-            [mock_media],
-        ]
+        # First scalars() call returns the owned activity ids, second the media.
+        mock_db.scalars.return_value.all.side_effect = [[1], [mock_media]]
         r = crud.get_activities_media(activity_ids=[1], token_user_id=1, db=mock_db)
         assert len(r) == 1
 
@@ -121,19 +121,11 @@ class TestGetActivitiesMedia:
         r = crud.get_activities_media(activity_ids=[], token_user_id=1, db=mock_db)
         assert r == []
 
-    def test_no_activities(self, mock_db):
-        import modules.activities.activity_media.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_media(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert r == []
-
     def test_no_allowed_ids(self, mock_db):
-        import modules.activities.activity.models as am
         import modules.activities.activity_media.crud as crud
 
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=2)
-        mock_db.scalars.return_value.all.return_value = [mock_activity]
+        # The ownership filter is now in SQL, so an unowned id yields no rows.
+        mock_db.scalars.return_value.all.return_value = []
         r = crud.get_activities_media(activity_ids=[1], token_user_id=1, db=mock_db)
         assert r == []
 
@@ -221,77 +213,30 @@ class TestEditActivityMediaMediaPath:
 
 
 class TestDeleteActivityMedia:
-    @patch("modules.activities.activity_media.crud.core_file_uploads.safe_remove_within")
-    @patch("modules.activities.activity_media.crud.core_config.settings")
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_success(self, mock_get_act, mock_settings, mock_remove, mock_db):
+    def test_success(self, mock_db):
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as m
 
         mock_media = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1, media_path="/path/file.jpg")
         mock_db.scalars.return_value.first.return_value = mock_media
-        mock_get_act.return_value = MagicMock(user_id=1)
-        crud.delete_activity_media(1, 1, mock_db)
+        crud.delete_activity_media(1, mock_db)
         mock_db.delete.assert_called_once_with(mock_media)
         mock_db.commit.assert_called_once()
-        mock_remove.assert_called_once()
 
     def test_not_found_media(self, mock_db):
         import modules.activities.activity_media.crud as crud
 
         mock_db.scalars.return_value.first.return_value = None
         with pytest.raises(HTTPException) as e:
-            crud.delete_activity_media(1, 1, mock_db)
+            crud.delete_activity_media(1, mock_db)
         assert e.value.status_code == 404
 
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_not_found_activity(self, mock_get_act, mock_db):
+    def test_db_error(self, mock_db):
         import modules.activities.activity_media.crud as crud
         import modules.activities.activity_media.models as m
 
         mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1)
-        mock_get_act.return_value = None
-        with pytest.raises(HTTPException) as e:
-            crud.delete_activity_media(1, 1, mock_db)
-        assert e.value.status_code == 404
-
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_forbidden(self, mock_get_act, mock_db):
-        import modules.activities.activity_media.crud as crud
-        import modules.activities.activity_media.models as m
-
-        mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1)
-        mock_get_act.return_value = MagicMock(user_id=2)
-        with pytest.raises(HTTPException) as e:
-            crud.delete_activity_media(1, 1, mock_db)
-        assert e.value.status_code == 403
-
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_db_error(self, mock_get_act, mock_db):
-        import modules.activities.activity_media.crud as crud
-        import modules.activities.activity_media.models as m
-
-        mock_db.scalars.return_value.first.return_value = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1)
-        mock_get_act.return_value = MagicMock(user_id=1)
         mock_db.commit.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
-            crud.delete_activity_media(1, 1, mock_db)
+            crud.delete_activity_media(1, mock_db)
         assert e.value.status_code == 500
-
-    @patch("modules.activities.activity_media.crud.logger")
-    @patch("modules.activities.activity_media.crud.core_file_uploads.safe_remove_within")
-    @patch("modules.activities.activity_media.crud.core_config.settings")
-    @patch("modules.activities.activity_media.crud.activity_crud.get_activity_by_id_from_user_id")
-    def test_safe_remove_error(self, mock_get_act, mock_settings, mock_remove, mock_log, mock_db):
-        import modules.activities.activity_media.crud as crud
-        import modules.activities.activity_media.models as m
-
-        mock_media = MagicMock(spec=m.ActivityMedia, id=1, activity_id=1, media_path="/path/file.jpg")
-        mock_db.scalars.return_value.first.return_value = mock_media
-        mock_get_act.return_value = MagicMock(user_id=1)
-        mock_remove.side_effect = HTTPException(status_code=400, detail="Path outside media dir")
-        crud.delete_activity_media(1, 1, mock_db)
-        mock_db.delete.assert_called_once()
-        mock_db.commit.assert_called_once()
-        # delete logs a debug line on success and a warning when cleanup fails
-        mock_log.warning.assert_called_once()

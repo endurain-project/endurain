@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.models as activity_models
+import modules.activities.activity.integration_service as activities_integration
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.models as gear_components_models
@@ -139,6 +139,9 @@ def get_gear_activity_stats(
     """
     Get aggregated activity stats for a gear.
 
+    The aggregation is performed by the activities module, which owns that table;
+    this only reshapes the result into the payload the gear API returns.
+
     Args:
         gear_id: Gear ID to aggregate.
         db: Database session.
@@ -150,22 +153,10 @@ def get_gear_activity_stats(
     Raises:
         HTTPException: On database error.
     """
-    stmt = select(
-        func.coalesce(
-            func.sum(activity_models.Activity.distance),
-            0,
-        ),
-        func.coalesce(
-            func.sum(activity_models.Activity.total_timer_time),
-            0,
-        ),
-    ).where(
-        activity_models.Activity.gear_id == gear_id,
-    )
-    row = db.execute(stmt).one()
+    totals = activities_integration.get_gear_usage_totals(gear_id, db)
     return {
-        "total_distance": float(row[0]),
-        "total_time": float(row[1]),
+        "total_distance": totals.distance,
+        "total_time": totals.time,
     }
 
 

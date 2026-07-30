@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.activities.activity.crud as activity_crud
+import modules.activities.activity.integration_service as activities_integration
 import modules.users.users.utils as users_utils
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.schema as user_goals_schema
@@ -103,13 +103,12 @@ def calculate_goal_progress_by_activity_type(
 
         # Fetch all activities in a single query (exclude hidden to avoid
         # counting duplicate imports from multiple sources)
-        activities = activity_crud.get_user_activities_per_timeframe_and_activity_types(
+        activities = activities_integration.list_user_activities_in_timeframe_by_types(
             goal.user_id,
             activity_types,
             start_date,
             end_date,
             db,
-            True,
             exclude_hidden=True,
         )
 

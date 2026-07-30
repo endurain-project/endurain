@@ -1804,3 +1804,83 @@ class TestLocalTimeBucketing:
         assert crud.local_date_range_conditions(self._pg_db(), None, None, end_exclusive=False) == []
         assert len(crud.local_date_range_conditions(self._pg_db(), date(2024, 5, 1), None, end_exclusive=False)) == 2
         assert len(crud.local_date_range_conditions(self._pg_db(), None, date(2024, 5, 1), end_exclusive=False)) == 2
+
+
+class TestSumGearUsageByWindow:
+    """A gear component's window is a calendar range, not an instant range.
+
+    ``purchase_date``/``retired_date`` are dates, so comparing them against the
+    raw ``start_time`` instant put the boundary at UTC midnight: at UTC-8 an
+    evening ride the day *before* a purchase counted towards the new component,
+    and at UTC+13 a morning ride *on* the purchase day did not count at all.
+    """
+
+    @staticmethod
+    def _emitted_sql(windows) -> str:
+        # Compiling an ORM statement configures the whole mapper registry, and
+        # relationships use string targets — so every related model has to be
+        # imported first or the compile fails on an unresolved name.
+        from tests._helpers.db import _import_all_models
+
+        import modules.activities.activity.crud as crud
+
+        _import_all_models()
+
+        db = MagicMock()
+        db.get_bind.return_value.dialect.name = "postgresql"
+        db.execute.return_value.one.return_value = [0] * (2 * len(windows))
+
+        crud.sum_gear_usage_by_window(1, windows, db)
+
+        from sqlalchemy.dialects import postgresql
+
+        statement = db.execute.call_args.args[0]
+        return str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    def _window(self, **overrides):
+        import modules.activities.activity.contracts as contracts
+
+        return contracts.GearUsageWindow(**{"key": 1, "start_date": date(2024, 5, 1), **overrides})
+
+    def test_window_compares_the_activitys_local_date(self):
+        sql = self._emitted_sql([self._window(end_date=date(2024, 6, 1))])
+
+        # The activity is converted through its own IANA zone and truncated to a
+        # date before being compared to the window bounds.
+        assert "coalesce(activities.timezone, 'UTC')" in sql
+        assert "date(timezone(" in sql
+
+    def test_window_does_not_compare_the_raw_instant(self):
+        """The regression itself: a bare ``start_time`` bound is the UTC-midnight bug."""
+        sql = self._emitted_sql([self._window(end_date=date(2024, 6, 1))]).replace("\n", " ")
+
+        assert "activities.start_time >=" not in sql
+        assert "activities.start_time <=" not in sql
+
+    def test_open_ended_window_has_no_upper_bound(self):
+        """A component still in use is bounded below only."""
+        sql = self._emitted_sql([self._window(end_date=None)]).replace("\n", " ")
+
+        assert ">= '2024-05-01'" in sql
+        assert "<=" not in sql
+
+    def test_no_windows_short_circuits(self):
+        import modules.activities.activity.crud as crud
+
+        db = MagicMock()
+        assert crud.sum_gear_usage_by_window(1, [], db) == {}
+        db.execute.assert_not_called()
+
+    def test_every_requested_key_is_returned(self):
+        import modules.activities.activity.crud as crud
+
+        db = MagicMock()
+        db.get_bind.return_value.dialect.name = "sqlite"
+        db.execute.return_value.one.return_value = [10.0, 60.0, 0, 0]
+
+        result = crud.sum_gear_usage_by_window(1, [self._window(key=1), self._window(key=2)], db)
+
+        assert result[1].distance == 10.0
+        assert result[1].time == 60.0
+        # A window that matched nothing still reports zeroes rather than going missing.
+        assert result[2].distance == 0.0

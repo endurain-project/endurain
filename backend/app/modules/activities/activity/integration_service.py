@@ -1,4 +1,4 @@
-"""The activities surface consumed by other modules (Strava, Garmin, account deletion).
+"""The activities surface consumed by other modules (Strava, Garmin, gears, account deletion).
 
 A small, curated interface so consumers depend on a stable, intentional set of
 activity operations instead of reaching into the full ``activity.crud`` (a large
@@ -6,9 +6,9 @@ ORM surface, most of it internal to the activities module). It is the
 read/gear/delete counterpart to the ingestion seam: ingestion
 (:mod:`~modules.activities.activity.ingestion_service` /
 :mod:`~modules.activities.activity_ingestion.orchestrator`) is how a caller
-*stores* a parsed activity; this is how a caller *looks up*, *re-gears*, and
-*bulk-deletes* activities. Every function returns schemas/DTOs — no ORM row
-crosses the boundary.
+*stores* a parsed activity; this is how a caller *looks up*, *re-gears*,
+*aggregates*, and *bulk-deletes* activities. Every function returns schemas/DTOs
+— no ORM row crosses the boundary.
 
 Bulk deletes here also publish one ``activity.deleted`` per removed row, so the
 thumbnail and source-file cleanup subscribers reclaim each activity's blobs. That
@@ -16,12 +16,16 @@ is the whole reason account deletion and Strava unlinking route through this
 module rather than issuing their own DELETE (or relying on the FK cascade).
 
 Enforced by the ``provider-activities-boundary`` import-linter contract:
-``modules.strava`` / ``modules.garmin`` must not import ``activity.crud`` directly;
-they go through this interface.
+``modules.strava`` / ``modules.garmin`` / ``modules.gears`` must not import
+``activity.crud`` or the activities ORM directly; they go through this interface.
 """
+
+from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
@@ -108,6 +112,137 @@ def bulk_set_activities_gear(
         The number of activities updated.
     """
     return activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db)
+
+
+def get_gear_usage_totals(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
+    """Return the total distance and moving time recorded against a gear.
+
+    Args:
+        gear_id: The gear to accumulate usage for.
+        db: Database session.
+
+    Returns:
+        The gear's totals; zeroes when it has no activities.
+    """
+    return activities_crud.sum_gear_usage(gear_id, db)
+
+
+def get_gear_usage_totals_by_window(
+    gear_id: int,
+    windows: Sequence[activities_contracts.GearUsageWindow],
+    db: Session,
+) -> dict[int, activities_contracts.ActivityUsageTotals]:
+    """Return per-window usage totals for one gear, in a single query.
+
+    Used to attribute a gear's activities to whichever component was fitted at
+    the time. Window bounds are calendar dates evaluated in each activity's own
+    timezone, which is why this lives in the activities module rather than being
+    joined from the gears side.
+
+    Args:
+        gear_id: The gear whose activities to accumulate.
+        windows: The date windows to accumulate over, keyed by the caller.
+        db: Database session.
+
+    Returns:
+        Totals per window key; every requested key is present, zeroed when the
+        window matched nothing.
+    """
+    return activities_crud.sum_gear_usage_by_window(gear_id, windows, db)
+
+
+def list_user_activities_page(
+    user_id: int,
+    page_number: int,
+    num_records: int,
+    db: Session,
+) -> list[activities_schema.Activity]:
+    """Return one page of a user's own activities, newest first.
+
+    The profile export walks a user's whole library in batches; it is always the
+    owner reading their own data, so no visibility mask applies.
+
+    Args:
+        user_id: The owning user id.
+        page_number: 1-based page number.
+        num_records: Page size.
+        db: Database session.
+
+    Returns:
+        The page of activities, empty when the page is past the end.
+    """
+    activities = activities_crud.get_user_activities_with_pagination(
+        user_id=user_id,
+        db=db,
+        page_number=page_number,
+        num_records=num_records,
+        # Newest first, so an export produced in batches stays in a stable order.
+        sort_by="start_time",
+        sort_order="desc",
+        user_is_owner=True,
+    )
+    return activities or []
+
+
+def list_user_activities_in_timeframe_by_types(
+    user_id: int,
+    activity_types: list[int],
+    start: datetime,
+    end: datetime,
+    db: Session,
+    *,
+    exclude_hidden: bool = True,
+) -> list[activities_schema.Activity]:
+    """Return a user's own activities of the given types within a window.
+
+    Used by goal progress. Hidden activities are excluded by default so a
+    duplicate import from a second source cannot count twice towards a goal.
+
+    Args:
+        user_id: The owning user id.
+        activity_types: Sport type codes to include.
+        start: Inclusive start of the window.
+        end: Inclusive end of the window.
+        db: Database session.
+        exclude_hidden: Whether to skip activities marked hidden.
+
+    Returns:
+        The matching activities, empty when there are none.
+    """
+    activities = activities_crud.get_user_activities_per_timeframe_and_activity_types(
+        user_id,
+        activity_types,
+        start,
+        end,
+        db,
+        True,
+        exclude_hidden=exclude_hidden,
+    )
+    return activities or []
+
+
+def restore_activity(
+    activity: activities_contracts.ActivityCore,
+    db: Session,
+) -> activities_schema.Activity:
+    """Persist an activity from a profile restore **without** publishing events.
+
+    Deliberately not the ``store_parsed_activity`` ingestion seam: a bulk restore
+    must not publish ``activity.created`` per row. Doing so would spam the user
+    with one "new activity" notification each and, on the in-process bus, render
+    every map thumbnail, score HR zones, and reverse-geocode inline inside the
+    import loop. The derived artifacts are re-created afterwards by the scheduled
+    thumbnail, HR-zone, and geocoding backfills — the reconciliation nets that
+    exist for exactly this case.
+
+    Args:
+        activity: The activity to persist.
+        db: Database session.
+
+    Returns:
+        The created activity.
+    """
+    return activities_crud.create_activity(activity, db)
 
 
 def delete_all_strava_activities(user_id: int, db: Session) -> int:
