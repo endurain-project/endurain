@@ -435,12 +435,13 @@ def scroll_following_feed(
     after = core_pagination.decode_cursor(cursor) if cursor else None
     # Over-fetch by one: the extra row proves another slice exists without a
     # second query, and is dropped before serialising.
-    rows = activities_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
-    has_more = len(rows) > num_records
-    items = rows[:num_records]
+    entries = activities_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
+    has_more = len(entries) > num_records
+    page_entries = entries[:num_records]
+    items = [entry.activity for entry in page_entries]
     next_cursor = (
-        core_pagination.encode_cursor(items[-1].start_time, items[-1].id)
-        if has_more and items and items[-1].start_time is not None and items[-1].id is not None
+        core_pagination.encode_cursor(page_entries[-1].cursor_start_time, page_entries[-1].cursor_id)
+        if has_more and page_entries
         else None
     )
     logger.debug(

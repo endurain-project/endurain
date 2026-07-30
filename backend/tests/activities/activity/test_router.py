@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -73,6 +74,17 @@ def _valid_activity(**kw):
     )
     data.update(kw)
     return Activity(**data)
+
+
+def _feed_entry(**kw):
+    from modules.activities.activity.contracts import ActivityFeedEntry
+
+    activity = _valid_activity(**kw)
+    return ActivityFeedEntry(
+        activity=activity,
+        cursor_start_time=datetime(2024, 1, 15, 8, tzinfo=UTC),
+        cursor_id=activity.id or 1,
+    )
 
 
 class TestListOwnActivities:
@@ -153,7 +165,7 @@ class TestFeed:
             patch("modules.activities.activity.service.activities_crud.get_following_feed_after") as m,
         ):
             f.list_accepted_followee_ids.return_value = [5]
-            m.return_value = [_valid_activity()]
+            m.return_value = [_feed_entry()]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             assert len(resp.json()["items"]) == 1
@@ -165,9 +177,29 @@ class TestFeed:
             patch("modules.activities.activity.service.activities_crud.get_following_feed_after") as m,
         ):
             f.list_accepted_followee_ids.return_value = [5]
-            m.return_value = [_valid_activity()]
+            m.return_value = [_feed_entry()]
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
             assert resp.json()["next_cursor"] is None
+
+    def test_hidden_start_time_still_emits_a_next_cursor(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.followers_integration") as followers,
+            patch("modules.activities.activity.service.activities_crud.get_following_feed_after") as get_feed,
+        ):
+            followers.list_accepted_followee_ids.return_value = [5]
+            get_feed.return_value = [
+                _feed_entry(hide_start_time=True, start_time=None, end_time=None),
+                _feed_entry(id=2),
+            ]
+
+            response = TestClient(_build_app(mock_db)).get(
+                "/activities/feed?num_records=1",
+                headers={"Authorization": "Bearer x"},
+            )
+
+            assert response.status_code == 200
+            assert response.json()["items"][0]["start_time"] is None
+            assert response.json()["next_cursor"] is not None
 
     def test_rejects_a_malformed_cursor(self, mock_db):
         resp = TestClient(_build_app(mock_db)).get(

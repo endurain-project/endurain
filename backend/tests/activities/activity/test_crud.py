@@ -428,6 +428,26 @@ class TestEditActivity:
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 
+    def test_stale_flush_reaches_the_service_layer(self, mock_db):
+        from sqlalchemy.orm.exc import StaleDataError
+
+        import modules.activities.activity.crud as crud
+        import modules.activities.activity.schema as schema
+
+        setup_mock_execute(mock_db, return_one_or_none=MagicMock())
+        mock_db.flush.side_effect = StaleDataError("row changed")
+
+        with pytest.raises(StaleDataError):
+            crud.edit_activity(
+                user_id=1,
+                activity_id=1,
+                activity_attributes=schema.ActivityEdit(name="Updated"),
+                db=mock_db,
+                commit=False,
+            )
+
+        mock_db.rollback.assert_not_called()
+
 
 class TestDelete:
     def test_success(self, mock_db):

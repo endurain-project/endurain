@@ -8,6 +8,7 @@ from typing import Any, NoReturn, overload
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -94,7 +95,8 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     ``core.exceptions.ProcessingError`` (a transport-agnostic domain error, not
     an HTTP response). Allows ``DomainError``, ``HTTPException`` (transitional —
     see ``sync_wrapper``) and ``IntegrityError`` to pass through for
-    caller-specific handling.
+    caller-specific handling. Optimistic-lock ``StaleDataError`` also passes
+    through so the decision layer can translate it into a precondition failure.
 
     Automatically calls rollback on the database session if found
     in function parameters.
@@ -121,6 +123,8 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
             except IntegrityError:
                 _rollback_session(func.__name__, _find_db_session(*args, **kwargs))
                 raise
+            except StaleDataError:
+                raise
             except SQLAlchemyError as db_err:
                 db_session = _find_db_session(*args, **kwargs)
                 _handle_db_error(db_err, func.__name__, db_session)
@@ -139,6 +143,8 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
             raise
         except IntegrityError:
             _rollback_session(func.__name__, _find_db_session(*args, **kwargs))
+            raise
+        except StaleDataError:
             raise
         except SQLAlchemyError as db_err:
             db_session = _find_db_session(*args, **kwargs)

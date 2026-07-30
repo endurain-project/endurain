@@ -88,10 +88,19 @@ def list_followers(
     # Checked once here so the page and its total share a single authorisation
     # decision rather than each re-deriving it.
     _ensure_may_view_network(target_user_id, requester_user_id, db)
+    effective_accepted_only = accepted_only or requester_user_id != target_user_id
     items = followers_crud.get_all_followers_by_user_id(
-        target_user_id, db, page_number=page_number, num_records=num_records, accepted_only=accepted_only
+        target_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=effective_accepted_only,
     )
-    total = followers_crud.count_followers_by_user_id(target_user_id, db, accepted_only=accepted_only)
+    total = followers_crud.count_followers_by_user_id(
+        target_user_id,
+        db,
+        accepted_only=effective_accepted_only,
+    )
     return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 
@@ -122,10 +131,19 @@ def list_following(
         PermissionDeniedError: When the requester may not view this network.
     """
     _ensure_may_view_network(target_user_id, requester_user_id, db)
+    effective_accepted_only = accepted_only or requester_user_id != target_user_id
     items = followers_crud.get_all_following_by_user_id(
-        target_user_id, db, page_number=page_number, num_records=num_records, accepted_only=accepted_only
+        target_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=effective_accepted_only,
     )
-    total = followers_crud.count_following_by_user_id(target_user_id, db, accepted_only=accepted_only)
+    total = followers_crud.count_following_by_user_id(
+        target_user_id,
+        db,
+        accepted_only=effective_accepted_only,
+    )
     return followers_schema.FollowRelationshipPage.build(items, total, page_number, num_records)
 
 

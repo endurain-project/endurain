@@ -786,7 +786,7 @@ def get_following_feed_after(
     after: tuple[datetime, int] | None,
     num_records: int,
     db: Session,
-) -> list[activities_schema.Activity]:
+) -> list[activities_contracts.ActivityFeedEntry]:
     """Get the next keyset slice of the following feed.
 
     Ordered by ``(start_time DESC, id DESC)``. ``id`` is part of the key because
@@ -824,7 +824,15 @@ def get_following_feed_after(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return []
-    return _serialize_and_mask(list(activities), force_non_owner=True)
+    masked = _serialize_and_mask(list(activities), force_non_owner=True)
+    return [
+        activities_contracts.ActivityFeedEntry(
+            activity=item,
+            cursor_start_time=orm_activity.start_time,
+            cursor_id=orm_activity.id,
+        )
+        for orm_activity, item in zip(activities, masked, strict=True)
+    ]
 
 
 @core_decorators.handle_db_errors
