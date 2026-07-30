@@ -491,6 +491,7 @@ def create_app() -> FastAPI:
         allow_headers=[
             "Authorization",
             "Content-Type",
+            "Idempotency-Key",
             "X-Client-Type",
             "X-CSRF-Token",
         ],

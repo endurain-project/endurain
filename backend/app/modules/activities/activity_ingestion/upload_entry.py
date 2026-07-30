@@ -26,6 +26,7 @@ import os
 import shutil
 import tempfile
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
@@ -35,6 +36,7 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
+import core.hashing as core_hashing
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.schema as activities_schema
@@ -49,23 +51,47 @@ logger = core_logger.get_logger(__name__)
 UPLOAD_STAGING_STORAGE_AREA = "activity_files/upload_staging"
 
 
-def stage_uploaded_activity_file(file: UploadFile) -> str:
-    """Validate an upload and hand it to storage, returning its key.
+@dataclass(frozen=True)
+class ReceivedUpload:
+    """An upload that passed validation and is on local disk, not yet stored.
 
-    Runs inside the request. Only the cheap, fail-fast checks live here so the
-    client still gets a synchronous 4xx for a file that was never going to
-    import — an unsupported extension, a failed signature check, an oversized
-    body — rather than a 202 followed by a failure it has to poll for.
+    Attributes:
+        incoming_path: Local file holding the received bytes.
+        storage_key: Server-generated key the upload will be stored under.
+        data: The received bytes, read once and reused for hashing and storage.
+        fingerprint: SHA-256 of the received bytes, used to tell a genuine
+            replay from a reused idempotency key carrying a different file.
+            ``None`` when the caller sent no key, since nothing would read it.
+    """
 
-    The upload is streamed to a local incoming file first, because that is what
-    enforces the byte cap and runs the signature check without holding the whole
-    body in memory; only a file that passed is then handed to storage.
+    incoming_path: str
+    storage_key: str
+    # Excluded from repr: an activity file is up to 200 MiB and this object is
+    # logged on some error paths.
+    data: bytes = field(repr=False)
+    fingerprint: str | None = None
+
+
+def receive_upload(file: UploadFile, *, fingerprint: bool = False) -> ReceivedUpload:
+    """Validate an upload, stream it to local disk, and read it back.
+
+    The first of the two staging phases. Split from :func:`store_received_upload`
+    so the caller can decide *between* them — an idempotent replay needs the
+    fingerprint to verify the request matches, but must not pay for the storage
+    write.
+
+    Only the cheap, fail-fast checks live here so the client still gets a
+    synchronous 4xx for a file that was never going to import — an unsupported
+    extension, a failed signature check, an oversized body — rather than a 202
+    followed by a failure it has to poll for.
 
     Args:
         file: Incoming FastAPI UploadFile.
+        fingerprint: Whether to hash the payload. Only worth it when the caller
+            supplied an idempotency key, because nothing else reads it.
 
     Returns:
-        The storage key the upload was staged under.
+        The received upload, still local.
 
     Raises:
         InvalidInputError: When the filename is missing.
@@ -101,15 +127,46 @@ def stage_uploaded_activity_file(file: UploadFile) -> str:
         upload_dir=core_config.FILES_UPLOAD_INCOMING_DIR,
         filename=storage_key,
     )
+    # Read once: the same buffer serves the fingerprint and the storage write.
+    data = Path(incoming_path).read_bytes()
+    return ReceivedUpload(
+        incoming_path=incoming_path,
+        storage_key=storage_key,
+        data=data,
+        fingerprint=core_hashing.sha256_hex(data) if fingerprint else None,
+    )
+
+
+def store_received_upload(received: ReceivedUpload) -> str:
+    """Hand a received upload to storage and drop the local copy.
+
+    Args:
+        received: The upload returned by :func:`receive_upload`.
+
+    Returns:
+        The storage key the upload was staged under.
+    """
     try:
         platform_runtime.get_active_platform().storage.save(
             UPLOAD_STAGING_STORAGE_AREA,
-            storage_key,
-            Path(incoming_path).read_bytes(),
+            received.storage_key,
+            received.data,
         )
     finally:
-        core_file_uploads.remove_files([incoming_path])
-    return storage_key
+        core_file_uploads.remove_files([received.incoming_path])
+    return received.storage_key
+
+
+def discard_received_upload(received: ReceivedUpload) -> None:
+    """Drop a received upload that will never be stored.
+
+    Args:
+        received: The upload returned by :func:`receive_upload`.
+
+    Returns:
+        None.
+    """
+    core_file_uploads.remove_files([received.incoming_path])
 
 
 def process_staged_upload(

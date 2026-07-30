@@ -58,7 +58,7 @@ def store_bulk_import_file(
         user_id,
         file_path,
         db,
-        source=ingestion_sources.BulkImportSource(import_initiated_time=import_initiated_time),
+        source=ingestion_sources.BulkImportSource(import_initiated_time=import_initiated_time, user_id=user_id),
     )
 
 
@@ -178,7 +178,7 @@ def process_all_files_sync(
                 user_id,
                 file_path,
                 db,
-                source=ingestion_sources.BulkImportSource(import_initiated_time=import_initiated_time),
+                source=ingestion_sources.BulkImportSource(import_initiated_time=import_initiated_time, user_id=user_id),
             )
 
         logger.info(

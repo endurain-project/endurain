@@ -48,6 +48,9 @@ class TestSha256Hex:
         expected = hashlib.sha256(b"").hexdigest()
         assert token_hashing.sha256_hex("") == expected
 
+    def test_accepts_bytes_and_agrees_with_the_utf8_string(self):
+        assert token_hashing.sha256_hex(b"payload") == token_hashing.sha256_hex("payload")
+
 
 class TestHmacSha256:
     """hmac_sha256: keyed HMAC-SHA256 using the server secret."""

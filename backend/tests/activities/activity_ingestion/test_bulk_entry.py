@@ -23,7 +23,7 @@ class TestStoreBulkImportFile:
         assert result == ["activity"]
         assert helper.call_args.args == (3, "/tmp/x.gpx", "db")
         assert helper.call_args.kwargs["source"] == sources.BulkImportSource(
-            import_initiated_time="2026-07-21T00:00:00"
+            import_initiated_time="2026-07-21T00:00:00", user_id=3
         )
 
     def test_propagates_failure_instead_of_swallowing(self):

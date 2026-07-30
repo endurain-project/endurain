@@ -16,6 +16,7 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    Header,
     HTTPException,
     Request,
     Security,
@@ -73,17 +74,32 @@ def create_activity_with_uploaded_file(
         Session,
         Depends(core_database.get_db),
     ],
+    idempotency_key: Annotated[
+        str | None,
+        Header(
+            alias="Idempotency-Key",
+            max_length=255,
+            description=(
+                "Optional client-generated key. Replaying a request with the same key returns "
+                "the original job instead of importing the file again."
+            ),
+        ),
+    ] = None,
 ) -> activity_ingestion_schema.ActivityIngestionJob:
     """
     Upload an activity file (GPX, FIT, TCX, GZ) for import.
 
     Returns ``202`` once the file is stored and queued: parsing is seconds of
     CPU work, and doing it inline held a shared request thread for the duration.
-    Poll ``GET /activities/upload/{job_id}`` for the outcome.
+    Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
 
     Rejections that can be decided cheaply — unsupported extension, failed
     signature check, oversized body — still come back synchronously as a 4xx, so
     only files that plausibly import get a job.
+
+    Send an ``Idempotency-Key`` to make a retry safe: a client that never saw
+    the 202 has no job id to poll, so replaying the upload is its only recovery,
+    and without a key that replay would import the file a second time.
 
     Accepts both JWT bearer token and API key
     authentication (X-API-Key header or ?api_key=
@@ -95,11 +111,12 @@ def create_activity_with_uploaded_file(
         file: The activity file to upload.
         _check_scopes: Scope validation dependency.
         db: Database session dependency.
+        idempotency_key: Optional key identifying this request.
 
     Returns:
         The accepted upload job, in the pending state.
     """
-    return ingestion_jobs.accept_upload(token_user_id, file, db)
+    return ingestion_jobs.accept_upload(token_user_id, file, db, idempotency_key=idempotency_key)
 
 
 @api_upload_router.get(
@@ -153,6 +170,39 @@ def get_activity_ingestion_job(
     return job
 
 
+def _warn_about_unowned_bulk_import_files(user_id: int) -> None:
+    """Warn when importable files sit in the shared root instead of a user directory.
+
+    Bulk import used to scan the shared root, so an existing install can have
+    files there that will now be skipped. They are not imported on a guess about
+    who owns them — that is the bug this isolation removes — but the operator is
+    told exactly where to move them.
+
+    Args:
+        user_id: The user whose import was triggered, used to name the target.
+
+    Returns:
+        None.
+    """
+    root = core_config.FILES_BULK_IMPORT_DIR
+    try:
+        stranded = [
+            name
+            for name in os.listdir(root)
+            if os.path.isfile(os.path.join(root, name))
+            and os.path.splitext(name)[1].lower() in core_config.SUPPORTED_FILE_FORMATS
+        ]
+    except OSError:
+        return
+
+    if stranded:
+        logger.warning(
+            f"Skipping {len(stranded)} file(s) in the shared bulk-import root: they are not attributed "
+            f"to any user. Move them into {core_config.bulk_import_dir_for(user_id)} to import them.",
+            extra=core_logger.context(console=True, user_id=user_id, file_count=len(stranded)),
+        )
+
+
 @router.post(
     "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
@@ -177,9 +227,12 @@ def create_activity_with_bulk_import(
             extra=core_logger.context(console=True, user_id=token_user_id, import_time=import_time),
         )
 
-        # Ensure the 'bulk_import' directory exists
-        bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
+        # Each user drops files into their own directory. Scanning the shared
+        # root would import whatever anyone else left there and attribute it to
+        # this caller.
+        bulk_import_dir = core_config.bulk_import_dir_for(token_user_id)
         os.makedirs(bulk_import_dir, exist_ok=True)
+        _warn_about_unowned_bulk_import_files(token_user_id)
 
         # Grab list of supported file formats
         supported_file_formats = core_config.SUPPORTED_FILE_FORMATS

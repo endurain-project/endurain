@@ -13,6 +13,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -58,6 +59,8 @@ def accept_upload(
     token_user_id: int,
     file: UploadFile,
     db: Session,
+    *,
+    idempotency_key: str | None = None,
 ) -> activity_ingestion_schema.ActivityIngestionJob:
     """Stage an uploaded file and queue it for background import.
 
@@ -65,20 +68,51 @@ def accept_upload(
     leaves a job behind. The row and the event are then committed together, so a
     crash between them cannot produce a job nobody will ever run.
 
+    When the caller supplies an ``Idempotency-Key``, a replay returns the
+    original job instead of importing the file twice. The activity-level
+    content dedup would already stop a duplicate *activity*, but only after the
+    file has been stored and parsed — the key short-circuits before either, so a
+    client retrying on a flaky connection does not pay for a second 200 MiB
+    storage write and a second parse.
+
+    Reusing a key for *different* content is rejected rather than answered with
+    the first job: silently returning it would tell the client the second file
+    imported when it never will.
+
     Args:
         token_user_id: Authenticated user ID.
         file: Incoming FastAPI UploadFile.
         db: Database session.
+        idempotency_key: Client-supplied key identifying this request.
 
     Returns:
-        The accepted upload job, in the pending state.
+        The accepted upload job, in the pending state — or the job the same key
+        was accepted with previously.
 
     Raises:
         InvalidInputError: When the filename is missing.
         UnsupportedFormatError: When the extension is not a supported format.
+        ConflictError: When the key was already used for different content.
         HTTPException: When the shared upload validators reject the payload.
     """
-    staged_key = upload_entry.stage_uploaded_activity_file(file)
+    received = upload_entry.receive_upload(file, fingerprint=idempotency_key is not None)
+
+    if idempotency_key:
+        prior = ingestion_jobs_crud.get_job_for_idempotency(
+            idempotency_key, token_user_id, activity_ingestion_schema.IngestionJobKind.UPLOAD, db
+        )
+        if prior is not None:
+            replayed, fingerprint = prior
+            upload_entry.discard_received_upload(received)
+            if fingerprint != received.fingerprint:
+                raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file")
+            logger.info(
+                "Replayed activity upload returned the original job",
+                extra=core_logger.context(user_id=token_user_id, job_id=replayed.id),
+            )
+            return replayed
+
+    staged_key = upload_entry.store_received_upload(received)
     job_id = str(uuid.uuid4())
 
     try:
@@ -90,6 +124,8 @@ def accept_upload(
             # ``file.filename`` is non-None here: staging rejects a missing one.
             filename=str(file.filename),
             staged_key=staged_key,
+            idempotency_key=idempotency_key,
+            request_fingerprint=received.fingerprint,
             commit=False,
         )
         if core_config.settings.JOBS_ENABLED:
@@ -107,6 +143,24 @@ def accept_upload(
             )
         else:
             db.commit()
+    except IntegrityError:
+        # Two requests carrying the same key raced past the check above. The
+        # constraint is what actually decides; the loser reports the winner's job.
+        upload_entry.discard_staged_upload(staged_key)
+        db.rollback()
+        prior = (
+            ingestion_jobs_crud.get_job_for_idempotency(
+                idempotency_key, token_user_id, activity_ingestion_schema.IngestionJobKind.UPLOAD, db
+            )
+            if idempotency_key
+            else None
+        )
+        if prior is None:
+            raise
+        replayed, fingerprint = prior
+        if fingerprint != received.fingerprint:
+            raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file") from None
+        return replayed
     except Exception:
         # The row is gone (or never committed), so nothing will consume the
         # staged bytes.

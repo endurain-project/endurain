@@ -59,13 +59,18 @@ class TestProcessBulkImportFileForEvent:
     def test_processes_file(self):
         event = _event({"file_path": "/tmp/x.gpx", "user_id": 3, "import_initiated_time": "2026-07-21"})
         with (
-            patch.object(bulk_import_subscribers.core_file_uploads, "ensure_within", side_effect=lambda p, base: p),
+            patch.object(
+                bulk_import_subscribers.core_file_uploads, "ensure_within", side_effect=lambda p, base: p
+            ) as confine,
             patch.object(bulk_import_subscribers.core_database, "SessionLocal") as session_local,
             patch.object(bulk_import_subscribers.bulk_entry, "store_bulk_import_file") as store,
         ):
             session_local.return_value.__enter__.return_value = "db"
             bulk_import_subscribers.process_bulk_import_file_for_event(event)
         store.assert_called_once_with(3, "/tmp/x.gpx", "2026-07-21", "db")
+        # Confinement is to the payload user's own directory, not the shared
+        # root: that is what stops a forged job reading another user's drop.
+        assert confine.call_args.args[1] == bulk_import_subscribers.core_config.bulk_import_dir_for(3)
 
     def test_raises_on_missing_file_path(self):
         event = _event({"user_id": 3})
@@ -111,7 +116,7 @@ class TestProcessBulkImportFileForEvent:
             session_local.return_value.__enter__.return_value = "db"
             with pytest.raises(ValueError):
                 bulk_import_subscribers.process_bulk_import_file_for_event(event)
-        move.assert_called_once_with("/tmp/x.gpx")
+        move.assert_called_once_with("/tmp/x.gpx", 3)
 
     def test_rejects_path_outside_bulk_dir(self):
         # A forged / corrupted payload path outside the bulk-import directory is
@@ -127,24 +132,26 @@ class TestProcessBulkImportFileForEvent:
 
 
 class TestMoveToErrorDir:
-    def test_moves_file_to_error_dir(self):
+    def test_moves_file_to_that_users_error_dir(self):
         with (
-            patch.object(bulk_import_subscribers.core_config, "FILES_BULK_IMPORT_IMPORT_ERRORS_DIR", "/errs"),
-            patch.object(bulk_import_subscribers.core_config, "FILES_BULK_IMPORT_DIR", "/bulk"),
+            patch.object(bulk_import_subscribers.core_config, "bulk_import_error_dir_for", return_value="/bulk/3/errs"),
+            patch.object(bulk_import_subscribers.core_config, "bulk_import_dir_for", return_value="/bulk/3"),
             patch.object(bulk_import_subscribers.os, "makedirs") as makedirs,
             patch.object(bulk_import_subscribers.core_file_uploads, "move_within") as move_within,
             patch.object(bulk_import_subscribers, "logger"),
         ):
-            bulk_import_subscribers._move_to_error_dir("/tmp/x.gpx")
-        makedirs.assert_called_once_with("/errs", exist_ok=True)
-        move_within.assert_called_once_with("/tmp/x.gpx", "/errs", filename="x.gpx", src_base_dir="/bulk")
+            bulk_import_subscribers._move_to_error_dir("/bulk/3/x.gpx", 3)
+        makedirs.assert_called_once_with("/bulk/3/errs", exist_ok=True)
+        # Confined to the owner's directory, so a failed file cannot be moved
+        # out of — or into — somebody else's.
+        move_within.assert_called_once_with("/bulk/3/x.gpx", "/bulk/3/errs", filename="x.gpx", src_base_dir="/bulk/3")
 
     def test_swallows_oserror(self):
         with (
             patch.object(bulk_import_subscribers.os, "makedirs", side_effect=OSError("nope")),
             patch.object(bulk_import_subscribers, "logger") as log,
         ):
-            bulk_import_subscribers._move_to_error_dir("/tmp/x.gpx")
+            bulk_import_subscribers._move_to_error_dir("/tmp/x.gpx", 3)
         assert log.method_calls
 
 

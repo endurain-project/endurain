@@ -90,7 +90,8 @@ export function assertValidActivityFile(file: File): void {
  *   caller-supplied {@link AbortSignal} instead.
  *
  * @param file - The activity file to upload.
- * @param options - Optional abort signal for cancellation (e.g. on unmount).
+ * @param options - Optional abort signal for cancellation (e.g. on unmount),
+ *   and an idempotency key to make a retry of this same upload safe.
  * @returns The accepted upload job, in the pending state.
  * @throws {UploadValidationError} When client-side validation fails (no request
  *   is sent).
@@ -98,7 +99,7 @@ export function assertValidActivityFile(file: File): void {
  */
 export async function uploadActivityFile(
   file: File,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; idempotencyKey?: string } = {},
 ): Promise<ActivityIngestionJob> {
   assertValidActivityFile(file)
 
@@ -111,6 +112,7 @@ export async function uploadActivityFile(
   return apiFetch<ActivityIngestionJob>(UPLOAD_PATH, {
     method: 'POST',
     body: formData,
+    headers: options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : undefined,
     signal: options.signal,
     timeoutMs: 0,
   })

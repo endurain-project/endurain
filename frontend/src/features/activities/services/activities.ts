@@ -758,6 +758,19 @@ export async function deleteActivity(id: number): Promise<void> {
 }
 
 /**
+ * Wire values the backend stores for each visibility level.
+ *
+ * The activities API works in these integers while the profile UI works in the
+ * `ActivityVisibility` names, so the translation has to happen somewhere. It
+ * belongs here, at the one call site that talks to the activities endpoint.
+ */
+const VISIBILITY_TO_WIRE: Record<Schemas['ActivityVisibility'], number> = {
+  public: 0,
+  followers: 1,
+  private: 2,
+}
+
+/**
  * Changes the visibility of every existing activity owned by the current user.
  * New activities keep using the profile default configured separately.
  *
@@ -767,8 +780,9 @@ export async function deleteActivity(id: number): Promise<void> {
 export async function updateUserActivitiesVisibility(
   visibility: Schemas['ActivityVisibility'],
 ): Promise<void> {
-  await apiFetch<void>(`/activities/visibility/${visibility}`, {
-    method: 'PUT',
+  await apiFetch<void>('/activities', {
+    method: 'PATCH',
+    body: JSON.stringify({ visibility: VISIBILITY_TO_WIRE[visibility] }),
     responseType: 'void',
   })
 }

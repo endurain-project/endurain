@@ -21,6 +21,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.exceptions as core_exceptions
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.dependencies as activities_dependencies
 import modules.activities.activity.event_publishers as activity_event_publishers
@@ -197,13 +198,12 @@ def list_user_activities(
     )
 
 
-@router.put(
-    "/visibility/{visibility}",
+@router.patch(
+    "",
     response_model=activities_schema.VisibilityUpdateResponse,
 )
-def edit_activities_visibility(
-    visibility: int,
-    _validate_visibility: Annotated[Callable, Depends(activities_dependencies.validate_visibility)],
+def edit_activities(
+    body: activities_schema.ActivitiesBulkEdit,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
@@ -214,10 +214,33 @@ def edit_activities_visibility(
         Depends(core_database.get_db),
     ],
 ) -> activities_schema.VisibilityUpdateResponse:
-    """Set the visibility of all the authenticated user's activities."""
-    updated = activities_crud.edit_user_activities_visibility(token_user_id, visibility, db)
+    """Apply a bulk edit across all of the authenticated user's activities.
+
+    A PATCH on the collection with the change in the body, rather than the
+    previous ``PUT /visibility/{visibility}``: the value being set is data, not
+    an identifier, and PUT implied a full replacement of a resource that does
+    not exist at that path. The body shape also leaves room for a second
+    bulk-editable field without another endpoint.
+
+    Args:
+        body: The fields to apply; only those present are changed.
+        token_user_id: Authenticated user ID.
+        _check_scopes: Scope validation dependency.
+        db: Database session dependency.
+
+    Returns:
+        How many activities changed.
+
+    Raises:
+        InvalidInputError: If the body asks for no change at all.
+    """
+    if body.visibility is None:
+        # An empty patch is a client bug, not a no-op worth reporting as success.
+        raise core_exceptions.InvalidInputError("No supported field to update was provided")
+
+    updated = activities_crud.edit_user_activities_visibility(token_user_id, body.visibility, db)
     return activities_schema.VisibilityUpdateResponse(
-        detail=f"Visibility changed to {visibility} for all user activities",
+        detail=f"Visibility changed to {body.visibility} for all user activities",
         updated=updated or 0,
     )
 

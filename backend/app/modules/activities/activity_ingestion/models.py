@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -40,6 +41,12 @@ class ActivityIngestionJob(Base):
         id: Job identifier (UUIDv4 string), returned to the client.
         user_id: Owner of the request; every read is filtered by it.
         kind: ``upload`` or ``refresh``.
+        idempotency_key: Client-supplied ``Idempotency-Key`` for an upload, unique
+            per user and kind. A replayed request returns the original job
+            instead of starting a second import.
+        request_fingerprint: SHA-256 of the bytes the key was first used with,
+            so reusing a key for different content is rejected rather than
+            silently answering with the wrong job.
         filename: Original client-supplied filename for an upload, kept for
             display only and never used to build a filesystem path. Null for a
             refresh.
@@ -55,7 +62,13 @@ class ActivityIngestionJob(Base):
     """
 
     __tablename__ = "activity_ingestion_jobs"
-    __table_args__ = (Index("idx_activity_ingestion_jobs_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("idx_activity_ingestion_jobs_user_created", "user_id", "created_at"),
+        # Scoped to the user and kind so one client's key cannot collide with
+        # another's, nor an upload's with a future refresh's. Postgres treats
+        # NULLs as distinct, so jobs without a key are unaffected.
+        UniqueConstraint("user_id", "kind", "idempotency_key", name="uq_activity_ingestion_jobs_user_kind_idempotency"),
+    )
 
     id: Mapped[str] = mapped_column(
         String(36),
@@ -74,6 +87,16 @@ class ActivityIngestionJob(Base):
         default="upload",
         server_default="upload",
         comment="upload | refresh",
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Client-supplied Idempotency-Key for an upload; unique per user and kind",
+    )
+    request_fingerprint: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 of the bytes the idempotency key was first used with",
     )
     filename: Mapped[str | None] = mapped_column(
         String(255),

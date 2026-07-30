@@ -49,6 +49,8 @@ def create_ingestion_job(
     *,
     filename: str | None = None,
     staged_key: str | None = None,
+    idempotency_key: str | None = None,
+    request_fingerprint: str | None = None,
     commit: bool = True,
 ) -> activity_ingestion_schema.ActivityIngestionJob:
     """
@@ -62,6 +64,10 @@ def create_ingestion_job(
         filename: Original client filename; uploads only, for display.
         staged_key: Storage key of the staged upload awaiting parsing; uploads
             only.
+        idempotency_key: Client-supplied ``Idempotency-Key``, unique per user
+            and kind.
+        request_fingerprint: SHA-256 of the uploaded bytes, stored so a reused
+            key carrying different content can be rejected.
         commit: Whether to commit; False lets the caller publish an event in the
             same transaction.
 
@@ -69,7 +75,8 @@ def create_ingestion_job(
         The created ingestion job.
 
     Raises:
-        HTTPException: If a database error occurs.
+        IntegrityError: If the user already has a job with this idempotency key.
+        HTTPException: If another database error occurs.
     """
     now = datetime.now(UTC)
     new_job = activity_ingestion_models.ActivityIngestionJob(
@@ -78,6 +85,8 @@ def create_ingestion_job(
         kind=kind.value,
         filename=filename,
         staged_key=staged_key,
+        idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint,
         status=activity_ingestion_schema.IngestionJobStatus.PENDING.value,
         created_at=now,
         updated_at=now,
@@ -147,6 +156,46 @@ def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
     if orm_job is None or orm_job.staged_key is None:
         return None
     return orm_job.user_id, orm_job.staged_key
+
+
+@core_decorators.handle_db_errors
+def get_job_for_idempotency(
+    idempotency_key: str,
+    user_id: int,
+    kind: activity_ingestion_schema.IngestionJobKind,
+    db: Session,
+) -> tuple[activity_ingestion_schema.ActivityIngestionJob, str | None] | None:
+    """
+    Retrieve a user's job by the idempotency key it was accepted with.
+
+    Returns the stored request fingerprint alongside the job: the caller has to
+    compare it before treating the request as a replay, because the same key
+    carrying different content is a client error rather than a repeat.
+
+    Scoped to the user and kind for the same reason the constraint is: a key is
+    only meaningful within the client that generated it, and an unscoped lookup
+    would let one caller discover another's job by guessing keys.
+
+    Args:
+        idempotency_key: The client-supplied key.
+        user_id: Owner the job must belong to.
+        kind: The job kind the key was used on.
+        db: Database session.
+
+    Returns:
+        A ``(job, fingerprint)`` pair, or None if this user has not used that
+        key for that kind.
+
+    Raises:
+        HTTPException: If a database error occurs.
+    """
+    stmt = select(activity_ingestion_models.ActivityIngestionJob).where(
+        activity_ingestion_models.ActivityIngestionJob.idempotency_key == idempotency_key,
+        activity_ingestion_models.ActivityIngestionJob.user_id == user_id,
+        activity_ingestion_models.ActivityIngestionJob.kind == kind.value,
+    )
+    orm_job = db.scalars(stmt).first()
+    return (_to_read_schema(orm_job), orm_job.request_fingerprint) if orm_job else None
 
 
 @core_decorators.handle_db_errors

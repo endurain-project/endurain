@@ -53,7 +53,7 @@ class TestStagingTransit:
             patch.object(upload_entry.core_file_uploads, "_run_validator_sync", side_effect=_skip_validator),
             patch.object(upload_entry.platform_runtime, "get_active_platform", return_value=platform),
         ):
-            key = upload_entry.stage_uploaded_activity_file(upload)
+            key = upload_entry.store_received_upload(upload_entry.receive_upload(upload))
 
         # It really was written to disk first, under the server-generated name.
         assert observed["during"] == [key]
@@ -75,7 +75,7 @@ class TestStagingTransit:
             patch.object(upload_entry.core_file_uploads, "_run_validator_sync", side_effect=_skip_validator),
             patch.object(upload_entry.platform_runtime, "get_active_platform", return_value=platform),
         ):
-            upload_entry.stage_uploaded_activity_file(upload)
+            upload_entry.store_received_upload(upload_entry.receive_upload(upload))
 
         assert incoming.is_dir()
 
@@ -92,6 +92,6 @@ class TestStagingTransit:
             patch.object(upload_entry.platform_runtime, "get_active_platform", return_value=platform),
             pytest.raises(RuntimeError),
         ):
-            upload_entry.stage_uploaded_activity_file(upload)
+            upload_entry.store_received_upload(upload_entry.receive_upload(upload))
 
         assert list(pathlib.Path(incoming).iterdir()) == []

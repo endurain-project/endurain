@@ -8,6 +8,14 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+import modules.activities.activity_ingestion.upload_entry as upload_entry
+
+
+def _received(fingerprint: str = "abc123") -> upload_entry.ReceivedUpload:
+    """A received upload, already validated and on local disk."""
+    return upload_entry.ReceivedUpload(
+        incoming_path="/incoming/x.gpx", storage_key="abc.gpx", data=b"<gpx/>", fingerprint=fingerprint
+    )
 
 
 def _file(filename: str = "ride.gpx") -> MagicMock:
@@ -21,7 +29,8 @@ class TestAcceptUpload:
         db = MagicMock()
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(ingestion_jobs.upload_entry, "stage_uploaded_activity_file", return_value="abc.gpx"),
+            patch.object(ingestion_jobs.upload_entry, "receive_upload", return_value=_received()),
+            patch.object(ingestion_jobs.upload_entry, "store_received_upload", return_value="abc.gpx"),
             patch.object(ingestion_jobs.ingestion_jobs_crud, "create_ingestion_job") as create,
             patch.object(ingestion_jobs.ingestion_jobs_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.platform_publisher, "publish_committing") as publish,
@@ -43,7 +52,8 @@ class TestAcceptUpload:
         db = MagicMock()
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
-            patch.object(ingestion_jobs.upload_entry, "stage_uploaded_activity_file", return_value="abc.gpx"),
+            patch.object(ingestion_jobs.upload_entry, "receive_upload", return_value=_received()),
+            patch.object(ingestion_jobs.upload_entry, "store_received_upload", return_value="abc.gpx"),
             patch.object(ingestion_jobs.ingestion_jobs_crud, "create_ingestion_job") as create,
             patch.object(ingestion_jobs.ingestion_jobs_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.platform_publisher, "publish_committing") as publish,
@@ -62,7 +72,7 @@ class TestAcceptUpload:
         with (
             patch.object(
                 ingestion_jobs.upload_entry,
-                "stage_uploaded_activity_file",
+                "receive_upload",
                 side_effect=core_exceptions.UnsupportedFormatError("nope"),
             ),
             patch.object(ingestion_jobs.ingestion_jobs_crud, "create_ingestion_job") as create,
@@ -77,7 +87,8 @@ class TestAcceptUpload:
         db = MagicMock()
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(ingestion_jobs.upload_entry, "stage_uploaded_activity_file", return_value="abc.gpx"),
+            patch.object(ingestion_jobs.upload_entry, "receive_upload", return_value=_received()),
+            patch.object(ingestion_jobs.upload_entry, "store_received_upload", return_value="abc.gpx"),
             patch.object(ingestion_jobs.ingestion_jobs_crud, "create_ingestion_job"),
             patch.object(
                 ingestion_jobs.platform_publisher,

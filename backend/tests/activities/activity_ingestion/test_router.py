@@ -121,10 +121,24 @@ class TestUploadRoute:
                 file=file,
                 _check_scopes=None,
                 db=db,
+                idempotency_key="key-1",
             )
 
-        accept.assert_called_once_with(7, file, db)
+        accept.assert_called_once_with(7, file, db, idempotency_key="key-1")
         assert result == job
+
+    def test_the_idempotency_key_is_optional(self):
+        db = MagicMock()
+        with patch.object(router.ingestion_jobs, "accept_upload", return_value=_upload_job()) as accept:
+            router.create_activity_with_uploaded_file(
+                request=MagicMock(),
+                token_user_id=7,
+                file=MagicMock(),
+                _check_scopes=None,
+                db=db,
+            )
+
+        assert accept.call_args.kwargs["idempotency_key"] is None
 
     def test_http_upload_returns_202_with_job_handle(self):
         from fastapi import FastAPI

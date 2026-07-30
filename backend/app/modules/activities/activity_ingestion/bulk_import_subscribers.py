@@ -108,9 +108,11 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(ingestion_events.BulkImportFilePayload, event)
     # The file path arrives in the (durable, replayable) event payload; re-verify
-    # it still resolves under the trusted bulk-import directory before touching the
-    # file, so a corrupted or forged job cannot read or move an arbitrary path.
-    file_path = str(core_file_uploads.ensure_within(payload.file_path, core_config.FILES_BULK_IMPORT_DIR))
+    # it still resolves under *this user's* bulk-import directory before touching
+    # the file. Confining to the shared root would let a forged job read another
+    # user's drop directory.
+    user_dir = core_config.bulk_import_dir_for(payload.user_id)
+    file_path = str(core_file_uploads.ensure_within(payload.file_path, user_dir))
     try:
         with core_database.SessionLocal() as db:
             bulk_entry.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
@@ -119,20 +121,20 @@ def process_bulk_import_file_for_event(event: Event) -> None:
         # reached the ceiling this failure dead-letters the job, so move the file
         # to the import-error directory as the trail before re-raising.
         if event.retry_count >= core_config.settings.JOBS_MAX_ATTEMPTS:
-            _move_to_error_dir(file_path)
+            _move_to_error_dir(file_path, payload.user_id)
         raise
 
 
-def _move_to_error_dir(file_path: str) -> None:
-    """Move a dead-lettered bulk-import file to the import-error directory."""
+def _move_to_error_dir(file_path: str, user_id: int) -> None:
+    """Move a dead-lettered bulk-import file to that user's import-error directory."""
     try:
-        error_dir = core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
+        error_dir = core_config.bulk_import_error_dir_for(user_id)
         os.makedirs(error_dir, exist_ok=True)
         core_file_uploads.move_within(
             file_path,
             error_dir,
             filename=os.path.basename(file_path),
-            src_base_dir=core_config.FILES_BULK_IMPORT_DIR,
+            src_base_dir=core_config.bulk_import_dir_for(user_id),
         )
         logger.error(
             f"Bulk import: dead-lettered file {file_path} moved to {error_dir}", extra=core_logger.context(console=True)
