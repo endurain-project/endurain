@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.decorators as core_decorators
 import core.exceptions as core_exceptions
@@ -90,6 +91,18 @@ class TestHandleDbErrors:
             my_func(session)
 
         session.rollback.assert_called_once()
+
+    def test_stale_data_error_is_left_for_the_decision_layer(self):
+        session = MagicMock(spec=Session)
+
+        @core_decorators.handle_db_errors
+        def my_func(session):
+            raise StaleDataError("row changed")
+
+        with pytest.raises(StaleDataError):
+            my_func(session)
+
+        session.rollback.assert_not_called()
 
     def test_rollback_failure(self):
         session = MagicMock(spec=Session)

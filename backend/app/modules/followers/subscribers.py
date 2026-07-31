@@ -7,16 +7,9 @@ synchronously (safe on the bus consumer thread) and then dispatches a best-effor
 websocket push onto the main event loop via :mod:`infra.async_bridge`.
 
 Same two-shape convention as the activities subscribers: a ``*_for_event`` core
-that **raises** (so it could be registered as a durable handler unchanged), and an
+that **raises** for durable retries, and an
 ``on_*`` bus subscriber built with :func:`infra.subscribers.best_effort` that
 swallows so a notification problem never breaks the follow itself.
-
-These are **bus subscribers only** (no durable-job handlers). A follow
-notification is transient UI signal, not durable derived state: if delivery is
-dropped, the follow relationship row still exists, so the target simply sees the
-pending/accepted state on their next fetch. There is nothing to reconcile after
-the fact, so — unlike the activities thumbnail/geocoding subscribers — no durable
-job or reconciliation net is warranted.
 """
 
 import core.database as core_database
@@ -28,10 +21,14 @@ import modules.notifications.utils as notifications_utils
 import modules.websocket.manager as websocket_manager
 import modules.websocket.utils as websocket_utils
 from infra.events import Event
+from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 from infra.subscribers import best_effort
 
 logger = core_logger.get_logger(__name__)
+
+FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_requested"
+FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_accepted"
 
 
 def notify_follower_requested_for_event(event: Event) -> None:
@@ -127,3 +124,17 @@ def register_follower_notification_subscribers(events: EventBusProvider) -> None
     """
     events.subscribe(followers_events.FOLLOWER_REQUESTED, on_follower_requested_notify)
     events.subscribe(followers_events.FOLLOWER_ACCEPTED, on_follower_accepted_notify)
+
+
+def register_follower_notification_durable_handlers(registry: JobHandlerRegistry) -> None:
+    """Register retryable follower-notification handlers for outbox delivery."""
+    registry.register(
+        followers_events.FOLLOWER_REQUESTED,
+        FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_follower_requested_for_event,
+    )
+    registry.register(
+        followers_events.FOLLOWER_ACCEPTED,
+        FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_follower_accepted_for_event,
+    )

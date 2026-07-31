@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import Field, field_validator
 
 import core.timezone as core_timezone
-from modules.activities.activity.schema import ActivityBase
+from modules.activities.activity.schema import Activity, ActivityBase
 
 if TYPE_CHECKING:
     # Imported for typing only: a runtime import would be circular (the sub-module
@@ -61,6 +61,21 @@ class ActivityLocationRef:
     """
 
     id: int
+
+
+@dataclass(frozen=True)
+class ActivityFeedEntry:
+    """A masked feed item paired with its unmasked persistence cursor.
+
+    Attributes:
+        activity: Client-facing activity with privacy masking applied.
+        cursor_start_time: Raw start time used by the feed ordering.
+        cursor_id: Raw activity id used to break start-time ties.
+    """
+
+    activity: Activity
+    cursor_start_time: datetime
+    cursor_id: int
 
 
 @dataclass(frozen=True)

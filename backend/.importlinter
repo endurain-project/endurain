@@ -178,6 +178,7 @@ forbidden_modules =
     requests
     httpx
     socket
+    staticmap
 
 # The consumer modules — the providers (Strava, Garmin), gears, and users — must not
 # reach into any activities CRUD or its ORM directly. They go through the curated

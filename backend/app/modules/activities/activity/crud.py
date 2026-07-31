@@ -67,8 +67,18 @@ _NUMERIC_SORT_COLUMNS = {
 }
 
 
+def _is_not_live_strava_api_activity():
+    """Return the policy predicate excluding live Strava API data."""
+    return activities_models.Activity.strava_activity_id.is_(None)
+
+
 def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     """Build the non-owner activity visibility condition.
+
+    Live Strava API data is owner-only under the Strava API Policy, regardless
+    of the activity's Endurain visibility. A Strava bulk-export file uploaded by
+    the user does not populate ``strava_activity_id`` and remains governed by
+    the normal visibility rules.
 
     Args:
         requester_user_id: Requesting user ID, or None for an
@@ -93,6 +103,7 @@ def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
 
     return and_(
         activities_models.Activity.is_hidden.is_(False),
+        _is_not_live_strava_api_activity(),
         or_(*visibility_conditions),
     )
 
@@ -768,7 +779,7 @@ def get_user_following_activities_with_pagination(
             activities_models.Activity.user_id.in_(followee_ids),
             activities_models.Activity.visibility.in_([0, 1]),
             activities_models.Activity.is_hidden.is_(False),
-            activities_models.Activity.strava_activity_id.is_(None),
+            _is_not_live_strava_api_activity(),
         )
         .order_by(desc(activities_models.Activity.start_time))
         .offset((page_number - 1) * num_records)
@@ -786,7 +797,7 @@ def get_following_feed_after(
     after: tuple[datetime, int] | None,
     num_records: int,
     db: Session,
-) -> list[activities_schema.Activity]:
+) -> list[activities_contracts.ActivityFeedEntry]:
     """Get the next keyset slice of the following feed.
 
     Ordered by ``(start_time DESC, id DESC)``. ``id`` is part of the key because
@@ -809,7 +820,7 @@ def get_following_feed_after(
         activities_models.Activity.user_id.in_(followee_ids),
         activities_models.Activity.visibility.in_([0, 1]),
         activities_models.Activity.is_hidden.is_(False),
-        activities_models.Activity.strava_activity_id.is_(None),
+        _is_not_live_strava_api_activity(),
     )
     if after is not None:
         last_start_time, last_id = after
@@ -824,7 +835,15 @@ def get_following_feed_after(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return []
-    return _serialize_and_mask(list(activities), force_non_owner=True)
+    masked = _serialize_and_mask(list(activities), force_non_owner=True)
+    return [
+        activities_contracts.ActivityFeedEntry(
+            activity=item,
+            cursor_start_time=orm_activity.start_time,
+            cursor_id=orm_activity.id,
+        )
+        for orm_activity, item in zip(activities, masked, strict=True)
+    ]
 
 
 @core_decorators.handle_db_errors
@@ -848,7 +867,7 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
         activities_models.Activity.user_id.in_(followee_ids),
         activities_models.Activity.visibility.in_([0, 1]),
         activities_models.Activity.is_hidden.is_(False),
-        activities_models.Activity.strava_activity_id.is_(None),
+        _is_not_live_strava_api_activity(),
     )
     activities = db.execute(stmt).scalars().all()
     if not activities:
@@ -882,7 +901,7 @@ def count_user_following_activities(followee_ids: list[int], db: Session) -> int
             activities_models.Activity.user_id.in_(followee_ids),
             activities_models.Activity.visibility.in_([0, 1]),
             activities_models.Activity.is_hidden.is_(False),
-            activities_models.Activity.strava_activity_id.is_(None),
+            _is_not_live_strava_api_activity(),
         )
     )
     count = db.execute(stmt).scalar()
@@ -1171,6 +1190,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.visibility == 0,
         activities_models.Activity.is_hidden.is_(False),
+        _is_not_live_strava_api_activity(),
         activities_models.Activity.id == activity_id,
     )
     activity = db.execute(stmt).scalar_one_or_none()

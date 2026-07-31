@@ -418,6 +418,32 @@ def host_rejection_reason(host: str | None, *, purpose: str | None = None) -> st
     return _address_rejection_reason(hostname, purpose=purpose)
 
 
+def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
+    """Return why an outbound URL must not be dialed, or ``None``.
+
+    Args:
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+
+    Returns:
+        A safe client-facing reason, or ``None`` when the URL may be dialed.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return "Malformed URL"
+
+    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
+        return "URL scheme is not permitted"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return "URL has no hostname"
+
+    reason = _address_rejection_reason(hostname, purpose=purpose)
+    return f"URL {reason}" if reason is not None else None
+
+
 def reject_private_url(url: str, *, purpose: str | None = None) -> None:
     """Refuse to dial URLs that resolve to private/internal hosts.
 
@@ -457,30 +483,9 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             is not covered by the
             ``SSRF_ALLOWED_HOSTS`` allowlist.
     """
-    try:
-        parsed = urlparse(url)
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Malformed URL",
-        ) from err
-
-    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL scheme is not permitted",
-        )
-
-    hostname = parsed.hostname
-    if not hostname:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL has no hostname",
-        )
-
-    reason = _address_rejection_reason(hostname, purpose=purpose)
+    reason = url_rejection_reason(url, purpose=purpose)
     if reason is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"URL {reason}",
+            detail=reason,
         )

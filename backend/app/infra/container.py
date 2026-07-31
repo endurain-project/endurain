@@ -27,6 +27,7 @@ from infra.backends.events_redis import RedisStreamEventBus
 from infra.backends.geocoding_http import HttpGeocoding, NullGeocoding, build_reverse_endpoint
 from infra.backends.lock_noop import NoopLock
 from infra.backends.lock_pg import PgAdvisoryLock
+from infra.backends.route_map_static import StaticRouteMapRenderer
 from infra.backends.state_memory import MemoryState
 from infra.backends.state_redis import RedisState
 from infra.backends.storage_local import LocalStorage
@@ -37,6 +38,7 @@ from infra.providers import (
     EventRecorder,
     GeocodingProvider,
     LockProvider,
+    RouteMapRendererProvider,
     StateProvider,
     StorageProvider,
 )
@@ -76,6 +78,7 @@ class Platform:
     lock: LockProvider
     clock: ClockProvider
     geocoding: GeocodingProvider
+    route_map_renderer: RouteMapRendererProvider
     recorder: EventRecorder | None
 
 
@@ -106,6 +109,7 @@ def build_platform(settings: "Settings") -> Platform:
         lock=_build_lock(settings),
         clock=SystemClock(),
         geocoding=_build_geocoding(settings),
+        route_map_renderer=StaticRouteMapRenderer(),
         recorder=recorder,
     )
 

@@ -5,6 +5,51 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+class TestNetworkPrivacy:
+    @pytest.mark.parametrize("method_name", ["list_followers", "list_following"])
+    @patch("modules.followers.service.followers_crud")
+    def test_non_owner_can_only_read_accepted_relationships(self, mock_crud, method_name):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationship
+
+        db = MagicMock()
+        mock_crud.get_follower_for_user_id_and_target_user_id.return_value = FollowRelationship(
+            follower_id=1,
+            followee_id=2,
+            status="accepted",
+        )
+        mock_crud.get_all_followers_by_user_id.return_value = []
+        mock_crud.get_all_following_by_user_id.return_value = []
+        mock_crud.count_followers_by_user_id.return_value = 0
+        mock_crud.count_following_by_user_id.return_value = 0
+
+        getattr(service, method_name)(2, 1, db, accepted_only=False)
+
+        list_method = getattr(
+            mock_crud,
+            "get_all_followers_by_user_id" if method_name == "list_followers" else "get_all_following_by_user_id",
+        )
+        count_method = getattr(
+            mock_crud,
+            "count_followers_by_user_id" if method_name == "list_followers" else "count_following_by_user_id",
+        )
+        assert list_method.call_args.kwargs["accepted_only"] is True
+        assert count_method.call_args.kwargs["accepted_only"] is True
+
+    @patch("modules.followers.service.followers_crud")
+    def test_owner_can_include_pending_relationships(self, mock_crud):
+        from modules.followers import service
+
+        db = MagicMock()
+        mock_crud.get_all_followers_by_user_id.return_value = []
+        mock_crud.count_followers_by_user_id.return_value = 0
+
+        service.list_followers(1, 1, db, accepted_only=False)
+
+        assert mock_crud.get_all_followers_by_user_id.call_args.kwargs["accepted_only"] is False
+        assert mock_crud.count_followers_by_user_id.call_args.kwargs["accepted_only"] is False
+
+
 class TestFollowUser:
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
@@ -18,8 +63,8 @@ class TestFollowUser:
         result = follow_user(1, 2, db)
 
         assert result.follower_id == 1
-        mock_crud.create_follower.assert_called_once_with(1, 2, db)
-        mock_pub.publish_follower_requested.assert_called_once_with(1, 2, db)
+        mock_crud.create_follower.assert_called_once_with(1, 2, db, commit=False)
+        mock_pub.publish_follower_requested.assert_called_once_with(1, 2, db, db.commit)
 
 
 class TestAcceptFollowRequest:
@@ -31,8 +76,8 @@ class TestAcceptFollowRequest:
         db = MagicMock()
         accept_follow_request(1, 2, db)
 
-        mock_crud.accept_follower.assert_called_once_with(1, 2, db)
-        mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db)
+        mock_crud.accept_follower.assert_called_once_with(1, 2, db, commit=False)
+        mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db, db.commit)
 
 
 class TestDeleteRelationship:

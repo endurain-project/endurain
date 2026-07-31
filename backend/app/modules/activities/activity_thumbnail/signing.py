@@ -34,8 +34,9 @@ only ever needs the URL, never the renderer.
 
 import core.signing as core_signing
 
-# Namespaces this signer from any other ``SECRET_KEY`` use (e.g. JWT signing).
-_SIGNER = core_signing.CapabilitySigner(salt="activity-thumbnail")
+# Versioned to invalidate capabilities minted before live Strava API activities
+# became owner-only across every non-owner/public read path.
+_SIGNER = core_signing.CapabilitySigner(salt="activity-thumbnail-v2")
 
 # The storage area (domain-owned namespace) activity thumbnails live under.
 THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
