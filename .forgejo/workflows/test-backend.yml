@@ -15,9 +15,6 @@ on:
       - backend/**
       - .forgejo/workflows/test-backend.yml
 
-permissions:
-  contents: read
-
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
   cancel-in-progress: true

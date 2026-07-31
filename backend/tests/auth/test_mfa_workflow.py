@@ -408,9 +408,12 @@ class TestGenerateBackupCodes:
     def test_happy_path_returns_codes(self, mock_db, identity_service, step_up_store):
         user = MagicMock()
         user.id = 7
-        user.mfa_enabled = True
         with (
             patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "modules.auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+                return_value=True,
+            ),
             patch(
                 "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
             ) as mock_verify,
@@ -461,9 +464,12 @@ class TestGenerateBackupCodes:
 
     def test_mfa_disabled_raises_400(self, mock_db, identity_service, step_up_store):
         user = MagicMock()
-        user.mfa_enabled = False
         with (
             patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "modules.auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+                return_value=False,
+            ),
             patch(
                 "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials"
             ) as mock_verify,
@@ -483,9 +489,12 @@ class TestGenerateBackupCodes:
     def test_step_up_failure_does_not_create_codes(self, mock_db, identity_service, step_up_store):
         user = MagicMock()
         user.id = 7
-        user.mfa_enabled = True
         with (
             patch("modules.auth._internal.services.mfa_workflow.users_crud.get_user_by_id", return_value=user),
+            patch(
+                "modules.auth._internal.services.mfa_workflow.mfa_service.is_mfa_enabled_for_user",
+                return_value=True,
+            ),
             patch(
                 "modules.auth._internal.services.mfa_workflow.step_up_service.verify_step_up_credentials",
                 side_effect=HTTPException(status_code=401, detail="bad"),

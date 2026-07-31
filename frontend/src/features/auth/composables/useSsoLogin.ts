@@ -1,4 +1,4 @@
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import type { AuthTokenResponse, IdentityProviderPublic } from '@/types'
 import type { PublicServerSettings } from '@/features/config/types'
@@ -115,6 +115,7 @@ function cleanupExpiredPkceVerifiers(): void {
  */
 export function useSsoLogin() {
   const route = useRoute()
+  const router = useRouter()
   const auth = useAuthStore()
   const { getSafeRedirect, getSsoRedirect, navigateAfterLogin } = useSafeRedirect()
 
@@ -169,6 +170,14 @@ export function useSsoLogin() {
         const redirect = getSafeRedirect(route.query.redirect)
         const separator = redirect.includes('?') ? '&' : '?'
         window.location.href = `${redirect}${separator}session_id=${encodeURIComponent(sessionId)}`
+        // Custom schemes don't actually navigate the tab away, so this document
+        // stays loaded. When the browser already has its own authenticated
+        // session, fall back to the dashboard instead of leaving a stale login
+        // form behind in case the OS handoff to the app doesn't happen (app not
+        // installed, prompt dismissed, desktop testing, etc.).
+        if (auth.isAuthenticated) {
+          await router.replace({ name: 'home' })
+        }
         return { status: 'completed' }
       }
 

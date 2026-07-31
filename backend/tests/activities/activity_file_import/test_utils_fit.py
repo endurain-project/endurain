@@ -579,3 +579,64 @@ class TestOffsetVersusAthleteTimezone:
         activities = utils_fit.create_activity_objects([record], user_id=1, default_timezone="Not/AZone")
 
         assert activities[0]["activity"].timezone == "Etc/GMT-9"
+
+
+class _RaisingFrame:
+    """Frame whose get_value always raises KeyError (unknown field)."""
+
+    def get_value(self, key):
+        raise KeyError(key)
+
+
+class TestGetValueFromFrame:
+    """Tests for get_value_from_frame's None/zero/KeyError handling."""
+
+    def test_genuine_zero_survives(self):
+        """A real 0 (e.g. 0 m ascent) is returned, not replaced by the default."""
+        frame = _MockFrame(total_ascent=0)
+        assert utils_fit.get_value_from_frame(frame, "total_ascent", 99) == 0
+
+    def test_none_falls_back_to_default(self):
+        """A missing/None value falls back to the provided default."""
+        frame = _MockFrame(total_ascent=None)
+        assert utils_fit.get_value_from_frame(frame, "total_ascent", 99) == 99
+
+    def test_present_value_returned(self):
+        """A present truthy value is returned unchanged."""
+        frame = _MockFrame(avg_power=210)
+        assert utils_fit.get_value_from_frame(frame, "avg_power") == 210
+
+    def test_keyerror_falls_back_to_default(self):
+        """An unknown field (KeyError) falls back to the default."""
+        assert utils_fit.get_value_from_frame(_RaisingFrame(), "missing", "d") == "d"
+
+
+class TestParseFrameLap:
+    """Tests for parse_frame_lap speed/pace derivation."""
+
+    def test_uses_enhanced_avg_speed_when_present(self):
+        """Enhanced speed is preferred; pace is its reciprocal."""
+        lap = utils_fit.parse_frame_lap(_MockFrame(enhanced_avg_speed=4.0, enhanced_max_speed=5.0))
+        assert lap["enhanced_avg_speed"] == 4.0
+        assert lap["enhanced_avg_pace"] == 1 / 4.0
+        assert lap["enhanced_max_pace"] == 1 / 5.0
+
+    def test_falls_back_to_legacy_avg_speed(self):
+        """When enhanced speed is absent, legacy avg_speed/max_speed are used."""
+        lap = utils_fit.parse_frame_lap(_MockFrame(avg_speed=2.5, max_speed=5.0))
+        assert lap["enhanced_avg_speed"] == 2.5
+        assert lap["enhanced_avg_pace"] == 1 / 2.5
+        assert lap["enhanced_max_speed"] == 5.0
+        assert lap["enhanced_max_pace"] == 1 / 5.0
+
+    def test_derives_avg_speed_from_distance_and_time(self):
+        """With no speed field, average speed is derived from distance/time."""
+        lap = utils_fit.parse_frame_lap(_MockFrame(total_distance=1000, total_timer_time=250))
+        assert lap["enhanced_avg_speed"] == 4.0
+        assert lap["enhanced_avg_pace"] == 1 / 4.0
+
+    def test_no_pace_without_speed_or_distance(self):
+        """No speed and no usable distance/time leaves pace unset."""
+        lap = utils_fit.parse_frame_lap(_MockFrame(total_distance=0, total_timer_time=0))
+        assert lap["enhanced_avg_speed"] is None
+        assert lap.get("enhanced_avg_pace") is None

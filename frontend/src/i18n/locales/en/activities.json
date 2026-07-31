@@ -113,7 +113,8 @@
     "revolutions": "Revolutions",
     "strides": "Strides",
     "jumps": "Jumps",
-    "hr": "Heart rate"
+    "hr": "Heart rate",
+    "activeSummary": "Active total"
   },
   "workout": {
     "title": "Workout",

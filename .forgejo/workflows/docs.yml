@@ -18,9 +18,6 @@ on:
       - 'backend/app/**/*.py'
       - '.forgejo/workflows/docs.yml'
 
-permissions:
-  contents: write
-
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
   cancel-in-progress: true

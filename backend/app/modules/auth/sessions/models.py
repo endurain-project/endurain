@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from modules.auth.sessions.rotated_refresh_tokens.models import (
         RotatedRefreshToken,
     )
-    from modules.users.users.models import Users
 
 
 class UsersSessions(Base):
@@ -44,7 +43,6 @@ class UsersSessions(Base):
         last_rotation_at: Timestamp of last token rotation.
         csrf_token_hash: Hashed CSRF token for refresh
             validation.
-        users: Relationship to Users model.
         oauth_state: Relationship to OAuthState model.
         rotated_refresh_tokens: Relationship to
             RotatedRefreshToken model.
@@ -147,9 +145,6 @@ class UsersSessions(Base):
         nullable=True,
         comment="Hashed CSRF token for refresh validation",
     )
-
-    # Relationship to Users model
-    users: Mapped["Users"] = relationship(back_populates="users_sessions")
 
     # Relationship to OAuthState model
     oauth_state: Mapped["OAuthState | None"] = relationship(back_populates="users_sessions")

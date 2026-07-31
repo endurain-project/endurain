@@ -872,6 +872,23 @@ def parse_frame_lap(frame):
         lap_dict["end_position_long"],
     )
 
+    # Prefer the enhanced speed fields; fall back to the legacy avg_speed/max_speed
+    # some devices write on laps, mirroring parse_frame_session. When no speed is
+    # recorded at all, derive average speed from distance/time so pace still shows.
+    #
+    # These use a truthy check (not `is None`) on purpose: a 0 m/s speed carries no
+    # meaningful pace and would break the `1 / speed` inversions below, so a real 0
+    # is treated like a missing value here. This deliberately differs from the
+    # "preserve real zeros" (`is None`) handling in get_value_from_frame, where a 0
+    # is a legitimate reading worth keeping.
+    if not lap_dict["enhanced_avg_speed"]:
+        lap_dict["enhanced_avg_speed"] = get_value_from_frame(frame, "avg_speed")
+    if not lap_dict["enhanced_max_speed"]:
+        lap_dict["enhanced_max_speed"] = get_value_from_frame(frame, "max_speed")
+
+    if not lap_dict["enhanced_avg_speed"] and lap_dict["total_distance"] and lap_dict["total_timer_time"]:
+        lap_dict["enhanced_avg_speed"] = lap_dict["total_distance"] / lap_dict["total_timer_time"]
+
     if lap_dict["enhanced_avg_speed"]:
         lap_dict["enhanced_avg_pace"] = 1 / lap_dict["enhanced_avg_speed"]
 
@@ -1116,7 +1133,9 @@ def interpret_time_offset(raw_offset):
 def get_value_from_frame(frame, key, default=None):
     try:
         value = frame.get_value(key)
-        return value if value else default
+        # Explicit None check so a genuine 0 (e.g. 0 m ascent, 0 W power, a lap
+        # that truly covered 0 m) survives instead of collapsing to the default.
+        return value if value is not None else default
     except KeyError:
         return default
 

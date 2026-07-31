@@ -24,9 +24,6 @@ on:
       - frontend/package-lock.json
       - .forgejo/workflows/openapi-types-drift.yml
 
-permissions:
-  contents: read
-
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
   cancel-in-progress: true

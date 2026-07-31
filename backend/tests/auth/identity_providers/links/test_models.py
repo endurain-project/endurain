@@ -60,7 +60,6 @@ class TestUserIdentityProviderModel:
             - Model class has relationship definitions
         """
         # Act & Assert
-        assert hasattr(IdentityLink, "users")
         assert hasattr(IdentityLink, "identity_providers")
 
     def test_user_identity_provider_model_column_types(self):

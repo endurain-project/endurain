@@ -4,36 +4,44 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
-permissions:
-  contents: read
-  pull-requests: read
-
 concurrency:
   group: ${{ forgejo.workflow }}-${{ forgejo.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   validate:
+    # Runs on the persistent host runner because this job needs `python3`,
+    # which the host provides (the container CI image intentionally does not
+    # bake it in). Running on the shared host is safe ONLY because the job never
+    # executes any file from the untrusted PR tree — see the checkout step.
     runs-on: local-runner
 
     steps:
-      - name: Checkout code
+      # SECURITY — `pull_request` runs against attacker-controlled code. Check
+      # out the BASE branch (already reviewed, trusted) instead of the PR head,
+      # so the validator that runs below is always the trusted base-ref copy: a
+      # malicious PR that rewrites `.forgejo/scripts/check_conventional_commits.py`
+      # cannot get its version executed on the runner. The PR contributes only
+      # DATA (its title and commit subjects), which is validated as strings.
+      # Full history (fetch-depth 0) is needed so the base..head range resolves.
+      - name: Check out the trusted base ref
         uses: https://data.forgejo.org/actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ forgejo.event.pull_request.base.sha }}
           fetch-depth: 0
 
       - name: Validate PR title
-        # The PR title is passed through an environment variable to prevent
-        # shell injection via crafted titles (see security-and-owasp guidelines).
+        # The PR title is untrusted data: passed through an environment variable
+        # (never interpolated into the shell) to the trusted base-ref checker.
         env:
           PR_TITLE: ${{ forgejo.event.pull_request.title }}
         run: |
           python3 .forgejo/scripts/check_conventional_commits.py "$PR_TITLE"
 
       - name: Validate commits in PR
-        # Validates every commit subject between the PR base and head. Use the
-        # base/head SHAs from the event payload so we don't depend on the local
-        # checkout ref layout.
+        # Reads only commit metadata (%s subjects) for the base..head range; the
+        # PR tree is never checked out or executed. Base/head SHAs come from the
+        # event payload, and the checker is the trusted base-ref copy above.
         env:
           BASE_SHA: ${{ forgejo.event.pull_request.base.sha }}
           HEAD_SHA: ${{ forgejo.event.pull_request.head.sha }}

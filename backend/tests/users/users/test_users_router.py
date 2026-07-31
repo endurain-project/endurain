@@ -80,6 +80,7 @@ class TestReadUsersAllPagination:
             _make_mock_user(2, name="Bob", email="bob@example.com"),
         ]
         mock_identity_service.get_identity_link_counts_for_users.return_value = {}
+        mock_identity_service.get_mfa_enabled_for_users.return_value = {}
 
         response = client.get("/users?page_number=1&num_records=10")
 
@@ -113,6 +114,7 @@ class TestReadUsersAllPagination:
         ]
         # Alice (id=1) has 1 IdP link; Bob (id=2) has none
         mock_identity_service.get_identity_link_counts_for_users.return_value = {1: 1}
+        mock_identity_service.get_mfa_enabled_for_users.return_value = {}
 
         response = client.get("/users?show_external_auth=false")
 
@@ -142,6 +144,7 @@ class TestReadUsersAllPagination:
         ]
         # Alice (id=1) has 1 IdP link; Bob (id=2) has none
         mock_identity_service.get_identity_link_counts_for_users.return_value = {1: 1}
+        mock_identity_service.get_mfa_enabled_for_users.return_value = {}
 
         response = client.get("/users?show_local_auth=false")
 
@@ -329,6 +332,7 @@ class TestEditUser:
             email="updated@example.com",
         )
         mock_identity_service.get_identity_link_counts_for_users.return_value = {1: 2}
+        mock_identity_service.get_mfa_enabled_for_users.return_value = {}
 
         response = client.put(
             "/users/1",

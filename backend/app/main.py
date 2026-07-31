@@ -444,9 +444,10 @@ def create_app() -> FastAPI:
     core_logger.setup_main_logger()
 
     is_development = core_config.settings.ENVIRONMENT == "development"
+    is_development_or_demo = core_config.settings.ENVIRONMENT in {"development", "demo"}
     is_deployed = core_config.settings.ENVIRONMENT in _DEPLOYED_ENVIRONMENTS
-    docs_url = f"{core_config.ROOT_PATH}/docs" if is_development else None
-    redoc_url = f"{core_config.ROOT_PATH}/redoc" if is_development else None
+    docs_url = f"{core_config.ROOT_PATH}/docs" if is_development_or_demo else None
+    redoc_url = f"{core_config.ROOT_PATH}/redoc" if is_development_or_demo else None
 
     # Define the FastAPI object
     fastapi_app = FastAPI(
