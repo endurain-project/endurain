@@ -673,6 +673,18 @@ class IdentityService(Protocol):
         """
         ...
 
+    def get_mfa_enabled_for_users(self, user_ids: list[int]) -> dict[int, bool]:
+        """Return MFA-enabled state per user ID in a single query.
+
+        Args:
+            user_ids: List of user IDs to query.
+
+        Returns:
+            Mapping of user_id to ``True`` for MFA-enabled users
+            (users without MFA are absent).
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # Default implementation
@@ -1313,6 +1325,10 @@ class DefaultIdentityService:
     def get_identity_link_counts_for_users(self, user_ids: list[int]) -> dict[int, int]:
         """Return identity-link count per user ID in a single grouped query."""
         return auth_identity_link_service.get_identity_link_counts_for_users(user_ids, self._db)
+
+    def get_mfa_enabled_for_users(self, user_ids: list[int]) -> dict[int, bool]:
+        """Return MFA-enabled state per user ID in a single query."""
+        return auth_mfa_workflow.get_mfa_enabled_for_users(user_ids, self._db)
 
 
 # ---------------------------------------------------------------------------

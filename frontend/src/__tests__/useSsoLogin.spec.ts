@@ -4,17 +4,25 @@ import { useSsoLogin } from '@/features/auth/composables/useSsoLogin'
 
 const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, unknown> },
+  isAuthenticated: false,
   completeTokenLogin: vi.fn<(...args: unknown[]) => Promise<void>>(),
   navigateAfterLogin: vi.fn<(...args: unknown[]) => void>(),
   exchangeSessionForTokens: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  routerReplace: vi.fn<(...args: unknown[]) => Promise<void>>(),
 }))
 
 vi.mock('vue-router', () => ({
   useRoute: () => mocks.route,
+  useRouter: () => ({ replace: mocks.routerReplace }),
 }))
 
 vi.mock('@/features/auth/stores/auth', () => ({
-  useAuthStore: () => ({ completeTokenLogin: mocks.completeTokenLogin }),
+  useAuthStore: () => ({
+    completeTokenLogin: mocks.completeTokenLogin,
+    get isAuthenticated() {
+      return mocks.isAuthenticated
+    },
+  }),
 }))
 
 vi.mock('@/composables/useSafeRedirect', () => ({
@@ -58,6 +66,7 @@ const originalLocation = window.location
 
 beforeEach(() => {
   mocks.route.query = {}
+  mocks.isAuthenticated = false
   vi.clearAllMocks()
   sessionStorage.clear()
   // jsdom's window.location.assign isn't spyable; replace the whole location.
@@ -180,6 +189,42 @@ describe('processSsoCallback', () => {
     expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
     expect(JSON.parse(sessionStorage.getItem('pkce_verifier_beta') ?? '{}')).toMatchObject({
       verifier: 'verifier-beta',
+    })
+  })
+
+  describe('mobile app handoff (external_redirect)', () => {
+    it('forwards the session_id to the app scheme without touching the browser session', async () => {
+      mocks.route.query = {
+        sso: 'success',
+        session_id: 'sso-session',
+        external_redirect: 'true',
+        redirect: '/native-callback',
+      }
+
+      const { processSsoCallback } = useSsoLogin()
+      const result = await processSsoCallback()
+
+      expect(result).toEqual({ status: 'completed' })
+      expect(window.location.href).toBe('/native-callback?session_id=sso-session')
+      expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
+      expect(mocks.routerReplace).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the dashboard when the browser already has an authenticated session', async () => {
+      mocks.isAuthenticated = true
+      mocks.route.query = {
+        sso: 'success',
+        session_id: 'sso-session',
+        external_redirect: 'true',
+        redirect: '/native-callback',
+      }
+
+      const { processSsoCallback } = useSsoLogin()
+      const result = await processSsoCallback()
+
+      expect(result).toEqual({ status: 'completed' })
+      expect(window.location.href).toBe('/native-callback?session_id=sso-session')
+      expect(mocks.routerReplace).toHaveBeenCalledWith({ name: 'home' })
     })
   })
 })

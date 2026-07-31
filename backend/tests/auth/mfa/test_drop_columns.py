@@ -1,8 +1,6 @@
-"""Tests verifying the legacy MFA columns are absent from the ORM.
+"""Tests verifying MFA state lives solely in the ``users_mfa`` table.
 
 Verifies that:
-* ``Users.mfa_enabled`` reads from ``auth_mfa`` (the legacy
-  column is no longer present on the ORM).
 * ``update_user_mfa`` (now in ``modules.auth.mfa.crud``) writes ONLY
   to ``users_mfa``; the ``Users`` mock's attributes are never
   touched.
@@ -16,77 +14,6 @@ from unittest.mock import MagicMock, patch
 import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.models as auth_mfa_models
 import modules.users.users.models as users_models
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_user_with_mfa(enabled: bool = True) -> MagicMock:
-    """
-    Return a mock Users row wired with an auth_mfa sub-mock.
-
-    The ``mfa_enabled`` attribute on the mock is intentionally
-    NOT set — the real model serves it from the ``mfa_enabled``
-    property (which reads ``auth_mfa``).  We set
-    ``user.auth_mfa.mfa_enabled`` instead.
-    """
-    user = MagicMock(spec=users_models.Users)
-    user.id = 42
-    auth_mfa = MagicMock(spec=auth_mfa_models.UsersMFA)
-    auth_mfa.mfa_enabled = enabled
-    auth_mfa.mfa_secret = "enc_sec" if enabled else None
-    user.auth_mfa = auth_mfa
-    return user
-
-
-def _make_user_no_mfa_row() -> MagicMock:
-    """Return a mock Users row with no auth_mfa relationship row."""
-    user = MagicMock(spec=users_models.Users)
-    user.id = 7
-    user.auth_mfa = None
-    return user
-
-
-# ---------------------------------------------------------------------------
-# Users.mfa_enabled property
-# ---------------------------------------------------------------------------
-
-
-class TestUsersMFAEnabledProperty:
-    """``Users.mfa_enabled`` reads from ``auth_mfa``."""
-
-    def test_returns_true_when_auth_mfa_enabled(self):
-        """Property returns True when auth_mfa.mfa_enabled is True."""
-        user = MagicMock(spec=users_models.Users)
-        auth_mfa = MagicMock(spec=auth_mfa_models.UsersMFA)
-        auth_mfa.mfa_enabled = True
-        user.auth_mfa = auth_mfa
-
-        result = users_models.Users.mfa_enabled.fget(user)
-
-        assert result is True
-
-    def test_returns_false_when_auth_mfa_disabled(self):
-        """Property returns False when auth_mfa.mfa_enabled is False."""
-        user = MagicMock(spec=users_models.Users)
-        auth_mfa = MagicMock(spec=auth_mfa_models.UsersMFA)
-        auth_mfa.mfa_enabled = False
-        user.auth_mfa = auth_mfa
-
-        result = users_models.Users.mfa_enabled.fget(user)
-
-        assert result is False
-
-    def test_returns_false_when_auth_mfa_row_missing(self):
-        """Property returns False when auth_mfa relationship is None."""
-        user = MagicMock(spec=users_models.Users)
-        user.auth_mfa = None
-
-        result = users_models.Users.mfa_enabled.fget(user)
-
-        assert result is False
-
 
 # ---------------------------------------------------------------------------
 # update_user_mfa — single-write to users_mfa only

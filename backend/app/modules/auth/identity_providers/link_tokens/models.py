@@ -11,7 +11,6 @@ from core.database import Base
 
 if TYPE_CHECKING:
     from modules.auth.identity_providers.models import IdentityProvider
-    from modules.users.users.models import Users
 
 
 class IdpLinkToken(Base):
@@ -31,7 +30,6 @@ class IdpLinkToken(Base):
         expires_at: Hard expiry at 60 seconds from creation.
         used: Single-use flag to prevent replay attacks.
         ip_address: Client IP address for optional validation.
-        users: Relationship to Users model.
         identity_provider: Relationship to IdentityProvider model.
     """
 
@@ -93,8 +91,4 @@ class IdpLinkToken(Base):
     )
 
     # Relationships
-    users: Mapped["Users"] = relationship(
-        back_populates="idp_link_tokens",
-        foreign_keys=[user_id],
-    )
     identity_provider: Mapped["IdentityProvider"] = relationship(foreign_keys=[idp_id])

@@ -11,7 +11,6 @@ from core.database import Base
 
 if TYPE_CHECKING:
     from modules.auth.identity_providers.models import IdentityProvider
-    from modules.users.users.models import Users
 
 
 class IdentityLink(Base):
@@ -28,7 +27,6 @@ class IdentityLink(Base):
         idp_refresh_token: Encrypted refresh token.
         idp_access_token_expires_at: Access token expiry time.
         idp_refresh_token_updated_at: Refresh token update time.
-        user: Relationship to Users model.
         identity_providers: Relationship to IdentityProvider model.
     """
 
@@ -87,9 +85,6 @@ class IdentityLink(Base):
     )
 
     # Relationships
-    users: Mapped["Users"] = relationship(
-        back_populates="user_identity_providers",
-    )
     identity_providers: Mapped["IdentityProvider"] = relationship(
         back_populates="user_identity_providers",
     )

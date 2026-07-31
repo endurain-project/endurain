@@ -25,6 +25,7 @@ import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.mfa.backup_codes.crud as mfa_backup_codes_crud
 import modules.auth.mfa.backup_codes.schema as mfa_backup_codes_schema
+import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.service as mfa_service
 import modules.users.users.crud as users_crud
@@ -44,6 +45,14 @@ def get_mfa_status(
     """Return whether MFA is enabled for the user."""
     is_enabled = mfa_service.is_mfa_enabled_for_user(token_user_id, db)
     return mfa_schema.MFAStatusResponse(mfa_enabled=is_enabled)
+
+
+def get_mfa_enabled_for_users(
+    user_ids: list[int],
+    db: Session,
+) -> dict[int, bool]:
+    """Return MFA-enabled state per user ID in a single query."""
+    return mfa_crud.get_mfa_enabled_for_users(user_ids, db)
 
 
 def get_backup_code_status(
@@ -190,7 +199,7 @@ def generate_backup_codes(
             detail="User not found",
         )
 
-    if not user.mfa_enabled:
+    if not mfa_service.is_mfa_enabled_for_user(token_user_id, db):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="MFA must be enabled to generate backup codes",
