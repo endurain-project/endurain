@@ -43,6 +43,16 @@ _ROUTER_TOKEN_EXCEPTIONS = {
     "app/modules/activities/activity_media/public_router.py",
 }
 
+# Services that make no decision of their own: they declare what their child
+# collection is and hand the read to ``activity/child_collection``, which logs
+# the one decision there is (a refusal). A log line here would either duplicate
+# that or narrate a delegation.
+_DELEGATING_SERVICES = [
+    "app/modules/activities/activity_laps/service.py",
+    "app/modules/activities/activity_sets/service.py",
+    "app/modules/activities/activity_workout_steps/service.py",
+]
+
 
 def _log_calls(path: pathlib.Path) -> list[str]:
     """Return the log levels used in a module."""
@@ -97,4 +107,4 @@ class TestLoggingRule:
         """A silent service is one whose decisions are invisible in production."""
         silent = [str(p) for p in _modules_named("service") if not _log_calls(p)]
 
-        assert silent == []
+        assert silent == _DELEGATING_SERVICES

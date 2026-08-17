@@ -49,18 +49,17 @@ def get_activity_streams(
 @core_decorators.handle_db_errors
 def get_activities_streams(
     activity_ids: list[int],
-    _user_id: int,
     db: Session,
-    _activities: list[activity_models.Activity],
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """
     Get streams for multiple activities.
 
+    Performs no access check: which activities the caller may read is decided
+    before this is reached, by the activities integration service that owns them.
+
     Args:
-        activity_ids: List of activity IDs.
-        _user_id: Authenticated user ID.
+        activity_ids: The activities to read, already scoped to the caller.
         db: Database session.
-        _activities: Pre-fetched activity list.
 
     Returns:
         List of activity streams.
@@ -68,6 +67,8 @@ def get_activities_streams(
     Raises:
         ProcessingError: On database errors.
     """
+    if not activity_ids:
+        return []
     stmt = select(activity_streams_models.ActivityStreams).where(
         activity_streams_models.ActivityStreams.activity_id.in_(activity_ids)
     )

@@ -1,13 +1,10 @@
 """Activity laps CRUD operations."""
 
-from collections.abc import Sequence
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.models as activity_models
 import modules.activities.activity_laps.models as activity_laps_models
 import modules.activities.activity_laps.schema as activity_laps_schema
 
@@ -134,23 +131,21 @@ def count_activity_laps(activity_id: int, db: Session) -> int:
 @core_decorators.handle_db_errors
 def get_activities_laps(
     activity_ids: list[int],
-    token_user_id: int,
     db: Session,
-    prefetched_activities: list[activity_models.Activity] | None = None,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
     """
-    Retrieve laps for multiple activities.
+    Retrieve the laps of several activities at once.
+
+    Performs no access check and joins no parent row: which activities the
+    caller may read is decided before this is reached, by the activities
+    integration service that owns them.
 
     Args:
-        activity_ids: List of activity IDs.
-        token_user_id: The authenticated user ID.
+        activity_ids: The activities to read, already scoped to the caller.
         db: Database session.
-        prefetched_activities: Optional pre-fetched
-            activities (avoids a re-query when the
-            caller already has them in scope).
 
     Returns:
-        List of ActivityLapsRead schemas.
+        The laps of those activities, empty when there are none.
 
     Raises:
         ProcessingError: If database error occurs.
@@ -158,28 +153,10 @@ def get_activities_laps(
     if not activity_ids:
         return []
 
-    activities_list: Sequence[activity_models.Activity] | None = prefetched_activities
-    if not activities_list:
-        stmt = select(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids))
-        activities_list = db.scalars(stmt).all()
-
-    if not activities_list:
-        return []
-
-    allowed_ids = [activity.id for activity in activities_list if activity.user_id == token_user_id]
-
-    if not allowed_ids:
-        return []
-
-    laps_stmt = select(activity_laps_models.ActivityLaps).where(
-        activity_laps_models.ActivityLaps.activity_id.in_(allowed_ids)
+    stmt = select(activity_laps_models.ActivityLaps).where(
+        activity_laps_models.ActivityLaps.activity_id.in_(activity_ids)
     )
-    activity_laps = db.scalars(laps_stmt).all()
-
-    if not activity_laps:
-        return []
-
-    return [_to_read_schema(lap) for lap in activity_laps]
+    return [_to_read_schema(row) for row in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors

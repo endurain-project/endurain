@@ -355,7 +355,39 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
 # boundary, which is what the ``consumer-activities-boundary`` contract exists to
 # prevent for the parent. Routing them through here means the activities domain
 # owns which child operations are public, and a consumer keeps one import.
+#
+# Ownership is also decided here. Each child CRUD used to join the activities
+# table to filter "rows the caller owns" — four copies of an access rule in the
+# layer least likely to be reviewed for one, and they had already drifted (the
+# workout-steps copy also served rows whose ``hide_workout_sets_steps`` was
+# unset). The parent's owner is the parent package's fact, so this scopes the
+# ids once and hands the children a plain list.
 # ---------------------------------------------------------------------------
+
+
+def _owned_activity_ids(
+    activity_ids: list[int],
+    user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] | None,
+) -> list[int]:
+    """Narrow the requested ids to the ones the user actually owns.
+
+    Args:
+        activity_ids: The requested activity ids.
+        user_id: The owner the read is scoped to.
+        db: Database session.
+        activities: Activities the caller already holds, avoiding a re-query.
+
+    Returns:
+        The subset of ``activity_ids`` owned by ``user_id``.
+    """
+    if not activity_ids:
+        return []
+    if activities:
+        requested = set(activity_ids)
+        return [activity.id for activity in activities if activity.user_id == user_id and activity.id in requested]
+    return activities_crud.get_user_activity_ids(activity_ids, user_id, db)
 
 
 def list_activities_laps(
@@ -365,7 +397,7 @@ def list_activities_laps(
     activities: list[activities_schema.Activity] | None = None,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
     """Return the laps of many of a user's activities (profile export)."""
-    return activity_laps_crud.get_activities_laps(activity_ids, user_id, db, activities)
+    return activity_laps_crud.get_activities_laps(_owned_activity_ids(activity_ids, user_id, db, activities), db)
 
 
 def list_activities_sets(
@@ -375,7 +407,7 @@ def list_activities_sets(
     activities: list[activities_schema.Activity] | None = None,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """Return the workout sets of many of a user's activities (profile export)."""
-    return activity_sets_crud.get_activities_sets(activity_ids, user_id, db, activities)
+    return activity_sets_crud.get_activities_sets(_owned_activity_ids(activity_ids, user_id, db, activities), db)
 
 
 def list_activities_streams(
@@ -385,7 +417,7 @@ def list_activities_streams(
     activities: list[activities_schema.Activity] | None = None,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """Return the streams of many of a user's activities (profile export)."""
-    return activity_streams_crud.get_activities_streams(activity_ids, user_id, db, activities)
+    return activity_streams_crud.get_activities_streams(_owned_activity_ids(activity_ids, user_id, db, activities), db)
 
 
 def list_activities_workout_steps(
@@ -395,7 +427,9 @@ def list_activities_workout_steps(
     activities: list[activities_schema.Activity] | None = None,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """Return the workout steps of many of a user's activities (profile export)."""
-    return activity_workout_steps_crud.get_activities_workout_steps(activity_ids, user_id, db, activities)
+    return activity_workout_steps_crud.get_activities_workout_steps(
+        _owned_activity_ids(activity_ids, user_id, db, activities), db
+    )
 
 
 def list_exercise_titles(db: Session) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
@@ -409,12 +443,8 @@ def list_activities_media(
     db: Session,
     activities: list[activities_schema.Activity] | None = None,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
-    """Return the media records of many of a user's activities (profile export).
-
-    ``activities`` is accepted and ignored so every batch read in the export
-    shares one call shape; the media query resolves ownership itself.
-    """
-    return activity_media_crud.get_activities_media(activity_ids, user_id, db)
+    """Return the media records of many of a user's activities (profile export)."""
+    return activity_media_crud.get_activities_media(_owned_activity_ids(activity_ids, user_id, db, activities), db)
 
 
 def restore_activity_media(

@@ -1,10 +1,9 @@
 """Application-layer orchestration for activity laps.
 
-Sits between the thin route and :mod:`crud`, matching the layering the activities
-core uses. It owns the access decision — delegated to the shared
-:mod:`modules.activities.activity.child_access` gate — so ``crud`` is left with
-nothing but persistence, and so "who may read an activity's laps?" is answered in
-the layer a reviewer looks at rather than inline above a ``SELECT``.
+Declares *what* an activity's laps are — the parent flag that hides them and the
+two CRUD calls that read them — and delegates *how* the paged read runs to the
+shared :mod:`modules.activities.activity.child_collection` seam, which owns the
+access gate and the rule that a refusal and an empty collection answer alike.
 
 Reads are paginated. A lap count is not bounded by anything in the domain (a lap
 per kilometre over an ultra, or a lap button pressed all day), so the previous
@@ -14,21 +13,20 @@ could ask for.
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
 import core.pagination as core_pagination
-import modules.activities.activity.child_access as activity_child_access
+import modules.activities.activity.child_collection as activity_child_collection
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
 
-logger = core_logger.get_logger(__name__)
-
-# The parent activity flag that hides laps from a non-owner.
-_HIDE_ATTR = "hide_laps"
-
-
-def _empty_page(page_number: int, num_records: int) -> activity_laps_schema.ActivityLapsPage:
-    """Return an empty page — the answer to both "none" and "not allowed"."""
-    return activity_laps_schema.ActivityLapsPage.build([], 0, page_number, num_records)
+_COLLECTION: activity_child_collection.ChildCollection[activity_laps_schema.ActivityLapsPage] = (
+    activity_child_collection.ChildCollection(
+        name="laps",
+        hide_attr="hide_laps",
+        fetch=activity_laps_crud.get_activity_laps,
+        count=activity_laps_crud.count_activity_laps,
+        build=activity_laps_schema.ActivityLapsPage.build,
+    )
+)
 
 
 def list_activity_laps(
@@ -54,15 +52,13 @@ def list_activity_laps(
         indistinguishable, so the endpoint cannot be used to probe which
         activities exist.
     """
-    if not activity_child_access.may_read_child(activity_id, requester_user_id, db, hide_attr=_HIDE_ATTR):
-        logger.debug(
-            "Refused a laps read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
-        )
-        return _empty_page(page_number, num_records)
-    items = activity_laps_crud.get_activity_laps(activity_id, db, page_number=page_number, num_records=num_records)
-    total = activity_laps_crud.count_activity_laps(activity_id, db)
-    return activity_laps_schema.ActivityLapsPage.build(items, total, page_number, num_records)
+    return _COLLECTION.list_for_requester(
+        activity_id,
+        requester_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+    )
 
 
 def list_public_activity_laps(
@@ -84,12 +80,4 @@ def list_public_activity_laps(
         The page envelope, empty when the activity is not found, hidden, or not
         publicly visible.
     """
-    if not activity_child_access.may_read_public_child(activity_id, db, hide_attr=_HIDE_ATTR):
-        logger.debug(
-            "Refused a public laps read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return _empty_page(page_number, num_records)
-    items = activity_laps_crud.get_activity_laps(activity_id, db, page_number=page_number, num_records=num_records)
-    total = activity_laps_crud.count_activity_laps(activity_id, db)
-    return activity_laps_schema.ActivityLapsPage.build(items, total, page_number, num_records)
+    return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)

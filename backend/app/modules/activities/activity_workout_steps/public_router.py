@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -20,17 +20,15 @@ router = APIRouter()
 def read_public_activity_workout_steps_all(
     activity_id: int,
     db: Annotated[Session, Depends(core_database.get_db)],
-    page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
 ) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
     """Return one page of a publicly shared activity's workout steps.
 
     Args:
         activity_id: Activity primary key.
         db: Database session.
-        page_number: 1-based page number.
-        num_records: Page size, capped so one request cannot ask for an
-            unbounded number of rows.
+        page: Resolved paging window, capped so one request cannot ask for
+            an unbounded number of rows.
 
     Returns:
         The page envelope. Empty when public sharing is disabled, the activity is
@@ -39,6 +37,6 @@ def read_public_activity_workout_steps_all(
     return activity_workout_steps_service.list_public_activity_workout_steps(
         activity_id,
         db,
-        page_number=page_number or 1,
-        num_records=num_records or core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+        page_number=page.page_number,
+        num_records=page.num_records,
     )

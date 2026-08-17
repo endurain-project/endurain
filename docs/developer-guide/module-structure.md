@@ -163,6 +163,20 @@ root (`main.py`, `worker.py`) connects them. A registration performed in one
 entrypoint must be performed in the other — a provider or subscriber registered
 in the API but not the worker silently does nothing wherever its work is claimed.
 
+## Sharing a shape between sibling packages
+
+When several sub-packages are the same operation over different rows, the
+operation lives once in the owning package and each sibling *declares itself*
+rather than reimplementing it. `activity/child_collection.py` is the worked
+example: laps, sets and workout steps each state their hide flag, their two CRUD
+calls and their page type, and the shared seam runs the read — the access gate,
+the paging, and the rule that a refusal and an empty collection answer alike.
+
+The test for whether something belongs in such a seam is not "is this repeated?"
+but "would a divergence here be a bug?". Three copies of a docstring are
+harmless; three copies of an access decision are three chances to get it wrong,
+and two of the copies had already drifted before this was extracted.
+
 ## Enforcement
 
 Two mechanisms, deliberately:
@@ -215,8 +229,14 @@ the conformance test's allowlist.
 
 **Resolved.** `activity_thumbnail`, `activity_geocoding` and `activity_media` read
 the activity row and its streams through `activity.service` and
-`activity_streams.service`. `activity_summaries` still selects from the
-activities ORM, which is the read-model rule stated above rather than debt.
+`activity_streams.service`. The child CRUDs no longer join the activities table
+to filter rows by owner — the parent package scopes the ids and hands each child
+a plain list.
+
+Two reaches into `activity/` remain, both stated rather than deferred:
+`activity_streams.crud` joins the parent for `total_timer_time` (a column, not a
+permission), and `activity_summaries` projects the activities table, which is the
+read-model rule above.
 
 ### Provider cycle
 

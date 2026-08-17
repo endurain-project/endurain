@@ -119,56 +119,37 @@ class TestGetActivityStreams:
 
 
 class TestGetActivitiesStreams:
+    """The batch read no longer joins the parent: it is handed scoped ids."""
+
     @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
     def test_success(self, mock_transform, mock_db):
-        import modules.activities.activity.models as am
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
 
         mock_transform.return_value = [MagicMock()]
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1)
-        mock_stream = MagicMock(spec=m.ActivityStreams, id=1, activity_id=1)
-        mock_db.scalars.return_value.all.return_value = [mock_stream]
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[mock_activity])
-        assert len(r) == 1
+        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityStreams, id=1, activity_id=1)]
 
-    def test_empty_ids(self, mock_db):
+        assert len(crud.get_activities_streams(activity_ids=[1], db=mock_db)) == 1
+
+    def test_empty_ids_short_circuits(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
-        r = crud.get_activities_streams(activity_ids=[], _user_id=1, db=mock_db, _activities=[])
-        assert r == []
-
-    def test_no_activities(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[])
-        assert r == []
-
-    def test_no_allowed(self, mock_db):
-        import modules.activities.activity.models as am
-        import modules.activities.activity_streams.crud as crud
-
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=2)
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[mock_activity])
-        assert r == []
+        assert crud.get_activities_streams(activity_ids=[], db=mock_db) == []
+        mock_db.scalars.assert_not_called()
 
     def test_no_streams(self, mock_db):
-        import modules.activities.activity.models as am
         import modules.activities.activity_streams.crud as crud
 
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1)
         mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[mock_activity])
-        assert r == []
+
+        assert crud.get_activities_streams(activity_ids=[1], db=mock_db) == []
 
     def test_db_error(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[])
+            crud.get_activities_streams(activity_ids=[1], db=mock_db)
         assert e.value.status_code == 500
 
 

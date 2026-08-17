@@ -16,9 +16,11 @@ concrete component per resource.
 
 import base64
 import binascii
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Self
+from typing import Annotated, Self
 
+from fastapi import Query
 from pydantic import BaseModel
 
 import core.exceptions as core_exceptions
@@ -38,6 +40,43 @@ MAX_NUM_RECORDS = 200
 #: than a small window — the parameter exists to bound the response, not to make
 #: the common read a multi-page walk.
 DEFAULT_CHILD_NUM_RECORDS = MAX_NUM_RECORDS
+
+
+@dataclass(frozen=True)
+class PageParams:
+    """A request's resolved paging window.
+
+    Attributes:
+        page_number: 1-based page number.
+        num_records: Page size.
+    """
+
+    page_number: int
+    num_records: int
+
+
+def child_page_params(
+    page_number: Annotated[int | None, Query(ge=1)] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
+) -> PageParams:
+    """
+    Resolve the paging window for a child-collection route.
+
+    A FastAPI dependency rather than two parameters per handler: the bounds and
+    the "omitted means the default" rule were repeated verbatim in every child
+    router, which is how one of them ends up with a different cap.
+
+    Args:
+        page_number: Requested 1-based page, or None when omitted.
+        num_records: Requested page size, or None when omitted.
+
+    Returns:
+        The resolved window.
+
+    Raises:
+        None.
+    """
+    return PageParams(page_number or 1, num_records or DEFAULT_CHILD_NUM_RECORDS)
 
 
 class Page[ItemT](BaseModel):

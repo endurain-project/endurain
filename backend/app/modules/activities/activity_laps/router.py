@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -27,8 +27,7 @@ def read_activities_laps_for_activity_all(
     ],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-    page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
 ) -> activity_laps_schema.ActivityLapsPage:
     """
     Return one page of the given activity's laps, with the matching total.
@@ -39,9 +38,8 @@ def read_activities_laps_for_activity_all(
         token_user_id: Authenticated user id derived from the access
             token.
         db: Database session.
-        page_number: 1-based page number.
-        num_records: Page size, capped so one request cannot ask for an
-            unbounded number of rows.
+        page: Resolved paging window, capped so one request cannot ask for
+            an unbounded number of rows.
 
     Returns:
         The page envelope. Empty when the activity is hidden from the caller or
@@ -51,6 +49,6 @@ def read_activities_laps_for_activity_all(
         activity_id,
         token_user_id,
         db,
-        page_number=page_number or 1,
-        num_records=num_records or core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+        page_number=page.page_number,
+        num_records=page.num_records,
     )

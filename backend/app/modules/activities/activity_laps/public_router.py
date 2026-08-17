@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -20,8 +20,7 @@ router = APIRouter()
 def read_public_activities_laps_for_activity_all(
     activity_id: int,
     db: Annotated[Session, Depends(core_database.get_db)],
-    page_number: Annotated[int | None, Query(ge=1)] = None,
-    num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
 ) -> activity_laps_schema.ActivityLapsPage:
     """
     Return one page of public laps for an activity exposed via shareable link.
@@ -38,6 +37,6 @@ def read_public_activities_laps_for_activity_all(
     return activity_laps_service.list_public_activity_laps(
         activity_id,
         db,
-        page_number=page_number or 1,
-        num_records=num_records or core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+        page_number=page.page_number,
+        num_records=page.num_records,
     )

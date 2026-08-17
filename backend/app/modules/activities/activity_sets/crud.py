@@ -1,14 +1,11 @@
 """Activity sets CRUD operations."""
 
-from collections.abc import Sequence
-
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.models as activity_models
 import modules.activities.activity_sets.models as activity_sets_models
 import modules.activities.activity_sets.schema as activity_sets_schema
 
@@ -94,21 +91,21 @@ def count_activity_sets(activity_id: int, db: Session) -> int:
 @core_decorators.handle_db_errors
 def get_activities_sets(
     activity_ids: list[int],
-    token_user_id: int,
     db: Session,
-    activities: Sequence[activity_models.Activity] | None = None,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
     """
-    Retrieve sets for multiple activities.
+    Retrieve the workout sets of several activities at once.
+
+    Performs no access check and joins no parent row: which activities the
+    caller may read is decided before this is reached, by the activities
+    integration service that owns them.
 
     Args:
-        activity_ids: List of activity IDs.
-        token_user_id: The authenticated user ID.
+        activity_ids: The activities to read, already scoped to the caller.
         db: Database session.
-        activities: Optional pre-fetched activities.
 
     Returns:
-        List of ActivitySetsRead schemas.
+        The workout sets of those activities, empty when there are none.
 
     Raises:
         ProcessingError: If database error occurs.
@@ -116,27 +113,10 @@ def get_activities_sets(
     if not activity_ids:
         return []
 
-    if not activities:
-        stmt = select(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids))
-        activities = db.scalars(stmt).all()
-
-    if not activities:
-        return []
-
-    allowed_ids = [activity.id for activity in activities if activity.user_id == token_user_id]
-
-    if not allowed_ids:
-        return []
-
-    sets_stmt = select(activity_sets_models.ActivitySets).where(
-        activity_sets_models.ActivitySets.activity_id.in_(allowed_ids)
+    stmt = select(activity_sets_models.ActivitySets).where(
+        activity_sets_models.ActivitySets.activity_id.in_(activity_ids)
     )
-    activity_sets = db.scalars(sets_stmt).all()
-
-    if not activity_sets:
-        return []
-
-    return [_to_read_schema(s) for s in activity_sets]
+    return [_to_read_schema(row) for row in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors

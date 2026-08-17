@@ -454,6 +454,29 @@ forbidden_modules =
     modules.activities.activity.crud
     modules.activities.activity.child_access
 
+# One level up, the same rule for the SERVICES. Laps, sets and workout steps are
+# one read three times over — check the gate, page the rows, count them, wrap
+# them, and answer a refusal exactly like an empty collection. Each held its own
+# copy, ~98% identical after renaming the resource, and the copies had already
+# drifted. They now declare what they are (hide flag + CRUD pair + page type) and
+# hand the read to ``activity/child_collection``.
+# Forbidding the gate is what keeps that true: a service that cannot call
+# ``child_access`` cannot quietly grow a fourth copy of the read around it.
+# ``activity_streams.service`` is deliberately absent — its masking is per stream
+# *type* rather than one flag, so it resolves the parent and applies its own
+# filter, which is a different read rather than a copy of this one.
+[importlinter:contract:activities-child-collection-shared]
+name = Activity child services use the shared paginated read, not their own gate call
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_laps.service
+    modules.activities.activity_sets.service
+    modules.activities.activity_workout_steps.service
+forbidden_modules =
+    modules.activities.activity.child_access
+    modules.activities.activity.crud
+
 # The counterpart to consumer-activities-boundary, pointing the other way: the
 # activities module consumes users through the curated users integration service
 # (users/users/integration_service.py), never by reaching into the users CRUD or

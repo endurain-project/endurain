@@ -70,13 +70,21 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
         "*.models",
     ): "SQLAlchemy relationships share one registry, so a child table must name its parent. A foreign key, not a behavioural reach.",
     (
-        "*.crud",
+        "activity_streams.crud",
         "activity.models",
-    ): "Child rows are keyed by activity id and their access filter joins the parent table. Debt: the join belongs behind an activity-owned projection.",
+    ): "HR-zone scoring needs the parent's total_timer_time, a column rather than a permission — a data join, not an access check.",
+    (
+        "activity_summaries.crud",
+        "activity.query",
+    ): "A read model projects the table it summarizes, so it shares the SQL fragments that define how.",
     (
         "*.service",
         "activity.child_access",
     ): "The one shared gate deciding whether a caller may read an activity's children — deliberately not duplicated per child.",
+    (
+        "*.service",
+        "activity.child_collection",
+    ): "The one paginated child read — a child package declares what it is, this owns how the read runs.",
     (
         "activity_ingestion.pipeline",
         "*",

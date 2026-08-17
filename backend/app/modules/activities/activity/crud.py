@@ -1226,6 +1226,33 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
 
 
 @core_decorators.handle_db_errors
+def get_user_activity_ids(activity_ids: list[int], user_id: int, db: Session) -> list[int]:
+    """Return the subset of the given activity ids owned by the user.
+
+    The ownership half of a child-collection read, answered by the package that
+    owns the parent table so no child CRUD has to join it.
+
+    Args:
+        activity_ids: Candidate activity IDs.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The owned ids, in no particular order; empty when none match.
+
+    Raises:
+        ProcessingError: On database error.
+    """
+    if not activity_ids:
+        return []
+    stmt = select(activities_models.Activity.id).where(
+        activities_models.Activity.user_id == user_id,
+        activities_models.Activity.id.in_(activity_ids),
+    )
+    return list(db.scalars(stmt).all())
+
+
+@core_decorators.handle_db_errors
 def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
     """Get a user's activity by ID.
 

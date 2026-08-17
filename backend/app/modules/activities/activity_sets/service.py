@@ -1,31 +1,31 @@
 """Application-layer orchestration for activity workout sets.
 
-Sits between the thin route and :mod:`crud`, matching the layering the activities
-core uses. It owns the access decision — delegated to the shared
-:mod:`modules.activities.activity.child_access` gate — so ``crud`` is left with
-nothing but persistence.
+Declares *what* an activity's sets are — the parent flag that hides them and the
+two CRUD calls that read them — and delegates *how* the paged read runs to the
+shared :mod:`modules.activities.activity.child_collection` seam, which owns the
+access gate and the rule that a refusal and an empty collection answer alike.
 
-Reads are paginated: a strength session's set count has no domain ceiling, so the previous "return every row" read
-put no ceiling on the work or the payload one request could ask for.
+Reads are paginated: a strength session's set count has no domain ceiling, so the
+previous "return every row" read put no ceiling on the work or the payload one
+request could ask for.
 """
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
 import core.pagination as core_pagination
-import modules.activities.activity.child_access as activity_child_access
+import modules.activities.activity.child_collection as activity_child_collection
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 
-logger = core_logger.get_logger(__name__)
-
-# The parent activity flag that hides sets from a non-owner.
-_HIDE_ATTR = "hide_workout_sets_steps"
-
-
-def _page(items, total: int, page_number: int, num_records: int) -> activity_sets_schema.ActivitySetsPage:
-    """Assemble the page envelope."""
-    return activity_sets_schema.ActivitySetsPage.build(items, total, page_number, num_records)
+_COLLECTION: activity_child_collection.ChildCollection[activity_sets_schema.ActivitySetsPage] = (
+    activity_child_collection.ChildCollection(
+        name="workout sets",
+        hide_attr="hide_workout_sets_steps",
+        fetch=activity_sets_crud.get_activity_sets,
+        count=activity_sets_crud.count_activity_sets,
+        build=activity_sets_schema.ActivitySetsPage.build,
+    )
+)
 
 
 def list_activity_sets(
@@ -51,15 +51,13 @@ def list_activity_sets(
         indistinguishable, so the endpoint cannot be used to probe which
         activities exist.
     """
-    if not activity_child_access.may_read_child(activity_id, requester_user_id, db, hide_attr=_HIDE_ATTR):
-        logger.debug(
-            "Refused a workout sets read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
-        )
-        return _page([], 0, page_number, num_records)
-    items = activity_sets_crud.get_activity_sets(activity_id, db, page_number=page_number, num_records=num_records)
-    total = activity_sets_crud.count_activity_sets(activity_id, db)
-    return _page(items, total, page_number, num_records)
+    return _COLLECTION.list_for_requester(
+        activity_id,
+        requester_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+    )
 
 
 def list_public_activity_sets(
@@ -81,12 +79,4 @@ def list_public_activity_sets(
         The page envelope, empty when the activity is not found, hidden, or not
         publicly visible.
     """
-    if not activity_child_access.may_read_public_child(activity_id, db, hide_attr=_HIDE_ATTR):
-        logger.debug(
-            "Refused a public workout sets read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return _page([], 0, page_number, num_records)
-    items = activity_sets_crud.get_activity_sets(activity_id, db, page_number=page_number, num_records=num_records)
-    total = activity_sets_crud.count_activity_sets(activity_id, db)
-    return _page(items, total, page_number, num_records)
+    return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)
