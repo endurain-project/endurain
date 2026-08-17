@@ -30,9 +30,29 @@ import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
 import modules.followers.integration_service as followers_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
+
+
+def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
+    """Resolve whose followers-only activities the requester may see.
+
+    The cross-domain half of the visibility rule, answered here so the queries
+    below receive a plain list of ids. Persistence asking the followers module a
+    question mid-``SELECT`` is a service decision in the wrong layer.
+
+    Args:
+        requester_user_id: The authenticated caller, or ``None`` when anonymous.
+        db: Database session.
+
+    Returns:
+        The requester's accepted-followee user ids, empty when anonymous.
+    """
+    if requester_user_id is None:
+        return []
+    return followers_integration.list_accepted_followee_ids(requester_user_id, db)
 
 
 def get_activities_in_timeframe(
@@ -76,7 +96,7 @@ def get_activities_in_timeframe(
         end,
         db,
         False,
-        requester_user_id=requester_user_id,
+        followee_ids=_followees_of(requester_user_id, db),
     )
 
 
@@ -266,7 +286,7 @@ def list_user_activities_paginated(
         sort_by=sort_by,
         sort_order=sort_order,
         user_is_owner=(user_id == requester_user_id),
-        requester_user_id=requester_user_id,
+        followee_ids=_followees_of(requester_user_id, db),
     )
     logger.debug(
         "Listed paginated user activities",
@@ -354,7 +374,7 @@ def page_user_activities(
         end_date=end_date,
         name_search=name_search,
         user_is_owner=(user_id == requester_user_id),
-        requester_user_id=requester_user_id,
+        followee_ids=_followees_of(requester_user_id, db),
     )
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
 
@@ -454,7 +474,9 @@ def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activ
             caller — indistinguishable on purpose, so the endpoint cannot be used
             to enumerate activity ids.
     """
-    activity = activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, requester_user_id, db)
+    activity = activities_crud.get_activity_by_id_from_user_id_or_has_visibility(
+        activity_id, requester_user_id, db, _followees_of(requester_user_id, db)
+    )
     if activity is None:
         logger.debug(
             "Activity read resolved to nothing visible",
@@ -477,6 +499,8 @@ def get_public_activity(activity_id: int, db: Session) -> activities_schema.Acti
     Raises:
         NotFoundError: When the activity does not exist or is not public.
     """
+    if not server_settings_integration.public_shareable_links_enabled(db):
+        raise core_exceptions.NotFoundError("Activity not found")
     activity = activities_crud.get_activity_by_id_if_is_public(activity_id, db)
     if activity is None:
         raise core_exceptions.NotFoundError("Activity not found")

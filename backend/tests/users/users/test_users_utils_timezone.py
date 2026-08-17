@@ -12,7 +12,7 @@ class TestResolveUserTimezone:
         mock_get_user.return_value = MagicMock(timezone="America/Los_Angeles")
         assert users_utils.resolve_user_timezone(1, MagicMock()) == "America/Los_Angeles"
 
-    @patch("modules.users.users.utils.core_config")
+    @patch("modules.users.users.utils.core_timezone.core_config")
     @patch("modules.users.users.utils.users_crud.get_user_by_id")
     def test_falls_back_to_the_server_zone_when_unset(self, mock_get_user, mock_config):
         """Accounts predating the setting have none; the server default is all we have."""
@@ -20,7 +20,7 @@ class TestResolveUserTimezone:
         mock_config.settings.TZ = "Europe/Lisbon"
         assert users_utils.resolve_user_timezone(1, MagicMock()) == "Europe/Lisbon"
 
-    @patch("modules.users.users.utils.core_config")
+    @patch("modules.users.users.utils.core_timezone.core_config")
     @patch("modules.users.users.utils.users_crud.get_user_by_id")
     def test_falls_back_when_the_user_is_missing(self, mock_get_user, mock_config):
         mock_get_user.return_value = None

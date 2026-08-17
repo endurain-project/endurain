@@ -41,9 +41,13 @@ class TestGetActivitiesInTimeframe:
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.get_activities_in_timeframe(1, "s", "e", 2, db)
-        # Non-owner path: is_owner=False + requester scoping for the visibility mask.
-        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, False, requester_user_id=2)
+        with patch(
+            "modules.activities.activity.service.followers_integration.list_accepted_followee_ids",
+            return_value=[1],
+        ):
+            service.get_activities_in_timeframe(1, "s", "e", 2, db)
+        # Non-owner path: the service resolves the followees, the query filters on them.
+        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, False, followee_ids=[1])
 
 
 class TestPeriodStats:
@@ -78,24 +82,25 @@ class TestPeriodStats:
 
 
 class TestListUserActivitiesPaginated:
+    @patch("modules.activities.activity.service.followers_integration.list_accepted_followee_ids", return_value=[])
     @patch("modules.activities.activity.service.activities_crud")
-    def test_owner_scoping(self, mock_crud):
+    def test_owner_scoping(self, mock_crud, _mock_followers):
         from modules.activities.activity import service
 
         service.list_user_activities_paginated(1, 1, 1, 10, MagicMock(), activity_type=2)
         kwargs = mock_crud.get_user_activities_with_pagination.call_args.kwargs
         assert kwargs["user_is_owner"] is True
-        assert kwargs["requester_user_id"] == 1
         assert kwargs["activity_type"] == 2
 
+    @patch("modules.activities.activity.service.followers_integration.list_accepted_followee_ids", return_value=[9])
     @patch("modules.activities.activity.service.activities_crud")
-    def test_non_owner_scoping(self, mock_crud):
+    def test_non_owner_scoping(self, mock_crud, _mock_followers):
         from modules.activities.activity import service
 
         service.list_user_activities_paginated(1, 2, 1, 10, MagicMock())
         kwargs = mock_crud.get_user_activities_with_pagination.call_args.kwargs
         assert kwargs["user_is_owner"] is False
-        assert kwargs["requester_user_id"] == 2
+        assert kwargs["followee_ids"] == [9]
 
 
 class TestPeriodBounds:

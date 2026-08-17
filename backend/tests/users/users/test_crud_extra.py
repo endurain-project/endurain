@@ -973,7 +973,7 @@ class TestEditProfileUser:
 
         with (
             patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("modules.activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
+            patch("modules.activities.activity_streams.service.recompute_hr_zones_for_user") as mock_recompute,
         ):
             mock_db.refresh.side_effect = lambda x: setattr(mock_db_user, "max_heart_rate", 190)
 
@@ -999,7 +999,7 @@ class TestEditProfileUser:
 
         with (
             patch("modules.users.users.crud._get_user_model_by_id_or_404", return_value=mock_db_user),
-            patch("modules.activities.activity_streams.crud.recompute_hr_zone_percentages_for_user") as mock_recompute,
+            patch("modules.activities.activity_streams.service.recompute_hr_zones_for_user") as mock_recompute,
         ):
             result = await edit_profile_user(1, mock_profile, mock_db)
 

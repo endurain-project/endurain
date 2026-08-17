@@ -15,30 +15,30 @@ def _event(payload):
 class TestOnActivityCreatedComputeHrZones:
     """The bus wrapper: computes HR zones, swallowing any error."""
 
-    @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
-    def test_noop_for_non_int_ids(self, mock_crud):
+    @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
+    def test_noop_for_non_int_ids(self, mock_service):
         from modules.activities.activity_streams.subscribers import on_activity_created_compute_hr_zones
 
         on_activity_created_compute_hr_zones(_event({"activity_id": "x", "user_id": 2}))
 
-        mock_crud.compute_and_store_hr_zone_percentages_for_activity.assert_not_called()
+        mock_service.score_activity_hr_zones.assert_not_called()
 
     @patch("modules.activities.activity_streams.subscribers.core_database")
-    @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
-    def test_computes_for_activity(self, mock_crud, mock_db):
+    @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
+    def test_computes_for_activity(self, mock_service, mock_db):
         from modules.activities.activity_streams.subscribers import on_activity_created_compute_hr_zones
 
         on_activity_created_compute_hr_zones(_event({"activity_id": 1, "user_id": 2}))
 
-        assert mock_crud.compute_and_store_hr_zone_percentages_for_activity.call_args.args[:2] == (1, 2)
+        assert mock_service.score_activity_hr_zones.call_args.args[:2] == (1, 2)
 
     @patch("infra.subscribers.logger")
     @patch("modules.activities.activity_streams.subscribers.core_database")
-    @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
-    def test_swallows_errors(self, mock_crud, mock_db, mock_logger):
+    @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
+    def test_swallows_errors(self, mock_service, mock_db, mock_logger):
         from modules.activities.activity_streams.subscribers import on_activity_created_compute_hr_zones
 
-        mock_crud.compute_and_store_hr_zone_percentages_for_activity.side_effect = RuntimeError("boom")
+        mock_service.score_activity_hr_zones.side_effect = RuntimeError("boom")
 
         # Must not raise — an HR-zone failure never breaks activity import.
         on_activity_created_compute_hr_zones(_event({"activity_id": 1, "user_id": 2}))
@@ -60,21 +60,21 @@ class TestOnActivityCreatedComputeHrZones:
 class TestComputeHrZonesForEvent:
     """The durable core: propagates errors so the job runner can retry."""
 
-    @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
-    def test_raises_on_missing_ids(self, mock_crud):
+    @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
+    def test_raises_on_missing_ids(self, mock_service):
         from modules.activities.activity_streams.subscribers import compute_hr_zones_for_event
 
         with pytest.raises(ValidationError):
             compute_hr_zones_for_event(_event({"activity_id": 1}))
 
-        mock_crud.compute_and_store_hr_zone_percentages_for_activity.assert_not_called()
+        mock_service.score_activity_hr_zones.assert_not_called()
 
     @patch("modules.activities.activity_streams.subscribers.core_database")
-    @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
-    def test_raises_on_error(self, mock_crud, mock_db):
+    @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
+    def test_raises_on_error(self, mock_service, mock_db):
         from modules.activities.activity_streams.subscribers import compute_hr_zones_for_event
 
-        mock_crud.compute_and_store_hr_zone_percentages_for_activity.side_effect = RuntimeError("boom")
+        mock_service.score_activity_hr_zones.side_effect = RuntimeError("boom")
 
         with pytest.raises(RuntimeError):
             compute_hr_zones_for_event(_event({"activity_id": 1, "user_id": 2}))
@@ -116,16 +116,16 @@ class TestRunMissingHrZoneBackfill:
 
     @patch("modules.activities.activity_streams.subscribers.logger")
     @patch("modules.activities.activity_streams.subscribers.core_database")
-    @patch("modules.activities.activity_streams.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
     @patch("modules.activities.activity_streams.subscribers.platform_runtime")
-    def test_runs_backfill_when_acquired(self, mock_runtime, mock_crud, mock_db, mock_logger):
+    def test_runs_backfill_when_acquired(self, mock_runtime, mock_service, mock_db, mock_logger):
         from modules.activities.activity_streams.subscribers import run_missing_hr_zone_backfill
 
         lock_cm = MagicMock()
         lock_cm.__enter__.return_value = True
         mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value = lock_cm
-        mock_crud.backfill_missing_hr_zone_percentages.return_value = 3
+        mock_service.backfill_missing_hr_zones.return_value = 3
 
         run_missing_hr_zone_backfill()
 
-        mock_crud.backfill_missing_hr_zone_percentages.assert_called_once()
+        mock_service.backfill_missing_hr_zones.assert_called_once()

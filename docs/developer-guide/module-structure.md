@@ -238,13 +238,16 @@ is recorded as an `ignore_imports` entry rather than assumed.
 
 ### Persistence layers calling other modules
 
-`activity.crud` resolves the requester's accepted followees (through the
-followers integration service) while building a visibility condition, and
-`activity_streams.crud` loads the owner to compute HR zones. Both use the correct
-*surface*, so no module boundary is crossed — but a `SELECT` that must first ask
-another bounded context a question is a service decision wearing a persistence
-layer's clothes. Fixing it means threading the resolved values in as parameters,
-across roughly fifteen CRUD functions and their callers.
+**Resolved for activities.** No `crud`, `query`, `serializers` or `utils` file in
+the module asks another bounded context a question. The values those queries need
+are resolved by the layer above and passed in: `followee_ids` on the visibility
+filter, the shareable-links policy in `activity.service` / `activity.child_access`,
+and the max-heart-rate lookup in `activity_streams.service`. Enforced by the
+`activities-persistence-asks-nothing` contract.
+
+The other modules still do it — `health.*.crud` reaching `users.users.utils`,
+`notifications.utils` reaching `users` and `websocket`, and so on. Each is fixed
+as its module is converted.
 
 ### Migration → internals
 

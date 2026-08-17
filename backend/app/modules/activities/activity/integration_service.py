@@ -44,6 +44,7 @@ import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_streams.service as activity_streams_service
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
@@ -479,7 +480,7 @@ def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
     Returns:
         None.
     """
-    activity_streams_crud.recompute_hr_zone_percentages_for_user(user_id, db)
+    activity_streams_service.recompute_hr_zones_for_user(user_id, db)
 
 
 # ---------------------------------------------------------------------------

@@ -38,8 +38,6 @@ import modules.activities.activity.models as activities_models
 import modules.activities.activity.query as activities_query
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
-import modules.followers.integration_service as followers_integration
-import modules.server_settings.integration_service as server_settings_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -72,7 +70,7 @@ def _is_not_live_strava_api_activity():
     return activities_models.Activity.strava_activity_id.is_(None)
 
 
-def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
+def _visible_to_requester_condition(followee_ids: Sequence[int] | None):
     """Build the non-owner activity visibility condition.
 
     Live Strava API data is owner-only under the Strava API Policy, regardless
@@ -80,26 +78,27 @@ def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     the user does not populate ``strava_activity_id`` and remains governed by
     the normal visibility rules.
 
+    Takes the requester's accepted followees already resolved, rather than a
+    user id plus a session: answering "who does this person follow?" is a
+    question for another bounded context, and a ``SELECT`` that has to ask it
+    first is a service decision wearing a persistence layer's clothes.
+
     Args:
-        requester_user_id: Requesting user ID, or None for an
-            anonymous/public-only read.
-        db: Database session, used to resolve the requester's accepted
-            followees through the followers service interface.
+        followee_ids: The requester's accepted-followee user ids, or ``None``
+            for an anonymous/public-only read.
 
     Returns:
         SQLAlchemy condition limiting rows to public or accepted
         follower-visible activities.
     """
     visibility_conditions = [activities_models.Activity.visibility == 0]
-    if requester_user_id is not None:
-        followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-        if followee_ids:
-            visibility_conditions.append(
-                and_(
-                    activities_models.Activity.visibility == 1,
-                    activities_models.Activity.user_id.in_(followee_ids),
-                )
+    if followee_ids:
+        visibility_conditions.append(
+            and_(
+                activities_models.Activity.visibility == 1,
+                activities_models.Activity.user_id.in_(followee_ids),
             )
+        )
 
     return and_(
         activities_models.Activity.is_hidden.is_(False),
@@ -112,8 +111,7 @@ def _apply_activity_visibility_filter(
     stmt,
     *,
     user_is_owner: bool,
-    requester_user_id: int | None,
-    db: Session,
+    followee_ids: Sequence[int] | None,
 ):
     """Apply non-owner visibility filtering to an activity query.
 
@@ -121,9 +119,8 @@ def _apply_activity_visibility_filter(
         stmt: SQLAlchemy select statement.
         user_is_owner: Whether the requester owns all candidate
             rows.
-        requester_user_id: Requesting user ID for follower checks.
-        db: Database session, used to resolve the requester's accepted
-            followees through the followers service interface.
+        followee_ids: The requester's accepted-followee user ids, resolved by
+            the caller.
 
     Returns:
         The original statement for owner reads, otherwise a
@@ -131,7 +128,7 @@ def _apply_activity_visibility_filter(
     """
     if user_is_owner:
         return stmt
-    return stmt.where(_visible_to_requester_condition(requester_user_id, db))
+    return stmt.where(_visible_to_requester_condition(followee_ids))
 
 
 def _transform_schema_activity_to_model_activity(
@@ -336,7 +333,7 @@ def get_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool = True,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get activities owned by a user (with optional filters).
 
@@ -349,8 +346,8 @@ def get_user_activities(
         name_search: Optional case-insensitive name search.
         user_is_owner: When False, private (visibility=2) and
             hidden activities are excluded from the result.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when no matches.
@@ -362,8 +359,7 @@ def get_user_activities(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     if activity_type:
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -393,7 +389,7 @@ def count_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool = True,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> int:
     """Count activities owned by a user (with optional filters).
 
@@ -409,8 +405,8 @@ def count_user_activities(
         name_search: Optional case-insensitive name search.
         user_is_owner: When False, private (visibility=2) and
             hidden activities are excluded from the count.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         Number of matching activities.
@@ -426,8 +422,7 @@ def count_user_activities(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     if activity_type:
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -486,7 +481,7 @@ def get_user_activities_with_pagination(
     sort_by: str | None = None,
     sort_order: str | None = None,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get a page of user activities with filters and sorting.
 
@@ -503,8 +498,8 @@ def get_user_activities_with_pagination(
         sort_order: ``asc`` or ``desc``.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when empty.
@@ -518,8 +513,7 @@ def get_user_activities_with_pagination(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     if activity_type:
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -594,7 +588,7 @@ def get_user_activities_per_timeframe(
     end: datetime,
     db: Session,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get a user's activities within a date range.
 
@@ -605,8 +599,8 @@ def get_user_activities_per_timeframe(
         db: Database session.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when empty.
@@ -625,8 +619,7 @@ def get_user_activities_per_timeframe(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     activities = db.execute(stmt).scalars().all()
     if not activities:
@@ -646,7 +639,7 @@ def get_user_activities_per_timeframe_and_activity_type(
     end: datetime,
     db: Session,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get a user's activities within a date range by type.
 
@@ -658,8 +651,8 @@ def get_user_activities_per_timeframe_and_activity_type(
         db: Database session.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when empty.
@@ -679,8 +672,7 @@ def get_user_activities_per_timeframe_and_activity_type(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     activities = db.execute(stmt).scalars().all()
     if not activities:
@@ -700,7 +692,7 @@ def get_user_activities_per_timeframe_and_activity_types(
     end: datetime,
     db: Session,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
     exclude_hidden: bool = False,
 ) -> list[activities_schema.Activity]:
     """Get a user's activities within a date range by types.
@@ -713,8 +705,8 @@ def get_user_activities_per_timeframe_and_activity_types(
         db: Database session.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
         exclude_hidden: When True, hidden activities are excluded
             even for owner requests.
 
@@ -738,8 +730,7 @@ def get_user_activities_per_timeframe_and_activity_types(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     activities = db.execute(stmt).scalars().all()
     if not activities:
@@ -993,7 +984,7 @@ def sum_gear_usage_by_window(
 
 @core_decorators.handle_db_errors
 def get_activity_by_id_from_user_id_or_has_visibility(
-    activity_id: int, user_id: int, db: Session
+    activity_id: int, user_id: int, db: Session, followee_ids: Sequence[int] | None = None
 ) -> activities_schema.Activity | None:
     """Get an activity by ID if owned or visible to the user.
 
@@ -1001,6 +992,8 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         activity_id: Activity ID.
         user_id: Requesting user ID.
         db: Database session.
+        followee_ids: The requester's accepted-followee user ids, resolved by
+            the caller.
 
     Returns:
         Activity schema or None if not found / not visible.
@@ -1011,7 +1004,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     stmt = select(activities_models.Activity).where(
         or_(
             activities_models.Activity.user_id == user_id,
-            _visible_to_requester_condition(user_id, db),
+            _visible_to_requester_condition(followee_ids),
         ),
         activities_models.Activity.id == activity_id,
     )
@@ -1026,7 +1019,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 
 @core_decorators.handle_db_errors
 def get_viewable_activity_by_id_for_user(
-    activity_id: int, user_id: int, db: Session
+    activity_id: int, user_id: int, db: Session, followee_ids: Sequence[int] | None = None
 ) -> activities_schema.Activity | None:
     """Return an activity (unmasked) iff the user may view it — child-resource authz gate.
 
@@ -1047,6 +1040,8 @@ def get_viewable_activity_by_id_for_user(
         activity_id: Activity ID.
         user_id: Requesting user ID.
         db: Database session.
+        followee_ids: The requester's accepted-followee user ids, resolved by
+            the caller.
 
     Returns:
         The activity schema when the user may view it, otherwise ``None``.
@@ -1057,7 +1052,7 @@ def get_viewable_activity_by_id_for_user(
     stmt = select(activities_models.Activity).where(
         or_(
             activities_models.Activity.user_id == user_id,
-            _visible_to_requester_condition(user_id, db),
+            _visible_to_requester_condition(followee_ids),
         ),
         activities_models.Activity.id == activity_id,
     )
@@ -1071,6 +1066,10 @@ def get_viewable_activity_by_id_for_user(
 def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities_schema.Activity | None:
     """Get an activity by ID if it is publicly shareable.
 
+    Answers only the row-level question. Whether the server allows public
+    shareable links at all is a policy the caller checks first — asking another
+    module mid-``SELECT`` is a service decision, not a persistence one.
+
     Args:
         activity_id: Activity ID.
         db: Database session.
@@ -1081,9 +1080,6 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
     Raises:
         ProcessingError: On database error.
     """
-    if not server_settings_integration.public_shareable_links_enabled(db):
-        return None
-
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.visibility == 0,
         activities_models.Activity.is_hidden.is_(False),
@@ -1111,9 +1107,9 @@ def get_public_activity_for_child_read(
     child rows are served anonymously:
 
     1. The activity itself is publicly shareable — delegated to
-       :func:`get_activity_by_id_if_is_public`, which enforces the server-wide
-       ``public_shareable_links`` setting, ``visibility == 0`` **and**
-       ``is_hidden is False``.
+       :func:`get_activity_by_id_if_is_public`, which enforces ``visibility == 0``
+       **and** ``is_hidden is False``. The server-wide ``public_shareable_links``
+       setting is checked by the caller, before this is reached.
     2. The per-activity privacy flag guarding this particular child resource
        (e.g. ``hide_laps``, ``hide_workout_sets_steps``) is not set.
 

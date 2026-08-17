@@ -1,6 +1,7 @@
 """CRUD operations for activity stream data."""
 
 from sqlalchemy import select
+from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
@@ -8,10 +9,10 @@ import core.logger as core_logger
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_streams.utils as activity_streams_utils
-import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -187,93 +188,162 @@ def backfill_zone_percentages_for_missing_hr_streams(
         )
 
 
-def _get_user_hr_streams_batch(
-    user_id: int,
-    db: Session,
-    after_id: int = 0,
-    batch_size: int = 500,
-) -> list[tuple[activity_streams_models.ActivityStreams, float | None]]:
-    """
-    Fetch a user's HR streams paired with their activity timer time.
+def _hr_stream_query(after_id: int, batch_size: int):
+    """Build the id-ordered batch query behind every HR-zone scoring read.
 
     Args:
-        user_id: The user whose HR streams should be fetched.
-        db: Database session.
         after_id: Return only streams with an id greater than this.
         batch_size: Maximum number of streams to return.
 
     Returns:
-        List of (HR stream, activity total_timer_time) tuples ordered
-        by stream id.
+        The select statement, without its caller-specific filters.
     """
-    stmt = (
+    return (
         select(
             activity_streams_models.ActivityStreams,
             activity_models.Activity.total_timer_time,
+            activity_models.Activity.user_id,
         )
         .join(
             activity_models.Activity,
             activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
         )
         .where(
-            activity_models.Activity.user_id == user_id,
             activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
             activity_streams_models.ActivityStreams.id > after_id,
         )
         .order_by(activity_streams_models.ActivityStreams.id)
         .limit(batch_size)
     )
-    return [(row[0], row[1]) for row in db.execute(stmt).all()]
 
 
-def recompute_hr_zone_percentages_for_user(user_id: int, db: Session) -> None:
+def _to_scoring_dto(row) -> activity_streams_contracts.HrStreamForScoring:
+    """Project one ``(stream, total_timer_time, owner_id)`` row into a DTO."""
+    stream, total_timer_time, owner_id = row
+    return activity_streams_contracts.HrStreamForScoring(
+        stream_id=stream.id,
+        activity_id=stream.activity_id,
+        owner_id=owner_id,
+        waypoints=stream.stream_waypoints or [],
+        total_timer_time=total_timer_time,
+    )
+
+
+@core_decorators.handle_db_errors
+def list_user_hr_streams(
+    user_id: int,
+    db: Session,
+    *,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[activity_streams_contracts.HrStreamForScoring]:
     """
-    Recompute stored HR zone_percentages for a user's HR streams.
-
-    Called after the user's max heart rate or birthdate changes so
-    activities imported earlier reflect the new zones. Errors are
-    logged and swallowed so a recompute problem never fails the
-    originating user edit.
+    Return a batch of one user's HR streams, ready for zone scoring.
 
     Args:
-        user_id: The user whose HR streams should be refreshed.
+        user_id: The owner whose HR streams to read.
+        db: Database session.
+        after_id: Return only streams with an id greater than this.
+        batch_size: Maximum number of streams to return.
+
+    Returns:
+        The batch, id-ordered; empty when there are no more.
+
+    Raises:
+        ProcessingError: On database error.
+    """
+    stmt = _hr_stream_query(after_id, batch_size).where(activity_models.Activity.user_id == user_id)
+    return [_to_scoring_dto(row) for row in db.execute(stmt).all()]
+
+
+@core_decorators.handle_db_errors
+def list_hr_streams_missing_zones(
+    db: Session,
+    *,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[activity_streams_contracts.HrStreamForScoring]:
+    """
+    Return a batch of HR streams that carry no zone breakdown yet.
+
+    Args:
+        db: Database session.
+        after_id: Return only streams with an id greater than this.
+        batch_size: Maximum number of streams to return.
+
+    Returns:
+        The batch, id-ordered; empty when there are no more.
+
+    Raises:
+        ProcessingError: On database error.
+    """
+    stmt = _hr_stream_query(after_id, batch_size).where(
+        activity_streams_models.ActivityStreams.zone_percentages.is_(None)
+    )
+    return [_to_scoring_dto(row) for row in db.execute(stmt).all()]
+
+
+@core_decorators.handle_db_errors
+def get_activity_hr_stream(
+    activity_id: int,
+    db: Session,
+) -> activity_streams_contracts.HrStreamForScoring | None:
+    """
+    Return one activity's HR stream, ready for zone scoring.
+
+    Args:
+        activity_id: The activity whose HR stream to read.
+        db: Database session.
+
+    Returns:
+        The stream, or None when the activity recorded no heart rate.
+
+    Raises:
+        ProcessingError: On database error.
+    """
+    stmt = (
+        select(
+            activity_streams_models.ActivityStreams,
+            activity_models.Activity.total_timer_time,
+            activity_models.Activity.user_id,
+        )
+        .join(
+            activity_models.Activity,
+            activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
+        )
+        .where(
+            activity_streams_models.ActivityStreams.activity_id == activity_id,
+            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
+        )
+    )
+    row = db.execute(stmt).first()
+    return _to_scoring_dto(row) if row is not None else None
+
+
+@core_decorators.handle_db_errors
+def set_zone_percentages(zones_by_stream_id: dict[int, dict | None], db: Session) -> None:
+    """
+    Store the computed HR zone breakdown against each stream.
+
+    Args:
+        zones_by_stream_id: Stream id -> breakdown, or None to clear it.
         db: Database session.
 
     Returns:
         None.
+
+    Raises:
+        ProcessingError: On database error.
     """
-    try:
-        user = users_integration_service.get_user(user_id, db)
-        if user is None:
-            return
-
-        max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
-
-        last_id = 0
-        while True:
-            batch = _get_user_hr_streams_batch(user_id, db, after_id=last_id)
-            if not batch:
-                break
-
-            for stream, total_timer_time in batch:
-                hr_block: dict | None = None
-                if max_heart_rate:
-                    hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
-                        stream.stream_waypoints,
-                        max_heart_rate,
-                        total_timer_time,
-                    )
-                stream.zone_percentages = {"hr": hr_block} if hr_block else None
-
-            last_id = batch[-1][0].id
-            db.commit()
-    except Exception as err:
-        db.rollback()
-        logger.error(
-            "Failed to recompute HR zone percentages for user",
-            exc_info=err,
-            extra=core_logger.context(console=True, user_id=user_id),
+    if not zones_by_stream_id:
+        return
+    for stream_id, zones in zones_by_stream_id.items():
+        db.execute(
+            sa_update(activity_streams_models.ActivityStreams)
+            .where(activity_streams_models.ActivityStreams.id == stream_id)
+            .values(zone_percentages=zones)
         )
+    db.commit()
 
 
 @core_decorators.handle_db_errors
@@ -323,111 +393,3 @@ def create_activity_streams(
             db.commit()
         else:
             db.flush()
-
-
-def compute_and_store_hr_zone_percentages_for_activity(activity_id: int, user_id: int, db: Session) -> None:
-    """Compute and store HR ``zone_percentages`` for one activity's HR stream.
-
-    The per-activity counterpart of :func:`recompute_hr_zone_percentages_for_user`,
-    driven by the ``activity.created`` subscriber so HR-zone scoring stays off the
-    synchronous ingestion path. No-ops when the owner has no resolvable max heart
-    rate or the activity has no HR stream. Raises on database error so the durable
-    handler can retry.
-
-    Args:
-        activity_id: The activity whose HR stream should be scored.
-        user_id: The owning user (for the max-heart-rate lookup).
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    user = users_integration_service.get_user(user_id, db)
-    if user is None:
-        return
-    max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
-    if not max_heart_rate:
-        return
-
-    row = db.execute(
-        select(
-            activity_streams_models.ActivityStreams,
-            activity_models.Activity.total_timer_time,
-        )
-        .join(
-            activity_models.Activity,
-            activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
-        )
-        .where(
-            activity_streams_models.ActivityStreams.activity_id == activity_id,
-            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
-        )
-    ).first()
-    if row is None:
-        return
-
-    stream, total_timer_time = row[0], row[1]
-    hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
-        stream.stream_waypoints,
-        max_heart_rate,
-        total_timer_time,
-    )
-    stream.zone_percentages = {"hr": hr_block} if hr_block else None
-    db.commit()
-
-
-def backfill_missing_hr_zone_percentages(db: Session, batch_size: int = 500) -> int:
-    """Score HR streams that are missing ``zone_percentages`` (reconciliation net).
-
-    The scheduled safety net for the ``activity.created`` HR-zone subscriber: scans
-    HR streams with ``NULL`` ``zone_percentages`` in id-ordered batches, resolves
-    each owner's max heart rate (cached per run), and stores the computed zones.
-    Streams whose owner has no resolvable max HR are left untouched.
-
-    Args:
-        db: Database session.
-        batch_size: Number of streams to score per batch.
-
-    Returns:
-        The number of streams updated.
-    """
-    updated = 0
-    max_hr_cache: dict[int, int | None] = {}
-    last_id = 0
-    while True:
-        rows = db.execute(
-            select(
-                activity_streams_models.ActivityStreams,
-                activity_models.Activity.total_timer_time,
-                activity_models.Activity.user_id,
-            )
-            .join(
-                activity_models.Activity,
-                activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
-            )
-            .where(
-                activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
-                activity_streams_models.ActivityStreams.zone_percentages.is_(None),
-                activity_streams_models.ActivityStreams.id > last_id,
-            )
-            .order_by(activity_streams_models.ActivityStreams.id)
-            .limit(batch_size)
-        ).all()
-        if not rows:
-            break
-        for stream, total_timer_time, owner_id in rows:
-            if owner_id not in max_hr_cache:
-                owner = users_integration_service.get_user(owner_id, db)
-                max_hr_cache[owner_id] = activity_streams_utils.resolve_max_heart_rate(owner) if owner else None
-            max_hr = max_hr_cache[owner_id]
-            if not max_hr:
-                continue
-            hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
-                stream.stream_waypoints, max_hr, total_timer_time
-            )
-            if hr_block:
-                stream.zone_percentages = {"hr": hr_block}
-                updated += 1
-        last_id = rows[-1][0].id
-        db.commit()
-    return updated

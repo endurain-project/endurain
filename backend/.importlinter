@@ -186,6 +186,37 @@ source_modules =
 forbidden_modules =
     modules.activities.activity_file_import
 
+# The activities persistence layer answers with rows, never by asking another
+# bounded context a question first. ``activity.crud`` used to resolve the
+# requester's accepted followees (followers module) while building a visibility
+# condition, read the server-wide shareable-links policy (server_settings) mid
+# -``SELECT``, and ``activity_streams.crud`` loaded each owner (users) to scale
+# HR zones — a service decision wearing a persistence layer's clothes, and three
+# reasons a query could not be reasoned about, tested, or reused without three
+# other modules present.
+#
+# Those values are now resolved by the layer above and passed in: ``followee_ids``
+# on the visibility filter, the policy check in ``activity.service`` /
+# ``activity.child_access``, and the HR-zone loop in ``activity_streams.service``.
+# Schemas stay allowed — a shape is not a question.
+[importlinter:contract:activities-persistence-asks-nothing]
+name = Activities persistence must not call another module
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.*.crud
+    modules.activities.activity.query
+    modules.activities.activity.serializers
+    modules.activities.*.utils
+forbidden_modules =
+    modules.users.users.integration_service
+    modules.followers.integration_service
+    modules.server_settings.integration_service
+    modules.notifications.integration_service
+    modules.websocket.integration_service
+    modules.gears
+    modules.auth
+
 # The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
 # db, privacy, gear, provider, or exercise-title-crud coupling. Every bit
 # of domain resolution they used to do inline (default/Garmin gear, privacy defaults,

@@ -4,6 +4,8 @@ from datetime import date, datetime, timedelta
 from typing import overload
 from zoneinfo import ZoneInfo
 
+import core.config as core_config
+
 # ISO 8601 datetime format without offset, used for the
 # naive UTC wall-clock strings persisted by file parsers.
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -15,6 +17,22 @@ _DT_FMT = "%Y-%m-%dT%H:%M:%S"
 #: exclude a row the exact local-time predicate would keep, and bounding "is this
 #: plausibly the caller's current year?" checks.
 MAX_UTC_OFFSET = timedelta(hours=14)
+
+
+def or_default(tz_name: str | None) -> str:
+    """Return the given IANA timezone, or the server's configured default.
+
+    The fallback is a fact about the *server* (``settings.TZ``), so it belongs
+    here rather than in whichever domain module happens to hold a nullable
+    timezone column.
+
+    Args:
+        tz_name: An IANA timezone name, or None.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return tz_name or core_config.settings.TZ
 
 
 def today_in(tz_name: str) -> date:
