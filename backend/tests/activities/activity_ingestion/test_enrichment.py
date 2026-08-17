@@ -41,7 +41,7 @@ class TestBuildActivityPrivacyKwargs:
 
 class TestResolveGearId:
     @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
-    def test_default_gear_when_not_garmin(self, mock_users):
+    def test_default_gear_when_the_source_resolved_none(self, mock_users):
         mock_users.get_default_gear_for_activity_type.return_value = 42
 
         assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock()) == 42
@@ -52,38 +52,18 @@ class TestResolveGearId:
         assert enrichment.resolve_gear_id(None, user_id=7, db=MagicMock()) is None
         mock_users.get_default_gear_for_activity_type.assert_not_called()
 
-    @patch("modules.activities.activity_ingestion.enrichment.gears_crud")
-    @patch("modules.activities.activity_ingestion.enrichment.garmin_utils")
     @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
-    def test_garmin_gear_preferred(self, mock_users, mock_garmin, mock_gears):
-        mock_garmin.fetch_user_integrations_and_validate_token.return_value = SimpleNamespace(
-            garminconnect_sync_gear=True
-        )
-        mock_gears.get_gear_by_garminconnect_id_from_user_id.return_value = SimpleNamespace(id=99)
-
-        result = enrichment.resolve_gear_id(
-            1, user_id=7, db=MagicMock(), from_garmin=True, garminconnect_gear=[{"uuid": "abc"}]
-        )
-
-        assert result == 99
-        # Garmin gear resolved -> default-gear lookup is not consulted.
+    def test_the_sources_gear_wins(self, mock_users):
+        # The provider resolved its own synced gear; ingestion does not re-derive
+        # it, which is what keeps this seam free of any provider import.
+        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock(), provider_gear_id=99) == 99
         mock_users.get_default_gear_for_activity_type.assert_not_called()
 
-    @patch("modules.activities.activity_ingestion.enrichment.gears_crud")
-    @patch("modules.activities.activity_ingestion.enrichment.garmin_utils")
     @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
-    def test_garmin_falls_back_to_default_when_sync_off(self, mock_users, mock_garmin, mock_gears):
-        mock_garmin.fetch_user_integrations_and_validate_token.return_value = SimpleNamespace(
-            garminconnect_sync_gear=False
-        )
+    def test_falls_back_to_default_when_the_source_resolved_nothing(self, mock_users):
         mock_users.get_default_gear_for_activity_type.return_value = 5
 
-        result = enrichment.resolve_gear_id(
-            1, user_id=7, db=MagicMock(), from_garmin=True, garminconnect_gear=[{"uuid": "abc"}]
-        )
-
-        assert result == 5
-        mock_gears.get_gear_by_garminconnect_id_from_user_id.assert_not_called()
+        assert enrichment.resolve_gear_id(1, user_id=7, db=MagicMock(), provider_gear_id=None) == 5
 
 
 class TestEnrichParsedActivity:
@@ -103,14 +83,9 @@ class TestEnrichParsedActivity:
         # Non-Garmin import leaves the provider ids untouched.
         assert not hasattr(activity, "garminconnect_activity_id")
 
-    @patch("modules.activities.activity_ingestion.enrichment.gears_crud")
-    @patch("modules.activities.activity_ingestion.enrichment.garmin_utils")
     @patch("modules.activities.activity_ingestion.enrichment.users_integration_service")
-    def test_sets_garmin_ids_when_from_garmin(self, mock_users, mock_garmin, mock_gears):
+    def test_sets_garmin_ids_when_from_garmin(self, mock_users):
         mock_users.default_visibility_to_int.return_value = 0
-        mock_garmin.fetch_user_integrations_and_validate_token.return_value = SimpleNamespace(
-            garminconnect_sync_gear=False
-        )
         mock_users.get_default_gear_for_activity_type.return_value = None
         activity = SimpleNamespace(activity_type=1)
 
@@ -120,7 +95,7 @@ class TestEnrichParsedActivity:
             user_privacy_settings=_privacy_settings(),
             db=MagicMock(),
             from_garmin=True,
-            garminconnect_gear=[{"uuid": "xyz"}],
+            garminconnect_gear_id="xyz",
             garmin_connect_activity_id=555,
         )
 

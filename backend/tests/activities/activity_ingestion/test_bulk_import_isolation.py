@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import core.config as core_config
 import modules.activities.activity_ingestion.bulk_import_service as bulk_import_service
 import modules.activities.activity_ingestion.sources as sources
+import modules.strava.bulk_import_source as strava_bulk_import_source
 
 
 class TestBulkImportDirResolution:
@@ -28,7 +29,7 @@ class TestBulkImportSourceErrorDirectory:
         assert source.error_directory == core_config.bulk_import_error_dir_for(7)
 
     def test_a_strava_export_keeps_its_own_directory(self):
-        source = sources.BulkImportSource(import_initiated_time="2026", user_id=7, strava_activities={"a.fit": {}})
+        source = strava_bulk_import_source.StravaBulkImportSource(import_initiated_time="2026", user_id=7)
         assert source.error_directory == core_config.STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR
 
     def test_falls_back_to_the_shared_directory_without_an_owner(self):

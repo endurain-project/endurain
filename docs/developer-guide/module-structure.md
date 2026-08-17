@@ -43,6 +43,7 @@ file named `crud.py` is treated as persistence wherever it appears.
 | `event_publishers.py` | application | Publishes this package's domain events. |
 | `subscribers.py` | application | Handles events. Registered from `subscriber_registry`. |
 | `integration_service.py` | **module surface** | The curated set of operations other modules may call. |
+| `scheduled_jobs.py` | **module surface** | The module's recurring jobs, collected by the composition root. |
 
 Anything else (`utils.py`, `signing.py`, `render.py`, `pipeline.py`, …) is
 package-private by default.
@@ -63,6 +64,7 @@ Three classes. This is the whole rule.
 | `dependencies.py` | FastAPI DI, mounted at the HTTP boundary. |
 | `router.py` / `public_router.py` | Mounted by `app/api.py` and nothing else. |
 | `subscriber_registry.py` | Event wiring, called by `main.py` and `worker.py`. |
+| `scheduled_jobs.py` | The module's recurring and one-shot background work, collected by `main.py`. |
 
 ### 2. Module-internal — importable by sibling sub-packages, not by other modules
 
@@ -123,8 +125,26 @@ Downward only. `crud` never calls `service`; `service` never touches `models`.
   `core.exceptions`; the app's error handler maps those to responses.
 
 The dependency direction is fixed: `core` and `infra` must never import `modules`.
-A module publishes its scheduled work and its subscribers; the platform *collects*
-them. It is never the platform's job to know a module exists.
+A module publishes its scheduled work (`scheduled_jobs.py`), its subscribers
+(`subscriber_registry.py`) and its plug-ins; the platform *collects* them. It is
+never the platform's job to know a module exists.
+
+## Inverting a platform-to-domain reach
+
+When the platform appears to need something from a module, the module registers
+it rather than the platform importing it. Three worked examples live in the tree:
+
+| Reach | Inversion |
+| --- | --- |
+| The scheduler needed each module's recurring jobs | Each module declares `scheduled_jobs.recurring_jobs()`; `main.py` collects and hands the list to `start_scheduler`. |
+| Ingestion needed to pull from Strava and Garmin | Providers register a fetch callable on `activity_ingestion.provider_registry`; the refresh path names no provider. |
+| Bulk import needed Strava-export semantics | `BulkImportSource` is a base class; `modules.strava.bulk_import_source.StravaBulkImportSource` subclasses it. |
+
+The shape is always the same: the lower layer owns the *seam* (a registry, a base
+class, a protocol), the higher layer owns the *implementation*, and a composition
+root (`main.py`, `worker.py`) connects them. A registration performed in one
+entrypoint must be performed in the other — a provider or subscriber registered
+in the API but not the worker silently does nothing wherever its work is claimed.
 
 ## Enforcement
 
@@ -162,9 +182,11 @@ test fails on anything not listed.
    before — an empty surface is worse than no surface.
 4. `subscriber_registry.py` if the module has subscribers; register it in both
    `main.py` **and** `worker.py`.
-5. Add the module to the source lists of the cross-module contracts in
+5. `scheduled_jobs.py` if the module has recurring work; add it to the list
+   `main.py` hands to `start_scheduler`.
+6. Add the module to the source lists of the cross-module contracts in
    `backend/.importlinter`.
-6. Add it to `_CONVERTED` in `backend/tests/architecture/test_module_boundaries.py`
+7. Add it to `_CONVERTED` in `backend/tests/architecture/test_module_boundaries.py`
    and in `backend/tests/test_logging_rule.py`.
 
 ## Known debt
@@ -185,19 +207,21 @@ read-projection seam per owning package.
 
 ### Provider cycle
 
-`activity_ingestion` imports `modules.strava` and `modules.garmin`
-(`refresh_entry`, `sources`), while both import back into
-`activity.ingestion_service` and `activity_ingestion.bulk_entry`. Activities
-cannot be extracted while this cycle exists. The fix is a provider port owned by
-activities, with Strava and Garmin registering implementations at startup.
+**Resolved.** `activity_ingestion` no longer imports `modules.strava` or
+`modules.garmin`; the `activities-provider-agnostic` contract forbids the whole
+module from doing so. Providers register on `provider_registry`, subclass
+`BulkImportSource`, and resolve their own synced gear before handing a file to
+ingestion.
 
 ### Platform → domain inversion
 
-`core/scheduler.py` imports `modules.activities`, `modules.auth`, `modules.strava`
-and `modules.garmin` to enumerate recurring jobs. `core` sits below `modules`, so
-this is upside down and there is no contract stopping it (`platform-not-domain`
-covers `infra`, not `core`). The fix is a per-module `scheduled_jobs.py` the
-scheduler collects.
+**Resolved for the scheduler.** `core/scheduler.py` schedules what it is handed
+and imports no module; the `core-not-domain` contract enforces it.
+
+One exception remains: `core/i18n` derives its supported-locale set from the
+users module's `Language` enum. That is backwards — i18n owns which translation
+bundles exist — and the enum should derive from `core.i18n`, not the reverse. It
+is recorded as an `ignore_imports` entry rather than assumed.
 
 ### Migration → internals
 
@@ -214,3 +238,9 @@ is recorded rather than assumed.
 `activity_media.service`; `strava.activity_utils` reaches
 `activity_file_import.computation`. Profile export/import needs a wide slice of
 the activities module, but "wide" is not "private".
+
+The provider modules also reach `activity_ingestion.bulk_entry` and
+`activity_ingestion.sources` to feed files in. That is the *correct* direction
+(provider depends on activities) but not yet a published surface — the ingestion
+entry point should be named on the module's surface rather than reached for by
+path.

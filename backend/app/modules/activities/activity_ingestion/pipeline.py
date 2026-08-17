@@ -246,10 +246,11 @@ def store_activities_from_file(
             db=db,
             from_garmin=garmin_source is not None,
             # Read through the narrowed source rather than a separate boolean:
-            # only ``GarminSource`` has ``gear``, and a plain ``from_garmin``
+            # only ``GarminSource`` carries gear, and a plain ``from_garmin``
             # flag left that unprovable (and one refactor away from an
             # AttributeError on the other two source types).
-            garminconnect_gear=garmin_source.gear if garmin_source else None,
+            provider_gear_id=garmin_source.gear_id if garmin_source else None,
+            garminconnect_gear_id=garmin_source.provider_gear_id if garmin_source else None,
             garmin_connect_activity_id=garmin_activity_id,
         )
 

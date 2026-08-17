@@ -35,6 +35,7 @@ _PUBLIC_ACROSS_MODULES = _PUBLIC_WITHIN_MODULE | frozenset(
     {
         "integration_service",
         "subscriber_registry",
+        "scheduled_jobs",
         "dependencies",
         "router",
         "public_router",
@@ -81,6 +82,10 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
         "subscriber_registry",
         "activity_thumbnail.service",
     ): "Declares the thumbnail subscriber's reconciliation backfill alongside the subscriber it nets.",
+    (
+        "scheduled_jobs",
+        "*",
+    ): "The module's scheduled-work surface; naming the callables it schedules is the whole point of the file.",
     # --- Debt: derived subsystems reading another package's persistence -----
     (
         "activity_thumbnail.*",
@@ -120,22 +125,6 @@ _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
         "*",
     ): "Data migrations are pinned to the schema of their era; routing them through a surface that evolves would break them.",
     (
-        "core.scheduler",
-        "activity_geocoding.subscribers",
-    ): "DEBT: platform -> domain inversion. The scheduler enumerates each module's recurring jobs instead of collecting them.",
-    (
-        "core.scheduler",
-        "activity_streams.subscribers",
-    ): "DEBT: platform -> domain inversion. The scheduler enumerates each module's recurring jobs instead of collecting them.",
-    (
-        "core.scheduler",
-        "activity_thumbnail.service",
-    ): "DEBT: platform -> domain inversion. The scheduler enumerates each module's recurring jobs instead of collecting them.",
-    (
-        "core.scheduler",
-        "activity_ingestion.ingestion_jobs",
-    ): "DEBT: platform -> domain inversion. The scheduler enumerates each module's recurring jobs instead of collecting them.",
-    (
         "main",
         "activity_ingestion.background",
     ): "Entrypoint wiring: the background executor is started and drained with the app lifespan.",
@@ -146,11 +135,11 @@ _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
     (
         "modules.strava.*",
         "activity_ingestion.*",
-    ): "DEBT: provider cycle. Providers drive bulk import while ingestion imports them back.",
+    ): "Providers feed files to the ingestion entry point. Correct direction; not yet a published surface.",
     (
         "modules.garmin.*",
         "activity_ingestion.*",
-    ): "DEBT: provider cycle. Providers drive bulk import while ingestion imports them back.",
+    ): "Providers feed files to the ingestion entry point. Correct direction; not yet a published surface.",
     (
         "modules.strava.*",
         "activity_file_import.computation",

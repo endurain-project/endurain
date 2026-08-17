@@ -36,18 +36,24 @@ import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
 import modules.activities.activity_ingestion.background as activity_ingestion_background
+import modules.activities.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.subscriber_registry as activity_subscriber_registry
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
+import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
 import modules.followers.subscribers as followers_subscribers
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.garmin.health_utils as garmin_health_utils
+import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.utils as server_settings_utils
 import modules.strava.activity_utils as strava_activity_utils
+import modules.strava.provider_registry as strava_provider_registry
+import modules.strava.scheduled_jobs as strava_scheduled_jobs
 import modules.strava.utils as strava_utils
 from api import router as api_router
 from core.database import SessionLocal
@@ -144,7 +150,7 @@ def _generate_missing_thumbnails() -> None:
     block lifespan startup and delay the server from accepting
     connections.
     """
-    core_scheduler.schedule_missing_thumbnail_generation()
+    activity_scheduled_jobs.schedule_missing_thumbnail_generation()
 
 
 def _backfill_missing_hr_zones() -> None:
@@ -154,7 +160,7 @@ def _backfill_missing_hr_zones() -> None:
     for the activity.created HR-zone subscriber) instead of running the backfill
     inline, so it cannot block lifespan startup.
     """
-    core_scheduler.schedule_missing_hr_zone_backfill()
+    activity_scheduled_jobs.schedule_missing_hr_zone_backfill()
 
 
 def _backfill_missing_locations() -> None:
@@ -164,7 +170,7 @@ def _backfill_missing_locations() -> None:
     for the activity.created geocoding subscriber) instead of running the
     network-bound backfill inline, so it cannot block lifespan startup.
     """
-    core_scheduler.schedule_missing_location_backfill()
+    activity_scheduled_jobs.schedule_missing_location_backfill()
 
 
 def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
@@ -283,6 +289,10 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
     followers_subscribers.register_follower_notification_subscribers(platform.events)
     followers_subscribers.register_follower_notification_durable_handlers(jobs_registry.registry)
+    # Providers register themselves with ingestion; ingestion imports none of
+    # them. Must also happen in worker.py, where refresh jobs are claimed.
+    strava_provider_registry.register_activity_provider()
+    garmin_provider_registry.register_activity_provider()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -291,7 +301,17 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
     await core_migrations.check_migrations()
-    core_scheduler.start_scheduler()
+    # The composition root collects each module's own declaration; the scheduler
+    # knows how to schedule, never what.
+    core_scheduler.start_scheduler(
+        [
+            *core_scheduler.platform_jobs(),
+            *auth_scheduled_jobs.recurring_jobs(),
+            *activity_scheduled_jobs.recurring_jobs(),
+            *strava_scheduled_jobs.recurring_jobs(),
+            *garmin_scheduled_jobs.recurring_jobs(),
+        ]
+    )
 
     # Durable job processing (opt-in). Start the in-process worker that drains
     # processing_jobs and register the outbox relay + lease reaper on the

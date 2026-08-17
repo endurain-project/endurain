@@ -50,34 +50,6 @@ class TestDoesActivityStartTimeMatchTheCsv:
         )
 
 
-class TestApplyBulkImportMetadata:
-    def test_csv_values_take_precedence_over_the_parsed_file(self):
-        activity = _activity("2023-10-21T07:41:47")
-
-        bulk_import_utils.apply_bulk_import_metadata(
-            activity,
-            {
-                "name": "Morning Ride",
-                "description": "Felt good",
-                "gear_id": 4,
-                "import_dict": {"import_ISO_time": "2026-07-21T00:00:00"},
-            },
-        )
-
-        assert activity.name == "Morning Ride"
-        assert activity.description == "Felt good"
-        assert activity.gear_id == 4
-        assert activity.import_info == {"import_ISO_time": "2026-07-21T00:00:00"}
-
-    def test_absent_metadata_leaves_the_parsed_values_alone(self):
-        activity = _activity("2023-10-21T07:41:47")
-
-        bulk_import_utils.apply_bulk_import_metadata(activity, {})
-
-        assert activity.name == "Workout"
-        assert activity.gear_id is None
-
-
 class _MockGear:
     def __init__(self, gear_id: int, brand: str | None, model: str | None, nickname: str):
         self.id = gear_id

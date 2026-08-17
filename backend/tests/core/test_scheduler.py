@@ -38,7 +38,22 @@ class TestStartScheduler:
             start_scheduler()
             mock_scheduler.start.assert_not_called()
 
-    def test_adds_all_recurring_jobs(self):
+    def test_registers_every_job_it_is_handed(self):
+        with (
+            patch("core.scheduler.scheduler") as mock_scheduler,
+            patch("core.scheduler.add_scheduler_job") as mock_add_job,
+        ):
+            mock_scheduler.running = False
+            from core.scheduler import ScheduledJob, start_scheduler
+
+            def dummy():
+                pass
+
+            start_scheduler([ScheduledJob(dummy, 5, "a"), ScheduledJob(dummy, 10, "b")])
+            assert mock_add_job.call_count == 2
+
+    def test_registers_nothing_when_handed_nothing(self):
+        """The scheduler owns no domain job list of its own."""
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
             patch("core.scheduler.add_scheduler_job") as mock_add_job,
@@ -47,29 +62,16 @@ class TestStartScheduler:
             from core.scheduler import start_scheduler
 
             start_scheduler()
-            assert mock_add_job.call_count == 17
+            mock_add_job.assert_not_called()
 
-    def test_idp_link_token_cleanup_job_registered(self):
-        """IdP link token cleanup must be registered with a 5-minute interval."""
-        import modules.auth.identity_providers.link_tokens.utils as idp_link_tokens_utils
-
-        with (
-            patch("core.scheduler.scheduler") as mock_scheduler,
-            patch("core.scheduler.add_scheduler_job") as mock_add_job,
-        ):
-            mock_scheduler.running = False
+    def test_queues_the_one_shot_retention_prune(self):
+        with patch("core.scheduler.scheduler") as mock_scheduler:
+            mock_scheduler.running = True
+            import infra.retention as platform_retention
             from core.scheduler import start_scheduler
 
             start_scheduler()
-
-        calls = [(call.args[0], call.args[1], call.args[2], call.args[4]) for call in mock_add_job.call_args_list]
-        assert any(
-            func is idp_link_tokens_utils.delete_idp_link_expired_tokens_from_db
-            and trigger == "interval"
-            and minutes == 5
-            and "idp link token" in description.lower()
-            for func, trigger, minutes, description in calls
-        ), "IdP link token cleanup job not found or mis-configured"
+            assert mock_scheduler.add_job.call_args.args[0] is platform_retention.prune_expired_records
 
 
 class TestAddSchedulerJob:

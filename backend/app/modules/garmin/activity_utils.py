@@ -11,6 +11,7 @@ import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
 import modules.activities.activity_ingestion.sources as ingestion_sources
+import modules.garmin.gear_utils as garmin_gear_utils
 import modules.garmin.utils as garmin_utils
 import modules.notifications.utils as notifications_utils
 import modules.users.users.crud as users_crud
@@ -141,7 +142,14 @@ async def fetch_and_process_activities_by_dates(
                 token_user_id=user_id,
                 file_path=str(full_file_path),
                 db=db,
-                source=ingestion_sources.GarminSource(gear=activity_gear, activity_name=activity_name),
+                source=ingestion_sources.GarminSource(
+                    # Resolved here rather than inside ingestion: which local gear
+                    # a Garmin UUID maps to (and whether gear sync is even on) is
+                    # this module's knowledge, not the pipeline's.
+                    gear_id=garmin_gear_utils.resolve_synced_gear_id(user_id, activity_gear, db),
+                    provider_gear_id=activity_gear[0]["uuid"] if activity_gear else None,
+                    activity_name=activity_name,
+                ),
             )
             if parsed_result:
                 parsed_activities.extend(parsed_result)

@@ -99,15 +99,18 @@ class TestReconciliationNetInvariant:
             assert has_backfill != has_reason, net.subscriber_id
 
     def test_declared_backfills_are_scheduled(self):
-        # Drive start_scheduler with a fake scheduler that records every registered
-        # job function, then assert each declared reconciliation backfill is wired
-        # (declared-but-not-scheduled would be a silent, undetectable net).
+        # Drive start_scheduler with the activities module's own job declaration
+        # and a fake scheduler that records every registered job function, then
+        # assert each declared reconciliation backfill is wired (declared-but-not-
+        # scheduled would be a silent, undetectable net).
+        import modules.activities.scheduled_jobs as activity_scheduled_jobs
+
         scheduled_funcs: set[object] = set()
         fake_scheduler = MagicMock()
         fake_scheduler.running = True  # skip scheduler.start()
         fake_scheduler.add_job.side_effect = lambda func, *args, **kwargs: scheduled_funcs.add(func)
         with patch.object(core_scheduler, "scheduler", fake_scheduler):
-            core_scheduler.start_scheduler()
+            core_scheduler.start_scheduler(activity_scheduled_jobs.recurring_jobs())
 
         nets_with_backfill = [
             net for net in activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS if net.backfill

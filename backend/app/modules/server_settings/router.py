@@ -16,7 +16,7 @@ import core.config as core_config
 import core.database as core_database
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
-import core.scheduler as core_scheduler
+import modules.activities.scheduled_jobs as activity_scheduled_jobs
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
@@ -126,7 +126,7 @@ def edit_server_settings(
     changed_fields = set(server_settings_attributes.model_dump(exclude_unset=True).keys())
     if server_settings_updated.tileserver_regenerate_thumbnails_on_change and (changed_fields & _map_fields):
         logger.info("Tile server settings changed with regeneration enabled — scheduling thumbnail regeneration")
-        core_scheduler.schedule_thumbnail_regeneration()
+        activity_scheduled_jobs.schedule_thumbnail_regeneration()
 
     return server_settings_updated
 

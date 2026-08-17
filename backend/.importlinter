@@ -63,6 +63,30 @@ source_modules =
 forbidden_modules =
     modules
 
+# The same rule one layer up, for ``core``. ``core.scheduler`` used to import
+# four activities internals plus auth, Strava and Garmin in order to enumerate
+# their recurring jobs — the platform reaching up into the domain to ask what
+# work exists. Each module now declares its own ``scheduled_jobs``, and the
+# composition root (``main``) hands the collected list to ``start_scheduler``.
+# Two exceptions remain, both reads of a domain SCHEMA (a data shape) rather
+# than behaviour, and both recorded here so they are reviewed rather than
+# assumed: ``core.middleware`` types the server settings it stamps onto the
+# request, and ``core.i18n`` derives its supported-locale set from the users
+# ``Language`` enum (lazily, to avoid a circular import). The i18n one is
+# genuinely backwards — i18n owns which translation bundles exist — and is
+# tracked in docs/developer-guide/module-structure.md.
+[importlinter:contract:core-not-domain]
+name = Core must not import domain modules
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    core
+forbidden_modules =
+    modules
+ignore_imports =
+    core.middleware -> modules.server_settings.schema
+    core.i18n -> modules.users.users.schema
+
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis
 type = forbidden
@@ -92,46 +116,75 @@ layers =
     providers
     events
 
-# The activities core (activity/) is parsing- AND provider-agnostic: it exposes the typed
-# ParsedActivity contract + ingestion_service.store_parsed_activity, but never imports a
-# file parser or a provider (Strava/Garmin) client. All format/provider knowledge lives in
-# the sibling activity_ingestion/ package, which produces the contract and calls the core.
-# The provider live-refresh route was relocated there too,
-# so the core no longer needs any Strava/Garmin import — the boundary is now the whole
-# provider packages, not just the bulk-import glue. Direct imports only
-# (allow_indirect_imports): the rule is that the core must not reach for a parser/provider
-# directly, not that it must avoid transitive shared dependencies.
+# The whole activities module is provider-agnostic, not just its core. Strava and
+# Garmin depend on activities — they parse a provider payload and hand it to the
+# ingestion seam — and activities used to depend on them right back:
+# ``activity_ingestion.refresh_entry`` imported both provider clients,
+# ``sources`` imported the Strava bulk-import helpers, and ``enrichment``
+# imported Garmin to resolve synced gear. That cycle meant neither side could be
+# built, tested or extracted without the other.
+#
+# The direction is now one-way, via three seams activities owns and providers
+# plug into:
+#   * ``activity_ingestion.provider_registry`` — a provider registers a fetch
+#     callable at startup; the refresh path names no provider.
+#   * ``activity_ingestion.sources.BulkImportSource`` — a provider export
+#     subclasses it (``modules.strava.bulk_import_source``) instead of the base
+#     class branching on ``strava_activities``.
+#   * ``GarminSource.gear_id`` — the provider resolves its own synced gear and
+#     passes the id, so enrichment only answers "and if not, what is the default?".
+#
+# This contract replaces the narrower ``activities-parsing-boundary`` and
+# ``ingestion-pipeline-provider-agnostic`` provider clauses: stating it over the
+# whole module means a new sub-package inherits it instead of having to be added
+# to a list.
+[importlinter:contract:activities-provider-agnostic]
+name = The activities module must not import a provider — providers register with it
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities
+forbidden_modules =
+    modules.strava
+    modules.garmin
+
+# The activities core (activity/) is parsing-agnostic: it exposes the typed
+# ParsedActivity contract + ingestion_service.store_parsed_activity, but never
+# imports a file parser. All format knowledge lives in the sibling
+# activity_ingestion/ package, which produces the contract and calls the core.
+# Direct imports only (allow_indirect_imports): the rule is that the core must
+# not reach for a parser directly, not that it must avoid transitive shared
+# dependencies. The provider half of this boundary is now the module-wide
+# ``activities-provider-agnostic`` contract above.
 [importlinter:contract:activities-parsing-boundary]
-name = Activities core must not import file parsers or Strava/Garmin provider clients
+name = Activities core must not import file parsers
 type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.activities.activity
 forbidden_modules =
     modules.activities.activity_file_import
-    modules.strava
-    modules.garmin
 
 # The ingestion PIPELINE is provider-agnostic, the same way it is already
 # format-agnostic. It owns "validate -> parse -> enrich -> store -> retain" and nothing
-# about where a file came from: the Strava-export specifics (which duplicate listings to
+# about where a file came from: the export specifics (which duplicate listings to
 # skip, what metadata to apply, the sidecar photos) are answered by the sources object it
-# is handed. It used to call ``strava_bulk_import_utils`` directly for two of those, which
-# meant the one module that must not branch on provider held two provider branches.
-# ``sources.py`` is deliberately NOT in scope here: describing what a Strava bulk import
-# is *is* its job, and it is the seam that keeps the knowledge in one place.
-[importlinter:contract:ingestion-pipeline-provider-agnostic]
-name = The ingestion pipeline must not import provider clients — sources own provider specifics
+# is handed. ``sources.py`` is deliberately NOT in scope here: defining the seam a
+# provider export subclasses *is* its job.
+# Superseded in the provider dimension by ``activities-provider-agnostic`` above;
+# kept because it also forbids the pipeline reaching for the *parsers*, which is a
+# different rule with the same shape.
+[importlinter:contract:ingestion-pipeline-format-agnostic]
+name = The ingestion pipeline must not import a parser directly — the registry resolves one
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    modules.activities.activity_ingestion.pipeline
     modules.activities.activity_ingestion.upload_entry
     modules.activities.activity_ingestion.bulk_entry
     modules.activities.activity_ingestion.ingestion_jobs
+    modules.activities.activity_ingestion.sources
 forbidden_modules =
-    modules.strava
-    modules.garmin
+    modules.activities.activity_file_import
 
 # The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
 # db, privacy, gear, provider, or exercise-title-crud coupling. Every bit

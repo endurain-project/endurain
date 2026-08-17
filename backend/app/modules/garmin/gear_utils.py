@@ -75,6 +75,36 @@ def match_gear_for_activity(
     return None
 
 
+def resolve_synced_gear_id(user_id: int, garminconnect_gear: list | None, db: Session) -> int | None:
+    """
+    Resolve a downloaded activity's Garmin gear to a local gear ID.
+
+    Resolved here, before the file reaches ingestion, so the ingestion seam never
+    has to ask a provider module whether gear sync is on or which local gear a
+    Garmin UUID maps to.
+
+    Args:
+        user_id: Owner user ID.
+        garminconnect_gear: Garmin gear metadata (``[{"uuid": ...}, ...]``) from
+            the activity download, when the activity has any.
+        db: Database session.
+
+    Returns:
+        The local gear ID, or None when gear sync is off, the account's token is
+        invalid, the activity has no gear, or no local gear matches.
+
+    Raises:
+        None.
+    """
+    if not garminconnect_gear:
+        return None
+    user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(user_id, db)
+    if user_integrations is None or not user_integrations.garminconnect_sync_gear:
+        return None
+    gear = gears_crud.get_gear_by_garminconnect_id_from_user_id(garminconnect_gear[0]["uuid"], user_id, db)
+    return gear.id if gear is not None else None
+
+
 def set_activities_gear(user_id: int, db: Session) -> int:
     # Get user activities
     activities = activities_integration.list_user_activities_with_garminconnect_gear(user_id, db)
