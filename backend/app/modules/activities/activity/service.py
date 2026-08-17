@@ -285,36 +285,6 @@ def _require_feed_owner(user_id: int, requester_user_id: int) -> None:
         raise core_exceptions.PermissionDeniedError()
 
 
-def get_following_feed(
-    user_id: int,
-    requester_user_id: int,
-    page_number: int,
-    num_records: int,
-    db: Session,
-) -> list[activities_schema.Activity] | None:
-    """Return the requester's following feed (activities of users they follow)."""
-    _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    feed = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
-    logger.debug(
-        "Built following feed",
-        extra=core_logger.context(
-            requester_user_id=requester_user_id,
-            page_number=page_number,
-            followee_count=len(followee_ids) if followee_ids else 0,
-            returned=len(feed) if feed else 0,
-        ),
-    )
-    return feed
-
-
-def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> int:
-    """Count the requester's following-feed activities."""
-    _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    return activities_crud.count_user_following_activities(followee_ids, db)
-
-
 # ---------------------------------------------------------------------------
 # Paged reads
 #
@@ -380,34 +350,6 @@ def page_user_activities(
         user_is_owner=(user_id == requester_user_id),
         requester_user_id=requester_user_id,
     )
-    return activities_schema.ActivityPage.build(items, total, page_number, num_records)
-
-
-def page_following_feed(
-    user_id: int,
-    requester_user_id: int,
-    page_number: int,
-    num_records: int,
-    db: Session,
-) -> activities_schema.ActivityPage:
-    """Return one page of the requester's following feed with the matching total.
-
-    Args:
-        user_id: The feed owner (must be the requester).
-        requester_user_id: The authenticated caller.
-        page_number: 1-based page number.
-        num_records: Page size.
-        db: Database session.
-
-    Returns:
-        The page envelope.
-    """
-    # Ownership is enforced once here; the followee lookup is then shared by the
-    # page and the count rather than resolved twice.
-    _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    items = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
-    total = activities_crud.count_user_following_activities(followee_ids, db)
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
 
 

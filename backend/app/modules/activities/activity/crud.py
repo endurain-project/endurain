@@ -752,46 +752,6 @@ def get_user_activities_per_timeframe_and_activity_types(
 
 
 @core_decorators.handle_db_errors
-def get_user_following_activities_with_pagination(
-    followee_ids: list[int], page_number: int, num_records: int, db: Session
-) -> list[activities_schema.Activity] | None:
-    """Get a page of activities from a set of followed users.
-
-    Args:
-        followee_ids: The requester's accepted-followee user ids, resolved by the
-            caller through the followers service interface (kept out of the ORM
-            layer so the feed's cross-domain dependency lives in the service).
-        page_number: 1-based page number.
-        num_records: Records per page.
-        db: Database session.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    if not followee_ids:
-        return None
-    stmt = (
-        select(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id.in_(followee_ids),
-            activities_models.Activity.visibility.in_([0, 1]),
-            activities_models.Activity.is_hidden.is_(False),
-            _is_not_live_strava_api_activity(),
-        )
-        .order_by(desc(activities_models.Activity.start_time))
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return _serialize_and_mask(list(activities), force_non_owner=True)
-
-
-@core_decorators.handle_db_errors
 def get_following_feed_after(
     followee_ids: list[int],
     after: tuple[datetime, int] | None,
@@ -844,68 +804,6 @@ def get_following_feed_after(
         )
         for orm_activity, item in zip(activities, masked, strict=True)
     ]
-
-
-@core_decorators.handle_db_errors
-def get_user_following_activities(user_id: int, db: Session) -> list[activities_schema.Activity] | None:
-    """Get all activities from users a user follows.
-
-    Args:
-        user_id: Requesting user ID.
-        db: Database session.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    followee_ids = followers_integration.list_accepted_followee_ids(user_id, db)
-    if not followee_ids:
-        return None
-    stmt = select(activities_models.Activity).where(
-        activities_models.Activity.user_id.in_(followee_ids),
-        activities_models.Activity.visibility.in_([0, 1]),
-        activities_models.Activity.is_hidden.is_(False),
-        _is_not_live_strava_api_activity(),
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return [activities_serializers.serialize_activity(a) for a in activities]
-
-
-@core_decorators.handle_db_errors
-def count_user_following_activities(followee_ids: list[int], db: Session) -> int:
-    """Count activities from a set of followed users.
-
-    Uses a SQL ``COUNT(*)`` so counting never loads or serializes rows.
-
-    Args:
-        followee_ids: The requester's accepted-followee user ids, resolved by the
-            caller through the followers service interface.
-        db: Database session.
-
-    Returns:
-        Number of following-feed activities.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    if not followee_ids:
-        return 0
-    stmt = (
-        select(func.count())
-        .select_from(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id.in_(followee_ids),
-            activities_models.Activity.visibility.in_([0, 1]),
-            activities_models.Activity.is_hidden.is_(False),
-            _is_not_live_strava_api_activity(),
-        )
-    )
-    count = db.execute(stmt).scalar()
-    return count or 0
 
 
 @core_decorators.handle_db_errors

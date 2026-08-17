@@ -67,6 +67,7 @@ nav:
   - Developer guide: 
     - Setup a development environment: developer-guide/setup-dev-env.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
+    - Module structure: developer-guide/module-structure.md
     - Authentication: developer-guide/authentication.md
     - Auth boundary: developer-guide/auth-boundary.md
     - Supported types: developer-guide/supported-types.md

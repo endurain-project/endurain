@@ -546,33 +546,6 @@ class TestGearActivities:
         assert e.value.status_code == 500
 
 
-class TestFollowing:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_following_activities(user_id=1, db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_user_following_activities(user_id=1, db=mock_db) is None
-
-    @patch("modules.activities.activity.crud.followers_integration.list_accepted_followee_ids", return_value=[2])
-    def test_db_error(self, _mock_followees, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_following_activities(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
 class TestCountUserActivities:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
@@ -592,27 +565,6 @@ class TestCountUserActivities:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.count_user_activities(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestCountFollowing:
-    def test_success(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.return_value.scalar.return_value = 3
-        assert crud.count_user_following_activities([2], db=mock_db) == 3
-
-    def test_no_followees(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        assert crud.count_user_following_activities([], db=mock_db) == 0
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.count_user_following_activities([2], db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -894,40 +846,6 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
                 end=datetime(2024, 1, 31, tzinfo=UTC),
                 db=mock_db,
             )
-        assert e.value.status_code == 500
-
-
-class TestGetUserFollowingActivitiesWithPagination:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert (
-            crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db) is None
-        )
-
-    def test_no_followees_short_circuits(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        assert crud.get_user_following_activities_with_pagination([], page_number=1, num_records=10, db=mock_db) is None
-        mock_db.execute.assert_not_called()
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db)
         assert e.value.status_code == 500
 
 
