@@ -531,7 +531,7 @@ class TestExportServiceActivityFiles:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
                 return_value=None,
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
@@ -554,7 +554,7 @@ class TestExportServiceActivityFiles:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
                 return_value=("1.gpx", b"<gpx></gpx>"),
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
@@ -1208,7 +1208,7 @@ class TestExportServiceActivityFilesEdgeCases:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
                 return_value=None,
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
@@ -1223,7 +1223,7 @@ class TestExportServiceActivityFilesEdgeCases:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activity_file_storage_service.get_activity_file",
+                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
                 side_effect=[OSError("read failed"), ("2.gpx", b"<gpx></gpx>")],
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1), _make_activity_mock(2)])

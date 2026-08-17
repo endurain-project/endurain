@@ -1,11 +1,15 @@
-"""Pure metric-computation helpers for the file-import parsers.
+"""Pure activity metric computations, published by the activities module.
 
-Relocated out of the activities core (``activity/utils.py``) so the core package
-contains no parsing-adjacent computation — it only stores an already-parsed
-activity. These helpers turn raw waypoint streams into activity metrics (speed,
-elevation, pace, averages, normalized power) and are shared by the file parsers,
-the Strava adapter, and migrations. They are side-effect-free: no network,
-database, or filesystem I/O.
+Turn raw waypoint streams into activity metrics (speed, elevation, pace,
+averages, normalized power). Side-effect-free: no network, database or
+filesystem I/O, and no import of any other module.
+
+Module-level rather than inside a sub-package because three different consumers
+need them — the file parsers, the Strava adapter, and the data migrations — and
+the Strava one is outside this module. Living in ``activity_file_import`` made
+that a reach into a package whose whole contract is "parsers only"; living here
+says the activities module publishes its metric maths, alongside the other two
+module-level surfaces (``subscriber_registry``, ``scheduled_jobs``).
 """
 
 import statistics

@@ -25,7 +25,7 @@ import core.hashing as core_hashing
 import core.logger as core_logger
 import infra.providers as platform_providers
 import infra.runtime as platform_runtime
-import modules.activities.activity.crud as activity_crud
+import modules.activities.activity.service as activities_service
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
@@ -57,7 +57,7 @@ def _require_owned_activity(activity_id: int, user_id: int, db: Session) -> None
         NotFoundError: When the activity does not exist or is not owned by the
             user.
     """
-    if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
+    if not activities_service.owns_activity(activity_id, user_id, db):
         logger.debug(
             "Rejected activity media access for an activity the caller does not own",
             extra=core_logger.context(activity_id=activity_id, user_id=user_id),
@@ -244,7 +244,7 @@ def list_activity_media(
         and "there is none" are deliberately indistinguishable here so the
         endpoint cannot be used to probe which activity ids exist.
     """
-    if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
+    if not activities_service.owns_activity(activity_id, user_id, db):
         logger.debug(
             "Listing activity media for an activity the caller does not own; returning empty",
             extra=core_logger.context(activity_id=activity_id, user_id=user_id),

@@ -12,9 +12,9 @@ import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 

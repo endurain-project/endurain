@@ -1009,18 +1009,18 @@ class TestGetActivityByIdIfIsPublic:
 
     # --- branch coverage (mock DB) ---
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     def test_disabled_setting(self, mock_settings, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = False
+        mock_settings.return_value = False
         assert crud.get_activity_by_id_if_is_public(activity_id=1, db=mock_db) is None
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     def test_db_error(self, mock_settings, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_id_if_is_public(activity_id=1, db=mock_db)
@@ -1028,14 +1028,14 @@ class TestGetActivityByIdIfIsPublic:
 
     # --- access-control behavior (real SQLite DB) ---
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
     def test_serves_public_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
         """Regression guard: a public, non-hidden activity is still served after the is_hidden filter."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         mock_ser.return_value = MagicMock()
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=False))
         sqlite_session.commit()
@@ -1046,14 +1046,14 @@ class TestGetActivityByIdIfIsPublic:
         mock_ser.assert_called_once()
         assert mock_ser.call_args.args[0].id == 1
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
     def test_excludes_hidden_activities(self, mock_mask, mock_ser, mock_settings, sqlite_session):
         """A hidden activity must never be served publicly, even when its visibility is public."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=True))
         sqlite_session.commit()
 
@@ -1062,14 +1062,14 @@ class TestGetActivityByIdIfIsPublic:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
     def test_excludes_non_public_visibility(self, mock_mask, mock_ser, mock_settings, sqlite_session):
         """Only ``visibility == 0`` (public) activities are served."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         sqlite_session.add(_public_activity(id=1, visibility=1, is_hidden=False))
         sqlite_session.commit()
 
@@ -1078,13 +1078,13 @@ class TestGetActivityByIdIfIsPublic:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
     def test_excludes_live_strava_api_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=False, strava_activity_id=123))
         sqlite_session.commit()
 
@@ -1093,12 +1093,12 @@ class TestGetActivityByIdIfIsPublic:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     def test_not_found(self, mock_settings, sqlite_session):
         """A non-existent activity id returns None."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         assert crud.get_activity_by_id_if_is_public(activity_id=999, db=sqlite_session) is None
 
 
@@ -1114,14 +1114,14 @@ class TestGetPublicActivityForChildRead:
     per-resource ``hide_*`` flag.
     """
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
     def test_excludes_hidden_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
         """A hidden activity must not expose its child resources publicly."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=True))
         sqlite_session.commit()
 
@@ -1130,13 +1130,13 @@ class TestGetPublicActivityForChildRead:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.activities.activity.crud.server_settings_integration.public_shareable_links_enabled")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
     def test_excludes_non_public_visibility(self, mock_mask, mock_ser, mock_settings, sqlite_session):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
+        mock_settings.return_value = True
         sqlite_session.add(_public_activity(id=1, visibility=1, is_hidden=False))
         sqlite_session.commit()
 

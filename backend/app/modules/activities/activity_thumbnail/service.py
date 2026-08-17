@@ -9,16 +9,15 @@ backfill (guarded by the ``LockProvider`` so a single replica runs it) and the
 
 from sqlalchemy.orm import Session
 
-import core.cryptography as core_cryptography
 import core.database as core_database
 import core.logger as core_logger
 import infra.providers as platform_providers
 import infra.runtime as platform_runtime
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity.service as activities_service
+import modules.activities.activity_streams.service as activity_streams_service
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
-import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.integration_service as server_settings_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -33,15 +32,12 @@ def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
         A ``(tile_url, background_color, api_key)`` tuple, using built-in
         defaults when server settings are unavailable.
     """
-    server_settings = server_settings_crud.get_server_settings(db)
-    tile_url = server_settings.tileserver_url if server_settings else activity_thumbnail_render._DEFAULT_TILE_URL
-    background_color = (
-        server_settings.map_background_color if server_settings else activity_thumbnail_render._DEFAULT_BG_COLOR
+    settings = server_settings_integration.get_tile_server_settings(db)
+    return (
+        settings.tile_url or activity_thumbnail_render._DEFAULT_TILE_URL,
+        settings.background_color or activity_thumbnail_render._DEFAULT_BG_COLOR,
+        settings.api_key,
     )
-    api_key = None
-    if server_settings and server_settings.tileserver_api_key:
-        api_key = core_cryptography.decrypt_token_fernet(server_settings.tileserver_api_key)
-    return tile_url, background_color, api_key
 
 
 def generate_and_store_thumbnail(
@@ -87,7 +83,7 @@ def generate_and_store_thumbnail(
         data,
         activity_thumbnail_render.THUMBNAIL_CONTENT_TYPE,
     )
-    activities_crud.set_activity_thumbnail_path(activity_id, key, db)
+    activities_service.set_thumbnail_key(activity_id, key, db)
     return key
 
 
@@ -131,7 +127,7 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
 
     deleted = 0
     with core_database.SessionLocal() as db:
-        for activity in activities_crud.get_activities_with_thumbnail(db):
+        for activity in activities_service.list_activities_with_thumbnail(db):
             key = activity.map_thumbnail_path
             if key is None:
                 continue
@@ -144,7 +140,7 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
                     extra=core_logger.context(activity_id=activity.id, reason=str(err)),
                 )
         # Clear DB references so generate_missing picks them all up.
-        activities_crud.clear_all_activity_thumbnail_paths(db)
+        activities_service.clear_all_thumbnail_keys(db)
 
     logger.info("Thumbnail regeneration: deleted thumbnails", extra=core_logger.context(deleted=deleted))
 
@@ -187,16 +183,16 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
     with core_database.SessionLocal() as db:
         # Reconcile: clear DB references whose stored blob no longer exists so
         # they are regenerated below.
-        for activity in activities_crud.get_activities_with_thumbnail(db):
+        for activity in activities_service.list_activities_with_thumbnail(db):
             key = activity.map_thumbnail_path
             if key is not None and not storage.exists(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key):
-                activities_crud.set_activity_thumbnail_path(activity.id, None, db)
+                activities_service.set_thumbnail_key(activity.id, None, db)
                 logger.info(
                     "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
                     extra=core_logger.context(activity_id=activity.id),
                 )
 
-        activities_without_thumbnail = activities_crud.get_activities_without_thumbnail(db)
+        activities_without_thumbnail = activities_service.list_activities_without_thumbnail(db)
 
         if not activities_without_thumbnail:
             logger.debug("Thumbnail scheduler: no activities without thumbnail found")
@@ -210,9 +206,9 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
         tile_url, background_color, api_key = resolve_tile_settings(db)
 
         activity_ids = [activity.id for activity in activities_without_thumbnail]
-        # Batch-load MAP-stream waypoints through the streams CRUD (the ORM stays
-        # confined there) as an {activity_id: waypoints} mapping.
-        waypoints_by_activity_id = activity_streams_crud.get_gps_stream_waypoints_for_activities(activity_ids, db)
+        # Batch-load MAP-stream waypoints through the streams service (the ORM
+        # stays confined to that package) as an {activity_id: waypoints} mapping.
+        waypoints_by_activity_id = activity_streams_service.get_gps_waypoints_for_activities(activity_ids, db)
 
         generated = 0
         for activity in activities_without_thumbnail:

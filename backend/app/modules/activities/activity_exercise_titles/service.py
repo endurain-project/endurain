@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.server_settings.utils as server_settings_utils
+import modules.server_settings.integration_service as server_settings_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -43,8 +43,7 @@ def list_public_activity_exercise_titles(
         Every exercise title, empty when public shareable links are disabled
         server-wide.
     """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-    if not server_settings.public_shareable_links:
+    if not server_settings_integration.public_shareable_links_enabled(db):
         logger.debug("Public exercise-title read denied: shareable links are disabled")
         return []
     return activity_exercise_titles_crud.get_activity_exercise_titles(db)

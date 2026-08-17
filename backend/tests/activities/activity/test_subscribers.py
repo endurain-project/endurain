@@ -15,7 +15,7 @@ def _event(payload):
 class TestOnActivityCreatedNotify:
     """The bus wrapper: creates the notification, swallowing any error."""
 
-    @patch("modules.activities.activity.subscribers.notifications_utils")
+    @patch("modules.activities.activity.subscribers.notifications_integration")
     def test_noop_for_non_int_activity_id(self, mock_notif):
         from modules.activities.activity.subscribers import on_activity_created_notify
 
@@ -23,7 +23,7 @@ class TestOnActivityCreatedNotify:
 
         mock_notif.create_activity_created_notification.assert_not_called()
 
-    @patch("modules.activities.activity.subscribers.notifications_utils")
+    @patch("modules.activities.activity.subscribers.notifications_integration")
     def test_noop_when_user_id_missing(self, mock_notif):
         from modules.activities.activity.subscribers import on_activity_created_notify
 
@@ -31,12 +31,11 @@ class TestOnActivityCreatedNotify:
 
         mock_notif.create_activity_created_notification.assert_not_called()
 
-    @patch("modules.activities.activity.subscribers.websocket_utils")
-    @patch("modules.activities.activity.subscribers.websocket_manager")
+    @patch("modules.activities.activity.subscribers.websocket_integration")
     @patch("modules.activities.activity.subscribers.platform_async_bridge")
     @patch("modules.activities.activity.subscribers.core_database")
-    @patch("modules.activities.activity.subscribers.notifications_utils")
-    def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws_mgr, mock_ws_utils):
+    @patch("modules.activities.activity.subscribers.notifications_integration")
+    def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.activities.activity.subscribers import on_activity_created_notify
 
         mock_notif.create_activity_created_notification.return_value = (
@@ -51,12 +50,11 @@ class TestOnActivityCreatedNotify:
         # Websocket push dispatched onto the main loop (best-effort).
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("modules.activities.activity.subscribers.websocket_utils")
-    @patch("modules.activities.activity.subscribers.websocket_manager")
+    @patch("modules.activities.activity.subscribers.websocket_integration")
     @patch("modules.activities.activity.subscribers.platform_async_bridge")
     @patch("modules.activities.activity.subscribers.core_database")
-    @patch("modules.activities.activity.subscribers.notifications_utils")
-    def test_passes_duplicate_flag(self, mock_notif, mock_db, mock_bridge, mock_ws_mgr, mock_ws_utils):
+    @patch("modules.activities.activity.subscribers.notifications_integration")
+    def test_passes_duplicate_flag(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.activities.activity.subscribers import on_activity_created_notify
 
         mock_notif.create_activity_created_notification.return_value = (
@@ -70,7 +68,7 @@ class TestOnActivityCreatedNotify:
 
     @patch("infra.subscribers.logger")
     @patch("modules.activities.activity.subscribers.core_database")
-    @patch("modules.activities.activity.subscribers.notifications_utils")
+    @patch("modules.activities.activity.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
         from modules.activities.activity.subscribers import on_activity_created_notify
 
@@ -96,7 +94,7 @@ class TestOnActivityCreatedNotify:
 class TestNotifyActivityCreatedForEvent:
     """The durable core: propagates errors so the job runner can retry."""
 
-    @patch("modules.activities.activity.subscribers.notifications_utils")
+    @patch("modules.activities.activity.subscribers.notifications_integration")
     def test_raises_on_missing_ids(self, mock_notif):
         from modules.activities.activity.subscribers import notify_activity_created_for_event
 
@@ -108,7 +106,7 @@ class TestNotifyActivityCreatedForEvent:
         mock_notif.create_activity_created_notification.assert_not_called()
 
     @patch("modules.activities.activity.subscribers.core_database")
-    @patch("modules.activities.activity.subscribers.notifications_utils")
+    @patch("modules.activities.activity.subscribers.notifications_integration")
     def test_raises_on_error(self, mock_notif, mock_db):
         from modules.activities.activity.subscribers import notify_activity_created_for_event
 

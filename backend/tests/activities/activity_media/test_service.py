@@ -45,12 +45,12 @@ class TestBuildStorageKey:
 
 class TestListActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_crud")
-    def test_returns_media_for_owned_activity(self, mock_activity_crud, mock_media_crud):
+    @patch(f"{_SVC}.activities_service")
+    def test_returns_media_for_owned_activity(self, mock_activities_service, mock_media_crud):
         from modules.activities.activity_media.contracts import ActivityMediaRecord
         from modules.activities.activity_media.service import list_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_media_crud.get_media_for_activity.return_value = [
             ActivityMediaRecord(id=3, activity_id=1, media_path="1_abc.jpg", media_type=1)
         ]
@@ -63,21 +63,21 @@ class TestListActivityMedia:
         assert "/activities/1/media/3/file?t=" in media[0].url
 
     @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_crud")
-    def test_returns_empty_when_activity_not_owned(self, mock_activity_crud, mock_media_crud):
+    @patch(f"{_SVC}.activities_service")
+    def test_returns_empty_when_activity_not_owned(self, mock_activities_service, mock_media_crud):
         from modules.activities.activity_media.service import list_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = None
+        mock_activities_service.owns_activity.return_value = False
 
         assert list_activity_media(1, 2, MagicMock()) == []
         mock_media_crud.get_media_for_activity.assert_not_called()
 
     @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_crud")
-    def test_returns_empty_when_no_media(self, mock_activity_crud, mock_media_crud):
+    @patch(f"{_SVC}.activities_service")
+    def test_returns_empty_when_no_media(self, mock_activities_service, mock_media_crud):
         from modules.activities.activity_media.service import list_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_media_crud.get_media_for_activity.return_value = []
 
         assert list_activity_media(1, 2, MagicMock()) == []
@@ -87,12 +87,12 @@ class TestStoreActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
     @patch(f"{_SVC}.core_file_uploads")
-    @patch(f"{_SVC}.activity_crud")
-    def test_saves_blob_and_creates_record(self, mock_activity_crud, mock_uploads, mock_storage, mock_media_crud):
+    @patch(f"{_SVC}.activities_service")
+    def test_saves_blob_and_creates_record(self, mock_activities_service, mock_uploads, mock_storage, mock_media_crud):
         from modules.activities.activity_media.contracts import ActivityMediaRecord
         from modules.activities.activity_media.service import store_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_uploads.read_validated_upload_sync.return_value = b"bytes"
         storage = mock_storage.return_value
         mock_media_crud.get_activity_media_by_content_hash.return_value = None
@@ -119,15 +119,15 @@ class TestStoreActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
     @patch(f"{_SVC}.core_file_uploads")
-    @patch(f"{_SVC}.activity_crud")
+    @patch(f"{_SVC}.activities_service")
     def test_returns_existing_record_without_storing_when_content_matches(
-        self, mock_activity_crud, mock_uploads, mock_storage, mock_media_crud
+        self, mock_activities_service, mock_uploads, mock_storage, mock_media_crud
     ):
         """A retried upload of the exact same photo must not create a second row."""
         from modules.activities.activity_media.contracts import ActivityMediaRecord
         from modules.activities.activity_media.service import store_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_uploads.read_validated_upload_sync.return_value = b"bytes"
         storage = mock_storage.return_value
         existing = ActivityMediaRecord(id=4, activity_id=1, media_path="1_existing.jpg", media_type=1)
@@ -142,13 +142,13 @@ class TestStoreActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
     @patch(f"{_SVC}.core_file_uploads")
-    @patch(f"{_SVC}.activity_crud")
+    @patch(f"{_SVC}.activities_service")
     def test_rejects_activity_owned_by_another_user(
-        self, mock_activity_crud, mock_uploads, mock_storage, mock_media_crud
+        self, mock_activities_service, mock_uploads, mock_storage, mock_media_crud
     ):
         from modules.activities.activity_media.service import store_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = None
+        mock_activities_service.owns_activity.return_value = False
 
         with pytest.raises(core_exceptions.NotFoundError) as exc:
             store_activity_media(1, 2, MagicMock(filename="ride.jpg"), MagicMock())
@@ -161,13 +161,13 @@ class TestStoreActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
     @patch(f"{_SVC}.core_file_uploads")
-    @patch(f"{_SVC}.activity_crud")
+    @patch(f"{_SVC}.activities_service")
     def test_removes_blob_when_record_creation_fails(
-        self, mock_activity_crud, mock_uploads, mock_storage, mock_media_crud
+        self, mock_activities_service, mock_uploads, mock_storage, mock_media_crud
     ):
         from modules.activities.activity_media.service import store_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_uploads.read_validated_upload_sync.return_value = b"bytes"
         storage = mock_storage.return_value
         mock_media_crud.get_activity_media_by_content_hash.return_value = None
@@ -183,9 +183,9 @@ class TestStoreActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
     @patch(f"{_SVC}.core_file_uploads")
-    @patch(f"{_SVC}.activity_crud")
+    @patch(f"{_SVC}.activities_service")
     def test_race_lost_to_a_concurrent_store_returns_the_winner(
-        self, mock_activity_crud, mock_uploads, mock_storage, mock_media_crud
+        self, mock_activities_service, mock_uploads, mock_storage, mock_media_crud
     ):
         """The pre-check is read-then-write; losing the race to the unique index
         must return the winner rather than surfacing a conflict for what the
@@ -193,7 +193,7 @@ class TestStoreActivityMedia:
         from modules.activities.activity_media.contracts import ActivityMediaRecord
         from modules.activities.activity_media.service import store_activity_media
 
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_uploads.read_validated_upload_sync.return_value = b"bytes"
         storage = mock_storage.return_value
         winner = ActivityMediaRecord(id=4, activity_id=1, media_path="1_winner.jpg", media_type=1)
@@ -254,12 +254,12 @@ class TestStoreActivityMediaBytes:
 class TestDeleteActivityMedia:
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
-    @patch(f"{_SVC}.activity_crud")
-    def test_deletes_record_and_blob(self, mock_activity_crud, mock_storage, mock_media_crud):
+    @patch(f"{_SVC}.activities_service")
+    def test_deletes_record_and_blob(self, mock_activities_service, mock_storage, mock_media_crud):
         from modules.activities.activity_media.service import delete_activity_media
 
         mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=1, media_path="1_abc.jpg")
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
 
         delete_activity_media(1, 5, 2, MagicMock())
 
@@ -295,12 +295,12 @@ class TestDeleteActivityMedia:
         mock_media_crud.delete_activity_media.assert_not_called()
 
     @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_crud")
-    def test_media_on_another_users_activity_is_404(self, mock_activity_crud, mock_media_crud):
+    @patch(f"{_SVC}.activities_service")
+    def test_media_on_another_users_activity_is_404(self, mock_activities_service, mock_media_crud):
         from modules.activities.activity_media.service import delete_activity_media
 
         mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=1, media_path="/media/x.jpg")
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = None
+        mock_activities_service.owns_activity.return_value = False
 
         with pytest.raises(core_exceptions.NotFoundError) as exc:
             delete_activity_media(1, 5, 2, MagicMock())
@@ -312,12 +312,14 @@ class TestDeleteActivityMedia:
     @patch(f"{_SVC}.logger")
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}._storage")
-    @patch(f"{_SVC}.activity_crud")
-    def test_cleanup_failure_is_logged_not_raised(self, mock_activity_crud, mock_storage, mock_media_crud, mock_logger):
+    @patch(f"{_SVC}.activities_service")
+    def test_cleanup_failure_is_logged_not_raised(
+        self, mock_activities_service, mock_storage, mock_media_crud, mock_logger
+    ):
         from modules.activities.activity_media.service import delete_activity_media
 
         mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=1, media_path="1_abc.jpg")
-        mock_activity_crud.get_activity_by_id_from_user_id.return_value = MagicMock()
+        mock_activities_service.owns_activity.return_value = True
         mock_storage.return_value.delete.side_effect = OSError("backend down")
 
         delete_activity_media(1, 5, 2, MagicMock())

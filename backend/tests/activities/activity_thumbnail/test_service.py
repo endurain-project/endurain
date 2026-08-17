@@ -4,31 +4,28 @@ from unittest.mock import MagicMock, patch
 
 
 class TestResolveTileSettings:
-    @patch("modules.activities.activity_thumbnail.service.core_cryptography")
-    @patch("modules.activities.activity_thumbnail.service.server_settings_crud")
-    def test_with_settings_and_key(self, mock_ss, mock_crypto):
+    """Decryption is the settings module's job; this only applies render defaults."""
+
+    @patch("modules.activities.activity_thumbnail.service.server_settings_integration")
+    def test_uses_the_configured_tile_source(self, mock_settings):
+        import modules.server_settings.contracts as server_settings_contracts
         from modules.activities.activity_thumbnail.service import resolve_tile_settings
 
-        settings = MagicMock()
-        settings.tileserver_url = "https://tiles/{z}/{x}/{y}.png"
-        settings.map_background_color = "#abc"
-        settings.tileserver_api_key = "enc"
-        mock_ss.get_server_settings.return_value = settings
-        mock_crypto.decrypt_token_fernet.return_value = "plain"
+        mock_settings.get_tile_server_settings.return_value = server_settings_contracts.TileServerSettings(
+            tile_url="https://tiles/{z}/{x}/{y}.png",
+            background_color="#abc",
+            api_key="plain",
+        )
 
-        url, background_color, api_key = resolve_tile_settings(MagicMock())
+        assert resolve_tile_settings(MagicMock()) == ("https://tiles/{z}/{x}/{y}.png", "#abc", "plain")
 
-        assert url == "https://tiles/{z}/{x}/{y}.png"
-        assert background_color == "#abc"
-        assert api_key == "plain"
-        mock_crypto.decrypt_token_fernet.assert_called_once_with("enc")
-
-    @patch("modules.activities.activity_thumbnail.service.server_settings_crud")
-    def test_defaults_without_settings(self, mock_ss):
+    @patch("modules.activities.activity_thumbnail.service.server_settings_integration")
+    def test_defaults_without_settings(self, mock_settings):
         import modules.activities.activity_thumbnail.render as render
+        import modules.server_settings.contracts as server_settings_contracts
         from modules.activities.activity_thumbnail.service import resolve_tile_settings
 
-        mock_ss.get_server_settings.return_value = None
+        mock_settings.get_tile_server_settings.return_value = server_settings_contracts.TileServerSettings()
 
         url, background_color, api_key = resolve_tile_settings(MagicMock())
 
@@ -38,9 +35,9 @@ class TestResolveTileSettings:
 
 
 class TestGenerateAndStoreThumbnail:
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
-    def test_none_when_render_skipped(self, mock_render, mock_crud):
+    def test_none_when_render_skipped(self, mock_render, mock_activities):
         from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 
         mock_render.render_activity_thumbnail.return_value = None
@@ -52,12 +49,12 @@ class TestGenerateAndStoreThumbnail:
 
         assert result is None
         storage.save.assert_not_called()
-        mock_crud.set_activity_thumbnail_path.assert_not_called()
+        mock_activities.set_thumbnail_key.assert_not_called()
 
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
-    def test_saves_and_records_key(self, mock_render, mock_signing, mock_crud):
+    def test_saves_and_records_key(self, mock_render, mock_signing, mock_activities):
         from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 
         mock_render.render_activity_thumbnail.return_value = b"data"
@@ -73,7 +70,7 @@ class TestGenerateAndStoreThumbnail:
 
         assert result == "1.webp"
         storage.save.assert_called_once_with("activity_thumbnails", "1.webp", b"data", "image/webp")
-        mock_crud.set_activity_thumbnail_path.assert_called_once_with(1, "1.webp", db)
+        mock_activities.set_thumbnail_key.assert_called_once_with(1, "1.webp", db)
 
 
 class TestDeleteActivityThumbnail:
@@ -92,10 +89,10 @@ class TestDeleteAndRegenerateThumbnails:
 
     @patch("modules.activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.logger")
-    def test_deletes_blobs_and_clears_db(self, mock_logger, mock_runtime, mock_crud, mock_session, mock_gen):
+    def test_deletes_blobs_and_clears_db(self, mock_logger, mock_runtime, mock_activities, mock_session, mock_gen):
         from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
 
         mock_db = MagicMock()
@@ -107,22 +104,22 @@ class TestDeleteAndRegenerateThumbnails:
 
         a1 = MagicMock(id=1, map_thumbnail_path="1.webp")
         a2 = MagicMock(id=2, map_thumbnail_path="2.webp")
-        mock_crud.get_activities_with_thumbnail.return_value = [a1, a2]
+        mock_activities.list_activities_with_thumbnail.return_value = [a1, a2]
 
         delete_and_regenerate_all_activity_thumbnails()
 
         assert storage.delete.call_count == 2
         storage.delete.assert_any_call("activity_thumbnails", "1.webp")
         storage.delete.assert_any_call("activity_thumbnails", "2.webp")
-        mock_crud.clear_all_activity_thumbnail_paths.assert_called_once_with(mock_db)
+        mock_activities.clear_all_thumbnail_keys.assert_called_once_with(mock_db)
         mock_gen.assert_called_once()
 
     @patch("modules.activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.logger")
-    def test_logs_when_delete_fails(self, mock_logger, mock_runtime, mock_crud, mock_session, mock_gen):
+    def test_logs_when_delete_fails(self, mock_logger, mock_runtime, mock_activities, mock_session, mock_gen):
         from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
 
         mock_db = MagicMock()
@@ -134,7 +131,7 @@ class TestDeleteAndRegenerateThumbnails:
         mock_runtime.get_active_platform.return_value = platform
 
         a1 = MagicMock(id=1, map_thumbnail_path="1.webp")
-        mock_crud.get_activities_with_thumbnail.return_value = [a1]
+        mock_activities.list_activities_with_thumbnail.return_value = [a1]
 
         delete_and_regenerate_all_activity_thumbnails()
 
@@ -144,7 +141,7 @@ class TestDeleteAndRegenerateThumbnails:
         assert warning.args[0] == "Thumbnail regeneration: could not delete the existing thumbnail"
         assert warning.kwargs["extra"]["activity_id"] == 1
         assert warning.kwargs["extra"]["reason"] == "boom"
-        mock_crud.clear_all_activity_thumbnail_paths.assert_called_once()
+        mock_activities.clear_all_thumbnail_keys.assert_called_once()
         mock_gen.assert_called_once()
 
 
@@ -172,17 +169,17 @@ class TestGenerateMissingThumbnails:
         )
 
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.logger")
-    def test_no_activities_without_thumbnail(self, mock_logger, mock_runtime, mock_crud, mock_session):
+    def test_no_activities_without_thumbnail(self, mock_logger, mock_runtime, mock_activities, mock_session):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
         mock_runtime.get_active_platform.return_value = self._platform()
-        mock_crud.get_activities_with_thumbnail.return_value = []
-        mock_crud.get_activities_without_thumbnail.return_value = []
+        mock_activities.list_activities_with_thumbnail.return_value = []
+        mock_activities.list_activities_without_thumbnail.return_value = []
 
         generate_missing_activity_thumbnails()
 
@@ -191,10 +188,10 @@ class TestGenerateMissingThumbnails:
         )
 
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.logger")
-    def test_clears_missing_blob_reference(self, mock_logger, mock_runtime, mock_crud, mock_session):
+    def test_clears_missing_blob_reference(self, mock_logger, mock_runtime, mock_activities, mock_session):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
@@ -204,23 +201,30 @@ class TestGenerateMissingThumbnails:
         mock_runtime.get_active_platform.return_value = self._platform(storage=storage)
 
         activity = MagicMock(id=1, map_thumbnail_path="1.webp")
-        mock_crud.get_activities_with_thumbnail.return_value = [activity]
-        mock_crud.get_activities_without_thumbnail.return_value = []
+        mock_activities.list_activities_with_thumbnail.return_value = [activity]
+        mock_activities.list_activities_without_thumbnail.return_value = []
 
         generate_missing_activity_thumbnails()
 
         storage.exists.assert_called_once_with("activity_thumbnails", "1.webp")
-        mock_crud.set_activity_thumbnail_path.assert_called_once_with(1, None, mock_db)
+        mock_activities.set_thumbnail_key.assert_called_once_with(1, None, mock_db)
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
-    @patch("modules.activities.activity_thumbnail.service.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_service")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.logger")
     def test_generates_thumbnail_for_activity_with_gps(
-        self, mock_logger, mock_runtime, mock_streams_crud, mock_crud, mock_session, mock_resolve, mock_generate
+        self,
+        mock_logger,
+        mock_runtime,
+        mock_streams_service,
+        mock_activities,
+        mock_session,
+        mock_resolve,
+        mock_generate,
     ):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -228,14 +232,14 @@ class TestGenerateMissingThumbnails:
         mock_session.return_value.__enter__.return_value = mock_db
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value = self._platform(storage=storage)
-        mock_crud.get_activities_with_thumbnail.return_value = []
+        mock_activities.list_activities_with_thumbnail.return_value = []
 
         act = MagicMock(id=1)
-        mock_crud.get_activities_without_thumbnail.return_value = [act]
+        mock_activities.list_activities_without_thumbnail.return_value = [act]
         mock_resolve.return_value = ("https://tiles/{z}/{x}/{y}.png", "#fff", None)
         mock_generate.return_value = "1.webp"
 
-        mock_streams_crud.get_gps_stream_waypoints_for_activities.return_value = {
+        mock_streams_service.get_gps_waypoints_for_activities.return_value = {
             1: [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
         }
 
@@ -249,12 +253,19 @@ class TestGenerateMissingThumbnails:
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
     @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.service.activities_crud")
-    @patch("modules.activities.activity_thumbnail.service.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_service")
     @patch("modules.activities.activity_thumbnail.service.platform_runtime")
     @patch("modules.activities.activity_thumbnail.service.logger")
     def test_skips_activity_without_gps_stream(
-        self, mock_logger, mock_runtime, mock_streams_crud, mock_crud, mock_session, mock_resolve, mock_generate
+        self,
+        mock_logger,
+        mock_runtime,
+        mock_streams_service,
+        mock_activities,
+        mock_session,
+        mock_resolve,
+        mock_generate,
     ):
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
@@ -262,16 +273,16 @@ class TestGenerateMissingThumbnails:
         mock_session.return_value.__enter__.return_value = mock_db
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value = self._platform(storage=storage)
-        mock_crud.get_activities_with_thumbnail.return_value = []
+        mock_activities.list_activities_with_thumbnail.return_value = []
 
         act1 = MagicMock(id=1)
         act2 = MagicMock(id=2)
-        mock_crud.get_activities_without_thumbnail.return_value = [act1, act2]
+        mock_activities.list_activities_without_thumbnail.return_value = [act1, act2]
         mock_resolve.return_value = ("url", "#fff", None)
         mock_generate.return_value = "1.webp"
 
         # Only activity 1 has a GPS stream; activity 2 is skipped.
-        mock_streams_crud.get_gps_stream_waypoints_for_activities.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
+        mock_streams_service.get_gps_waypoints_for_activities.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
 
         generate_missing_activity_thumbnails()
 

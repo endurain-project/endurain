@@ -66,14 +66,28 @@ Three classes. This is the whole rule.
 | `subscriber_registry.py` | Event wiring, called by `main.py` and `worker.py`. |
 | `scheduled_jobs.py` | The module's recurring and one-shot background work, collected by `main.py`. |
 
+A module-level file (not inside a sub-package) is the right home for a surface
+that belongs to the whole module rather than one aggregate —
+`modules/activities/computation.py`, the pure metric maths the parsers, the
+Strava adapter and the migrations all use.
+
 ### 2. Module-internal — importable by sibling sub-packages, not by other modules
 
-`service.py`, and the named intra-module seams a module declares (for activities:
+`service.py` — the owning package's application layer, and how a sibling reaches
+its data. A derived subsystem that needs the activity row asks `activity.service`,
+not `activity.crud`; otherwise every subsystem becomes a second owner of the
+table.
+
+`query.py` — SQL expression fragments. Shared because the rules those queries must
+agree on (above all *which local day did this happen on?*) must have one
+definition, and because a fragment opens no session and fetches no rows.
+
+Plus the named intra-module seams a module declares (for activities:
 `activity/child_access.py`, `activity/ingestion_service.py`).
 
 ### 3. Package-private — importable only from inside its own sub-package
 
-`crud.py`, `models.py`, `query.py`, `serializers.py`, `utils.py`, `subscribers.py`,
+`crud.py`, `models.py`, `serializers.py`, `utils.py`, `subscribers.py`,
 `event_publishers.py`, and every unlisted helper.
 
 `__init__.py` holds a docstring and **nothing else**. A re-export facade would
@@ -93,7 +107,7 @@ Read as *row imports column*.
 | `subscribers` | ✗ | ✓ | ✗ | ✓ | ✓ | `integration_service` only |
 | `integration_service` | ✓ | ✓ | ✓ | ✓ | ✓ | `integration_service` only |
 
-Three entries deserve the reasoning:
+Four entries deserve the reasoning:
 
 - **`crud` never calls another module.** A `SELECT` that first has to ask another
   bounded context a question is a service-layer decision wearing a persistence
@@ -103,6 +117,9 @@ Three entries deserve the reasoning:
   imports describing a foreign key, not a behavioural reach.
 - **`integration_service` may read its own module freely.** It *is* the module,
   presenting a narrow face outward.
+- **A read model may select from the table it projects.** `activity_summaries`
+  aggregates the activities table and imports its ORM class to do so. Ownership is
+  a rule about *writes*; a package that only reads is not a second owner.
 
 ## Layering inside a sub-package
 
@@ -196,14 +213,10 @@ the conformance test's allowlist.
 
 ### Sibling persistence reaches
 
-`activity_thumbnail`, `activity_geocoding` and `activity_media` read
-`activity.crud` and `activity_streams.crud` directly. Each derived subsystem needs
-a projection of the root row or its GPS stream; none of those reads is published
-on a surface, so each subsystem reaches for the CRUD instead. The fix is a
-read-projection seam per owning package.
-
-`activity_summaries.crud` builds its own aggregates over `activity.models` and
-`activity.query` — a second package issuing SQL against a table it does not own.
+**Resolved.** `activity_thumbnail`, `activity_geocoding` and `activity_media` read
+the activity row and its streams through `activity.service` and
+`activity_streams.service`. `activity_summaries` still selects from the
+activities ORM, which is the read-model rule stated above rather than debt.
 
 ### Provider cycle
 
@@ -223,6 +236,16 @@ users module's `Language` enum. That is backwards — i18n owns which translatio
 bundles exist — and the enum should derive from `core.i18n`, not the reverse. It
 is recorded as an `ignore_imports` entry rather than assumed.
 
+### Persistence layers calling other modules
+
+`activity.crud` resolves the requester's accepted followees (through the
+followers integration service) while building a visibility condition, and
+`activity_streams.crud` loads the owner to compute HR zones. Both use the correct
+*surface*, so no module boundary is crossed — but a `SELECT` that must first ask
+another bounded context a question is a service decision wearing a persistence
+layer's clothes. Fixing it means threading the resolved values in as parameters,
+across roughly fifteen CRUD functions and their callers.
+
 ### Migration → internals
 
 `app/migrations/migration_*.py` import `activity.crud`, `activity_streams.crud`,
@@ -231,16 +254,10 @@ Data migrations are pinned to the schema of their era, so routing them through a
 surface that evolves would break them; they are exempt by nature, and the exemption
 is recorded rather than assumed.
 
-### Consumers reaching past `integration_service`
+### Providers feeding ingestion
 
-`users_profile` (export/import) reaches `activity_file_storage.service` and
-`activity_media.signing`; `strava.bulk_import_utils` reaches
-`activity_media.service`; `strava.activity_utils` reaches
-`activity_file_import.computation`. Profile export/import needs a wide slice of
-the activities module, but "wide" is not "private".
-
-The provider modules also reach `activity_ingestion.bulk_entry` and
+`modules.strava` and `modules.garmin` reach `activity_ingestion.bulk_entry` and
 `activity_ingestion.sources` to feed files in. That is the *correct* direction
-(provider depends on activities) but not yet a published surface — the ingestion
+(a provider depends on activities) but not yet a published surface — the ingestion
 entry point should be named on the module's surface rather than reached for by
 path.

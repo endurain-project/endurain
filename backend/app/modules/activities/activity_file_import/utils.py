@@ -203,7 +203,7 @@ def _compute_lap_metrics(
         Dict with all computed lap metrics.
     """
     # The metric helpers live in this package's dependency-free computation module.
-    import modules.activities.activity_file_import.computation as activities_computation
+    import modules.activities.computation as activities_computation
 
     lap_ele = filter_waypoints_by_time_range(
         ele_waypoints,
@@ -453,7 +453,7 @@ def calculate_power_metrics(
         value may be ``None`` if the stream contains no valid readings.
     """
     # The metric helpers live in this package's dependency-free computation module.
-    import modules.activities.activity_file_import.computation as activities_computation
+    import modules.activities.computation as activities_computation
 
     avg_power, max_power = activities_computation.calculate_avg_and_max(power_waypoints, "power")
     normalized_power = activities_computation.calculate_np(power_waypoints)

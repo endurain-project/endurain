@@ -31,14 +31,14 @@ class TestOnActivityCreatedGenerateThumbnail:
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_service")
     @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_when_stream_missing(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         mock_session.return_value.__enter__.return_value = MagicMock()
-        mock_streams.get_activity_stream_by_type.return_value = None
+        mock_streams.get_stream_for_derivation.return_value = None
 
         on_activity_created_generate_thumbnail(self._event({"activity_id": 1, "user_id": 2}))
 
@@ -47,14 +47,14 @@ class TestOnActivityCreatedGenerateThumbnail:
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_service")
     @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_noop_when_too_few_waypoints(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
 
         mock_session.return_value.__enter__.return_value = MagicMock()
-        mock_streams.get_activity_stream_by_type.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
+        mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
 
         on_activity_created_generate_thumbnail(self._event({"activity_id": 1, "user_id": 2}))
 
@@ -63,7 +63,7 @@ class TestOnActivityCreatedGenerateThumbnail:
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_crud")
+    @patch("modules.activities.activity_thumbnail.subscribers.activity_streams_service")
     @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_generates_for_gps_activity(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
@@ -74,13 +74,13 @@ class TestOnActivityCreatedGenerateThumbnail:
         storage = MagicMock()
         mock_runtime.get_active_platform.return_value.storage = storage
         waypoints = [{"lat": 1.0, "lon": 2.0}, {"lat": 1.1, "lon": 2.1}]
-        mock_streams.get_activity_stream_by_type.return_value = MagicMock(stream_waypoints=waypoints)
+        mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=waypoints)
         mock_resolve.return_value = ("u", "#fff", None)
 
         on_activity_created_generate_thumbnail(self._event({"activity_id": 5, "user_id": 9}))
 
         # The stream read is now access-free; the subscriber addresses it by activity id.
-        stream_args = mock_streams.get_activity_stream_by_type.call_args.args
+        stream_args = mock_streams.get_stream_for_derivation.call_args.args
         assert stream_args[0] == 5
         assert stream_args[2] is db
         mock_generate.assert_called_once()

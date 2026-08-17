@@ -26,16 +26,20 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import infra.providers as platform_providers
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.service as activity_media_service
+import modules.activities.activity_media.signing as activity_media_signing
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_streams.crud as activity_streams_crud
@@ -476,3 +480,150 @@ def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
         None.
     """
     activity_streams_crud.recompute_hr_zone_percentages_for_user(user_id, db)
+
+
+# ---------------------------------------------------------------------------
+# Activity blobs
+#
+# An activity owns two kinds of blob — the retained source file it was parsed
+# from, and its photos — and the profile export/import needs both. It used to
+# get them by importing ``activity_file_storage.service`` and
+# ``activity_media.signing``, then calling the storage provider itself with the
+# activities module's own area name and key prefix. That made a second module a
+# co-author of the activities storage layout: change the key shape and the
+# export silently stops finding anything.
+#
+# These take the ``StorageProvider`` rather than resolving it, because the
+# caller already holds one (a profile export runs against the platform it was
+# handed) and passing it keeps this surface free of runtime lookups.
+
+
+def get_activity_source_file(
+    activity_id: int,
+    storage: platform_providers.StorageProvider,
+) -> tuple[str, bytes] | None:
+    """Read an activity's retained source file.
+
+    Args:
+        activity_id: The owning activity id.
+        storage: The blob-storage provider.
+
+    Returns:
+        A ``(filename, data)`` pair, or ``None`` when nothing was retained.
+    """
+    return activity_file_storage_service.get_activity_file(activity_id, storage)
+
+
+def store_activity_source_file(
+    activity_id: int,
+    extension: str,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+) -> str:
+    """Persist a source file against an activity (profile import).
+
+    Args:
+        activity_id: The owning activity id.
+        extension: The source-file extension (e.g. ``".fit"``).
+        data: The raw, already-validated file bytes.
+        storage: The blob-storage provider.
+
+    Returns:
+        The filename the file was stored under.
+    """
+    return activity_file_storage_service.store_activity_file(activity_id, extension, data, storage)
+
+
+def list_activity_media_blobs(
+    activity_id: int,
+    storage: platform_providers.StorageProvider,
+) -> list[tuple[str, bytes]]:
+    """Read every media blob attached to an activity.
+
+    Args:
+        activity_id: The owning activity id.
+        storage: The blob-storage provider.
+
+    Returns:
+        ``(filename, data)`` pairs, empty when the activity has no media or the
+        blobs could not be listed. Individual unreadable blobs are skipped: a
+        profile export must not fail wholesale over one missing photo.
+    """
+    try:
+        keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, f"{activity_id}_")
+    except Exception as err:
+        logger.warning(
+            "Could not list an activity's media blobs",
+            exc_info=err,
+            extra=core_logger.context(activity_id=activity_id),
+        )
+        return []
+    blobs: list[tuple[str, bytes]] = []
+    for key in keys:
+        try:
+            data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
+        except Exception as err:
+            logger.warning(
+                "Could not read a media blob; skipping it",
+                exc_info=err,
+                extra=core_logger.context(storage_key=key),
+            )
+            continue
+        if data is None:
+            logger.warning("Media blob is missing behind its key", extra=core_logger.context(storage_key=key))
+            continue
+        blobs.append((key, data))
+    return blobs
+
+
+def store_activity_media_blob(
+    activity_id: int,
+    suffix: str,
+    extension: str,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+) -> str:
+    """Restore one media blob against an activity (profile import).
+
+    Restores the blob only — the media *row* is restored separately from the
+    exported table dump, which is what keeps the two halves of an export in
+    step.
+
+    Args:
+        activity_id: The owning activity id.
+        suffix: The exported blob's unique suffix, preserved so the restored
+            key still matches the restored row.
+        extension: The image extension, with leading dot.
+        data: The raw, already-validated image bytes.
+        storage: The blob-storage provider.
+
+    Returns:
+        The filename the blob was stored under.
+    """
+    key = f"{activity_id}_{suffix}{extension}"
+    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, key, data)
+    return key
+
+
+def attach_media_bytes(
+    activity_id: int,
+    original_filename: str | None,
+    data: bytes,
+    db: Session,
+) -> activity_media_contracts.ActivityMediaRecord:
+    """Register already-validated image bytes as media for an activity.
+
+    For a server-side import that ships photos alongside its activity files (a
+    Strava bulk export). The caller owns validation — it holds the file, not an
+    upload — and everything after that stays inside the activities module.
+
+    Args:
+        activity_id: The activity to attach the media to.
+        original_filename: The source filename, used only for its extension.
+        data: The raw, already-validated image bytes.
+        db: Database session.
+
+    Returns:
+        The created media record.
+    """
+    return activity_media_service.store_activity_media_bytes(activity_id, original_filename, data, db)

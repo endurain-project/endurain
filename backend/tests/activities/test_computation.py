@@ -1,12 +1,12 @@
-"""Tests for the file-import metric computation helpers.
+"""Tests for the published activity metric computations.
 
-Relocated from ``tests/activities/activity/test_utils*`` when the stream-math
-moved out of the activities core into ``activity_file_import/computation.py``.
+The stream maths moved out of the activities core, then out of the parser
+package once the Strava adapter needed it too — it is a module-level surface now.
 """
 
 from datetime import datetime
 
-from modules.activities.activity_file_import.computation import (
+from modules.activities.computation import (
     append_if_not_none,
     calculate_avg_and_max,
     calculate_instant_speed,
@@ -242,7 +242,7 @@ class TestCalculatePaceAcrossDstAndOffsets:
         from datetime import datetime
         from zoneinfo import ZoneInfo
 
-        import modules.activities.activity_file_import.computation as computation
+        import modules.activities.computation as computation
 
         lisbon = ZoneInfo("Europe/Lisbon")
         # Lisbon springs forward 01:00 -> 02:00 on 2024-03-31: the wall clock
@@ -257,7 +257,7 @@ class TestCalculatePaceAcrossDstAndOffsets:
     def test_duration_is_correct_for_mixed_offsets(self):
         from datetime import UTC, datetime, timedelta, timezone
 
-        import modules.activities.activity_file_import.computation as computation
+        import modules.activities.computation as computation
 
         start = datetime(2024, 1, 15, 10, 0, tzinfo=timezone(timedelta(hours=2)))
         end = datetime(2024, 1, 15, 8, 30, tzinfo=UTC)  # 30 minutes after 08:00Z
@@ -269,7 +269,7 @@ class TestCalculatePaceAcrossDstAndOffsets:
     def test_zero_distance_returns_zero(self):
         from datetime import UTC, datetime
 
-        import modules.activities.activity_file_import.computation as computation
+        import modules.activities.computation as computation
 
         now = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
         assert computation.calculate_pace(0, now, now) == 0

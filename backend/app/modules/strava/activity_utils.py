@@ -15,7 +15,7 @@ import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_file_import.computation as activities_computation
+import modules.activities.computation as activities_computation
 import modules.gears.gear.crud as gears_crud
 import modules.strava.utils as strava_utils
 import modules.users.users.crud as users_crud

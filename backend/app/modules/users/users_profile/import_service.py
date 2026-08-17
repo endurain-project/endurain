@@ -30,9 +30,7 @@ import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.activities.activity_file_storage.service as activity_file_storage_service
 import modules.activities.activity_media.contracts as activity_media_contracts
-import modules.activities.activity_media.signing as activity_media_signing
 import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
@@ -1075,7 +1073,7 @@ class ImportService:
                         logger.warning(f"Profile import dropped invalid activity file {new_file_name}: {err.detail}")
                         continue
                     await asyncio.to_thread(
-                        activity_file_storage_service.store_activity_file,
+                        activities_integration.store_activity_source_file,
                         new_id,
                         ext,
                         file_bytes,
@@ -1142,10 +1140,12 @@ class ImportService:
                                 f"Profile import dropped invalid activity media {new_file_name}: {err.detail}"
                             )
                             continue
-                        platform_runtime.get_active_platform().storage.save(
-                            activity_media_signing.MEDIA_STORAGE_AREA,
-                            new_file_name,
+                        activities_integration.store_activity_media_blob(
+                            new_id,
+                            suffix,
+                            ext,
                             file_bytes,
+                            platform_runtime.get_active_platform().storage,
                         )
                         self.counts["media"] += 1
                     except ValueError:

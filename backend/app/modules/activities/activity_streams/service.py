@@ -149,3 +149,48 @@ def get_public_activity_stream(
         return None
 
     return stream
+
+
+# ---------------------------------------------------------------------------
+# Derived-artifact reads
+#
+# The sibling surface: the thumbnail and geocoding subsystems need an activity's
+# recorded track to render a map or resolve a place name. They read it through
+# these instead of importing ``activity_streams.crud``, which made each of them a
+# second owner of the streams table. No masking is applied and none is wanted —
+# the caller is deriving an artifact for the owner, not serving a viewer.
+
+
+def get_stream_for_derivation(
+    activity_id: int,
+    stream_type: int,
+    db: Session,
+) -> activity_streams_schema.ActivityStreamsRead | None:
+    """Return one raw stream of an activity for a derived-artifact producer.
+
+    Args:
+        activity_id: The parent activity.
+        stream_type: The stream type code.
+        db: Database session.
+
+    Returns:
+        The stream, or ``None`` when the activity has no such stream.
+    """
+    return activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
+
+
+def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list]:
+    """Return each activity's GPS waypoints, keyed by activity id.
+
+    The batch read behind the thumbnail and geocoding backfills: one query for
+    many activities rather than one per activity. Activities with no GPS stream
+    are absent from the result.
+
+    Args:
+        activity_ids: The activities to fetch waypoints for.
+        db: Database session.
+
+    Returns:
+        Mapping of ``activity_id -> waypoints``.
+    """
+    return activity_streams_crud.get_gps_stream_waypoints_for_activities(activity_ids, db)

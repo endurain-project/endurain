@@ -1,0 +1,51 @@
+"""The notifications surface consumed by other modules.
+
+Notifications are raised *about* things that happen elsewhere, so almost every
+producer is another module. Each gets one named operation here rather than
+reaching into ``utils`` — a grab-bag that also holds the module's own routes'
+helpers and its websocket plumbing.
+
+Every operation is synchronous and writes only the notification **row**. The
+live websocket push is the caller's concern (dispatched onto the main loop), so
+these are safe to run on a durable-job worker thread where there is no loop and
+no connection registry.
+"""
+
+from sqlalchemy.orm import Session
+
+import core.logger as core_logger
+import modules.notifications.schema as notifications_schema
+import modules.notifications.utils as notifications_utils
+
+logger = core_logger.get_logger(__name__)
+
+
+def create_activity_created_notification(
+    user_id: int,
+    activity_id: int,
+    duplicate_start_time: bool,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """
+    Record the notification for a newly stored activity.
+
+    Args:
+        user_id: The owner to notify.
+        activity_id: The stored activity.
+        duplicate_start_time: Whether the activity duplicates an existing
+            activity's start time, which selects the duplicate variant.
+        db: Database session.
+
+    Returns:
+        The created notification row and the websocket message type the caller
+        should push.
+
+    Raises:
+        None.
+    """
+    return notifications_utils.create_activity_created_notification(
+        user_id,
+        activity_id,
+        duplicate_start_time,
+        db,
+    )

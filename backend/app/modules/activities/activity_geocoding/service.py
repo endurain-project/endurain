@@ -20,9 +20,9 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import infra.runtime as platform_runtime
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.service as activities_service
 import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.service as activity_streams_service
 from infra.providers import GeocodedPlace
 
 logger = core_logger.get_logger(__name__)
@@ -62,7 +62,7 @@ def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Sess
     Returns:
         True when a location was resolved and stored, else False.
     """
-    stream = activity_streams_crud.get_activity_stream_by_type(
+    stream = activity_streams_service.get_stream_for_derivation(
         activity_id,
         activity_streams_constants.STREAM_TYPE_MAP,
         db,
@@ -75,7 +75,7 @@ def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Sess
     if location is None:
         return False
 
-    activities_crud.update_activity_location(
+    activities_service.set_activity_location(
         activity_id,
         location.city,
         location.town,
@@ -105,13 +105,13 @@ def backfill_missing_activity_locations(db: Session) -> int:
     Returns:
         The number of activities whose location was resolved and stored.
     """
-    candidates = activities_crud.get_activities_missing_location(db)
+    candidates = activities_service.list_activities_missing_location(db)
     if not candidates:
         logger.debug("Geocoding scheduler: no activities missing location")
         return 0
 
     candidate_ids = [ref.id for ref in candidates]
-    waypoints_by_activity = activity_streams_crud.get_gps_stream_waypoints_for_activities(candidate_ids, db)
+    waypoints_by_activity = activity_streams_service.get_gps_waypoints_for_activities(candidate_ids, db)
 
     stored = 0
     for activity_id, waypoints in waypoints_by_activity.items():
@@ -121,7 +121,7 @@ def backfill_missing_activity_locations(db: Session) -> int:
         location = reverse_geocode(first_waypoint.get("lat"), first_waypoint.get("lon"))
         if location is None:
             continue
-        activities_crud.update_activity_location(
+        activities_service.set_activity_location(
             activity_id,
             location.city,
             location.town,

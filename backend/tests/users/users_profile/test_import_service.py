@@ -1373,7 +1373,7 @@ class TestImportServiceAddActivityFiles:
             patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
             patch(
-                "modules.users.users_profile.import_service.activity_file_storage_service.store_activity_file"
+                "modules.users.users_profile.import_service.activities_integration.store_activity_source_file"
             ) as mock_store,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
@@ -1403,7 +1403,7 @@ class TestImportServiceAddActivityFiles:
 
         with (
             patch(
-                "modules.users.users_profile.import_service.activity_file_storage_service.store_activity_file"
+                "modules.users.users_profile.import_service.activities_integration.store_activity_source_file"
             ) as mock_store,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):

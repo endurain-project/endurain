@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import migrations.crud as migrations_crud
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 

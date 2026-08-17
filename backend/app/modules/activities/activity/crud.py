@@ -39,7 +39,7 @@ import modules.activities.activity.query as activities_query
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
 import modules.followers.integration_service as followers_integration
-import modules.server_settings.utils as server_settings_utils
+import modules.server_settings.integration_service as server_settings_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -1081,8 +1081,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
     Raises:
         ProcessingError: On database error.
     """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-    if not server_settings.public_shareable_links:
+    if not server_settings_integration.public_shareable_links_enabled(db):
         return None
 
     stmt = select(activities_models.Activity).where(

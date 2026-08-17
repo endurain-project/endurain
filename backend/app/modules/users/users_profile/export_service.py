@@ -24,8 +24,6 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_integration
-import modules.activities.activity_file_storage.service as activity_file_storage_service
-import modules.activities.activity_media.signing as activity_media_signing
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.health.health_targets.crud as health_targets_crud
@@ -694,7 +692,7 @@ class ExportService:
         storage = platform_runtime.get_active_platform().storage
         for activity in user_activities:
             try:
-                stored = activity_file_storage_service.get_activity_file(activity.id, storage)
+                stored = activities_integration.get_activity_source_file(activity.id, storage)
                 if stored is None:
                     continue
                 key, data = stored
@@ -730,17 +728,13 @@ class ExportService:
 
         for activity in user_activities:
             try:
-                keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, f"{activity.id}_")
+                blobs = activities_integration.list_activity_media_blobs(activity.id, storage)
             except Exception as err:
                 logger.warning(f"Failed to list media for activity {activity.id}: {err}", exc_info=err)
                 continue
 
-            for key in keys:
+            for key, data in blobs:
                 try:
-                    data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
-                    if data is None:
-                        logger.warning(f"Media blob not found for key: {key}")
-                        continue
                     zipf.writestr(os.path.join("activity_media", key), data)
                     self.counts["media"] += 1
                 except MemoryAllocationError:

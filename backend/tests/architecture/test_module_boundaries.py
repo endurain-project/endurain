@@ -26,16 +26,23 @@ _CONVERTED = ("activities",)
 _MODULES_ROOT = pathlib.Path("app/modules")
 
 #: File stems a sibling sub-package may import: data shapes and event
-#: declarations, which carry no behaviour and no persistence.
-_PUBLIC_WITHIN_MODULE = frozenset({"schema", "contracts", "constants", "events"})
+#: declarations, which carry no behaviour and no persistence; ``query`` — SQL
+#: expression fragments that open no session and fetch no rows, so sharing them
+#: is what stops two packages disagreeing about a rule like "which local day did
+#: this happen on?"; and ``service`` — the owning package's application layer,
+#: which is how a sibling reaches its data without becoming a second owner of
+#: its tables.
+_PUBLIC_WITHIN_MODULE = frozenset({"schema", "contracts", "constants", "events", "query", "service"})
 
 #: File stems importable from *outside* the owning module. Everything else is
-#: module-internal or package-private.
-_PUBLIC_ACROSS_MODULES = _PUBLIC_WITHIN_MODULE | frozenset(
+#: module-internal or package-private. ``service`` and ``query`` are deliberately
+#: absent: they are the module's own layers, not its published surface.
+_PUBLIC_ACROSS_MODULES = (_PUBLIC_WITHIN_MODULE - {"service", "query"}) | frozenset(
     {
         "integration_service",
         "subscriber_registry",
         "scheduled_jobs",
+        "computation",
         "dependencies",
         "router",
         "public_router",
@@ -50,6 +57,10 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
         "activity.integration_service",
         "*.crud",
     ): "The module's outward surface. An activity spans its child collections, so presenting one face outward means reading them.",
+    (
+        "activity.integration_service",
+        "*.signing",
+    ): "Presenting an activity's blobs outward means knowing which storage area they live in; the addressing module is where that is defined once.",
     (
         "activity.ingestion_service",
         "*.crud",
@@ -86,35 +97,10 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
         "scheduled_jobs",
         "*",
     ): "The module's scheduled-work surface; naming the callables it schedules is the whole point of the file.",
-    # --- Debt: derived subsystems reading another package's persistence -----
-    (
-        "activity_thumbnail.*",
-        "activity.crud",
-    ): "DEBT: needs a root-row projection; none is published, so it reads the CRUD.",
-    (
-        "activity_thumbnail.*",
-        "activity_streams.crud",
-    ): "DEBT: needs the GPS stream to render; no read projection is published.",
-    (
-        "activity_geocoding.service",
-        "activity.crud",
-    ): "DEBT: needs a root-row projection to write the resolved location back.",
-    (
-        "activity_geocoding.service",
-        "activity_streams.crud",
-    ): "DEBT: needs the first GPS waypoint; no read projection is published.",
-    (
-        "activity_media.service",
-        "activity.crud",
-    ): "DEBT: needs an ownership check on the parent row; no projection is published.",
     (
         "activity_summaries.crud",
         "activity.models",
-    ): "DEBT: a second package aggregating over a table it does not own.",
-    (
-        "activity_summaries.crud",
-        "activity.query",
-    ): "DEBT: a second package aggregating over a table it does not own.",
+    ): "A read model projects the table it summarizes, so it selects from it. Ownership is about writes, and summaries only reads.",
 }
 
 #: Reaches past a module's surface from outside it, as
@@ -140,22 +126,6 @@ _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
         "modules.garmin.*",
         "activity_ingestion.*",
     ): "Providers feed files to the ingestion entry point. Correct direction; not yet a published surface.",
-    (
-        "modules.strava.*",
-        "activity_file_import.computation",
-    ): "DEBT: provider payload maths reusing the parsers' pure helpers; belongs in a shared computation surface.",
-    (
-        "modules.strava.bulk_import_utils",
-        "activity_media.service",
-    ): "DEBT: Strava export sidecar photos are attached by calling the media service directly.",
-    (
-        "modules.users.users_profile.*",
-        "activity_file_storage.service",
-    ): "DEBT: profile export/import bundles retained source files without a published surface for them.",
-    (
-        "modules.users.users_profile.*",
-        "activity_media.signing",
-    ): "DEBT: profile export/import resolves media storage keys without a published surface for them.",
     (
         "*.models",
         "*.models",

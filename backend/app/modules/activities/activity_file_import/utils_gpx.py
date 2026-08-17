@@ -15,8 +15,8 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils as activity_file_import_utils
+import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 

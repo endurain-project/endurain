@@ -21,7 +21,7 @@ import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.service as activity_streams_service
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
@@ -57,7 +57,7 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
     storage = platform_runtime.get_active_platform().storage
     with core_database.SessionLocal() as db:
-        waypoints = activity_streams_crud.get_activity_stream_by_type(
+        waypoints = activity_streams_service.get_stream_for_derivation(
             payload.activity_id, activity_streams_constants.STREAM_TYPE_MAP, db
         )
         if waypoints is None or len(waypoints.stream_waypoints) < _MIN_WAYPOINTS:

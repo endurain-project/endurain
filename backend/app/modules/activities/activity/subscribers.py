@@ -19,9 +19,8 @@ import core.logger as core_logger
 import infra.async_bridge as platform_async_bridge
 import infra.event_versioning as platform_event_versioning
 import modules.activities.activity.events as activity_events
-import modules.notifications.utils as notifications_utils
-import modules.websocket.manager as websocket_manager
-import modules.websocket.utils as websocket_utils
+import modules.notifications.integration_service as notifications_integration
+import modules.websocket.integration_service as websocket_integration
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
@@ -51,7 +50,7 @@ def notify_activity_created_for_event(event: Event) -> None:
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
 
     with core_database.SessionLocal() as db:
-        notification, ws_message = notifications_utils.create_activity_created_notification(
+        notification, ws_message = notifications_integration.create_activity_created_notification(
             payload.user_id,
             payload.activity_id,
             payload.duplicate_start_time,
@@ -61,19 +60,16 @@ def notify_activity_created_for_event(event: Event) -> None:
     # Best-effort websocket push on the main loop; the row above is the record,
     # so a failed/dropped push (offline client, no loop) is not an error.
     #
-    # KNOWN LIMITATION (distributed): get_websocket_manager() is the PROCESS-LOCAL
-    # connection registry, so this reaches only clients whose websocket is held by
-    # THIS process. In a multi-replica deployment the durable job may run on a
-    # worker/replica other than the one holding the user's socket, so the live push
-    # is silently dropped for that client. No durable state is lost — the
-    # notification ROW is written, so the client still sees it on its next fetch.
-    # The real fix (cross-replica fan-out, e.g. a Redis pub/sub relay to every
-    # replica's manager) belongs to the future websocket module rework; noted here
-    # so it is not forgotten.
+    # KNOWN LIMITATION (distributed): the websocket registry is PROCESS-LOCAL, so
+    # this reaches only clients whose websocket is held by THIS process. In a
+    # multi-replica deployment the durable job may run on a worker/replica other
+    # than the one holding the user's socket, so the live push is silently
+    # dropped for that client. No durable state is lost — the notification ROW is
+    # written, so the client still sees it on its next fetch. The real fix
+    # (cross-replica fan-out) belongs to the websocket module rework.
     platform_async_bridge.dispatch(
-        websocket_utils.notify_frontend(
+        websocket_integration.push_to_user(
             payload.user_id,
-            websocket_manager.get_websocket_manager(),
             {"message": ws_message, "notification_id": notification.id},
         )
     )
