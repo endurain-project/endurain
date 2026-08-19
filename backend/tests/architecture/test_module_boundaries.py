@@ -89,8 +89,16 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
     ): "The one paginated child read — a child package declares what it is, this owns how the read runs.",
     (
         "activity_ingestion.pipeline",
-        "*",
-    ): "The ingestion orchestrator. Its job is to drive parse -> enrich -> store -> retain across the packages that own each step.",
+        "activity.ingestion_service",
+    ): "The ingestion orchestrator's store step: one parsed activity written as a root row plus its children.",
+    (
+        "activity_ingestion.pipeline",
+        "activity_file_import.registry",
+    ): "The parse step resolves a parser by file extension; the registry is that lookup.",
+    (
+        "activity_ingestion.pipeline",
+        "activity_exercise_titles.crud",
+    ): "Strength-workout sets name their exercises by id, so storing them means upserting the title rows they reference.",
     (
         "activity.serializers",
         "activity_thumbnail.signing",
