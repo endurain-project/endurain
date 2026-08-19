@@ -109,6 +109,15 @@ ACTIVITY_ID_TO_NAME = {
 
 # Global Activity Type Mappings (Name to ID) - Case Insensitive Keys
 ACTIVITY_NAME_TO_ID = {name.lower(): activity_type_id for activity_type_id, name in ACTIVITY_ID_TO_NAME.items()}
+
+#: Activity types recorded on a virtual platform (Zwift and the like). Any GPS
+#: position such a file carries describes the platform's synthetic route rather
+#: than where the athlete actually was, so it must not be used to resolve their
+#: timezone. Named for the question the parsers ask; both of them previously kept
+#: a private pair of magic numbers, and the FIT parser's were bare literals while
+#: the GPX parser's were named after the wrong activities entirely.
+VIRTUAL_ACTIVITY_TYPES = frozenset({3, 7})
+
 # Add specific variations found in define_activity_type
 ACTIVITY_NAME_TO_ID.update(
     {

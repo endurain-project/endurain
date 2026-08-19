@@ -127,13 +127,13 @@ _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
         "activity.ingestion_service",
     ): "The provider store seam, the counterpart of integration_service for writes.",
     (
-        "modules.strava.*",
-        "activity_ingestion.*",
-    ): "Providers feed files to the ingestion entry point. Correct direction; not yet a published surface.",
+        "modules.strava.provider_registry",
+        "activity_ingestion.provider_registry",
+    ): "The plug-in point itself: a provider registers on it, which is what stopped ingestion importing providers.",
     (
-        "modules.garmin.*",
-        "activity_ingestion.*",
-    ): "Providers feed files to the ingestion entry point. Correct direction; not yet a published surface.",
+        "modules.garmin.provider_registry",
+        "activity_ingestion.provider_registry",
+    ): "The plug-in point itself: a provider registers on it, which is what stopped ingestion importing providers.",
     (
         "*.models",
         "*.models",

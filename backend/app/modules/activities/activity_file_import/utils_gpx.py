@@ -20,11 +20,6 @@ import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 
-# Activity type IDs that do not use GPS-based timezone
-# detection (e.g. indoor/pool activities)
-_ACTIVITY_TYPE_POOL_SWIM = 3
-_ACTIVITY_TYPE_TREADMILL = 7
-
 # Inclusive plausible elevation range in meters. Values outside this range
 # (or non-finite) are dropped to guard against sentinel/garbage readings.
 _ELEVATION_MIN = -9999.99
@@ -467,14 +462,7 @@ def _compute_derived_metrics(
             state.normalized_power,
         ) = activity_file_import_utils.calculate_power_metrics(state.power_waypoints)
 
-    if (
-        state.activity_type
-        not in (
-            _ACTIVITY_TYPE_POOL_SWIM,
-            _ACTIVITY_TYPE_TREADMILL,
-        )
-        and state.is_lat_lon_set
-    ):
+    if state.activity_type not in activities_constants.VIRTUAL_ACTIVITY_TYPES and state.is_lat_lon_set:
         state.timezone = activity_file_import_utils.resolve_timezone_from_lat_lon(
             state.lat_lon_waypoints[0]["lat"],
             state.lat_lon_waypoints[0]["lon"],

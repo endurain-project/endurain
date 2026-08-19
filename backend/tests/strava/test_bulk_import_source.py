@@ -32,7 +32,7 @@ class TestSourceKind:
     def test_it_is_still_a_bulk_import(self):
         # The pipeline narrows on the base type, so the subclass must satisfy it.
         assert _source().kind == "bulk_import"
-        assert isinstance(_source(), strava_bulk_import_source.ingestion_sources.BulkImportSource)
+        assert isinstance(_source(), strava_bulk_import_source.activity_ingestion.BulkImportSource)
 
 
 class TestErrorDirectory:

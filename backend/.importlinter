@@ -68,13 +68,9 @@ forbidden_modules =
 # their recurring jobs — the platform reaching up into the domain to ask what
 # work exists. Each module now declares its own ``scheduled_jobs``, and the
 # composition root (``main``) hands the collected list to ``start_scheduler``.
-# Two exceptions remain, both reads of a domain SCHEMA (a data shape) rather
-# than behaviour, and both recorded here so they are reviewed rather than
-# assumed: ``core.middleware`` types the server settings it stamps onto the
-# request, and ``core.i18n`` derives its supported-locale set from the users
-# ``Language`` enum (lazily, to avoid a circular import). The i18n one is
-# genuinely backwards — i18n owns which translation bundles exist — and is
-# tracked in docs/developer-guide/module-structure.md.
+# One exception remains, recorded here so it is reviewed rather than assumed:
+# ``core.middleware`` reads the server-settings SCHEMA (a data shape, not
+# behaviour) to type the settings it stamps onto the request.
 [importlinter:contract:core-not-domain]
 name = Core must not import domain modules
 type = forbidden
@@ -85,7 +81,6 @@ forbidden_modules =
     modules
 ignore_imports =
     core.middleware -> modules.server_settings.schema
-    core.i18n -> modules.users.users.schema
 
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis

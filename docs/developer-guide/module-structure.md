@@ -248,13 +248,22 @@ ingestion.
 
 ### Platform → domain inversion
 
-**Resolved for the scheduler.** `core/scheduler.py` schedules what it is handed
-and imports no module; the `core-not-domain` contract enforces it.
+**Resolved.** `core/scheduler.py` schedules what it is handed and imports no
+module; `core/i18n` owns the locales it ships a catalog for instead of reading
+the users module's `Language` enum. The `core-not-domain` contract enforces it,
+with one recorded exception: `core.middleware` reads the server-settings *schema*
+— a data shape, not behaviour — to type what it stamps onto the request.
 
-One exception remains: `core/i18n` derives its supported-locale set from the
-users module's `Language` enum. That is backwards — i18n owns which translation
-bundles exist — and the enum should derive from `core.i18n`, not the reverse. It
-is recorded as an `ignore_imports` entry rather than assumed.
+The locale list now exists three times on purpose: `core.i18n` (what we can write
+an email in), the `Language` enum (what a client may pick), and the shipped
+catalog directories. `tests/core/test_i18n.py` asserts all three agree, so drift
+fails CI rather than silently falling back to English.
+
+### Providers feeding ingestion
+
+**Resolved.** `activity_ingestion/integration_service.py` publishes the entry
+point and the source types. Providers import one module; `bulk_entry` and
+`sources` are package-private again.
 
 ### Persistence layers calling other modules
 
@@ -276,11 +285,3 @@ as its module is converted.
 Data migrations are pinned to the schema of their era, so routing them through a
 surface that evolves would break them; they are exempt by nature, and the exemption
 is recorded rather than assumed.
-
-### Providers feeding ingestion
-
-`modules.strava` and `modules.garmin` reach `activity_ingestion.bulk_entry` and
-`activity_ingestion.sources` to feed files in. That is the *correct* direction
-(a provider depends on activities) but not yet a published surface — the ingestion
-entry point should be named on the module's surface rather than reached for by
-path.

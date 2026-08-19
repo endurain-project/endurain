@@ -83,7 +83,7 @@ def create_activity_objects(
                 session_record["lengths"],
             )
 
-            if activity_type != 3 and activity_type != 7:
+            if activity_type not in activities_constants.VIRTUAL_ACTIVITY_TYPES:
                 if session_record["is_lat_lon_set"]:
                     session_timezone = activity_file_import_utils.resolve_timezone_from_lat_lon(
                         session_record["lat_lon_waypoints"][0]["lat"],

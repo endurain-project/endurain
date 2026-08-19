@@ -17,8 +17,7 @@ import core.timezone as core_timezone
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
-import modules.activities.activity_ingestion.sources as ingestion_sources
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.users.users.crud as users_crud
@@ -265,7 +264,7 @@ def queue_bulk_export_activities_for_import(
             # (dispatched via ``loop.run_in_executor`` from
             # ``strava/router.py``) with no running event loop, so the
             # sync file-validation inside it is safe.
-            ingestion_bulk_entry.store_activity_file(
+            activity_ingestion.ingest_activity_file(
                 token_user_id,
                 file_path,
                 db,
@@ -368,7 +367,7 @@ def build_import_dictionary(
     """
     import_dict: dict[str, Any] = {}
     if is_strava_bulk_import:
-        import_dict = ingestion_sources.build_import_record(import_initiated_time, "Strava bulk import")
+        import_dict = activity_ingestion.build_import_record(import_initiated_time, "Strava bulk import")
         activity_id_value = strava_activities[file_base_name].get("Activity ID", "")
         if activity_id_value:
             try:
@@ -379,7 +378,7 @@ def build_import_dictionary(
                     extra=core_logger.context(console=True),
                 )
     else:
-        import_dict = ingestion_sources.build_import_record(import_initiated_time)
+        import_dict = activity_ingestion.build_import_record(import_initiated_time)
     return import_dict
 
 

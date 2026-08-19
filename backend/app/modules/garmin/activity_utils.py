@@ -9,8 +9,7 @@ import core.file_uploads as file_uploads
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
-import modules.activities.activity_ingestion.sources as ingestion_sources
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
 import modules.garmin.gear_utils as garmin_gear_utils
 import modules.garmin.utils as garmin_utils
 import modules.notifications.utils as notifications_utils
@@ -138,11 +137,11 @@ async def fetch_and_process_activities_by_dates(
 
         for full_file_path in extracted_paths:
             parsed_result = await asyncio.to_thread(
-                ingestion_bulk_entry.store_activity_file,
-                token_user_id=user_id,
+                activity_ingestion.ingest_activity_file,
+                user_id=user_id,
                 file_path=str(full_file_path),
                 db=db,
-                source=ingestion_sources.GarminSource(
+                source=activity_ingestion.GarminSource(
                     # Resolved here rather than inside ingestion: which local gear
                     # a Garmin UUID maps to (and whether gear sync is even on) is
                     # this module's knowledge, not the pipeline's.
