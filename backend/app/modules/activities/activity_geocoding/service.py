@@ -20,9 +20,9 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import infra.runtime as platform_runtime
-import modules.activities.activity.service as activities_service
+import modules.activities.activity.integration_service as activities_service
 import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.service as activity_streams_service
+import modules.activities.activity_streams.integration_service as activity_streams_service
 from infra.providers import GeocodedPlace
 
 logger = core_logger.get_logger(__name__)

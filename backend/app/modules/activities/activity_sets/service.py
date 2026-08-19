@@ -13,7 +13,7 @@ request could ask for.
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
-import modules.activities.activity.child_collection as activity_child_collection
+import modules.activities.activity.integration_service as activity_child_collection
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 

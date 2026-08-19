@@ -6,9 +6,9 @@ from timezonefinder import TimezoneFinder
 import core.config as core_config
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import modules.activities.activity.crud as activities_crud
+import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.migration_service as activity_streams_crud
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
 

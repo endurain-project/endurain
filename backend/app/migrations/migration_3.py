@@ -17,20 +17,18 @@ import core.file_uploads as file_uploads
 import core.logger as core_logger
 import migrations.crud as migrations_crud
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity_file_import.utils as activity_file_import_utils
-import modules.activities.activity_file_import.utils_fit as fit_utils
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_sets.crud as activity_sets_crud
+import modules.activities.activity.migration_service as activities_crud
+import modules.activities.activity_exercise_titles.migration_service as activity_exercise_titles_crud
+import modules.activities.activity_file_import.migration_service as activity_file_import_utils
+import modules.activities.activity_file_import.migration_service as fit_utils
+import modules.activities.activity_laps.migration_service as activity_laps_crud
+import modules.activities.activity_sets.migration_service as activity_sets_crud
 import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.crud as activity_streams_crud
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
+import modules.activities.activity_streams.migration_service as activity_streams_crud
+import modules.activities.activity_workout_steps.migration_service as activity_workout_steps_crud
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.strava.activity_utils as strava_activity_utils
 import modules.strava.utils as strava_utils
-from modules.activities.activity_exercise_titles import (
-    crud as activity_exercise_titles_crud,
-)
 
 logger = core_logger.get_logger(__name__)
 

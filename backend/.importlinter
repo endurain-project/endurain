@@ -261,17 +261,16 @@ forbidden_modules =
 
 # The consumer modules — the providers (Strava, Garmin), gears, and users — must not
 # reach into any activities CRUD or its ORM directly. They go through the curated
-# activity integration_service interface (activity/integration_service.py), the
-# read/gear/aggregate/delete counterpart to the ingestion seam they already use to
-# STORE activities. Going through the interface is what keeps the activities tables
-# queried only by their owner, and what makes bulk deletes emit the cleanup events
-# that reclaim thumbnails and stored source files.
+# integration_service owned by the package whose data they need. Root activity
+# reads/writes go through activity/integration_service.py; laps, streams, media,
+# retained files and the other child packages each publish their own surface.
+# Going through those interfaces keeps every table and storage layout owned by one
+# package while preserving the activity-wide transactions at the orchestration layer.
 # The forbidden list is a WILDCARD over every activities sub-package, not just the
 # parent: naming ``activity.crud`` alone left the profile export/import reaching into
 # five CHILD cruds (laps, sets, streams, workout steps, exercise titles, media) and the
 # users CRUD into activity_streams — the same boundary violation the contract exists to
-# stop, one level down. Those consumers now call the child operations the integration
-# service exposes.
+# stop, one level down. Those consumers now call each child's integration service.
 # allow_indirect_imports keeps this to DIRECT imports: the interface itself
 # legitimately imports crud (it is inside activities), so the transitive
 # consumer -> integration_service -> crud path is fine — only a bare
@@ -290,11 +289,24 @@ forbidden_modules =
     modules.activities.*.*.crud
     modules.activities.activity.query
 
-# The companion ORM rule, stated structurally so it can exclude one thing: ORM
-# models legitimately reference each other across modules, because SQLAlchemy
-# relationships share a single registry and are typed with TYPE_CHECKING imports
-# (``Gear`` <-> ``Activity`` <-> ``Users``). What must NOT happen is a consumer's
-# *behaviour* layer querying the activities table itself — which is exactly how
+# Data migrations are version-pinned orchestration, but that does not grant them
+# unrestricted access to every package implementation. Each package exposes the
+# exact legacy operations it supports through ``migration_service.py``; those
+# adapters are for app/migrations only and must never become a general-purpose
+# domain dependency.
+[importlinter:contract:activities-migration-surfaces-are-private]
+name = Activity migration services are consumed only by application migrations
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules
+    core
+    infra
+forbidden_modules =
+    modules.activities.*.migration_service
+
+# The companion ORM rule rejects a consumer's behaviour layer querying the
+# activities table itself — which is exactly how
 # the gear and gear-component usage totals used to be computed, complete with
 # their own copy of the local-timezone date rule. Those aggregations now live in
 # the activities module and are reached through the integration service.
@@ -511,7 +523,8 @@ forbidden_modules =
 # them, and answer a refusal exactly like an empty collection. Each held its own
 # copy, ~98% identical after renaming the resource, and the copies had already
 # drifted. They now declare what they are (hide flag + CRUD pair + page type) and
-# hand the read to ``activity/child_collection``.
+# hand the read to the root activity integration surface, which publishes the
+# shared ``ChildCollection`` operation without exposing its implementation file.
 # Forbidding the gate is what keeps that true: a service that cannot call
 # ``child_access`` cannot quietly grow a fourth copy of the read around it.
 # ``activity_streams.service`` is deliberately absent — its masking is per stream
@@ -537,10 +550,6 @@ forbidden_modules =
 # and the health-targets CRUD for a caller that only wanted a timezone. Schemas
 # stay allowed (data shapes, not behaviour), as do the FastAPI dependencies the
 # routers mount, which are an HTTP-boundary concern rather than a domain reach.
-# The users ORM is also not listed: SQLAlchemy relationships share one registry and
-# are typed with TYPE_CHECKING imports (``Activity`` <-> ``Users``), so the model
-# cross-reference is structural rather than a behaviour-layer reach — the same
-# exception consumer-activities-orm makes in the opposite direction.
 # allow_indirect_imports keeps this to DIRECT imports: the interface itself
 # legitimately imports users crud/utils, so activities -> integration_service ->
 # crud is fine.

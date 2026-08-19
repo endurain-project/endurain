@@ -1,27 +1,30 @@
 # Module Structure
 
-This guide defines the structure every backend module follows, and the rules that
-make a module **replaceable**: you could lift `modules/activities` out of the tree,
-publish it as a library, and the rest of the application would keep compiling
-because it never depended on anything the module did not deliberately publish.
+This guide defines the structure every backend module follows and the rules that
+make each module **replaceable**. A module can move to another distribution, or
+be replaced by another implementation, because callers import only surfaces the
+module deliberately publishes.
 
-`modules/activities` is the reference implementation for a module that splits
-into sub-packages; `modules/followers` is the reference for one that stays flat.
-Every other module — and every new one — is converted to this shape.
+`modules/activities` is a composition namespace containing several independent
+modules (`activity`, `activity_laps`, `activity_streams`, and so on).
+`modules/followers` is the reference for a module that stays flat. Every other
+module, and every new module, is converted to one of these shapes.
 
 ## The two units
 
 | Unit | What it is | Example |
 | --- | --- | --- |
-| **Module** | One bounded context. The unit of extraction. | `modules/activities` |
-| **Sub-package** | One aggregate or subsystem inside a module. | `modules/activities/activity_laps` |
+| **Composition namespace** | Groups related modules and collects their routers, jobs and subscribers. It is not an implementation boundary. | `modules/activities` |
+| **Module** | One aggregate or capability and the unit of extraction. | `modules/activities/activity_laps`, `modules/followers` |
 
-A module with a single aggregate stays flat (`modules/followers`). A module with
-several — an activity is a root row, six child collections, three derived
-artifacts and two ingestion paths — splits into sub-packages.
+A bounded context with one aggregate stays flat (`modules/followers`). Related
+activity capabilities share the `modules.activities` namespace, but each child
+package remains its own module. They are **peers**, not implementation friends:
+`activity_thumbnail` may consume `activity_streams.integration_service`, but it
+may not import `activity_streams.service`, CRUD, ORM models, signing, or helpers.
 
-Sub-packages are **peers**, not a hierarchy. `activity_thumbnail` may not read
-`activity_streams`' tables just because both live under `activities/`.
+The root `activity` package owns the activity row and parent access decisions. It
+does not own child tables merely because they refer to `activities.id`.
 
 ## File roles
 
@@ -51,13 +54,15 @@ brought it under four existing contracts without writing a new one.
 | `subscribers.py` | application | Handles events. Registered from `subscriber_registry`. |
 | `integration_service.py` | **module surface** | The curated set of operations other modules may call. |
 | `scheduled_jobs.py` | **module surface** | The module's recurring jobs, collected by the composition root. |
+| `model_registry.py` | **composition surface** | Declares the package's ORM model module without requiring core to scan domains. |
+| `migration_service.py` | **migration-only surface** | Version-pinned operations used by `app/migrations`; never an ordinary domain dependency. |
 
 Anything else (`utils.py`, `signing.py`, `render.py`, `pipeline.py`, …) is
 package-private by default.
 
 ## Visibility
 
-Three classes. This is the whole rule.
+Four classes. This is the whole rule.
 
 ### 1. Module surface — importable from anywhere
 
@@ -94,29 +99,38 @@ activities module to borrow the vocabulary, a dependency between two bounded
 contexts for the sake of a shared word. Followers registered two durable
 subscribers with no net, no exemption, and nothing to catch it.
 
-A module-level file (not inside a sub-package) is the right home for a surface
-that belongs to the whole module rather than one aggregate —
-`modules/activities/computation.py`, the pure metric maths the parsers, the
-Strava adapter and the migrations all use.
+A namespace-level file is appropriate only for composition or a genuinely
+shared, dependency-free contract. `modules/activities/computation.py` is the
+pure metric maths used by parsers and provider adapters; it owns no table and
+calls no module.
 
-### 2. Module-internal — importable by sibling sub-packages, not by other modules
+### 2. Composition surface — imported only while assembling the application
 
-`service.py` — the owning package's application layer, and how a sibling reaches
-its data. A derived subsystem that needs the activity row asks `activity.service`,
-not `activity.crud`; otherwise every subsystem becomes a second owner of the
-table.
+`router.py`, `public_router.py`, `dependencies.py`, `subscriber_registry.py`,
+`scheduled_jobs.py`, and `model_registry.py` are collected by `api.py`, `main.py`,
+`worker.py`, Alembic, or the namespace-level activities registries. Business
+modules do not call them.
 
-`query.py` — SQL expression fragments. Shared because the rules those queries must
-agree on (above all *which local day did this happen on?*) must have one
-definition, and because a fragment opens no session and fetches no rows.
+Every persistence-owning package declares its model module in
+`model_registry.py`. `app/model_registry.py` collects converted modules
+explicitly. Its filesystem scan exists only for unconverted legacy modules and
+shrinks as those modules adopt this structure. `core.database` never discovers
+or imports domain models.
 
-Plus the named intra-module seams a module declares (for activities:
-`activity/child_access.py`, `activity/ingestion_service.py`).
+### 3. Migration-only surface — imported only by `app/migrations`
 
-### 3. Package-private — importable only from inside its own sub-package
+`migration_service.py` exposes the exact historical operations a versioned data
+migration still needs. It prevents an old migration from reaching arbitrary CRUD,
+parser, render, or signing internals while keeping that migration pinned to its
+era. Import-linter forbids domain, core, and infra code from consuming it.
 
-`crud.py`, `models.py`, `serializers.py`, `utils.py`, `subscribers.py`,
-`event_publishers.py`, and every unlisted helper.
+### 4. Package-private — importable only from inside its own module
+
+`service.py`, `query.py`, `crud.py`, `models.py`, `serializers.py`, `utils.py`,
+`signing.py`, `subscribers.py`, `event_publishers.py`, and every unlisted helper.
+Sibling activity modules are outside callers for this rule. A derived subsystem
+that needs the activity row asks `activity.integration_service`, never
+`activity.service` or `activity.crud`.
 
 `__init__.py` holds a docstring and **nothing else**. A re-export facade would
 hand out ORM models and CRUD functions under a package path, which is a silent
@@ -126,30 +140,33 @@ bypass of every rule above.
 
 Read as *row imports column*.
 
-| From ↓ / To → | own `crud` | own `service` | sibling `crud` | sibling `service` | sibling `schema`/`contracts` | other module |
+| From ↓ / To → | own `crud` | own `service` | peer `integration_service` | peer internals | peer `schema`/`contracts` | other module |
 | --- | --- | --- | --- | --- | --- | --- |
-| `router` | ✗ | ✓ | ✗ | ✗ | ✓ | ✗ |
-| `service` | ✓ | — | ✗ | ✓ | ✓ | `integration_service` only |
+| `router` | ✗ | ✓ | ✗ | ✗ | ✓ | transport dependencies only |
+| `service` | ✓ | — | ✓ | ✗ | ✓ | `integration_service` only |
 | `crud` | — | ✗ | ✗ | ✗ | ✓ | ✗ |
-| `models` | — | ✗ | ✗ | ✗ | sibling `models` (FK only) | other-module `models` (FK only) |
-| `subscribers` | ✗ | ✓ | ✗ | ✓ | ✓ | `integration_service` only |
-| `integration_service` | ✓ | ✓ | ✓ | ✓ | ✓ | `integration_service` only |
+| `models` | — | ✗ | ✗ | ✗ | ✗ | ✗ |
+| `subscribers` | ✗ | ✓ | ✓ | ✗ | ✓ | `integration_service`/events only |
+| `integration_service` | ✓ | ✓ | ✓ | ✗ | ✓ | `integration_service` only |
+| `app/migrations` | ✗ | ✗ | ✗ | ✗ | ✓ | `migration_service` only |
 
 Four entries deserve the reasoning:
 
 - **`crud` never calls another module.** A `SELECT` that first has to ask another
   bounded context a question is a service-layer decision wearing a persistence
   layer's clothes.
-- **`models` may cross boundaries.** SQLAlchemy relationships share one registry,
-  so `Activity` ↔ `Gear` ↔ `Users` must name each other. These are `TYPE_CHECKING`
-  imports describing a foreign key, not a behavioural reach.
+- **`models` do not import other models.** A foreign key names a table with a
+   string (`ForeignKey("activities.id")`). Database `ON DELETE` actions own
+   lifecycle behavior. Unused bidirectional ORM relationships would force every
+   optional package to be imported before any mapper could configure.
 - **`integration_service` may read its own module freely.** It *is* the module,
   presenting a narrow face outward.
 - **A read model may select from the table it projects.** `activity_summaries`
-  aggregates the activities table and imports its ORM class to do so. Ownership is
-  a rule about *writes*; a package that only reads is not a second owner.
+   still has one exact, documented projection exception while that query is moved
+   behind a root-owned projection contract. Broad model/query exceptions are not
+   allowed.
 
-## Layering inside a sub-package
+## Layering inside a module
 
 ```
 router / public_router  →  service  →  crud  →  query / models
@@ -182,7 +199,7 @@ it rather than the platform importing it. Three worked examples live in the tree
 | Reach | Inversion |
 | --- | --- |
 | The scheduler needed each module's recurring jobs | Each module declares `scheduled_jobs.recurring_jobs()`; `main.py` collects and hands the list to `start_scheduler`. |
-| Ingestion needed to pull from Strava and Garmin | Providers register a fetch callable on `activity_ingestion.provider_registry`; the refresh path names no provider. |
+| Ingestion needed to pull from Strava and Garmin | Providers call `activity_ingestion.integration_service.register_activity_provider`; the private registry names no provider. |
 | Bulk import needed Strava-export semantics | `BulkImportSource` is a base class; `modules.strava.bulk_import_source.StravaBulkImportSource` subclasses it. |
 
 The shape is always the same: the lower layer owns the *seam* (a registry, a base
@@ -191,14 +208,14 @@ root (`main.py`, `worker.py`) connects them. A registration performed in one
 entrypoint must be performed in the other — a provider or subscriber registered
 in the API but not the worker silently does nothing wherever its work is claimed.
 
-## Sharing a shape between sibling packages
+## Sharing behavior between peer modules
 
-When several sub-packages are the same operation over different rows, the
-operation lives once in the owning package and each sibling *declares itself*
-rather than reimplementing it. `activity/child_collection.py` is the worked
-example: laps, sets and workout steps each state their hide flag, their two CRUD
-calls and their page type, and the shared seam runs the read — the access gate,
-the paging, and the rule that a refusal and an empty collection answer alike.
+When several modules perform the same operation over different rows, the
+operation lives once in its owning module and peers consume its public behavior.
+`activity/child_collection.py` is the worked example: the root activity package
+owns the parent access rule and publishes `ChildCollection` through
+`activity.integration_service`. Laps, sets and workout steps state their hide
+flag, CRUD calls and page type without importing the private helper file.
 
 The test for whether something belongs in such a seam is not "is this repeated?"
 but "would a divergence here be a bug?". Three copies of a docstring are
@@ -217,17 +234,18 @@ cd backend && PYTHONPATH=app uv run lint-imports
 ```
 
 Contracts are stated as **wildcards** (`modules.activities.*.crud`) so a new
-sub-package inherits every rule the day it is created, instead of when someone
-remembers to add it to a list.
+activity module inherits every cross-module rule the day it is created, instead
+of when someone remembers to add it to a list. A separate contract prevents
+domain/core/infra code from consuming `*.migration_service`.
 
 **`backend/tests/architecture/test_module_boundaries.py`** — the one rule
 import-linter cannot express. A `forbidden` contract rejects an import if *any*
 source matches *any* forbidden module, so "a package may import its own `crud`
-but not a sibling's" is not statable: the wildcard pair
+but not a peer's" is not statable: the wildcard pair
 `modules.activities.* → modules.activities.*.crud` also rejects
 `activity_laps.service → activity_laps.crud`. The conformance test walks the AST,
 compares each import against the importer's own package, and consults an explicit
-allowlist of named seams.
+allowlist containing only composition edges and exact read-model projections.
 
 It checks module-level files too, not just sub-package ones — which is the whole
 surface of a flat module. Without that, `modules.followers.crud` was importable
@@ -241,22 +259,27 @@ sub-packaged module's `modules.activities.activity` — so every symbol imported
 from a flat module was misread as a package reach.
 
 That allowlist is the debt register. Every entry names a real cross-package reach
-and why it is still there. Adding a new one is a deliberate, reviewed act; the
-test fails on anything not listed.
+and why it exists. It may not be used for service, CRUD, model, query, signing,
+parser, or storage access that belongs behind an integration surface.
 
 ## Adding a module
 
-1. `modules/<name>/__init__.py` — docstring only.
-2. One sub-package per aggregate; a single-aggregate module stays flat.
-3. `integration_service.py` the first time another module needs something. Not
-   before — an empty surface is worse than no surface.
-4. `subscriber_registry.py` if the module has subscribers; register it in both
+1. Create either `modules/<name>` or a package under a composition namespace such
+   as `modules/activities/<name>`; `__init__.py` contains a docstring only.
+2. Add `integration_service.py`. It is the sole behavioral import path for peers
+   and outside modules; keep it limited to operations with real callers.
+3. Add `model_registry.py` when the module owns a table, and add its contribution
+   to the namespace/application model registry.
+4. Add `migration_service.py` only when an existing data migration needs a
+   version-pinned private operation.
+5. Add `subscriber_registry.py` if the module has subscribers; register it in both
    `main.py` **and** `worker.py`.
-5. `scheduled_jobs.py` if the module has recurring work; add it to the list
+6. Add `scheduled_jobs.py` if the module has recurring work; add it to the list
    `main.py` hands to `start_scheduler`.
-6. Add the module to the source lists of the cross-module contracts in
+7. Add the module to the source lists of the cross-module contracts in
    `backend/.importlinter`.
-7. Add it to `_CONVERTED` in `backend/tests/architecture/test_module_boundaries.py`
+8. Add a new top-level bounded context to `_CONVERTED` in
+   `backend/tests/architecture/test_module_boundaries.py`
    and in `backend/tests/test_logging_rule.py`.
 
 ## Known debt
@@ -267,10 +290,9 @@ the conformance test's allowlist.
 ### Sibling persistence reaches
 
 **Resolved.** `activity_thumbnail`, `activity_geocoding` and `activity_media` read
-the activity row and its streams through `activity.service` and
-`activity_streams.service`. The child CRUDs no longer join the activities table
-to filter rows by owner — the parent package scopes the ids and hands each child
-a plain list.
+the activity row and streams through `activity.integration_service` and
+`activity_streams.integration_service`. Child CRUDs no longer join the
+activities table to decide access.
 
 Two reaches into `activity/` remain, both stated rather than deferred:
 `activity_streams.crud` joins the parent for `total_timer_time` (a column, not a
@@ -281,9 +303,9 @@ read-model rule above.
 
 **Resolved.** `activity_ingestion` no longer imports `modules.strava` or
 `modules.garmin`; the `activities-provider-agnostic` contract forbids the whole
-module from doing so. Providers register on `provider_registry`, subclass
-`BulkImportSource`, and resolve their own synced gear before handing a file to
-ingestion.
+module from doing so. Providers register through
+`activity_ingestion.integration_service`, subclass `BulkImportSource`, and
+resolve their own synced gear before handing a file to ingestion.
 
 ### Platform → domain inversion
 
@@ -331,8 +353,15 @@ The same reach survives in `garmin`, `strava`, `auth.sign_up_tokens` and
 
 ### Migration → internals
 
-`app/migrations/migration_*.py` import `activity.crud`, `activity_streams.crud`,
-`activity_media.crud`, `activity_file_import.utils` and `activity_thumbnail.render`.
-Data migrations are pinned to the schema of their era, so routing them through a
-surface that evolves would break them; they are exempt by nature, and the exemption
-is recorded rather than assumed.
+**Resolved.** `app/migrations/migration_*.py` consume package-owned
+`migration_service.py` adapters. The blanket migration allowlist is gone, and
+import-linter prevents ordinary domain/core/infra code from using those adapters.
+
+### ORM registry and cross-package relationships
+
+**Resolved for activities and followers.** Their models use scalar foreign keys
+and database `ON DELETE` behavior rather than unused bidirectional ORM
+relationships. Each persistence package declares its model module through
+`model_registry.py`; `app/model_registry.py` composes converted modules, and
+`core.database` performs no domain scan. The app-level legacy scan remains only
+for modules not converted yet.

@@ -20,12 +20,14 @@ net — or an exemption reason — fails CI instead of silently losing derived w
 
 import modules.activities.activity.subscribers as activity_subscribers
 import modules.activities.activity_file_storage.subscribers as activity_file_storage_subscribers
+import modules.activities.activity_geocoding.integration_service as activity_geocoding_integration
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
 import modules.activities.activity_ingestion.ingestion_subscribers as activity_ingestion_subscribers
 import modules.activities.activity_media.subscribers as activity_media_subscribers
+import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
-import modules.activities.activity_thumbnail.service as activity_thumbnail_service
+import modules.activities.activity_thumbnail.integration_service as activity_thumbnail_integration
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
 from infra.jobs.reconciliation import DurableSubscriberNet
 from infra.jobs.registry import JobHandlerRegistry
@@ -89,15 +91,15 @@ def register_all_activity_durable_handlers(registry: JobHandlerRegistry) -> None
 ACTIVITY_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
     DurableSubscriberNet(
         activity_thumbnail_subscribers.THUMBNAIL_GENERATE_SUBSCRIBER_ID,
-        activity_thumbnail_service.generate_missing_activity_thumbnails,
+        activity_thumbnail_integration.generate_missing_thumbnails,
     ),
     DurableSubscriberNet(
         activity_streams_subscribers.HR_ZONE_SUBSCRIBER_ID,
-        activity_streams_subscribers.run_missing_hr_zone_backfill,
+        activity_streams_integration.run_missing_hr_zone_backfill,
     ),
     DurableSubscriberNet(
         activity_geocoding_subscribers.GEOCODING_SUBSCRIBER_ID,
-        activity_geocoding_subscribers.run_missing_location_backfill,
+        activity_geocoding_integration.run_missing_location_backfill,
     ),
     DurableSubscriberNet(
         activity_subscribers.ACTIVITY_NOTIFICATION_SUBSCRIBER_ID,

@@ -13,10 +13,10 @@ inline, so a heavy backfill cannot delay the app from accepting connections.
 """
 
 import core.scheduler as core_scheduler
-import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
-import modules.activities.activity_ingestion.ingestion_jobs as activity_ingestion_jobs
-import modules.activities.activity_streams.subscribers as activity_streams_subscribers
-import modules.activities.activity_thumbnail.service as activity_thumbnail_service
+import modules.activities.activity_geocoding.integration_service as activity_geocoding_integration
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
+import modules.activities.activity_streams.integration_service as activity_streams_integration
+import modules.activities.activity_thumbnail.integration_service as activity_thumbnail_integration
 
 
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
@@ -34,17 +34,17 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
     """
     return (
         core_scheduler.ScheduledJob(
-            activity_thumbnail_service.generate_missing_activity_thumbnails,
+            activity_thumbnail_integration.generate_missing_thumbnails,
             60,
             "generate thumbnails for activities missing one",
         ),
         core_scheduler.ScheduledJob(
-            activity_streams_subscribers.run_missing_hr_zone_backfill,
+            activity_streams_integration.run_missing_hr_zone_backfill,
             60,
             "backfill missing HR zone percentages",
         ),
         core_scheduler.ScheduledJob(
-            activity_geocoding_subscribers.run_missing_location_backfill,
+            activity_geocoding_integration.run_missing_location_backfill,
             60,
             "backfill missing activity locations (reverse-geocoding)",
         ),
@@ -52,7 +52,7 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
         # because activity_upload_jobs is a domain table: infra.retention must
         # not import a domain module.
         core_scheduler.ScheduledJob(
-            activity_ingestion_jobs.prune_expired_ingestion_jobs,
+            activity_ingestion.prune_expired_ingestion_jobs,
             1440,
             "prune expired activity ingestion jobs",
         ),
@@ -73,7 +73,7 @@ def schedule_missing_thumbnail_generation() -> None:
         None.
     """
     core_scheduler.run_once(
-        activity_thumbnail_service.generate_missing_activity_thumbnails,
+        activity_thumbnail_integration.generate_missing_thumbnails,
         job_id="endurain_generate_missing_thumbnails_oneshot",
         description="missing thumbnail generation",
     )
@@ -93,7 +93,7 @@ def schedule_missing_hr_zone_backfill() -> None:
         None.
     """
     core_scheduler.run_once(
-        activity_streams_subscribers.run_missing_hr_zone_backfill,
+        activity_streams_integration.run_missing_hr_zone_backfill,
         job_id="endurain_backfill_missing_hr_zones_oneshot",
         description="HR-zone backfill",
     )
@@ -113,7 +113,7 @@ def schedule_missing_location_backfill() -> None:
         None.
     """
     core_scheduler.run_once(
-        activity_geocoding_subscribers.run_missing_location_backfill,
+        activity_geocoding_integration.run_missing_location_backfill,
         job_id="endurain_backfill_missing_locations_oneshot",
         description="activity-location backfill",
     )
@@ -133,7 +133,7 @@ def schedule_thumbnail_regeneration() -> None:
         None.
     """
     core_scheduler.run_once(
-        activity_thumbnail_service.delete_and_regenerate_all_activity_thumbnails,
+        activity_thumbnail_integration.regenerate_all_thumbnails,
         job_id="endurain_regenerate_all_thumbnails",
         description="thumbnail regeneration",
     )

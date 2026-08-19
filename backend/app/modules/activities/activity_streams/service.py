@@ -25,7 +25,7 @@ looks like a fix without being one.
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.activities.activity.child_access as activity_child_access
+import modules.activities.activity.integration_service as activity_child_access
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema

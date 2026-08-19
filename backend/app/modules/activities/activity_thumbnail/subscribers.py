@@ -21,7 +21,7 @@ import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.service as activity_streams_service
+import modules.activities.activity_streams.integration_service as activity_streams_service
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry

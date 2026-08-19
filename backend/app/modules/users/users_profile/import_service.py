@@ -29,10 +29,17 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_exercise_titles.integration_service as exercise_titles_integration
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
+import modules.activities.activity_laps.integration_service as activity_laps_integration
 import modules.activities.activity_media.contracts as activity_media_contracts
+import modules.activities.activity_media.integration_service as activity_media_integration
+import modules.activities.activity_sets.integration_service as activity_sets_integration
 import modules.activities.activity_sets.schema as activity_sets_schema
+import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.activity_workout_steps.integration_service as workout_steps_integration
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.schema as gear_schema
@@ -653,7 +660,7 @@ class ImportService:
                 laps.append(lap_data)
 
             if laps and new_activity.id is not None:
-                activities_integration.restore_activity_laps(laps, new_activity.id, self.db)
+                activity_laps_integration.store_laps(laps, new_activity.id, self.db)
                 self.counts["activity_laps"] += len(laps)
 
         # Import sets - filter for this activity
@@ -671,7 +678,7 @@ class ImportService:
                 sets.append(set_activity)
 
             if sets and new_activity.id is not None:
-                activities_integration.restore_activity_sets(list(sets), new_activity.id, self.db)
+                activity_sets_integration.store_sets(list(sets), new_activity.id, self.db)
                 self.counts["activity_sets"] += len(sets)
 
         # Import streams - filter for this activity
@@ -687,7 +694,7 @@ class ImportService:
                 streams.append(stream)
 
             if streams:
-                activities_integration.restore_activity_streams(streams, new_activity, self.db)
+                activity_streams_integration.store_streams(streams, new_activity, self.db)
                 self.counts["activity_streams"] += len(streams)
 
         # Import workout steps
@@ -703,7 +710,7 @@ class ImportService:
                 steps.append(step)
 
             if steps and new_activity.id is not None:
-                activities_integration.restore_activity_workout_steps(steps, new_activity.id, self.db)
+                workout_steps_integration.store_workout_steps(steps, new_activity.id, self.db)
                 self.counts["activity_workout_steps"] += len(steps)
 
         # Import media
@@ -737,7 +744,7 @@ class ImportService:
                 )
 
             if media and new_activity.id is not None:
-                activities_integration.restore_activity_media(media, new_activity.id, self.db)
+                activity_media_integration.restore_media_records(media, new_activity.id, self.db)
                 self.counts["activity_media"] += len(media)
 
         # Import exercise titles
@@ -753,7 +760,7 @@ class ImportService:
                 titles.append(title)
 
             if titles:
-                activities_integration.restore_exercise_titles(titles, self.db)
+                exercise_titles_integration.store_exercise_titles(titles, self.db)
                 self.counts["activity_exercise_titles"] += len(titles)
 
     async def collect_and_import_activities_data_batched(
@@ -1073,7 +1080,7 @@ class ImportService:
                         logger.warning(f"Profile import dropped invalid activity file {new_file_name}: {err.detail}")
                         continue
                     await asyncio.to_thread(
-                        activities_integration.store_activity_source_file,
+                        file_storage_integration.store_activity_file,
                         new_id,
                         ext,
                         file_bytes,
@@ -1140,7 +1147,7 @@ class ImportService:
                                 f"Profile import dropped invalid activity media {new_file_name}: {err.detail}"
                             )
                             continue
-                        activities_integration.store_activity_media_blob(
+                        activity_media_integration.store_media_blob(
                             new_id,
                             suffix,
                             ext,

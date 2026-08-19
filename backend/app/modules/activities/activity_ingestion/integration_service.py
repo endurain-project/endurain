@@ -15,7 +15,10 @@ the source types they need to describe where a file came from, including the
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity_ingestion.background as ingestion_background
 import modules.activities.activity_ingestion.bulk_entry as bulk_entry
+import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
+import modules.activities.activity_ingestion.provider_registry as provider_registry
 import modules.activities.activity_ingestion.sources as ingestion_sources
 
 #: Where a file came from, and the metadata that source carries. Re-exported so a
@@ -25,6 +28,7 @@ GarminSource = ingestion_sources.GarminSource
 BulkImportSource = ingestion_sources.BulkImportSource
 IngestionSource = ingestion_sources.IngestionSource
 build_import_record = ingestion_sources.build_import_record
+FetchWindow = provider_registry.FetchWindow
 
 
 def ingest_activity_file(
@@ -55,3 +59,33 @@ def ingest_activity_file(
         persisted.
     """
     return bulk_entry.store_activity_file(user_id, file_path, db, source=source)
+
+
+def register_activity_provider(name: str, fetch_window: FetchWindow) -> None:
+    """Register an external provider's activity-fetch implementation.
+
+    Args:
+        name: Stable provider identifier.
+        fetch_window: Coroutine that fetches and stores one user window.
+
+    Returns:
+        None.
+    """
+    provider_registry.register(provider_registry.ActivityProvider(name, fetch_window))
+
+
+def shutdown_background_ingestion(*, wait: bool = False) -> None:
+    """Shut down the non-durable ingestion fallback executor.
+
+    Args:
+        wait: Whether to wait for running ingestion tasks.
+
+    Returns:
+        None.
+    """
+    ingestion_background.shutdown(wait=wait)
+
+
+def prune_expired_ingestion_jobs() -> None:
+    """Delete ingestion job rows beyond their retention window."""
+    ingestion_jobs.prune_expired_ingestion_jobs()

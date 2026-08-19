@@ -14,7 +14,7 @@ one request could ask for.
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
-import modules.activities.activity.child_collection as activity_child_collection
+import modules.activities.activity.integration_service as activity_child_collection
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 

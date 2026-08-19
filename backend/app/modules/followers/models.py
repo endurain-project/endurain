@@ -1,15 +1,10 @@
 """SQLAlchemy ORM model for follower relationships."""
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base, TimestampMixin
 from modules.followers.constants import FollowStatus
-
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
 
 class Follower(Base, TimestampMixin):
@@ -42,9 +37,3 @@ class Follower(Base, TimestampMixin):
         server_default=FollowStatus.PENDING.value,
         comment="Follow request status: pending or accepted",
     )
-
-    # Relationships to the Users model. Defined for completeness and ORM-level
-    # cascade on user deletion; the module queries by explicit columns rather
-    # than navigating these.
-    follower: Mapped["Users"] = relationship(foreign_keys=[follower_id], back_populates="following")
-    followee: Mapped["Users"] = relationship(foreign_keys=[followee_id], back_populates="followers")

@@ -35,7 +35,7 @@ import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
-import modules.activities.activity_ingestion.background as activity_ingestion_background
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
 import modules.activities.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.subscriber_registry as activity_subscriber_registry
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
@@ -418,7 +418,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
 
     # Stop the bulk-import background pool (no-op when it was never started, i.e.
     # when durable jobs handle imports instead).
-    activity_ingestion_background.shutdown()
+    activity_ingestion.shutdown_background_ingestion()
 
     core_scheduler.stop_scheduler()
 

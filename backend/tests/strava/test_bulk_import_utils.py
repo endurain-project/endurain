@@ -76,7 +76,7 @@ def test_bulk_media_import_validates_before_storing(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(
-        bulk_import_utils.activities_integration,
+        bulk_import_utils.activity_media_integration,
         "attach_media_bytes",
         store_media,
     )
@@ -114,7 +114,7 @@ def test_bulk_media_import_rejects_invalid_image(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(
-        bulk_import_utils.activities_integration,
+        bulk_import_utils.activity_media_integration,
         "attach_media_bytes",
         store_media,
     )
@@ -130,7 +130,7 @@ def test_bulk_media_import_skips_a_missing_file(tmp_path, monkeypatch):
     """A media entry with no file on disk is skipped without storing anything."""
     store_media = Mock()
     monkeypatch.setattr(
-        bulk_import_utils.activities_integration,
+        bulk_import_utils.activity_media_integration,
         "attach_media_bytes",
         store_media,
     )

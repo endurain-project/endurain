@@ -21,7 +21,7 @@ import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
+import modules.activities.activity_thumbnail.integration_service as activity_thumbnail_signing
 
 
 def serialize_activity(

@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.provider_registry as provider_registry
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
 import modules.strava.activity_utils as strava_activity_utils
 
 PROVIDER_NAME = "strava"
@@ -58,4 +58,4 @@ def register_activity_provider() -> None:
     Raises:
         None.
     """
-    provider_registry.register(provider_registry.ActivityProvider(PROVIDER_NAME, _fetch_window))
+    activity_ingestion.register_activity_provider(PROVIDER_NAME, _fetch_window)

@@ -18,11 +18,11 @@ import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_sets.crud as activity_sets_crud
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_laps.integration_service as activity_laps_integration
+import modules.activities.activity_sets.integration_service as activity_sets_integration
+import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
+import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -140,18 +140,18 @@ def store_parsed_activity(
                 )
                 for stream in parsed.streams
             ]
-            activity_streams_crud.create_activity_streams(streams, created_activity, db, commit=False)
+            activity_streams_integration.store_streams(streams, created_activity, db, commit=False)
 
         if parsed.laps is not None:
-            activity_laps_crud.create_activity_laps(parsed.laps, created_activity.id, db, commit=False)
+            activity_laps_integration.store_laps(parsed.laps, created_activity.id, db, commit=False)
 
         if parsed.workout_steps is not None:
-            activity_workout_steps_crud.create_activity_workout_steps(
+            activity_workout_steps_integration.store_workout_steps(
                 parsed.workout_steps, created_activity.id, db, commit=False
             )
 
         if parsed.sets is not None:
-            activity_sets_crud.create_activity_sets(parsed.sets, created_activity.id, db, commit=False)
+            activity_sets_integration.store_sets(parsed.sets, created_activity.id, db, commit=False)
 
         logger.debug(
             "Stored parsed activity components",

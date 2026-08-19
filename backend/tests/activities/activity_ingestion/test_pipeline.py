@@ -101,7 +101,7 @@ class TestRetainSourceFile:
         source.write_bytes(b"<gpx/>")
 
         with (
-            patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store,
+            patch.object(pipeline.file_storage_integration, "store_activity_file_for_ids") as store,
             patch.object(pipeline.platform_runtime, "get_active_platform"),
         ):
             pipeline._retain_source_file(str(source), ".gpx", [4, 5])
@@ -114,7 +114,7 @@ class TestRetainSourceFile:
         source = tmp_path / "ride.gpx"
         source.write_bytes(b"<gpx/>")
 
-        with patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store:
+        with patch.object(pipeline.file_storage_integration, "store_activity_file_for_ids") as store:
             pipeline._retain_source_file(str(source), ".gpx", [])
 
         store.assert_not_called()
@@ -139,7 +139,7 @@ class TestStoreActivitiesFromFile:
             patch.object(pipeline.users_integration_service, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=activities_contracts.ParsedFile()),
             patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
-            patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store,
+            patch.object(pipeline.file_storage_integration, "store_activity_file_for_ids") as store,
         ):
             result = pipeline.store_activities_from_file(
                 1,

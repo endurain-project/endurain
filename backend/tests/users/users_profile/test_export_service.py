@@ -531,7 +531,7 @@ class TestExportServiceActivityFiles:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
                 return_value=None,
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
@@ -554,7 +554,7 @@ class TestExportServiceActivityFiles:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
                 return_value=("1.gpx", b"<gpx></gpx>"),
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
@@ -799,7 +799,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
                 patch(
-                    "modules.users.users_profile.export_service.activities_integration.list_exercise_titles",
+                    "modules.users.users_profile.export_service.exercise_titles_integration.list_exercise_titles",
                     return_value=[MagicMock(), MagicMock()],
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"title": "t"}),
@@ -822,7 +822,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
                 patch(
-                    "modules.users.users_profile.export_service.activities_integration.list_exercise_titles",
+                    "modules.users.users_profile.export_service.exercise_titles_integration.list_exercise_titles",
                     side_effect=Exception("boom"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1208,7 +1208,7 @@ class TestExportServiceActivityFilesEdgeCases:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
                 return_value=None,
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
@@ -1223,7 +1223,7 @@ class TestExportServiceActivityFilesEdgeCases:
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
             with patch(
-                "modules.users.users_profile.export_service.activities_integration.get_activity_source_file",
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
                 side_effect=[OSError("read failed"), ("2.gpx", b"<gpx></gpx>")],
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1), _make_activity_mock(2)])

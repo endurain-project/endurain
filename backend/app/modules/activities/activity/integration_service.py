@@ -26,29 +26,18 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import infra.providers as platform_providers
+import modules.activities.activity.child_access as activity_child_access
+import modules.activities.activity.child_collection as activity_child_collection
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
+import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
-import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.activities.activity_file_storage.service as activity_file_storage_service
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_laps.schema as activity_laps_schema
-import modules.activities.activity_media.contracts as activity_media_contracts
-import modules.activities.activity_media.crud as activity_media_crud
-import modules.activities.activity_media.service as activity_media_service
-import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.activity_sets.crud as activity_sets_crud
-import modules.activities.activity_sets.schema as activity_sets_schema
-import modules.activities.activity_streams.crud as activity_streams_crud
-import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_streams.service as activity_streams_service
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
-import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity.service as activity_service
 
 logger = core_logger.get_logger(__name__)
+
+ChildCollection = activity_child_collection.ChildCollection
 
 
 def get_activity_by_strava_id(
@@ -283,6 +272,80 @@ def restore_activity(
     return activities_crud.create_activity(activity, db)
 
 
+def store_parsed_activity(
+    parsed: activities_contracts.ParsedActivity,
+    db: Session,
+) -> activities_schema.Activity:
+    """Persist a canonical parsed activity through the atomic ingestion seam.
+
+    Args:
+        parsed: Parsed root and child data to store.
+        db: Database session.
+
+    Returns:
+        The stored activity.
+    """
+    return activity_ingestion_service.store_parsed_activity(parsed, db)
+
+
+def resolve_readable_parent(
+    activity_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> activities_schema.Activity | None:
+    """Return the parent activity when an authenticated caller may read it."""
+    return activity_child_access.resolve_readable_parent(activity_id, requester_user_id, db)
+
+
+def resolve_public_parent(activity_id: int, db: Session) -> activities_schema.Activity | None:
+    """Return the parent activity when it is publicly shareable."""
+    return activity_child_access.resolve_public_parent(activity_id, db)
+
+
+def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+    """Return whether a user owns an activity."""
+    return activity_service.owns_activity(activity_id, user_id, db)
+
+
+def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> None:
+    """Record or clear an activity's stored thumbnail key."""
+    activity_service.set_thumbnail_key(activity_id, key, db)
+
+
+def clear_all_thumbnail_keys(db: Session) -> None:
+    """Clear every stored activity thumbnail key."""
+    activity_service.clear_all_thumbnail_keys(db)
+
+
+def list_activities_with_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
+    """Return activity references carrying a stored thumbnail key."""
+    return activity_service.list_activities_with_thumbnail(db)
+
+
+def list_activities_without_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
+    """Return activity references that have no stored thumbnail key."""
+    return activity_service.list_activities_without_thumbnail(db)
+
+
+def list_activities_missing_location(
+    db: Session,
+    limit: int = 200,
+) -> list[activities_contracts.ActivityLocationRef]:
+    """Return bounded activity references whose location is unresolved."""
+    return activity_service.list_activities_missing_location(db, limit)
+
+
+def set_activity_location(
+    activity_id: int,
+    city: str | None,
+    town: str | None,
+    country: str | None,
+    db: Session,
+) -> bool:
+    """Persist a reverse-geocoded activity location."""
+    return activity_service.set_activity_location(activity_id, city, town, country, db)
+
+
 def delete_all_strava_activities(user_id: int, db: Session) -> int:
     """Delete all of a user's Strava-sourced activities.
 
@@ -344,317 +407,3 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)
-
-
-# ---------------------------------------------------------------------------
-# Child sub-resources (laps / sets / streams / workout steps / exercise titles)
-#
-# The profile export and import are the only callers outside this domain that
-# need an activity's *children*. They used to import each child package's
-# ``crud`` module directly — five persistence modules reached across a module
-# boundary, which is what the ``consumer-activities-boundary`` contract exists to
-# prevent for the parent. Routing them through here means the activities domain
-# owns which child operations are public, and a consumer keeps one import.
-#
-# Ownership is also decided here. Each child CRUD used to join the activities
-# table to filter "rows the caller owns" — four copies of an access rule in the
-# layer least likely to be reviewed for one, and they had already drifted (the
-# workout-steps copy also served rows whose ``hide_workout_sets_steps`` was
-# unset). The parent's owner is the parent package's fact, so this scopes the
-# ids once and hands the children a plain list.
-# ---------------------------------------------------------------------------
-
-
-def _owned_activity_ids(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None,
-) -> list[int]:
-    """Narrow the requested ids to the ones the user actually owns.
-
-    Args:
-        activity_ids: The requested activity ids.
-        user_id: The owner the read is scoped to.
-        db: Database session.
-        activities: Activities the caller already holds, avoiding a re-query.
-
-    Returns:
-        The subset of ``activity_ids`` owned by ``user_id``.
-    """
-    if not activity_ids:
-        return []
-    if activities:
-        requested = set(activity_ids)
-        return [activity.id for activity in activities if activity.user_id == user_id and activity.id in requested]
-    return activities_crud.get_user_activity_ids(activity_ids, user_id, db)
-
-
-def list_activities_laps(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_laps_schema.ActivityLapsRead]:
-    """Return the laps of many of a user's activities (profile export)."""
-    return activity_laps_crud.get_activities_laps(_owned_activity_ids(activity_ids, user_id, db, activities), db)
-
-
-def list_activities_sets(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_sets_schema.ActivitySetsRead]:
-    """Return the workout sets of many of a user's activities (profile export)."""
-    return activity_sets_crud.get_activities_sets(_owned_activity_ids(activity_ids, user_id, db, activities), db)
-
-
-def list_activities_streams(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """Return the streams of many of a user's activities (profile export)."""
-    return activity_streams_crud.get_activities_streams(_owned_activity_ids(activity_ids, user_id, db, activities), db)
-
-
-def list_activities_workout_steps(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
-    """Return the workout steps of many of a user's activities (profile export)."""
-    return activity_workout_steps_crud.get_activities_workout_steps(
-        _owned_activity_ids(activity_ids, user_id, db, activities), db
-    )
-
-
-def list_exercise_titles(db: Session) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
-    """Return the server-wide exercise-title reference rows (profile export)."""
-    return activity_exercise_titles_crud.get_activity_exercise_titles(db)
-
-
-def list_activities_media(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_media_contracts.ActivityMediaRecord]:
-    """Return the media records of many of a user's activities (profile export)."""
-    return activity_media_crud.get_activities_media(_owned_activity_ids(activity_ids, user_id, db, activities), db)
-
-
-def restore_activity_media(
-    media: list[activity_media_contracts.ActivityMediaCreate],
-    activity_id: int,
-    db: Session,
-) -> None:
-    """Persist a restored activity's media records (profile import)."""
-    activity_media_crud.create_activity_medias(media, activity_id, db)
-
-
-def restore_activity_laps(laps: list[dict], activity_id: int, db: Session) -> None:
-    """Persist a restored activity's laps (profile import)."""
-    activity_laps_crud.create_activity_laps(laps, activity_id, db)
-
-
-def restore_activity_sets(
-    sets: list[activity_sets_schema.ActivitySetsCreate | list],
-    activity_id: int,
-    db: Session,
-) -> None:
-    """Persist a restored activity's workout sets (profile import)."""
-    activity_sets_crud.create_activity_sets(sets, activity_id, db)
-
-
-def restore_activity_streams(
-    streams: list[activity_streams_schema.ActivityStreamsCreate],
-    activity: activities_schema.Activity,
-    db: Session,
-) -> None:
-    """Persist a restored activity's streams (profile import)."""
-    activity_streams_crud.create_activity_streams(streams, activity, db)
-
-
-def restore_activity_workout_steps(
-    steps: list[activity_workout_steps_schema.ActivityWorkoutSteps],
-    activity_id: int,
-    db: Session,
-) -> None:
-    """Persist a restored activity's workout steps (profile import)."""
-    activity_workout_steps_crud.create_activity_workout_steps(steps, activity_id, db)
-
-
-def restore_exercise_titles(
-    titles: list[activity_exercise_titles_schema.ActivityExerciseTitles],
-    db: Session,
-) -> None:
-    """Persist restored exercise-title reference rows (profile import)."""
-    activity_exercise_titles_crud.create_activity_exercise_titles(titles, db)
-
-
-def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
-    """Re-derive every stored HR-zone breakdown for a user.
-
-    Called by the users module when a change to max heart rate or birthdate
-    invalidates the zones computed at import time. It logs and swallows its own
-    errors, so it cannot fail the profile edit that triggered it.
-
-    Args:
-        user_id: The owning user id.
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    activity_streams_service.recompute_hr_zones_for_user(user_id, db)
-
-
-# ---------------------------------------------------------------------------
-# Activity blobs
-#
-# An activity owns two kinds of blob — the retained source file it was parsed
-# from, and its photos — and the profile export/import needs both. It used to
-# get them by importing ``activity_file_storage.service`` and
-# ``activity_media.signing``, then calling the storage provider itself with the
-# activities module's own area name and key prefix. That made a second module a
-# co-author of the activities storage layout: change the key shape and the
-# export silently stops finding anything.
-#
-# These take the ``StorageProvider`` rather than resolving it, because the
-# caller already holds one (a profile export runs against the platform it was
-# handed) and passing it keeps this surface free of runtime lookups.
-
-
-def get_activity_source_file(
-    activity_id: int,
-    storage: platform_providers.StorageProvider,
-) -> tuple[str, bytes] | None:
-    """Read an activity's retained source file.
-
-    Args:
-        activity_id: The owning activity id.
-        storage: The blob-storage provider.
-
-    Returns:
-        A ``(filename, data)`` pair, or ``None`` when nothing was retained.
-    """
-    return activity_file_storage_service.get_activity_file(activity_id, storage)
-
-
-def store_activity_source_file(
-    activity_id: int,
-    extension: str,
-    data: bytes,
-    storage: platform_providers.StorageProvider,
-) -> str:
-    """Persist a source file against an activity (profile import).
-
-    Args:
-        activity_id: The owning activity id.
-        extension: The source-file extension (e.g. ``".fit"``).
-        data: The raw, already-validated file bytes.
-        storage: The blob-storage provider.
-
-    Returns:
-        The filename the file was stored under.
-    """
-    return activity_file_storage_service.store_activity_file(activity_id, extension, data, storage)
-
-
-def list_activity_media_blobs(
-    activity_id: int,
-    storage: platform_providers.StorageProvider,
-) -> list[tuple[str, bytes]]:
-    """Read every media blob attached to an activity.
-
-    Args:
-        activity_id: The owning activity id.
-        storage: The blob-storage provider.
-
-    Returns:
-        ``(filename, data)`` pairs, empty when the activity has no media or the
-        blobs could not be listed. Individual unreadable blobs are skipped: a
-        profile export must not fail wholesale over one missing photo.
-    """
-    try:
-        keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, f"{activity_id}_")
-    except Exception as err:
-        logger.warning(
-            "Could not list an activity's media blobs",
-            exc_info=err,
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return []
-    blobs: list[tuple[str, bytes]] = []
-    for key in keys:
-        try:
-            data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
-        except Exception as err:
-            logger.warning(
-                "Could not read a media blob; skipping it",
-                exc_info=err,
-                extra=core_logger.context(storage_key=key),
-            )
-            continue
-        if data is None:
-            logger.warning("Media blob is missing behind its key", extra=core_logger.context(storage_key=key))
-            continue
-        blobs.append((key, data))
-    return blobs
-
-
-def store_activity_media_blob(
-    activity_id: int,
-    suffix: str,
-    extension: str,
-    data: bytes,
-    storage: platform_providers.StorageProvider,
-) -> str:
-    """Restore one media blob against an activity (profile import).
-
-    Restores the blob only — the media *row* is restored separately from the
-    exported table dump, which is what keeps the two halves of an export in
-    step.
-
-    Args:
-        activity_id: The owning activity id.
-        suffix: The exported blob's unique suffix, preserved so the restored
-            key still matches the restored row.
-        extension: The image extension, with leading dot.
-        data: The raw, already-validated image bytes.
-        storage: The blob-storage provider.
-
-    Returns:
-        The filename the blob was stored under.
-    """
-    key = f"{activity_id}_{suffix}{extension}"
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, key, data)
-    return key
-
-
-def attach_media_bytes(
-    activity_id: int,
-    original_filename: str | None,
-    data: bytes,
-    db: Session,
-) -> activity_media_contracts.ActivityMediaRecord:
-    """Register already-validated image bytes as media for an activity.
-
-    For a server-side import that ships photos alongside its activity files (a
-    Strava bulk export). The caller owns validation — it holds the file, not an
-    upload — and everything after that stays inside the activities module.
-
-    Args:
-        activity_id: The activity to attach the media to.
-        original_filename: The source filename, used only for its extension.
-        data: The raw, already-validated image bytes.
-        db: Database session.
-
-    Returns:
-        The created media record.
-    """
-    return activity_media_service.store_activity_media_bytes(activity_id, original_filename, data, db)

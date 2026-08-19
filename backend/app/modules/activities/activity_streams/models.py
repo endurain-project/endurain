@@ -1,18 +1,12 @@
 """ORM models for activity stream data."""
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
-    relationship,
 )
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.activities.activity.models import Activity
 
 
 class ActivityStreams(Base):
@@ -59,9 +53,4 @@ class ActivityStreams(Base):
         JSON(none_as_null=True),
         nullable=True,
         comment="Pre-computed zone breakdowns keyed by metric (e.g. 'hr')",
-    )
-
-    # Define a relationship to the Activity model
-    activity: Mapped["Activity"] = relationship(
-        back_populates="activities_streams",
     )

@@ -20,9 +20,9 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import migrations.crud as migrations_crud
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity_thumbnail.render as activity_thumbnail_render
-import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
+import modules.activities.activity.migration_service as activities_crud
+import modules.activities.activity_thumbnail.migration_service as activity_thumbnail_render
+import modules.activities.activity_thumbnail.migration_service as activity_thumbnail_signing
 
 logger = core_logger.get_logger(__name__)
 

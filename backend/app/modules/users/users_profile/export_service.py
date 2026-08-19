@@ -15,7 +15,7 @@ import os
 import tempfile
 import time
 import zipfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -24,6 +24,13 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_integration
+import modules.activities.activity_exercise_titles.integration_service as exercise_titles_integration
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
+import modules.activities.activity_laps.integration_service as activity_laps_integration
+import modules.activities.activity_media.integration_service as activity_media_integration
+import modules.activities.activity_sets.integration_service as activity_sets_integration
+import modules.activities.activity_streams.integration_service as activity_streams_integration
+import modules.activities.activity_workout_steps.integration_service as workout_steps_integration
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.health.health_targets.crud as health_targets_crud
@@ -45,6 +52,23 @@ from modules.users.users_profile.exceptions import (
 )
 
 logger = core_logger.get_logger(__name__)
+
+ComponentReader = Callable[[list[int], Session], list[Any]]
+ProfileComponentReader = Callable[[list[int], int, Session, list[Any]], list[Any]]
+
+
+def _adapt_component_reader(reader: ComponentReader) -> ProfileComponentReader:
+    """Adapt a scoped child-package read to the profile batching callback."""
+
+    def read(
+        activity_ids: list[int],
+        _user_id: int,
+        db: Session,
+        _activities: list[Any],
+    ) -> list[Any]:
+        return reader(activity_ids, db)
+
+    return read
 
 
 class ExportPerformanceConfig(users_profile_utils.BasePerformanceConfig):
@@ -219,7 +243,7 @@ class ExportService:
 
             # Exercise titles don't depend on activity IDs
             try:
-                exercise_titles = activities_integration.list_exercise_titles(self.db)
+                exercise_titles = exercise_titles_integration.list_exercise_titles(self.db)
                 if exercise_titles:
                     exercise_titles_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(e) for e in exercise_titles]
                     users_profile_utils.write_json_to_zip(
@@ -297,31 +321,31 @@ class ExportService:
             (
                 "laps",
                 "data/activity_laps.json",
-                activities_integration.list_activities_laps,
+                _adapt_component_reader(activity_laps_integration.list_laps_for_activities),
                 True,
             ),
             (
                 "sets",
                 "data/activity_sets.json",
-                activities_integration.list_activities_sets,
+                _adapt_component_reader(activity_sets_integration.list_sets_for_activities),
                 True,
             ),
             (
                 "streams",
                 "data/activity_streams.json",
-                activities_integration.list_activities_streams,
+                _adapt_component_reader(activity_streams_integration.list_streams_for_activities),
                 True,
             ),
             (
                 "steps",
                 "data/activity_workout_steps.json",
-                activities_integration.list_activities_workout_steps,
+                _adapt_component_reader(workout_steps_integration.list_workout_steps_for_activities),
                 False,
             ),
             (
                 "media",
                 "data/activity_media.json",
-                activities_integration.list_activities_media,
+                _adapt_component_reader(activity_media_integration.list_media_for_activities),
                 False,
             ),
         ]
@@ -692,7 +716,7 @@ class ExportService:
         storage = platform_runtime.get_active_platform().storage
         for activity in user_activities:
             try:
-                stored = activities_integration.get_activity_source_file(activity.id, storage)
+                stored = file_storage_integration.get_activity_file(activity.id, storage)
                 if stored is None:
                     continue
                 key, data = stored
@@ -728,7 +752,7 @@ class ExportService:
 
         for activity in user_activities:
             try:
-                blobs = activities_integration.list_activity_media_blobs(activity.id, storage)
+                blobs = activity_media_integration.list_media_blobs(activity.id, storage)
             except Exception as err:
                 logger.warning(f"Failed to list media for activity {activity.id}: {err}", exc_info=err)
                 continue

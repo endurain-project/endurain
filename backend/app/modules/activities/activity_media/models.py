@@ -1,14 +1,9 @@
 """SQLAlchemy ORM models for activity media records."""
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import ForeignKey, Index, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.activities.activity.models import Activity
 
 
 class ActivityMedia(Base):
@@ -45,6 +40,3 @@ class ActivityMedia(Base):
         String(length=64),
         comment="SHA-256 of the media bytes, used to no-op re-imports of the same photo",
     )
-
-    # Define a relationship to the Activity model
-    activity: Mapped["Activity"] = relationship(back_populates="activity_media")

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.migration_service as activity_media_crud
 import modules.users.users.crud as user_crud
 
 logger = core_logger.get_logger(__name__)

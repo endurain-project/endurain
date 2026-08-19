@@ -1,0 +1,13 @@
+"""Version-pinned stream operations exposed only to data migrations."""
+
+import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.utils as activity_streams_utils
+
+get_activity_streams = activity_streams_crud.get_activity_streams
+get_activity_stream_by_type = activity_streams_crud.get_activity_stream_by_type
+get_hr_streams_without_zone_percentages = activity_streams_crud.get_hr_streams_without_zone_percentages
+backfill_zone_percentages_for_missing_hr_streams = (
+    activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams
+)
+resolve_max_heart_rate = activity_streams_utils.resolve_max_heart_rate
+compute_hr_zone_breakdown_sync = activity_streams_utils.compute_hr_zone_breakdown_sync

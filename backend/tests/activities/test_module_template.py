@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
+import model_registry as app_model_registry
+import modules.activities.model_registry as activities_model_registry
+import modules.followers.model_registry as followers_model_registry
+
 _MODULES_DIR = Path(__file__).resolve().parents[2] / "app" / "modules"
+_APP_DIR = _MODULES_DIR.parent
 _TEMPLATE_PACKAGES = sorted(
     [*(_MODULES_DIR / "activities").glob("activity*"), _MODULES_DIR / "followers"],
 )
@@ -48,13 +53,54 @@ def test_every_module_exposes_one_cross_module_surface_name() -> None:
     privacy-checked application logic, so "what may I depend on?" had a different
     answer per module and consumers got the internals in scope too.
     """
-    followers = _MODULES_DIR / "followers"
-    assert (followers / "integration_service.py").is_file()
-    assert (followers / "service.py").is_file()
+    missing = [
+        package.relative_to(_MODULES_DIR)
+        for package in _TEMPLATE_PACKAGES
+        if not (package / "integration_service.py").is_file()
+    ]
+    assert not missing, (
+        "Every independently extractable package must publish behavior through "
+        f"integration_service.py; missing: {', '.join(map(str, missing))}"
+    )
 
-    activity = _MODULES_DIR / "activities" / "activity"
-    assert (activity / "integration_service.py").is_file()
-    assert (activity / "service.py").is_file()
+
+def test_every_persistence_package_declares_its_models() -> None:
+    """A package that owns a table contributes it without a core filesystem sweep."""
+    missing = [
+        package.relative_to(_MODULES_DIR)
+        for package in _TEMPLATE_PACKAGES
+        if (package / "models.py").is_file() and not (package / "model_registry.py").is_file()
+    ]
+    assert not missing, (
+        f"Every persistence-owning package must publish model_registry.py; missing: {', '.join(map(str, missing))}"
+    )
+
+
+def test_model_registries_collect_every_converted_model() -> None:
+    """Registry contents match the tables owned by converted packages."""
+    expected_activities = {
+        f"modules.activities.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "activities" and (package / "models.py").is_file()
+    }
+    assert set(activities_model_registry.MODEL_MODULES) == expected_activities
+    assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
+    assert (
+        expected_activities | set(followers_model_registry.MODEL_MODULES) == app_model_registry._CONVERTED_MODEL_MODULES
+    )
+
+
+def test_core_database_does_not_discover_domain_models() -> None:
+    """Model discovery belongs to app composition, never the core substrate."""
+    tree = ast.parse((_APP_DIR / "core" / "database.py").read_text())
+    function_names = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    filesystem_scans = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in {"glob", "rglob"}
+    }
+    assert "import_all_models" not in function_names
+    assert not filesystem_scans
 
 
 def _template_sources() -> list[Path]:

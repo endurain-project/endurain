@@ -11,7 +11,7 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.ingestion_service as ingestion_service
+import modules.activities.activity.integration_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.computation as activities_computation
 import modules.gears.gear.crud as gears_crud

@@ -13,8 +13,8 @@ import core.database as core_database
 import core.logger as core_logger
 import infra.providers as platform_providers
 import infra.runtime as platform_runtime
-import modules.activities.activity.service as activities_service
-import modules.activities.activity_streams.service as activity_streams_service
+import modules.activities.activity.integration_service as activities_service
+import modules.activities.activity_streams.integration_service as activity_streams_service
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 import modules.server_settings.integration_service as server_settings_integration

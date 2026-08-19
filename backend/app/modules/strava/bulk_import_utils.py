@@ -15,9 +15,9 @@ import core.logger as core_logger
 import core.text_imports as core_text_imports
 import core.timezone as core_timezone
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion
+import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.users.users.crud as users_crud
@@ -519,7 +519,7 @@ def create_activity_media_from_strava_bulk_import(
         # validated bytes. Storing through it (rather than writing to the media
         # directory here) is what keeps the photo reachable on object storage and
         # only through the token-gated route.
-        activities_integration.attach_media_bytes(activity_id, media_strava_filename, data, db)
+        activity_media_integration.attach_media_bytes(activity_id, media_strava_filename, data, db)
 
         with contextlib.suppress(OSError):
             source.unlink()

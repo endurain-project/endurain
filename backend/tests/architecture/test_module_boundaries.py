@@ -27,14 +27,25 @@ _MODULES_ROOT = pathlib.Path("app/modules")
 
 _APP_ROOT = pathlib.Path("app")
 
-#: File stems a sibling sub-package may import: data shapes and event
-#: declarations, which carry no behaviour and no persistence; ``query`` — SQL
-#: expression fragments that open no session and fetch no rows, so sharing them
-#: is what stops two packages disagreeing about a rule like "which local day did
-#: this happen on?"; and ``service`` — the owning package's application layer,
-#: which is how a sibling reaches its data without becoming a second owner of
-#: its tables.
-_PUBLIC_WITHIN_MODULE = frozenset({"schema", "contracts", "constants", "events", "query", "service"})
+#: File stems one independently extractable activity package may import from
+#: another. Data shapes and event declarations carry no implementation;
+#: behaviour crosses the boundary only through ``integration_service``. The
+#: remaining names are composition surfaces mounted by the application.
+_PUBLIC_WITHIN_MODULE = frozenset(
+    {
+        "schema",
+        "contracts",
+        "constants",
+        "events",
+        "integration_service",
+        "dependencies",
+        "router",
+        "public_router",
+        "subscriber_registry",
+        "scheduled_jobs",
+        "model_registry",
+    }
+)
 
 #: File stems importable from *outside* the owning module. Everything else is
 #: module-internal or package-private. ``service`` and ``query`` are deliberately
@@ -51,26 +62,12 @@ _PUBLIC_ACROSS_MODULES = (_PUBLIC_WITHIN_MODULE - {"service", "query"}) | frozen
     }
 )
 
+_MIGRATION_SURFACE = "migration_service"
+
 #: Cross-sub-package reaches that are part of the design, as
 #: ``(importer glob, imported glob): reason``. Globs are module paths relative
 #: to the module root (``activity.integration_service``, ``activity_laps.crud``).
 _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
-    (
-        "activity.integration_service",
-        "*.crud",
-    ): "The module's outward surface. An activity spans its child collections, so presenting one face outward means reading them.",
-    (
-        "activity.integration_service",
-        "*.signing",
-    ): "Presenting an activity's blobs outward means knowing which storage area they live in; the addressing module is where that is defined once.",
-    (
-        "activity.ingestion_service",
-        "*.crud",
-    ): "The module's inward write seam: one parsed activity is stored as a root row plus its children, in one transaction.",
-    (
-        "*.models",
-        "*.models",
-    ): "SQLAlchemy relationships share one registry, so a child table must name its parent. A foreign key, not a behavioural reach.",
     (
         "activity_streams.crud",
         "activity.models",
@@ -80,41 +77,37 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
         "activity.query",
     ): "A read model projects the table it summarizes, so it shares the SQL fragments that define how.",
     (
-        "*.service",
-        "activity.child_access",
-    ): "The one shared gate deciding whether a caller may read an activity's children — deliberately not duplicated per child.",
-    (
-        "*.service",
-        "activity.child_collection",
-    ): "The one paginated child read — a child package declares what it is, this owns how the read runs.",
-    (
-        "activity_ingestion.pipeline",
-        "activity.ingestion_service",
-    ): "The ingestion orchestrator's store step: one parsed activity written as a root row plus its children.",
-    (
-        "activity_ingestion.pipeline",
-        "activity_file_import.registry",
-    ): "The parse step resolves a parser by file extension; the registry is that lookup.",
-    (
-        "activity_ingestion.pipeline",
-        "activity_exercise_titles.crud",
-    ): "Strength-workout sets name their exercises by id, so storing them means upserting the title rows they reference.",
-    (
-        "activity.serializers",
-        "activity_thumbnail.signing",
-    ): "Serializing an activity mints its thumbnail capability URL. Addressing only — the renderer is not pulled into the read path.",
+        "subscriber_registry",
+        "activity.subscribers",
+    ): "The activities composition registry collects the root activity handlers.",
     (
         "subscriber_registry",
-        "*subscribers",
-    ): "The module's event-wiring surface; collecting the handlers is the whole point of the file.",
+        "activity_file_storage.subscribers",
+    ): "The activities composition registry collects retained-file cleanup handlers.",
     (
         "subscriber_registry",
-        "activity_thumbnail.service",
-    ): "Declares the thumbnail subscriber's reconciliation backfill alongside the subscriber it nets.",
+        "activity_geocoding.subscribers",
+    ): "The activities composition registry collects geocoding handlers and their stable id.",
     (
-        "scheduled_jobs",
-        "*",
-    ): "The module's scheduled-work surface; naming the callables it schedules is the whole point of the file.",
+        "subscriber_registry",
+        "activity_ingestion.bulk_import_subscribers",
+    ): "The activities composition registry collects bulk-import durable handlers.",
+    (
+        "subscriber_registry",
+        "activity_ingestion.ingestion_subscribers",
+    ): "The activities composition registry collects upload and refresh durable handlers.",
+    (
+        "subscriber_registry",
+        "activity_media.subscribers",
+    ): "The activities composition registry collects media cleanup handlers.",
+    (
+        "subscriber_registry",
+        "activity_streams.subscribers",
+    ): "The activities composition registry collects stream derivation handlers and their stable id.",
+    (
+        "subscriber_registry",
+        "activity_thumbnail.subscribers",
+    ): "The activities composition registry collects thumbnail handlers and their stable ids.",
     (
         "activity_summaries.crud",
         "activity.models",
@@ -123,36 +116,7 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
 
 #: Reaches past a module's surface from outside it, as
 #: ``(importer module path, imported glob): reason``.
-_INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
-    (
-        "migrations.*",
-        "*",
-    ): "Data migrations are pinned to the schema of their era; routing them through a surface that evolves would break them.",
-    (
-        "main",
-        "activity_ingestion.background",
-    ): "Entrypoint wiring: the background executor is started and drained with the app lifespan.",
-    (
-        "modules.strava.*",
-        "activity.ingestion_service",
-    ): "The provider store seam, the counterpart of integration_service for writes.",
-    (
-        "modules.strava.provider_registry",
-        "activity_ingestion.provider_registry",
-    ): "The plug-in point itself: a provider registers on it, which is what stopped ingestion importing providers.",
-    (
-        "modules.garmin.provider_registry",
-        "activity_ingestion.provider_registry",
-    ): "The plug-in point itself: a provider registers on it, which is what stopped ingestion importing providers.",
-    (
-        "*.models",
-        "*.models",
-    ): "SQLAlchemy relationships share one registry, so cross-module foreign keys must name each other.",
-    (
-        "*.models",
-        "models",
-    ): "The same foreign-key cross-reference, into a module that is flat rather than split into sub-packages.",
-}
+_INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {}
 
 
 def _module_path(path: pathlib.Path, root: pathlib.Path) -> str:
@@ -313,6 +277,8 @@ class TestModuleSurface:
                     if "." not in imported and (module_root / imported).is_dir():
                         continue
                     if imported.rsplit(".", 1)[-1] in _PUBLIC_ACROSS_MODULES:
+                        continue
+                    if importer.startswith("migrations.") and imported.rsplit(".", 1)[-1] == _MIGRATION_SURFACE:
                         continue
                     if _matches((importer, imported), _INBOUND_EXCEPTIONS):
                         continue
