@@ -21,6 +21,7 @@ import core.logger as core_logger
 import modules.followers.crud as followers_crud
 import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
+from modules.followers.constants import FollowStatus
 
 logger = core_logger.get_logger(__name__)
 
@@ -46,7 +47,7 @@ def requester_may_view_network(target_user_id: int, requester_user_id: int, db: 
         return True
 
     relationship = followers_crud.get_follower_for_user_id_and_target_user_id(requester_user_id, target_user_id, db)
-    return relationship is not None and relationship.status == followers_schema.FollowStatus.ACCEPTED
+    return relationship is not None and relationship.status == FollowStatus.ACCEPTED
 
 
 def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> None:

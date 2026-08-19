@@ -14,6 +14,7 @@ published surface into the file that happens to hold the handlers today.
 """
 
 import modules.followers.subscribers as followers_subscribers
+from infra.jobs.reconciliation import DurableSubscriberNet
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 
@@ -48,3 +49,31 @@ def register_all_follower_durable_handlers(registry: JobHandlerRegistry) -> None
         None.
     """
     followers_subscribers.register_follower_notification_durable_handlers(registry)
+
+
+# Every durable subscriber registered above must appear here exactly once, with a
+# scheduled backfill or an explicit exemption. Both of these are exempt for the
+# same reason the activities notification subscriber is: the relationship row is
+# the record, and a notification is a reaction to it rather than derived state
+# that can be recomputed from it.
+FOLLOWER_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
+    DurableSubscriberNet(
+        followers_subscribers.FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "Notifications are transient UI signal, not durable state: the follow "
+            "row is the source of truth, and nothing records whether its notification "
+            "was ever delivered — so a missed follow-request notification cannot be "
+            "reconciled after the fact. There is nothing to backfill."
+        ),
+    ),
+    DurableSubscriberNet(
+        followers_subscribers.FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "Same as the follow-request notification: the accepted relationship row "
+            "is the record, and the notification is a reaction to it rather than "
+            "derived state that can be recomputed from it."
+        ),
+    ),
+)

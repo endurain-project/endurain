@@ -1,22 +1,9 @@
 """Pydantic schemas for follower relationships."""
 
-from enum import Enum
-
 from pydantic import BaseModel, ConfigDict, StrictInt, field_validator
 
 import core.pagination as core_pagination
-
-
-class FollowStatus(Enum):
-    """Status of a follow relationship.
-
-    Attributes:
-        PENDING: The follow request has been sent but not yet accepted.
-        ACCEPTED: The follow request has been accepted.
-    """
-
-    PENDING = "pending"
-    ACCEPTED = "accepted"
+from modules.followers.constants import FollowStatus
 
 
 class FollowRelationship(BaseModel):

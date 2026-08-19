@@ -73,6 +73,21 @@ what makes "registered in the API but not the worker" a diff in one file instead
 of a silent mismatch between two, and what keeps the file that happens to hold
 the handlers today free to be split tomorrow.
 
+`subscriber_registry.py` is also where a module declares its **reconciliation
+nets**. A durable subscriber derives state from an event, and delivery is
+at-least-once but never guaranteed — a bus consumer can drop a message, and some
+write paths publish no event at all. So each durable subscriber declares an
+`infra.jobs.reconciliation.DurableSubscriberNet`: either the scheduled backfill
+that re-derives what the create path missed, or the reason none is needed.
+`tests/architecture/test_reconciliation_nets.py` holds every module to it.
+
+The type lives in the platform rather than in the module that needed it first.
+While it lived in `modules/activities`, the invariant was enforceable for exactly
+one module — declaring nets anywhere else would have meant importing the
+activities module to borrow the vocabulary, a dependency between two bounded
+contexts for the sake of a shared word. Followers registered two durable
+subscribers with no net, no exemption, and nothing to catch it.
+
 A module-level file (not inside a sub-package) is the right home for a surface
 that belongs to the whole module rather than one aggregate —
 `modules/activities/computation.py`, the pure metric maths the parsers, the
@@ -212,6 +227,12 @@ It checks module-level files too, not just sub-package ones — which is the who
 surface of a flat module. Without that, `modules.followers.crud` was importable
 from anywhere: the dotted path has no sub-package segment to match on, so every
 rule silently skipped it.
+
+It resolves each `from x.y import z` against the filesystem rather than counting
+dots. The dot-count heuristic it replaced could not tell a submodule from a
+symbol in a flat module — `modules.followers.constants` has the same depth as a
+sub-packaged module's `modules.activities.activity` — so every symbol imported
+from a flat module was misread as a package reach.
 
 That allowlist is the debt register. Every entry names a real cross-package reach
 and why it is still there. Adding a new one is a deliberate, reviewed act; the

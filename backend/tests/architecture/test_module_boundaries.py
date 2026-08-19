@@ -25,6 +25,8 @@ _CONVERTED = ("activities", "followers")
 
 _MODULES_ROOT = pathlib.Path("app/modules")
 
+_APP_ROOT = pathlib.Path("app")
+
 #: File stems a sibling sub-package may import: data shapes and event
 #: declarations, which carry no behaviour and no persistence; ``query`` — SQL
 #: expression fragments that open no session and fetch no rows, so sharing them
@@ -140,7 +142,7 @@ _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
     ): "SQLAlchemy relationships share one registry, so cross-module foreign keys must name each other.",
     (
         "*.models",
-        "models*",
+        "models",
     ): "The same foreign-key cross-reference, into a module that is flat rather than split into sub-packages.",
 }
 
@@ -159,6 +161,20 @@ def _module_path(path: pathlib.Path, root: pathlib.Path) -> str:
     return ".".join(path.relative_to(root).with_suffix("").parts)
 
 
+def _names_a_module(dotted: str) -> bool:
+    """
+    Return whether a dotted path names a real module or package on disk.
+
+    Args:
+        dotted: A fully qualified dotted path rooted at ``app``.
+
+    Returns:
+        True when the path resolves to a ``.py`` file or a package directory.
+    """
+    base = _APP_ROOT.joinpath(*dotted.split("."))
+    return base.with_suffix(".py").is_file() or base.is_dir()
+
+
 def _imported_modules(path: pathlib.Path) -> set[str]:
     """
     Return every fully qualified module this file imports.
@@ -175,12 +191,14 @@ def _imported_modules(path: pathlib.Path) -> set[str]:
         if isinstance(node, ast.Import):
             found.update(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            # ``from modules.activities.activity import contracts`` names a
-            # submodule; ``from ...activity.contracts import X`` names a symbol.
-            if node.module.count(".") == 2:
-                found.update(f"{node.module}.{alias.name}" for alias in node.names)
-            else:
-                found.add(node.module)
+            # ``from x.y import z`` names either a submodule or a symbol, and the
+            # two have to be told apart on disk. Counting dots does not work: in a
+            # flat module ``modules.followers.constants`` has the same depth as a
+            # sub-packaged module's ``modules.activities.activity``, so every
+            # symbol imported from a flat module read as a submodule.
+            for alias in node.names:
+                candidate = f"{node.module}.{alias.name}"
+                found.add(candidate if _names_a_module(candidate) else node.module)
     return found
 
 

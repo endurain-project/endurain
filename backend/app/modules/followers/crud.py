@@ -11,6 +11,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
+from modules.followers.constants import FollowStatus
 
 logger = core_logger.get_logger(__name__)
 
@@ -61,7 +62,7 @@ def get_all_followers_by_user_id(
     """
     stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
     if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == "accepted")
+        stmt = stmt.where(followers_models.Follower.status == FollowStatus.ACCEPTED.value)
     stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
@@ -96,7 +97,7 @@ def get_all_following_by_user_id(
     """
     stmt = select(followers_models.Follower).where(followers_models.Follower.follower_id == user_id)
     if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == "accepted")
+        stmt = stmt.where(followers_models.Follower.status == FollowStatus.ACCEPTED.value)
     stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
@@ -124,7 +125,7 @@ def get_pending_requests_for_user_id(
         select(followers_models.Follower)
         .where(
             followers_models.Follower.followee_id == user_id,
-            followers_models.Follower.status == "pending",
+            followers_models.Follower.status == FollowStatus.PENDING.value,
         )
         .order_by(followers_models.Follower.id)
         .offset((page_number - 1) * num_records)
@@ -146,7 +147,7 @@ def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
     """
     stmt = select(func.count(followers_models.Follower.id)).where(
         followers_models.Follower.followee_id == user_id,
-        followers_models.Follower.status == "pending",
+        followers_models.Follower.status == FollowStatus.PENDING.value,
     )
     return db.scalar(stmt) or 0
 
@@ -173,7 +174,7 @@ def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool
         .where(followers_models.Follower.followee_id == user_id)
     )
     if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == "accepted")
+        stmt = stmt.where(followers_models.Follower.status == FollowStatus.ACCEPTED.value)
     return db.scalar(stmt) or 0
 
 
@@ -199,7 +200,7 @@ def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool
         .where(followers_models.Follower.follower_id == user_id)
     )
     if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == "accepted")
+        stmt = stmt.where(followers_models.Follower.status == FollowStatus.ACCEPTED.value)
     return db.scalar(stmt) or 0
 
 
@@ -260,7 +261,7 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
 
     stmt = select(followers_models.Follower.followee_id).where(
         followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.status == "accepted",
+        followers_models.Follower.status == FollowStatus.ACCEPTED.value,
     )
     followee_ids = list(db.scalars(stmt).all())
     cache[user_id] = followee_ids
@@ -311,7 +312,7 @@ def create_follower(
     new_follow = followers_models.Follower(
         follower_id=user_id,
         followee_id=target_user_id,
-        status="pending",
+        status=FollowStatus.PENDING.value,
     )
 
     try:
@@ -370,14 +371,14 @@ def accept_follower(
     stmt = select(followers_models.Follower).where(
         followers_models.Follower.follower_id == target_user_id,
         followers_models.Follower.followee_id == user_id,
-        followers_models.Follower.status == "pending",
+        followers_models.Follower.status == FollowStatus.PENDING.value,
     )
 
     accept_follow = db.scalars(stmt).first()
     if accept_follow is None:
         raise core_exceptions.NotFoundError("Follower record not found")
 
-    accept_follow.status = "accepted"
+    accept_follow.status = FollowStatus.ACCEPTED.value
     if commit:
         db.commit()
     else:

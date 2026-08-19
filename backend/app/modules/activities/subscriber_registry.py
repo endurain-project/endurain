@@ -18,9 +18,6 @@ leaving it a comment) lets a test enforce it, so a new subscriber added without 
 net — or an exemption reason — fails CI instead of silently losing derived work.
 """
 
-from collections.abc import Callable
-from dataclasses import dataclass
-
 import modules.activities.activity.subscribers as activity_subscribers
 import modules.activities.activity_file_storage.subscribers as activity_file_storage_subscribers
 import modules.activities.activity_geocoding.subscribers as activity_geocoding_subscribers
@@ -30,6 +27,7 @@ import modules.activities.activity_media.subscribers as activity_media_subscribe
 import modules.activities.activity_streams.subscribers as activity_streams_subscribers
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.activities.activity_thumbnail.subscribers as activity_thumbnail_subscribers
+from infra.jobs.reconciliation import DurableSubscriberNet
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
 
@@ -80,25 +78,6 @@ def register_all_activity_durable_handlers(registry: JobHandlerRegistry) -> None
     activity_media_subscribers.register_activity_media_cleanup_durable_handlers(registry)
     activity_bulk_import_subscribers.register_bulk_import_durable_handlers(registry)
     activity_ingestion_subscribers.register_ingestion_durable_handlers(registry)
-
-
-@dataclass(frozen=True)
-class DurableSubscriberNet:
-    """A durable subscriber's reconciliation net, or a documented exemption.
-
-    Attributes:
-        subscriber_id: The stable durable-subscriber id (as registered on the
-            :class:`JobHandlerRegistry`).
-        backfill: The scheduled, argument-free backfill that re-derives anything
-            the create-path handler missed, or ``None`` when the subscriber is
-            exempt (its derived state is transient / self-healing).
-        exempt_reason: Why no backfill is required, when ``backfill`` is ``None``.
-            Must be set for exempt subscribers and unset otherwise.
-    """
-
-    subscriber_id: str
-    backfill: Callable[[], None] | None
-    exempt_reason: str | None = None
 
 
 # Single source of truth for the reconciliation-net invariant. Every durable

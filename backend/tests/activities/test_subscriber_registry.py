@@ -8,9 +8,8 @@ exemption, and every declared backfill is actually scheduled — so a direct
 healed instead of silently losing derived work.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import core.scheduler as core_scheduler
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.subscriber_registry as activity_subscriber_registry
@@ -83,42 +82,6 @@ class TestRegisterAllActivityDurableHandlers:
 
 
 class TestReconciliationNetInvariant:
-    def test_every_registered_subscriber_is_declared(self):
-        # A new durable subscriber added to the shared registration but not to the
-        # net declaration (or vice versa) fails here — the net decision is forced.
-        registry = _register_durable_handlers()
-        declared = {net.subscriber_id for net in activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS}
-        assert _registered_durable_ids(registry) == declared
-
-    def test_each_net_declares_a_backfill_xor_an_exemption(self):
-        for net in activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS:
-            has_backfill = net.backfill is not None
-            has_reason = bool(net.exempt_reason)
-            # Exactly one: a durable subscriber either ships a backfill net or is an
-            # explicitly-justified transient exemption, never both and never neither.
-            assert has_backfill != has_reason, net.subscriber_id
-
-    def test_declared_backfills_are_scheduled(self):
-        # Drive start_scheduler with the activities module's own job declaration
-        # and a fake scheduler that records every registered job function, then
-        # assert each declared reconciliation backfill is wired (declared-but-not-
-        # scheduled would be a silent, undetectable net).
-        import modules.activities.scheduled_jobs as activity_scheduled_jobs
-
-        scheduled_funcs: set[object] = set()
-        fake_scheduler = MagicMock()
-        fake_scheduler.running = True  # skip scheduler.start()
-        fake_scheduler.add_job.side_effect = lambda func, *args, **kwargs: scheduled_funcs.add(func)
-        with patch.object(core_scheduler, "scheduler", fake_scheduler):
-            core_scheduler.start_scheduler(activity_scheduled_jobs.recurring_jobs())
-
-        nets_with_backfill = [
-            net for net in activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS if net.backfill
-        ]
-        assert nets_with_backfill  # sanity: the create-derived subscribers have nets
-        for net in nets_with_backfill:
-            assert net.backfill in scheduled_funcs, net.subscriber_id
-
     def test_profile_restore_direct_create_is_healed(self):
         # A profile bulk-restore persists via create_activity directly and publishes
         # NO activity.created, relying entirely on the reconciliation nets. Every
