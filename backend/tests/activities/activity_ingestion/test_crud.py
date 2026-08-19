@@ -9,7 +9,7 @@ from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
 
 import core.exceptions as core_exceptions
-import modules.activities.activity_ingestion.ingestion_jobs_crud as ingestion_jobs_crud
+import modules.activities.activity_ingestion.crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.models as activity_ingestion_models
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 
@@ -44,7 +44,7 @@ def _stub_first(mock_db, row):
 
 
 class TestCreateUploadJob:
-    @patch("modules.activities.activity_ingestion.ingestion_jobs_crud.activity_ingestion_models.ActivityIngestionJob")
+    @patch("modules.activities.activity_ingestion.crud.activity_ingestion_models.ActivityIngestionJob")
     def test_commits_by_default(self, model, mock_db):
         model.return_value = _row()
         result = ingestion_jobs_crud.create_ingestion_job(
@@ -55,7 +55,7 @@ class TestCreateUploadJob:
         assert result.id == "job-1"
         assert result.status == activity_ingestion_schema.IngestionJobStatus.PENDING
 
-    @patch("modules.activities.activity_ingestion.ingestion_jobs_crud.activity_ingestion_models.ActivityIngestionJob")
+    @patch("modules.activities.activity_ingestion.crud.activity_ingestion_models.ActivityIngestionJob")
     def test_flushes_when_the_caller_owns_the_commit(self, model, mock_db):
         """Lets the row and its outbox event land in one transaction."""
         model.return_value = _row()
@@ -65,7 +65,7 @@ class TestCreateUploadJob:
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    @patch("modules.activities.activity_ingestion.ingestion_jobs_crud.activity_ingestion_models.ActivityIngestionJob")
+    @patch("modules.activities.activity_ingestion.crud.activity_ingestion_models.ActivityIngestionJob")
     def test_db_error(self, model, mock_db):
         model.return_value = _row()
         mock_db.commit.side_effect = SQLAlchemyError("err")

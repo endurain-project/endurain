@@ -171,7 +171,7 @@ def test_event_subscribers_log_what_they_did() -> None:
     """
     offenders = []
     for path in _template_sources():
-        if path.name not in {"subscribers.py", "ingestion_subscribers.py", "bulk_import_subscribers.py"}:
+        if not path.name.endswith("subscribers.py"):
             continue
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):

@@ -12,8 +12,9 @@ fetched, no ORM instances returned.
 """
 
 from datetime import UTC, date, datetime, time, timedelta
+from urllib.parse import unquote
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 import core.timezone as core_timezone
 import modules.activities.activity.models as activities_models
@@ -36,6 +37,26 @@ def escape_like(term: str) -> str:
         Escaped search term safe for use inside a ``LIKE`` pattern.
     """
     return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def name_search_condition(name_search: str):
+    """A case-insensitive LIKE search across an activity's name and location.
+
+    Args:
+        name_search: URL-encoded search term, as it arrives on the query string.
+
+    Returns:
+        A SQLAlchemy condition matching the term against name, town, city or
+        country, with ``%``/``_`` escaped so user input cannot inject wildcards.
+    """
+    raw = unquote(name_search).replace("+", " ").lower()
+    pattern = f"%{escape_like(raw)}%"
+    return or_(
+        func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
+        func.lower(activities_models.Activity.town).like(pattern, escape="\\"),
+        func.lower(activities_models.Activity.city).like(pattern, escape="\\"),
+        func.lower(activities_models.Activity.country).like(pattern, escape="\\"),
+    )
 
 
 def local_start_time_expression():

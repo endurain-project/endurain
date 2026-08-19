@@ -28,12 +28,18 @@ Sub-packages are **peers**, not a hierarchy. `activity_thumbnail` may not read
 Filenames are part of the contract: the enforcement rules match on them, so a
 file named `crud.py` is treated as persistence wherever it appears.
 
+The corollary is that a misnamed file is *silently exempt*. `activity_ingestion`
+held its persistence in `ingestion_jobs_crud.py`, which no `modules.activities.*.crud`
+wildcard matched — so the one CRUD module in the tree that routers were free to
+import was the one nobody had noticed was named wrong. Renaming it to `crud.py`
+brought it under four existing contracts without writing a new one.
+
 | File | Layer | Responsibility |
 | --- | --- | --- |
 | `models.py` | persistence | SQLAlchemy ORM. The only place a table is declared. |
 | `query.py` | persistence | Reusable SQL expression fragments. No session, no I/O. |
 | `crud.py` | persistence | The **only** file that opens a `Session` against its own tables. Returns schemas/DTOs, never ORM rows. |
-| `serializers.py` | persistence | ORM row → schema transformation. Receives rows *from* `crud`. |
+| `serializers.py` | persistence | ORM ↔ schema transformation, both directions. Called by `crud` at its edges. |
 | `service.py` | application | Decides access, orchestrates, publishes events, owns transaction boundaries. |
 | `router.py` / `public_router.py` | transport | Validate, delegate to `service`, return. No domain rule. |
 | `dependencies.py` | transport | FastAPI DI (path-param resolution, scope checks). |

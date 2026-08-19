@@ -220,7 +220,7 @@ class TestGetActivityByID:
 class TestCreateActivity:
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_success(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -240,7 +240,7 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_does_not_mutate_the_ingestion_contract(self, mock_transform, mock_check, mock_serialize, mock_db):
         """The input is the write contract and must come back untouched.
 
@@ -298,7 +298,7 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_duplicate_start_time(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -319,7 +319,7 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_persists_dedup_key(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -336,7 +336,7 @@ class TestCreateActivity:
         assert m.dedup_key == "strava:99"
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_db_error(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -394,7 +394,7 @@ class TestEditActivity:
             crud.edit_activity(user_id=1, activity_id=1, activity_attributes=type("Nope", (), {"id": 1})(), db=mock_db)
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    @patch("modules.activities.activity.crud.core_sanitization.sanitize_markdown")
+    @patch("modules.activities.activity.serializers.core_sanitization.sanitize_markdown")
     def test_sanitization(self, mock_sanitize, mock_ser, mock_db):
         import modules.activities.activity.crud as crud
         import modules.activities.activity.schema as s

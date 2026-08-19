@@ -436,7 +436,6 @@ forbidden_modules =
     modules.activities.*.models
     modules.activities.*.query
     modules.activities.*.event_publishers
-    modules.activities.activity_ingestion.ingestion_jobs_crud
 
 # ORM ownership: the activities ORM models are owned by their subpackage's models.py
 # and touched only by the persistence layer — crud.py (the single ORM surface) and the
