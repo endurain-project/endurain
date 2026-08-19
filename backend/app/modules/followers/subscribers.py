@@ -17,9 +17,8 @@ import core.logger as core_logger
 import infra.async_bridge as platform_async_bridge
 import infra.event_versioning as platform_event_versioning
 import modules.followers.events as followers_events
-import modules.notifications.utils as notifications_utils
-import modules.websocket.manager as websocket_manager
-import modules.websocket.utils as websocket_utils
+import modules.notifications.integration_service as notifications_integration
+import modules.websocket.integration_service as websocket_integration
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
@@ -46,15 +45,14 @@ def notify_follower_requested_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(followers_events.FollowerRequestedPayload, event)
     with core_database.SessionLocal() as db:
-        notification, ws_message = notifications_utils.create_new_follower_request_notification(
+        notification, ws_message = notifications_integration.create_follow_request_notification(
             payload.requester_user_id, payload.target_user_id, db
         )
     # Best-effort websocket push to the notified user on the main loop; the row
     # above is the record, so a dropped push (offline client, no loop) is fine.
     platform_async_bridge.dispatch(
-        websocket_utils.notify_frontend(
+        websocket_integration.push_to_user(
             payload.target_user_id,
-            websocket_manager.get_websocket_manager(),
             {"message": ws_message, "notification_id": notification.id},
         )
     )
@@ -83,13 +81,12 @@ def notify_follower_accepted_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(followers_events.FollowerAcceptedPayload, event)
     with core_database.SessionLocal() as db:
-        notification, ws_message = notifications_utils.create_accepted_follower_request_notification(
+        notification, ws_message = notifications_integration.create_follow_accepted_notification(
             payload.accepter_user_id, payload.requester_user_id, db
         )
     platform_async_bridge.dispatch(
-        websocket_utils.notify_frontend(
+        websocket_integration.push_to_user(
             payload.requester_user_id,
-            websocket_manager.get_websocket_manager(),
             {"message": ws_message, "notification_id": notification.id},
         )
     )

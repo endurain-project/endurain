@@ -67,28 +67,6 @@ def get_all_followers_by_user_id(
 
 
 @core_decorators.handle_db_errors
-def get_accepted_followers_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
-    """
-    Retrieve accepted follower records where the user is being followed.
-
-    Args:
-        user_id: ID of the user whose accepted followers to retrieve.
-        db: Database session.
-
-    Returns:
-        List of accepted Follower records (empty list if none).
-
-    Raises:
-        ProcessingError: If a database error occurs.
-    """
-    stmt = select(followers_models.Follower).where(
-        followers_models.Follower.followee_id == user_id,
-        followers_models.Follower.status == "accepted",
-    )
-    return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
-
-
-@core_decorators.handle_db_errors
 def get_all_following_by_user_id(
     user_id: int,
     db: Session,
@@ -120,28 +98,6 @@ def get_all_following_by_user_id(
     if accepted_only:
         stmt = stmt.where(followers_models.Follower.status == "accepted")
     stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
-    return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
-
-
-@core_decorators.handle_db_errors
-def get_accepted_following_by_user_id(user_id: int, db: Session) -> list[followers_schema.FollowRelationship]:
-    """
-    Retrieve accepted follow records where the user is the follower.
-
-    Args:
-        user_id: ID of the user whose accepted following list to retrieve.
-        db: Database session.
-
-    Returns:
-        List of accepted Follower records (empty list if none).
-
-    Raises:
-        ProcessingError: If a database error occurs.
-    """
-    stmt = select(followers_models.Follower).where(
-        followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.status == "accepted",
-    )
     return [_transform_follower(follower) for follower in db.scalars(stmt).all()]
 
 

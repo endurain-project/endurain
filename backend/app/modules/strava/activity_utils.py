@@ -1,12 +1,10 @@
 import asyncio
-import functools
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 from stravalib.exc import AccessUnauthorized
-from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 import core.logger as core_logger
@@ -127,17 +125,6 @@ async def fetch_and_process_activities(
     return processed_activities if processed_activities else None
 
 
-@functools.lru_cache(maxsize=1)
-def _get_timezone_finder() -> TimezoneFinder:
-    """Return a process-wide cached TimezoneFinder.
-
-    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so it
-    is built once and reused across activities instead of per parse (a single
-    instance is safe for concurrent ``timezone_at`` reads).
-    """
-    return TimezoneFinder()
-
-
 def parse_activity(
     activity,
     user_id: int,
@@ -146,8 +133,6 @@ def parse_activity(
     user_integrations: user_integrations_schema.UsersIntegrationsRead,
     db: Session,
 ) -> dict:
-    # Reuse the process-wide cached TimezoneFinder instead of rebuilding it per activity.
-    tf = _get_timezone_finder()
     # Fallback for activities with no GPS track (indoor rides, treadmill runs):
     # prefer the athlete's own timezone over the server's, which is meaningless
     # for a user on another continent.
@@ -317,9 +302,10 @@ def parse_activity(
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
     if activity_type != 3 and activity_type != 7 and is_lat_lon_set:
-        timezone = tf.timezone_at(
-            lat=lat_lon_waypoints[0]["lat"],
-            lng=lat_lon_waypoints[0]["lon"],
+        timezone = core_timezone.from_lat_lon(
+            lat_lon_waypoints[0]["lat"],
+            lat_lon_waypoints[0]["lon"],
+            timezone,
         )
 
     # Create the activity object

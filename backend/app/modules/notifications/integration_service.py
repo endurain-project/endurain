@@ -49,3 +49,57 @@ def create_activity_created_notification(
         duplicate_start_time,
         db,
     )
+
+
+def create_follow_request_notification(
+    requester_user_id: int,
+    target_user_id: int,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """
+    Record the notification for a new follow request.
+
+    Args:
+        requester_user_id: The user who asked to follow, named in the notification.
+        target_user_id: The user to notify, who owns the notification row.
+        db: Database session.
+
+    Returns:
+        The created notification row and the websocket message type the caller
+        should push.
+
+    Raises:
+        HTTPException: 404 when the requesting user no longer exists.
+    """
+    return notifications_utils.create_new_follower_request_notification(
+        requester_user_id,
+        target_user_id,
+        db,
+    )
+
+
+def create_follow_accepted_notification(
+    accepter_user_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str]:
+    """
+    Record the notification for an accepted follow request.
+
+    Args:
+        accepter_user_id: The user who accepted, named in the notification.
+        requester_user_id: The original requester to notify, who owns the row.
+        db: Database session.
+
+    Returns:
+        The created notification row and the websocket message type the caller
+        should push.
+
+    Raises:
+        HTTPException: 404 when the accepting user no longer exists.
+    """
+    return notifications_utils.create_accepted_follower_request_notification(
+        accepter_user_id,
+        requester_user_id,
+        db,
+    )

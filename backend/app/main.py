@@ -44,7 +44,7 @@ import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
-import modules.followers.subscribers as followers_subscribers
+import modules.followers.subscriber_registry as followers_subscriber_registry
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.garmin.health_utils as garmin_health_utils
 import modules.garmin.provider_registry as garmin_provider_registry
@@ -287,8 +287,8 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # in that module.
     activity_subscriber_registry.register_all_activity_bus_subscribers(platform.events)
     activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
-    followers_subscribers.register_follower_notification_subscribers(platform.events)
-    followers_subscribers.register_follower_notification_durable_handlers(jobs_registry.registry)
+    followers_subscriber_registry.register_all_follower_bus_subscribers(platform.events)
+    followers_subscriber_registry.register_all_follower_durable_handlers(jobs_registry.registry)
     # Providers register themselves with ingestion; ingestion imports none of
     # them. Must also happen in worker.py, where refresh jobs are claimed.
     strava_provider_registry.register_activity_provider()

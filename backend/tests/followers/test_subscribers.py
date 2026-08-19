@@ -10,23 +10,22 @@ def _event(event_type, payload):
 
 
 class TestOnFollowerRequestedNotify:
-    @patch("modules.followers.subscribers.notifications_utils")
+    @patch("modules.followers.subscribers.notifications_integration")
     def test_noop_for_non_int_ids(self, mock_notif):
         from modules.followers.subscribers import on_follower_requested_notify
 
         on_follower_requested_notify(_event("follower.requested", {"requester_user_id": "x", "target_user_id": 2}))
 
-        mock_notif.create_new_follower_request_notification.assert_not_called()
+        mock_notif.create_follow_request_notification.assert_not_called()
 
-    @patch("modules.followers.subscribers.websocket_utils")
-    @patch("modules.followers.subscribers.websocket_manager")
+    @patch("modules.followers.subscribers.websocket_integration")
     @patch("modules.followers.subscribers.platform_async_bridge")
     @patch("modules.followers.subscribers.core_database")
-    @patch("modules.followers.subscribers.notifications_utils")
-    def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws_mgr, mock_ws_utils):
+    @patch("modules.followers.subscribers.notifications_integration")
+    def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.followers.subscribers import on_follower_requested_notify
 
-        mock_notif.create_new_follower_request_notification.return_value = (
+        mock_notif.create_follow_request_notification.return_value = (
             MagicMock(id=5),
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
         )
@@ -34,16 +33,16 @@ class TestOnFollowerRequestedNotify:
         on_follower_requested_notify(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
 
         # Row created for requester=1 -> target=2; websocket push dispatched.
-        assert mock_notif.create_new_follower_request_notification.call_args.args[:2] == (1, 2)
+        assert mock_notif.create_follow_request_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
     @patch("infra.subscribers.logger")
     @patch("modules.followers.subscribers.core_database")
-    @patch("modules.followers.subscribers.notifications_utils")
+    @patch("modules.followers.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
         from modules.followers.subscribers import on_follower_requested_notify
 
-        mock_notif.create_new_follower_request_notification.side_effect = RuntimeError("boom")
+        mock_notif.create_follow_request_notification.side_effect = RuntimeError("boom")
 
         # Must not raise — a notification failure never breaks the follow request.
         on_follower_requested_notify(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
@@ -52,23 +51,22 @@ class TestOnFollowerRequestedNotify:
 
 
 class TestOnFollowerAcceptedNotify:
-    @patch("modules.followers.subscribers.notifications_utils")
+    @patch("modules.followers.subscribers.notifications_integration")
     def test_noop_for_non_int_ids(self, mock_notif):
         from modules.followers.subscribers import on_follower_accepted_notify
 
         on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": None}))
 
-        mock_notif.create_accepted_follower_request_notification.assert_not_called()
+        mock_notif.create_follow_accepted_notification.assert_not_called()
 
-    @patch("modules.followers.subscribers.websocket_utils")
-    @patch("modules.followers.subscribers.websocket_manager")
+    @patch("modules.followers.subscribers.websocket_integration")
     @patch("modules.followers.subscribers.platform_async_bridge")
     @patch("modules.followers.subscribers.core_database")
-    @patch("modules.followers.subscribers.notifications_utils")
-    def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws_mgr, mock_ws_utils):
+    @patch("modules.followers.subscribers.notifications_integration")
+    def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.followers.subscribers import on_follower_accepted_notify
 
-        mock_notif.create_accepted_follower_request_notification.return_value = (
+        mock_notif.create_follow_accepted_notification.return_value = (
             MagicMock(id=7),
             "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
         )
@@ -76,16 +74,16 @@ class TestOnFollowerAcceptedNotify:
         on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
 
         # Row created for accepter=1 -> requester=2; websocket push dispatched.
-        assert mock_notif.create_accepted_follower_request_notification.call_args.args[:2] == (1, 2)
+        assert mock_notif.create_follow_accepted_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
     @patch("infra.subscribers.logger")
     @patch("modules.followers.subscribers.core_database")
-    @patch("modules.followers.subscribers.notifications_utils")
+    @patch("modules.followers.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
         from modules.followers.subscribers import on_follower_accepted_notify
 
-        mock_notif.create_accepted_follower_request_notification.side_effect = RuntimeError("boom")
+        mock_notif.create_follow_accepted_notification.side_effect = RuntimeError("boom")
 
         on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
 

@@ -1,8 +1,11 @@
 """Centralized timezone conversion utilities."""
 
+import functools
 from datetime import date, datetime, timedelta
 from typing import overload
 from zoneinfo import ZoneInfo
+
+from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 
@@ -33,6 +36,41 @@ def or_default(tz_name: str | None) -> str:
         An IANA timezone name.
     """
     return tz_name or core_config.settings.TZ
+
+
+@functools.lru_cache(maxsize=1)
+def _timezone_finder() -> TimezoneFinder:
+    """Return a process-wide cached TimezoneFinder.
+
+    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so
+    it is built once and reused instead of per activity (a single instance is
+    safe for concurrent ``timezone_at`` reads).
+
+    Returns:
+        The shared TimezoneFinder.
+    """
+    return TimezoneFinder()
+
+
+def from_lat_lon(latitude: float, longitude: float, fallback_tz: str | None = None) -> str:
+    """Return the IANA timezone a coordinate falls in, or a fallback.
+
+    ``timezone_at`` answers ``None`` over open ocean and in the gaps between
+    timezone polygons, so the fallback is not optional decoration: the Strava
+    adapter used to assign the raw result straight onto the activity, discarding
+    the athlete's own timezone it had just resolved whenever the lookup missed.
+    Every caller resolves the same way now.
+
+    Args:
+        latitude: WGS-84 latitude in decimal degrees.
+        longitude: WGS-84 longitude in decimal degrees.
+        fallback_tz: Timezone to use when the lookup finds none; defaults to the
+            server's configured timezone.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return _timezone_finder().timezone_at(lat=latitude, lng=longitude) or or_default(fallback_tz)
 
 
 def today_in(tz_name: str) -> date:

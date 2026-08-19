@@ -329,6 +329,64 @@ forbidden_modules =
     modules.users.users_integrations.models
     modules.users.users_privacy_settings.models
 
+# The followers module is the flat-module counterpart of the activities rules
+# above, stated once now that it is the second module converted to the structure
+# guide. Its router delegates to ``service`` and holds no persistence, its
+# ``crud`` raises domain errors rather than HTTP ones (already covered by
+# ``persistence-no-http``), and — the rule this contract adds — no layer of it
+# reaches into another module's internals. Its subscribers used to import
+# ``notifications.utils``, ``websocket.manager`` and ``websocket.utils``: three
+# reaches past two modules' surfaces to do what
+# ``notifications.integration_service`` + ``websocket.integration_service``
+# already state as one operation each, and the reason the module could not be
+# lifted out without dragging the websocket connection registry with it.
+[importlinter:contract:followers-consumes-surfaces]
+name = Followers must consume other modules through their integration services
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.followers
+forbidden_modules =
+    modules.notifications.utils
+    modules.notifications.crud
+    modules.notifications.models
+    modules.websocket.manager
+    modules.websocket.utils
+    modules.users.users.crud
+    modules.users.users.utils
+    modules.activities
+
+# The companion rule pointing inward: the followers router delegates to the
+# service, exactly as the activities routers do. Stated separately from
+# ``activities-router-delegates`` because the module is flat (no sub-package
+# wildcard to match on).
+[importlinter:contract:followers-router-delegates]
+name = The followers router delegates to the service — no CRUD, ORM or event publishing
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.followers.router
+forbidden_modules =
+    modules.followers.crud
+    modules.followers.models
+    modules.followers.event_publishers
+
+# ORM ownership for followers, matching ``activities-orm-ownership``: the ORM
+# model is touched only by ``crud``, the single persistence surface, which
+# returns schemas. The application layers go through it.
+[importlinter:contract:followers-orm-ownership]
+name = Followers ORM models stay in the persistence layer
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.followers.service
+    modules.followers.subscribers
+    modules.followers.router
+    modules.followers.event_publishers
+    modules.followers.integration_service
+forbidden_modules =
+    modules.followers.models
+
 # The activities core consumes the followers module through the curated
 # followers.integration_service interface (list_accepted_followee_ids) — used by both
 # the feed routes and the non-owner visibility filter — never by reaching into the

@@ -1157,11 +1157,6 @@ def convert_coordinates_to_degrees(latitude, longitude):
     return latitude, longitude
 
 
-def append_if_not_none(waypoint_list, time, value, key):
-    if value is not None:
-        waypoint_list.append({"time": time, key: value})
-
-
 def calculate_pace(distance, total_timer_time, activity_type, split_summary, lengths):
     if distance:
         if activity_type != "lap_swimming" or (activity_type == "lap_swimming" and not split_summary and not lengths):

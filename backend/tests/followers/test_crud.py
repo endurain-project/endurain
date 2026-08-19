@@ -34,33 +34,6 @@ class TestGetAllFollowersByUserId:
         assert e.value.status_code == 500
 
 
-class TestGetAcceptedFollowersByUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from modules.followers.schema import FollowRelationship
-
-        f = MagicMock(spec=m.Follower, follower_id=2, followee_id=1, status="accepted")
-        mock_db.scalars.return_value.all.return_value = [f]
-        r = crud.get_accepted_followers_by_user_id(user_id=1, db=mock_db)
-        assert r == [FollowRelationship(follower_id=2, followee_id=1, status="accepted")]
-
-    def test_empty(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_accepted_followers_by_user_id(user_id=1, db=mock_db)
-        assert r == []
-
-    def test_db_error(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_accepted_followers_by_user_id(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
 class TestGetAllFollowingByUserId:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
@@ -85,33 +58,6 @@ class TestGetAllFollowingByUserId:
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_all_following_by_user_id(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetAcceptedFollowingByUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from modules.followers.schema import FollowRelationship
-
-        f = MagicMock(spec=m.Follower, follower_id=1, followee_id=2, status="accepted")
-        mock_db.scalars.return_value.all.return_value = [f]
-        r = crud.get_accepted_following_by_user_id(user_id=1, db=mock_db)
-        assert r == [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
-
-    def test_empty(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_accepted_following_by_user_id(user_id=1, db=mock_db)
-        assert r == []
-
-    def test_db_error(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_accepted_following_by_user_id(user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 

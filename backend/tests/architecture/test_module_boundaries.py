@@ -21,7 +21,7 @@ import pathlib
 #: Modules converted to the structure guide. Opt-in, like ``_CONVERTED`` in
 #: ``test_logging_rule.py``: an unconverted module is visibly outstanding rather
 #: than silently exempt.
-_CONVERTED = ("activities",)
+_CONVERTED = ("activities", "followers")
 
 _MODULES_ROOT = pathlib.Path("app/modules")
 
@@ -138,6 +138,10 @@ _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
         "*.models",
         "*.models",
     ): "SQLAlchemy relationships share one registry, so cross-module foreign keys must name each other.",
+    (
+        "*.models",
+        "models*",
+    ): "The same foreign-key cross-reference, into a module that is flat rather than split into sub-packages.",
 }
 
 
@@ -276,9 +280,13 @@ class TestModuleSurface:
                     if not target.startswith(prefix):
                         continue
                     imported = target[len(prefix) :]
-                    if "." not in imported:
+                    # A dotless target is either a sub-package (importing the bare
+                    # package yields nothing, so it is not a reach) or a
+                    # module-level file — which IS the whole surface of a flat
+                    # module like followers, so it has to be checked.
+                    if "." not in imported and (module_root / imported).is_dir():
                         continue
-                    if imported.rsplit(".", 1)[1] in _PUBLIC_ACROSS_MODULES:
+                    if imported.rsplit(".", 1)[-1] in _PUBLIC_ACROSS_MODULES:
                         continue
                     if _matches((importer, imported), _INBOUND_EXCEPTIONS):
                         continue

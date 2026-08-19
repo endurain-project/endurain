@@ -5,8 +5,9 @@ make a module **replaceable**: you could lift `modules/activities` out of the tr
 publish it as a library, and the rest of the application would keep compiling
 because it never depended on anything the module did not deliberately publish.
 
-`modules/activities` is the reference implementation. Every other module — and
-every new one — is converted to this shape.
+`modules/activities` is the reference implementation for a module that splits
+into sub-packages; `modules/followers` is the reference for one that stays flat.
+Every other module — and every new one — is converted to this shape.
 
 ## The two units
 
@@ -65,6 +66,12 @@ Three classes. This is the whole rule.
 | `router.py` / `public_router.py` | Mounted by `app/api.py` and nothing else. |
 | `subscriber_registry.py` | Event wiring, called by `main.py` and `worker.py`. |
 | `scheduled_jobs.py` | The module's recurring and one-shot background work, collected by `main.py`. |
+
+`subscribers.py` is deliberately absent from that list. A module with subscribers
+publishes `subscriber_registry.py` and the entrypoints import *that* — which is
+what makes "registered in the API but not the worker" a diff in one file instead
+of a silent mismatch between two, and what keeps the file that happens to hold
+the handlers today free to be split tomorrow.
 
 A module-level file (not inside a sub-package) is the right home for a surface
 that belongs to the whole module rather than one aggregate —
@@ -201,6 +208,11 @@ but not a sibling's" is not statable: the wildcard pair
 compares each import against the importer's own package, and consults an explicit
 allowlist of named seams.
 
+It checks module-level files too, not just sub-package ones — which is the whole
+surface of a flat module. Without that, `modules.followers.crud` was importable
+from anywhere: the dotted path has no sub-package segment to match on, so every
+rule silently skipped it.
+
 That allowlist is the debt register. Every entry names a real cross-package reach
 and why it is still there. Adding a new one is a deliberate, reviewed act; the
 test fails on anything not listed.
@@ -277,6 +289,18 @@ and the max-heart-rate lookup in `activity_streams.service`. Enforced by the
 The other modules still do it — `health.*.crud` reaching `users.users.utils`,
 `notifications.utils` reaching `users` and `websocket`, and so on. Each is fixed
 as its module is converted.
+
+### Subscribers reaching past a module surface
+
+**Resolved for followers.** `followers.subscribers` imported
+`notifications.utils`, `websocket.manager` and `websocket.utils` — three reaches
+past two modules' surfaces to do what `notifications.integration_service` and
+`websocket.integration_service` each state as one operation, and the reason the
+module could not be lifted out without dragging the websocket connection registry
+with it. Enforced by `followers-consumes-surfaces`.
+
+The same reach survives in `garmin`, `strava`, `auth.sign_up_tokens` and
+`users.users_profile`; each is fixed as its module is converted.
 
 ### Migration → internals
 

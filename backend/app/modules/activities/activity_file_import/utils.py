@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import functools
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, TypedDict
 
 from geopy.distance import geodesic
-from timezonefinder import TimezoneFinder
+
+import core.timezone as core_timezone
 
 if TYPE_CHECKING:
     # Annotation-only: the module already uses postponed evaluation, so the
@@ -407,17 +407,6 @@ def filter_streams_by_time_range(
     }
 
 
-@functools.lru_cache(maxsize=1)
-def _get_timezone_finder() -> TimezoneFinder:
-    """Return a process-wide cached TimezoneFinder.
-
-    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so it
-    is built once and reused across activities instead of per parse (a single
-    instance is safe for concurrent ``timezone_at`` reads).
-    """
-    return TimezoneFinder()
-
-
 def resolve_timezone_from_lat_lon(
     latitude: float,
     longitude: float,
@@ -434,9 +423,7 @@ def resolve_timezone_from_lat_lon(
     Returns:
         IANA timezone string (e.g. ``'Europe/Lisbon'``).
     """
-    tf = _get_timezone_finder()
-    tz = tf.timezone_at(lat=latitude, lng=longitude)
-    return tz if tz is not None else fallback_tz
+    return core_timezone.from_lat_lon(latitude, longitude, fallback_tz)
 
 
 def calculate_power_metrics(
