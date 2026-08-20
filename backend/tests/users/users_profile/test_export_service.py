@@ -108,11 +108,13 @@ class TestExportServiceCollectUserActivities:
             with (
                 patch.object(service, "_get_activities_batch", return_value=[]),
                 patch.object(profile_utils, "write_json_to_zip") as mock_write,
+                patch.object(service, "_collect_and_write_global_activity_components") as collect_global,
             ):
                 result = service.collect_user_activities_data(z)
 
         assert result == []
         mock_write.assert_called_once()
+        collect_global.assert_called_once_with(z)
 
     def test_collects_activities_in_batches(self) -> None:
         buf = io.BytesIO()
@@ -793,18 +795,27 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
             service.performance_config.enable_memory_monitoring = False
 
             activity = _make_activity_mock(1)
+            contributor = MagicMock(
+                key="exercise_titles",
+                archive_path="data/activity_exercise_titles.json",
+                count_key="activity_exercise_titles",
+            )
+            contributor.export.return_value = [MagicMock(), MagicMock()]
 
             with (
                 patch.object(service, "_get_activities_batch", side_effect=[[activity], []]),
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
-                patch(
-                    "modules.users.users_profile.export_service.exercise_titles_integration.list_exercise_titles",
-                    return_value=[MagicMock(), MagicMock()],
+                patch.object(
+                    profile_export_service.contributor_registry,
+                    "profile_global_contributors",
+                    return_value=(contributor,),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"title": "t"}),
             ):
                 service.collect_user_activities_data(z)
+
+            contributor.export.assert_called_once_with(mock_db)
 
     def test_exercise_titles_collection_exception_raises(self) -> None:
         """Exception during exercise titles raises DataCollectionError."""
@@ -816,14 +827,21 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
             service.performance_config.enable_memory_monitoring = False
 
             activity = _make_activity_mock(1)
+            contributor = MagicMock(
+                key="exercise_titles",
+                archive_path="data/activity_exercise_titles.json",
+                count_key="activity_exercise_titles",
+            )
+            contributor.export.side_effect = Exception("boom")
 
             with (
                 patch.object(service, "_get_activities_batch", side_effect=[[activity], []]),
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
-                patch(
-                    "modules.users.users_profile.export_service.exercise_titles_integration.list_exercise_titles",
-                    side_effect=Exception("boom"),
+                patch.object(
+                    profile_export_service.contributor_registry,
+                    "profile_global_contributors",
+                    return_value=(contributor,),
                 ),
                 pytest.raises(DataCollectionError),
             ):
@@ -880,7 +898,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [MagicMock()] * len(ids) if ids else [],
+                    lambda ids, db: [MagicMock()] * len(ids) if ids else [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     5,
@@ -904,7 +922,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [MagicMock()] * (len(ids) + 1) if ids else [],
+                    lambda ids, db: [MagicMock()] * (len(ids) + 1) if ids else [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     2,
@@ -926,7 +944,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [MagicMock()] * len(ids) if ids else [],
+                    lambda ids, db: [MagicMock()] * len(ids) if ids else [],
                     [1, 2, 3],
                     [_make_activity_mock(1), _make_activity_mock(2), _make_activity_mock(3)],
                     2,
@@ -947,7 +965,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     5,
@@ -973,7 +991,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: (_ for _ in ()).throw(Exception("fail")),
+                    lambda ids, db: (_ for _ in ()).throw(Exception("fail")),
                     [1, 2, 3],
                     [_make_activity_mock(1), _make_activity_mock(2), _make_activity_mock(3)],
                     2,
@@ -997,7 +1015,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     5,
@@ -1058,7 +1076,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                     z,
                     "steps",
                     "data/activity_workout_steps.json",
-                    lambda ids, uid, db, acts: (_ for _ in ()).throw(Exception("fail")),
+                    lambda ids, db: (_ for _ in ()).throw(Exception("fail")),
                     [1, 2, 3],
                     [_make_activity_mock(1), _make_activity_mock(2), _make_activity_mock(3)],
                     2,
@@ -1085,7 +1103,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                     z,
                     "steps",
                     "data/activity_workout_steps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1],
                     [_make_activity_mock(1)],
                     5,
@@ -1107,7 +1125,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                     z,
                     "steps",
                     "data/activity_workout_steps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1],
                     [_make_activity_mock(1)],
                     5,

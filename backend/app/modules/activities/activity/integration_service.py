@@ -307,6 +307,38 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
     return activity_service.owns_activity(activity_id, user_id, db)
 
 
+def get_activity_scoring_context(
+    activity_id: int,
+    db: Session,
+) -> activities_contracts.ActivityScoringContext | None:
+    """Return parent columns needed to score one activity's streams."""
+    return activities_crud.get_activity_scoring_context(activity_id, db)
+
+
+def get_activity_scoring_contexts(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, activities_contracts.ActivityScoringContext]:
+    """Return stream-scoring contexts keyed by activity id."""
+    return activities_crud.get_activity_scoring_contexts(activity_ids, db)
+
+
+def list_user_activity_scoring_contexts(
+    user_id: int,
+    db: Session,
+    *,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[activities_contracts.ActivityScoringContext]:
+    """Return a bounded batch of one user's stream-scoring contexts."""
+    return activities_crud.list_user_activity_scoring_contexts(
+        user_id,
+        db,
+        after_id=after_id,
+        batch_size=batch_size,
+    )
+
+
 def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> None:
     """Record or clear an activity's stored thumbnail key."""
     activity_service.set_thumbnail_key(activity_id, key, db)

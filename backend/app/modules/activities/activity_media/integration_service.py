@@ -1,15 +1,22 @@
 """Public record and blob operations for activity media."""
 
+import re
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import infra.providers as platform_providers
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.service as activity_media_service
 import modules.activities.activity_media.signing as activity_media_signing
+import modules.activities.contributors as activity_contributors
 
 logger = core_logger.get_logger(__name__)
+
+_MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
 
 
 def list_media_for_activities(
@@ -27,6 +34,55 @@ def restore_media_records(
 ) -> None:
     """Restore media records for one activity."""
     activity_media_crud.create_activity_medias(media, activity_id, db)
+
+
+def restore_profile_records(
+    records: list[dict[str, Any]],
+    original_activity_id: int,
+    new_activity: activity_schema.Activity,
+    db: Session,
+) -> int:
+    """Validate and restore profile media records for one activity."""
+    if new_activity.id is None:
+        return 0
+
+    media: list[activity_media_contracts.ActivityMediaCreate] = []
+    for record in records:
+        if record.get("activity_id") != original_activity_id:
+            continue
+        data = dict(record)
+        old_key = data.get("media_path")
+        if not old_key:
+            continue
+        match = _MEDIA_KEY_PATTERN.fullmatch(str(old_key))
+        if match is None:
+            logger.warning(
+                "Skipping activity media with invalid key",
+                extra=core_logger.context(media_path=old_key),
+            )
+            continue
+        media.append(
+            activity_media_contracts.ActivityMediaCreate(
+                media_path=f"{new_activity.id}_{match.group('suffix')}",
+                media_type=data.get("media_type", 1),
+            )
+        )
+
+    if media:
+        restore_media_records(media, new_activity.id, db)
+    return len(media)
+
+
+def profile_contributor() -> activity_contributors.ProfileActivityContributor:
+    """Return the activity-media profile contribution."""
+    return activity_contributors.ProfileActivityContributor(
+        key="media",
+        archive_path="data/activity_media.json",
+        count_key="activity_media",
+        split=False,
+        export=list_media_for_activities,
+        restore=restore_profile_records,
+    )
 
 
 def attach_media_bytes(

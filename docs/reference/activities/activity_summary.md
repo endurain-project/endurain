@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.activities.activity_summaries
+::: backend.app.modules.activities.activity.summary_router
     handler: python
     options:
       docstring_style: google

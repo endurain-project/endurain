@@ -22,6 +22,7 @@ intermediate dict.
 
 import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -57,24 +58,27 @@ def parsed_info_to_parsed_activity(
 
     Returns:
         The canonical parsed activity, with one
-        :class:`~modules.activities.activity.contracts.ParsedStream` per stream
-        that the parser flagged as set.
+        :class:`~modules.activities.activity_streams.contracts.ParsedStream` per
+        stream that the parser flagged as set.
     """
     streams = [
-        activities_contracts.ParsedStream(
+        activity_streams_contracts.ParsedStream(
             stream_type=stream_type,
             stream_waypoints=parsed_info.get(waypoints_key, []),
         )
         for stream_type, (is_set_key, waypoints_key) in _STREAM_MAPPING.items()
-        if (is_set_key(parsed_info) if callable(is_set_key) else parsed_info.get(is_set_key, False))
+        if parsed_info.get(is_set_key, False)
     ]
 
+    components = {
+        "streams": streams,
+        "laps": parsed_info.get("laps"),
+        "sets": parsed_info.get("sets"),
+        "workout_steps": parsed_info.get("workout_steps"),
+    }
     parsed = activities_contracts.ParsedActivity(
         activity=parsed_info["activity"],
-        streams=streams,
-        laps=parsed_info.get("laps"),
-        sets=parsed_info.get("sets"),
-        workout_steps=parsed_info.get("workout_steps"),
+        components=components,
     )
     # What the parser actually produced, before anything is persisted — the first
     # thing to check when an imported activity is missing a chart or its laps.
@@ -82,9 +86,7 @@ def parsed_info_to_parsed_activity(
         "Adapted parser output into a ParsedActivity",
         extra=core_logger.context(
             stream_types=[stream.stream_type for stream in streams],
-            lap_count=len(parsed.laps) if parsed.laps else 0,
-            set_count=len(parsed.sets) if parsed.sets else 0,
-            workout_step_count=len(parsed.workout_steps) if parsed.workout_steps else 0,
+            component_counts={key: len(value) if value else 0 for key, value in components.items()},
         ),
     )
     return parsed

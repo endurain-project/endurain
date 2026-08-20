@@ -22,7 +22,9 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.integration_service as activity_streams_service
+import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnail_jobs
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
+import modules.server_settings.events as server_settings_events
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
@@ -38,6 +40,7 @@ _MIN_WAYPOINTS = 2
 # dedup survive refactors.
 THUMBNAIL_GENERATE_SUBSCRIBER_ID = "activity_thumbnail.generate"
 THUMBNAIL_CLEANUP_SUBSCRIBER_ID = "activity_thumbnail.cleanup"
+THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID = "activity_thumbnail.settings_changed"
 
 
 def generate_activity_thumbnail_for_event(event: Event) -> None:
@@ -118,6 +121,25 @@ def cleanup_activity_thumbnail_for_event(event: Event) -> None:
 on_activity_deleted_cleanup_thumbnail = best_effort(cleanup_activity_thumbnail_for_event)
 
 
+def regenerate_thumbnails_for_tile_settings_event(event: Event) -> None:
+    """Queue thumbnail regeneration when changed settings request it."""
+    payload = platform_event_versioning.parse_payload(server_settings_events.TileSettingsChangedPayload, event)
+    if not payload.regenerate_thumbnails:
+        logger.debug(
+            "Skipping thumbnail regeneration for tile settings change",
+            extra=core_logger.context(changed_fields=payload.changed_fields),
+        )
+        return
+    activity_thumbnail_jobs.schedule_thumbnail_regeneration()
+    logger.debug(
+        "Queued thumbnail regeneration for tile settings change",
+        extra=core_logger.context(changed_fields=payload.changed_fields),
+    )
+
+
+on_tile_settings_changed_regenerate = best_effort(regenerate_thumbnails_for_tile_settings_event)
+
+
 def register_thumbnail_subscribers(events: EventBusProvider) -> None:
     """Register the thumbnail subscribers for the activity lifecycle events.
 
@@ -131,6 +153,7 @@ def register_thumbnail_subscribers(events: EventBusProvider) -> None:
     """
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_generate_thumbnail)
     events.subscribe(activity_events.ACTIVITY_DELETED, on_activity_deleted_cleanup_thumbnail)
+    events.subscribe(server_settings_events.TILE_SETTINGS_CHANGED, on_tile_settings_changed_regenerate)
 
 
 def register_thumbnail_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -156,4 +179,9 @@ def register_thumbnail_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_DELETED,
         THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
         cleanup_activity_thumbnail_for_event,
+    )
+    registry.register(
+        server_settings_events.TILE_SETTINGS_CHANGED,
+        THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID,
+        regenerate_thumbnails_for_tile_settings_event,
     )

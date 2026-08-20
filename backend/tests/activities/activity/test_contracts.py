@@ -129,5 +129,4 @@ class TestParsedActivity:
         parsed = ParsedActivity(activity=core)
 
         assert parsed.activity is core
-        assert parsed.streams == []
-        assert parsed.laps is None
+        assert parsed.components == {}

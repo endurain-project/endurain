@@ -21,3 +21,9 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env.test")
 import core.rate_limit as _core_rate_limit  # noqa: E402  (import must follow the dotenv load)
 
 _core_rate_limit.limiter.enabled = False
+
+# Direct unit tests do not run an application entrypoint, so install the same
+# deterministic contributor set the API and durable worker configure at startup.
+import module_registry as _module_registry  # noqa: E402
+
+_module_registry.configure_activity_contributors()

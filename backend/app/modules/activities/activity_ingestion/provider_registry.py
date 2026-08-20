@@ -12,8 +12,8 @@ third provider means adding a module, not editing ingestion.
 
 Registration happens once per process, from the composition root (``main`` for
 the API, ``worker`` for the standalone job worker) — the same both-entrypoints
-rule :mod:`~modules.activities.subscriber_registry` exists to enforce, and for
-the same reason: the refresh job runs wherever it is claimed.
+rule used for runtime module composition, and for the same reason: the refresh
+job runs wherever it is claimed.
 """
 
 from collections.abc import Awaitable, Callable

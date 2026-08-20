@@ -147,15 +147,20 @@ class TestRegisterThumbnailSubscribers:
         from modules.activities.activity_thumbnail.subscribers import (
             on_activity_created_generate_thumbnail,
             on_activity_deleted_cleanup_thumbnail,
+            on_tile_settings_changed_regenerate,
             register_thumbnail_subscribers,
         )
 
         events = MagicMock()
         register_thumbnail_subscribers(events)
 
-        assert events.subscribe.call_count == 2
+        assert events.subscribe.call_count == 3
         events.subscribe.assert_any_call("activity.created", on_activity_created_generate_thumbnail)
         events.subscribe.assert_any_call("activity.deleted", on_activity_deleted_cleanup_thumbnail)
+        events.subscribe.assert_any_call(
+            "server_settings.tile_settings_changed",
+            on_tile_settings_changed_regenerate,
+        )
 
 
 class TestDurableThumbnailHandlers:

@@ -22,7 +22,7 @@ from modules.activities.activity.query import (
     local_date_range_conditions,
     local_start_time_expression,
 )
-from modules.activities.activity_summaries.schema import (
+from modules.activities.activity.summary_schema import (
     DaySummary,
     LifetimeSummaryResponse,
     MonthlySummaryResponse,

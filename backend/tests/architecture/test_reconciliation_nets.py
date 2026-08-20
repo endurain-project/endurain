@@ -20,9 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.scheduler as core_scheduler
-import modules.activities.scheduled_jobs as activity_scheduled_jobs
-import modules.activities.subscriber_registry as activity_subscriber_registry
-import modules.followers.subscriber_registry as followers_subscriber_registry
+import module_registry as runtime_module_registry
 from infra.jobs.reconciliation import DurableSubscriberNet
 from infra.jobs.registry import JobHandlerRegistry
 
@@ -45,21 +43,15 @@ class _ModuleNets:
     recurring_jobs: object | None
 
 
-#: Opt-in, like ``_CONVERTED`` in the other architecture tests: a module absent
-#: here is visibly outstanding rather than silently exempt.
-_MODULE_NETS = (
+_MODULE_NETS = tuple(
     _ModuleNets(
-        name="activities",
-        register=activity_subscriber_registry.register_all_activity_durable_handlers,
-        nets=activity_subscriber_registry.ACTIVITY_DURABLE_SUBSCRIBER_NETS,
-        recurring_jobs=activity_scheduled_jobs.recurring_jobs,
-    ),
-    _ModuleNets(
-        name="followers",
-        register=followers_subscriber_registry.register_all_follower_durable_handlers,
-        nets=followers_subscriber_registry.FOLLOWER_DURABLE_SUBSCRIBER_NETS,
-        recurring_jobs=None,
-    ),
+        name=module.name,
+        register=module.register_durable,
+        nets=module.nets,
+        recurring_jobs=module.recurring_jobs,
+    )
+    for module in runtime_module_registry.MODULES
+    if module.register_durable is not None
 )
 
 _MODULE_IDS = [module.name for module in _MODULE_NETS]

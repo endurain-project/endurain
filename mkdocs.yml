@@ -79,7 +79,7 @@ nav:
   - Backend reference:
     - Activities:
       - Activity streams: reference/activities/activity_streams.md
-      - Activity summaries: reference/activities/activity_summaries.md
+      - Activity summaries: reference/activities/activity_summary.md
       - Activity workout steps: reference/activities/activity_workout_steps.md
       - Activity file import: reference/activities/activity_file_import.md
     - Authentication:

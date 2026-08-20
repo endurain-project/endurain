@@ -8,7 +8,7 @@ import core.exceptions as core_exceptions
 
 
 def _parsed(**overrides):
-    """Build a ParsedActivity with a mock activity and overridable children.
+    """Build a ParsedActivity with a mock activity and components.
 
     The default activity carries no provider ids (an ``"upload"``), so
     ``_derive_dedup_key`` yields ``None`` and the idempotency no-op path stays
@@ -18,10 +18,7 @@ def _parsed(**overrides):
 
     data = {
         "activity": MagicMock(strava_activity_id=None, garminconnect_activity_id=None, user_id=3),
-        "streams": [],
-        "laps": None,
-        "sets": None,
-        "workout_steps": None,
+        "components": {},
         "source": schema.ImportSource(kind="upload"),
     }
     data.update(overrides)
@@ -30,59 +27,64 @@ def _parsed(**overrides):
 
 class TestStoreParsedActivity:
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
+    @patch("modules.activities.activity.ingestion_service.contributor_registry")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_stores_activity_and_streams(self, mock_crud, mock_streams_crud, mock_pub):
-        import modules.activities.activity.contracts as schema
+    def test_stores_activity_and_component(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
         created = MagicMock(id=7, user_id=3)
         mock_crud.create_activity = MagicMock(return_value=created)
-        mock_streams_crud.store_streams = MagicMock()
+        contributor = MagicMock(key="streams")
+        mock_registry.get_activity_ingestion_contributor.return_value = contributor
+        component_data = [MagicMock(stream_type=1, stream_waypoints=[{"hr": 100}])]
 
-        parsed = _parsed(streams=[schema.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 100}])])
+        db = MagicMock()
+        parsed = _parsed(components={"streams": component_data})
 
-        result = ingestion_service.store_parsed_activity(parsed, MagicMock())
+        result = ingestion_service.store_parsed_activity(parsed, db)
 
         assert result is created
         mock_crud.create_activity.assert_called_once()
-        # The stream was converted to an ActivityStreamsCreate carrying the new id.
-        mock_streams_crud.store_streams.assert_called_once()
-        built_streams = mock_streams_crud.store_streams.call_args.args[0]
-        assert built_streams[0].activity_id == 7
-        assert built_streams[0].stream_type == 1
+        mock_registry.get_activity_ingestion_contributor.assert_called_once_with("streams")
+        contributor.persist.assert_called_once_with(component_data, created, db, commit=False)
         mock_pub.publish_activity_created.assert_called_once()
         assert mock_pub.publish_activity_created.call_args.args[:2] == (7, 3)
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
+    @patch("modules.activities.activity.ingestion_service.contributor_registry")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_no_streams_skips_stream_creation(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_no_components_skips_contributor_lookup(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=1, user_id=1))
-        mock_streams_crud.store_streams = MagicMock()
 
         ingestion_service.store_parsed_activity(_parsed(), MagicMock())
 
-        mock_streams_crud.store_streams.assert_not_called()
+        mock_registry.get_activity_ingestion_contributor.assert_not_called()
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_workout_steps_integration")
-    @patch("modules.activities.activity.ingestion_service.activity_sets_integration")
-    @patch("modules.activities.activity.ingestion_service.activity_laps_integration")
+    @patch("modules.activities.activity.ingestion_service.contributor_registry")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_persists_laps_sets_and_steps(self, mock_crud, mock_laps, mock_sets, mock_steps, mock_pub):
+    def test_persists_each_non_null_component(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=9, user_id=1))
+        created = MagicMock(id=9, user_id=1)
+        mock_crud.create_activity = MagicMock(return_value=created)
+        contributors = {key: MagicMock(key=key) for key in ("laps", "sets", "workout_steps")}
+        mock_registry.get_activity_ingestion_contributor.side_effect = contributors.get
+        db = MagicMock()
 
-        parsed = _parsed(laps=[{"a": 1}], sets=[{"b": 2}], workout_steps=[{"c": 3}])
-        ingestion_service.store_parsed_activity(parsed, MagicMock())
+        components = {
+            "laps": [{"a": 1}],
+            "sets": [{"b": 2}],
+            "workout_steps": [{"c": 3}],
+            "ignored": None,
+        }
+        ingestion_service.store_parsed_activity(_parsed(components=components), db)
 
-        mock_laps.store_laps.assert_called_once()
-        mock_sets.store_sets.assert_called_once()
-        mock_steps.store_workout_steps.assert_called_once()
+        for key, contributor in contributors.items():
+            contributor.persist.assert_called_once_with(components[key], created, db, commit=False)
+        assert mock_registry.get_activity_ingestion_contributor.call_count == 3
 
     @patch("modules.activities.activity.ingestion_service.activities_crud")
     def test_raises_when_activity_none(self, mock_crud):
@@ -105,38 +107,42 @@ class TestStoreParsedActivity:
         assert exc.value.status_code == 500
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
+    @patch("modules.activities.activity.ingestion_service.contributor_registry")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_persists_children_and_activity_without_committing(self, mock_crud, mock_streams_crud, mock_pub):
-        import modules.activities.activity.contracts as schema
+    def test_persists_components_and_activity_without_committing(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.ingestion_service as ingestion_service
 
-        mock_crud.create_activity = MagicMock(return_value=MagicMock(id=7, user_id=3, is_hidden=False))
+        created = MagicMock(id=7, user_id=3, is_hidden=False)
+        mock_crud.create_activity = MagicMock(return_value=created)
+        contributor = MagicMock(key="streams")
+        mock_registry.get_activity_ingestion_contributor.return_value = contributor
         db = MagicMock()
 
-        parsed = _parsed(streams=[schema.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 1}])])
+        component_data = [MagicMock(stream_type=1, stream_waypoints=[{"hr": 1}])]
+        parsed = _parsed(components={"streams": component_data})
         ingestion_service.store_parsed_activity(parsed, db)
 
-        # Activity + children are staged with commit=False so they land in ONE
+        # Activity + components are staged with commit=False so they land in ONE
         # transaction; the publish seam owns the single commit (commit=db.commit).
         assert mock_crud.create_activity.call_args.kwargs["commit"] is False
-        assert mock_streams_crud.store_streams.call_args.kwargs["commit"] is False
+        assert contributor.persist.call_args.kwargs["commit"] is False
         assert mock_pub.publish_activity_created.call_args.kwargs["commit"] is db.commit
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
+    @patch("modules.activities.activity.ingestion_service.contributor_registry")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_rolls_back_and_raises_when_child_fails(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_rolls_back_and_raises_when_component_fails(self, mock_crud, mock_registry, mock_pub):
         from sqlalchemy.exc import SQLAlchemyError
 
-        import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
         mock_crud.create_activity = MagicMock(return_value=MagicMock(id=5, user_id=2, is_hidden=False))
-        mock_streams_crud.store_streams = MagicMock(side_effect=SQLAlchemyError("boom"))
+        contributor = MagicMock(key="streams")
+        contributor.persist.side_effect = SQLAlchemyError("boom")
+        mock_registry.get_activity_ingestion_contributor.return_value = contributor
         db = MagicMock()
 
-        parsed = _parsed(streams=[schema.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 100}])])
+        parsed = _parsed(components={"streams": [MagicMock()]})
 
         with pytest.raises(core_exceptions.ProcessingError) as exc:
             ingestion_service.store_parsed_activity(parsed, db)
@@ -146,10 +152,40 @@ class TestStoreParsedActivity:
         db.rollback.assert_called_once()
         mock_pub.publish_activity_created.assert_not_called()
 
-    @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_noop_when_dedup_key_already_ingested(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_unknown_component_fails_closed_before_activity_creation(self, mock_crud):
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        db = MagicMock()
+
+        with pytest.raises(core_exceptions.ProcessingError, match="unregistered"):
+            ingestion_service.store_parsed_activity(_parsed(components={"unregistered": [{}]}), db)
+
+        mock_crud.create_activity.assert_not_called()
+        db.rollback.assert_called_once()
+
+    @patch("modules.activities.activity.ingestion_service.activities_crud")
+    def test_unknown_component_fails_before_dedup_noop(self, mock_crud):
+        import modules.activities.activity.contracts as schema
+        import modules.activities.activity.ingestion_service as ingestion_service
+
+        db = MagicMock()
+        parsed = _parsed(
+            components={"unregistered": [{}]},
+            source=schema.ImportSource(kind="strava", dedup_key="strava:123"),
+        )
+
+        with pytest.raises(core_exceptions.ProcessingError, match="unregistered"):
+            ingestion_service.store_parsed_activity(parsed, db)
+
+        mock_crud.get_activity_by_dedup_key.assert_not_called()
+        mock_crud.create_activity.assert_not_called()
+        db.rollback.assert_called_once()
+
+    @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
+    @patch("modules.activities.activity.ingestion_service.contributor_registry")
+    @patch("modules.activities.activity.ingestion_service.activities_crud")
+    def test_noop_when_dedup_key_already_ingested(self, mock_crud, mock_registry, mock_pub):
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
@@ -159,7 +195,7 @@ class TestStoreParsedActivity:
         db = MagicMock()
 
         parsed = _parsed(
-            streams=[schema.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 1}])],
+            components={"streams": [MagicMock()]},
             source=schema.ImportSource(kind="strava", dedup_key="strava:123"),
         )
 
@@ -170,13 +206,13 @@ class TestStoreParsedActivity:
         assert result is existing
         mock_crud.get_activity_by_dedup_key.assert_called_once_with("strava:123", 3, db)
         mock_crud.create_activity.assert_not_called()
-        mock_streams_crud.store_streams.assert_not_called()
+        mock_registry.get_activity_ingestion_contributor.assert_called_once_with("streams")
+        mock_registry.get_activity_ingestion_contributor.return_value.persist.assert_not_called()
         mock_pub.publish_activity_created.assert_not_called()
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_losing_the_insert_race_returns_the_winner(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_losing_the_insert_race_returns_the_winner(self, mock_crud, mock_pub):
         """The pre-insert dedup check is read-then-write, so concurrent imports race.
 
         The unique index on ``(user_id, dedup_key)`` is what actually guarantees
@@ -205,9 +241,8 @@ class TestStoreParsedActivity:
         mock_pub.publish_activity_created.assert_not_called()
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_an_unrelated_integrity_error_still_fails(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_an_unrelated_integrity_error_still_fails(self, mock_crud, mock_pub):
         """A constraint violation that is not the dedup race must not be swallowed."""
         import sqlalchemy.exc
 
@@ -230,9 +265,8 @@ class TestStoreParsedActivity:
         db.rollback.assert_called_once()
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_integrity_error_without_a_dedup_key_still_fails(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_integrity_error_without_a_dedup_key_still_fails(self, mock_crud, mock_pub):
         """With no dedup key there is no race to recover from."""
         import sqlalchemy.exc
 
@@ -252,9 +286,8 @@ class TestStoreParsedActivity:
         db.rollback.assert_called_once()
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_derives_and_passes_strava_dedup_key(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_derives_and_passes_strava_dedup_key(self, mock_crud, mock_pub):
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
@@ -273,9 +306,8 @@ class TestStoreParsedActivity:
         assert mock_crud.create_activity.call_args.kwargs["dedup_key"] == "strava:123"
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_derives_garmin_dedup_key_when_no_strava(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_derives_garmin_dedup_key_when_no_strava(self, mock_crud, mock_pub):
         import modules.activities.activity.contracts as schema
         import modules.activities.activity.ingestion_service as ingestion_service
 
@@ -290,9 +322,8 @@ class TestStoreParsedActivity:
         assert mock_crud.create_activity.call_args.kwargs["dedup_key"] == "garmin:456"
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
-    @patch("modules.activities.activity.ingestion_service.activity_streams_integration")
     @patch("modules.activities.activity.ingestion_service.activities_crud")
-    def test_noop_on_existing_content_hash(self, mock_crud, mock_streams_crud, mock_pub):
+    def test_noop_on_existing_content_hash(self, mock_crud, mock_pub):
         from datetime import UTC, datetime
 
         import modules.activities.activity.contracts as schema

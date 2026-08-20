@@ -223,6 +223,20 @@ def _zones_for(
     return {"hr": breakdown} if breakdown else None
 
 
+def _with_context(
+    stream: activity_streams_contracts.HrStreamRecord,
+    context,
+) -> activity_streams_contracts.HrStreamForScoring:
+    """Combine stream-owned columns with its activity scoring context."""
+    return activity_streams_contracts.HrStreamForScoring(
+        stream_id=stream.stream_id,
+        activity_id=stream.activity_id,
+        owner_id=context.owner_id,
+        waypoints=stream.waypoints,
+        total_timer_time=context.total_timer_time,
+    )
+
+
 def _max_heart_rate_of(user_id: int, db: Session) -> int | None:
     """Resolve a user's max heart rate, or ``None`` when it cannot be derived."""
     user = users_integration_service.get_user(user_id, db)
@@ -245,16 +259,27 @@ def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
     """
     try:
         max_heart_rate = _max_heart_rate_of(user_id, db)
-        last_id = 0
+        last_activity_id = 0
         while True:
-            batch = activity_streams_crud.list_user_hr_streams(user_id, db, after_id=last_id)
-            if not batch:
+            contexts = activity_child_access.list_user_activity_scoring_contexts(
+                user_id,
+                db,
+                after_id=last_activity_id,
+            )
+            if not contexts:
                 break
+            context_by_activity = {context.activity_id: context for context in contexts}
+            records = activity_streams_crud.list_hr_streams_for_activities(list(context_by_activity), db)
+            batch = [
+                _with_context(record, context_by_activity[record.activity_id])
+                for record in records
+                if record.activity_id in context_by_activity
+            ]
             activity_streams_crud.set_zone_percentages(
                 {stream.stream_id: _zones_for(stream, max_heart_rate) for stream in batch},
                 db,
             )
-            last_id = batch[-1].stream_id
+            last_activity_id = contexts[-1].activity_id
         logger.info(
             "Recomputed HR zone percentages for a user",
             extra=core_logger.context(user_id=user_id),
@@ -283,12 +308,16 @@ def score_activity_hr_zones(activity_id: int, user_id: int, db: Session) -> None
     Returns:
         None.
     """
-    max_heart_rate = _max_heart_rate_of(user_id, db)
+    context = activity_child_access.get_activity_scoring_context(activity_id, db)
+    if context is None or context.owner_id != user_id:
+        return
+    max_heart_rate = _max_heart_rate_of(context.owner_id, db)
     if not max_heart_rate:
         return
-    stream = activity_streams_crud.get_activity_hr_stream(activity_id, db)
-    if stream is None:
+    record = activity_streams_crud.get_activity_hr_stream(activity_id, db)
+    if record is None:
         return
+    stream = _with_context(record, context)
     activity_streams_crud.set_zone_percentages({stream.stream_id: _zones_for(stream, max_heart_rate)}, db)
 
 
@@ -310,11 +339,19 @@ def backfill_missing_hr_zones(db: Session, batch_size: int = 500) -> int:
     max_hr_cache: dict[int, int | None] = {}
     last_id = 0
     while True:
-        batch = activity_streams_crud.list_hr_streams_missing_zones(db, after_id=last_id, batch_size=batch_size)
-        if not batch:
+        records = activity_streams_crud.list_hr_streams_missing_zones(db, after_id=last_id, batch_size=batch_size)
+        if not records:
             break
+        contexts = activity_child_access.get_activity_scoring_contexts(
+            [record.activity_id for record in records],
+            db,
+        )
         zones_by_stream_id: dict[int, dict | None] = {}
-        for stream in batch:
+        for record in records:
+            context = contexts.get(record.activity_id)
+            if context is None:
+                continue
+            stream = _with_context(record, context)
             if stream.owner_id not in max_hr_cache:
                 max_hr_cache[stream.owner_id] = _max_heart_rate_of(stream.owner_id, db)
             zones = _zones_for(stream, max_hr_cache[stream.owner_id])
@@ -322,5 +359,5 @@ def backfill_missing_hr_zones(db: Session, batch_size: int = 500) -> int:
                 zones_by_stream_id[stream.stream_id] = zones
         activity_streams_crud.set_zone_percentages(zones_by_stream_id, db)
         updated += len(zones_by_stream_id)
-        last_id = batch[-1].stream_id
+        last_id = records[-1].stream_id
     return updated

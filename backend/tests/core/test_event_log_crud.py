@@ -127,7 +127,7 @@ class TestHandlerNameIsBounded:
         """The concrete lists that broke production must fit with headroom."""
         from collections import defaultdict
 
-        import modules.activities.subscriber_registry as activity_registry
+        import module_registry as runtime_module_registry
 
         class _Bus:
             def __init__(self):
@@ -137,7 +137,7 @@ class TestHandlerNameIsBounded:
                 self.handlers[event_type].append(handler)
 
         bus = _Bus()
-        activity_registry.register_all_activity_bus_subscribers(bus)
+        runtime_module_registry.register_bus_subscribers(bus)
 
         for event_type, handlers in bus.handlers.items():
             joined = ",".join(h.__name__ for h in handlers)

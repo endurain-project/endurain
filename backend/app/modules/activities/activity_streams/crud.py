@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
@@ -189,72 +188,28 @@ def backfill_zone_percentages_for_missing_hr_streams(
         )
 
 
-def _hr_stream_query(after_id: int, batch_size: int):
-    """Build the id-ordered batch query behind every HR-zone scoring read.
-
-    Args:
-        after_id: Return only streams with an id greater than this.
-        batch_size: Maximum number of streams to return.
-
-    Returns:
-        The select statement, without its caller-specific filters.
-    """
-    return (
-        select(
-            activity_streams_models.ActivityStreams,
-            activity_models.Activity.total_timer_time,
-            activity_models.Activity.user_id,
-        )
-        .join(
-            activity_models.Activity,
-            activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
-        )
-        .where(
-            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
-            activity_streams_models.ActivityStreams.id > after_id,
-        )
-        .order_by(activity_streams_models.ActivityStreams.id)
-        .limit(batch_size)
-    )
-
-
-def _to_scoring_dto(row) -> activity_streams_contracts.HrStreamForScoring:
-    """Project one ``(stream, total_timer_time, owner_id)`` row into a DTO."""
-    stream, total_timer_time, owner_id = row
-    return activity_streams_contracts.HrStreamForScoring(
+def _to_hr_record(stream: activity_streams_models.ActivityStreams) -> activity_streams_contracts.HrStreamRecord:
+    """Project one stream ORM row into a package-owned record."""
+    return activity_streams_contracts.HrStreamRecord(
         stream_id=stream.id,
         activity_id=stream.activity_id,
-        owner_id=owner_id,
         waypoints=stream.stream_waypoints or [],
-        total_timer_time=total_timer_time,
     )
 
 
 @core_decorators.handle_db_errors
-def list_user_hr_streams(
-    user_id: int,
+def list_hr_streams_for_activities(
+    activity_ids: list[int],
     db: Session,
-    *,
-    after_id: int = 0,
-    batch_size: int = 500,
-) -> list[activity_streams_contracts.HrStreamForScoring]:
-    """
-    Return a batch of one user's HR streams, ready for zone scoring.
-
-    Args:
-        user_id: The owner whose HR streams to read.
-        db: Database session.
-        after_id: Return only streams with an id greater than this.
-        batch_size: Maximum number of streams to return.
-
-    Returns:
-        The batch, id-ordered; empty when there are no more.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    stmt = _hr_stream_query(after_id, batch_size).where(activity_models.Activity.user_id == user_id)
-    return [_to_scoring_dto(row) for row in db.execute(stmt).all()]
+) -> list[activity_streams_contracts.HrStreamRecord]:
+    """Return HR streams for activity ids already scoped by the caller."""
+    if not activity_ids:
+        return []
+    stmt = select(activity_streams_models.ActivityStreams).where(
+        activity_streams_models.ActivityStreams.activity_id.in_(activity_ids),
+        activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
+    )
+    return [_to_hr_record(stream) for stream in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors
@@ -263,7 +218,7 @@ def list_hr_streams_missing_zones(
     *,
     after_id: int = 0,
     batch_size: int = 500,
-) -> list[activity_streams_contracts.HrStreamForScoring]:
+) -> list[activity_streams_contracts.HrStreamRecord]:
     """
     Return a batch of HR streams that carry no zone breakdown yet.
 
@@ -278,17 +233,24 @@ def list_hr_streams_missing_zones(
     Raises:
         ProcessingError: On database error.
     """
-    stmt = _hr_stream_query(after_id, batch_size).where(
-        activity_streams_models.ActivityStreams.zone_percentages.is_(None)
+    stmt = (
+        select(activity_streams_models.ActivityStreams)
+        .where(
+            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
+            activity_streams_models.ActivityStreams.zone_percentages.is_(None),
+            activity_streams_models.ActivityStreams.id > after_id,
+        )
+        .order_by(activity_streams_models.ActivityStreams.id)
+        .limit(batch_size)
     )
-    return [_to_scoring_dto(row) for row in db.execute(stmt).all()]
+    return [_to_hr_record(stream) for stream in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors
 def get_activity_hr_stream(
     activity_id: int,
     db: Session,
-) -> activity_streams_contracts.HrStreamForScoring | None:
+) -> activity_streams_contracts.HrStreamRecord | None:
     """
     Return one activity's HR stream, ready for zone scoring.
 
@@ -302,23 +264,12 @@ def get_activity_hr_stream(
     Raises:
         ProcessingError: On database error.
     """
-    stmt = (
-        select(
-            activity_streams_models.ActivityStreams,
-            activity_models.Activity.total_timer_time,
-            activity_models.Activity.user_id,
-        )
-        .join(
-            activity_models.Activity,
-            activity_models.Activity.id == activity_streams_models.ActivityStreams.activity_id,
-        )
-        .where(
-            activity_streams_models.ActivityStreams.activity_id == activity_id,
-            activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
-        )
+    stmt = select(activity_streams_models.ActivityStreams).where(
+        activity_streams_models.ActivityStreams.activity_id == activity_id,
+        activity_streams_models.ActivityStreams.stream_type == activity_streams_constants.STREAM_TYPE_HR,
     )
-    row = db.execute(stmt).first()
-    return _to_scoring_dto(row) if row is not None else None
+    stream = db.scalars(stmt).first()
+    return _to_hr_record(stream) if stream is not None else None
 
 
 @core_decorators.handle_db_errors

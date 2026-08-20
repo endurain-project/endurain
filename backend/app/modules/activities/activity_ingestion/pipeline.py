@@ -35,11 +35,11 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_exercise_titles.integration_service as exercise_titles_integration
 import modules.activities.activity_file_import.integration_service as file_import_integration
 import modules.activities.activity_file_storage.integration_service as file_storage_integration
 import modules.activities.activity_ingestion.enrichment as enrichment
 import modules.activities.activity_ingestion.sources as ingestion_sources
+import modules.activities.contributor_registry as contributor_registry
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
@@ -217,10 +217,17 @@ def store_activities_from_file(
     # staged input — returning here would leak the temp file into the import
     # directory and have the next run pick it up again.
 
-    # Persist the file's exercise-title reference rows (parsed as data — the
-    # parser no longer writes them). File-scoped, so this happens once.
-    if parsed_file.exercise_titles:
-        exercise_titles_integration.store_exercise_titles(parsed_file.exercise_titles, db)
+    file_component_work = []
+    for key, data in parsed_file.components.items():
+        if data is None:
+            continue
+        contributor = contributor_registry.get_file_ingestion_contributor(key)
+        if contributor is None:
+            raise core_exceptions.ProcessingError(f"No file ingestion contributor registered for '{key}'")
+        file_component_work.append((contributor, data))
+
+    for contributor, data in file_component_work:
+        contributor.persist(data, db)
 
     # Supplemental metadata from a bulk import's manifest, when there is one.
     activity_metadata = bulk_source.metadata_for(file_base_name) if bulk_source else {}

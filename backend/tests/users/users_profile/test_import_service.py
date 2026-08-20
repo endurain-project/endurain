@@ -662,7 +662,20 @@ class TestImportServiceActivities:
 
 
 class TestImportServiceActivityComponents:
-    async def test_collect_and_import_activity_components_empty_laps(self) -> None:
+    @pytest.mark.parametrize(
+        ("key", "count_key"),
+        [
+            ("laps", "activity_laps"),
+            ("sets", "activity_sets"),
+            ("streams", "activity_streams"),
+            ("workout_steps", "activity_workout_steps"),
+        ],
+    )
+    async def test_collect_and_import_activity_components_uses_contributor(
+        self,
+        key: str,
+        count_key: str,
+    ) -> None:
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -670,94 +683,26 @@ class TestImportServiceActivityComponents:
             db=mock_db,
             websocket_manager=mock_ws,
         )
+        contributor = MagicMock(key=key, count_key=count_key)
+        contributor.restore.return_value = 1
+        records = [{"activity_id": 1}]
+        new_activity = MagicMock(id=10, user_id=1)
 
-        await service.collect_and_import_activity_components(
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            1,
-            10,
-        )
-        assert service.counts.get("activity_laps", 0) == 0
-
-    async def test_collect_and_import_activity_components_with_laps(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        mock_ws = MagicMock()
-        service = profile_import_service.ImportService(
-            user_id=1,
-            db=mock_db,
-            websocket_manager=mock_ws,
-        )
-
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("modules.users.users_profile.import_service.activity_laps_integration.store_laps"):
-            await service.collect_and_import_activity_components(
-                [{"activity_id": 1, "lap_index": 1}],
-                [],
-                [],
-                [],
-                [],
-                [],
-                1,
-                mock_activity,
-            )
-
-        assert service.counts.get("activity_laps") == 1
-
-    async def test_collect_and_import_activity_components_with_sets(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        mock_ws = MagicMock()
-        service = profile_import_service.ImportService(
-            user_id=1,
-            db=mock_db,
-            websocket_manager=mock_ws,
-        )
-
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("modules.users.users_profile.import_service.activity_sets_integration.store_sets"):
-            await service.collect_and_import_activity_components(
-                [],
-                [{"activity_id": 1, "duration": 30.0, "set_type": "manual", "start_time": "2024-01-01T00:00:00"}],
-                [],
-                [],
-                [],
-                [],
-                1,
-                mock_activity,
-            )
-
-        assert service.counts.get("activity_sets") == 1
-
-    async def test_collect_and_import_activity_components_with_streams(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        mock_ws = MagicMock()
-        service = profile_import_service.ImportService(
-            user_id=1,
-            db=mock_db,
-            websocket_manager=mock_ws,
-        )
-
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch(
-            "modules.users.users_profile.import_service.activity_streams_integration.store_streams",
+        with patch.object(
+            profile_import_service.contributor_registry,
+            "profile_activity_contributors",
+            return_value=(contributor,),
         ):
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [{"activity_id": 1, "stream_type": 1, "stream_waypoints": []}],
-                [],
-                [],
-                [],
+                {key: records},
                 1,
-                mock_activity,
+                new_activity,
             )
 
-        assert service.counts.get("activity_streams") == 1
+        contributor.restore.assert_called_once_with(records, 1, new_activity, mock_db)
+        assert service.counts[count_key] == 1
 
-    async def test_collect_and_import_activity_components_with_workout_steps(self) -> None:
+    async def test_collect_and_import_activity_components_passes_empty_records(self) -> None:
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -765,23 +710,21 @@ class TestImportServiceActivityComponents:
             db=mock_db,
             websocket_manager=mock_ws,
         )
+        contributor = MagicMock(key="laps", count_key="activity_laps")
+        contributor.restore.return_value = 0
+        new_activity = MagicMock(id=10, user_id=1)
 
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("modules.users.users_profile.import_service.workout_steps_integration.store_workout_steps"):
-            await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "message_index": 0, "duration_type": "time"}],
-                [],
-                [],
-                1,
-                mock_activity,
-            )
+        with patch.object(
+            profile_import_service.contributor_registry,
+            "profile_activity_contributors",
+            return_value=(contributor,),
+        ):
+            await service.collect_and_import_activity_components({}, 1, new_activity)
 
-        assert service.counts.get("activity_workout_steps") == 1
+        contributor.restore.assert_called_once_with([], 1, new_activity, mock_db)
+        assert service.counts["activity_laps"] == 0
 
-    async def test_collect_and_import_activity_components_with_exercise_titles(self) -> None:
+    def test_restore_global_activity_components_once(self) -> None:
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -789,21 +732,28 @@ class TestImportServiceActivityComponents:
             db=mock_db,
             websocket_manager=mock_ws,
         )
+        contributor = MagicMock(
+            key="exercise_titles",
+            archive_path="data/activity_exercise_titles.json",
+            count_key="activity_exercise_titles",
+        )
+        contributor.restore.return_value = 2
+        records = [{"exercise_name": 1}, {"exercise_name": 2}]
+        zipf = MagicMock()
 
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("modules.users.users_profile.import_service.exercise_titles_integration.store_exercise_titles"):
-            await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "exercise_category": 1, "exercise_name": 1, "wkt_step_name": "Running"}],
-                1,
-                mock_activity,
-            )
+        with (
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_global_contributors",
+                return_value=(contributor,),
+            ),
+            patch.object(service, "_load_single_json", return_value=records) as load_json,
+        ):
+            service._restore_global_activity_components(zipf)
 
-        assert service.counts.get("activity_exercise_titles") == 1
+        load_json.assert_called_once_with(zipf, contributor.archive_path, check_memory=False)
+        contributor.restore.assert_called_once_with(records, mock_db)
+        assert service.counts["activity_exercise_titles"] == 2
 
 
 class TestImportServiceFromZip:
@@ -1117,25 +1067,27 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
+        records = [{"activity_id": 1, "media_path": "1_photo.jpg", "media_type": 1}]
         with (
-            patch(
-                "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
-                return_value="/safe/path/10_photo.jpg",
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
             ),
-            patch("modules.users.users_profile.import_service.activity_media_integration.restore_media_records"),
+            patch.object(media_integration, "restore_media_records") as restore_media,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "media_path": "1_photo.jpg", "media_type": 1}],
-                [],
+                {"media": records},
                 1,
                 mock_activity,
             )
 
+        restore_media.assert_called_once()
+        assert records[0]["media_path"] == "1_photo.jpg"
         assert service.counts.get("activity_media") == 1
 
     async def test_collect_and_import_activity_components_rejects_a_key_with_a_separator(self) -> None:
@@ -1152,17 +1104,20 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
-        with patch(
-            "modules.users.users_profile.import_service.activity_media_integration.restore_media_records"
-        ) as mock_create:
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
+        with (
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
+            ),
+            patch.object(media_integration, "restore_media_records") as mock_create,
+        ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "media_path": "../../etc/1_passwd.jpg", "media_type": 1}],
-                [],
+                {"media": [{"activity_id": 1, "media_path": "../../etc/1_passwd.jpg", "media_type": 1}]},
                 1,
                 mock_activity,
             )
@@ -1180,17 +1135,20 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
-        with patch(
-            "modules.users.users_profile.import_service.activity_media_integration.restore_media_records"
-        ) as mock_create:
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
+        with (
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
+            ),
+            patch.object(media_integration, "restore_media_records") as mock_create,
+        ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "media_path": "nounderscore.jpg", "media_type": 1}],
-                [],
+                {"media": [{"activity_id": 1, "media_path": "nounderscore.jpg", "media_type": 1}]},
                 1,
                 mock_activity,
             )
@@ -1207,25 +1165,26 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
         with (
-            patch(
-                "modules.users.users_profile.import_service.file_uploads.resolve_storage_path",
-                return_value="/safe/path/10_photo.jpg",
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
             ),
-            patch("modules.users.users_profile.import_service.activity_media_integration.restore_media_records"),
+            patch.object(media_integration, "restore_media_records"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [
-                    {"activity_id": 1, "media_path": "1_a.jpg", "media_type": 1},
-                    {"activity_id": 1, "media_path": "1_b.jpg", "media_type": 1},
-                    {"activity_id": 2, "media_path": "2_c.jpg", "media_type": 1},
-                ],
-                [],
+                {
+                    "media": [
+                        {"activity_id": 1, "media_path": "1_a.jpg", "media_type": 1},
+                        {"activity_id": 1, "media_path": "1_b.jpg", "media_type": 1},
+                        {"activity_id": 2, "media_path": "2_c.jpg", "media_type": 1},
+                    ]
+                },
                 1,
                 mock_activity,
             )

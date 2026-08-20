@@ -8,13 +8,11 @@ activities directly). So a subscriber that writes **durable** derived state must
 ship a scheduled backfill that re-derives whatever the create path missed.
 
 The declaration lives here, in the platform, rather than in whichever module
-happened to need it first. It was defined inside
-``modules.activities.subscriber_registry``, which made the invariant enforceable
-for exactly one module: any other module wanting to declare its nets would have
-had to import the activities module to borrow the type — a dependency between two
-bounded contexts for the sake of a shared vocabulary word. Owning the vocabulary
-in the substrate is what lets every module declare nets without depending on any
-other, and what lets one conformance test hold them all to it.
+happened to need it first. It was formerly defined in the activities composition
+namespace, which made the invariant enforceable for exactly one module: any other
+module wanting to declare its nets would have had to import activities to borrow
+the type. Owning the vocabulary in the substrate lets one conformance test hold
+every module to it without coupling bounded contexts.
 """
 
 from collections.abc import Callable

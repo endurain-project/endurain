@@ -3,8 +3,8 @@
 Separate from ``schema.py`` (which holds the API request/response payloads)
 because these are **inter-module interfaces**, not HTTP shapes:
 
-* **The ingestion contract** — :class:`ActivityCore`, :class:`ParsedStream`,
-  :class:`ImportSource`, :class:`ParsedActivity`. Every ingestion source (the
+* **The ingestion contract** — :class:`ActivityCore`, :class:`ImportSource`,
+  :class:`ParsedActivity`. Every ingestion source (the
   file parsers, Strava, Garmin, profile imports) builds this shape, and
   :func:`~modules.activities.activity.ingestion_service.store_parsed_activity`
   persists it without knowing where it came from. This is the seam that makes
@@ -21,21 +21,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import Field, field_validator
 
 import core.timezone as core_timezone
 from modules.activities.activity.schema import Activity, ActivityBase
-
-if TYPE_CHECKING:
-    # Imported for typing only: a runtime import would be circular (the sub-module
-    # packages import activity.crud, which imports this module). These name the
-    # element types of the ingestion contract's child collections (ParsedActivity,
-    # ParsedFile).
-    import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-    import modules.activities.activity_sets.schema as activity_sets_schema
-    import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
 
 @dataclass(frozen=True)
@@ -61,6 +52,15 @@ class ActivityLocationRef:
     """
 
     id: int
+
+
+@dataclass(frozen=True)
+class ActivityScoringContext:
+    """Parent columns required to score one activity's streams."""
+
+    activity_id: int
+    owner_id: int
+    total_timer_time: float | None = None
 
 
 @dataclass(frozen=True)
@@ -186,18 +186,6 @@ class ActivityCore(ActivityBase):
 
 
 @dataclass(frozen=True)
-class ParsedStream:
-    """A single parsed activity stream (type + waypoints), before persistence.
-
-    Carries no ``activity_id`` — that is assigned by the core when the activity
-    row is created (see :func:`ingestion_service.store_parsed_activity`).
-    """
-
-    stream_type: int
-    stream_waypoints: list
-
-
-@dataclass(frozen=True)
 class ImportSource:
     """Provenance of a parsed activity, recorded for observability.
 
@@ -234,22 +222,12 @@ class ParsedActivity:
 
     Attributes:
         activity: The strict ``ActivityCore`` input schema to persist.
-        streams: Parsed streams (type + waypoints), assigned an ``activity_id``
-            at persist time.
-        laps: Optional parsed laps — dicts keyed by the ``ActivityLapsBase`` field
-            names — passed through to ``create_activity_laps`` unchanged.
-        sets: Optional parsed workout sets (validated ``ActivitySetsCreate``
-            schemas, or the raw positional lists the FIT parser emits).
-        workout_steps: Optional parsed workout steps (validated
-            ``ActivityWorkoutSteps`` schemas).
+        components: Parsed child-package data keyed by contributor key.
         source: Where the activity came from.
     """
 
     activity: ActivityCore
-    streams: list[ParsedStream] = field(default_factory=list)
-    laps: list[dict[str, Any]] | None = None
-    sets: list[activity_sets_schema.ActivitySetsCreate | list] | None = None
-    workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps] | None = None
+    components: dict[str, Any] = field(default_factory=dict)
     source: ImportSource | None = None
 
 
@@ -267,10 +245,8 @@ class ParsedFile:
     Attributes:
         activities: The parsed activities, in file order. Empty when the file held
             nothing importable.
-        exercise_titles: File-scoped exercise-title reference rows (FIT strength
-            workouts). They belong to the *file* rather than to any one activity,
-            so they are carried here and persisted once, before the activities.
+        components: Parsed file-scoped package data keyed by contributor key.
     """
 
     activities: list[ParsedActivity] = field(default_factory=list)
-    exercise_titles: list[activity_exercise_titles_schema.ActivityExerciseTitles] | None = None
+    components: dict[str, Any] = field(default_factory=dict)

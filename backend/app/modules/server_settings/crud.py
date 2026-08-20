@@ -93,7 +93,10 @@ def get_server_settings(db: Session) -> server_settings_schema.ServerSettingsRea
 
 @core_decorators.handle_db_errors
 def edit_server_settings(
-    server_settings: server_settings_schema.ServerSettingsEdit, db: Session
+    server_settings: server_settings_schema.ServerSettingsEdit,
+    db: Session,
+    *,
+    commit: bool = True,
 ) -> server_settings_schema.ServerSettingsRead:
     """
     Update server settings in database.
@@ -122,8 +125,10 @@ def edit_server_settings(
     for key, value in server_settings_data.items():
         setattr(db_server_settings, key, value)
 
-    # Commit the transaction
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     # Refresh the object to ensure it reflects database state
     db.refresh(db_server_settings)
 

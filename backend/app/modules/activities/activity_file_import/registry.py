@@ -103,7 +103,7 @@ def _parse_fit(
     parsed_infos = fit_utils.create_activity_objects(sessions, user_id, default_timezone)
     return activities_contracts.ParsedFile(
         activities=[adapter.parsed_info_to_parsed_activity(parsed_info) for parsed_info in parsed_infos],
-        exercise_titles=payload.get("exercise_titles"),
+        components={"exercise_titles": payload.get("exercise_titles")},
     )
 
 

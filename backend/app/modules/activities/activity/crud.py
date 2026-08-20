@@ -1115,6 +1115,73 @@ def get_user_activity_ids(activity_ids: list[int], user_id: int, db: Session) ->
     return list(db.scalars(stmt).all())
 
 
+def _to_scoring_context(row) -> activities_contracts.ActivityScoringContext:
+    """Convert one activity projection row to its scoring context."""
+    activity_id, owner_id, total_timer_time = row
+    return activities_contracts.ActivityScoringContext(
+        activity_id=activity_id,
+        owner_id=owner_id,
+        total_timer_time=float(total_timer_time) if total_timer_time is not None else None,
+    )
+
+
+@core_decorators.handle_db_errors
+def get_activity_scoring_context(
+    activity_id: int,
+    db: Session,
+) -> activities_contracts.ActivityScoringContext | None:
+    """Return parent columns needed to score an activity's streams."""
+    stmt = select(
+        activities_models.Activity.id,
+        activities_models.Activity.user_id,
+        activities_models.Activity.total_timer_time,
+    ).where(activities_models.Activity.id == activity_id)
+    row = db.execute(stmt).first()
+    return _to_scoring_context(row) if row is not None else None
+
+
+@core_decorators.handle_db_errors
+def get_activity_scoring_contexts(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, activities_contracts.ActivityScoringContext]:
+    """Return scoring contexts keyed by activity id."""
+    if not activity_ids:
+        return {}
+    stmt = select(
+        activities_models.Activity.id,
+        activities_models.Activity.user_id,
+        activities_models.Activity.total_timer_time,
+    ).where(activities_models.Activity.id.in_(activity_ids))
+    contexts = (_to_scoring_context(row) for row in db.execute(stmt).all())
+    return {context.activity_id: context for context in contexts}
+
+
+@core_decorators.handle_db_errors
+def list_user_activity_scoring_contexts(
+    user_id: int,
+    db: Session,
+    *,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[activities_contracts.ActivityScoringContext]:
+    """Return an id-ordered batch of one user's activity scoring contexts."""
+    stmt = (
+        select(
+            activities_models.Activity.id,
+            activities_models.Activity.user_id,
+            activities_models.Activity.total_timer_time,
+        )
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.id > after_id,
+        )
+        .order_by(activities_models.Activity.id)
+        .limit(batch_size)
+    )
+    return [_to_scoring_context(row) for row in db.execute(stmt).all()]
+
+
 @core_decorators.handle_db_errors
 def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> activities_schema.Activity | None:
     """Get a user's activity by ID.

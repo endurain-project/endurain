@@ -11,6 +11,8 @@ from pathlib import Path
 import pytest
 
 import model_registry as app_model_registry
+import module_registry as runtime_module_registry
+import modules.activities.contributor_registry as activity_contributor_registry
 import modules.activities.model_registry as activities_model_registry
 import modules.followers.model_registry as followers_model_registry
 
@@ -23,6 +25,17 @@ _TEMPLATE_PACKAGES = sorted(
 
 def _init_files() -> list[Path]:
     return [pkg / "__init__.py" for pkg in _TEMPLATE_PACKAGES if (pkg / "__init__.py").is_file()]
+
+
+def _absolute_imports(path: Path) -> set[str]:
+    """Return absolute modules imported by a Python source file."""
+    imports: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            imports.add(node.module)
+    return imports
 
 
 @pytest.mark.parametrize("init_file", _init_files(), ids=lambda p: p.parent.name)
@@ -101,6 +114,59 @@ def test_core_database_does_not_discover_domain_models() -> None:
     }
     assert "import_all_models" not in function_names
     assert not filesystem_scans
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "allowed_child_imports"),
+    [
+        ("activities/activity/ingestion_service.py", set()),
+        (
+            "users/users_profile/export_service.py",
+            {
+                "modules.activities.activity_file_storage.integration_service",
+                "modules.activities.activity_media.integration_service",
+            },
+        ),
+        (
+            "users/users_profile/import_service.py",
+            {
+                "modules.activities.activity_file_storage.integration_service",
+                "modules.activities.activity_media.integration_service",
+            },
+        ),
+    ],
+)
+def test_activity_orchestrators_do_not_enumerate_child_packages(
+    relative_path: str,
+    allowed_child_imports: set[str],
+) -> None:
+    """Root orchestration depends on contributors, not child JSON packages."""
+    path = _MODULES_DIR / relative_path
+    child_imports = {
+        imported
+        for imported in _absolute_imports(path)
+        if imported.startswith("modules.activities.activity_")
+        and not imported.startswith("modules.activities.activity.contracts")
+        and not imported.startswith("modules.activities.activity.integration_service")
+        and not imported.startswith("modules.activities.activity.schema")
+    }
+    assert child_imports == allowed_child_imports
+    assert "modules.activities.contributor_registry" in _absolute_imports(path)
+
+
+def test_installed_activity_contributor_keys_are_unique_per_kind() -> None:
+    """App composition installs every stable contributor key exactly once."""
+    runtime_module_registry.configure_activity_contributors()
+    groups = (
+        activity_contributor_registry.activity_ingestion_contributors(),
+        activity_contributor_registry.file_ingestion_contributors(),
+        activity_contributor_registry.profile_activity_contributors(),
+        activity_contributor_registry.profile_global_contributors(),
+    )
+    for group in groups:
+        keys = [contributor.key for contributor in group]
+        assert keys
+        assert len(keys) == len(set(keys))
 
 
 def _template_sources() -> list[Path]:

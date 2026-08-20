@@ -1,11 +1,11 @@
 """The activities domain: everything about a recorded activity.
 
 Organised as sub-packages rather than one flat module because an activity is
-several aggregates, not one: the activity row itself (``activity``), its child
-resources (``activity_laps``, ``activity_sets``, ``activity_streams``,
-``activity_workout_steps``, ``activity_media``), the derived artifacts
-(``activity_thumbnail``, ``activity_geocoding``, ``activity_summaries``), and
-the paths data arrives on (``activity_ingestion``, ``activity_file_import``,
+several aggregates, not one: the activity row and its summary projections
+(``activity``), its child resources (``activity_laps``, ``activity_sets``,
+``activity_streams``, ``activity_workout_steps``, ``activity_media``), the
+derived artifacts (``activity_thumbnail``, ``activity_geocoding``), and the
+paths data arrives on (``activity_ingestion``, ``activity_file_import``,
 ``activity_file_storage``). A module with a single aggregate — ``followers`` —
 stays flat.
 

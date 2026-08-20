@@ -1,8 +1,8 @@
 """FastAPI routes for activity summaries (authenticated).
 
 Thin HTTP adapter: it validates query parameters and delegates every decision to
-:mod:`service`. Mounted under ``/activities/summaries`` — a sub-resource of
-activities rather than the old top-level ``/activities_summaries`` — and the
+:mod:`summary_service`. Mounted under ``/activities/summaries`` as a sub-resource
+of activities rather than the former top-level endpoint, and the
 period is a query parameter, not a path segment, because ``week``/``month``/
 ``year``/``lifetime`` are four views of one resource, not four resources.
 """
@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Query, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import modules.activities.activity_summaries.service as summary_service
+import modules.activities.activity.summary_service as summary_service
 import modules.auth.dependencies as auth_dependencies
 
 router = APIRouter()

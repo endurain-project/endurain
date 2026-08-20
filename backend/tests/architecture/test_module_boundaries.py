@@ -40,10 +40,12 @@ _PUBLIC_WITHIN_MODULE = frozenset(
         "integration_service",
         "dependencies",
         "router",
+        "summary_router",
         "public_router",
         "subscriber_registry",
         "scheduled_jobs",
         "model_registry",
+        "contributor_registry",
     }
 )
 
@@ -67,52 +69,7 @@ _MIGRATION_SURFACE = "migration_service"
 #: Cross-sub-package reaches that are part of the design, as
 #: ``(importer glob, imported glob): reason``. Globs are module paths relative
 #: to the module root (``activity.integration_service``, ``activity_laps.crud``).
-_INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {
-    (
-        "activity_streams.crud",
-        "activity.models",
-    ): "HR-zone scoring needs the parent's total_timer_time, a column rather than a permission — a data join, not an access check.",
-    (
-        "activity_summaries.crud",
-        "activity.query",
-    ): "A read model projects the table it summarizes, so it shares the SQL fragments that define how.",
-    (
-        "subscriber_registry",
-        "activity.subscribers",
-    ): "The activities composition registry collects the root activity handlers.",
-    (
-        "subscriber_registry",
-        "activity_file_storage.subscribers",
-    ): "The activities composition registry collects retained-file cleanup handlers.",
-    (
-        "subscriber_registry",
-        "activity_geocoding.subscribers",
-    ): "The activities composition registry collects geocoding handlers and their stable id.",
-    (
-        "subscriber_registry",
-        "activity_ingestion.bulk_import_subscribers",
-    ): "The activities composition registry collects bulk-import durable handlers.",
-    (
-        "subscriber_registry",
-        "activity_ingestion.ingestion_subscribers",
-    ): "The activities composition registry collects upload and refresh durable handlers.",
-    (
-        "subscriber_registry",
-        "activity_media.subscribers",
-    ): "The activities composition registry collects media cleanup handlers.",
-    (
-        "subscriber_registry",
-        "activity_streams.subscribers",
-    ): "The activities composition registry collects stream derivation handlers and their stable id.",
-    (
-        "subscriber_registry",
-        "activity_thumbnail.subscribers",
-    ): "The activities composition registry collects thumbnail handlers and their stable ids.",
-    (
-        "activity_summaries.crud",
-        "activity.models",
-    ): "A read model projects the table it summarizes, so it selects from it. Ownership is about writes, and summaries only reads.",
-}
+_INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {}
 
 #: Reaches past a module's surface from outside it, as
 #: ``(importer module path, imported glob): reason``.

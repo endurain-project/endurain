@@ -9,6 +9,7 @@ import modules.activities.activity.public_router as activities_public_router
 
 # Alphabetized router imports
 import modules.activities.activity.router as activities_router
+import modules.activities.activity.summary_router as activity_summary_router
 import modules.activities.activity_ingestion.router as activity_ingestion_router
 import modules.activities.activity_laps.public_router as activity_laps_public_router
 import modules.activities.activity_laps.router as activity_laps_router
@@ -17,7 +18,6 @@ import modules.activities.activity_media.router as activity_media_router
 import modules.activities.activity_sets.public_router as activity_sets_public_router
 import modules.activities.activity_sets.router as activity_sets_router
 import modules.activities.activity_streams.router as activity_streams_router
-import modules.activities.activity_summaries.router as activity_summaries_router
 import modules.activities.activity_thumbnail.router as activity_thumbnail_router
 import modules.auth.api_keys.router as auth_api_keys_router
 import modules.auth.dependencies as auth_dependencies
@@ -118,7 +118,7 @@ router.include_router(
 # ``/activities/{activity_id}``, which would otherwise swallow "summaries" and
 # "exercise-titles" as activity ids and answer 422.
 router.include_router(
-    activity_summaries_router.router,
+    activity_summary_router.router,
     prefix=core_config.ROOT_PATH + "/activities/summaries",
     tags=["activity_summaries"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],

@@ -53,6 +53,7 @@ brought it under four existing contracts without writing a new one.
 | `event_publishers.py` | application | Publishes this package's domain events. |
 | `subscribers.py` | application | Handles events. Registered from `subscriber_registry`. |
 | `integration_service.py` | **module surface** | The curated set of operations other modules may call. |
+| `contributors.py` | **namespace contract** | Typed callbacks installed by app composition for generic ingestion/profile orchestration. |
 | `scheduled_jobs.py` | **module surface** | The module's recurring jobs, collected by the composition root. |
 | `model_registry.py` | **composition surface** | Declares the package's ORM model module without requiring core to scan domains. |
 | `migration_service.py` | **migration-only surface** | Version-pinned operations used by `app/migrations`; never an ordinary domain dependency. |
@@ -102,7 +103,11 @@ subscribers with no net, no exemption, and nothing to catch it.
 A namespace-level file is appropriate only for composition or a genuinely
 shared, dependency-free contract. `modules/activities/computation.py` is the
 pure metric maths used by parsers and provider adapters; it owns no table and
-calls no module.
+calls no module. `modules/activities/contributors.py` defines the dependency-free
+activity ingestion/profile callback contracts, while `contributor_registry.py`
+stores only the contributors explicitly installed by `app/module_registry.py`.
+Child packages return contributor objects from `integration_service.py`; package
+imports never register themselves as a side effect.
 
 ### 2. Composition surface — imported only while assembling the application
 
@@ -150,7 +155,7 @@ Read as *row imports column*.
 | `integration_service` | ✓ | ✓ | ✓ | ✗ | ✓ | `integration_service` only |
 | `app/migrations` | ✗ | ✗ | ✗ | ✗ | ✓ | `migration_service` only |
 
-Four entries deserve the reasoning:
+Three entries deserve the reasoning:
 
 - **`crud` never calls another module.** A `SELECT` that first has to ask another
   bounded context a question is a service-layer decision wearing a persistence
@@ -161,10 +166,6 @@ Four entries deserve the reasoning:
    optional package to be imported before any mapper could configure.
 - **`integration_service` may read its own module freely.** It *is* the module,
   presenting a narrow face outward.
-- **A read model may select from the table it projects.** `activity_summaries`
-   still has one exact, documented projection exception while that query is moved
-   behind a root-owned projection contract. Broad model/query exceptions are not
-   allowed.
 
 ## Layering inside a module
 
@@ -201,6 +202,7 @@ it rather than the platform importing it. Three worked examples live in the tree
 | The scheduler needed each module's recurring jobs | Each module declares `scheduled_jobs.recurring_jobs()`; `main.py` collects and hands the list to `start_scheduler`. |
 | Ingestion needed to pull from Strava and Garmin | Providers call `activity_ingestion.integration_service.register_activity_provider`; the private registry names no provider. |
 | Bulk import needed Strava-export semantics | `BulkImportSource` is a base class; `modules.strava.bulk_import_source.StravaBulkImportSource` subclasses it. |
+| Activity ingestion/profile restore needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
 
 The shape is always the same: the lower layer owns the *seam* (a registry, a base
 class, a protocol), the higher layer owns the *implementation*, and a composition
@@ -276,9 +278,13 @@ parser, or storage access that belongs behind an integration surface.
    `main.py` **and** `worker.py`.
 6. Add `scheduled_jobs.py` if the module has recurring work; add it to the list
    `main.py` hands to `start_scheduler`.
-7. Add the module to the source lists of the cross-module contracts in
+7. For an activity child parsed or archived as JSON, add the applicable
+   `ingestion_contributor`, `profile_contributor`, or
+   `profile_global_contributor` factory to `integration_service.py`, then register
+   that factory in `app/module_registry.py`. Do not register at import time.
+8. Add the module to the source lists of the cross-module contracts in
    `backend/.importlinter`.
-8. Add a new top-level bounded context to `_CONVERTED` in
+9. Add a new top-level bounded context to `_CONVERTED` in
    `backend/tests/architecture/test_module_boundaries.py`
    and in `backend/tests/test_logging_rule.py`.
 
@@ -294,10 +300,9 @@ the activity row and streams through `activity.integration_service` and
 `activity_streams.integration_service`. Child CRUDs no longer join the
 activities table to decide access.
 
-Two reaches into `activity/` remain, both stated rather than deferred:
+One reach into `activity/` remains, stated rather than deferred:
 `activity_streams.crud` joins the parent for `total_timer_time` (a column, not a
-permission), and `activity_summaries` projects the activities table, which is the
-read-model rule above.
+permission).
 
 ### Provider cycle
 

@@ -8,8 +8,8 @@ Module-level rather than inside a sub-package because three different consumers
 need them — the file parsers, the Strava adapter, and the data migrations — and
 the Strava one is outside this module. Living in ``activity_file_import`` made
 that a reach into a package whose whole contract is "parsers only"; living here
-says the activities module publishes its metric maths, alongside the other two
-module-level surfaces (``subscriber_registry``, ``scheduled_jobs``).
+says the activities namespace publishes its metric maths alongside its explicit
+composition and contributor surfaces.
 """
 
 import statistics

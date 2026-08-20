@@ -30,7 +30,7 @@ class TestParsedInfoToParsedActivity:
             "is_temperature_set": False,
         }
 
-        result = parsed_info_to_parsed_activity(parsed_info).streams
+        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
 
         assert len(result) == 1
         assert result[0].stream_type == 1
@@ -53,7 +53,7 @@ class TestParsedInfoToParsedActivity:
             "is_temperature_set": False,
         }
 
-        result = parsed_info_to_parsed_activity(parsed_info).streams
+        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
 
         assert len(result) == 3
 
@@ -71,7 +71,7 @@ class TestParsedInfoToParsedActivity:
             "is_temperature_set": False,
         }
 
-        result = parsed_info_to_parsed_activity(parsed_info).streams
+        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
 
         assert len(result) == 0
 
@@ -89,7 +89,9 @@ class TestParsedInfoToParsedActivity:
         result = parsed_info_to_parsed_activity(parsed_info)
 
         assert result.activity is activity
-        assert result.laps == [{"lap": 1}]
-        assert result.sets == [{"set": 1}]
-        assert result.workout_steps == [{"step": 1}]
-        assert result.streams == []
+        assert result.components == {
+            "streams": [],
+            "laps": [{"lap": 1}],
+            "sets": [{"set": 1}],
+            "workout_steps": [{"step": 1}],
+        }

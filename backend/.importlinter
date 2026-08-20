@@ -392,7 +392,6 @@ type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.followers.service
-    modules.followers.subscribers
     modules.followers.router
     modules.followers.event_publishers
     modules.followers.integration_service
