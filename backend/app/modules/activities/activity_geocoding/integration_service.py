@@ -6,9 +6,9 @@ import modules.activities.activity_geocoding.service as geocoding_service
 import modules.activities.activity_geocoding.subscribers as geocoding_subscribers
 
 
-def geocode_activity(activity_id: int, user_id: int, db: Session) -> bool:
+def geocode_activity(activity_id: int, db: Session) -> bool:
     """Resolve and store an activity's location from its GPS stream."""
-    return geocoding_service.geocode_and_store_activity_location(activity_id, user_id, db)
+    return geocoding_service.geocode_and_store_activity_location(activity_id, db)
 
 
 def backfill_missing_locations(db: Session) -> int:

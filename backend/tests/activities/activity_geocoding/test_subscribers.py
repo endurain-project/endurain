@@ -32,7 +32,7 @@ class TestOnActivityCreatedGeocode:
 
         on_activity_created_geocode(_event({"activity_id": 1, "user_id": 2}))
 
-        assert mock_service.geocode_and_store_activity_location.call_args.args[:2] == (1, 2)
+        assert mock_service.geocode_and_store_activity_location.call_args.args[0] == 1
 
     @patch("infra.subscribers.logger")
     @patch(f"{_SUB}.core_database")

@@ -22,6 +22,7 @@ intermediate dict.
 
 import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
+import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 logger = core_logger.get_logger(__name__)
@@ -30,14 +31,14 @@ logger = core_logger.get_logger(__name__)
 # Mirrors the mapping the parsers populate. Stream types 5 and 6 both derive from
 # ``is_velocity_set`` (speed and pace share the velocity flag).
 _STREAM_MAPPING: dict[int, tuple[str, str]] = {
-    1: ("is_heart_rate_set", "hr_waypoints"),
-    2: ("is_power_set", "power_waypoints"),
-    3: ("is_cadence_set", "cad_waypoints"),
-    4: ("is_elevation_set", "ele_waypoints"),
-    5: ("is_velocity_set", "vel_waypoints"),
-    6: ("is_velocity_set", "pace_waypoints"),
-    7: ("is_lat_lon_set", "lat_lon_waypoints"),
-    8: ("is_temperature_set", "temp_waypoints"),
+    activity_streams_constants.STREAM_TYPE_HR: ("is_heart_rate_set", "hr_waypoints"),
+    activity_streams_constants.STREAM_TYPE_POWER: ("is_power_set", "power_waypoints"),
+    activity_streams_constants.STREAM_TYPE_CADENCE: ("is_cadence_set", "cad_waypoints"),
+    activity_streams_constants.STREAM_TYPE_ELEVATION: ("is_elevation_set", "ele_waypoints"),
+    activity_streams_constants.STREAM_TYPE_SPEED: ("is_velocity_set", "vel_waypoints"),
+    activity_streams_constants.STREAM_TYPE_PACE: ("is_velocity_set", "pace_waypoints"),
+    activity_streams_constants.STREAM_TYPE_MAP: ("is_lat_lon_set", "lat_lon_waypoints"),
+    activity_streams_constants.STREAM_TYPE_TEMPERATURE: ("is_temperature_set", "temp_waypoints"),
 }
 
 

@@ -146,7 +146,6 @@ def get_gps_stream_waypoints_for_activities(
 
 
 @core_decorators.handle_db_errors
-@core_decorators.handle_db_errors
 def get_hr_streams_without_zone_percentages(
     db: Session,
     after_id: int = 0,

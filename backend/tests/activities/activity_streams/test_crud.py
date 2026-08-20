@@ -8,6 +8,14 @@ from tests._helpers.models import mock_model
 import core.exceptions as core_exceptions
 
 
+def test_hr_migration_read_has_one_database_error_wrapper():
+    import modules.activities.activity_streams.crud as crud
+
+    wrapped = crud.get_hr_streams_without_zone_percentages
+    assert hasattr(wrapped, "__wrapped__")
+    assert not hasattr(wrapped.__wrapped__, "__wrapped__")
+
+
 class TestCreateActivityStreams:
     @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
     def test_success(self, mock_streams_model, mock_db):

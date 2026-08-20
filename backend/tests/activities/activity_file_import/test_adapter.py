@@ -15,6 +15,21 @@ def _activity() -> activities_schema.Activity:
 
 
 class TestParsedInfoToParsedActivity:
+    def test_stream_mapping_uses_every_canonical_stream_type(self):
+        import modules.activities.activity_file_import.adapter as adapter
+        import modules.activities.activity_streams.constants as stream_constants
+
+        assert set(adapter._STREAM_MAPPING) == {
+            stream_constants.STREAM_TYPE_HR,
+            stream_constants.STREAM_TYPE_POWER,
+            stream_constants.STREAM_TYPE_CADENCE,
+            stream_constants.STREAM_TYPE_ELEVATION,
+            stream_constants.STREAM_TYPE_SPEED,
+            stream_constants.STREAM_TYPE_PACE,
+            stream_constants.STREAM_TYPE_MAP,
+            stream_constants.STREAM_TYPE_TEMPERATURE,
+        }
+
     def test_parse_streams_hr_set(self):
         from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 

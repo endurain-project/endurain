@@ -47,7 +47,7 @@ def reverse_geocode(latitude: float | None, longitude: float | None) -> Geocoded
     return platform_runtime.get_active_platform().geocoding.reverse(latitude, longitude)
 
 
-def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Session) -> bool:
+def geocode_and_store_activity_location(activity_id: int, db: Session) -> bool:
     """Resolve and persist a created activity's location from its GPS stream.
 
     Loads the activity's first GPS waypoint, reverse-geocodes it, and writes
@@ -56,7 +56,6 @@ def geocode_and_store_activity_location(activity_id: int, user_id: int, db: Sess
 
     Args:
         activity_id: The activity to geocode.
-        user_id: The owning user (used to load the activity's own map stream).
         db: Database session.
 
     Returns:
