@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1458,16 +1459,17 @@ class TestClearAllActivityThumbnailPaths:
 class TestGetActivitiesWithThumbnail:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
+        # Column-scoped select: the rows are (id, map_thumbnail_path) pairs, so
+        # the result is iterated directly rather than through ``scalars()``.
+        mock_db.execute.return_value = [SimpleNamespace(id=1, map_thumbnail_path="1.webp")]
         r = crud.get_activities_with_thumbnail(db=mock_db)
         assert len(r) == 1
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
+        mock_db.execute.return_value = []
         assert crud.get_activities_with_thumbnail(db=mock_db) == []
 
     def test_db_error(self, mock_db):
@@ -1476,20 +1478,29 @@ class TestGetActivitiesWithThumbnail:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         assert crud.get_activities_with_thumbnail(db=mock_db) == []
 
+    def test_pages_from_the_cursor(self, mock_db):
+        """An unbounded scan of this table is what the ``after_id``/``limit`` pair exists to stop."""
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value = []
+        crud.get_activities_with_thumbnail(db=mock_db, after_id=7, limit=2)
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "activities.id > 7" in compiled
+        assert "LIMIT 2" in compiled
+
 
 class TestGetActivitiesWithoutThumbnail:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
+        mock_db.execute.return_value = [SimpleNamespace(id=1, map_thumbnail_path=None)]
         r = crud.get_activities_without_thumbnail(db=mock_db)
         assert len(r) == 1
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
+        mock_db.execute.return_value = []
         assert crud.get_activities_without_thumbnail(db=mock_db) == []
 
     def test_db_error(self, mock_db):
@@ -1497,6 +1508,16 @@ class TestGetActivitiesWithoutThumbnail:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         assert crud.get_activities_without_thumbnail(db=mock_db) == []
+
+    def test_pages_from_the_cursor(self, mock_db):
+        """The backfill walks the whole table, so it must do it in bounded steps."""
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value = []
+        crud.get_activities_without_thumbnail(db=mock_db, after_id=7, limit=2)
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "activities.id > 7" in compiled
+        assert "LIMIT 2" in compiled
 
 
 class TestUpdateActivityLocation:

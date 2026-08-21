@@ -3,6 +3,21 @@
 from unittest.mock import MagicMock, patch
 
 
+def _pages(*pages):
+    """Return a ``side_effect`` serving each page then signalling exhaustion.
+
+    The scan helpers read until a call comes back empty, so a plain
+    ``return_value`` of a non-empty list would never terminate.
+
+    Args:
+        *pages: The pages to serve, in order.
+
+    Returns:
+        A list suitable for ``Mock.side_effect``, terminated by an empty page.
+    """
+    return [*[list(page) for page in pages], []]
+
+
 class TestResolveTileSettings:
     """Decryption is the settings module's job; this only applies render defaults."""
 
@@ -104,7 +119,7 @@ class TestDeleteAndRegenerateThumbnails:
 
         a1 = MagicMock(id=1, map_thumbnail_path="1.webp")
         a2 = MagicMock(id=2, map_thumbnail_path="2.webp")
-        mock_activities.list_activities_with_thumbnail.return_value = [a1, a2]
+        mock_activities.list_activities_with_thumbnail.side_effect = _pages([a1, a2])
 
         delete_and_regenerate_all_activity_thumbnails()
 
@@ -131,7 +146,7 @@ class TestDeleteAndRegenerateThumbnails:
         mock_runtime.get_active_platform.return_value = platform
 
         a1 = MagicMock(id=1, map_thumbnail_path="1.webp")
-        mock_activities.list_activities_with_thumbnail.return_value = [a1]
+        mock_activities.list_activities_with_thumbnail.side_effect = _pages([a1])
 
         delete_and_regenerate_all_activity_thumbnails()
 
@@ -201,7 +216,7 @@ class TestGenerateMissingThumbnails:
         mock_runtime.get_active_platform.return_value = self._platform(storage=storage)
 
         activity = MagicMock(id=1, map_thumbnail_path="1.webp")
-        mock_activities.list_activities_with_thumbnail.return_value = [activity]
+        mock_activities.list_activities_with_thumbnail.side_effect = _pages([activity])
         mock_activities.list_activities_without_thumbnail.return_value = []
 
         generate_missing_activity_thumbnails()
@@ -235,7 +250,7 @@ class TestGenerateMissingThumbnails:
         mock_activities.list_activities_with_thumbnail.return_value = []
 
         act = MagicMock(id=1)
-        mock_activities.list_activities_without_thumbnail.return_value = [act]
+        mock_activities.list_activities_without_thumbnail.side_effect = _pages([act])
         mock_resolve.return_value = ("https://tiles/{z}/{x}/{y}.png", "#fff", None)
         mock_generate.return_value = "1.webp"
 
@@ -277,7 +292,7 @@ class TestGenerateMissingThumbnails:
 
         act1 = MagicMock(id=1)
         act2 = MagicMock(id=2)
-        mock_activities.list_activities_without_thumbnail.return_value = [act1, act2]
+        mock_activities.list_activities_without_thumbnail.side_effect = _pages([act1, act2])
         mock_resolve.return_value = ("url", "#fff", None)
         mock_generate.return_value = "1.webp"
 
@@ -287,3 +302,59 @@ class TestGenerateMissingThumbnails:
         generate_missing_activity_thumbnails()
 
         mock_generate.assert_called_once()
+
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.service.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.service.activities_service")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_service")
+    @patch("modules.activities.activity_thumbnail.service.platform_runtime")
+    @patch("modules.activities.activity_thumbnail.service.logger")
+    def test_walks_every_page_advancing_the_cursor(
+        self,
+        mock_logger,
+        mock_runtime,
+        mock_streams_service,
+        mock_activities,
+        mock_session,
+        mock_resolve,
+        mock_generate,
+    ):
+        """The pass reads the table in bounded pages, not in one unbounded list.
+
+        The whole activities table used to be materialised here, and each page's
+        waypoints are batch-loaded, so both the paging and the per-page batching
+        have to hold. A cursor that failed to advance would re-serve page one
+        forever; one that skipped would silently leave activities unrendered.
+        """
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+
+        mock_db = MagicMock()
+        mock_session.return_value.__enter__.return_value = mock_db
+        mock_runtime.get_active_platform.return_value = self._platform(storage=MagicMock())
+        mock_activities.list_activities_with_thumbnail.return_value = []
+
+        first = [MagicMock(id=1), MagicMock(id=2)]
+        second = [MagicMock(id=3)]
+        mock_activities.list_activities_without_thumbnail.side_effect = _pages(first, second)
+        mock_resolve.return_value = ("url", "#fff", None)
+        mock_generate.return_value = "x.webp"
+        mock_streams_service.get_gps_waypoints_for_activities.return_value = {
+            1: [{"lat": 1.0, "lon": 1.0}],
+            2: [{"lat": 2.0, "lon": 2.0}],
+            3: [{"lat": 3.0, "lon": 3.0}],
+        }
+
+        generate_missing_activity_thumbnails()
+
+        # Cursor advances past the last id of each page, and stops on the empty one.
+        assert [
+            call.kwargs["after_id"] for call in mock_activities.list_activities_without_thumbnail.call_args_list
+        ] == [
+            0,
+            2,
+            3,
+        ]
+        # One waypoint batch per page, not one per activity.
+        assert mock_streams_service.get_gps_waypoints_for_activities.call_count == 2
+        assert mock_generate.call_count == 3

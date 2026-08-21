@@ -203,7 +203,7 @@ class IdentityProviderService:
             # attacker pivot via signed token replay.
             # Self-hosted IdPs on private networks can
             # be opted in via SSRF_ALLOWED_HOSTS.
-            core_network.reject_private_url(jwks_uri, purpose="oidc_jwks")
+            await core_network.reject_private_url_async(jwks_uri, purpose="oidc_jwks")
             client = await self._get_http_client()
             logger.debug(f"Fetching JWKS from {jwks_uri}")
 
@@ -495,7 +495,7 @@ class IdentityProviderService:
         try:
             # SSRF guard for the admin-supplied issuer
             # URL: see jwks_uri rationale above.
-            core_network.reject_private_url(discovery_url, purpose="oidc_discovery")
+            await core_network.reject_private_url_async(discovery_url, purpose="oidc_discovery")
             # Fetch the configuration
             client = await self._get_http_client()
             response = await client.get(discovery_url)
@@ -663,7 +663,7 @@ class IdentityProviderService:
         # re-validated), so a trusted issuer could still advertise an
         # internal target. Refuse private/internal addresses unless
         # explicitly opted in via SSRF_ALLOWED_HOSTS.
-        core_network.reject_private_url(token_endpoint, purpose="oidc_token")
+        await core_network.reject_private_url_async(token_endpoint, purpose="oidc_token")
 
         return token_endpoint
 
@@ -1185,7 +1185,7 @@ class IdentityProviderService:
             # explicitly opted in via SSRF_ALLOWED_HOSTS. Raised outside the
             # try/except below so the guard's 4xx is not swallowed as a
             # userinfo fetch failure.
-            core_network.reject_private_url(userinfo_endpoint, purpose="oidc_userinfo")
+            await core_network.reject_private_url_async(userinfo_endpoint, purpose="oidc_userinfo")
             try:
                 # Use the access token to fetch userinfo
                 access_token = token_response.get("access_token")

@@ -119,6 +119,16 @@ what makes "registered in the API but not the worker" a diff in one file instead
 of a silent mismatch between two, and what keeps the file that happens to hold
 the handlers today free to be split tomorrow.
 
+`modules.auth` is the one module whose behavioural surface is not called
+`integration_service.py`. It publishes `identity_service.py` (plus
+`dependencies.py`), because its boundary is not "what may you call?" but "what
+may you learn about the caller?" — a distinction the
+[auth boundary guide](auth-boundary.md) states and a dedicated `auth-boundary`
+contract enforces structurally. The inconsistency is real and is the cost of
+that: `auth` answers "what may I depend on?" with a different filename than
+every other module. It is recorded here rather than smoothed over, and no other
+module may follow it.
+
 `subscriber_registry.py` is also where a module declares its **reconciliation
 nets**. A durable subscriber derives state from an event, and delivery is
 at-least-once but never guaranteed — a bus consumer can drop a message, and some
@@ -356,9 +366,11 @@ the activity row and streams through `activity.integration_service` and
 `activity_streams.integration_service`. Child CRUDs no longer join the
 activities table to decide access.
 
-One reach into `activity/` remains, stated rather than deferred:
-`activity_streams.crud` joins the parent for `total_timer_time` (a column, not a
-permission).
+No reach into `activity/` remains. `activity_streams.crud` used to join the
+parent for `total_timer_time`; the value now arrives as a field on the
+`ActivityScoringContext` that `activity_streams.service` resolves through the
+root surface, so the persistence layer is handed the column rather than fetching
+it. Both allowlists in the conformance test are consequently empty.
 
 ### Root package depending on a child
 **Resolved.** `activity/serializers.py` imported

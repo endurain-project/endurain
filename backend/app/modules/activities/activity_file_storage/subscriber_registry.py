@@ -21,8 +21,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         file_subscribers.ACTIVITY_FILE_CLEANUP_SUBSCRIBER_ID,
         None,
         exempt_reason=(
-            "Deletion cleanup is an idempotent teardown keyed by activity id. "
-            "A missed source-file delete leaves no servable durable state."
+            "Teardown, not derived state: once the activity row is gone no backfill "
+            "can discover the retained source file, because the row was the only "
+            "thing naming it. A dropped cleanup event therefore keeps the uploaded "
+            "FIT/GPX/TCX file — the athlete's original recording — in storage "
+            "permanently. It is unservable without an activity to serve it under, but "
+            "it is retained past the deletion that was meant to remove it. Closing it "
+            "needs a storage-side sweep keyed on the absence of an owning row; until "
+            "that exists this is a known erasure gap."
         ),
     ),
 )

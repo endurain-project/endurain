@@ -240,7 +240,7 @@ forbidden_modules =
 # one exception: it built provider URLs, resolved and denylisted the configured
 # host against SSRF (OWASP A10), and spoke HTTP — none of which is a fact about
 # activities, and all of which protected exactly one call site. That now sits
-# behind the platform GeocodingProvider, with the host checks in infra.egress
+# behind the platform GeocodingProvider, with the host checks in core.network
 # where a future outbound integration inherits them instead of reimplementing
 # them. This contract is what stops the egress code drifting back into the domain:
 # an outbound call from activities must be added as a platform provider.

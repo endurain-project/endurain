@@ -1410,22 +1410,36 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
 
 def get_activities_with_thumbnail(
     db: Session,
+    after_id: int = 0,
+    limit: int = 500,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have a map thumbnail.
 
+    Ordered by id and paged via ``after_id`` so the thumbnail reconciliation pass
+    walks the table in bounded batches instead of materialising every row.
+
     Args:
         db: Database session.
+        after_id: Return only activities with ``id`` greater than this.
+        limit: Maximum number of rows to return.
 
     Returns:
         Thumbnail references (id + stored key) for rows with
         ``map_thumbnail_path`` set, or an empty list on error.
     """
     try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.isnot(None))
-        rows = db.execute(stmt).scalars().all()
+        stmt = (
+            select(activities_models.Activity.id, activities_models.Activity.map_thumbnail_path)
+            .where(
+                activities_models.Activity.map_thumbnail_path.isnot(None),
+                activities_models.Activity.id > after_id,
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
         return [
             activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
-            for row in rows
+            for row in db.execute(stmt)
         ]
     except SQLAlchemyError as err:
         logger.error(
@@ -1438,22 +1452,37 @@ def get_activities_with_thumbnail(
 
 def get_activities_without_thumbnail(
     db: Session,
+    after_id: int = 0,
+    limit: int = 500,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have no map thumbnail.
 
+    Ordered by id and paged via ``after_id``. The caller advances the cursor
+    rather than re-reading from zero: a batch whose thumbnails all fail to render
+    still has to be stepped over, or the pass loops on it forever.
+
     Args:
         db: Database session.
+        after_id: Return only activities with ``id`` greater than this.
+        limit: Maximum number of rows to return.
 
     Returns:
         Thumbnail references (id, with a null key) for rows with
         ``map_thumbnail_path`` set to NULL, or an empty list on error.
     """
     try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.is_(None))
-        rows = db.execute(stmt).scalars().all()
+        stmt = (
+            select(activities_models.Activity.id, activities_models.Activity.map_thumbnail_path)
+            .where(
+                activities_models.Activity.map_thumbnail_path.is_(None),
+                activities_models.Activity.id > after_id,
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
         return [
             activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
-            for row in rows
+            for row in db.execute(stmt)
         ]
     except SQLAlchemyError as err:
         logger.error(

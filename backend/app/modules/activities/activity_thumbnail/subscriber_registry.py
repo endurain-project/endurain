@@ -26,8 +26,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         thumbnail_subscribers.THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
         None,
         exempt_reason=(
-            "Deletion cleanup is an idempotent teardown keyed by activity id. "
-            "Once the row is gone, no durable create-derived state remains."
+            "Teardown, not derived state, and the direction matters: the generate "
+            "net above reconciles FROM the activity row, so it can only ever find "
+            "activities that still exist. A dropped cleanup event leaves a thumbnail "
+            "blob whose activity is gone, which no row-driven backfill can reach. The "
+            "leak is bounded and the blob is unreachable (its URL is signed and "
+            "expiring), but it is derived from user GPS data and it outlives the "
+            "deletion. Closing it needs a storage-side sweep over the thumbnail area; "
+            "until that exists this is a known erasure gap."
         ),
     ),
     DurableSubscriberNet(

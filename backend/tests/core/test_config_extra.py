@@ -901,5 +901,24 @@ class TestCheckDeprecatedEnvVars:
     def test_mapping_contains_expected_keys(self):
         from core.config import DEPRECATED_ENV_VARS
 
-        assert set(DEPRECATED_ENV_VARS) == {"UID", "GID", "FRONTEND_PROTOCOL"}
+        assert set(DEPRECATED_ENV_VARS) == {
+            "UID",
+            "GID",
+            "FRONTEND_PROTOCOL",
+            "RATE_LIMIT_STORAGE_URI",
+            "AUTH_SECURITY_STORAGE_URI",
+        }
         assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())
+
+    def test_the_retired_state_uris_name_their_replacement(self):
+        """Silently ignoring these downgrades rate limiting and lockout to per-process memory.
+
+        Both used to point shared ephemeral state at Redis. ``Settings`` sets
+        ``extra="ignore"``, so an operator who upgrades without editing their
+        ``.env`` would keep the old keys, get no warning, and lose the shared
+        buckets that make brute-force protection work across workers.
+        """
+        from core.config import DEPRECATED_ENV_VARS
+
+        for retired in ("RATE_LIMIT_STORAGE_URI", "AUTH_SECURITY_STORAGE_URI"):
+            assert "REDIS_URL" in DEPRECATED_ENV_VARS[retired]

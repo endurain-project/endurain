@@ -96,7 +96,7 @@ Fast iteration workflow for frontend-only development:
 
 **Notes:**
 - ESLint uses flat config (`eslint.config.ts`) with Vue + TypeScript support
-- Unit tests not yet implemented (`npm run test:unit` exits with "No test files found")
+- Unit tests run with Vitest: `npm run test:unit` (≈9 seconds)
 
 **Pre-commit validation:**
 - Run `npm run format` and `npm run lint` before commits
@@ -185,7 +185,6 @@ Repository root:
 
 - Docker builds may fail with SSL issues in CI
 - Backend Python 3.13 required
-- No frontend test coverage yet
 
 ---
 

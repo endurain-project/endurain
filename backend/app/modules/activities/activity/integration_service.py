@@ -343,14 +343,22 @@ def clear_all_thumbnail_keys(db: Session) -> None:
     activities_crud.clear_all_activity_thumbnail_paths(db)
 
 
-def list_activities_with_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
-    """Return activity references carrying a stored thumbnail key."""
-    return activities_crud.get_activities_with_thumbnail(db)
+def list_activities_with_thumbnail(
+    db: Session,
+    after_id: int = 0,
+    limit: int = 500,
+) -> list[activities_contracts.ActivityThumbnailRef]:
+    """Return one bounded page of activity references carrying a stored thumbnail key."""
+    return activities_crud.get_activities_with_thumbnail(db, after_id=after_id, limit=limit)
 
 
-def list_activities_without_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
-    """Return activity references that have no stored thumbnail key."""
-    return activities_crud.get_activities_without_thumbnail(db)
+def list_activities_without_thumbnail(
+    db: Session,
+    after_id: int = 0,
+    limit: int = 500,
+) -> list[activities_contracts.ActivityThumbnailRef]:
+    """Return one bounded page of activity references that have no stored thumbnail key."""
+    return activities_crud.get_activities_without_thumbnail(db, after_id=after_id, limit=limit)
 
 
 def list_activities_missing_location(
