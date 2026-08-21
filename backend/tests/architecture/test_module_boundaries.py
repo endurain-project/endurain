@@ -17,6 +17,7 @@ with the reason it still exists, and anything not listed fails.
 import ast
 import fnmatch
 import pathlib
+import re
 
 from tests._helpers.module_roles import role_of as _role
 
@@ -354,6 +355,40 @@ class TestPackageIndependence:
 
 class TestModuleSurface:
     """Other modules consume a module only through its published surface."""
+
+    def test_the_surface_holds_only_operations_with_callers(self):
+        """A published function nobody calls is API surface with no user.
+
+        ``integration_service`` is the one file other modules may depend on, so
+        every name in it is a promise. The child packages had grown six public
+        functions each where two were reached from outside: the contributor
+        plumbing (``store_laps``, ``restore_profile_records``,
+        ``list_laps_for_activities``) was published alongside the contributor
+        factory that was the actual surface, so "what may I depend on?" answered
+        with three times more than the module meant.
+
+        Callers are matched by attribute access, which is how this codebase
+        imports (``import x.y as z`` then ``z.f()``). A new operation lands here
+        together with the caller that needed it, or it stays private until then.
+        """
+        app_texts = {path: path.read_text() for path in _python_files(_APP_ROOT)}
+        offenders: list[str] = []
+        for module_name in _CONVERTED:
+            for path in _python_files(_MODULES_ROOT / module_name):
+                if path.name != "integration_service.py":
+                    continue
+                for node in ast.parse(app_texts[path]).body:
+                    if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                        continue
+                    if node.name.startswith("_"):
+                        continue
+                    used = re.compile(rf"\.{re.escape(node.name)}\b")
+                    if not any(used.search(text) for other, text in app_texts.items() if other != path):
+                        offenders.append(f"{_module_path(path, _APP_ROOT)}.{node.name}")
+        assert not offenders, (
+            "Published on an integration surface with no caller. Make it private "
+            "until something needs it:\n  " + "\n  ".join(sorted(offenders))
+        )
 
     def test_outsiders_use_the_published_surface(self):
         """A reach past the surface needs an entry in _INBOUND_EXCEPTIONS."""

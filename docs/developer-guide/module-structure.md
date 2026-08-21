@@ -96,6 +96,23 @@ Four classes. This is the whole rule.
 | `subscriber_registry.py` | Event wiring, called by `main.py` and `worker.py`. |
 | `scheduled_jobs.py` | The module's recurring and one-shot background work, collected by `main.py`. |
 
+Every name on `integration_service.py` is a promise, so it holds only operations
+with a real caller. The child packages each grew six public functions where two
+were reached from outside: the contributor plumbing (`store_laps`,
+`restore_profile_records`, `list_laps_for_activities`) sat next to the
+contributor factory that was the actual surface, so "what may I depend on?"
+answered with three times more than the module meant. A new operation lands there
+with the caller that needed it, or stays private until then;
+`test_the_surface_holds_only_operations_with_callers` fails on the difference.
+
+A surface function that only forwards its arguments is not a layer either. The
+thumbnail and geocoding subsystems reached the activity row through
+`integration_service` → `service` → `crud`, where the middle call added no
+decision, no access check and no transaction — three files to change to add an
+argument. Those go straight to CRUD, which the matrix below already permits; what
+belongs in `service` is the *arrangement* of a write (stage, publish, commit),
+not the act of forwarding.
+
 `subscribers.py` is deliberately absent from that list. A module with subscribers
 publishes `subscriber_registry.py` and the entrypoints import *that* — which is
 what makes "registered in the API but not the worker" a diff in one file instead
@@ -344,7 +361,6 @@ One reach into `activity/` remains, stated rather than deferred:
 permission).
 
 ### Root package depending on a child
-
 **Resolved.** `activity/serializers.py` imported
 `activity_thumbnail.integration_service` to turn a stored thumbnail key into a
 URL, while `activity_thumbnail/service.py` imported `activity.integration_service`
@@ -380,6 +396,15 @@ The locale list now exists three times on purpose: `core.i18n` (what we can writ
 an email in), the `Language` enum (what a client may pick), and the shipped
 catalog directories. `tests/core/test_i18n.py` asserts all three agree, so drift
 fails CI rather than silently falling back to English.
+
+`modules/activities/computation.py` is the counter-case, and stays where it is.
+It is pure, imports no module, and three consumers need the same numbers — the
+file parsers, the Strava adapter and the data migrations — so a second copy in
+Strava would be two definitions of normalized power that could disagree. Moving
+it to `core` would be the same inversion in reverse: pace and normalized power
+are fitness-domain maths, not platform primitives, and `core` would then hold
+domain knowledge that no contract would catch, because `core` importing nothing
+is exactly what the rule checks for.
 
 ### Providers feeding ingestion
 

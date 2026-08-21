@@ -179,9 +179,11 @@ def list_pending_requests(
 def reject_follow_request(target_user_id: int, requester_user_id: int, db: Session) -> None:
     """Decline a pending follow request addressed to the caller.
 
-    Distinct from :func:`remove_follower`, which severs an already-accepted
+    Distinct from :func:`delete_relationship`, which severs an already-accepted
     relationship. Both delete the same row, but only one of them is a decision
-    the requester never had granted.
+    the requester never had granted — so this one is scoped to ``PENDING``, and
+    an accepted follower is removed through the relationship route instead of
+    silently through here.
 
     Args:
         target_user_id: The authenticated user declining the request.
@@ -190,8 +192,11 @@ def reject_follow_request(target_user_id: int, requester_user_id: int, db: Sessi
 
     Returns:
         None.
+
+    Raises:
+        NotFoundError: When no pending request from that user exists.
     """
-    followers_crud.delete_follower(requester_user_id, target_user_id, db)
+    followers_crud.delete_follower(requester_user_id, target_user_id, db, status=FollowStatus.PENDING)
     logger.debug(
         "Follow request rejected",
         extra=core_logger.context(target_user_id=target_user_id, requester_user_id=requester_user_id),

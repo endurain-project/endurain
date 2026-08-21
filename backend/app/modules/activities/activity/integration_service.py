@@ -326,24 +326,31 @@ def list_user_activity_scoring_contexts(
     )
 
 
+# Derived-artifact maintenance. The thumbnail and geocoding subsystems reach the
+# activity row through these. Each is a system-level operation with no requester
+# to authorize — the derived work runs detached from any request — so there is no
+# decision for ``service`` to make and these go straight to CRUD rather than
+# through a middle layer that only forwarded its arguments.
+
+
 def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> None:
     """Record or clear an activity's stored thumbnail key."""
-    activity_service.set_thumbnail_key(activity_id, key, db)
+    activities_crud.set_activity_thumbnail_path(activity_id, key, db)
 
 
 def clear_all_thumbnail_keys(db: Session) -> None:
     """Clear every stored activity thumbnail key."""
-    activity_service.clear_all_thumbnail_keys(db)
+    activities_crud.clear_all_activity_thumbnail_paths(db)
 
 
 def list_activities_with_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return activity references carrying a stored thumbnail key."""
-    return activity_service.list_activities_with_thumbnail(db)
+    return activities_crud.get_activities_with_thumbnail(db)
 
 
 def list_activities_without_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return activity references that have no stored thumbnail key."""
-    return activity_service.list_activities_without_thumbnail(db)
+    return activities_crud.get_activities_without_thumbnail(db)
 
 
 def list_activities_missing_location(
@@ -351,7 +358,7 @@ def list_activities_missing_location(
     limit: int = 200,
 ) -> list[activities_contracts.ActivityLocationRef]:
     """Return bounded activity references whose location is unresolved."""
-    return activity_service.list_activities_missing_location(db, limit)
+    return activities_crud.get_activities_missing_location(db, limit)
 
 
 def set_activity_location(
@@ -362,7 +369,7 @@ def set_activity_location(
     db: Session,
 ) -> bool:
     """Persist a reverse-geocoded activity location."""
-    return activity_service.set_activity_location(activity_id, city, town, country, db)
+    return activities_crud.update_activity_location(activity_id, city, town, country, db)
 
 
 def delete_all_strava_activities(user_id: int, db: Session) -> int:

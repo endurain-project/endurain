@@ -28,11 +28,12 @@ def read_public_activities_laps_for_activity_all(
     Args:
         activity_id: Activity primary key.
         db: Database session.
+        page: Resolved paging window, capped so one request cannot ask for
+            an unbounded number of rows.
 
     Returns:
-        List of ``ActivityLapsRead`` or ``None`` when public sharing
-        is disabled, the activity is not public, or the laps are
-        hidden.
+        The page envelope. Empty when public sharing is disabled, the activity is
+        not public, or the laps are hidden.
     """
     return activity_laps_service.list_public_activity_laps(
         activity_id,

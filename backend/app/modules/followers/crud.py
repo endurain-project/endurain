@@ -390,14 +390,27 @@ def accept_follower(
 
 
 @core_decorators.handle_db_errors
-def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
+def delete_follower(
+    user_id: int,
+    target_user_id: int,
+    db: Session,
+    *,
+    status: FollowStatus | None = None,
+) -> None:
     """
     Delete a follow relationship between two users.
+
+    Commits directly, unlike :func:`create_follower` and :func:`accept_follower`,
+    which take a ``commit`` flag so the service can stage them alongside an
+    outbox row. Deleting publishes no event, so there is nothing to be atomic
+    with.
 
     Args:
         user_id: ID of the follower user.
         target_user_id: ID of the user being followed.
         db: Database session.
+        status: When given, only delete the row if it is in this state. Declining
+            a request must not double as removing an accepted follower.
 
     Returns:
         None.
@@ -410,6 +423,8 @@ def delete_follower(user_id: int, target_user_id: int, db: Session) -> None:
         followers_models.Follower.follower_id == user_id,
         followers_models.Follower.followee_id == target_user_id,
     )
+    if status is not None:
+        stmt = stmt.where(followers_models.Follower.status == status.value)
     result = cast("CursorResult[Any]", db.execute(stmt))
 
     if result.rowcount == 0:

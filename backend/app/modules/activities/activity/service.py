@@ -24,7 +24,6 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
-import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
@@ -721,17 +720,6 @@ def delete_all_activities_for_user(user_id: int, db: Session, *, source: str) ->
     return len(deleted_ids)
 
 
-# ---------------------------------------------------------------------------
-# Derived-artifact maintenance
-#
-# The sibling surface: the thumbnail, geocoding and media subsystems reach the
-# activity row through these instead of importing ``activity.crud``. Each is a
-# system-level operation with no requester to authorize — the derived work runs
-# detached from any request — which is why they carry no access check and why
-# they are not on ``integration_service``: no *other module* has any business
-# setting a thumbnail key.
-
-
 def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
     """Return whether the user owns the activity.
 
@@ -744,91 +732,3 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
         True when the activity exists and belongs to the user.
     """
     return activities_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None
-
-
-def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> None:
-    """Record (or clear) an activity's stored map-thumbnail key.
-
-    Args:
-        activity_id: The activity whose thumbnail was rendered or removed.
-        key: The stored key, or ``None`` to clear it.
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    activities_crud.set_activity_thumbnail_path(activity_id, key, db)
-
-
-def clear_all_thumbnail_keys(db: Session) -> None:
-    """Clear the stored thumbnail key on every activity.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    activities_crud.clear_all_activity_thumbnail_paths(db)
-
-
-def list_activities_with_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
-    """Return references to every activity that has a stored thumbnail.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        Thumbnail references (id + stored key).
-    """
-    return activities_crud.get_activities_with_thumbnail(db)
-
-
-def list_activities_without_thumbnail(db: Session) -> list[activities_contracts.ActivityThumbnailRef]:
-    """Return references to every activity that has no stored thumbnail.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        Thumbnail references (id, with a null key).
-    """
-    return activities_crud.get_activities_without_thumbnail(db)
-
-
-def list_activities_missing_location(
-    db: Session,
-    limit: int = 200,
-) -> list[activities_contracts.ActivityLocationRef]:
-    """Return references to activities with no reverse-geocoded location yet.
-
-    Args:
-        db: Database session.
-        limit: Maximum number of candidates, bounding one backfill pass.
-
-    Returns:
-        Location references (id only).
-    """
-    return activities_crud.get_activities_missing_location(db, limit)
-
-
-def set_activity_location(
-    activity_id: int,
-    city: str | None,
-    town: str | None,
-    country: str | None,
-    db: Session,
-) -> bool:
-    """Persist a reverse-geocoded location on an activity.
-
-    Args:
-        activity_id: The activity the location was resolved for.
-        city: Resolved city, or ``None``.
-        town: Resolved town, or ``None``.
-        country: Resolved country, or ``None``.
-        db: Database session.
-
-    Returns:
-        True when the activity existed and was updated.
-    """
-    return activities_crud.update_activity_location(activity_id, city, town, country, db)

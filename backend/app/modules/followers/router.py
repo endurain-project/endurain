@@ -145,8 +145,8 @@ def follow_user(
 ) -> followers_schema.FollowRelationship:
     """Add the authenticated user to ``user_id``'s followers.
 
-    Creates the relationship pending or accepted according to the target's
-    privacy settings; the returned ``status`` says which.
+    Always created pending: a follow takes effect only once the target accepts
+    it, so the returned ``status`` is ``pending`` and the target is notified.
     """
     return followers_service.follow_user(token_user_id, user_id, db)
 
@@ -189,6 +189,8 @@ def reject_follow_request(
 
     Distinct from removing an accepted follower: this refuses access that was
     never granted, which is a different decision even though the row is the same.
+    Scoped to pending requests, so removing an accepted follower goes through the
+    relationship route rather than arriving here by accident.
     """
     followers_service.reject_follow_request(token_user_id, requester_user_id, db)
 
