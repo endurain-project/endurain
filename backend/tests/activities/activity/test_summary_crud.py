@@ -12,7 +12,7 @@ class TestGetWeeklySummary:
         from datetime import datetime
 
         import modules.activities.activity.models as am
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
         r = crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
@@ -21,7 +21,7 @@ class TestGetWeeklySummary:
     def test_empty(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
         r = crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
@@ -30,7 +30,7 @@ class TestGetWeeklySummary:
     def test_postgresql(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         engine_mock = MagicMock()
         engine_mock.dialect.name = "postgresql"
@@ -53,7 +53,7 @@ class TestGetWeeklySummary:
     def test_with_type_filter(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         row = MagicMock()
         row.day_of_week = 1
@@ -72,7 +72,7 @@ class TestGetWeeklySummary:
     def test_db_error(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(SQLAlchemyError):
@@ -83,7 +83,7 @@ class TestGetMonthlySummary:
     def test_success(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         row = MagicMock()
         row.week_number = 3
@@ -102,7 +102,7 @@ class TestGetMonthlySummary:
     def test_empty(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.return_value.all.side_effect = [
             [],
@@ -114,7 +114,7 @@ class TestGetMonthlySummary:
     def test_db_error(self, mock_db):
         from datetime import datetime
 
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(SQLAlchemyError):
@@ -123,7 +123,7 @@ class TestGetMonthlySummary:
 
 class TestGetYearlySummary:
     def test_success(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         row = MagicMock()
         row.month_number = 6
@@ -141,7 +141,7 @@ class TestGetYearlySummary:
         assert len(r.breakdown) == 12
 
     def test_empty(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.return_value.all.side_effect = [
             [],
@@ -151,7 +151,7 @@ class TestGetYearlySummary:
         assert r.activity_count == 0
 
     def test_with_type_filter(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         row = MagicMock()
         row.month_number = 1
@@ -168,7 +168,7 @@ class TestGetYearlySummary:
         assert r.activity_count == 1
 
     def test_db_error(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(SQLAlchemyError):
@@ -177,7 +177,7 @@ class TestGetYearlySummary:
 
 class TestGetLifetimeSummary:
     def test_success(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         totals_row = MagicMock()
         totals_row.total_distance = 100000.0
@@ -204,7 +204,7 @@ class TestGetLifetimeSummary:
         assert len(r.breakdown) == 1
 
     def test_no_totals(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.return_value.one_or_none.return_value = None
         r = crud.get_lifetime_summary(user_id=1, db=mock_db)
@@ -213,7 +213,7 @@ class TestGetLifetimeSummary:
         assert r.breakdown == []
 
     def test_with_type_filter(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         totals_row = MagicMock()
         totals_row.total_distance = 50000.0
@@ -239,7 +239,7 @@ class TestGetLifetimeSummary:
         assert r.activity_count == 5
 
     def test_db_error(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(SQLAlchemyError):
@@ -247,18 +247,18 @@ class TestGetLifetimeSummary:
 
 
 class TestApplyActivityTypeFilter:
-    @patch("modules.activities.activity.summary_query.ACTIVITY_NAME_TO_ID", {"running": 1})
+    @patch("modules.activities.activity.summary_crud.ACTIVITY_NAME_TO_ID", {"running": 1})
     def test_no_filter(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         stmt = MagicMock()
         _, type_id = crud._apply_activity_type_filter(stmt, None)
         assert type_id is None
         stmt.where.assert_not_called()
 
-    @patch("modules.activities.activity.summary_query.ACTIVITY_NAME_TO_ID", {"running": 1})
+    @patch("modules.activities.activity.summary_crud.ACTIVITY_NAME_TO_ID", {"running": 1})
     def test_known_type(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         stmt = MagicMock()
         stmt.where.return_value = stmt
@@ -266,9 +266,9 @@ class TestApplyActivityTypeFilter:
         assert type_id == 1
         stmt.where.assert_called_once()
 
-    @patch("modules.activities.activity.summary_query.ACTIVITY_NAME_TO_ID", {"running": 1})
+    @patch("modules.activities.activity.summary_crud.ACTIVITY_NAME_TO_ID", {"running": 1})
     def test_unknown_type(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         stmt = MagicMock()
         stmt.where.return_value = stmt
@@ -279,7 +279,7 @@ class TestApplyActivityTypeFilter:
 
 class TestGetTypeBreakdown:
     def test_success(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         row = MagicMock()
         row.activity_type = 1
@@ -295,14 +295,14 @@ class TestGetTypeBreakdown:
         assert result[0].total_distance == 10000.0
 
     def test_empty(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         mock_db.execute.return_value.all.return_value = []
         result = crud._get_type_breakdown(mock_db, 1, date.min, date.max)
         assert result == []
 
     def test_with_known_type_filter(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         row = MagicMock()
         row.activity_type = 1
@@ -316,7 +316,7 @@ class TestGetTypeBreakdown:
         assert len(result) == 1
 
     def test_with_unknown_type_filter(self, mock_db):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         result = crud._get_type_breakdown(mock_db, 1, date.min, date.max, activity_type="unknown_sport")
         assert result == []
@@ -363,7 +363,7 @@ class TestLocalTimeBuckets:
         )
 
     def test_weekly_summary_buckets_in_local_time(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
         crud.get_weekly_summary(db=db, user_id=1, target_date=date(2024, 1, 15))
@@ -373,7 +373,7 @@ class TestLocalTimeBuckets:
         assert "isodow" in sql
 
     def test_monthly_summary_buckets_in_local_time(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
         crud.get_monthly_summary(db=db, user_id=1, target_date=date(2024, 1, 1))
@@ -381,7 +381,7 @@ class TestLocalTimeBuckets:
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
 
     def test_yearly_summary_buckets_in_local_time(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
         crud.get_yearly_summary(db=db, user_id=1, year=2024)
@@ -389,7 +389,7 @@ class TestLocalTimeBuckets:
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
 
     def test_lifetime_summary_buckets_years_in_local_time(self):
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
         crud.get_lifetime_summary(db=db, user_id=1)
@@ -398,7 +398,7 @@ class TestLocalTimeBuckets:
 
     def test_lifetime_type_breakdown_stays_unbounded(self):
         """date.min/date.max must not be turned into date arithmetic that overflows."""
-        import modules.activities.activity.summary_query as crud
+        import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
         crud.get_lifetime_summary(db=db, user_id=1)

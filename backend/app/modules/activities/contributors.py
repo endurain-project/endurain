@@ -57,6 +57,12 @@ class RestoreGlobalRecords(Protocol):
     def __call__(self, records: list[dict[str, Any]], db: Session) -> int: ...
 
 
+class ThumbnailUrlResolver(Protocol):
+    """Resolve an activity's stored thumbnail key to a servable URL."""
+
+    def __call__(self, key: str | None, activity_id: int) -> str | None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class ActivityIngestionContributor:
     """Package contribution for one parsed activity component."""

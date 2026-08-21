@@ -48,6 +48,21 @@ class TestRuntimeModuleRegistry:
         }
         assert {item.key for item in activity_contributor_registry.profile_global_contributors()} == {"exercise_titles"}
 
+    def test_installs_the_thumbnail_url_resolver(self):
+        """Without it every serialized activity silently loses its thumbnail URL.
+
+        The root activity package asks the registry rather than importing the
+        thumbnail package, so a missing registration is not an import error — it
+        is a null URL on every activity in the API.
+        """
+        activity_contributor_registry.clear()
+        assert activity_contributor_registry.resolve_thumbnail_url("42.webp", 42) is None
+
+        runtime_module_registry.configure_activity_contributors()
+
+        assert activity_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
+        assert activity_contributor_registry.resolve_thumbnail_url(None, 42) is None
+
     def test_registers_every_activity_bus_subscriber(self):
         events = MagicMock()
         runtime_module_registry.register_bus_subscribers(events)

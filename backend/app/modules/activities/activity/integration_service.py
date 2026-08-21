@@ -13,7 +13,11 @@ read/gear/delete counterpart to the ingestion seam: ingestion
 Bulk deletes here also publish one ``activity.deleted`` per removed row, so the
 thumbnail and source-file cleanup subscribers reclaim each activity's blobs. That
 is the whole reason account deletion and Strava unlinking route through this
-module rather than issuing their own DELETE (or relying on the FK cascade).
+module rather than issuing their own DELETE (or relying on the FK cascade). The
+publishing itself belongs to ``activity.service``, which owns this module's write
+orchestration and its transaction boundaries; every function below is a
+delegation, so a write cannot be arranged two different ways depending on whether
+it was reached from a route or from another module.
 
 Enforced by the ``provider-activities-boundary`` import-linter contract:
 ``modules.strava`` / ``modules.garmin`` / ``modules.gears`` must not import
@@ -25,17 +29,13 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
 import modules.activities.activity.child_access as activity_child_access
 import modules.activities.activity.child_collection as activity_child_collection
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.service as activity_service
-
-logger = core_logger.get_logger(__name__)
 
 ChildCollection = activity_child_collection.ChildCollection
 
@@ -112,11 +112,6 @@ def bulk_set_activities_gear(
 ) -> int:
     """Assign gear to many of a user's activities at once.
 
-    Publishes one ``activity.updated`` per changed row, atomically with the
-    updates. A provider re-syncing gear mutates activities from outside the
-    activities module, so without the event a consumer would see the same silent
-    change bulk deletes used to make.
-
     Args:
         user_id: The owning user id (ownership is enforced by the update).
         gear_assignments: Map of activity id -> gear id (or ``None`` to clear).
@@ -125,20 +120,12 @@ def bulk_set_activities_gear(
     Returns:
         The number of activities updated.
     """
-    updated_ids = activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db, commit=False)
-    activity_event_publishers.publish_activities_updated(
-        updated_ids,
+    return activity_service.bulk_set_activities_gear(
         user_id,
-        ["gear_id"],
+        gear_assignments,
         db,
-        db.commit,
         source="api:bulk_set_activities_gear",
     )
-    logger.info(
-        "Bulk-assigned gear to activities",
-        extra=core_logger.context(user_id=user_id, requested=len(gear_assignments), updated=len(updated_ids)),
-    )
-    return len(updated_ids)
 
 
 def get_gear_usage_totals(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
@@ -381,10 +368,8 @@ def set_activity_location(
 def delete_all_strava_activities(user_id: int, db: Session) -> int:
     """Delete all of a user's Strava-sourced activities.
 
-    Emits one ``activity.deleted`` per removed activity, atomically with the
-    deletes, so the thumbnail and source-file cleanup subscribers reclaim the
-    blobs each activity owned. Without it the rows vanished silently and their
-    artifacts were orphaned in storage permanently.
+    Emits one ``activity.deleted`` per removed activity so the thumbnail and
+    source-file cleanup subscribers reclaim the blobs each one owned.
 
     Args:
         user_id: The owning user id.
@@ -393,21 +378,7 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activities_crud.delete_all_strava_activities_for_user(user_id, db, commit=False)
-    activity_event_publishers.publish_activities_deleted(
-        deleted_ids,
-        user_id,
-        db,
-        db.commit,
-        source="api:delete_all_strava_activities",
-    )
-    # Irreversible and triggered from another module, so the count is recorded
-    # here rather than left to the caller.
-    logger.info(
-        "Deleted all Strava-sourced activities for user",
-        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
-    )
-    return len(deleted_ids)
+    return activity_service.delete_all_strava_activities(user_id, db, source="api:delete_all_strava_activities")
 
 
 def delete_all_activities_for_user(user_id: int, db: Session) -> int:
@@ -415,9 +386,7 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
 
     The account-deletion path. Deleting the user row alone would let the database
     FK cascade remove the activities silently, orphaning every thumbnail and
-    stored source file the user ever produced — an incomplete erasure. Removing
-    them explicitly first yields the ids needed to publish ``activity.deleted``,
-    so the cleanup subscribers delete the blobs too.
+    stored source file the user ever produced.
 
     Args:
         user_id: The owning user id.
@@ -426,16 +395,4 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activities_crud.delete_all_activities_for_user(user_id, db, commit=False)
-    activity_event_publishers.publish_activities_deleted(
-        deleted_ids,
-        user_id,
-        db,
-        db.commit,
-        source="api:delete_user",
-    )
-    logger.info(
-        "Deleted all activities for user",
-        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
-    )
-    return len(deleted_ids)
+    return activity_service.delete_all_activities_for_user(user_id, db, source="api:delete_user")

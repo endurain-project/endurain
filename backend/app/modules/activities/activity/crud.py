@@ -40,18 +40,18 @@ import modules.activities.activity.serializers as activities_serializers
 
 logger = core_logger.get_logger(__name__)
 
-# Mapping from frontend sort keys to model columns
-SORT_MAP = {
-    "type": activities_models.Activity.activity_type,
-    "name": activities_models.Activity.name,
-    "start_time": activities_models.Activity.start_time,
-    "duration": activities_models.Activity.total_timer_time,
-    "distance": activities_models.Activity.distance,
-    "calories": activities_models.Activity.calories,
-    "elevation": activities_models.Activity.elevation_gain,
-    "pace": activities_models.Activity.pace,
-    "average_hr": activities_models.Activity.average_hr,
+# Frontend sort keys resolved to their model columns. Derived from the single
+# vocabulary in ``constants`` rather than restated, so a key the transport layer
+# accepts always has an ordering here.
+SORT_MAP: dict[str, tuple[Any, ...]] = {
+    key: tuple(getattr(activities_models.Activity, name) for name in column_names)
+    for key, column_names in activities_constants.ACTIVITY_SORT_FIELDS.items()
 }
+
+_DEFAULT_SORT_COLUMNS = SORT_MAP[activities_constants.DEFAULT_ACTIVITY_SORT_FIELD]
+
+# Sorts below every real value, so NULLs land last.
+_NULL_SORT_SENTINEL = -999999
 
 # Columns that need COALESCE-with-sentinel so NULLs sort last
 _NUMERIC_SORT_COLUMNS = {
@@ -62,6 +62,38 @@ _NUMERIC_SORT_COLUMNS = {
     activities_models.Activity.pace,
     activities_models.Activity.average_hr,
 }
+
+# Text columns coalesced to "" so an unset place name orders with the empty ones
+# instead of wherever the backend happens to put NULL.
+_TEXT_SORT_COLUMNS = {
+    activities_models.Activity.country,
+    activities_models.Activity.city,
+    activities_models.Activity.town,
+}
+
+
+def _sort_order_by(sort_by: str | None, sort_order: str | None) -> list[Any]:
+    """Build the ORDER BY clauses for an activity list request.
+
+    Args:
+        sort_by: The requested sort key, already validated by the transport layer.
+        sort_order: ``asc`` or ``desc``; anything else orders descending.
+
+    Returns:
+        One clause per column the key orders by, highest precedence first.
+    """
+    ascending = bool(sort_order and sort_order.lower() == "asc")
+    columns = SORT_MAP.get(sort_by or "", _DEFAULT_SORT_COLUMNS)
+    clauses = []
+    for column in columns:
+        if column in _NUMERIC_SORT_COLUMNS:
+            ordered = func.coalesce(column, _NULL_SORT_SENTINEL)
+        elif column in _TEXT_SORT_COLUMNS:
+            ordered = func.coalesce(column, "")
+        else:
+            ordered = column
+        clauses.append(ordered.asc() if ascending else ordered.desc())
+    return clauses
 
 
 def _is_not_live_strava_api_activity():
@@ -386,23 +418,7 @@ def get_user_activities_with_pagination(
     if name_search:
         stmt = stmt.where(activities_query.name_search_condition(name_search))
 
-    sort_ascending = bool(sort_order and sort_order.lower() == "asc")
-
-    if sort_by == "location":
-        location_cols = [
-            func.coalesce(activities_models.Activity.country, ""),
-            func.coalesce(activities_models.Activity.city, ""),
-            func.coalesce(activities_models.Activity.town, ""),
-        ]
-        order_cols = [col.asc() if sort_ascending else col.desc() for col in location_cols]
-        stmt = stmt.order_by(*order_cols)
-    else:
-        sort_column = SORT_MAP.get(sort_by or "", activities_models.Activity.start_time)
-        if sort_column in _NUMERIC_SORT_COLUMNS:
-            ordered = func.coalesce(sort_column, -999999)
-            stmt = stmt.order_by(ordered.asc() if sort_ascending else ordered.desc())
-        else:
-            stmt = stmt.order_by(sort_column.asc() if sort_ascending else sort_column.desc())
+    stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order))
 
     stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
 

@@ -200,6 +200,7 @@ type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.activities.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.activity.query
     modules.activities.activity.serializers
     modules.activities.*.utils
@@ -287,6 +288,7 @@ source_modules =
 forbidden_modules =
     modules.activities.*.crud
     modules.activities.*.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.activity.query
 
 # Data migrations are version-pinned orchestration, but that does not grant them
@@ -442,8 +444,10 @@ allow_indirect_imports = True
 source_modules =
     modules.activities.*.router
     modules.activities.*.public_router
+    modules.activities.activity.summary_router
 forbidden_modules =
     modules.activities.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.*.models
     modules.activities.*.query
     modules.activities.*.event_publishers
@@ -490,6 +494,7 @@ type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.activities.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.activity.query
     modules.activities.activity.serializers
     modules.followers.crud
@@ -540,6 +545,29 @@ source_modules =
 forbidden_modules =
     modules.activities.activity.child_access
     modules.activities.activity.crud
+
+# An ``integration_service`` is a face, not a layer. It presents a narrow, curated
+# set of its own module's operations to callers outside it, and reads its own
+# module freely to do so — but the *arrangement* of a write (stage the rows,
+# publish the fact, own the commit) belongs to ``service``, which is where the
+# module's transaction boundaries live.
+#
+# The root activity surface was doing it both ways: ``bulk_set_activities_gear``,
+# ``delete_all_strava_activities`` and ``delete_all_activities_for_user`` each
+# called CRUD with ``commit=False``, published their own events and handed
+# ``db.commit`` to the publisher — so the module had two write-orchestration
+# layers, and which one a write went through depended only on whether it was
+# reached from a route or from another module. Forbidding the event publishers
+# here is what makes "call your own service" the only remaining option: a surface
+# that cannot publish cannot own the commit that has to be atomic with it.
+[importlinter:contract:activities-surfaces-delegate-writes]
+name = Activity integration surfaces delegate writes to the service — they do not publish events
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.*.integration_service
+forbidden_modules =
+    modules.activities.*.event_publishers
 
 # The counterpart to consumer-activities-boundary, pointing the other way: the
 # activities module consumes users through the curated users integration service

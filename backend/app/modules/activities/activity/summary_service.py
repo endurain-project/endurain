@@ -1,6 +1,6 @@
 """Application-layer orchestration for activity summaries.
 
-Sits between the thin route and :mod:`summary_query`, matching the layering the rest of
+Sits between the thin route and :mod:`summary_crud`, matching the layering the rest of
 the activities module uses: the route validates and delegates, this module
 resolves the anchor day, picks the bucket strategy, and returns a schema. It
 raises the transport-agnostic domain errors in :mod:`core.exceptions` rather
@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
-import modules.activities.activity.summary_query as summary_query
+import modules.activities.activity.summary_crud as summary_crud
 import modules.activities.activity.summary_schema as summary_schema
 import modules.users.users.integration_service as users_integration_service
 
@@ -122,7 +122,7 @@ def build_summary(
     )
 
     if period == "week":
-        return summary_query.get_weekly_summary(
+        return summary_crud.get_weekly_summary(
             db=db,
             user_id=user_id,
             target_date=today,
@@ -130,7 +130,7 @@ def build_summary(
         )
 
     if period == "month":
-        return summary_query.get_monthly_summary(
+        return summary_crud.get_monthly_summary(
             db=db,
             user_id=user_id,
             target_date=today.replace(day=1),
@@ -138,14 +138,14 @@ def build_summary(
         )
 
     if period == "year":
-        return summary_query.get_yearly_summary(
+        return summary_crud.get_yearly_summary(
             db=db,
             user_id=user_id,
             year=_resolve_year(target_year, today),
             activity_type=activity_type,
         )
 
-    return summary_query.get_lifetime_summary(
+    return summary_crud.get_lifetime_summary(
         db=db,
         user_id=user_id,
         activity_type=activity_type,

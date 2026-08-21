@@ -4,6 +4,11 @@ Every bucket (day / week / month / year) is derived from the activity's **local*
 wall clock rather than the UTC value stored in the column — see
 :mod:`modules.activities.activity.query`, which owns that rule for every query
 over the activities table.
+
+Named ``summary_crud`` rather than ``summary_query``: it opens a ``Session`` and
+executes, which is the ``crud`` role, and the enforcement rules match on the
+role. Under the old name it was the one persistence module in the tree that no
+``modules.activities.*.crud`` contract and no logging-layer rule could see.
 """
 
 from datetime import date, timedelta

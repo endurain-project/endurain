@@ -265,3 +265,61 @@ class TestEditPublishesUpdated:
 
         db.rollback.assert_called_once()
         mock_publishers.publish_activity_updated.assert_not_called()
+
+
+class TestCrossModuleWrites:
+    """The writes other modules reach through ``integration_service``.
+
+    They are arranged here, in the module's own application layer, rather than on
+    the surface that publishes them: a write reached from another module must be
+    staged, published and committed exactly as one reached from a route.
+    """
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_bulk_set_activities_gear_publishes_one_event_per_row(self, mock_crud, mock_publishers):
+        """A provider re-gearing activities is a change consumers must be able to see."""
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.bulk_set_activities_gear_id.return_value = [7, 8]
+
+        updated = service.bulk_set_activities_gear(3, {7: 10, 8: 10}, db, source="api:test")
+
+        assert updated == 2
+        # Staged (commit=False) so the updates and their events are atomic.
+        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {7: 10, 8: 10}, db, commit=False)
+        mock_publishers.publish_activities_updated.assert_called_once_with(
+            [7, 8], 3, ["gear_id"], db, db.commit, source="api:test"
+        )
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_delete_all_strava_activities_publishes_cleanup_events(self, mock_crud, mock_publishers):
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
+
+        deleted = service.delete_all_strava_activities(3, db, source="api:test")
+
+        assert deleted == 5
+        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, commit=False)
+        mock_publishers.publish_activities_deleted.assert_called_once_with(
+            [11, 12, 13, 14, 15], 3, db, db.commit, source="api:test"
+        )
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_delete_all_activities_for_user_publishes_cleanup_events(self, mock_crud, mock_publishers):
+        """Account deletion must emit activity.deleted so stored blobs are reclaimed."""
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.delete_all_activities_for_user.return_value = [1, 2]
+
+        deleted = service.delete_all_activities_for_user(7, db, source="api:test")
+
+        assert deleted == 2
+        mock_crud.delete_all_activities_for_user.assert_called_once_with(7, db, commit=False)
+        mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, db.commit, source="api:test")

@@ -37,6 +37,23 @@ wildcard matched — so the one CRUD module in the tree that routers were free t
 import was the one nobody had noticed was named wrong. Renaming it to `crud.py`
 brought it under four existing contracts without writing a new one.
 
+A stem may **qualify** a role, and it inherits every rule that role carries:
+`summary_crud.py` is a `crud`, `summary_router.py` is a `router`. This is not a
+convenience — it is the same exemption one level down. The activity summaries
+feature shipped its aggregations in `summary_query.py`, a file that opened a
+`Session` and executed while matching neither the `crud` rules (wrong stem) nor
+the `query` ones (wrong role), and `summary_router.py` had to be hand-added to a
+public-names list to be importable at all. A package that genuinely needs a
+second persistence module names it `<thing>_crud.py`; it does not invent a new
+word. The vocabulary lives once in `tests/_helpers/module_roles.py`, because two
+copies of "what does this filename mean?" is the drift the rule exists to stop.
+
+Because the role is what the rules see, the role has to be the truth:
+`tests/architecture/test_module_boundaries.py` asserts that only a `crud`-role
+file executes statements against the session. Transaction control (`commit`,
+`flush`, `rollback`) is excluded — that belongs to the service that owns the
+boundary.
+
 | File | Layer | Responsibility |
 | --- | --- | --- |
 | `models.py` | persistence | SQLAlchemy ORM. The only place a table is declared. |
@@ -167,6 +184,19 @@ Three entries deserve the reasoning:
 - **`integration_service` may read its own module freely.** It *is* the module,
   presenting a narrow face outward.
 
+A face is not a layer, which is the one thing that entry does **not** license. A
+write has an arrangement — stage the rows, publish the fact, own the commit that
+makes those atomic — and that arrangement belongs to `service`. The root activity
+surface was doing it both ways: `bulk_set_activities_gear`,
+`delete_all_strava_activities` and `delete_all_activities_for_user` each called
+CRUD with `commit=False`, published their own events and handed over `db.commit`,
+so the module had two write-orchestration layers and which one a write went
+through depended only on whether it was reached from a route or from another
+module. The `activities-surfaces-delegate-writes` contract forbids an
+`integration_service` from importing `event_publishers`: a surface that cannot
+publish cannot own the commit that has to be atomic with the publish, which
+leaves calling its own service as the only way to arrange a write.
+
 ## Layering inside a module
 
 ```
@@ -203,6 +233,7 @@ it rather than the platform importing it. Three worked examples live in the tree
 | Ingestion needed to pull from Strava and Garmin | Providers call `activity_ingestion.integration_service.register_activity_provider`; the private registry names no provider. |
 | Bulk import needed Strava-export semantics | `BulkImportSource` is a base class; `modules.strava.bulk_import_source.StravaBulkImportSource` subclasses it. |
 | Activity ingestion/profile restore needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
+| Serializing an activity needed its thumbnail's URL | `activity` asks `contributor_registry.resolve_thumbnail_url`; `activity_thumbnail` registers the resolver at composition time. |
 
 The shape is always the same: the lower layer owns the *seam* (a registry, a base
 class, a protocol), the higher layer owns the *implementation*, and a composition
@@ -264,6 +295,14 @@ That allowlist is the debt register. Every entry names a real cross-package reac
 and why it exists. It may not be used for service, CRUD, model, query, signing,
 parser, or storage access that belongs behind an integration surface.
 
+The same file holds the rule about *direction*. Every rule above asks what one
+package may reach for in another; none of them notices when the reaching goes
+both ways, and two packages that import each other are one package pretending to
+be two. So the package-level import graph inside a module is asserted to be a
+DAG. A derived subsystem depends on the thing it derives from, never the reverse;
+when the depended-on package needs something back, it states a seam and
+composition installs the answer.
+
 ## Adding a module
 
 1. Create either `modules/<name>` or a package under a composition namespace such
@@ -303,6 +342,23 @@ activities table to decide access.
 One reach into `activity/` remains, stated rather than deferred:
 `activity_streams.crud` joins the parent for `total_timer_time` (a column, not a
 permission).
+
+### Root package depending on a child
+
+**Resolved.** `activity/serializers.py` imported
+`activity_thumbnail.integration_service` to turn a stored thumbnail key into a
+URL, while `activity_thumbnail/service.py` imported `activity.integration_service`
+to read the row it derives from. Both used the other's published surface, so
+every visibility rule was satisfied and the pair still could not be built,
+tested or lifted out separately.
+
+The root now asks `contributor_registry.resolve_thumbnail_url` and the thumbnail
+package registers the answer from `app/module_registry.py`, which leaves
+`activity` a sink in the package graph — nothing inside `modules.activities`
+imports out of it. `TestPackageIndependence` fails on any cycle, and
+`test_module_registry.py` asserts the resolver is actually installed, because a
+missing registration is not an import error: it is a null thumbnail URL on every
+activity in the API.
 
 ### Provider cycle
 

@@ -118,6 +118,35 @@ ACTIVITY_NAME_TO_ID = {name.lower(): activity_type_id for activity_type_id, name
 #: the GPX parser's were named after the wrong activities entirely.
 VIRTUAL_ACTIVITY_TYPES = frozenset({3, 7})
 
+#: Sort keys the activity list endpoints accept, in the order they appear in the
+#: UI, mapped to the activity columns each one orders by (highest precedence
+#: first). One declaration, because the transport validator and the query used to
+#: hold their own: ``dependencies.SORTABLE_FIELDS`` listed the accepted keys and
+#: ``crud.SORT_MAP`` mapped them to columns, so a key present in one and absent
+#: from the other was accepted and then silently ignored — which is what a
+#: hand-written ``location`` branch in the query existed to paper over.
+#:
+#: Column *names* rather than ORM attributes: a contract-layer constant must not
+#: import the persistence layer. ``crud`` resolves them against the model.
+ACTIVITY_SORT_FIELDS: dict[str, tuple[str, ...]] = {
+    "type": ("activity_type",),
+    "name": ("name",),
+    "location": ("country", "city", "town"),
+    "start_time": ("start_time",),
+    "duration": ("total_timer_time",),
+    "distance": ("distance",),
+    "pace": ("pace",),
+    "calories": ("calories",),
+    "elevation": ("elevation_gain",),
+    "average_hr": ("average_hr",),
+}
+
+#: The sort key applied when a request names none.
+DEFAULT_ACTIVITY_SORT_FIELD = "start_time"
+
+#: Accepted sort directions.
+ACTIVITY_SORT_ORDERS: tuple[str, ...] = ("asc", "desc")
+
 # Add specific variations found in define_activity_type
 ACTIVITY_NAME_TO_ID.update(
     {

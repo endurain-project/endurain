@@ -17,6 +17,7 @@ import modules.activities.activity_sets.integration_service as activity_sets_int
 import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_streams.scheduled_jobs as stream_jobs
 import modules.activities.activity_streams.subscriber_registry as stream_subscribers
+import modules.activities.activity_thumbnail.integration_service as thumbnail_integration
 import modules.activities.activity_thumbnail.scheduled_jobs as thumbnail_jobs
 import modules.activities.activity_thumbnail.subscriber_registry as thumbnail_subscribers
 import modules.activities.activity_workout_steps.integration_service as workout_steps_integration
@@ -142,6 +143,7 @@ def configure_activity_contributors() -> None:
     ):
         activity_contributor_registry.register_profile_activity(profile_contributor)
     activity_contributor_registry.register_profile_global(exercise_titles_integration.profile_global_contributor())
+    activity_contributor_registry.register_thumbnail_url_resolver(thumbnail_integration.thumbnail_url)
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:

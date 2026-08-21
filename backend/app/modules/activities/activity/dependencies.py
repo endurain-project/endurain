@@ -2,26 +2,13 @@ from fastapi import HTTPException, Query, status
 
 import core.dependencies as core_dependencies
 import core.logger as core_logger
-from modules.activities.activity.constants import ACTIVITY_ID_TO_NAME
-
-logger = core_logger.get_logger(__name__)
-
-# Sort fields the activity list endpoints accept, in the order they appear in the
-# UI. Declared once so the validator and its error message cannot drift.
-SORTABLE_FIELDS: tuple[str, ...] = (
-    "type",
-    "name",
-    "location",
-    "start_time",
-    "duration",
-    "distance",
-    "pace",
-    "calories",
-    "elevation",
-    "average_hr",
+from modules.activities.activity.constants import (
+    ACTIVITY_ID_TO_NAME,
+    ACTIVITY_SORT_FIELDS,
+    ACTIVITY_SORT_ORDERS,
 )
 
-SORT_ORDERS: tuple[str, ...] = ("asc", "desc")
+logger = core_logger.get_logger(__name__)
 
 
 def validate_activity_id(activity_id: int):
@@ -96,7 +83,7 @@ def validate_activity_type(activity_type: int | None = Query(None)):
 def validate_sort_by(sort_by: str | None = Query(None)):
     """
     Validates the `sort_by` query parameter to ensure it is either `None` or one of the
-    allowed sorting fields (:data:`SORTABLE_FIELDS`).
+    allowed sorting fields (:data:`~modules.activities.activity.constants.ACTIVITY_SORT_FIELDS`).
 
     Args:
         sort_by (str | None): The sorting field provided as a query parameter.
@@ -106,7 +93,7 @@ def validate_sort_by(sort_by: str | None = Query(None)):
             an HTTP 422 Unprocessable Entity exception is raised with the detail
             "Invalid sort by field".
     """
-    if sort_by is not None and sort_by not in SORTABLE_FIELDS:
+    if sort_by is not None and sort_by not in ACTIVITY_SORT_FIELDS:
         logger.debug(
             "Rejected activity list request with an unsupported sort field",
             extra=core_logger.context(sort_by=sort_by),
@@ -127,7 +114,7 @@ def validate_sort_order(sort_order: str | None = Query(None)):
     Raises:
         HTTPException: If the sort_order is not "asc", "desc", or None, an HTTP 422 Unprocessable Entity error is raised.
     """
-    if sort_order is not None and sort_order not in SORT_ORDERS:
+    if sort_order is not None and sort_order not in ACTIVITY_SORT_ORDERS:
         logger.debug(
             "Rejected activity list request with an unsupported sort order",
             extra=core_logger.context(sort_order=sort_order),

@@ -9,6 +9,8 @@ assertions are what keep the layers saying one kind of thing each.
 import pathlib
 import re
 
+from tests._helpers.module_roles import files_with_role
+
 #: Modules the logging rule has been applied to. ``activities`` and ``followers``
 #: are the template pair; every other module still predates the convention and is
 #: converted alongside its own refactor. Add a package here when you convert it —
@@ -60,8 +62,8 @@ def _log_calls(path: pathlib.Path) -> list[str]:
 
 
 def _modules_named(stem: str) -> list[pathlib.Path]:
-    """Return every converted module with the given file stem."""
-    return sorted(p for root in _CONVERTED for p in root.rglob(f"{stem}.py") if "__pycache__" not in str(p))
+    """Return every converted module whose file plays the given role."""
+    return files_with_role(_CONVERTED, stem)
 
 
 class TestLoggingRule:

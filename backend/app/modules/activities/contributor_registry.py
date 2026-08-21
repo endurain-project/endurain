@@ -6,6 +6,7 @@ _activity_ingestion: dict[str, activity_contributors.ActivityIngestionContributo
 _file_ingestion: dict[str, activity_contributors.FileIngestionContributor] = {}
 _profile_activity: dict[str, activity_contributors.ProfileActivityContributor] = {}
 _profile_global: dict[str, activity_contributors.ProfileGlobalContributor] = {}
+_thumbnail_url_resolver: activity_contributors.ThumbnailUrlResolver | None = None
 
 
 def register_activity_ingestion(contributor: activity_contributors.ActivityIngestionContributor) -> None:
@@ -60,9 +61,41 @@ def get_file_ingestion_contributor(key: str) -> activity_contributors.FileIngest
     return _file_ingestion.get(key)
 
 
+def register_thumbnail_url_resolver(resolver: activity_contributors.ThumbnailUrlResolver) -> None:
+    """Install the resolver that turns a stored thumbnail key into a servable URL."""
+    global _thumbnail_url_resolver
+    _thumbnail_url_resolver = resolver
+
+
+def resolve_thumbnail_url(key: str | None, activity_id: int) -> str | None:
+    """Return the servable URL for an activity's stored thumbnail key.
+
+    The seam that keeps the root ``activity`` package from importing
+    ``activity_thumbnail``. Serializing an activity has to turn the stored key
+    into a URL, and reaching for the thumbnail package to do it made the two
+    import each other — the thumbnail subsystem derives its work *from* the
+    activity row, so neither could be built, tested or extracted without the
+    other. The root now states the question; whichever package can answer it
+    registers itself at composition time.
+
+    Args:
+        key: The stored thumbnail key, or ``None``.
+        activity_id: The owning activity, bound into the signed URL.
+
+    Returns:
+        The servable URL, or ``None`` when there is no key or no installed
+        thumbnail subsystem to address it.
+    """
+    if _thumbnail_url_resolver is None:
+        return None
+    return _thumbnail_url_resolver(key, activity_id)
+
+
 def clear() -> None:
     """Remove every installed contributor."""
+    global _thumbnail_url_resolver
     _activity_ingestion.clear()
     _file_ingestion.clear()
     _profile_activity.clear()
     _profile_global.clear()
+    _thumbnail_url_resolver = None

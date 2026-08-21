@@ -57,64 +57,44 @@ class TestIntegrationService:
         assert result == ["a"]
         mock_crud.get_user_activities_by_user_id_and_garminconnect_gear_set.assert_called_once_with(3, db)
 
-    @patch("modules.activities.activity.integration_service.activity_event_publishers")
-    @patch("modules.activities.activity.integration_service.activities_crud")
-    def test_bulk_set_activities_gear_delegates(self, mock_crud, mock_publishers):
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_bulk_set_activities_gear_delegates(self, mock_service):
+        """The surface names the caller; the service arranges the write."""
         from modules.activities.activity import integration_service
 
         db = MagicMock()
         assignments = {1: 10, 2: None}
-        mock_crud.bulk_set_activities_gear_id.return_value = [1, 2]
+        mock_service.bulk_set_activities_gear.return_value = 2
 
         result = integration_service.bulk_set_activities_gear(3, assignments, db)
 
         assert result == 2
-        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, assignments, db, commit=False)
-
-    @patch("modules.activities.activity.integration_service.activity_event_publishers")
-    @patch("modules.activities.activity.integration_service.activities_crud")
-    def test_bulk_set_activities_gear_publishes_one_event_per_row(self, mock_crud, mock_publishers):
-        """A provider re-gearing activities is a change consumers must be able to see."""
-        from modules.activities.activity import integration_service
-
-        db = MagicMock()
-        mock_crud.bulk_set_activities_gear_id.return_value = [7, 8]
-
-        integration_service.bulk_set_activities_gear(3, {7: 10, 8: 10}, db)
-
-        mock_publishers.publish_activities_updated.assert_called_once_with(
-            [7, 8], 3, ["gear_id"], db, db.commit, source="api:bulk_set_activities_gear"
+        mock_service.bulk_set_activities_gear.assert_called_once_with(
+            3, assignments, db, source="api:bulk_set_activities_gear"
         )
 
-    @patch("modules.activities.activity.integration_service.activities_crud")
-    def test_delete_all_strava_activities_delegates(self, mock_crud):
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_delete_all_strava_activities_delegates(self, mock_service):
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
+        mock_service.delete_all_strava_activities.return_value = 5
 
-        with patch("modules.activities.activity.integration_service.activity_event_publishers") as mock_pub:
-            result = integration_service.delete_all_strava_activities(3, db)
+        result = integration_service.delete_all_strava_activities(3, db)
 
         assert result == 5
-        # Staged (commit=False) so the deletes and their cleanup events are atomic.
-        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, commit=False)
-        mock_pub.publish_activities_deleted.assert_called_once()
-        assert mock_pub.publish_activities_deleted.call_args.args[0] == [11, 12, 13, 14, 15]
+        mock_service.delete_all_strava_activities.assert_called_once_with(
+            3, db, source="api:delete_all_strava_activities"
+        )
 
-    @patch("modules.activities.activity.integration_service.activities_crud")
-    def test_delete_all_activities_for_user_publishes_cleanup_events(self, mock_crud):
-        """Account deletion must emit activity.deleted so stored blobs are reclaimed."""
+    @patch("modules.activities.activity.integration_service.activity_service")
+    def test_delete_all_activities_for_user_delegates(self, mock_service):
         from modules.activities.activity import integration_service
 
         db = MagicMock()
-        mock_crud.delete_all_activities_for_user.return_value = [1, 2]
+        mock_service.delete_all_activities_for_user.return_value = 2
 
-        with patch("modules.activities.activity.integration_service.activity_event_publishers") as mock_pub:
-            result = integration_service.delete_all_activities_for_user(7, db)
+        result = integration_service.delete_all_activities_for_user(7, db)
 
         assert result == 2
-        mock_crud.delete_all_activities_for_user.assert_called_once_with(7, db, commit=False)
-        mock_pub.publish_activities_deleted.assert_called_once()
-        assert mock_pub.publish_activities_deleted.call_args.args[0] == [1, 2]
-        assert mock_pub.publish_activities_deleted.call_args.args[1] == 7
+        mock_service.delete_all_activities_for_user.assert_called_once_with(7, db, source="api:delete_user")

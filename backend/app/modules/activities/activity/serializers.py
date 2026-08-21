@@ -21,7 +21,7 @@ import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.models as activities_models
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_thumbnail.integration_service as activity_thumbnail_signing
+import modules.activities.contributor_registry as activity_contributor_registry
 
 
 def serialize_activity(
@@ -42,9 +42,14 @@ def serialize_activity(
 
     # The DB stores the thumbnail's storage key; resolve it to a servable URL
     # (a signed, token-gated app route locally, or a presigned URL for object
-    # storage). Visibility masking below strips this for non-owners of a hidden
-    # map, so only permitted viewers ever receive the signed token.
-    schema.map_thumbnail_path = activity_thumbnail_signing.thumbnail_url(activity.map_thumbnail_path, activity.id)
+    # storage). Asked of the registry rather than the thumbnail package, which
+    # derives its work from this row and so may not be imported from here.
+    # Visibility masking below strips this for non-owners of a hidden map, so
+    # only permitted viewers ever receive the signed token.
+    schema.map_thumbnail_path = activity_contributor_registry.resolve_thumbnail_url(
+        activity.map_thumbnail_path,
+        activity.id,
+    )
 
     return schema
 
