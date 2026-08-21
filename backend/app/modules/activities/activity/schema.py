@@ -103,7 +103,7 @@ class ActivityBase(BaseModel):
         total_cycles: Total number of cycles (e.g., pedal strokes) recorded.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     user_id: int | None = Field(default=None, ge=1)
     description: str | None = Field(default=None, max_length=2500)
@@ -205,7 +205,7 @@ class ActivitySportStats(BaseModel):
         calories: Total calories burned.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     distance: float = Field(default=0.0, ge=0)
     time: float = Field(default=0.0, ge=0)
@@ -234,7 +234,7 @@ class ActivityStats(BaseModel):
         inline_skating: Stats for inline skating activities.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     run: ActivitySportStats = Field(default_factory=ActivitySportStats)
     bike: ActivitySportStats = Field(default_factory=ActivitySportStats)

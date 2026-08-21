@@ -25,7 +25,9 @@ import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
+import modules.activities.activity_ingestion.crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.pipeline as pipeline
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.sources as ingestion_sources
 
 logger = core_logger.get_logger(__name__)
@@ -151,20 +153,25 @@ def store_activity_file(
 
 def process_all_files_sync(
     user_id: int,
-    file_paths: list[str],
+    queued_files: list[tuple[str, str]],
     import_initiated_time: str,
 ) -> None:
     """Process all bulk-import files sequentially in a single thread.
 
+    The fallback executor used when durable jobs are disabled. It moves the same
+    ``activity_ingestion_jobs`` rows the durable handler does, so the handles
+    ``POST /activities/bulk-import`` returned report progress identically
+    whichever executor ran the import.
+
     Args:
         user_id: User ID.
-        file_paths: List of file paths to process.
+        queued_files: ``(ingestion job id, file path)`` per file to process.
         import_initiated_time: ISO timestamp of when the bulk import was initiated.
     """
     db = next(core_database.get_db())
     try:
-        total_files = len(file_paths)
-        for idx, file_path in enumerate(file_paths, 1):
+        total_files = len(queued_files)
+        for idx, (job_id, file_path) in enumerate(queued_files, 1):
             logger.info(
                 "Processing bulk-import file",
                 extra=core_logger.context(
@@ -175,12 +182,24 @@ def process_all_files_sync(
                     user_id=user_id,
                 ),
             )
-            store_activity_file(
+            ingestion_jobs_crud.mark_processing(job_id, db)
+            activities = store_activity_file(
                 user_id,
                 file_path,
                 db,
                 source=ingestion_sources.BulkImportSource(import_initiated_time=import_initiated_time, user_id=user_id),
             )
+            # ``store_activity_file`` swallows so the batch continues, so ``None``
+            # is the only signal that this file failed. Nothing retries here, so
+            # the state recorded is terminal either way.
+            if activities is None:
+                ingestion_jobs_crud.mark_failed(
+                    job_id, activity_ingestion_schema.IngestionJobErrorCode.PROCESSING_FAILED, db
+                )
+            else:
+                ingestion_jobs_crud.mark_completed(
+                    job_id, [activity.id for activity in activities if activity.id is not None], db
+                )
 
         logger.info(
             "Bulk import completed",

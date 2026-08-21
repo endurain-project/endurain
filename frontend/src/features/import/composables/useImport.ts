@@ -7,10 +7,13 @@ import {
   importStravaBikes,
   importStravaShoes,
 } from '@/features/import/services/import'
+import type { ActivityIngestionJob } from '@/features/upload/types'
 
 /** Bulk-imports activity files from the server's bulk-import folder (background). */
 export function useBulkImportMutation() {
-  return useMutation<void, Error, void>({ mutationFn: () => bulkImportActivities() })
+  return useMutation<ActivityIngestionJob[], Error, void>({
+    mutationFn: () => bulkImportActivities(),
+  })
 }
 
 /** Queues activities from a Strava bulk export for import (background). */

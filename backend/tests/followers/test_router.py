@@ -186,7 +186,7 @@ class TestListFollowRequests:
         assert mock_get.call_args.args[0] == 1
 
 
-class TestDecideFollowRequest:
+class TestAcceptFollowRequest:
     @patch("modules.followers.service.accept_follow_request")
     def test_accept(self, mock_accept, mock_db):
         import modules.followers.schema as followers_schema

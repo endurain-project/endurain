@@ -49,7 +49,8 @@ interface ChildPage<T> {
 }
 
 /**
- * Reads every page of an activity child collection (laps, sets, workout steps).
+ * Reads every page of an activity child collection (laps, sets, workout steps,
+ * streams).
  *
  * These reads are paginated server-side so a single request cannot ask for an
  * unbounded number of rows. The views want the whole collection, so this walks
@@ -621,11 +622,8 @@ export async function fetchActivityStreams(
     `/activities/${id}/streams`,
     `/public/activities/${id}/streams`,
   )
-  const dtos = await apiFetch<ActivityStreamDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityStream)
+  const dtos = await fetchAllChildPages<ActivityStreamDto>(path, context)
+  return dtos.map(mapActivityStream)
 }
 
 /**

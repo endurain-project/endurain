@@ -21,24 +21,29 @@ def _build_app(mock_db):
 class TestReadPublicActivityStreams:
     @patch("modules.activities.activity_streams.public_router.activity_streams_service.list_public_activity_streams")
     def test_all_success(self, mock_get, mock_db):
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
+        from modules.activities.activity_streams.schema import ActivityStreamsPage, ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])]
+        stream = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
+        mock_get.return_value = ActivityStreamsPage.build([stream], 1, 1, 200)
 
         response = client.get("/public/activities/1/streams")
         assert response.status_code == 200
+        assert response.json()["total"] == 1
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_service.list_public_activity_streams")
     def test_all_not_found(self, mock_get, mock_db):
+        from modules.activities.activity_streams.schema import ActivityStreamsPage
+
         client = TestClient(_build_app(mock_db))
-        # The "all" endpoint returns a list; not-found is an empty list, never None
-        # (the response_model is list[...], so None would fail response validation).
-        mock_get.return_value = []
+        # Not-found is an empty page, never None: the refusal and the empty
+        # collection answer alike so the endpoint cannot be used to probe which
+        # activities exist.
+        mock_get.return_value = ActivityStreamsPage.build([], 0, 1, 200)
 
         response = client.get("/public/activities/999/streams")
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
     def test_by_type_success(self, mock_get, mock_db):

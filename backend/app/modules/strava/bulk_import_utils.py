@@ -195,6 +195,7 @@ def queue_bulk_export_activities_for_import(
     async def _scan_and_validate() -> tuple[list[str], int]:
         importable: list[str] = []
         skipped = 0
+        base_dir = os.path.realpath(strava_activities_import_dir)
         for fname in filelist:
             fpath = os.path.join(strava_activities_import_dir, fname)
 
@@ -205,6 +206,19 @@ def queue_bulk_export_activities_for_import(
                     f"Strava bulk import: Skipping file {fpath} - "
                     "due to not having a supported file extension. "
                     f"Supported extensions are: {supported_file_formats}.",
+                    extra=core_logger.context(console=True),
+                )
+                skipped += 1
+                continue
+
+            # Everything downstream opens this path, so a symlink dropped in the
+            # export directory would import whatever it points at, anywhere on
+            # the server's filesystem. Only entries that resolve to themselves
+            # inside the import directory are considered — the same rule the
+            # generic bulk import applies.
+            if os.path.realpath(fpath) != os.path.join(base_dir, fname):
+                logger.warning(
+                    f"Strava bulk import: Skipping file {fpath} - it does not resolve inside the import directory.",
                     extra=core_logger.context(console=True),
                 )
                 skipped += 1

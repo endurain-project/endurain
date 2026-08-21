@@ -121,11 +121,12 @@ class TestBulkImportScoping:
             patch.object(bulk_import_service, "_warn_about_unowned_files"),
             patch.object(bulk_import_service.core_config.settings, "JOBS_ENABLED", True),
             patch.object(bulk_import_service.core_file_uploads, "validate_local_file_sync"),
+            patch.object(bulk_import_service.ingestion_jobs_crud, "create_ingestion_job"),
             patch.object(bulk_import_service.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
         ):
             bulk_import_service.start_bulk_import(3, db)
 
-        queued = publish.call_args.args[0]
+        queued = [path for _job_id, path in publish.call_args.args[0]]
         assert queued == [os.path.join(str(user_dir), "ride.gpx")]
 
 

@@ -1,14 +1,22 @@
 """Tests for the activity streams service layer.
 
 Streams mask per stream *type* rather than by a single parent flag, so unlike the
-sibling child resources this service resolves the parent activity and filters.
+sibling child resources this service resolves the parent activity and filters,
+then cuts the masked result into the shared page envelope.
 """
 
 from unittest.mock import MagicMock, patch
 
+import modules.activities.activity_streams.schema as activity_streams_schema
+
 
 def _stream(stream_type: int):
-    return MagicMock(stream_type=stream_type)
+    return activity_streams_schema.ActivityStreamsRead(
+        id=stream_type,
+        activity_id=5,
+        stream_type=stream_type,
+        stream_waypoints=[],
+    )
 
 
 class TestListActivityStreams:
@@ -21,7 +29,22 @@ class TestListActivityStreams:
         mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1)
         mock_crud.get_activity_streams.return_value = streams
 
-        assert service.list_activity_streams(5, 1, MagicMock()) == streams
+        page = service.list_activity_streams(5, 1, MagicMock())
+
+        assert (page.items, page.total) == (streams, 2)
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_child_access")
+    def test_the_total_counts_only_what_the_page_could_hold(self, mock_gate, mock_crud):
+        """The window is cut in Python, after the mask, so the total matches it."""
+        from modules.activities.activity_streams import service
+
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1)
+        mock_crud.get_activity_streams.return_value = [_stream(1), _stream(2), _stream(3)]
+
+        page = service.list_activity_streams(5, 1, MagicMock(), page_number=2, num_records=2)
+
+        assert ([s.stream_type for s in page.items], page.total, page.next) == ([3], 3, None)
 
     @patch("modules.activities.activity_streams.service.activity_streams_serializers")
     @patch("modules.activities.activity_streams.service.activity_streams_crud")
@@ -34,7 +57,9 @@ class TestListActivityStreams:
         mock_crud.get_activity_streams.return_value = [_stream(1)]
         mock_serializers.filter_visible_streams.return_value = []
 
-        assert service.list_activity_streams(5, 1, MagicMock()) == []
+        page = service.list_activity_streams(5, 1, MagicMock())
+
+        assert (page.items, page.total) == ([], 0)
         mock_serializers.filter_visible_streams.assert_called_once_with(
             [mock_crud.get_activity_streams.return_value[0]], activity
         )
@@ -46,7 +71,9 @@ class TestListActivityStreams:
 
         mock_gate.resolve_readable_parent.return_value = None
 
-        assert service.list_activity_streams(5, 1, MagicMock()) == []
+        page = service.list_activity_streams(5, 1, MagicMock())
+
+        assert (page.items, page.total) == ([], 0)
         mock_crud.get_activity_streams.assert_not_called()
 
 
@@ -100,7 +127,9 @@ class TestPublicStreams:
         mock_crud.get_activity_streams.return_value = [_stream(1)]
         mock_serializers.filter_visible_streams.return_value = []
 
-        assert service.list_public_activity_streams(5, MagicMock()) == []
+        page = service.list_public_activity_streams(5, MagicMock())
+
+        assert (page.items, page.total) == ([], 0)
         mock_serializers.filter_visible_streams.assert_called_once()
 
     @patch("modules.activities.activity_streams.service.activity_streams_crud")
@@ -110,7 +139,9 @@ class TestPublicStreams:
 
         mock_gate.resolve_public_parent.return_value = None
 
-        assert service.list_public_activity_streams(5, MagicMock()) == []
+        page = service.list_public_activity_streams(5, MagicMock())
+
+        assert (page.items, page.total) == ([], 0)
         assert service.get_public_activity_stream(5, 1, MagicMock()) is None
         mock_crud.get_activity_streams.assert_not_called()
         mock_crud.get_activity_stream_by_type.assert_not_called()

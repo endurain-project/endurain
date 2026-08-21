@@ -40,7 +40,7 @@ dependencies = [
     "itsdangerous>=2.2.0",
     "slowapi>=0.1.9",
     "safeuploads[fastapi]>=1.0.0",
-    "bleach>=6.3.0",
+    "nh3>=0.3.1",
     "aiofiles>=25.1.0",
     "staticmap>=0.5.7",
 ]
@@ -58,7 +58,6 @@ distributed = [
 typecheck = [
     "mypy>=1.20.2",
     "types-requests",
-    "types-bleach",
     "types-psutil",
     "types-qrcode",
     "types-aiofiles",
@@ -207,8 +206,6 @@ ignore = [
 "app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
 "app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["S105"]  # false positive on env var value
-"app/profile/mfa_store.py" = ["S105"]  # false positive on Redis key prefix
-"app/profile/**/*.py" = ["A005"]  # tracked in https://codeberg.org/endurain-project/endurain/issues/677
 "app/infra/profile.py" = ["A005"]  # 'profile' deliberately shadows a stdlib module name
 
 [tool.ruff.format]

@@ -1,5 +1,6 @@
 """Domain event channel names owned by the activity-ingestion sub-domain."""
 
+from collections.abc import Callable
 from typing import ClassVar
 
 from pydantic import ConfigDict
@@ -15,6 +16,20 @@ from infra.event_versioning import VersionedPayload
 ACTIVITY_BULK_IMPORT_FILE = "activity.bulk_import_file"
 
 
+def _bulk_import_v2_to_v3(payload: dict) -> dict:
+    """Carry a pre-handle bulk-import payload forward.
+
+    Args:
+        payload: The event payload as written by a build without job handles.
+
+    Returns:
+        The payload with an explicit "this file has no job row" marker, so the
+        subscriber skips the status transitions instead of reading ``job_id`` as
+        a silent default.
+    """
+    return {**payload, "job_id": None}
+
+
 class BulkImportFilePayload(VersionedPayload):
     """Validated payload for the ``activity.bulk_import_file`` event.
 
@@ -23,6 +38,9 @@ class BulkImportFilePayload(VersionedPayload):
     silently marking the job complete.
 
     Attributes:
+        job_id: The ``activity_ingestion_jobs`` row this file reports through, so
+            the caller can poll one handle per dropped file. ``None`` only for a
+            v2 event staged before the handles existed.
         storage_key: Key of the staged file in the bulk-import storage area.
             A key rather than a path so any worker in the fleet can fetch the
             bytes, not only the node the file was dropped on.
@@ -35,8 +53,10 @@ class BulkImportFilePayload(VersionedPayload):
 
     model_config = ConfigDict(extra="ignore")
 
-    SCHEMA_VERSION: ClassVar[int] = 2
+    SCHEMA_VERSION: ClassVar[int] = 3
+    UPGRADERS: ClassVar[dict[int, Callable[[dict], dict]]] = {2: _bulk_import_v2_to_v3}
 
+    job_id: str | None
     storage_key: str
     filename: str
     user_id: int

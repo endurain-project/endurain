@@ -90,6 +90,14 @@ limiter: Limiter = Limiter(
     storage_uri=core_config.settings.resolved_state_uri,
 )
 
+# slowapi's ``headers_enabled`` is deliberately left off. It injects the
+# ``X-RateLimit-*`` headers on *successful* responses too, and to do that the
+# decorator requires every rate-limited endpoint to either return a ``Response``
+# or declare a ``response: Response`` parameter — it raises on any handler that
+# returns a plain model, which is most of them. The refusal is where a client
+# actually needs the numbers, and :func:`rate_limit_exceeded_handler` sets them
+# there without that constraint.
+
 
 def rate_limit_exceeded_handler(
     request: Request,
@@ -98,9 +106,8 @@ def rate_limit_exceeded_handler(
     """
     Return a JSON 429 response when a limit is breached.
 
-    Injects standard ``X-RateLimit-*`` and
-    ``Retry-After`` headers so clients can back off
-    gracefully.
+    Sets ``Retry-After`` and the ``X-RateLimit-*`` headers so clients can back
+    off gracefully rather than guessing an interval.
 
     Args:
         request: The request that exceeded the limit.
@@ -119,16 +126,16 @@ def rate_limit_exceeded_handler(
         title="Too Many Requests",
         detail="Too many requests. Please try again later.",
     )
-    # Inject X-RateLimit-* and Retry-After headers.
-    # request.state.view_rate_limit is populated by
-    # SlowAPIMiddleware before this handler is called.
+    # Read off the breached limit rather than slowapi's ``_inject_headers``,
+    # which is inert unless ``headers_enabled`` is set on the limiter — see the
+    # note there for why it cannot be.
     try:
-        response = request.app.state.limiter._inject_headers(
-            response,
-            request.state.view_rate_limit,
-        )
+        breached = exc.limit.limit
+        response.headers["Retry-After"] = str(breached.get_expiry())
+        response.headers["X-RateLimit-Limit"] = str(breached.amount)
+        response.headers["X-RateLimit-Remaining"] = "0"
     except Exception as header_err:
-        # Headers are informational — never let injection
-        # errors break the 429 response itself.
-        logger.debug(f"Failed to inject rate-limit headers: {header_err}")
+        # Headers are informational — never let a missing attribute break the
+        # 429 response itself.
+        logger.debug(f"Failed to set rate-limit headers: {header_err}")
     return response

@@ -140,6 +140,31 @@ def test_bulk_media_import_skips_a_missing_file(tmp_path, monkeypatch):
     store_media.assert_not_called()
 
 
+def test_activity_scan_skips_a_symlink_out_of_the_import_directory(tmp_path, monkeypatch):
+    """Following it would import an arbitrary file from the server's disk."""
+    validate = Mock()
+    activities_dir = tmp_path / "strava_import" / "activities"
+    activities_dir.mkdir(parents=True)
+    (tmp_path / "media").mkdir()
+    outside = tmp_path / "secrets.gpx"
+    outside.write_bytes(b"<gpx/>")
+    (activities_dir / "ride.gpx").symlink_to(outside)
+
+    monkeypatch.setattr(
+        bulk_import_utils.core_config, "STRAVA_BULK_IMPORT_ACTIVITIES_DIR", str(activities_dir), raising=False
+    )
+    monkeypatch.setattr(
+        bulk_import_utils.core_config, "STRAVA_BULK_IMPORT_MEDIA_DIR", str(tmp_path / "media"), raising=False
+    )
+    monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file", validate)
+
+    queued = bulk_import_utils.queue_bulk_export_activities_for_import(7, Mock(), Mock(), {}, {}, "2026-08-21T00:00:00")
+
+    assert queued == 0
+    # Rejected before anything opens it.
+    validate.assert_not_called()
+
+
 def test_gear_dictionary_normal(monkeypatch):
     """Smoosh key is built correctly with clean values."""
     mock_user = Mock(id=42)

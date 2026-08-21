@@ -31,11 +31,14 @@ def _build_app(mock_db):
 class TestReadActivityStreams:
     @patch("modules.activities.activity_streams.router.activity_streams_service.list_activity_streams")
     def test_read_streams_success(self, mock_get, mock_db):
+        from modules.activities.activity_streams.schema import ActivityStreamsPage
+
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityStreamsPage.build([], 0, 1, 200)
 
         response = client.get("/activities/1/streams", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        assert response.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
     @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
     def test_read_stream_by_type_success(self, mock_get, mock_db):

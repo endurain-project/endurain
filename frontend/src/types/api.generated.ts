@@ -85,13 +85,20 @@ export interface paths {
          *     Returns ``202``: the files are validated and queued in the request, but
          *     parsing them happens on a background worker.
          *
+         *     One job handle per queued file, so the caller polls
+         *     ``GET /activities/ingestion-jobs/{job_id}`` for each exactly as it does for a
+         *     single upload. Per file rather than per batch because each file is retried,
+         *     dead-lettered and completed independently — there is no shared outcome a
+         *     batch-level handle could report. An empty list means nothing importable was
+         *     found in the directory.
+         *
          *     Args:
          *         token_user_id: Authenticated user ID.
          *         _check_scopes: Scope validation dependency.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         A message describing how many files were queued.
+         *         The accepted jobs, one per queued file, in the pending state.
          *
          *     Raises:
          *         ProcessingError: If the directory cannot be read or the jobs cannot be
@@ -621,17 +628,19 @@ export interface paths {
         };
         /**
          * Read Activities Streams For Activity All
-         * @description Get all streams for an activity.
+         * @description Return one page of the given activity's streams, with the matching total.
          *
          *     Args:
          *         activity_id: The activity identifier.
-         *         validate_id: Activity ID validator dep.
          *         _check_scopes: Scope authorization dep.
          *         token_user_id: Authenticated user ID.
          *         db: Database session.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
-         *         List of activity streams or None.
+         *         The page envelope. Empty when the activity is hidden from the caller or
+         *         has no visible streams.
          */
         get: operations["read_activities_streams_for_activity_all_api_v1_activities__activity_id__streams_get"];
         put?: never;
@@ -1017,13 +1026,18 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Decide Follow Request
+         * Accept Follow Request
          * @description Accept the pending follow request from ``requester_user_id``.
+         *
+         *     Accepting is the only transition this route writes; declining is ``DELETE``
+         *     on the same path, because it removes the request rather than moving it to a
+         *     rejected state. The route is named for what it does so a client does not read
+         *     a general "decide" surface into it and send a rejection here.
          *
          *     Returns the row as persisted rather than one assembled from the request, so
          *     the response cannot claim a state the database does not hold.
          */
-        patch: operations["decide_follow_request_api_v1_followers_follow_requests__requester_user_id__patch"];
+        patch: operations["accept_follow_request_api_v1_followers_follow_requests__requester_user_id__patch"];
         trace?: never;
     };
     "/api/v1/followers/users/{user_id}/followers": {
@@ -4110,15 +4124,17 @@ export interface paths {
         };
         /**
          * Read Public Activities Streams For Activity All
-         * @description Get all public streams for an activity.
+         * @description Return one page of a publicly shared activity's streams, with the matching total.
          *
          *     Args:
          *         activity_id: The activity identifier.
-         *         validate_id: Activity ID validator dep.
          *         db: Database session.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
-         *         List of activity streams.
+         *         The page envelope. Empty when public sharing is disabled, the activity is
+         *         not public, or it has no visible streams.
          */
         get: operations["read_public_activities_streams_for_activity_all_api_v1_public_activities__activity_id__streams_get"];
         put?: never;
@@ -5568,14 +5584,16 @@ export interface components {
          * ActivityIngestionJob
          * @description An accepted ingestion request and the current state of its import.
          *
-         *     One shape for both kinds, so a client has a single thing to poll: an upload
-         *     and a provider refresh differ in how the activities are obtained, not in
-         *     what the caller needs to know about progress.
+         *     One shape for all kinds, so a client has a single thing to poll: an upload, a
+         *     bulk-import file and a provider refresh differ in how the activities are
+         *     obtained, not in what the caller needs to know about progress.
          *
          *     Attributes:
          *         id: Job identifier, returned by the route that accepted the request.
-         *         kind: Whether this job imports an upload or syncs from providers.
-         *         filename: Original client filename; only set for uploads.
+         *         kind: Whether this job imports an upload, imports one dropped
+         *             bulk-import file, or syncs from providers.
+         *         filename: Original client filename; only set for uploads and
+         *             bulk-import files.
          *         status: Current lifecycle state.
          *         error_code: Sanitized failure reason when ``status`` is failed.
          *         activity_ids: Ids created by the import once it completes.
@@ -5722,22 +5740,6 @@ export interface components {
             media_type: number;
             /** Url */
             url: string;
-        };
-        /**
-         * ActivityMessageResponse
-         * @description Generic message response for activity mutation endpoints.
-         *
-         *     Named for the module rather than called ``MessageResponse`` because FastAPI
-         *     keys its OpenAPI components by class name: two same-named models in different
-         *     modules are emitted as fully-qualified ``modules__..__MessageResponse``
-         *     schemas, which leaks the Python package layout into the generated client.
-         *
-         *     Attributes:
-         *         detail: Human-readable outcome of the operation.
-         */
-        ActivityMessageResponse: {
-            /** Detail */
-            detail: string;
         };
         /**
          * ActivitySetsRead
@@ -6302,16 +6304,18 @@ export interface components {
             status: components["schemas"]["FollowStatus"];
         };
         /**
-         * FollowRequestDecision
-         * @description The decision applied to a pending follow request.
+         * FollowRequestAccept
+         * @description The body of an accept applied to a pending follow request.
          *
-         *     Only ``accepted`` is a valid transition: declining deletes the request rather
-         *     than parking it in a rejected state, so a later request from the same user is
-         *     a fresh decision instead of hitting a tombstone. Unknown fields are rejected
+         *     Named for the single transition it expresses. ``accepted`` is the only valid
+         *     one: declining deletes the request rather than parking it in a rejected
+         *     state, so a later request from the same user is a fresh decision instead of
+         *     hitting a tombstone. The field is still required so the accept is explicit in
+         *     the payload rather than implied by the route. Unknown fields are rejected
          *     (``extra="forbid"``) rather than silently ignored, matching every other
          *     request-body schema in the activities/followers template modules.
          */
-        FollowRequestDecision: {
+        FollowRequestAccept: {
             status: components["schemas"]["FollowStatus"];
         };
         /**
@@ -9081,7 +9085,7 @@ export interface components {
          * @description What kind of ingestion the job performs.
          * @enum {string}
          */
-        IngestionJobKind: "upload" | "refresh";
+        IngestionJobKind: "upload" | "refresh" | "bulk_import";
         /**
          * IngestionJobStatus
          * @description Lifecycle states of an ingestion job.
@@ -9665,6 +9669,19 @@ export interface components {
         Page_ActivitySetsRead_: {
             /** Items */
             items: components["schemas"]["ActivitySetsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivityStreamsRead] */
+        Page_ActivityStreamsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityStreamsRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -12507,7 +12524,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityMessageResponse"];
+                    "application/json": components["schemas"]["ActivityIngestionJob"][];
                 };
             };
             /** @description Unexpected error */
@@ -13303,7 +13320,10 @@ export interface operations {
     };
     read_activities_streams_for_activity_all_api_v1_activities__activity_id__streams_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -13318,7 +13338,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"][];
+                    "application/json": components["schemas"]["Page_ActivityStreamsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13736,7 +13756,7 @@ export interface operations {
             };
         };
     };
-    decide_follow_request_api_v1_followers_follow_requests__requester_user_id__patch: {
+    accept_follow_request_api_v1_followers_follow_requests__requester_user_id__patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -13747,7 +13767,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FollowRequestDecision"];
+                "application/json": components["schemas"]["FollowRequestAccept"];
             };
         };
         responses: {
@@ -17949,7 +17969,10 @@ export interface operations {
     };
     read_public_activities_streams_for_activity_all_api_v1_public_activities__activity_id__streams_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -17964,7 +17987,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"][];
+                    "application/json": components["schemas"]["Page_ActivityStreamsRead_"];
                 };
             };
             /** @description Validation Error */

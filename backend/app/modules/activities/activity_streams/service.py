@@ -11,20 +11,25 @@ gate the siblings use, this module resolves the parent activity through
 :mod:`modules.activities.activity.child_access` and hands it to
 :mod:`~modules.activities.activity_streams.serializers`, which decides per stream.
 
-They are also the one child resource that is **not** paginated, deliberately.
-Laps, sets and workout steps have no domain ceiling on their row count, so a
-read of "all of them" is unbounded work. A stream row count is bounded by the
-closed ``stream_type`` enum (one row per type, validated on the way in), so
-paging them would cap a number that is already capped at single digits. What is
-large here is ``stream_waypoints`` — the samples inside one row — which page
-numbers cannot bound; reducing that is a downsampling question, not a pagination
-one, and is deliberately left alone rather than answered with a control that
-looks like a fix without being one.
+They are also the one child resource whose page is not cut in SQL, deliberately.
+Laps, sets and workout steps have no domain ceiling on their row count, so a read
+of "all of them" is unbounded work that has to be bounded by a ``LIMIT``. A stream
+row count is bounded by the closed ``stream_type`` enum (one row per type,
+validated on the way in), and the per-type mask is applied *after* the read, so a
+SQL window would page rows the caller may not see. They are therefore read whole,
+masked, and then cut in Python — the same
+:class:`~core.pagination.Page` envelope the siblings answer with, so a client has
+one list contract rather than one per child resource, over a total that already
+reflects the mask. What is large here is ``stream_waypoints`` — the samples inside
+one row — which page numbers cannot bound; reducing that is a downsampling
+question, not a pagination one, and is deliberately left alone rather than
+answered with a control that looks like a fix without being one.
 """
 
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_child_access
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
@@ -36,35 +41,64 @@ import modules.users.users.integration_service as users_integration_service
 logger = core_logger.get_logger(__name__)
 
 
+def _page_of(
+    streams: list[activity_streams_schema.ActivityStreamsRead],
+    page_number: int,
+    num_records: int,
+) -> activity_streams_schema.ActivityStreamsPage:
+    """Cut an already-masked stream list into the shared page envelope.
+
+    Args:
+        streams: The streams the caller may see, in read order.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope, whose ``total`` counts only the visible streams.
+    """
+    start = (page_number - 1) * num_records
+    return activity_streams_schema.ActivityStreamsPage.build(
+        streams[start : start + num_records],
+        len(streams),
+        page_number,
+        num_records,
+    )
+
+
 def list_activity_streams(
     activity_id: int,
     requester_user_id: int,
     db: Session,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_streams_schema.ActivityStreamsPage:
     """Return an activity's streams for an authenticated caller, masked per type.
 
     Args:
         activity_id: The parent activity.
         requester_user_id: The authenticated caller.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The visible streams, empty when the activity is not visible to the caller
-        or has none.
+        The page envelope. An empty page when the activity is not visible to the
+        caller or has none.
     """
     activity = activity_child_access.resolve_readable_parent(activity_id, requester_user_id, db)
     if activity is None:
         logger.debug(
-            "Refused a streams read; answering with an empty list",
+            "Refused a streams read; answering with an empty page",
             extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
         )
-        return []
+        return _page_of([], page_number, num_records)
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
     if requester_user_id != activity.user_id:
         streams = activity_streams_serializers.filter_visible_streams(streams, activity)
 
-    return streams
+    return _page_of(streams, page_number, num_records)
 
 
 def get_activity_stream(
@@ -104,26 +138,35 @@ def get_activity_stream(
 def list_public_activity_streams(
     activity_id: int,
     db: Session,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_streams_schema.ActivityStreamsPage:
     """Return a publicly shared activity's streams, masked per type.
 
     Args:
         activity_id: The parent activity.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The visible streams, empty when the activity is not publicly shareable.
+        The page envelope, empty when the activity is not publicly shareable.
     """
     activity = activity_child_access.resolve_public_parent(activity_id, db)
     if activity is None:
         logger.debug(
-            "Refused a public streams read; answering with an empty list",
+            "Refused a public streams read; answering with an empty page",
             extra=core_logger.context(activity_id=activity_id),
         )
-        return []
+        return _page_of([], page_number, num_records)
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
-    return activity_streams_serializers.filter_visible_streams(streams, activity)
+    return _page_of(
+        activity_streams_serializers.filter_visible_streams(streams, activity),
+        page_number,
+        num_records,
+    )
 
 
 def get_public_activity_stream(

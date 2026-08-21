@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_streams.service as activity_streams_service
@@ -18,7 +19,7 @@ router = APIRouter()
 
 @router.get(
     "/streams",
-    response_model=(list[activity_streams_schema.ActivityStreamsRead]),
+    response_model=activity_streams_schema.ActivityStreamsPage,
 )
 def read_activities_streams_for_activity_all(
     activity_id: int,
@@ -37,21 +38,30 @@ def read_activities_streams_for_activity_all(
         Session,
         Depends(core_database.get_db),
     ],
-):
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+) -> activity_streams_schema.ActivityStreamsPage:
     """
-    Get all streams for an activity.
+    Return one page of the given activity's streams, with the matching total.
 
     Args:
         activity_id: The activity identifier.
-        validate_id: Activity ID validator dep.
         _check_scopes: Scope authorization dep.
         token_user_id: Authenticated user ID.
         db: Database session.
+        page: Resolved paging window, capped so one request cannot ask for
+            an unbounded number of rows.
 
     Returns:
-        List of activity streams or None.
+        The page envelope. Empty when the activity is hidden from the caller or
+        has no visible streams.
     """
-    return activity_streams_service.list_activity_streams(activity_id, token_user_id, db)
+    return activity_streams_service.list_activity_streams(
+        activity_id,
+        token_user_id,
+        db,
+        page_number=page.page_number,
+        num_records=page.num_records,
+    )
 
 
 @router.get(

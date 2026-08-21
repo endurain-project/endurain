@@ -109,16 +109,17 @@ class TestServerOwnedFieldsAreNotIngestionInputs:
 
     def test_a_producer_cannot_set_them(self):
         core = _core("2026-06-20T08:00:00", "2026-06-20T09:00:00")
-        # Re-built with the server-owned fields supplied: they are dropped, not
-        # honoured, so no producer can claim an id or a thumbnail key.
-        smuggled = ActivityCore(
-            **core.model_dump(),
-            id=999,
-            map_thumbnail_path="thumbnails/999.png",
-        )
+        # Re-built with the server-owned fields supplied: they are refused rather
+        # than dropped, so a producer that thinks it can claim an id or a
+        # thumbnail key is told so instead of watching the value vanish.
+        with pytest.raises(ValidationError) as exc:
+            ActivityCore(
+                **core.model_dump(),
+                id=999,
+                map_thumbnail_path="thumbnails/999.png",
+            )
 
-        assert not hasattr(smuggled, "id")
-        assert not hasattr(smuggled, "map_thumbnail_path")
+        assert {error["loc"][0] for error in exc.value.errors()} == {"id", "map_thumbnail_path"}
 
 
 class TestParsedActivity:

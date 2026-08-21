@@ -40,16 +40,16 @@ class ActivityIngestionJob(Base):
     Attributes:
         id: Job identifier (UUIDv4 string), returned to the client.
         user_id: Owner of the request; every read is filtered by it.
-        kind: ``upload`` or ``refresh``.
+        kind: ``upload``, ``refresh`` or ``bulk_import``.
         idempotency_key: Client-supplied ``Idempotency-Key`` for an upload, unique
             per user and kind. A replayed request returns the original job
             instead of starting a second import.
         request_fingerprint: SHA-256 of the bytes the key was first used with,
             so reusing a key for different content is rejected rather than
             silently answering with the wrong job.
-        filename: Original client-supplied filename for an upload, kept for
-            display only and never used to build a filesystem path. Null for a
-            refresh.
+        filename: Original client-supplied filename for an upload, or the dropped
+            file's name for a bulk import, kept for display only and never used
+            to build a filesystem path. Null for a refresh.
         staged_key: Storage key of the uploaded blob awaiting parsing, cleared
             once consumed. Null for a refresh.
         status: Lifecycle state: pending, processing, completed, or failed.
@@ -86,7 +86,7 @@ class ActivityIngestionJob(Base):
         nullable=False,
         default="upload",
         server_default="upload",
-        comment="upload | refresh",
+        comment="upload | refresh | bulk_import",
     )
     idempotency_key: Mapped[str | None] = mapped_column(
         String(255),

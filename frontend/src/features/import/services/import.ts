@@ -1,3 +1,4 @@
+import type { ActivityIngestionJob } from '@/features/upload/types'
 import { apiFetch } from '@/services/http'
 
 /**
@@ -5,10 +6,12 @@ import { apiFetch } from '@/services/http'
  * backend's `data/activity_files/bulk_import` folder. The work runs in the
  * background; progress arrives over the realtime channel.
  *
+ * @returns One ingestion job per queued file (empty when the folder held
+ *   nothing importable), each pollable via `fetchIngestionJob`.
  * @throws {HttpError} When the request fails.
  */
-export async function bulkImportActivities(): Promise<void> {
-  await apiFetch('/activities/bulk-import', { method: 'POST', responseType: 'void' })
+export async function bulkImportActivities(): Promise<ActivityIngestionJob[]> {
+  return apiFetch<ActivityIngestionJob[]>('/activities/bulk-import', { method: 'POST' })
 }
 
 /**

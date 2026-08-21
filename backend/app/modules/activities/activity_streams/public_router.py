@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_streams.service as activity_streams_service
@@ -17,7 +18,7 @@ router = APIRouter()
 
 @router.get(
     "/streams",
-    response_model=(list[activity_streams_schema.ActivityStreamsRead]),
+    response_model=activity_streams_schema.ActivityStreamsPage,
 )
 def read_public_activities_streams_for_activity_all(
     activity_id: int,
@@ -25,19 +26,27 @@ def read_public_activities_streams_for_activity_all(
         Session,
         Depends(core_database.get_db),
     ],
-):
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+) -> activity_streams_schema.ActivityStreamsPage:
     """
-    Get all public streams for an activity.
+    Return one page of a publicly shared activity's streams, with the matching total.
 
     Args:
         activity_id: The activity identifier.
-        validate_id: Activity ID validator dep.
         db: Database session.
+        page: Resolved paging window, capped so one request cannot ask for
+            an unbounded number of rows.
 
     Returns:
-        List of activity streams.
+        The page envelope. Empty when public sharing is disabled, the activity is
+        not public, or it has no visible streams.
     """
-    return activity_streams_service.list_public_activity_streams(activity_id, db)
+    return activity_streams_service.list_public_activity_streams(
+        activity_id,
+        db,
+        page_number=page.page_number,
+        num_records=page.num_records,
+    )
 
 
 @router.get(

@@ -18,11 +18,13 @@ describe('import service', () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
   })
 
-  it('bulkImportActivities POSTs the bulk-import path (void)', async () => {
-    await bulkImportActivities()
+  it('bulkImportActivities POSTs the bulk-import path and returns the queued jobs', async () => {
+    const jobs = [{ id: 'job-1' }]
+    vi.mocked(apiFetch).mockResolvedValueOnce(jobs)
+
+    await expect(bulkImportActivities()).resolves.toBe(jobs)
     expect(apiFetch).toHaveBeenCalledWith('/activities/bulk-import', {
       method: 'POST',
-      responseType: 'void',
     })
   })
 

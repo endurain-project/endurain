@@ -6,6 +6,8 @@ from pydantic import (
     StrictInt,
 )
 
+import core.pagination as core_pagination
+
 
 class ActivityStreamsBase(BaseModel):
     """
@@ -22,6 +24,7 @@ class ActivityStreamsBase(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
+        extra="forbid",
     )
 
     activity_id: StrictInt
@@ -48,3 +51,10 @@ class ActivityStreamsRead(ActivityStreamsBase):
     """
 
     id: StrictInt
+
+
+#: The envelope every activity child collection answers with. Streams are bounded
+#: by the closed ``stream_type`` enum rather than by paging, but they carry the
+#: same shape as laps, sets and workout steps so a client has one list contract
+#: to implement instead of one per child resource.
+ActivityStreamsPage = core_pagination.Page[ActivityStreamsRead]

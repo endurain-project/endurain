@@ -16,11 +16,9 @@ class TestCreateActivityWorkoutSteps:
         steps = [
             ActivityWorkoutSteps(
                 activity_id=1,
-                step_number=1,
-                step_type="warm_up",
-                step_duration=300.0,
                 message_index=0,
                 duration_type="time",
+                duration_value=300.0,
             )
         ]
         crud.create_activity_workout_steps(steps, 1, mock_db)

@@ -11,6 +11,7 @@ class IngestionJobKind(StrEnum):
 
     UPLOAD = "upload"
     REFRESH = "refresh"
+    BULK_IMPORT = "bulk_import"
 
 
 class IngestionJobStatus(StrEnum):
@@ -41,14 +42,16 @@ class IngestionJobErrorCode(StrEnum):
 class ActivityIngestionJob(BaseModel):
     """An accepted ingestion request and the current state of its import.
 
-    One shape for both kinds, so a client has a single thing to poll: an upload
-    and a provider refresh differ in how the activities are obtained, not in
-    what the caller needs to know about progress.
+    One shape for all kinds, so a client has a single thing to poll: an upload, a
+    bulk-import file and a provider refresh differ in how the activities are
+    obtained, not in what the caller needs to know about progress.
 
     Attributes:
         id: Job identifier, returned by the route that accepted the request.
-        kind: Whether this job imports an upload or syncs from providers.
-        filename: Original client filename; only set for uploads.
+        kind: Whether this job imports an upload, imports one dropped
+            bulk-import file, or syncs from providers.
+        filename: Original client filename; only set for uploads and
+            bulk-import files.
         status: Current lifecycle state.
         error_code: Sanitized failure reason when ``status`` is failed.
         activity_ids: Ids created by the import once it completes.
@@ -57,7 +60,7 @@ class ActivityIngestionJob(BaseModel):
         completed_at: When the job reached a terminal state.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     id: str
     kind: IngestionJobKind

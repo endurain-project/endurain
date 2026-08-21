@@ -59,12 +59,13 @@ def _log_failure(future: Future) -> None:
         logger.error("Background ingestion task failed", exc_info=exc)
 
 
-def submit_bulk_import(user_id: int, file_paths: list[str], import_initiated_time: str) -> Future:
+def submit_bulk_import(user_id: int, queued_files: list[tuple[str, str]], import_initiated_time: str) -> Future:
     """Process a batch of bulk-import files on the background pool.
 
     Args:
         user_id: The user the imported activities belong to.
-        file_paths: Validated files to import, in order.
+        queued_files: ``(ingestion job id, validated file path)`` per file, in
+            order.
         import_initiated_time: ISO timestamp recorded on each imported activity.
 
     Returns:
@@ -72,12 +73,12 @@ def submit_bulk_import(user_id: int, file_paths: list[str], import_initiated_tim
     """
     logger.info(
         "Queued bulk import batch on the background pool",
-        extra=core_logger.context(user_id=user_id, file_count=len(file_paths)),
+        extra=core_logger.context(user_id=user_id, file_count=len(queued_files)),
     )
     future = _get_executor().submit(
         bulk_entry.process_all_files_sync,
         user_id,
-        file_paths,
+        queued_files,
         import_initiated_time=import_initiated_time,
     )
     future.add_done_callback(_log_failure)
