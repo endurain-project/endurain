@@ -432,9 +432,8 @@ export interface paths {
          *         token_user_id: Authenticated user id derived from the access
          *             token.
          *         db: Database session.
-         *         page_number: 1-based page number.
-         *         num_records: Page size, capped so one request cannot ask for an
-         *             unbounded number of rows.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
          *         The page envelope. Empty when the activity is hidden from the caller or
@@ -597,9 +596,8 @@ export interface paths {
          *         _check_scopes: FastAPI security dependency enforcing scopes.
          *         token_user_id: Authenticated user id derived from the access token.
          *         db: Database session.
-         *         page_number: 1-based page number.
-         *         num_records: Page size, capped so one request cannot ask for an
-         *             unbounded number of rows.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
          *         The page envelope. Empty when the activity is hidden from the caller or
@@ -730,9 +728,8 @@ export interface paths {
          *         _check_scopes: FastAPI security dependency enforcing scopes.
          *         token_user_id: Authenticated user id derived from the access token.
          *         db: Database session.
-         *         page_number: 1-based page number.
-         *         num_records: Page size, capped so one request cannot ask for an
-         *             unbounded number of rows.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
          *         The page envelope. Empty when the activity is hidden from the caller or
@@ -1013,6 +1010,8 @@ export interface paths {
          *
          *     Distinct from removing an accepted follower: this refuses access that was
          *     never granted, which is a different decision even though the row is the same.
+         *     Scoped to pending requests, so removing an accepted follower goes through the
+         *     relationship route rather than arriving here by accident.
          */
         delete: operations["reject_follow_request_api_v1_followers_follow_requests__requester_user_id__delete"];
         options?: never;
@@ -1046,8 +1045,8 @@ export interface paths {
          * Follow User
          * @description Add the authenticated user to ``user_id``'s followers.
          *
-         *     Creates the relationship pending or accepted according to the target's
-         *     privacy settings; the returned ``status`` says which.
+         *     Always created pending: a follow takes effect only once the target accepts
+         *     it, so the returned ``status`` is ``pending`` and the target is notified.
          */
         post: operations["follow_user_api_v1_followers_users__user_id__followers_post"];
         delete?: never;
@@ -4005,12 +4004,8 @@ export interface paths {
          *         db: Database session.
          *
          *     Returns:
-         *         List of ActivityExerciseTitles, or None if public sharable
-         *         links are disabled or no entries exist.
-         *
-         *     Raises:
-         *         HTTPException: If server settings are missing or a database
-         *             error occurs.
+         *         The exercise titles, or an empty list when public shareable links are
+         *         disabled or no entries exist.
          */
         get: operations["read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get"];
         put?: never;
@@ -4060,11 +4055,12 @@ export interface paths {
          *     Args:
          *         activity_id: Activity primary key.
          *         db: Database session.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
-         *         List of ``ActivityLapsRead`` or ``None`` when public sharing
-         *         is disabled, the activity is not public, or the laps are
-         *         hidden.
+         *         The page envelope. Empty when public sharing is disabled, the activity is
+         *         not public, or the laps are hidden.
          */
         get: operations["read_public_activities_laps_for_activity_all_api_v1_public_activities__activity_id__laps_get"];
         put?: never;
@@ -4089,9 +4085,8 @@ export interface paths {
          *     Args:
          *         activity_id: Activity primary key.
          *         db: Database session.
-         *         page_number: 1-based page number.
-         *         num_records: Page size, capped so one request cannot ask for an
-         *             unbounded number of rows.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
          *         The page envelope. Empty when public sharing is disabled, the activity is
@@ -4182,9 +4177,8 @@ export interface paths {
          *     Args:
          *         activity_id: Activity primary key.
          *         db: Database session.
-         *         page_number: 1-based page number.
-         *         num_records: Page size, capped so one request cannot ask for an
-         *             unbounded number of rows.
+         *         page: Resolved paging window, capped so one request cannot ask for
+         *             an unbounded number of rows.
          *
          *     Returns:
          *         The page envelope. Empty when public sharing is disabled, the activity is
