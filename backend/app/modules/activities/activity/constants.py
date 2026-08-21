@@ -118,6 +118,34 @@ ACTIVITY_NAME_TO_ID = {name.lower(): activity_type_id for activity_type_id, name
 #: the GPX parser's were named after the wrong activities entirely.
 VIRTUAL_ACTIVITY_TYPES = frozenset({3, 7})
 
+#: The sport each activity type belongs to. The activities module owns the
+#: activity-type vocabulary, so it owns the grouping over it too: a consumer that
+#: needs "which types count as running?" asks here instead of keeping its own
+#: copy of the ids. ``modules.users.users_goals`` had one, and the two agreed on
+#: running, cycling and swimming while quietly disagreeing about walking — the
+#: kind of divergence that shows up as an activity counting towards a sport's
+#: totals but not towards a goal for the same sport.
+#:
+#: Keys match the per-sport attribute names on
+#: :class:`~modules.activities.activity.schema.ActivityStats`.
+ACTIVITY_TYPES_BY_SPORT: dict[str, tuple[int, ...]] = {
+    "run": (1, 2, 3, 34, 40),
+    "bike": (4, 5, 6, 7, 27, 28, 29, 35, 36),
+    "swim": (8, 9),
+    "walk": (11, 31),
+    "hike": (12,),
+    "rowing": (13,),
+    "snow_ski": (15, 16),
+    "snowboard": (17,),
+    "windsurf": (30,),
+    "stand_up_paddleboarding": (32,),
+    "surfing": (33,),
+    "kayaking": (42,),
+    "sailing": (43,),
+    "snowshoeing": (44,),
+    "inline_skating": (45,),
+}
+
 #: Sort keys the activity list endpoints accept, in the order they appear in the
 #: UI, mapped to the activity columns each one orders by (highest precedence
 #: first). One declaration, because the transport validator and the query used to

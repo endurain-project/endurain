@@ -11,7 +11,7 @@ import modules.activities.activity_workout_steps.schema as workout_steps_schema
 import modules.activities.contributors as activity_contributors
 
 
-def list_workout_steps_for_activities(
+def _list_workout_steps_for_activities(
     activity_ids: list[int],
     db: Session,
 ) -> list[workout_steps_schema.ActivityWorkoutSteps]:
@@ -19,7 +19,7 @@ def list_workout_steps_for_activities(
     return workout_steps_crud.get_activities_workout_steps(activity_ids, db)
 
 
-def store_workout_steps(
+def _store_workout_steps(
     steps: list[workout_steps_schema.ActivityWorkoutSteps],
     activity_id: int,
     db: Session,
@@ -30,7 +30,7 @@ def store_workout_steps(
     workout_steps_crud.create_activity_workout_steps(steps, activity_id, db, commit=commit)
 
 
-def persist_ingestion_component(
+def _persist_ingestion_component(
     data: Any,
     activity: activity_schema.Activity,
     db: Session,
@@ -40,18 +40,18 @@ def persist_ingestion_component(
     """Persist parsed workout steps through the ingestion contract."""
     if activity.id is None:
         raise core_exceptions.ProcessingError("Cannot store workout steps before the activity has an id")
-    store_workout_steps(data, activity.id, db, commit=commit)
+    _store_workout_steps(data, activity.id, db, commit=commit)
 
 
 def ingestion_contributor() -> activity_contributors.ActivityIngestionContributor:
     """Return the workout-step ingestion contribution."""
     return activity_contributors.ActivityIngestionContributor(
         key="workout_steps",
-        persist=persist_ingestion_component,
+        persist=_persist_ingestion_component,
     )
 
 
-def restore_profile_records(
+def _restore_profile_records(
     records: list[dict[str, Any]],
     original_activity_id: int,
     new_activity: activity_schema.Activity,
@@ -71,7 +71,7 @@ def restore_profile_records(
         steps.append(workout_steps_schema.ActivityWorkoutSteps.model_validate(data))
 
     if steps:
-        store_workout_steps(steps, new_activity.id, db)
+        _store_workout_steps(steps, new_activity.id, db)
     return len(steps)
 
 
@@ -82,6 +82,6 @@ def profile_contributor() -> activity_contributors.ProfileActivityContributor:
         archive_path="data/activity_workout_steps.json",
         count_key="activity_workout_steps",
         split=False,
-        export=list_workout_steps_for_activities,
-        restore=restore_profile_records,
+        export=_list_workout_steps_for_activities,
+        restore=_restore_profile_records,
     )

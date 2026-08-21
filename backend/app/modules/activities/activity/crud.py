@@ -511,59 +511,6 @@ def get_user_activities_per_timeframe(
 
 
 @core_decorators.handle_db_errors
-def get_user_activities_per_timeframe_and_activity_type(
-    user_id: int,
-    activity_type: int,
-    start: datetime,
-    end: datetime,
-    db: Session,
-    user_is_owner: bool = False,
-    followee_ids: Sequence[int] | None = None,
-) -> list[activities_schema.Activity] | None:
-    """Get a user's activities within a date range by type.
-
-    Args:
-        user_id: Owner user ID.
-        activity_type: Activity type to filter by.
-        start: Inclusive start datetime.
-        end: Inclusive end datetime.
-        db: Database session.
-        user_is_owner: When False, private/hidden activities
-            are excluded.
-        followee_ids: The requester's accepted-followee user ids, resolved
-            by the caller; ``None`` for an owner-only or anonymous read.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    stmt = (
-        select(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.activity_type == activity_type,
-            *activities_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
-        )
-        .order_by(desc(activities_models.Activity.start_time))
-    )
-    stmt = _apply_activity_visibility_filter(
-        stmt,
-        user_is_owner=user_is_owner,
-        followee_ids=followee_ids,
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return activities_serializers.serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id if user_is_owner else None,
-        force_non_owner=not user_is_owner,
-    )
-
-
-@core_decorators.handle_db_errors
 def get_user_activities_per_timeframe_and_activity_types(
     user_id: int,
     activity_types: list[int],
@@ -1102,33 +1049,6 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
     if not activity:
         return None
     return activities_serializers.serialize_activity(activity)
-
-
-@core_decorators.handle_db_errors
-def get_user_activity_ids(activity_ids: list[int], user_id: int, db: Session) -> list[int]:
-    """Return the subset of the given activity ids owned by the user.
-
-    The ownership half of a child-collection read, answered by the package that
-    owns the parent table so no child CRUD has to join it.
-
-    Args:
-        activity_ids: Candidate activity IDs.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        The owned ids, in no particular order; empty when none match.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    if not activity_ids:
-        return []
-    stmt = select(activities_models.Activity.id).where(
-        activities_models.Activity.user_id == user_id,
-        activities_models.Activity.id.in_(activity_ids),
-    )
-    return list(db.scalars(stmt).all())
 
 
 def _to_scoring_context(row) -> activities_contracts.ActivityScoringContext:
@@ -1739,39 +1659,6 @@ def bulk_set_activities_gear_id(
     if commit:
         db.commit()
     return updated_ids
-
-
-@core_decorators.handle_db_errors
-def update_activity_gear_id(
-    activity_id: int,
-    user_id: int,
-    gear_id: int | None,
-    db: Session,
-) -> None:
-    """Set the gear_id on a single activity.
-
-    Args:
-        activity_id: Activity ID.
-        user_id: Owner user ID.
-        gear_id: Gear ID to associate, or None to clear.
-        db: Database session.
-
-    Returns:
-        None
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    stmt = (
-        sa_update(activities_models.Activity)
-        .where(
-            activities_models.Activity.id == activity_id,
-            activities_models.Activity.user_id == user_id,
-        )
-        .values(gear_id=gear_id, version=activities_models.Activity.version + 1)
-    )
-    db.execute(stmt)
-    db.commit()
 
 
 @core_decorators.handle_db_errors

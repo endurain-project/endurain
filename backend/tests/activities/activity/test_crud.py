@@ -602,23 +602,6 @@ class TestBulkSetGear:
         mock_db.rollback.assert_called_once()
 
 
-class TestUpdateGear:
-    def test_success(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        crud.update_activity_gear_id(activity_id=1, user_id=1, gear_id=5, db=mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.update_activity_gear_id(activity_id=1, user_id=1, gear_id=5, db=mock_db)
-        assert e.value.status_code == 500
-        mock_db.rollback.assert_called_once()
-
-
 class TestActivityByStravaGarmin:
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     def test_by_strava_id(self, mock_ser, mock_db):
@@ -720,58 +703,6 @@ class TestGetUserActivitiesByGarminGear:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_user_activities_by_user_id_and_garminconnect_gear_set(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetUserActivitiesPerTimeframeAndType:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_activities_per_timeframe_and_activity_type(
-            user_id=1,
-            activity_type=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-            user_is_owner=True,
-        )
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_user_activities_per_timeframe_and_activity_type(
-            user_id=1,
-            activity_type=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-        )
-        assert r is None
-
-    def test_db_error(self, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_activities_per_timeframe_and_activity_type(
-                user_id=1,
-                activity_type=1,
-                start=datetime(2024, 1, 1, tzinfo=UTC),
-                end=datetime(2024, 1, 31, tzinfo=UTC),
-                db=mock_db,
-            )
         assert e.value.status_code == 500
 
 

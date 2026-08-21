@@ -13,7 +13,7 @@ import modules.activities.activity_streams.subscribers as activity_streams_subsc
 import modules.activities.contributors as activity_contributors
 
 
-def list_streams_for_activities(
+def _list_streams_for_activities(
     activity_ids: list[int],
     db: Session,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
@@ -21,7 +21,7 @@ def list_streams_for_activities(
     return activity_streams_crud.get_activities_streams(activity_ids, db)
 
 
-def store_streams(
+def _store_streams(
     streams: list[activity_streams_schema.ActivityStreamsCreate],
     activity: activity_schema.Activity,
     db: Session,
@@ -32,7 +32,7 @@ def store_streams(
     activity_streams_crud.create_activity_streams(streams, activity, db, commit=commit)
 
 
-def persist_ingestion_component(
+def _persist_ingestion_component(
     data: Any,
     activity: activity_schema.Activity,
     db: Session,
@@ -51,18 +51,18 @@ def persist_ingestion_component(
         )
         for stream in data
     ]
-    store_streams(streams, activity, db, commit=commit)
+    _store_streams(streams, activity, db, commit=commit)
 
 
 def ingestion_contributor() -> activity_contributors.ActivityIngestionContributor:
     """Return the activity-streams ingestion contribution."""
     return activity_contributors.ActivityIngestionContributor(
         key="streams",
-        persist=persist_ingestion_component,
+        persist=_persist_ingestion_component,
     )
 
 
-def restore_profile_records(
+def _restore_profile_records(
     records: list[dict[str, Any]],
     original_activity_id: int,
     new_activity: activity_schema.Activity,
@@ -82,7 +82,7 @@ def restore_profile_records(
         streams.append(activity_streams_schema.ActivityStreamsCreate.model_validate(data))
 
     if streams:
-        store_streams(streams, new_activity, db)
+        _store_streams(streams, new_activity, db)
     return len(streams)
 
 
@@ -93,8 +93,8 @@ def profile_contributor() -> activity_contributors.ProfileActivityContributor:
         archive_path="data/activity_streams.json",
         count_key="activity_streams",
         split=True,
-        export=list_streams_for_activities,
-        restore=restore_profile_records,
+        export=_list_streams_for_activities,
+        restore=_restore_profile_records,
     )
 
 

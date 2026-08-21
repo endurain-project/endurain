@@ -1077,7 +1077,7 @@ class TestImportServiceActivityComponentsMedia:
                 "profile_activity_contributors",
                 return_value=(contributor,),
             ),
-            patch.object(media_integration, "restore_media_records") as restore_media,
+            patch.object(media_integration, "_restore_media_records") as restore_media,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1113,7 +1113,7 @@ class TestImportServiceActivityComponentsMedia:
                 "profile_activity_contributors",
                 return_value=(contributor,),
             ),
-            patch.object(media_integration, "restore_media_records") as mock_create,
+            patch.object(media_integration, "_restore_media_records") as mock_create,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1144,7 +1144,7 @@ class TestImportServiceActivityComponentsMedia:
                 "profile_activity_contributors",
                 return_value=(contributor,),
             ),
-            patch.object(media_integration, "restore_media_records") as mock_create,
+            patch.object(media_integration, "_restore_media_records") as mock_create,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
@@ -1174,7 +1174,7 @@ class TestImportServiceActivityComponentsMedia:
                 "profile_activity_contributors",
                 return_value=(contributor,),
             ),
-            patch.object(media_integration, "restore_media_records"),
+            patch.object(media_integration, "_restore_media_records"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(

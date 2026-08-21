@@ -39,34 +39,6 @@ class TestGetAllExerciseTitles:
             crud.get_activity_exercise_titles(db=mock_db)
 
 
-class TestGetExerciseTitleByExerciseName:
-    def test_found(self, mock_db):
-        import modules.activities.activity_exercise_titles.crud as crud
-        import modules.activities.activity_exercise_titles.models as m
-
-        mock_title = mock_model(
-            m.ActivityExerciseTitles, id=1, exercise_category=1, exercise_name=42, wkt_step_name="Run"
-        )
-        setup_mock_execute(mock_db, return_one_or_none=mock_title)
-        r = crud.get_activity_exercise_title_by_exercise_name(42, mock_db)
-        assert r is not None
-        assert r.id == 1
-
-    def test_not_found(self, mock_db):
-        import modules.activities.activity_exercise_titles.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        r = crud.get_activity_exercise_title_by_exercise_name(99, mock_db)
-        assert r is None
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity_exercise_titles.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError):
-            crud.get_activity_exercise_title_by_exercise_name(42, mock_db)
-
-
 class TestCreateExerciseTitle:
     def test_empty_input(self, mock_db):
         import modules.activities.activity_exercise_titles.crud as crud

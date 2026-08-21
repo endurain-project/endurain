@@ -1,27 +1,22 @@
-"""Utility functions for activity stream data."""
+"""Heart-rate zone maths for activity streams.
+
+Pure computation over samples and scalars: no session, no ORM, no other module.
+Split out of the package's ``utils`` grab-bag, which held this alongside stream
+serialization and visibility masking — three jobs whose only shared property was
+having nowhere else to live.
+
+The athlete's max heart rate arrives as the three values it is derived from
+rather than as a user object. Taking ``users.schema.UsersRead`` made the streams
+package depend on another module's *wire type* to read three fields, so a change
+to what a user looks like on the API was a change to how heart-rate zones are
+computed.
+"""
 
 import datetime
-from typing import overload
 
 import numpy as np
 
 import core.timezone as core_timezone
-import modules.activities.activity.schema as activity_schema
-import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.models as activity_streams_models
-import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.users.users.schema as users_schema
-
-# Map stream type to activity hide attribute
-_STREAM_HIDE_MAP: dict[int, str] = {
-    activity_streams_constants.STREAM_TYPE_HR: "hide_hr",
-    activity_streams_constants.STREAM_TYPE_POWER: "hide_power",
-    activity_streams_constants.STREAM_TYPE_CADENCE: "hide_cadence",
-    activity_streams_constants.STREAM_TYPE_ELEVATION: "hide_elevation",
-    activity_streams_constants.STREAM_TYPE_SPEED: "hide_speed",
-    activity_streams_constants.STREAM_TYPE_PACE: "hide_pace",
-    activity_streams_constants.STREAM_TYPE_MAP: "hide_map",
-}
 
 _DEFAULT_MAX_HEART_RATE: int = 220
 _HR_ZONE_1_PERCENT: float = 0.6
@@ -30,84 +25,27 @@ _HR_ZONE_3_PERCENT: float = 0.8
 _HR_ZONE_4_PERCENT: float = 0.9
 
 
-def is_stream_hidden(
-    activity: activity_schema.Activity,
-    stream_type: int,
-) -> bool:
+def resolve_max_heart_rate(
+    max_heart_rate: int | None,
+    birthdate: datetime.date | None,
+    timezone_name: str | None,
+) -> int | None:
     """
-    Check if a stream type is hidden.
+    Resolve an athlete's max heart rate.
 
     Args:
-        activity: The activity schema instance.
-        stream_type: The stream type constant.
-
-    Returns:
-        True if the stream should be hidden.
-    """
-    attr = _STREAM_HIDE_MAP.get(stream_type)
-    return bool(attr and getattr(activity, attr, False))
-
-
-def filter_visible_streams(
-    streams: list[activity_streams_schema.ActivityStreamsRead],
-    activity: activity_schema.Activity,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """
-    Filter out streams hidden by the activity.
-
-    Args:
-        streams: The activity's streams, as read schemas.
-        activity: The activity schema instance.
-
-    Returns:
-        Streams that are not hidden.
-    """
-    return [s for s in streams if not is_stream_hidden(activity, s.stream_type)]
-
-
-@overload
-def transform_activity_streams(
-    activity_streams: list[activity_streams_models.ActivityStreams],
-) -> list[activity_streams_schema.ActivityStreamsRead]: ...
-
-
-@overload
-def transform_activity_streams(
-    activity_streams: activity_streams_models.ActivityStreams,
-) -> activity_streams_schema.ActivityStreamsRead: ...
-
-
-def transform_activity_streams(
-    activity_streams: activity_streams_models.ActivityStreams | list[activity_streams_models.ActivityStreams],
-) -> activity_streams_schema.ActivityStreamsRead | list[activity_streams_schema.ActivityStreamsRead]:
-    """
-    Transform a stream or list of streams to a Pydantic schema or list of schemas.
-
-    Args:
-        activity_streams: The stream ORM instance or list of stream ORM instances.
-
-    Returns:
-        The activity stream as a schema or list of schemas.
-    """
-    if isinstance(activity_streams, list):
-        return [activity_streams_schema.ActivityStreamsRead.model_validate(stream) for stream in activity_streams]
-    return activity_streams_schema.ActivityStreamsRead.model_validate(activity_streams)
-
-
-def resolve_max_heart_rate(user: users_schema.UsersRead) -> int | None:
-    """
-    Resolve a user's max heart rate.
-
-    Args:
-        user: The user ORM instance (must expose max_heart_rate and birthdate).
+        max_heart_rate: The stored max heart rate, if the athlete set one.
+        birthdate: The athlete's date of birth, used for the age-derived
+            fallback.
+        timezone_name: The athlete's IANA timezone, or None to use the server's.
 
     Returns:
         The stored max HR, the age-derived value (220 - age), or None.
     """
-    if user.max_heart_rate:
-        return user.max_heart_rate
-    if user.birthdate:
-        return _DEFAULT_MAX_HEART_RATE - _age_in_years(user.birthdate, user.timezone)
+    if max_heart_rate:
+        return max_heart_rate
+    if birthdate:
+        return _DEFAULT_MAX_HEART_RATE - _age_in_years(birthdate, timezone_name)
     return None
 
 

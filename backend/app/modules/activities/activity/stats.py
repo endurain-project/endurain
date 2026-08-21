@@ -6,8 +6,17 @@ Split out of ``utils.py``: pure computation over already-serialized
 
 import core.logger as core_logger
 import modules.activities.activity.schema as activities_schema
+from modules.activities.activity.constants import ACTIVITY_TYPES_BY_SPORT
 
 logger = core_logger.get_logger(__name__)
+
+# Reversed once at import so each activity is bucketed by a dict lookup rather
+# than a scan of every sport's id list.
+_SPORT_BY_ACTIVITY_TYPE: dict[int, str] = {
+    activity_type: sport
+    for sport, activity_types in ACTIVITY_TYPES_BY_SPORT.items()
+    for activity_type in activity_types
+}
 
 
 def calculate_activity_stats(
@@ -26,34 +35,15 @@ def calculate_activity_stats(
     if activities is None:
         return stats
 
-    # Sport-type buckets: activity_type IDs → attribute name on ActivityStats
-    _sport_buckets: list[tuple[list[int], str]] = [
-        ([1, 2, 3, 34, 40], "run"),
-        ([4, 5, 6, 7, 27, 28, 29, 35, 36], "bike"),
-        ([8, 9], "swim"),
-        ([11, 31], "walk"),
-        ([12], "hike"),
-        ([13], "rowing"),
-        ([15, 16], "snow_ski"),
-        ([17], "snowboard"),
-        ([30], "windsurf"),
-        ([32], "stand_up_paddleboarding"),
-        ([33], "surfing"),
-        ([42], "kayaking"),
-        ([43], "sailing"),
-        ([44], "snowshoeing"),
-        ([45], "inline_skating"),
-    ]
-
     try:
         for activity in activities:
-            for type_ids, bucket_name in _sport_buckets:
-                if activity.activity_type in type_ids:
-                    bucket = getattr(stats, bucket_name)
-                    bucket.distance += float(activity.distance or 0)
-                    bucket.time += float(activity.total_timer_time or 0)
-                    bucket.calories += float(activity.calories or 0)
-                    break
+            sport = _SPORT_BY_ACTIVITY_TYPE.get(activity.activity_type)
+            if sport is None:
+                continue
+            bucket = getattr(stats, sport)
+            bucket.distance += float(activity.distance or 0)
+            bucket.time += float(activity.total_timer_time or 0)
+            bucket.calories += float(activity.calories or 0)
     except (TypeError, ValueError, AttributeError) as err:
         logger.error(
             "Error calculating activity stats",

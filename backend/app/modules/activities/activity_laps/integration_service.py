@@ -11,7 +11,7 @@ import modules.activities.activity_laps.schema as activity_laps_schema
 import modules.activities.contributors as activity_contributors
 
 
-def list_laps_for_activities(
+def _list_laps_for_activities(
     activity_ids: list[int],
     db: Session,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
@@ -19,7 +19,7 @@ def list_laps_for_activities(
     return activity_laps_crud.get_activities_laps(activity_ids, db)
 
 
-def store_laps(
+def _store_laps(
     laps: list[dict],
     activity_id: int,
     db: Session,
@@ -30,7 +30,7 @@ def store_laps(
     activity_laps_crud.create_activity_laps(laps, activity_id, db, commit=commit)
 
 
-def persist_ingestion_component(
+def _persist_ingestion_component(
     data: Any,
     activity: activity_schema.Activity,
     db: Session,
@@ -40,18 +40,18 @@ def persist_ingestion_component(
     """Persist parsed lap data through the generic ingestion contract."""
     if activity.id is None:
         raise core_exceptions.ProcessingError("Cannot store laps before the activity has an id")
-    store_laps(data, activity.id, db, commit=commit)
+    _store_laps(data, activity.id, db, commit=commit)
 
 
 def ingestion_contributor() -> activity_contributors.ActivityIngestionContributor:
     """Return the activity-laps ingestion contribution."""
     return activity_contributors.ActivityIngestionContributor(
         key="laps",
-        persist=persist_ingestion_component,
+        persist=_persist_ingestion_component,
     )
 
 
-def restore_profile_records(
+def _restore_profile_records(
     records: list[dict[str, Any]],
     original_activity_id: int,
     new_activity: activity_schema.Activity,
@@ -72,7 +72,7 @@ def restore_profile_records(
         laps.append(lap.model_dump())
 
     if laps:
-        store_laps(laps, new_activity.id, db)
+        _store_laps(laps, new_activity.id, db)
     return len(laps)
 
 
@@ -83,6 +83,6 @@ def profile_contributor() -> activity_contributors.ProfileActivityContributor:
         archive_path="data/activity_laps.json",
         count_key="activity_laps",
         split=True,
-        export=list_laps_for_activities,
-        restore=restore_profile_records,
+        export=_list_laps_for_activities,
+        restore=_restore_profile_records,
     )

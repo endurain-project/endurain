@@ -28,35 +28,6 @@ def validate_activity_id(activity_id: int):
     core_dependencies.validate_id(identifier=activity_id, min_value=0, message="Invalid activity ID")
 
 
-def validate_week_number(week_number: int):
-    """
-    Validates the provided week number.
-
-    Args:
-        week_number (int): The week number to validate. Must be an integer between 0 and 52.
-
-    Raises:
-        ValueError: If the week number is not within the valid range or is of an incorrect type.
-    """
-    # check if week_number is between 0 and 52
-    core_dependencies.validate_type(type_value=week_number, min_value=0, max_value=52, message="Invalid week number")
-
-
-def validate_visibility(visibility: int):
-    """
-    Validates the visibility value to ensure it is within the allowed range.
-
-    Args:
-        visibility (int): The visibility value to validate. Must be an integer
-                          between 0 and 2 (inclusive).
-
-    Raises:
-        ValueError: If the visibility value is not within the range [0, 2].
-    """
-    # check if visibility is between 0 and 2
-    core_dependencies.validate_type(type_value=visibility, min_value=0, max_value=2, message="Invalid visibility")
-
-
 def validate_activity_type(activity_type: int | None = Query(None)):
     """
     Validates the provided activity type against a predefined mapping of valid activity types.

@@ -19,7 +19,7 @@ logger = core_logger.get_logger(__name__)
 _MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
 
 
-def list_media_for_activities(
+def _list_media_for_activities(
     activity_ids: list[int],
     db: Session,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
@@ -27,7 +27,7 @@ def list_media_for_activities(
     return activity_media_crud.get_activities_media(activity_ids, db)
 
 
-def restore_media_records(
+def _restore_media_records(
     media: list[activity_media_contracts.ActivityMediaCreate],
     activity_id: int,
     db: Session,
@@ -36,7 +36,7 @@ def restore_media_records(
     activity_media_crud.create_activity_medias(media, activity_id, db)
 
 
-def restore_profile_records(
+def _restore_profile_records(
     records: list[dict[str, Any]],
     original_activity_id: int,
     new_activity: activity_schema.Activity,
@@ -69,7 +69,7 @@ def restore_profile_records(
         )
 
     if media:
-        restore_media_records(media, new_activity.id, db)
+        _restore_media_records(media, new_activity.id, db)
     return len(media)
 
 
@@ -80,8 +80,8 @@ def profile_contributor() -> activity_contributors.ProfileActivityContributor:
         archive_path="data/activity_media.json",
         count_key="activity_media",
         split=False,
-        export=list_media_for_activities,
-        restore=restore_profile_records,
+        export=_list_media_for_activities,
+        restore=_restore_profile_records,
     )
 
 

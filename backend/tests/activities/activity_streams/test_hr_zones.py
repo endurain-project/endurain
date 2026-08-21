@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
+from modules.activities.activity_streams.hr_zones import compute_hr_zone_breakdown_sync
 
 
 def test_compute_hr_zone_percentages_with_even_distribution():
@@ -65,7 +65,7 @@ def test_compute_hr_zone_percentages_respects_known_zone_boundaries():
 
 
 def test_compute_hr_zone_breakdown_sync_matches_even_distribution():
-    from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
+    from modules.activities.activity_streams.hr_zones import compute_hr_zone_breakdown_sync
 
     waypoints = [{"hr": 100}, {"hr": 130}, {"hr": 150}, {"hr": 170}, {"hr": 190}]
 
@@ -77,7 +77,7 @@ def test_compute_hr_zone_breakdown_sync_matches_even_distribution():
 
 
 def test_compute_hr_zone_breakdown_sync_returns_none_without_hr_values():
-    from modules.activities.activity_streams.utils import compute_hr_zone_breakdown_sync
+    from modules.activities.activity_streams.hr_zones import compute_hr_zone_breakdown_sync
 
     assert compute_hr_zone_breakdown_sync([{"cadence": 90}], max_heart_rate=200, total_timer_time=100) is None
 
@@ -85,32 +85,24 @@ def test_compute_hr_zone_breakdown_sync_returns_none_without_hr_values():
 class TestResolveMaxHeartRate:
     """``220 - age`` needs completed years, not a year subtraction."""
 
-    @staticmethod
-    def _user(**kw):
-        from unittest.mock import MagicMock
-
-        return MagicMock(**kw)
-
     def test_stored_value_wins(self):
-        import modules.activities.activity_streams.utils as utils
+        import modules.activities.activity_streams.hr_zones as hr_zones
 
-        assert utils.resolve_max_heart_rate(self._user(max_heart_rate=190)) == 190
+        assert hr_zones.resolve_max_heart_rate(190, None, None) == 190
 
     def test_no_birthdate_and_no_stored_value(self):
-        import modules.activities.activity_streams.utils as utils
+        import modules.activities.activity_streams.hr_zones as hr_zones
 
-        assert utils.resolve_max_heart_rate(self._user(max_heart_rate=None, birthdate=None)) is None
+        assert hr_zones.resolve_max_heart_rate(None, None, None) is None
 
     def test_birthday_not_yet_reached_this_year(self):
         """Subtracting birth years alone aged a December-born user a year early."""
         from datetime import date
 
-        import modules.activities.activity_streams.utils as utils
+        import modules.activities.activity_streams.hr_zones as hr_zones
 
-        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)):
-            result = utils.resolve_max_heart_rate(
-                self._user(max_heart_rate=None, birthdate=date(1990, 12, 25), timezone="UTC")
-            )
+        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)):
+            result = hr_zones.resolve_max_heart_rate(None, date(1990, 12, 25), "UTC")
 
         # On 1 Mar 2026 a 1990-12-25 birthdate is 35, not 36.
         assert result == 220 - 35
@@ -118,12 +110,10 @@ class TestResolveMaxHeartRate:
     def test_birthday_already_passed_this_year(self):
         from datetime import date
 
-        import modules.activities.activity_streams.utils as utils
+        import modules.activities.activity_streams.hr_zones as hr_zones
 
-        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)):
-            result = utils.resolve_max_heart_rate(
-                self._user(max_heart_rate=None, birthdate=date(1990, 1, 5), timezone="UTC")
-            )
+        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)):
+            result = hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), "UTC")
 
         assert result == 220 - 36
 
@@ -131,12 +121,10 @@ class TestResolveMaxHeartRate:
         """A birthday is a local date: UTC would roll it a day early or late."""
         from datetime import date
 
-        import modules.activities.activity_streams.utils as utils
+        import modules.activities.activity_streams.hr_zones as hr_zones
 
-        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
-            utils.resolve_max_heart_rate(
-                self._user(max_heart_rate=None, birthdate=date(1990, 1, 5), timezone="Pacific/Kiritimati")
-            )
+        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
+            hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), "Pacific/Kiritimati")
 
         today_in.assert_called_once_with("Pacific/Kiritimati")
 
@@ -145,9 +133,9 @@ class TestResolveMaxHeartRate:
         from datetime import date
 
         import core.config as core_config
-        import modules.activities.activity_streams.utils as utils
+        import modules.activities.activity_streams.hr_zones as hr_zones
 
-        with patch.object(utils.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
-            utils.resolve_max_heart_rate(self._user(max_heart_rate=None, birthdate=date(1990, 1, 5), timezone=None))
+        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
+            hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), None)
 
         today_in.assert_called_once_with(core_config.settings.TZ)

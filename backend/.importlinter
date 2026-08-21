@@ -202,7 +202,7 @@ source_modules =
     modules.activities.*.crud
     modules.activities.activity.summary_crud
     modules.activities.activity.query
-    modules.activities.activity.serializers
+    modules.activities.*.serializers
     modules.activities.*.utils
 forbidden_modules =
     modules.users.users.integration_service
@@ -496,7 +496,7 @@ source_modules =
     modules.activities.*.crud
     modules.activities.activity.summary_crud
     modules.activities.activity.query
-    modules.activities.activity.serializers
+    modules.activities.*.serializers
     modules.followers.crud
 forbidden_modules =
     fastapi

@@ -11,7 +11,7 @@ import modules.activities.activity_streams.constants as activity_streams_constan
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_streams.utils as activity_streams_utils
+import modules.activities.activity_streams.serializers as activity_streams_serializers
 
 logger = core_logger.get_logger(__name__)
 
@@ -42,7 +42,7 @@ def get_activity_streams(
     )
     activity_streams: list[activity_streams_models.ActivityStreams] = list(db.scalars(stmt).all())
 
-    return activity_streams_utils.transform_activity_streams(activity_streams)
+    return activity_streams_serializers.transform_activity_streams(activity_streams)
 
 
 @core_decorators.handle_db_errors
@@ -76,7 +76,7 @@ def get_activities_streams(
     if not all_streams:
         return []
 
-    return activity_streams_utils.transform_activity_streams(all_streams)
+    return activity_streams_serializers.transform_activity_streams(all_streams)
 
 
 @core_decorators.handle_db_errors
@@ -111,7 +111,7 @@ def get_activity_stream_by_type(
     if not activity_stream:
         return None
 
-    return activity_streams_utils.transform_activity_streams(activity_stream)
+    return activity_streams_serializers.transform_activity_streams(activity_stream)
 
 
 def get_gps_stream_waypoints_for_activities(
@@ -162,7 +162,7 @@ def get_hr_streams_without_zone_percentages(
         .order_by(activity_streams_models.ActivityStreams.id)
         .limit(batch_size)
     )
-    return activity_streams_utils.transform_activity_streams(list(db.scalars(stmt).all()))
+    return activity_streams_serializers.transform_activity_streams(list(db.scalars(stmt).all()))
 
 
 def backfill_zone_percentages_for_missing_hr_streams(

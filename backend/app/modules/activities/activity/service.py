@@ -249,7 +249,7 @@ def list_gear_activities(
     return activities_crud.get_user_activities_by_gear_id_and_user_id(user_id, gear_id, db)
 
 
-def count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
+def _count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
     """Count a user's activities for a gear."""
     return activities_crud.get_gear_activities_count_by_user_id(user_id, gear_id, db)
 
@@ -444,7 +444,7 @@ def page_gear_activities(
         The page envelope.
     """
     items = list_gear_activities(user_id, gear_id, page_number, num_records, db)
-    total = count_gear_activities(user_id, gear_id, db)
+    total = _count_gear_activities(user_id, gear_id, db)
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
 
 

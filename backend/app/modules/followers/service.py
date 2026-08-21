@@ -26,7 +26,7 @@ from modules.followers.constants import FollowStatus
 logger = core_logger.get_logger(__name__)
 
 
-def requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
+def _requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
     """Return whether the requester may view the target's follower/following graph.
 
     A user's social graph is visible only to the user themselves and to their
@@ -52,7 +52,7 @@ def requester_may_view_network(target_user_id: int, requester_user_id: int, db: 
 
 def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> None:
     """Raise :class:`PermissionDeniedError` unless the requester may view the target's network."""
-    if not requester_may_view_network(target_user_id, requester_user_id, db):
+    if not _requester_may_view_network(target_user_id, requester_user_id, db):
         logger.warning(
             "Denied access to a user's follower network",
             extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),

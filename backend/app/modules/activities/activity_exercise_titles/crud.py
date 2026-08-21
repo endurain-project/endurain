@@ -46,31 +46,6 @@ def get_activity_exercise_titles(
 
 
 @core_decorators.handle_db_errors
-def get_activity_exercise_title_by_exercise_name(
-    exercise_name: int,
-    db: Session,
-) -> activity_exercise_titles_schema.ActivityExerciseTitles | None:
-    """
-    Retrieve a single activity exercise title by exercise name.
-
-    Args:
-        exercise_name: FIT exercise name identifier.
-        db: Database session.
-
-    Returns:
-        Matching ActivityExerciseTitles or None if not found.
-
-    Raises:
-        ProcessingError: If a database error occurs.
-    """
-    stmt = select(activity_exercise_titles_models.ActivityExerciseTitles).where(
-        activity_exercise_titles_models.ActivityExerciseTitles.exercise_name == exercise_name
-    )
-    row = db.execute(stmt).scalar_one_or_none()
-    return _to_read_schema(row) if row is not None else None
-
-
-@core_decorators.handle_db_errors
 def create_activity_exercise_titles(
     activity_exercise_titles: list[activity_exercise_titles_schema.ActivityExerciseTitles],
     db: Session,

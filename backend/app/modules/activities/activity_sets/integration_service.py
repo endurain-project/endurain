@@ -12,7 +12,7 @@ import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.contributors as activity_contributors
 
 
-def list_sets_for_activities(
+def _list_sets_for_activities(
     activity_ids: list[int],
     db: Session,
 ) -> list[activity_sets_schema.ActivitySetsRead]:
@@ -20,7 +20,7 @@ def list_sets_for_activities(
     return activity_sets_crud.get_activities_sets(activity_ids, db)
 
 
-def store_sets(
+def _store_sets(
     sets: Sequence[activity_sets_schema.ActivitySetsCreate | list],
     activity_id: int,
     db: Session,
@@ -31,7 +31,7 @@ def store_sets(
     activity_sets_crud.create_activity_sets(list(sets), activity_id, db, commit=commit)
 
 
-def persist_ingestion_component(
+def _persist_ingestion_component(
     data: Any,
     activity: activity_schema.Activity,
     db: Session,
@@ -41,18 +41,18 @@ def persist_ingestion_component(
     """Persist parsed set data through the generic ingestion contract."""
     if activity.id is None:
         raise core_exceptions.ProcessingError("Cannot store sets before the activity has an id")
-    store_sets(data, activity.id, db, commit=commit)
+    _store_sets(data, activity.id, db, commit=commit)
 
 
 def ingestion_contributor() -> activity_contributors.ActivityIngestionContributor:
     """Return the activity-sets ingestion contribution."""
     return activity_contributors.ActivityIngestionContributor(
         key="sets",
-        persist=persist_ingestion_component,
+        persist=_persist_ingestion_component,
     )
 
 
-def restore_profile_records(
+def _restore_profile_records(
     records: list[dict[str, Any]],
     original_activity_id: int,
     new_activity: activity_schema.Activity,
@@ -72,7 +72,7 @@ def restore_profile_records(
         sets.append(activity_sets_schema.ActivitySetsCreate.model_validate(data))
 
     if sets:
-        store_sets(sets, new_activity.id, db)
+        _store_sets(sets, new_activity.id, db)
     return len(sets)
 
 
@@ -83,6 +83,6 @@ def profile_contributor() -> activity_contributors.ProfileActivityContributor:
         archive_path="data/activity_sets.json",
         count_key="activity_sets",
         split=True,
-        export=list_sets_for_activities,
-        restore=restore_profile_records,
+        export=_list_sets_for_activities,
+        restore=_restore_profile_records,
     )

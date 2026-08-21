@@ -25,13 +25,13 @@ def _new_activity() -> activity_schema.Activity:
     [
         (
             laps_integration,
-            "store_laps",
+            "_store_laps",
             {"id": 11, "activity_id": 1, "start_time": "2024-01-01T00:00:00Z"},
             False,
         ),
         (
             sets_integration,
-            "store_sets",
+            "_store_sets",
             {
                 "id": 12,
                 "activity_id": 1,
@@ -43,7 +43,7 @@ def _new_activity() -> activity_schema.Activity:
         ),
         (
             streams_integration,
-            "store_streams",
+            "_store_streams",
             {
                 "id": 13,
                 "activity_id": 1,
@@ -54,7 +54,7 @@ def _new_activity() -> activity_schema.Activity:
         ),
         (
             workout_steps_integration,
-            "store_workout_steps",
+            "_store_workout_steps",
             {
                 "id": 14,
                 "activity_id": 1,
@@ -99,7 +99,7 @@ def test_media_profile_contributor_rekeys_without_mutating_source() -> None:
     activity = _new_activity()
     db = MagicMock()
 
-    with patch.object(media_integration, "restore_media_records") as store:
+    with patch.object(media_integration, "_restore_media_records") as store:
         restored = media_integration.profile_contributor().restore(records, 1, activity, db)
 
     assert restored == 1
@@ -118,7 +118,7 @@ def test_global_profile_contributor_restores_valid_titles_once() -> None:
     original_records = deepcopy(records)
     db = MagicMock()
 
-    with patch.object(exercise_titles_integration, "store_exercise_titles") as store:
+    with patch.object(exercise_titles_integration, "_store_exercise_titles") as store:
         restored = exercise_titles_integration.profile_global_contributor().restore(records, db)
 
     assert restored == 1

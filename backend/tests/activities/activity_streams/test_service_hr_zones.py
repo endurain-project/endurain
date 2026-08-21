@@ -31,8 +31,8 @@ def _context(activity_id: int = 1, owner_id: int = 2) -> activity_contracts.Acti
 
 
 class TestRecomputeHrZonesForUser:
-    @patch(f"{_SVC}.activity_streams_utils.compute_hr_zone_breakdown_sync")
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=200)
+    @patch(f"{_SVC}.activity_streams_hr_zones.compute_hr_zone_breakdown_sync")
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=200)
     @patch(f"{_SVC}.users_integration_service.get_user")
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -50,7 +50,7 @@ class TestRecomputeHrZonesForUser:
         mock_compute.assert_called_once_with([{"hr": 100}], 200, 60.0)
         mock_crud.set_zone_percentages.assert_called_once_with({7: {"hr": hr_block}}, db)
 
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=None)
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=None)
     @patch(f"{_SVC}.users_integration_service.get_user")
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -102,7 +102,7 @@ class TestScoreActivityHrZones:
 
         mock_crud.set_zone_percentages.assert_not_called()
 
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=None)
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=None)
     @patch(f"{_SVC}.users_integration_service.get_user", return_value=MagicMock())
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -115,7 +115,7 @@ class TestScoreActivityHrZones:
         mock_crud.get_activity_hr_stream.assert_not_called()
         mock_crud.set_zone_percentages.assert_not_called()
 
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=190)
     @patch(f"{_SVC}.users_integration_service.get_user", return_value=MagicMock())
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -129,8 +129,8 @@ class TestScoreActivityHrZones:
 
         mock_crud.set_zone_percentages.assert_not_called()
 
-    @patch(f"{_SVC}.activity_streams_utils.compute_hr_zone_breakdown_sync", return_value={"zone_1": 1})
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch(f"{_SVC}.activity_streams_hr_zones.compute_hr_zone_breakdown_sync", return_value={"zone_1": 1})
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=190)
     @patch(f"{_SVC}.users_integration_service.get_user", return_value=MagicMock())
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -147,8 +147,8 @@ class TestScoreActivityHrZones:
 
 
 class TestBackfillMissingHrZones:
-    @patch(f"{_SVC}.activity_streams_utils.compute_hr_zone_breakdown_sync", return_value={"zone_1": 1})
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch(f"{_SVC}.activity_streams_hr_zones.compute_hr_zone_breakdown_sync", return_value={"zone_1": 1})
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=190)
     @patch(f"{_SVC}.users_integration_service.get_user", return_value=MagicMock())
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -161,7 +161,7 @@ class TestBackfillMissingHrZones:
         assert service.backfill_missing_hr_zones(MagicMock()) == 1
         assert mock_crud.set_zone_percentages.call_args_list[0].args[0] == {5: {"hr": {"zone_1": 1}}}
 
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=None)
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=None)
     @patch(f"{_SVC}.users_integration_service.get_user", return_value=MagicMock())
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")
@@ -175,8 +175,8 @@ class TestBackfillMissingHrZones:
         assert service.backfill_missing_hr_zones(MagicMock()) == 0
         assert mock_crud.set_zone_percentages.call_args_list[0].args[0] == {}
 
-    @patch(f"{_SVC}.activity_streams_utils.compute_hr_zone_breakdown_sync", return_value={"zone_1": 1})
-    @patch(f"{_SVC}.activity_streams_utils.resolve_max_heart_rate", return_value=190)
+    @patch(f"{_SVC}.activity_streams_hr_zones.compute_hr_zone_breakdown_sync", return_value={"zone_1": 1})
+    @patch(f"{_SVC}.activity_streams_hr_zones.resolve_max_heart_rate", return_value=190)
     @patch(f"{_SVC}.users_integration_service.get_user", return_value=MagicMock())
     @patch(f"{_SVC}.activity_child_access")
     @patch(f"{_SVC}.activity_streams_crud")

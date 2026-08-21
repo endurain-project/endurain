@@ -9,7 +9,7 @@ Streams mask differently from the other child resources: there is no single
 (``hide_hr``, ``hide_power``, ``hide_cadence``, ...). So instead of the boolean
 gate the siblings use, this module resolves the parent activity through
 :mod:`modules.activities.activity.child_access` and hands it to
-:mod:`~modules.activities.activity_streams.utils`, which decides per stream.
+:mod:`~modules.activities.activity_streams.serializers`, which decides per stream.
 
 They are also the one child resource that is **not** paginated, deliberately.
 Laps, sets and workout steps have no domain ceiling on their row count, so a
@@ -28,8 +28,9 @@ import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_child_access
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.hr_zones as activity_streams_hr_zones
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_streams.utils as activity_streams_utils
+import modules.activities.activity_streams.serializers as activity_streams_serializers
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
@@ -61,7 +62,7 @@ def list_activity_streams(
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
     if requester_user_id != activity.user_id:
-        streams = activity_streams_utils.filter_visible_streams(streams, activity)
+        streams = activity_streams_serializers.filter_visible_streams(streams, activity)
 
     return streams
 
@@ -92,7 +93,9 @@ def get_activity_stream(
     if stream is None:
         return None
 
-    if requester_user_id != activity.user_id and activity_streams_utils.is_stream_hidden(activity, stream.stream_type):
+    if requester_user_id != activity.user_id and activity_streams_serializers.is_stream_hidden(
+        activity, stream.stream_type
+    ):
         return None
 
     return stream
@@ -120,7 +123,7 @@ def list_public_activity_streams(
         return []
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
-    return activity_streams_utils.filter_visible_streams(streams, activity)
+    return activity_streams_serializers.filter_visible_streams(streams, activity)
 
 
 def get_public_activity_stream(
@@ -147,7 +150,7 @@ def get_public_activity_stream(
     if stream is None:
         return None
 
-    if activity_streams_utils.is_stream_hidden(activity, stream.stream_type):
+    if activity_streams_serializers.is_stream_hidden(activity, stream.stream_type):
         return None
 
     return stream
@@ -215,7 +218,7 @@ def _zones_for(
     """Compute one stream's zone breakdown, or ``None`` when it cannot be scored."""
     if not max_heart_rate:
         return None
-    breakdown = activity_streams_utils.compute_hr_zone_breakdown_sync(
+    breakdown = activity_streams_hr_zones.compute_hr_zone_breakdown_sync(
         stream.waypoints,
         max_heart_rate,
         stream.total_timer_time,
@@ -240,7 +243,9 @@ def _with_context(
 def _max_heart_rate_of(user_id: int, db: Session) -> int | None:
     """Resolve a user's max heart rate, or ``None`` when it cannot be derived."""
     user = users_integration_service.get_user(user_id, db)
-    return activity_streams_utils.resolve_max_heart_rate(user) if user is not None else None
+    if user is None:
+        return None
+    return activity_streams_hr_zones.resolve_max_heart_rate(user.max_heart_rate, user.birthdate, user.timezone)
 
 
 def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
