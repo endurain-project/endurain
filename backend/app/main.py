@@ -234,6 +234,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
+    core_migrations.bootstrap_substrate_schema()
     await core_migrations.check_migrations()
     # The composition root collects each module's own declaration; the scheduler
     # knows how to schedule, never what.

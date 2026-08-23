@@ -1,5 +1,7 @@
 from logging.config import fileConfig
 
+import jasil.orm as jasil_orm
+
 from alembic import context
 
 # import Base and engine from database file
@@ -26,6 +28,31 @@ orm_model_registry.import_all_models()
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
+
+def include_object(obj, name, type_, reflected, compare_to) -> bool:
+    """Keep this history off the tables JASIL owns.
+
+    ``jasil.orm.map_models`` maps ``event_log``, ``event_outbox`` and
+    ``processing_jobs`` into the same registry as the application's own models,
+    so autogenerate would otherwise diff them here as well — and propose
+    dropping them the day the substrate moves one. They are migrated by
+    ``jasil.migrations`` against its own version table instead.
+
+    Args:
+        obj: The schema object being considered.
+        name: Its name.
+        type_: The kind of object (``table``, ``column``, ``index``, ...).
+        reflected: Whether it came from the database rather than the metadata.
+        compare_to: The object it is being compared against, if any.
+
+    Returns:
+        False for a JASIL-owned table, True otherwise.
+    """
+    if type_ == "table":
+        return name not in jasil_orm.jasil_table_names()
+    return True
+
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
@@ -48,6 +75,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -72,6 +100,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():
