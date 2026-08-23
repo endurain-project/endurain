@@ -961,11 +961,12 @@ export interface paths {
          * Read Event Log Summary
          * @description Get aggregated event-processing observability for the admin dashboard.
          *
-         *     Requires admin authentication with the server_settings:read scope.
+         *     Requires admin authentication with the server_settings:read scope. The
+         *     aggregate opens its own short-lived session rather than taking this
+         *     request's, so the read can never commit work the request left uncommitted.
          *
          *     Args:
          *         hours: Look-back window in hours (1-168) for throughput/latency stats.
-         *         db: Active database session.
          *
          *     Returns:
          *         Aggregated event_log summary — throughput, outcomes, latency, pending
@@ -2707,11 +2708,12 @@ export interface paths {
          * Read Jobs Summary
          * @description Get the durable-jobs processing summary for the admin dashboard.
          *
-         *     Requires admin authentication with the server_settings:read scope.
+         *     Requires admin authentication with the server_settings:read scope. The
+         *     aggregate opens its own short-lived session rather than taking this
+         *     request's, so the read can never commit work the request left uncommitted.
          *
          *     Args:
          *         hours: Look-back window in hours (1-168) for the status/subscriber counts.
-         *         db: Active database session.
          *
          *     Returns:
          *         Window counts, per-subscriber breakdown, oldest pending age, and the
@@ -2744,7 +2746,6 @@ export interface paths {
          *
          *     Args:
          *         job_id: The job to replay.
-         *         db: Active database session.
          *
          *     Returns:
          *         The replay result.
@@ -6152,7 +6153,7 @@ export interface components {
          *         handler_name: The subscriber(s) that processed the event.
          *         error_message: The failure reason.
          *         retry_count: Processing attempts so far.
-         *         event_metadata: Correlation context (request_id, user_id, activity_id).
+         *         event_metadata: Correlation context (request_id, plus any host-defined keys).
          *         created_at: When the event was published.
          *         completed_at: When processing finished.
          */

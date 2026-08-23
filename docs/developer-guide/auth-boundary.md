@@ -103,7 +103,7 @@ the boundary.
 ## Import-Linter Contracts
 
 The single `auth-boundary` contract in `backend/.importlinter` forbids every non-auth
-module (all other domains plus `core` and `infra`) from importing:
+module (all other domains plus `core`) from importing:
 
 1. The private `modules.auth._internal` package — credential/token/lockout plumbing
    (`internal_dependencies`, `password_hasher`, `token_manager`, `security_stores`) and

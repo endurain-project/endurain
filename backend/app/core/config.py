@@ -597,6 +597,76 @@ class Settings(BaseSettings):
         """Resolved deployment shape (profile + worker count)."""
         return platform_profile.resolve_topology(self.DEPLOYMENT_PROFILE, self.WEB_WORKERS)
 
+    # The ``substrate_*_uri`` properties below are what the platform substrate is
+    # handed; the ``resolved_*`` ones above fold in the host's fallbacks for the
+    # application's own use. They differ deliberately: only the ``local`` profile
+    # is entitled to a default capability URI, so under any other profile an
+    # unconfigured capability stays ``None`` rather than silently becoming
+    # process-local. ``_enforce_deployment_topology`` refuses that boot, which is
+    # what keeps the failure here — naming the environment variable — instead of
+    # inside the substrate, naming the field it maps to.
+
+    @property
+    def _substrate_keeps_host_fallbacks(self) -> bool:
+        """Whether the substrate gets the host's fallbacks instead of bare settings.
+
+        Only in ``development``, so a developer can run any profile without
+        standing up its infrastructure — the same escape hatch
+        :meth:`_enforce_deployment_topology` grants.
+        """
+        return self.ENVIRONMENT == "development"
+
+    @property
+    def substrate_state_uri(self) -> str | None:
+        """``state_uri`` as handed to the substrate."""
+        return self.resolved_state_uri if self._substrate_keeps_host_fallbacks else (self.STATE_URI or self.REDIS_URL)
+
+    @property
+    def substrate_storage_uri(self) -> str | None:
+        """``storage_uri`` as handed to the substrate."""
+        return self.resolved_storage_uri if self._substrate_keeps_host_fallbacks else self.STORAGE_URI
+
+    @property
+    def substrate_events_uri(self) -> str | None:
+        """``events_uri`` as handed to the substrate."""
+        return self.resolved_events_uri if self._substrate_keeps_host_fallbacks else (self.EVENTS_URI or self.REDIS_URL)
+
+    @property
+    def substrate_lock_uri(self) -> str | None:
+        """``lock_uri`` as handed to the substrate.
+
+        Keeps Endurain's multi-process default rather than leaving it unset: the
+        substrate defaults the lock to ``noop://`` for the whole ``local``
+        profile, but a multi-worker deployment has scheduled jobs to coordinate.
+        """
+        if self._substrate_keeps_host_fallbacks:
+            return self.resolved_lock_uri
+        if self.LOCK_URI:
+            return self.LOCK_URI
+        return "postgres-advisory://" if self.resolved_deployment_topology.requires_shared_state else None
+
+    def _unconfigured_capability_issues(self) -> list[str]:
+        """Return an issue per capability URI a non-``local`` profile leaves unset.
+
+        Only ``local`` has capability defaults. Every other profile must name its
+        shared infrastructure, and the substrate refuses to guess one — so
+        catching it here is what makes this validator strictly stronger than the
+        substrate's own check, and therefore always the one that fires.
+        """
+        if self.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.LOCAL:
+            return []
+        return [
+            f"{label} must be set explicitly for the '{self.DEPLOYMENT_PROFILE.value}' deployment profile; "
+            "only the 'local' profile has a default"
+            for label, uri in (
+                ("STATE_URI/REDIS_URL", self.substrate_state_uri),
+                ("EVENTS_URI/REDIS_URL", self.substrate_events_uri),
+                ("STORAGE_URI", self.substrate_storage_uri),
+                ("LOCK_URI", self.substrate_lock_uri),
+            )
+            if not uri
+        ]
+
     @model_validator(mode="after")
     def _enforce_deployment_topology(self) -> Self:
         """Fail fast when a shared-state deployment is wired to process-local infrastructure.
@@ -607,18 +677,28 @@ class Settings(BaseSettings):
         nor an in-process ``noop`` coordination lock, or every process would run
         every scheduled job. A ``distributed`` deployment also cannot use the
         local filesystem for blob storage, because replicas do not share a disk.
+        A profile other than ``local`` additionally has to name each capability
+        outright, because only ``local`` carries defaults.
+
         Raising here aborts ``Settings`` construction so the misconfiguration
         surfaces at boot rather than at request time, naming the environment
-        variable at fault rather than the substrate field it maps to.
-        ``development`` and the ``custom`` profile are never fatal. Multi-worker
-        ``local`` keeps local storage (shared host disk) but still needs a shared
-        lock.
+        variable at fault rather than the substrate field it maps to. That is the
+        only reason this duplicates a check the substrate also runs on the
+        settings it is handed: this one must stay **strictly stronger**, so the
+        substrate's can never be the one that fires. ``tests/core`` pins that —
+        anything ``Settings`` accepts, the substrate must resolve.
+
+        ``development`` is never fatal, and the ``custom`` profile is exempt from
+        the consistency rules (it promises no defaults, so nothing can contradict
+        one) though not from naming its capabilities. Multi-worker ``local``
+        keeps local storage (shared host disk) but still needs a shared lock.
         """
         if self.ENVIRONMENT == "development":
             return self
         state_label = "STATE_URI" if self.STATE_URI else "REDIS_URL" if self.REDIS_URL else "STATE_URI/REDIS_URL"
         events_label = "EVENTS_URI" if self.EVENTS_URI else "REDIS_URL" if self.REDIS_URL else "EVENTS_URI/REDIS_URL"
-        issues = platform_capabilities.check_state_consistency(
+        issues = self._unconfigured_capability_issues()
+        issues += platform_capabilities.check_state_consistency(
             profile=self.DEPLOYMENT_PROFILE,
             web_workers=self.WEB_WORKERS,
             state_sources=[

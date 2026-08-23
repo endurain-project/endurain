@@ -245,14 +245,31 @@ class TestDeploymentProfileEnforcement:
         assert settings.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.DISTRIBUTED
 
     def test_custom_profile_memory_not_fatal(self):
+        # 'custom' promises no defaults, so nothing can contradict one and the
+        # consistency rules are waived - but it must still name every capability.
         settings = core_config.Settings(
             _env_file=None,
             ENVIRONMENT="production",
             DEPLOYMENT_PROFILE="custom",
             WEB_WORKERS=4,
             STATE_URI="memory://",
+            EVENTS_URI="memory://",
+            STORAGE_URI="local://",
+            LOCK_URI="noop://",
         )
         assert settings.WEB_WORKERS == 4
+
+    def test_custom_profile_must_name_every_capability(self):
+        # Only 'local' carries capability defaults; the substrate refuses to
+        # guess for any other profile, so this has to fail here first.
+        with pytest.raises(ValidationError) as exc_info:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="production",
+                DEPLOYMENT_PROFILE="custom",
+                STATE_URI="memory://",
+            )
+        assert "STORAGE_URI must be set explicitly" in str(exc_info.value)
 
     def test_web_workers_invalid_defaults_to_one(self):
         settings = core_config.Settings(_env_file=None, WEB_WORKERS="not-a-number")

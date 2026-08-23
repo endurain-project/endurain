@@ -1,6 +1,8 @@
 """Tests for the Endurain settings -> JasilSettings translation."""
 
 import jasil.profile as jasil_profile
+import pytest
+from pydantic import ValidationError
 
 import core.config as core_config
 from core.platform_settings import build_jasil_settings
@@ -224,3 +226,102 @@ class TestNetworkSettings:
         result = build_jasil_settings(core_config.Settings(_env_file=None)).network
 
         assert result.ssrf_allowed_hosts == ()
+
+
+class TestHostCheckIsStrictlyStronger:
+    """Whatever ``Settings`` accepts, the substrate must be able to resolve.
+
+    Both sides validate the deployment, and only one of them can name the
+    environment variable at fault. So ``Settings._enforce_deployment_topology``
+    has to reject a superset of what JASIL would, or a configuration exists that
+    boots past the good error and dies on the substrate's. That is not something
+    the two implementations show on their own — it only holds if every capability
+    JASIL insists on is one the host insisted on first, which is what this
+    asserts.
+    """
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({}, id="local-defaults"),
+            pytest.param({"WEB_WORKERS": 4, "REDIS_URL": "redis://s:6379/0"}, id="local-multi-worker"),
+            pytest.param({"LOCK_URI": "postgres-advisory://"}, id="local-explicit-lock"),
+            pytest.param(
+                {"DEPLOYMENT_PROFILE": "distributed", "REDIS_URL": "redis://s:6379/0", "STORAGE_URI": "s3://b"},
+                id="distributed-via-redis-url",
+            ),
+            pytest.param(
+                {
+                    "DEPLOYMENT_PROFILE": "distributed",
+                    "STATE_URI": "redis://s:6379/0",
+                    "EVENTS_URI": "redis://e:6379/1",
+                    "STORAGE_URI": "s3://b",
+                    "LOCK_URI": "postgres-advisory://",
+                },
+                id="distributed-fully-explicit",
+            ),
+            pytest.param(
+                {
+                    "DEPLOYMENT_PROFILE": "custom",
+                    "STATE_URI": "memory://",
+                    "EVENTS_URI": "memory://",
+                    "STORAGE_URI": "local://",
+                    "LOCK_URI": "noop://",
+                },
+                id="custom-fully-explicit",
+            ),
+        ],
+    )
+    def test_every_accepted_configuration_resolves(self, overrides):
+        settings = core_config.Settings(_env_file=None, ENVIRONMENT="production", **overrides)
+
+        result = build_jasil_settings(settings)
+
+        # Each ``resolved_*`` raises when JASIL has neither a value nor a default.
+        assert result.resolved_state_uri
+        assert result.resolved_storage_uri
+        assert result.resolved_events_uri
+        assert result.resolved_lock_uri
+
+    @pytest.mark.parametrize(
+        "missing",
+        ["STATE_URI", "EVENTS_URI", "STORAGE_URI", "LOCK_URI"],
+    )
+    def test_a_non_local_profile_must_name_every_capability(self, missing):
+        # The 'custom' profile is exempt from the consistency rules but not from
+        # this one, and it is the profile where the two checks used to disagree.
+        explicit = {
+            "STATE_URI": "memory://",
+            "EVENTS_URI": "memory://",
+            "STORAGE_URI": "local://",
+            "LOCK_URI": "noop://",
+        }
+        del explicit[missing]
+
+        with pytest.raises(ValidationError) as exc_info:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="production",
+                DEPLOYMENT_PROFILE="custom",
+                **explicit,
+            )
+
+        assert missing in str(exc_info.value)
+        assert "must be set explicitly" in str(exc_info.value)
+
+    def test_development_keeps_the_host_fallbacks(self):
+        # The escape hatch: a developer runs the distributed profile with nothing
+        # configured, and gets the local backends rather than a boot failure.
+        settings = core_config.Settings(
+            _env_file=None,
+            ENVIRONMENT="development",
+            DEPLOYMENT_PROFILE="distributed",
+        )
+
+        result = build_jasil_settings(settings)
+
+        assert result.enforce_deployment_consistency is False
+        assert result.resolved_state_uri == "memory://"
+        assert result.resolved_storage_uri == "local://"
+        assert result.resolved_events_uri == "memory://"
+        assert result.resolved_lock_uri == "postgres-advisory://"

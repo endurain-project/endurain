@@ -3,6 +3,8 @@
 import threading
 from unittest.mock import call, patch
 
+import pytest
+
 import worker
 
 
@@ -25,6 +27,7 @@ class TestRunWorkerProcess:
             patch("worker.jobs_registry") as jobs_registry,
             patch("worker.jobs_service") as service,
             patch("worker.run_worker") as run_worker_mock,
+            patch("worker.jasil_lifecycle") as lifecycle,
             patch("worker._install_signal_handlers") as install_signals,
         ):
             cfg.settings.JOBS_ENABLED = True
@@ -50,6 +53,30 @@ class TestRunWorkerProcess:
         install_signals.assert_called_once_with(stop)
         run_worker_mock.assert_called_once()
         assert run_worker_mock.call_args.kwargs["stop"] is stop
+        # This process built its own platform, so draining is not the end of it:
+        # the bus consumer thread and Redis clients have to be released too.
+        lifecycle.shutdown.assert_called_once_with()
+
+    def test_releases_the_platform_when_the_run_raises(self):
+        with (
+            patch("worker.core_config") as cfg,
+            patch("worker.core_platform_settings"),
+            patch("worker.jasil_settings"),
+            patch("worker.platform_container"),
+            patch("worker.platform_runtime"),
+            patch("worker.runtime_module_registry"),
+            patch("worker.jobs_registry"),
+            patch("worker.jobs_service"),
+            patch("worker.run_worker", side_effect=RuntimeError("boom")),
+            patch("worker.jasil_lifecycle") as lifecycle,
+            patch("worker._install_signal_handlers"),
+        ):
+            cfg.settings.JOBS_ENABLED = True
+            cfg.settings.JOBS_POLL_INTERVAL_SECONDS = 2.0
+            with pytest.raises(RuntimeError):
+                worker.run_worker_process(stop=threading.Event())
+
+        lifecycle.shutdown.assert_called_once_with()
 
 
 class TestMain:

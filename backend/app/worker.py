@@ -17,6 +17,7 @@ from types import FrameType
 import jasil.container as platform_container
 import jasil.jobs.registry as jobs_registry
 import jasil.jobs.service as jobs_service
+import jasil.lifecycle as jasil_lifecycle
 import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 from jasil.jobs.worker import run_worker
@@ -83,7 +84,13 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     runner = jobs_service.build_runner()
-    run_worker(runner, poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS, stop=stop)
+    try:
+        run_worker(runner, poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS, stop=stop)
+    finally:
+        # This process built a platform of its own, so it owns releasing it —
+        # under the distributed profile that is a Redis consumer thread and a
+        # pool of connections that would otherwise outlive the run.
+        jasil_lifecycle.shutdown()
     logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 

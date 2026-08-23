@@ -6,21 +6,13 @@ it once at startup. :data:`core.config.settings` stays the single place an
 operator-facing variable is declared, documented, and validated; this module is
 the one seam that maps those variables onto the substrate's shape.
 
-Two mappings are deliberate rather than mechanical:
-
-* **Capability URIs are passed unresolved.** ``core.config`` exposes
-  ``resolved_*`` properties that already fold in the ``local`` defaults, but
-  handing those to JASIL would mean the ``distributed`` profile never sees an
-  unset URI and so never refuses to guess one — the fail-fast that stops every
-  replica silently keeping its own copy of shared state. ``development`` is the
-  exception: it keeps the host's fallbacks so a developer can run any profile
-  without standing up its infrastructure, which is the same escape hatch
-  ``Settings._enforce_deployment_topology`` grants.
-* **The coordination lock keeps its host-side default.** JASIL defaults
-  ``lock_uri`` to ``noop://`` for the whole ``local`` profile, but Endurain
-  defaults it to ``postgres-advisory://`` as soon as the topology runs more than
-  one process, so a multi-worker ``local`` deployment coordinates its scheduled
-  jobs without the operator setting anything. Resolving it here preserves that.
+The capability URIs come from ``core.config``'s ``substrate_*_uri`` properties
+rather than its ``resolved_*`` ones. Those are the values the substrate is meant
+to see — deliberately *not* folding in the ``local`` fallbacks, so a
+``distributed`` or ``custom`` profile still presents an unset URI and JASIL still
+refuses to guess one. ``core.config`` owns that distinction (and validates it in
+``Settings._enforce_deployment_topology``) so the rule is stated once, next to
+the variables it is about, instead of half here and half there.
 """
 
 import jasil.profile as jasil_profile
@@ -38,16 +30,15 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
     Returns:
         The equivalent :class:`~jasil.settings.JasilSettings`.
     """
-    strict = settings.ENVIRONMENT != "development"
     return jasil_settings.JasilSettings(
         profile=jasil_profile.DeploymentProfile(settings.DEPLOYMENT_PROFILE.value),
         web_workers=settings.WEB_WORKERS,
-        enforce_deployment_consistency=strict,
+        enforce_deployment_consistency=settings.ENVIRONMENT != "development",
         data_dir=settings.DATA_DIR,
-        state_uri=(settings.STATE_URI or settings.REDIS_URL or None) if strict else settings.resolved_state_uri,
-        storage_uri=(settings.STORAGE_URI or None) if strict else settings.resolved_storage_uri,
-        events_uri=(settings.EVENTS_URI or settings.REDIS_URL or None) if strict else settings.resolved_events_uri,
-        lock_uri=_resolve_lock_uri(settings) if strict else settings.resolved_lock_uri,
+        state_uri=settings.substrate_state_uri,
+        storage_uri=settings.substrate_storage_uri,
+        events_uri=settings.substrate_events_uri,
+        lock_uri=settings.substrate_lock_uri,
         jobs=_build_job_settings(settings),
         event_log=jasil_settings.EventLogSettings(
             enabled=settings.EVENT_LOG_ENABLED,
@@ -56,15 +47,6 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
         geocoding=_build_geocoding_settings(settings),
         network=jasil_settings.NetworkSettings(ssrf_allowed_hosts=tuple(settings.SSRF_ALLOWED_HOSTS)),
     )
-
-
-def _resolve_lock_uri(settings: core_config.Settings) -> str | None:
-    """Resolve the coordination lock, keeping Endurain's multi-process default."""
-    if settings.LOCK_URI:
-        return settings.LOCK_URI
-    if settings.resolved_deployment_topology.requires_shared_state:
-        return "postgres-advisory://"
-    return None
 
 
 def _build_job_settings(settings: core_config.Settings) -> jasil_settings.JobSettings:

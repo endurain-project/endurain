@@ -132,8 +132,8 @@ module may follow it.
 `subscriber_registry.py` is also where a module declares its **reconciliation
 nets**. A durable subscriber derives state from an event, and delivery is
 at-least-once but never guaranteed — a bus consumer can drop a message, and some
-write paths publish no event at all. So each durable subscriber declares an
-`infra.jobs.reconciliation.DurableSubscriberNet`: either the scheduled backfill
+write paths publish no event at all. So each durable subscriber declares a
+`jasil.jobs.reconciliation.DurableSubscriberNet`: either the scheduled backfill
 that re-derives what the create path missed, or the reason none is needed.
 `tests/architecture/test_reconciliation_nets.py` holds every module to it.
 
@@ -171,7 +171,7 @@ or imports domain models.
 `migration_service.py` exposes the exact historical operations a versioned data
 migration still needs. It prevents an old migration from reaching arbitrary CRUD,
 parser, render, or signing internals while keeping that migration pinned to its
-era. Import-linter forbids domain, core, and infra code from consuming it.
+era. Import-linter forbids domain and core code from consuming it.
 
 ### 4. Package-private — importable only from inside its own module
 
@@ -238,16 +238,25 @@ Downward only. `crud` never calls `service`; `service` never touches `models`.
 
 - **`core.*`** — cross-cutting primitives (logging, config, pagination, exceptions,
   timezone, signing, uploads). Always allowed.
-- **`infra.*`** — the platform substrate, through `infra.providers` (ports) only.
-  Never `infra.backends` (adapters).
+- **`jasil.*`** — the platform substrate, an external package. Through its public
+  surface only: `jasil.providers` (the capability ports), `jasil.publisher`,
+  `jasil.events`, `jasil.subscribers`, `jasil.jobs.registry`. Never
+  `jasil.backends` (the adapters), `jasil._core`, or a `crud` module.
 - **Other modules** — through their `integration_service` only.
 - **`fastapi`** — routers and dependencies only. Persistence raises
   `core.exceptions`; the app's error handler maps those to responses.
 
-The dependency direction is fixed: `core` and `infra` must never import `modules`.
-A module publishes its scheduled work (`scheduled_jobs.py`), its subscribers
-(`subscriber_registry.py`) and its plug-ins; the platform *collects* them. It is
-never the platform's job to know a module exists.
+The dependency direction is fixed: `core` and the substrate must never import
+`modules`. A module publishes its scheduled work (`scheduled_jobs.py`), its
+subscribers (`subscriber_registry.py`) and its plug-ins; the platform *collects*
+them. It is never the platform's job to know a module exists.
+
+Because the substrate is an external package, that rule is split across two
+enforcement points. Its own internal direction (ports never importing adapters,
+nothing importing `modules`) is an import contract in the JASIL repository,
+verified on its releases. Which part of it *this* application may touch lives in
+`tests/architecture/test_jasil_boundary.py` — import-linter cannot state it,
+because it rejects a subpackage of an external package as a forbidden module.
 
 ## Inverting a platform-to-domain reach
 
@@ -296,7 +305,7 @@ cd backend && PYTHONPATH=app uv run lint-imports
 Contracts are stated as **wildcards** (`modules.activities.*.crud`) so a new
 activity module inherits every cross-module rule the day it is created, instead
 of when someone remembers to add it to a list. A separate contract prevents
-domain/core/infra code from consuming `*.migration_service`.
+domain/core code from consuming `*.migration_service`.
 
 **`backend/tests/architecture/test_module_boundaries.py`** — the one rule
 import-linter cannot express. A `forbidden` contract rejects an import if *any*
@@ -453,7 +462,7 @@ The same reach survives in `garmin`, `strava`, `auth.sign_up_tokens` and
 
 **Resolved.** `app/migrations/migration_*.py` consume package-owned
 `migration_service.py` adapters. The blanket migration allowlist is gone, and
-import-linter prevents ordinary domain/core/infra code from using those adapters.
+import-linter prevents ordinary domain/core code from using those adapters.
 
 ### ORM registry and cross-package relationships
 
