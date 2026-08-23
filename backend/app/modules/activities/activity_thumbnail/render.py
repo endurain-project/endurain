@@ -11,8 +11,8 @@ import re
 
 import core.config as core_config
 import core.logger as core_logger
-import infra.runtime as platform_runtime
-from infra.providers import RouteMapRenderRequest
+import core.route_map as core_route_map
+from core.route_map import RouteMapRenderRequest
 
 logger = core_logger.get_logger(__name__)
 
@@ -144,7 +144,7 @@ def render_activity_thumbnail(
             separator = "&" if "?" in normalised_url else "?"
             normalised_url += f"{separator}api_key={api_key}"
 
-        data = platform_runtime.get_active_platform().route_map_renderer.render(
+        data = core_route_map.render(
             RouteMapRenderRequest(
                 coordinates=tuple(coords),
                 tile_url=normalised_url,

@@ -186,32 +186,3 @@ class GeocodingProvider(Protocol):
     """
 
     def reverse(self, latitude: float, longitude: float) -> GeocodedPlace | None: ...
-
-
-@dataclass(frozen=True)
-class RouteMapRenderRequest:
-    """Provider-neutral request to render a route over map tiles."""
-
-    coordinates: tuple[tuple[float, float], ...]
-    tile_url: str
-    background_color: str
-    headers: dict[str, str]
-    width: int
-    height: int
-    line_color: str
-    line_width: int
-    marker_outer_color: str
-    marker_outer_radius: int
-    start_color: str
-    end_color: str
-    marker_inner_radius: int
-    quality: int
-    encoder_method: int
-    request_timeout_seconds: float = 10.0
-
-
-@runtime_checkable
-class RouteMapRendererProvider(Protocol):
-    """Render route-map bytes while owning all outbound tile requests."""
-
-    def render(self, request: RouteMapRenderRequest) -> bytes: ...

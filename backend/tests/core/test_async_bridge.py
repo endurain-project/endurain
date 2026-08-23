@@ -1,4 +1,4 @@
-"""Tests for the infra async bridge (dispatch sync code onto the main loop)."""
+"""Tests for the core async bridge (dispatch sync code onto the main loop)."""
 
 import asyncio
 import threading
@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-import infra.async_bridge as async_bridge
+import core.async_bridge as async_bridge
 
 
 @pytest.fixture(autouse=True)
@@ -65,7 +65,7 @@ class TestSetGetLoop:
 
 
 class TestDispatchWithoutLoop:
-    @patch("infra.async_bridge.logger")
+    @patch("core.async_bridge.logger")
     def test_returns_none_logs_and_closes_coroutine(self, mock_logger):
         state = {"ran": False}
 
@@ -81,7 +81,7 @@ class TestDispatchWithoutLoop:
         assert state["ran"] is False
         assert coro.cr_frame is None
 
-    @patch("infra.async_bridge.logger")
+    @patch("core.async_bridge.logger")
     def test_treats_closed_loop_as_no_loop(self, mock_logger):
         loop = asyncio.new_event_loop()
         loop.close()
@@ -116,7 +116,7 @@ class TestDispatchWithLoop:
             async_bridge.set_main_loop(None)
             _stop_loop(loop, thread)
 
-    @patch("infra.async_bridge.logger")
+    @patch("core.async_bridge.logger")
     def test_logs_failure_from_coroutine(self, mock_logger):
         loop, thread = _run_loop_in_thread()
         try:

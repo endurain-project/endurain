@@ -15,10 +15,10 @@ on the **main** event loop captured at application startup via
 loop that owns the resources (e.g. the websocket connections) while letting the
 producing code stay fully synchronous.
 
-The main loop is a process-wide handle (like the platform handle in
-:mod:`infra.runtime`), so it lives in a module-level slot set once from the
-lifespan startup and cleared on shutdown. This module imports nothing from the
-domain layer or any backend, so it is safe for any module to depend on.
+The main loop is a process-wide handle, so it lives in a module-level slot set
+once from the lifespan startup and cleared on shutdown. This module imports
+nothing from the domain layer or the platform substrate, so it is safe for any
+module to depend on.
 """
 
 from __future__ import annotations

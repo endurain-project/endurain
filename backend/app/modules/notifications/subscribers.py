@@ -1,8 +1,8 @@
 """Consume activity and follower events to create user notifications."""
 
+import core.async_bridge as core_async_bridge
 import core.database as core_database
 import core.logger as core_logger
-import infra.async_bridge as platform_async_bridge
 import infra.event_versioning as platform_event_versioning
 import modules.activities.activity.events as activity_events
 import modules.followers.events as followers_events
@@ -30,7 +30,7 @@ def notify_activity_created_for_event(event: Event) -> None:
             payload.duplicate_start_time,
             db,
         )
-    platform_async_bridge.dispatch(
+    core_async_bridge.dispatch(
         websocket_integration.push_to_user(
             payload.user_id,
             {"message": ws_message, "notification_id": notification.id},
@@ -55,7 +55,7 @@ def notify_follower_requested_for_event(event: Event) -> None:
             payload.target_user_id,
             db,
         )
-    platform_async_bridge.dispatch(
+    core_async_bridge.dispatch(
         websocket_integration.push_to_user(
             payload.target_user_id,
             {"message": ws_message, "notification_id": notification.id},
@@ -80,7 +80,7 @@ def notify_follower_accepted_for_event(event: Event) -> None:
             payload.requester_user_id,
             db,
         )
-    platform_async_bridge.dispatch(
+    core_async_bridge.dispatch(
         websocket_integration.push_to_user(
             payload.requester_user_id,
             {"message": ws_message, "notification_id": notification.id},

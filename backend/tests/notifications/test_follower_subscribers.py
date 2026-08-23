@@ -18,7 +18,7 @@ class TestOnFollowerRequestedNotify:
         mock_notif.create_follow_request_notification.assert_not_called()
 
     @patch("modules.notifications.subscribers.websocket_integration")
-    @patch("modules.notifications.subscribers.platform_async_bridge")
+    @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
@@ -52,7 +52,7 @@ class TestOnFollowerAcceptedNotify:
         mock_notif.create_follow_accepted_notification.assert_not_called()
 
     @patch("modules.notifications.subscribers.websocket_integration")
-    @patch("modules.notifications.subscribers.platform_async_bridge")
+    @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):

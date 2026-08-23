@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -29,7 +30,6 @@ import core.network as core_network
 import core.problem_details as core_problem_details
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
-import infra.async_bridge as platform_async_bridge
 import infra.capabilities as platform_capabilities
 import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
@@ -240,8 +240,8 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Capture the running event loop so synchronous code (sync routes in the
     # threadpool, in-process event subscribers) can dispatch async I/O — e.g. a
-    # websocket push — back onto it via infra.async_bridge.
-    platform_async_bridge.capture_running_loop()
+    # websocket push — back onto it via core.async_bridge.
+    core_async_bridge.capture_running_loop()
 
     # Configure activity contributors, then register every event-bus subscriber
     # and durable-job handler through the shared app composition root so the API
@@ -383,7 +383,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     core_scheduler.stop_scheduler()
 
     # Clear the captured event loop; nothing may dispatch onto it after shutdown.
-    platform_async_bridge.set_main_loop(None)
+    core_async_bridge.set_main_loop(None)
 
     # Dispose the SQLAlchemy engine so all pooled
     # psycopg connections are closed deterministically.

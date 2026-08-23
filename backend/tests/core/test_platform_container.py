@@ -9,7 +9,6 @@ import infra.providers as platform_providers
 from infra.backends.clock_system import SystemClock
 from infra.backends.events_inprocess import InProcessEventBus
 from infra.backends.lock_noop import NoopLock
-from infra.backends.route_map_static import StaticRouteMapRenderer
 from infra.backends.state_memory import MemoryState
 from infra.backends.storage_local import LocalStorage
 from infra.container import build_platform
@@ -64,8 +63,6 @@ class TestBuildPlatformLocal:
         assert isinstance(platform.lock, platform_providers.LockProvider)
         assert isinstance(platform.clock, platform_providers.ClockProvider)
         assert isinstance(platform.geocoding, platform_providers.GeocodingProvider)
-        assert isinstance(platform.route_map_renderer, platform_providers.RouteMapRendererProvider)
-        assert isinstance(platform.route_map_renderer, StaticRouteMapRenderer)
 
     def test_storage_uses_data_dir_root(self, tmp_path):
         platform = build_platform(_settings(DeploymentProfile.LOCAL, str(tmp_path)))
