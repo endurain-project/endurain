@@ -43,6 +43,9 @@ dependencies = [
     "nh3>=0.3.1",
     "aiofiles>=25.1.0",
     "staticmap>=0.5.7",
+    # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
+    # changes on minor versions.
+    "jasil[fastapi,geocoding,jobs,migrations]>=0.1.1,<0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -52,6 +55,7 @@ dependencies = [
 distributed = [
     "boto3>=1.35",
     "redis>=7.4.0",
+    "jasil[redis,s3]>=0.1.1,<0.2.0",
 ]
 
 [dependency-groups]
@@ -91,6 +95,10 @@ docs = [
 [tool.uv]
 required-version = "0.11.18"
 exclude-newer = "30 days"
+# jasil is first-party (endurain-project) and published through PyPI Trusted
+# Publishing with PEP 740 attestations, so it is exempt from the quarantine the
+# cutoff applies to third-party releases. Every other dependency keeps it.
+exclude-newer-package = { jasil = "2026-08-22T00:00:00Z" }
 
 [[tool.uv.index]]
 name = "pypi"
