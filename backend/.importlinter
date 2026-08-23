@@ -4,7 +4,6 @@ include_external_packages = True
 root_packages =
     modules
     core
-    infra
 
 [importlinter:contract:auth-boundary]
 name = Auth boundary: non-auth must not import auth internals directly
@@ -22,46 +21,16 @@ source_modules =
     modules.server_settings
     modules.strava
     modules.websocket
-    infra
 forbidden_modules =
     modules.auth._internal
     modules.auth.*.crud
     modules.auth.*.*.crud
 
-[importlinter:contract:platform-core-no-infra]
-name = Platform core (providers/events/publisher/profile/container/runtime) must not import infrastructure directly
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    infra.providers
-    infra.events
-    infra.publisher
-    infra.profile
-    infra.capabilities
-    infra.container
-    infra.runtime
-forbidden_modules =
-    redis
-    sqlalchemy
-    boto3
-
-[importlinter:contract:domain-not-platform-backends]
-name = Domain modules must depend on platform providers, not backends
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    modules
-forbidden_modules =
-    infra.backends
-
-[importlinter:contract:platform-not-domain]
-name = Platform substrate must not import domain modules
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    infra
-forbidden_modules =
-    modules
+# The substrate is now the external ``jasil`` package, which enforces its own
+# ports-and-adapters direction and its own no-domain rule upstream. Which part of
+# it application code may touch is still this repository's rule, but it cannot be
+# stated here: import-linter rejects a subpackage of an external package as a
+# forbidden module. It lives in ``tests/architecture/test_jasil_boundary.py``.
 
 # The same rule one layer up, for ``core``. ``core.scheduler`` used to import
 # four activities internals plus auth, Strava and Garmin in order to enumerate
@@ -89,27 +58,16 @@ allow_indirect_imports = True
 source_modules =
     modules
     core
-    infra
 forbidden_modules =
     redis
-ignore_imports =
-    infra.redis -> redis
 
 # A layers contract (not a denylist) that states the substrate's internal direction
 # once: the composition root (container) sits above the adapters (backends), which sit
 # above the ports (providers) and the event envelope (events). Higher layers may import
 # lower ones, never the reverse — so a port importing an adapter (the ports-and-adapters
 # inversion the forbidden contracts above do NOT catch) is rejected here.
-[importlinter:contract:platform-ports-and-adapters]
-name = Platform ports-and-adapters: adapters may import ports, never the reverse
-type = layers
-containers =
-    infra
-layers =
-    container
-    backends
-    providers
-    events
+# Removed with the move to ``jasil``: that direction is now an import contract in
+# the substrate's own repository, verified on its releases rather than on ours.
 
 # The whole activities module is provider-agnostic, not just its core. Strava and
 # Garmin depend on activities — they parse a provider payload and hand it to the
@@ -303,7 +261,6 @@ allow_indirect_imports = True
 source_modules =
     modules
     core
-    infra
 forbidden_modules =
     modules.activities.*.migration_service
 

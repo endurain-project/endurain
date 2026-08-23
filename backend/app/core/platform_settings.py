@@ -12,7 +12,10 @@ Two mappings are deliberate rather than mechanical:
   ``resolved_*`` properties that already fold in the ``local`` defaults, but
   handing those to JASIL would mean the ``distributed`` profile never sees an
   unset URI and so never refuses to guess one — the fail-fast that stops every
-  replica silently keeping its own copy of shared state.
+  replica silently keeping its own copy of shared state. ``development`` is the
+  exception: it keeps the host's fallbacks so a developer can run any profile
+  without standing up its infrastructure, which is the same escape hatch
+  ``Settings._enforce_deployment_topology`` grants.
 * **The coordination lock keeps its host-side default.** JASIL defaults
   ``lock_uri`` to ``noop://`` for the whole ``local`` profile, but Endurain
   defaults it to ``postgres-advisory://`` as soon as the topology runs more than
@@ -35,14 +38,16 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
     Returns:
         The equivalent :class:`~jasil.settings.JasilSettings`.
     """
+    strict = settings.ENVIRONMENT != "development"
     return jasil_settings.JasilSettings(
         profile=jasil_profile.DeploymentProfile(settings.DEPLOYMENT_PROFILE.value),
         web_workers=settings.WEB_WORKERS,
+        enforce_deployment_consistency=strict,
         data_dir=settings.DATA_DIR,
-        state_uri=settings.STATE_URI or settings.REDIS_URL or None,
-        storage_uri=settings.STORAGE_URI or None,
-        events_uri=settings.EVENTS_URI or settings.REDIS_URL or None,
-        lock_uri=_resolve_lock_uri(settings),
+        state_uri=(settings.STATE_URI or settings.REDIS_URL or None) if strict else settings.resolved_state_uri,
+        storage_uri=(settings.STORAGE_URI or None) if strict else settings.resolved_storage_uri,
+        events_uri=(settings.EVENTS_URI or settings.REDIS_URL or None) if strict else settings.resolved_events_uri,
+        lock_uri=_resolve_lock_uri(settings) if strict else settings.resolved_lock_uri,
         jobs=_build_job_settings(settings),
         event_log=jasil_settings.EventLogSettings(
             enabled=settings.EVENT_LOG_ENABLED,

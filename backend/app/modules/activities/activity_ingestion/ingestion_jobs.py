@@ -12,7 +12,9 @@ import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import jasil.runtime as platform_runtime
 from fastapi import HTTPException, UploadFile
+from jasil import publisher as platform_publisher
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -20,14 +22,12 @@ import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.refresh_entry as refresh_entry
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.upload_entry as upload_entry
-from infra import publisher as platform_publisher
 
 logger = core_logger.get_logger(__name__)
 
@@ -463,7 +463,7 @@ _PRUNE_LOCK_NAME = "activity_ingestion_jobs_prune"
 def prune_expired_ingestion_jobs() -> None:
     """Prune finished upload jobs older than the durable-job retention window.
 
-    Mirrors :func:`infra.retention.prune_expired_records`: same schedule, same
+    Mirrors :func:`jasil.retention.prune_expired_records`: same schedule, same
     ``JOBS_RETENTION_DAYS`` window, same platform lock so only one replica does
     the work. It cannot live in that module because ``activity_upload_jobs`` is
     a domain table and the substrate must not import a domain module.

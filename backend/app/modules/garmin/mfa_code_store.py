@@ -18,10 +18,11 @@ Interface::
 
 from typing import NoReturn
 
+import jasil.runtime as platform_runtime
+from jasil.providers import StateBackendUnavailableError, StateProvider
+
 import core.hashing as core_hashing
 import core.logger as core_logger
-import infra.runtime as platform_runtime
-from infra.providers import StateBackendUnavailableError, StateProvider
 
 logger = core_logger.get_logger(__name__)
 

@@ -2,17 +2,17 @@
 
 Thin domain layer co-locating the module's event publishers: each function knows
 its channel and correlation metadata and delegates envelope assembly, ambient
-request-id stamping and best-effort delivery to :mod:`infra.publisher`. The
+request-id stamping and best-effort delivery to :mod:`jasil.publisher`. The
 follow service calls these instead of building events itself, so it stays
 ignorant of the substrate and of who subscribes.
 """
 
 from collections.abc import Callable
 
+import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
-import infra.events as platform_events
-import infra.publisher as platform_publisher
+import core.event_metadata as core_event_metadata
 import modules.followers.events as followers_events
 
 
@@ -40,7 +40,7 @@ def publish_follower_requested(
         followers_events.FOLLOWER_REQUESTED,
         {"requester_user_id": requester_user_id, "target_user_id": target_user_id},
         source="api:create_follower",
-        metadata={platform_events.META_USER_ID: target_user_id},
+        metadata={core_event_metadata.META_USER_ID: target_user_id},
         db=db,
         commit=commit,
     )
@@ -68,7 +68,7 @@ def publish_follower_accepted(
         followers_events.FOLLOWER_ACCEPTED,
         {"accepter_user_id": accepter_user_id, "requester_user_id": requester_user_id},
         source="api:accept_follower",
-        metadata={platform_events.META_USER_ID: requester_user_id},
+        metadata={core_event_metadata.META_USER_ID: requester_user_id},
         db=db,
         commit=commit,
     )

@@ -67,7 +67,8 @@ class TestStartScheduler:
     def test_queues_the_one_shot_retention_prune(self):
         with patch("core.scheduler.scheduler") as mock_scheduler:
             mock_scheduler.running = True
-            import infra.retention as platform_retention
+            import jasil.retention as platform_retention
+
             from core.scheduler import start_scheduler
 
             start_scheduler()

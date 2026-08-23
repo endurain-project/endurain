@@ -14,11 +14,11 @@ separator; new keys never do, so the migration is idempotent.
 from io import BytesIO
 from pathlib import Path
 
+import jasil.runtime as platform_runtime
 from PIL import Image
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import migrations.crud as migrations_crud
 import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_thumbnail.migration_service as activity_thumbnail_render

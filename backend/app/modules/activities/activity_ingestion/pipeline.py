@@ -24,6 +24,7 @@ import gzip
 import os
 from pathlib import Path
 
+import jasil.runtime as platform_runtime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -31,7 +32,6 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema

@@ -3,10 +3,10 @@
 import re
 from typing import Any
 
+import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import infra.providers as platform_providers
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud

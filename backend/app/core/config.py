@@ -21,14 +21,14 @@ from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
 
+import jasil.capabilities as platform_capabilities
+import jasil.profile as platform_profile
 from cryptography.fernet import Fernet
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.logger as core_logger
 import core.network as core_network
-import infra.capabilities as platform_capabilities
-import infra.profile as platform_profile
 
 logger = core_logger.get_logger(__name__)
 
@@ -559,7 +559,7 @@ class Settings(BaseSettings):
         """Effective blob-storage URI: ``STORAGE_URI`` or the ``local://`` default.
 
         The scheme (``local`` or ``s3``) selects the ``StorageProvider`` backend in
-        :func:`infra.container.build_platform`.
+        :func:`jasil.container.build_platform`.
         """
         return self.STORAGE_URI or "local://"
 
@@ -568,7 +568,7 @@ class Settings(BaseSettings):
         """Effective event-bus URI: ``EVENTS_URI`` -> ``REDIS_URL`` -> ``memory://``.
 
         The scheme (``memory`` or ``redis``) selects the ``EventBusProvider`` backend
-        in :func:`infra.container.build_platform`.
+        in :func:`jasil.container.build_platform`.
         """
         return self.EVENTS_URI or self.REDIS_URL or "memory://"
 
@@ -582,7 +582,7 @@ class Settings(BaseSettings):
         ``local`` deployment — so the default never coordinates scheduled jobs
         with a no-op lock. The scheme (``noop`` or ``postgres-advisory``) selects
         the ``LockProvider`` backend in
-        :func:`infra.container.build_platform`. An explicit
+        :func:`jasil.container.build_platform`. An explicit
         ``LOCK_URI=noop://`` under a multi-process topology is rejected by
         :meth:`_enforce_deployment_topology`.
         """
@@ -599,7 +599,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _enforce_deployment_topology(self) -> Self:
-        """Fail fast when a shared-state deployment is wired to process-local infra.
+        """Fail fast when a shared-state deployment is wired to process-local infrastructure.
 
         A ``distributed`` or multi-worker deployment cannot use process-local
         memory for the cross-process backends (rate-limit / auth-security / MFA
@@ -608,16 +608,19 @@ class Settings(BaseSettings):
         every scheduled job. A ``distributed`` deployment also cannot use the
         local filesystem for blob storage, because replicas do not share a disk.
         Raising here aborts ``Settings`` construction so the misconfiguration
-        surfaces at boot rather than at request time. ``development`` and the
-        ``custom`` profile are never fatal. Multi-worker ``local`` keeps local
-        storage (shared host disk) but still needs a shared lock.
+        surfaces at boot rather than at request time, naming the environment
+        variable at fault rather than the substrate field it maps to.
+        ``development`` and the ``custom`` profile are never fatal. Multi-worker
+        ``local`` keeps local storage (shared host disk) but still needs a shared
+        lock.
         """
+        if self.ENVIRONMENT == "development":
+            return self
         state_label = "STATE_URI" if self.STATE_URI else "REDIS_URL" if self.REDIS_URL else "STATE_URI/REDIS_URL"
         events_label = "EVENTS_URI" if self.EVENTS_URI else "REDIS_URL" if self.REDIS_URL else "EVENTS_URI/REDIS_URL"
         issues = platform_capabilities.check_state_consistency(
             profile=self.DEPLOYMENT_PROFILE,
             web_workers=self.WEB_WORKERS,
-            environment=self.ENVIRONMENT,
             state_sources=[
                 platform_capabilities.StateSource(state_label, self.resolved_state_uri),
                 platform_capabilities.StateSource(events_label, self.resolved_events_uri),
@@ -625,14 +628,12 @@ class Settings(BaseSettings):
         )
         issues += platform_capabilities.check_storage_consistency(
             profile=self.DEPLOYMENT_PROFILE,
-            environment=self.ENVIRONMENT,
             storage_uri=self.resolved_storage_uri,
             storage_label="STORAGE_URI",
         )
         issues += platform_capabilities.check_lock_consistency(
             profile=self.DEPLOYMENT_PROFILE,
             web_workers=self.WEB_WORKERS,
-            environment=self.ENVIRONMENT,
             lock_uri=self.resolved_lock_uri,
             lock_label="LOCK_URI",
         )

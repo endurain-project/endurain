@@ -9,9 +9,8 @@ tense.
 
 from typing import ClassVar
 
+from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
-
-from infra.event_versioning import VersionedPayload
 
 # Published after a follow-request row has been created (a user requests to
 # follow another user), so the target user can be notified.

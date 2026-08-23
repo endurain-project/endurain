@@ -18,7 +18,7 @@ completed while the row stayed at ``published`` forever — thumbnails generated
 files moved and deleted, but every ``activity.*`` event apparently unfinished.
 
 Widening buys headroom; the clamp added alongside this in
-``infra/event_log/crud.py`` is what makes the write unable to fail again as more
+``jasil/event_log/crud.py`` is what makes the write unable to fail again as more
 subscribers are registered.
 """
 

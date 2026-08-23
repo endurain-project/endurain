@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from infra.events import new_event
+from jasil.events import new_event
 
 
 def _event(event_type, payload):
@@ -32,7 +32,7 @@ class TestOnFollowerRequestedNotify:
         assert mock_notif.create_follow_request_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
@@ -66,7 +66,7 @@ class TestOnFollowerAcceptedNotify:
         assert mock_notif.create_follow_accepted_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):

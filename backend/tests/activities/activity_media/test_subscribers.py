@@ -8,10 +8,10 @@ athlete deleting an activity expects its photos to go too.
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.storage_local import LocalStorage
 
 import modules.activities.activity_media.service as media_service
 import modules.activities.activity_media.subscribers as media_subscribers
-from infra.backends.storage_local import LocalStorage
 
 _SVC = "modules.activities.activity_media.service"
 _AREA = "activity_media"
@@ -117,7 +117,7 @@ class TestCleanupSubscriber:
     @staticmethod
     def _event(payload: dict):
         """Build a real envelope — the handler reads ``schema_version`` off it."""
-        from infra.events import new_event
+        from jasil.events import new_event
 
         return new_event("activity.deleted", payload, source="test")
 

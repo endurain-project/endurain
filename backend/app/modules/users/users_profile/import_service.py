@@ -19,12 +19,12 @@ import zipfile
 from io import BytesIO
 from typing import Any
 
+import jasil.runtime as platform_runtime
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activity_schema

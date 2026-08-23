@@ -5,10 +5,10 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.state_memory import MemoryState
+from jasil.providers import StateBackendUnavailableError
 
 import modules.auth._internal.security_stores as security_stores
-from infra.backends.state_memory import MemoryState
-from infra.providers import StateBackendUnavailableError
 
 
 class TestNormalizeUsernameKey:

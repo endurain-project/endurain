@@ -9,7 +9,8 @@ are covered in ``tests/core/test_platform_geocoding.py``.
 import inspect
 from unittest.mock import MagicMock, patch
 
-from infra.providers import GeocodedPlace
+from jasil.providers import GeocodedPlace
+
 from modules.activities.activity_geocoding.service import (
     backfill_missing_activity_locations,
     geocode_and_store_activity_location,

@@ -19,20 +19,20 @@ subscriber is registered here (only a durable handler).
 import os
 from collections.abc import Callable
 
+import jasil.event_versioning as platform_event_versioning
+import jasil.publisher as platform_publisher
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
 import core.logger as core_logger
-import infra.event_versioning as platform_event_versioning
-import infra.publisher as platform_publisher
 import modules.activities.activity_ingestion.bulk_entry as bulk_entry
 import modules.activities.activity_ingestion.crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.staging as staging
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
 
 logger = core_logger.get_logger(__name__)
 
@@ -73,7 +73,7 @@ def publish_bulk_import_files(
     to the bulk-import directory, not by a sweeper). A swallowed publish failure
     would therefore mean the file is silently never imported while the route still
     answers 202 — so this goes through
-    :func:`infra.publisher.publish_many_committing`, which **propagates** staging
+    :func:`jasil.publisher.publish_many_committing`, which **propagates** staging
     failures instead of logging and continuing.
 
     Staging the whole batch in one transaction also replaces the previous

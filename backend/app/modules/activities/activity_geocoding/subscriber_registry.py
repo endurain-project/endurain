@@ -1,10 +1,11 @@
 """Subscriber registration and reconciliation for activity geocoding."""
 
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+
 import modules.activities.activity_geocoding.integration_service as geocoding_integration
 import modules.activities.activity_geocoding.subscribers as geocoding_subscribers
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:

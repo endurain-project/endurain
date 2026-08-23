@@ -15,14 +15,15 @@ directory: the requester is a real client waiting on a status, so the outcome is
 recorded on the ``activity_ingestion_jobs`` row where they can read it.
 """
 
+import jasil.event_versioning as platform_event_versioning
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
+
 import core.config as core_config
 import core.logger as core_logger
-import infra.event_versioning as platform_event_versioning
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
 
 logger = core_logger.get_logger(__name__)
 

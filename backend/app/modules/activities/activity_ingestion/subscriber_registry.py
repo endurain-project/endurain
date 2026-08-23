@@ -1,9 +1,10 @@
 """Durable command registration for activity ingestion."""
 
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
+
 import modules.activities.activity_ingestion.bulk_import_subscribers as bulk_import_subscribers
 import modules.activities.activity_ingestion.ingestion_subscribers as ingestion_subscribers
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:

@@ -9,12 +9,12 @@ backfill (guarded by the ``LockProvider`` so a single replica runs it) and the
 
 from collections.abc import Iterator
 
+import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
-import infra.providers as platform_providers
-import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.integration_service as activities_service
 import modules.activities.activity_streams.integration_service as activity_streams_service

@@ -3,9 +3,9 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.state_memory import MemoryState
+from jasil.providers import StateBackendUnavailableError
 
-from infra.backends.state_memory import MemoryState
-from infra.providers import StateBackendUnavailableError
 from modules.websocket.ticket_store import (
     TICKET_TTL_SECONDS,
     WsTicketStore,
@@ -53,7 +53,7 @@ class TestWsTicketStore:
 
     def test_consume_expired_returns_none(self):
         store = WsTicketStore(state=MemoryState())
-        with patch("infra.backends.state_memory.time.monotonic") as clock:
+        with patch("jasil.backends.state_memory.time.monotonic") as clock:
             clock.return_value = 0.0
             ticket = store.create_ticket(user_id=3)
             clock.return_value = TICKET_TTL_SECONDS + 1

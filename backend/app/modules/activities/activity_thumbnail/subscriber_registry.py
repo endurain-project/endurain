@@ -1,10 +1,11 @@
 """Subscriber registration and reconciliation for activity thumbnails."""
 
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+
 import modules.activities.activity_thumbnail.integration_service as thumbnail_integration
 import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:

@@ -18,11 +18,11 @@ import zipfile
 from collections.abc import Generator
 from typing import Any
 
+import jasil.runtime as platform_runtime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity_file_storage.integration_service as file_storage_integration
 import modules.activities.activity_media.integration_service as activity_media_integration

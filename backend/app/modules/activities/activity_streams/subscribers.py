@@ -11,16 +11,17 @@ owner's max heart rate was set only later).
 
 import logging
 
+import jasil.event_versioning as platform_event_versioning
+import jasil.runtime as platform_runtime
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+from jasil.subscribers import best_effort
+
 import core.database as core_database
 import core.logger as core_logger
-import infra.event_versioning as platform_event_versioning
-import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_streams.service as activity_streams_service
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
-from infra.subscribers import best_effort
 
 logger = core_logger.get_logger(__name__)
 

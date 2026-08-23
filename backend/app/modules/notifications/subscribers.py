@@ -1,17 +1,18 @@
 """Consume activity and follower events to create user notifications."""
 
+import jasil.event_versioning as platform_event_versioning
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+from jasil.subscribers import best_effort
+
 import core.async_bridge as core_async_bridge
 import core.database as core_database
 import core.logger as core_logger
-import infra.event_versioning as platform_event_versioning
 import modules.activities.activity.events as activity_events
 import modules.followers.events as followers_events
 import modules.notifications.integration_service as notifications_integration
 import modules.websocket.integration_service as websocket_integration
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
-from infra.subscribers import best_effort
 
 logger = core_logger.get_logger(__name__)
 

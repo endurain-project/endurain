@@ -1,9 +1,10 @@
 """Registration surface and reconciliation declarations for notifications."""
 
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+
 import modules.notifications.subscribers as notification_subscribers
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
 
 
 def register_all_notification_bus_subscribers(events: EventBusProvider) -> None:

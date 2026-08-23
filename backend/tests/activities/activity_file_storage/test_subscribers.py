@@ -3,10 +3,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.events import new_event
 from pydantic import ValidationError
 
 import modules.activities.activity.events as activity_events
-from infra.events import new_event
 
 
 def _deleted_event(payload):

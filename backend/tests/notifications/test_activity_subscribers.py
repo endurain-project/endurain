@@ -3,9 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.events import new_event
 from pydantic import ValidationError
-
-from infra.events import new_event
 
 
 def _event(payload):
@@ -57,7 +56,7 @@ class TestOnActivityCreatedNotify:
         on_activity_created_notify(_event({"activity_id": 4, "user_id": 8, "duplicate_start_time": True}))
         assert mock_notif.create_activity_created_notification.call_args.args[:3] == (8, 4, True)
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):

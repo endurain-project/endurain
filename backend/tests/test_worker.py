@@ -17,6 +17,8 @@ class TestRunWorkerProcess:
         stop = threading.Event()
         with (
             patch("worker.core_config") as cfg,
+            patch("worker.core_platform_settings") as platform_settings,
+            patch("worker.jasil_settings") as substrate_settings,
             patch("worker.platform_container") as container,
             patch("worker.platform_runtime") as runtime,
             patch("worker.runtime_module_registry") as module_registry,
@@ -29,7 +31,11 @@ class TestRunWorkerProcess:
             cfg.settings.JOBS_POLL_INTERVAL_SECONDS = 2.0
             worker.run_worker_process(stop=stop)
 
-        container.build_platform.assert_called_once()
+        # The worker installs the host's configuration before building, exactly
+        # as the API does, or the substrate would read all-defaults settings.
+        built = platform_settings.build_jasil_settings.return_value
+        substrate_settings.configure.assert_called_once_with(built)
+        container.build_platform.assert_called_once_with(built)
         runtime.set_active_platform.assert_called_once()
         # Every activity durable handler must be registered via the shared surface
         # so the worker can resolve any claimed job — the SAME call main.startup_event

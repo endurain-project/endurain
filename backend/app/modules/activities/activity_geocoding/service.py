@@ -2,7 +2,7 @@
 
 Owns *when* an activity's location is resolved and *where* the result is stored.
 It deliberately does not own *how* resolution happens: that is the platform's
-:class:`~infra.providers.GeocodingProvider`, which holds the upstream service
+:class:`~jasil.providers.GeocodingProvider`, which holds the upstream service
 knowledge and the egress hardening that calling a third party requires. Before
 that split this module built provider URLs, validated the configured host against
 SSRF, throttled, and spoke HTTP — none of which is a fact about activities.
@@ -16,14 +16,14 @@ lets the work run durably/async when durable jobs are enabled.
 
 import logging
 
+import jasil.runtime as platform_runtime
+from jasil.providers import GeocodedPlace
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_service
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.integration_service as activity_streams_service
-from infra.providers import GeocodedPlace
 
 logger = core_logger.get_logger(__name__)
 

@@ -15,10 +15,10 @@ the avatar, while removing the ability to enumerate ids.
 
 from typing import Annotated
 
+import jasil.runtime as platform_runtime
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.users.users.signing as users_signing
 
 logger = core_logger.get_logger(__name__)

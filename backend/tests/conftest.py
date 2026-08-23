@@ -31,19 +31,20 @@ PUBLIC_ROUTER_MODULES = [
 
 
 @pytest.fixture(autouse=True)
-def _publish_local_platform():
-    """Publish a fresh local ``Platform`` process-wide for every test.
+def _publish_local_platform(tmp_path):
+    """Publish a fresh in-process ``Platform`` for every test.
 
     The auth/garmin/websocket store singletons resolve ``platform.state`` lazily
-    through ``infra.runtime`` (production sets it at startup). A fresh
-    platform per test keeps the in-memory state isolated between tests.
+    through ``jasil.runtime`` (production sets it at startup). A fresh platform
+    per test keeps the in-memory state isolated, and ``reset_all`` clears every
+    other process-wide slot JASIL installs so one test cannot leak into the next.
+    The ORM mapping is deliberately left alone — ``core.database`` maps it once
+    at import and the model modules capture the base then.
     """
-    import core.config as core_config
-    import infra.container as platform_container
-    import infra.runtime as platform_runtime
+    import jasil.testing as jasil_testing
 
-    platform_runtime.set_active_platform(platform_container.build_platform(core_config.settings))
-    yield
+    yield jasil_testing.install_test_platform(tmp_path)
+    jasil_testing.reset_all()
 
 
 @pytest.fixture
