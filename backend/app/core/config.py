@@ -205,8 +205,8 @@ class Settings(BaseSettings):
     # Attempt ceiling before a job is dead-lettered.
     JOBS_MAX_ATTEMPTS: int = 5
     # Exponential backoff between retries: base delay and ceiling (seconds).
-    JOBS_BACKOFF_BASE_SECONDS: float = 5.0
-    JOBS_BACKOFF_MAX_SECONDS: float = 3600.0
+    JOBS_BACKOFF_BASE_SECONDS: int = 5
+    JOBS_BACKOFF_MAX_SECONDS: int = 3600
     # How long a claimed job's lease lasts before the reaper requeues it (seconds).
     JOBS_LEASE_SECONDS: int = 300
     # Maximum jobs a worker claims (and outbox rows the relay drains) per pass.

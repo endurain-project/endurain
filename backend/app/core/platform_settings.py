@@ -55,10 +55,8 @@ def _build_job_settings(settings: core_config.Settings) -> jasil_settings.JobSet
         enabled=settings.JOBS_ENABLED,
         lease_seconds=settings.JOBS_LEASE_SECONDS,
         batch_size=settings.JOBS_BATCH_SIZE,
-        # JASIL types both backoff bounds as whole seconds; sub-second tuning was
-        # never meaningful for a retry delay measured in minutes.
-        backoff_base_seconds=int(settings.JOBS_BACKOFF_BASE_SECONDS),
-        backoff_max_seconds=int(settings.JOBS_BACKOFF_MAX_SECONDS),
+        backoff_base_seconds=settings.JOBS_BACKOFF_BASE_SECONDS,
+        backoff_max_seconds=settings.JOBS_BACKOFF_MAX_SECONDS,
         poll_interval_seconds=settings.JOBS_POLL_INTERVAL_SECONDS,
         max_attempts=settings.JOBS_MAX_ATTEMPTS,
         retention_days=settings.JOBS_RETENTION_DAYS,

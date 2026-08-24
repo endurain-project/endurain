@@ -137,17 +137,25 @@ class TestJobSettings:
         assert result.poll_interval_seconds == 0.5
         assert result.retention_days == 14
 
-    def test_backoff_bounds_narrowed_to_whole_seconds(self):
+    def test_backoff_bounds_mapped_without_coercion(self):
         settings = core_config.Settings(
             _env_file=None,
-            JOBS_BACKOFF_BASE_SECONDS=7.9,
-            JOBS_BACKOFF_MAX_SECONDS=1800.5,
+            JOBS_BACKOFF_BASE_SECONDS=7,
+            JOBS_BACKOFF_MAX_SECONDS=1800,
         )
 
         result = build_jasil_settings(settings).jobs
 
         assert result.backoff_base_seconds == 7
         assert result.backoff_max_seconds == 1800
+
+    @pytest.mark.parametrize(
+        "setting_name",
+        ["JOBS_BACKOFF_BASE_SECONDS", "JOBS_BACKOFF_MAX_SECONDS"],
+    )
+    def test_fractional_backoff_bound_rejected_before_translation(self, setting_name):
+        with pytest.raises(ValidationError):
+            core_config.Settings(_env_file=None, **{setting_name: 0.5})
 
 
 class TestEventLogSettings:
