@@ -51,11 +51,18 @@ def notify_follower_requested_for_event(event: Event) -> None:
     """Notify the target user of a new follow request."""
     payload = platform_event_versioning.parse_payload(followers_events.FollowerRequestedPayload, event)
     with core_database.SessionLocal() as db:
-        notification, ws_message = notifications_integration.create_follow_request_notification(
+        notification, ws_message, created = notifications_integration.create_follow_request_notification(
             payload.requester_user_id,
             payload.target_user_id,
+            event.event_id,
             db,
         )
+    if not created:
+        logger.debug(
+            "Skipped duplicate follow-request notification",
+            extra=core_logger.context(event_id=event.event_id, target_user_id=payload.target_user_id),
+        )
+        return
     core_async_bridge.dispatch(
         websocket_integration.push_to_user(
             payload.target_user_id,
@@ -76,11 +83,18 @@ def notify_follower_accepted_for_event(event: Event) -> None:
     """Notify the requester that their follow request was accepted."""
     payload = platform_event_versioning.parse_payload(followers_events.FollowerAcceptedPayload, event)
     with core_database.SessionLocal() as db:
-        notification, ws_message = notifications_integration.create_follow_accepted_notification(
+        notification, ws_message, created = notifications_integration.create_follow_accepted_notification(
             payload.accepter_user_id,
             payload.requester_user_id,
+            event.event_id,
             db,
         )
+    if not created:
+        logger.debug(
+            "Skipped duplicate follow-accepted notification",
+            extra=core_logger.context(event_id=event.event_id, requester_user_id=payload.requester_user_id),
+        )
+        return
     core_async_bridge.dispatch(
         websocket_integration.push_to_user(
             payload.requester_user_id,

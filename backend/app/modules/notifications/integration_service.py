@@ -54,19 +54,20 @@ def create_activity_created_notification(
 def create_follow_request_notification(
     requester_user_id: int,
     target_user_id: int,
+    source_event_id: str,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str]:
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """
     Record the notification for a new follow request.
 
     Args:
         requester_user_id: The user who asked to follow, named in the notification.
         target_user_id: The user to notify, who owns the notification row.
+        source_event_id: Stable durable event identifier.
         db: Database session.
 
     Returns:
-        The created notification row and the websocket message type the caller
-        should push.
+        The notification row, websocket message type, and whether it was created.
 
     Raises:
         HTTPException: 404 when the requesting user no longer exists.
@@ -74,6 +75,7 @@ def create_follow_request_notification(
     return notifications_utils.create_new_follower_request_notification(
         requester_user_id,
         target_user_id,
+        source_event_id,
         db,
     )
 
@@ -81,19 +83,20 @@ def create_follow_request_notification(
 def create_follow_accepted_notification(
     accepter_user_id: int,
     requester_user_id: int,
+    source_event_id: str,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str]:
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """
     Record the notification for an accepted follow request.
 
     Args:
         accepter_user_id: The user who accepted, named in the notification.
         requester_user_id: The original requester to notify, who owns the row.
+        source_event_id: Stable durable event identifier.
         db: Database session.
 
     Returns:
-        The created notification row and the websocket message type the caller
-        should push.
+        The notification row, websocket message type, and whether it was created.
 
     Raises:
         HTTPException: 404 when the accepting user no longer exists.
@@ -101,5 +104,6 @@ def create_follow_accepted_notification(
     return notifications_utils.create_accepted_follower_request_notification(
         accepter_user_id,
         requester_user_id,
+        source_event_id,
         db,
     )

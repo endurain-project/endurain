@@ -92,20 +92,23 @@ class TestCreateNewFollowerRequestNotification:
         with (
             patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification_once",
+                return_value=(mock_notification, True),
             ) as mock_create,
         ):
             notification, ws_message = create_new_follower_request_notification(
                 requester_user_id=5,
                 target_user_id=10,
+                source_event_id="event-1",
                 db=mock_db,
-            )
+            )[:2]
 
         assert notification is mock_notification
         assert ws_message == "NEW_FOLLOWER_REQUEST_NOTIFICATION"
         created = mock_create.call_args[0][0]
         assert created.user_id == 10
         assert created.type == c.NotificationType.NEW_FOLLOWER_REQUEST
+        assert created.source_event_id == "event-1"
         assert created.options == {
             "user_id": 5,
             "user_name": "Follower",
@@ -122,6 +125,7 @@ class TestCreateNewFollowerRequestNotification:
                 create_new_follower_request_notification(
                     requester_user_id=999,
                     target_user_id=10,
+                    source_event_id="event-1",
                     db=mock_db,
                 )
             assert e.value.status_code == 404
@@ -137,7 +141,7 @@ class TestCreateNewFollowerRequestNotification:
         with (
             patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "modules.notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification_once",
                 side_effect=HTTPException(status_code=409, detail="Conflict"),
             ),
         ):
@@ -145,6 +149,7 @@ class TestCreateNewFollowerRequestNotification:
                 create_new_follower_request_notification(
                     requester_user_id=5,
                     target_user_id=10,
+                    source_event_id="event-1",
                     db=mock_db,
                 )
             assert e.value.status_code == 409
@@ -165,20 +170,23 @@ class TestCreateAcceptedFollowerRequestNotification:
         with (
             patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "modules.notifications.utils.notifications_crud.create_notification", return_value=mock_notification
+                "modules.notifications.utils.notifications_crud.create_notification_once",
+                return_value=(mock_notification, True),
             ) as mock_create,
         ):
             notification, ws_message = create_accepted_follower_request_notification(
                 accepter_user_id=5,
                 requester_user_id=10,
+                source_event_id="event-2",
                 db=mock_db,
-            )
+            )[:2]
 
         assert notification is mock_notification
         assert ws_message == "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION"
         created = mock_create.call_args[0][0]
         assert created.user_id == 10
         assert created.type == c.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED
+        assert created.source_event_id == "event-2"
         assert created.options == {
             "user_id": 5,
             "user_name": "Accepter",
@@ -195,6 +203,7 @@ class TestCreateAcceptedFollowerRequestNotification:
                 create_accepted_follower_request_notification(
                     accepter_user_id=999,
                     requester_user_id=10,
+                    source_event_id="event-2",
                     db=mock_db,
                 )
             assert e.value.status_code == 404
@@ -210,7 +219,7 @@ class TestCreateAcceptedFollowerRequestNotification:
         with (
             patch("modules.notifications.utils.users_crud.get_user_by_id", return_value=mock_user),
             patch(
-                "modules.notifications.utils.notifications_crud.create_notification",
+                "modules.notifications.utils.notifications_crud.create_notification_once",
                 side_effect=HTTPException(status_code=403, detail="Forbidden"),
             ),
         ):
@@ -218,6 +227,7 @@ class TestCreateAcceptedFollowerRequestNotification:
                 create_accepted_follower_request_notification(
                     accepter_user_id=5,
                     requester_user_id=10,
+                    source_event_id="event-2",
                     db=mock_db,
                 )
             assert e.value.status_code == 403

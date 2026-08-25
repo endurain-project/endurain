@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 import core.exceptions as core_exceptions
 
@@ -131,10 +131,88 @@ class TestCreateNotification:
             user_id: int = 1
             type: str = "follow_request"
             options: dict = {}
+            source_event_id: str | None = None
 
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_notification(notification=NC(), db=mock_db)
         assert e.value.status_code == 500
+
+
+class TestCreateNotificationOnce:
+    def test_replay_returns_existing_notification(self, mock_db):
+        import modules.notifications.crud as crud
+        import modules.notifications.schema as schema
+
+        notification_data = schema.NotificationCreate(
+            user_id=2,
+            type=11,
+            source_event_id="event-1",
+            options={"user_id": 1},
+        )
+        existing = MagicMock(id=7)
+
+        with (
+            patch("modules.notifications.crud.get_notification_by_source_event", return_value=existing),
+            patch("modules.notifications.crud.create_notification") as create_notification,
+        ):
+            notification, created = crud.create_notification_once(notification_data, mock_db)
+
+        assert notification is existing
+        assert created is False
+        create_notification.assert_not_called()
+
+    def test_concurrent_duplicate_returns_winning_notification(self, mock_db):
+        import modules.notifications.crud as crud
+        import modules.notifications.schema as schema
+
+        notification_data = schema.NotificationCreate(
+            user_id=2,
+            type=11,
+            source_event_id="event-1",
+            options={"user_id": 1},
+        )
+        existing = MagicMock(id=7)
+        integrity_error = IntegrityError("INSERT", {}, RuntimeError("duplicate"))
+
+        with (
+            patch(
+                "modules.notifications.crud.get_notification_by_source_event",
+                side_effect=[None, existing],
+            ),
+            patch(
+                "modules.notifications.crud.create_notification",
+                side_effect=integrity_error,
+            ),
+        ):
+            notification, created = crud.create_notification_once(notification_data, mock_db)
+
+        assert notification is existing
+        assert created is False
+
+    def test_unrelated_integrity_error_propagates(self, mock_db):
+        import modules.notifications.crud as crud
+        import modules.notifications.schema as schema
+
+        notification_data = schema.NotificationCreate(
+            user_id=2,
+            type=11,
+            source_event_id="event-1",
+            options={"user_id": 1},
+        )
+        integrity_error = IntegrityError("INSERT", {}, RuntimeError("foreign key"))
+
+        with (
+            patch(
+                "modules.notifications.crud.get_notification_by_source_event",
+                return_value=None,
+            ),
+            patch(
+                "modules.notifications.crud.create_notification",
+                side_effect=integrity_error,
+            ),
+            pytest.raises(IntegrityError),
+        ):
+            crud.create_notification_once(notification_data, mock_db)
 
 
 class TestMarkNotificationAsRead:

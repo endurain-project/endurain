@@ -3,11 +3,15 @@
 from typing import overload
 
 from sqlalchemy import desc, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.logger as core_logger
 import modules.notifications.models as notifications_models
 import modules.notifications.schema as notifications_schema
+
+logger = core_logger.get_logger(__name__)
 
 # Private internal helpers
 
@@ -133,6 +137,36 @@ def get_user_notifications_with_pagination(
 
 
 @core_decorators.handle_db_errors
+def get_notification_by_source_event(
+    source_event_id: str,
+    user_id: int,
+    notification_type: int | None,
+    db: Session,
+) -> notifications_schema.NotificationRead | None:
+    """Retrieve a notification created for a durable event.
+
+    Args:
+        source_event_id: Stable durable event identifier.
+        user_id: User who owns the notification.
+        notification_type: Notification type produced by the handler.
+        db: Database session.
+
+    Returns:
+        The existing notification, or None when the event has not been handled.
+
+    Raises:
+        ProcessingError: If the database query fails.
+    """
+    stmt = select(notifications_models.Notification).where(
+        notifications_models.Notification.source_event_id == source_event_id,
+        notifications_models.Notification.user_id == user_id,
+        notifications_models.Notification.type == notification_type,
+    )
+    db_notification = db.execute(stmt).scalars().first()
+    return _transform_notifications(db_notification) if db_notification else None
+
+
+@core_decorators.handle_db_errors
 def create_notification(
     notification: notifications_schema.NotificationCreate,
     db: Session,
@@ -153,6 +187,7 @@ def create_notification(
     new_notification = notifications_models.Notification(
         user_id=notification.user_id,
         type=notification.type,
+        source_event_id=notification.source_event_id,
         options=notification.options,
         read=False,
         created_at=func.now(),
@@ -161,6 +196,58 @@ def create_notification(
     db.commit()
     db.refresh(new_notification)
     return _transform_notifications(new_notification)
+
+
+@core_decorators.handle_db_errors
+def create_notification_once(
+    notification: notifications_schema.NotificationCreate,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, bool]:
+    """Create an event-driven notification at most once.
+
+    Args:
+        notification: Notification carrying a stable source event ID.
+        db: Database session.
+
+    Returns:
+        The notification and whether this call created it.
+
+    Raises:
+        IntegrityError: If an unrelated database constraint fails.
+        ProcessingError: If a database operation fails.
+    """
+    if notification.source_event_id is None:
+        return create_notification(notification, db), True
+
+    existing = get_notification_by_source_event(
+        notification.source_event_id,
+        notification.user_id,
+        notification.type,
+        db,
+    )
+    if existing is not None:
+        return existing, False
+
+    try:
+        return create_notification(notification, db), True
+    except IntegrityError:
+        existing = get_notification_by_source_event(
+            notification.source_event_id,
+            notification.user_id,
+            notification.type,
+            db,
+        )
+        if existing is None:
+            raise
+        logger.warning(
+            "Recovered concurrent duplicate notification delivery",
+            extra=core_logger.context(
+                source_event_id=notification.source_event_id,
+                user_id=notification.user_id,
+                notification_type=notification.type,
+            ),
+        )
+        return existing, False
 
 
 @core_decorators.handle_db_errors
