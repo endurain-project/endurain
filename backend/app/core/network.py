@@ -336,8 +336,12 @@ _NON_PUBLIC = "resolves to a non-public address"
 _NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
 
 
-def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> str | None:
-    """Return why ``hostname`` must not be dialed, or None when every address is safe.
+def _resolve_checked_addresses(
+    hostname: str,
+    *,
+    purpose: str | None = None,
+) -> tuple[tuple[str, ...], str | None]:
+    """Resolve a hostname and return its validated addresses or rejection reason.
 
     Resolves every A/AAAA record and requires all of them to be public unicast.
     A single private/loopback/link-local answer rejects the host — this defends
@@ -354,13 +358,14 @@ def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> s
             audit logging.
 
     Returns:
-        A reason string, or ``None`` when the host may be dialed.
+        Validated addresses and ``None``, or no addresses and a reason string.
     """
     try:
         infos = socket.getaddrinfo(hostname, None)
     except socket.gaierror:
-        return _UNRESOLVABLE
+        return (), _UNRESOLVABLE
 
+    addresses: list[str] = []
     for info in infos:
         ip_text = info[4][0]
         try:
@@ -368,7 +373,7 @@ def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> s
         except ValueError:
             # Defensive: if the resolver hands back something we
             # can't parse, treat it as unsafe.
-            return _UNPARSEABLE
+            return (), _UNPARSEABLE
         if _is_private_or_reserved(addr):
             if _is_ssrf_allowlisted(hostname, addr):
                 # Audit trail: every allowlisted private destination is logged
@@ -377,9 +382,20 @@ def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> s
                     f"SSRF allowlist hit: dialing private address {ip_text} for host "
                     f"{hostname} (purpose={purpose or 'unspecified'})"
                 )
-                continue
-            return _NON_PUBLIC
-    return None
+            else:
+                return (), _NON_PUBLIC
+        normalized_address = str(addr)
+        if normalized_address not in addresses:
+            addresses.append(normalized_address)
+    if not addresses:
+        return (), _UNRESOLVABLE
+    return tuple(addresses), None
+
+
+def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> str | None:
+    """Return why ``hostname`` must not be dialed, or None when every address is safe."""
+    _, reason = _resolve_checked_addresses(hostname, purpose=purpose)
+    return reason
 
 
 def host_rejection_reason(host: str | None, *, purpose: str | None = None) -> str | None:
@@ -419,6 +435,36 @@ def host_rejection_reason(host: str | None, *, purpose: str | None = None) -> st
     return _address_rejection_reason(hostname, purpose=purpose)
 
 
+def resolve_url_addresses(
+    url: str,
+    *,
+    purpose: str | None = None,
+) -> tuple[tuple[str, ...], str | None]:
+    """Resolve an outbound URL to validated addresses or a rejection reason.
+
+    Args:
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+
+    Returns:
+        Validated addresses and ``None``, or no addresses and a safe reason.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return (), "Malformed URL"
+
+    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
+        return (), "URL scheme is not permitted"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return (), "URL has no hostname"
+
+    addresses, reason = _resolve_checked_addresses(hostname, purpose=purpose)
+    return addresses, f"URL {reason}" if reason is not None else None
+
+
 def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
     """Return why an outbound URL must not be dialed, or ``None``.
 
@@ -429,20 +475,8 @@ def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
     Returns:
         A safe client-facing reason, or ``None`` when the URL may be dialed.
     """
-    try:
-        parsed = urlparse(url)
-    except ValueError:
-        return "Malformed URL"
-
-    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
-        return "URL scheme is not permitted"
-
-    hostname = parsed.hostname
-    if not hostname:
-        return "URL has no hostname"
-
-    reason = _address_rejection_reason(hostname, purpose=purpose)
-    return f"URL {reason}" if reason is not None else None
+    _, reason = resolve_url_addresses(url, purpose=purpose)
+    return reason
 
 
 def reject_private_url(url: str, *, purpose: str | None = None) -> None:
