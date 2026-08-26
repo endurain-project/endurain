@@ -37,6 +37,11 @@ _ACTIVITY_TYPE_TREADMILL = 7
 _ELEVATION_MIN = -9999.99
 _ELEVATION_MAX = 9999.99
 
+# Gaps between track segments no longer than this are folded back into
+# total_timer_time, since they are more likely brief GPS reacquisition than
+# an actual pause. Longer gaps are treated as paused time and excluded.
+_PAUSE_GAP_THRESHOLD_SECONDS = 10.0
+
 
 @dataclass
 class ParseState:
@@ -67,6 +72,9 @@ class ParseState:
     pace: float = 0
     first_waypoint_time: datetime | None = None
     last_waypoint_time: datetime | None = None
+    segment_first_waypoint_time: datetime | None = None
+    timer_time_segments: list[tuple[datetime, datetime]] = field(default_factory=list)
+    timer_time: float = 0.0
     location_resolved: bool = False
     gear_id: int | None = None
     city: str | None = None
@@ -95,6 +103,7 @@ class ParseState:
         self.prev_latitude = None
         self.prev_longitude = None
         self.prev_waypoint_time = None
+        self.segment_first_waypoint_time = None
 
 
 class ParsedGpxData(TypedDict):
@@ -340,6 +349,9 @@ def _process_trackpoint(
     if state.first_waypoint_time is None:
         state.first_waypoint_time = time
 
+    if state.segment_first_waypoint_time is None:
+        state.segment_first_waypoint_time = time
+
     if not state.location_resolved:
         location_data = activity_file_import_utils.resolve_location(
             latitude,
@@ -432,6 +444,33 @@ def _process_trackpoint(
     state.last_waypoint_time = time
 
 
+def _compute_timer_time_seconds(state: ParseState) -> float:
+    """
+    Sum per-segment durations to derive moving time.
+
+    Gaps between consecutive segments (e.g. the mobile app opening a new
+    <trkseg> on resume) are excluded, since they represent paused time. Gaps
+    no longer than _PAUSE_GAP_THRESHOLD_SECONDS are folded back in, since
+    those are more likely brief GPS reacquisition than an actual pause.
+
+    Args:
+        state: Parsed GPX state with per-segment (first, last) time spans.
+
+    Returns:
+        Total moving time in seconds.
+    """
+    total = 0.0
+    prev_last: datetime | None = None
+    for first, last in state.timer_time_segments:
+        if prev_last is not None:
+            gap = (first - prev_last).total_seconds()
+            if gap <= _PAUSE_GAP_THRESHOLD_SECONDS:
+                total += gap
+        total += (last - first).total_seconds()
+        prev_last = last
+    return total
+
+
 def _compute_derived_metrics(
     state: ParseState,
     user_id: int,
@@ -455,10 +494,13 @@ def _compute_derived_metrics(
         state.ele_gain = gain
         state.ele_loss = loss
 
+    state.timer_time = _compute_timer_time_seconds(state)
+
     state.pace = activities_utils.calculate_pace(
         state.distance,
         state.first_waypoint_time,
         state.last_waypoint_time,
+        total_timer_time_seconds=state.timer_time,
     )
 
     state.activity_type = activities_utils.define_activity_type(
@@ -544,7 +586,7 @@ def _build_activity_schema(
         end_time=core_timezone.format_utc(state.last_waypoint_time),
         timezone=state.timezone,
         total_elapsed_time=elapsed,
-        total_timer_time=elapsed,
+        total_timer_time=state.timer_time if state.timer_time_segments else elapsed,
         city=state.city,
         town=state.town,
         country=state.country,
@@ -626,6 +668,9 @@ def parse_gpx_file(
 
                     for point in segment.points:
                         _process_trackpoint(point, state)
+
+                    if state.segment_first_waypoint_time is not None and state.prev_waypoint_time is not None:
+                        state.timer_time_segments.append((state.segment_first_waypoint_time, state.prev_waypoint_time))
 
                     segment_waypoints = state.lat_lon_waypoints[segment_start:]
                     if len(segment_waypoints) >= 2:
