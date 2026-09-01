@@ -31,7 +31,7 @@ import core.network as core_network
 import core.redis as core_redis
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.19.0"
+API_VERSION = "v0.19.1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
