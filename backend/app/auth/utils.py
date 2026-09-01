@@ -27,6 +27,7 @@ import auth.schema as auth_schema
 import auth.sessions.utils as auth_sessions_utils
 import auth.token_manager as auth_token_manager
 import core.config as core_config
+import core.network as core_network
 import users.users.crud as users_crud
 import users.users.schema as users_schema
 
@@ -469,7 +470,7 @@ def create_mobile_pkce_session_response(
 
     # Create OAuth state record for PKCE (reuse SSO infrastructure)
     state_id, nonce = oauth_state_utils.create_state_id_and_nonce()
-    client_ip = request.client.host if request.client else None
+    client_ip = core_network.get_ip_address(request)
 
     oauth_state_crud.create_oauth_state(
         db=db,

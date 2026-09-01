@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { HttpError } from '@/services/http'
+import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import {
   buildPasswordRequirements,
@@ -124,7 +125,9 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
   const city = formValues.city.trim() ? formValues.city.trim() : null
   const birthdate = formValues.birthdate || null
   const height = resolveHeightCm(formValues)
-  const maxHeartRate = formValues.maxHeartRate
+  // `v-model.number` leaves a stale '' in place instead of `null` when a
+  // cleared field can't parse as a finite number.
+  const maxHeartRate = toNumberOrNull(formValues.maxHeartRate ?? '')
   try {
     if (props.user) {
       await updateMutation.mutateAsync({

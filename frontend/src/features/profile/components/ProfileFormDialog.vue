@@ -12,6 +12,7 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import { compose, email, maxLength, pattern, required } from '@/utils/validators'
 import {
@@ -81,7 +82,9 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     units: values.units,
     currency: values.currency,
     height: resolveHeightCm(values),
-    maxHeartRate: values.maxHeartRate,
+    // `v-model.number` leaves a stale '' in place instead of `null` when a
+    // cleared field can't parse as a finite number.
+    maxHeartRate: toNumberOrNull(values.maxHeartRate ?? ''),
     preferredLanguage: values.preferredLanguage,
     firstDayOfWeek: values.firstDayOfWeek,
   }

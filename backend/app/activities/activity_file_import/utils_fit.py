@@ -19,6 +19,19 @@ import gears.gear.crud as gears_crud
 import users.users_default_gear.utils as user_default_gear_utils
 import users.users_privacy_settings.models as users_privacy_settings_models
 
+# Exact (sport, sub_sport) pairs that override the raw sport value.
+SPORT_SUBSPORT_OVERRIDES = {
+    ("cycling", "virtual_activity"): "virtual_ride",
+    ("cycling", "commuting"): "commuting_ride",
+    ("cycling", "mixed_surface"): "mixed_surface_ride",
+    ("generic", "breathing"): "hiit",
+    (64, 85): "padel",
+}
+# Sport values that override regardless of sub_sport.
+SPORT_ALONE_OVERRIDES = {
+    62: "hiit",
+}
+
 
 def create_activity_objects(
     sessions_records: dict,
@@ -777,18 +790,13 @@ def parse_frame_session(frame):
     activity_type = get_value_from_frame(frame, "sport", "Workout")
     sub_sport = get_value_from_frame(frame, "sub_sport")
     if sub_sport and sub_sport != "generic":
-        if activity_type == "cycling" and sub_sport == "virtual_activity":
-            activity_type = "virtual_ride"
-        elif activity_type == "cycling" and sub_sport == "commuting":
-            activity_type = "commuting_ride"
-        elif activity_type == "cycling" and sub_sport == "mixed_surface":
-            activity_type = "mixed_surface_ride"
-        elif (activity_type == "generic" and sub_sport == "breathing") or activity_type == 62:
-            activity_type = "hiit"
-        elif activity_type == 64 and sub_sport == 85:
-            activity_type = "padel"
-        else:
+        if activity_type in SPORT_ALONE_OVERRIDES:
+            activity_type = SPORT_ALONE_OVERRIDES[activity_type]
+        elif (activity_type, sub_sport) in SPORT_SUBSPORT_OVERRIDES:
+            activity_type = SPORT_SUBSPORT_OVERRIDES[(activity_type, sub_sport)]
+        elif isinstance(sub_sport, str) and sub_sport.lower() in activities_utils.ACTIVITY_NAME_TO_ID:
             activity_type = sub_sport
+        # else: keep the original sport value; sub_sport isn't a recognized override or activity name.
 
     # Extracting time values
     start_time = get_value_from_frame(frame, "start_time")

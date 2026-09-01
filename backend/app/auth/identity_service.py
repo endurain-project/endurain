@@ -50,6 +50,7 @@ import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
 import core.database as core_database
 import core.logger as core_logger
+import core.network as core_network
 import users.users.schema as users_schema
 import users.users.utils as users_utils
 from auth.principal import (
@@ -913,7 +914,7 @@ class DefaultIdentityService:
                 "key_prefix": db_key.key_prefix,
                 "user_id": db_key.user_id,
                 "endpoint": request.url.path,
-                "ip": (request.client.host if request.client else "unknown"),
+                "ip": core_network.get_ip_address(request),
             },
         )
 

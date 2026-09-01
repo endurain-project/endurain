@@ -9,6 +9,8 @@ import { readonly, ref, type Ref } from 'vue'
 import { setChartProvider } from '@/composables/useChartProvider'
 import { setMapProvider } from '@/composables/useMapProvider'
 
+import type { LeafletMapProviderConfig } from './leafletMapProvider'
+
 const renderProvidersReady = ref(false)
 
 /**
@@ -26,13 +28,18 @@ export function useRenderProvidersReady(): Ref<boolean> {
 /**
  * Loads and registers the default map and chart providers. Safe to call once
  * during bootstrap; resolves after both providers are installed.
+ *
+ * @param mapConfig - Public tile-server configuration for Leaflet.
+ * @returns A promise that resolves once both providers are installed.
  */
-export async function registerRenderProviders(): Promise<void> {
+export async function registerRenderProviders(
+  mapConfig: LeafletMapProviderConfig = {},
+): Promise<void> {
   const [{ createLeafletMapProvider }, { createChartJsChartProvider }] = await Promise.all([
     import('./leafletMapProvider'),
     import('./chartJsChartProvider'),
   ])
-  setMapProvider(createLeafletMapProvider())
+  setMapProvider(createLeafletMapProvider(mapConfig))
   setChartProvider(createChartJsChartProvider())
   renderProvidersReady.value = true
 }
