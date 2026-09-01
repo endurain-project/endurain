@@ -37,11 +37,6 @@ _ACTIVITY_TYPE_TREADMILL = 7
 _ELEVATION_MIN = -9999.99
 _ELEVATION_MAX = 9999.99
 
-# Gaps between track segments no longer than this are folded back into
-# total_timer_time, since they are more likely brief GPS reacquisition than
-# an actual pause. Longer gaps are treated as paused time and excluded.
-_PAUSE_GAP_THRESHOLD_SECONDS = 10.0
-
 
 @dataclass
 class ParseState:
@@ -451,27 +446,13 @@ def _compute_timer_time_seconds(state: ParseState) -> float:
     """
     Sum per-segment durations to derive moving time.
 
-    Gaps between consecutive segments (e.g. the mobile app opening a new
-    <trkseg> on resume) are excluded, since they represent paused time. Gaps
-    no longer than _PAUSE_GAP_THRESHOLD_SECONDS are folded back in, since
-    those are more likely brief GPS reacquisition than an actual pause.
-
     Args:
         state: Parsed GPX state with per-segment (first, last) time spans.
 
     Returns:
         Total moving time in seconds.
     """
-    total = 0.0
-    prev_last: datetime | None = None
-    for first, last in state.timer_time_segments:
-        if prev_last is not None:
-            gap = (first - prev_last).total_seconds()
-            if gap <= _PAUSE_GAP_THRESHOLD_SECONDS:
-                total += gap
-        total += (last - first).total_seconds()
-        prev_last = last
-    return total
+    return activity_file_import_utils.compute_moving_time_from_spans(state.timer_time_segments)
 
 
 def _compute_derived_metrics(

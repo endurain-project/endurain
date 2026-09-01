@@ -683,6 +683,7 @@ dependencies = [
     { name = "apscheduler" },
     { name = "authlib" },
     { name = "bleach" },
+    { name = "defusedxml" },
     { name = "fastapi" },
     { name = "fitdecode" },
     { name = "flexparser" },
@@ -737,6 +738,7 @@ dev = [
     { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-bleach" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -762,6 +764,7 @@ typecheck = [
     { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-bleach" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -775,6 +778,7 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.2" },
     { name = "authlib", specifier = ">=1.6.11" },
     { name = "bleach", specifier = ">=6.3.0" },
+    { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "fastapi", specifier = ">=0.136.0" },
     { name = "fitdecode", specifier = ">=0.11.0" },
     { name = "flexparser", specifier = ">=0.4" },
@@ -829,6 +833,7 @@ dev = [
     { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-bleach" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -852,6 +857,7 @@ typecheck = [
     { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-bleach" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -2873,6 +2879,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/39/e7/07438d4d0bd58c69e79d0d8aa0320a2005b08d10cac209dd812b3609227c/types_bleach-6.4.0.20260607.tar.gz", hash = "sha256:62ff099b9d25fbcccb1402651c14a465a5f54a24138be987442d2eed38aca91c", size = 11686, upload-time = "2026-06-07T06:11:40.035Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6c/93/44da16cfa99a3f47fcb35e6b7396c94c3530e2028d2b1027cc4ce6d95d8d/types_bleach-6.4.0.20260607-py3-none-any.whl", hash = "sha256:fc07e2fd0ef9bc0a22026e8abe589d76c5d06ea885d70357263a4ff8c3dc8516", size = 11985, upload-time = "2026-06-07T06:11:38.996Z" },
+]
+
+[[package]]
+name = "types-defusedxml"
+version = "0.7.0.20260504"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/d2/4553c8fa9cdebfe1e84b950cf790a4d2376a97fa016e43f7c65323fa6c7d/types_defusedxml-0.7.0.20260504.tar.gz", hash = "sha256:2ab2828a3f97111ba1c16cee273ad4124a831fc9198c41bf8368ff6ea48ad300", size = 10729, upload-time = "2026-05-04T05:22:50.192Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/2d/8a4b5ba1d732b8bc691f0efbb1c6f77cb5f6f473b2afe181d83d910773c5/types_defusedxml-0.7.0.20260504-py3-none-any.whl", hash = "sha256:a959e3a0a43b93e464bd625d91ec9193a2703ddc10443bdd627792485fae0b10", size = 13467, upload-time = "2026-05-04T05:22:49.319Z" },
 ]
 
 [[package]]

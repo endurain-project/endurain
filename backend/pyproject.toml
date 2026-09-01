@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.26",
     "gpxpy>=1.6.2",
     "tcxreader>=0.4.11",
+    "defusedxml>=0.7.1",
     "alembic>=1.18.4",
     "joserfc>=1.6.4",
     "fitdecode>=0.11.0",
@@ -60,6 +61,7 @@ typecheck = [
     "types-qrcode",
     "types-aiofiles",
     "types-Authlib",
+    "types-defusedxml",
 ]
 lint = [
     "ruff>=0.15.12",
