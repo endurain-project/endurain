@@ -8,7 +8,7 @@ import App from './App.vue'
 import router from './router'
 import i18n, { getInitialLocale, loadLocaleMessages, setI18nLocale } from './i18n'
 import { initTheme } from './composables/useTheme'
-import { loadAppConfig } from './features/config/composables/useAppConfig'
+import { loadAppConfig, useAppConfig } from './features/config/composables/useAppConfig'
 import { useTelemetry } from './composables/useTelemetry'
 import { useToasts } from './composables/useToasts'
 import { VueQueryPlugin, vueQueryOptions } from './plugins/vueQuery'
@@ -31,7 +31,11 @@ async function bootstrap(): Promise<void> {
 
   // Register the concrete map/chart renderers in the background so their heavy
   // libraries load as separate chunks without delaying first paint.
-  void registerRenderProviders().catch((error: unknown) => {
+  const { config } = useAppConfig()
+  void registerRenderProviders({
+    tileUrl: config.value.map.tileUrl,
+    attribution: config.value.map.attribution,
+  }).catch((error: unknown) => {
     useTelemetry().captureError(error, { scope: 'registerRenderProviders' })
   })
 

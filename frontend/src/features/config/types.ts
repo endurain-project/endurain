@@ -27,18 +27,31 @@ export interface BrandingConfig {
 }
 
 /**
+ * Public map-rendering configuration for the current instance.
+ *
+ * @property tileUrl - URL template used to fetch map tiles.
+ * @property attribution - Attribution shown with map tiles.
+ */
+export interface MapConfig {
+  tileUrl: string
+  attribution: string
+}
+
+/**
  * Runtime application configuration resolved at boot from the public server
  * settings. Never read deployment-specific values from `import.meta.env` in
  * views.
  *
  * @property features - Enabled feature flags.
  * @property branding - Branding overrides.
+ * @property map - Public map-rendering configuration.
  * @property enabledLocales - Locales the instance exposes, or `null` for all
  *   compiled-in locales.
  */
 export interface AppConfig {
   features: FeatureFlags
   branding: BrandingConfig
+  map: MapConfig
   enabledLocales: LocaleCode[] | null
 }
 
@@ -59,6 +72,8 @@ export interface AppConfig {
  * @property password_length_regular_users - Minimum password length for regular users.
  * @property password_length_admin_users - Minimum password length for admin users.
  * @property num_records_per_page - Page size the server enforces for paginated lists.
+ * @property tileserver_url - URL template used by frontend maps to request tiles.
+ * @property tileserver_attribution - Attribution shown on frontend maps.
  */
 export type PublicServerSettings = Pick<
   Schemas['ServerSettingsReadPublic'],
@@ -73,4 +88,6 @@ export type PublicServerSettings = Pick<
   | 'password_length_regular_users'
   | 'password_length_admin_users'
   | 'num_records_per_page'
+  | 'tileserver_url'
+  | 'tileserver_attribution'
 >
