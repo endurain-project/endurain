@@ -374,6 +374,187 @@ class TestParseGpxFile:
 
         assert result["activity"].calories == 123
 
+    def test_parse_gpx_file_without_extensions_creates_no_hr_or_cadence_stream(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a GPX file with no sensor extensions produces no HR/cadence data.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Sensor-free run</name>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        assert result["is_heart_rate_set"] is False
+        assert result["hr_waypoints"] == []
+        assert result["is_cadence_set"] is False
+        assert result["cad_waypoints"] == []
+        assert result["activity"].average_hr is None
+        assert result["activity"].max_hr is None
+
+    def test_parse_gpx_file_with_only_hr_data_omits_cadence_stream(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test HR-only extensions persist an HR stream and no cadence stream.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>HR only run</name>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                    <extensions>
+                      <TrackPointExtension><hr>140</hr></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                    <extensions>
+                      <TrackPointExtension><hr>150</hr></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        assert result["is_heart_rate_set"] is True
+        assert len(result["hr_waypoints"]) == 2
+        assert result["is_cadence_set"] is False
+        assert result["cad_waypoints"] == []
+
+    def test_parse_gpx_file_does_not_zero_fill_missing_cadence_samples(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a cadence sample missing from one point is skipped, not zeroed.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Cadence gap ride</name>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                    <extensions>
+                      <TrackPointExtension><cad>80</cad></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.002">
+                    <time>2025-01-01T00:00:20Z</time>
+                    <extensions>
+                      <TrackPointExtension><cad>90</cad></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        assert result["is_cadence_set"] is True
+        assert [wp["cad"] for wp in result["cad_waypoints"]] == [80, 90]
+        assert result["activity"].average_cad == 85
+
+    def test_parse_gpx_file_with_all_zero_hr_creates_no_hr_stream(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test HR extensions present but always zero do not persist a stream.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Dropout run</name>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                    <extensions>
+                      <TrackPointExtension><hr>0</hr></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                    <extensions>
+                      <TrackPointExtension><hr>0</hr></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        assert result["is_heart_rate_set"] is False
+        assert result["activity"].average_hr is None
+        assert result["activity"].max_hr is None
+
 
 class TestExtractExtensionData:
     """Test suite for GPX trackpoint extension extraction."""
@@ -457,8 +638,24 @@ class TestExtractExtensionData:
 
         assert utils_gpx._extract_extension_data(point) == (0, 0, 205)
 
+    def test_extract_extension_data_returns_none_when_extensions_absent(self):
+        """
+        Test a point with no extensions yields all-None values, not zeros.
+        """
+        gpx = gpxpy.parse(
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk><trkseg><trkpt lat="0" lon="0">
+                <time>2025-01-01T00:00:00Z</time>
+              </trkpt></trkseg></trk>
+            </gpx>
+            """
+        )
 
-class TestCalculateInstantSpeed:
+        point = gpx.tracks[0].segments[0].points[0]
+
+        assert utils_gpx._extract_extension_data(point) == (None, None, None)
+
     """Test suite for instant speed calculations."""
 
     def test_calculate_instant_speed_preserves_subsecond_precision(self):

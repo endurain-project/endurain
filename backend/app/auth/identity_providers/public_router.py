@@ -23,6 +23,7 @@ import auth.utils as auth_utils
 import core.config as core_config
 import core.database as core_database
 import core.logger as core_logger
+import core.network as core_network
 import core.rate_limit as core_rate_limit
 import users.users.schema as users_schema
 import users.users.utils as users_utils
@@ -182,7 +183,7 @@ async def initiate_login(
         state_id, nonce = oauth_state_utils.create_state_id_and_nonce()
 
         # Get client IP address
-        client_ip = request.client.host if request.client else None
+        client_ip = core_network.get_ip_address(request)
 
         # Create and store OAuth state in database (replaces cookie-based state)
         oauth_state_crud.create_oauth_state(

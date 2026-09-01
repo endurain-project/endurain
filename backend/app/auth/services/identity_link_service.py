@@ -18,6 +18,7 @@ import auth.identity_providers.links.utils as auth_identity_links_utils
 import auth.security_stores as auth_security_stores
 import auth.services.step_up_service as step_up_service
 import core.logger as core_logger
+import core.network as core_network
 import users.users.schema as users_schema
 
 if TYPE_CHECKING:
@@ -61,7 +62,7 @@ def generate_link_token(
             detail=f"Identity provider {idp.name} is already linked to your account",
         )
 
-    ip_address = request.client.host if request.client else None
+    ip_address = core_network.get_ip_address(request)
     link_token = idp_link_token_utils.generate_idp_link_token(
         user_id=token_user_id,
         idp_id=idp_id,
