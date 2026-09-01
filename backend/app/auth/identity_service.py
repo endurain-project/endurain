@@ -813,11 +813,12 @@ class DefaultIdentityService:
         self._token_manager.validate_access_expiration_logged(access_token)
 
         sub = self._token_manager.get_token_claim(access_token, "sub")
-        if not isinstance(sub, int):
+        if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token: 'sub' claim must be an integer",
+                detail="Invalid token: 'sub' claim must be a decimal string",
             )
+        user_id = int(sub)
 
         scope = self._token_manager.get_token_claim(access_token, "scope")
         if not isinstance(scope, list):
@@ -833,7 +834,7 @@ class DefaultIdentityService:
                 detail=("Invalid token: 'sid' claim must be a string"),
             )
 
-        user = users_utils.get_user_by_id_or_404(sub, self._db)
+        user = users_utils.get_user_by_id_or_404(user_id, self._db)
         users_utils.check_user_is_active(user)
 
         return self._build_principal(

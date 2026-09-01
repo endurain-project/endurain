@@ -354,7 +354,7 @@ class TestGetAndReturnTokens:
         mock_service = MagicMock(spec=IdentityService)
         mock_service.resolve_from_access_token.side_effect = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sub' claim must be an integer",
+            detail="Invalid token: 'sub' claim must be a decimal string",
         )
 
         with pytest.raises(HTTPException) as exc_info:
@@ -468,9 +468,9 @@ class TestGetSubFromAccessTokenExceptionPath:
         mock_svc = MagicMock(spec=IdentityService)
         mock_svc.resolve_from_access_token.side_effect = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sub' claim must be an integer",
+            detail="Invalid token: 'sub' claim must be a decimal string",
         )
         with pytest.raises(HTTPException) as exc_info:
             auth_security.get_sub_from_access_token(request, "test_token", mock_svc)
         assert exc_info.value.status_code == 401
-        assert "must be an integer" in exc_info.value.detail
+        assert "must be a decimal string" in exc_info.value.detail

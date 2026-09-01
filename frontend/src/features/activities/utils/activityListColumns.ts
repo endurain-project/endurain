@@ -4,12 +4,7 @@ import type { FormattedMetric } from './format'
  * two sort-only columns (calories, avg HR) that are appended when the list is
  * actively sorted by one of them. */
 export type ActivityMetricKey =
-  | 'distance'
-  | 'duration'
-  | 'paceSpeed'
-  | 'elevation'
-  | 'calories'
-  | 'avgHr'
+  'distance' | 'duration' | 'paceSpeed' | 'elevation' | 'calories' | 'avgHr'
 
 /** A headline metric column definition for the activities list. */
 export interface ActivityMetricColumn {

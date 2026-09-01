@@ -69,11 +69,7 @@ export interface HealthDashboard {
 
 /** The time window a paginated health history can be filtered to. */
 export type HealthInterval =
-  | 'last_7_days'
-  | 'last_30_days'
-  | 'last_90_days'
-  | 'last_year'
-  | 'all_time'
+  'last_7_days' | 'last_30_days' | 'last_90_days' | 'last_year' | 'all_time'
 
 /** The time window the weight history can be filtered to. */
 export type WeightInterval = HealthInterval

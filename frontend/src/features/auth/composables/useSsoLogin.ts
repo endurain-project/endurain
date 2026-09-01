@@ -22,9 +22,7 @@ export type SsoStartResult = { status: 'redirecting' } | { status: 'error' }
 
 /** Result of processing an SSO callback. */
 export type SsoCallbackResult =
-  | { status: 'none' }
-  | { status: 'completed' }
-  | { status: 'error'; messageKey: string }
+  { status: 'none' } | { status: 'completed' } | { status: 'error'; messageKey: string }
 
 /**
  * Finds the PKCE verifier stored before redirecting to the IdP.

@@ -25,7 +25,7 @@ jobs:
       # DATA (its title and commit subjects), which is validated as strings.
       # Full history (fetch-depth 0) is needed so the base..head range resolves.
       - name: Check out the trusted base ref
-        uses: https://data.forgejo.org/actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ forgejo.event.pull_request.base.sha }}
           fetch-depth: 0

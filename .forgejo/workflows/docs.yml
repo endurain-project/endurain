@@ -30,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: https://data.forgejo.org/actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Install uv
-        uses: https://data.forgejo.org/astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: https://data.forgejo.org/astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           working-directory: backend
 
@@ -51,7 +51,7 @@ jobs:
 
       - name: Deploy documentation to Codeberg Pages
         if: env.DOCS_DRY_RUN != 'true'
-        uses: https://data.forgejo.org/actions/git-pages@5978530ffb9bbe196ad9fdc0c48fdaf1483de4cf # v2.1.0
+        uses: https://data.forgejo.org/actions/git-pages@2b24bbb7ff943d3c8fe1df91326adec66daea6dd # v2.2.0
         with:
           site: https://docs.endurain.com/
           server: codeberg.page

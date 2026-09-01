@@ -435,12 +435,12 @@ def get_sub_from_refresh_token(
     """
     # Return the user ID associated with the token
     sub = token_manager.get_token_claim(refresh_token, "sub")
-    if not isinstance(sub, int):
+    if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: 'sub' claim must be an integer",
+            detail="Invalid token: 'sub' claim must be a decimal string",
         )
-    return sub
+    return int(sub)
 
 
 def get_sid_from_refresh_token(

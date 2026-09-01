@@ -46,7 +46,7 @@ class TestTokenManagerSecurity:
         sub_claim = token_manager.get_token_claim(token, "sub")
         sid_claim = token_manager.get_token_claim(token, "sid")
 
-        assert sub_claim == sample_user_read.id, "sub claim should match user ID (as int)"
+        assert sub_claim == str(sample_user_read.id), "sub claim should match user ID (as string)"
         assert sid_claim == session_id, "sid claim should match session ID"
 
     def test_get_token_claim_with_missing_claim(self, token_manager, sample_user_read):
