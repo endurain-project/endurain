@@ -6,6 +6,7 @@ import type {
   PrivacySettings,
   ProfileEditInput,
 } from '@/features/profile/types'
+import type { User } from '@/features/auth/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
@@ -47,6 +48,24 @@ function invalidateProfileAndShell(client: ReturnType<typeof useQueryClient>): v
 }
 
 /**
+ * Invalidates data whose date range depends on the first weekday.
+ *
+ * @param client - The active query client.
+ * @param firstDayOfWeek - Successfully persisted first weekday.
+ */
+function invalidateWeekDependentQueries(
+  client: ReturnType<typeof useQueryClient>,
+  firstDayOfWeek: ProfileEditInput['firstDayOfWeek'],
+): void {
+  const currentUser = client.getQueryData<User>(queryKeys.currentUser())
+  if (currentUser?.firstDayOfWeek === firstDayOfWeek) {
+    return
+  }
+  void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
+  void client.invalidateQueries({ queryKey: queryKeys.goals.all() })
+}
+
+/**
  * Profile identity edit mutation. Invalidates the profile and shell caches.
  *
  * @returns The TanStack Query mutation for updating the profile.
@@ -57,6 +76,7 @@ export function useUpdateProfileMutation() {
   return useMutation<void, Error, ProfileEditInput>({
     mutationKey: queryKeys.profile.all(),
     mutationFn: (input) => updateProfile(input),
+    onSuccess: (_data, input) => invalidateWeekDependentQueries(client, input.firstDayOfWeek),
     onSettled: () => invalidateProfileAndShell(client),
   })
 }

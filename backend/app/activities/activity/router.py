@@ -27,6 +27,7 @@ import activities.activity.dependencies as activities_dependencies
 import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
 import auth.dependencies as auth_dependencies
+import core.calendar as core_calendar
 import core.config as core_config
 import core.database as core_database
 import core.dependencies as core_dependencies
@@ -36,6 +37,7 @@ import garmin.activity_utils as garmin_activity_utils
 import gears.gear.dependencies as gears_dependencies
 import strava.activity_utils as strava_activity_utils
 import users.users.dependencies as users_dependencies
+import users.users.utils as users_utils
 import websocket.manager as websocket_manager
 
 # Define the API router
@@ -70,7 +72,9 @@ async def read_activities_user_activities_week(
 ):
     # Calculate the start of the requested week
     today = datetime.now(UTC)
-    start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
+    viewer = users_utils.get_user_by_id_or_404(token_user_id, db)
+    current_week_start = core_calendar.get_week_start(today, viewer.first_day_of_week)
+    start_of_week = current_week_start - timedelta(weeks=week_number)
     end_of_week = start_of_week + timedelta(days=6)
 
     if user_id == token_user_id:
@@ -114,7 +118,8 @@ async def read_activities_user_activities_this_week_stats(
 ) -> activities_schema.ActivityStats:
     # Calculate the start of the current week
     today = datetime.now(UTC)
-    start_of_week = today - timedelta(days=today.weekday())
+    viewer = users_utils.get_user_by_id_or_404(token_user_id, db)
+    start_of_week = core_calendar.get_week_start(today, viewer.first_day_of_week)
     end_of_week = start_of_week + timedelta(days=6)
     activities: list[activities_schema.Activity] | None = None
 

@@ -23,6 +23,7 @@ const baseDto: UserProfileDto = {
   has_local_password: true,
   units: 'metric',
   currency: 'euro',
+  first_day_of_week: 'sunday',
 }
 
 describe('mapUserProfile', () => {
@@ -44,6 +45,7 @@ describe('mapUserProfile', () => {
       hasLocalPassword: true,
       units: 'metric',
       currency: 'euro',
+      firstDayOfWeek: 'sunday',
     })
   })
 

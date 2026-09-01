@@ -70,12 +70,12 @@ class WeekSummary(SummaryMetrics):
     Weekly activity summary within a month.
 
     Attributes:
-        week_number: ISO week number.
+        week_number: Calendar week number within the month.
     """
 
     week_number: StrictInt = Field(
         ...,
-        description="ISO week number",
+        description="Calendar week number within the month",
     )
 
 

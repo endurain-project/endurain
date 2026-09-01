@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
+import { shiftWeeks, todayIsoDate, weekEnd, weekStart } from '@/utils/datetime'
 import { usePublicUserQuery } from '@/features/users/composables/usePublicUser'
 import {
   useActivityStatsQuery,
@@ -40,6 +41,7 @@ const { t } = useI18n()
 const { data: currentUser } = useCurrentUser()
 const units = useDisplayUnits()
 const currentUserId = computed(() => currentUser.value?.id ?? null)
+const firstDayOfWeek = computed(() => currentUser.value?.firstDayOfWeek ?? 'monday')
 
 /** The profile owner's id from the route, or `null` when the param is invalid. */
 const profileId = computed(() => {
@@ -111,18 +113,13 @@ function setWeek(value: number): void {
   week.value = value
 }
 
-/** Formats a week offset as its `DD/MM-DD/MM` Monday–Sunday range. */
+/** Formats a week offset as its configured `DD/MM-DD/MM` range. */
 function formatWeekRange(weekNumber: number): string {
-  const today = new Date()
-  const currentDay = today.getDay()
-  const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay
-  const startOfWeek = new Date(today)
-  startOfWeek.setDate(today.getDate() + daysToMonday - weekNumber * 7)
-  const endOfWeek = new Date(startOfWeek)
-  endOfWeek.setDate(startOfWeek.getDate() + 6)
-  const fmt = (date: Date): string =>
-    `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`
-  return `${fmt(startOfWeek)}-${fmt(endOfWeek)}`
+  const currentWeekStart = weekStart(todayIsoDate(), firstDayOfWeek.value)
+  const startOfWeek = shiftWeeks(currentWeekStart, -weekNumber)
+  const endOfWeek = weekEnd(startOfWeek, firstDayOfWeek.value)
+  const formatDate = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+  return `${formatDate(startOfWeek)}-${formatDate(endOfWeek)}`
 }
 
 /** Refetches the current week's activities after an error. */

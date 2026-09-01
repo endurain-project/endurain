@@ -32,11 +32,14 @@ class TestReadWeeklySummary:
 
         mock_get.return_value = WeeklySummaryResponse(breakdown=[], type_breakdown=None)
 
-        response = client.get(
-            "/activities_summaries/week?target_date_str=2024-01-15",
-            headers={"Authorization": "Bearer x"},
-        )
+        with patch("activities.activity_summaries.router.users_utils.get_user_by_id_or_404") as mock_get_user:
+            mock_get_user.return_value.first_day_of_week = "sunday"
+            response = client.get(
+                "/activities_summaries/week?target_date_str=2024-01-15",
+                headers={"Authorization": "Bearer x"},
+            )
         assert response.status_code == 200
+        assert mock_get.call_args.kwargs["first_day_of_week"] == "sunday"
 
 
 class TestReadMonthlySummary:
@@ -47,11 +50,14 @@ class TestReadMonthlySummary:
 
         mock_get.return_value = MonthlySummaryResponse(breakdown=[], type_breakdown=None)
 
-        response = client.get(
-            "/activities_summaries/month?target_date_str=2024-01-15",
-            headers={"Authorization": "Bearer x"},
-        )
+        with patch("activities.activity_summaries.router.users_utils.get_user_by_id_or_404") as mock_get_user:
+            mock_get_user.return_value.first_day_of_week = "sunday"
+            response = client.get(
+                "/activities_summaries/month?target_date_str=2024-01-15",
+                headers={"Authorization": "Bearer x"},
+            )
         assert response.status_code == 200
+        assert mock_get.call_args.kwargs["first_day_of_week"] == "sunday"
 
 
 class TestReadYearlySummary:

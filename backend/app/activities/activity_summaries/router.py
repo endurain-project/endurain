@@ -19,6 +19,7 @@ import activities.activity_summaries.dependencies as summary_deps
 import activities.activity_summaries.schema as summary_schema
 import auth.dependencies as auth_dependencies
 import core.database as core_database
+import users.users.utils as users_utils
 
 router = APIRouter()
 
@@ -136,19 +137,23 @@ async def read_activity_summary(
 
     if view_type == "week":
         current_date = _parse_target_date(target_date_str, today)
+        user = users_utils.get_user_by_id_or_404(token_user_id, db)
         return summary_crud.get_weekly_summary(
             db=db,
             user_id=token_user_id,
             target_date=current_date,
+            first_day_of_week=user.first_day_of_week,
             activity_type=activity_type,
         )
 
     if view_type == "month":
         current_date = _parse_target_date(target_date_str, today)
+        user = users_utils.get_user_by_id_or_404(token_user_id, db)
         return summary_crud.get_monthly_summary(
             db=db,
             user_id=token_user_id,
             target_date=current_date.replace(day=1),
+            first_day_of_week=user.first_day_of_week,
             activity_type=activity_type,
         )
 

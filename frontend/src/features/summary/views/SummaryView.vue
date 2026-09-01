@@ -78,6 +78,7 @@ const route = useRoute()
 
 const units = computed(() => currentUser.value?.units ?? 'metric')
 const userId = computed(() => currentUser.value?.id ?? null)
+const firstDayOfWeek = computed(() => currentUser.value?.firstDayOfWeek ?? 'monday')
 
 // View type (period granularity) and its tab options.
 const VIEW_TYPE_OPTIONS: ReadonlyArray<{
@@ -170,7 +171,10 @@ const selectedTypeName = computed(() =>
 const summaryParams = computed<ActivitySummaryParams>(() => {
   switch (viewType.value) {
     case 'week':
-      return { date: weekStart(safeWeekAnchor.value), typeName: selectedTypeName.value }
+      return {
+        date: weekStart(safeWeekAnchor.value, firstDayOfWeek.value),
+        typeName: selectedTypeName.value,
+      }
     case 'month':
       return { date: monthStart(safeMonth.value), typeName: selectedTypeName.value }
     case 'year':
@@ -212,10 +216,7 @@ const showActivities = computed(() => viewType.value !== 'lifetime')
 const periodLabel = computed(() => {
   switch (viewType.value) {
     case 'week':
-      return `${formatPeriodDate(weekStart(safeWeekAnchor.value), locale.value)} – ${formatPeriodDate(
-        weekEnd(safeWeekAnchor.value),
-        locale.value,
-      )}`
+      return `${formatPeriodDate(weekStart(safeWeekAnchor.value, firstDayOfWeek.value), locale.value)} – ${formatPeriodDate(weekEnd(safeWeekAnchor.value, firstDayOfWeek.value), locale.value)}`
     case 'month':
       return monthLabel(monthStart(safeMonth.value), locale.value)
     case 'year':
@@ -232,7 +233,10 @@ const periodLabel = computed(() => {
 const isAtLatestPeriod = computed(() => {
   switch (viewType.value) {
     case 'week':
-      return weekStart(safeWeekAnchor.value) >= weekStart(maxWeekAnchor)
+      return (
+        weekStart(safeWeekAnchor.value, firstDayOfWeek.value) >=
+        weekStart(maxWeekAnchor, firstDayOfWeek.value)
+      )
     case 'month':
       return safeMonth.value >= maxMonth
     case 'year':
@@ -286,7 +290,10 @@ const visibleColumns = computed(() => {
 const activityRange = computed<{ startDate: string | null; endDate: string | null }>(() => {
   switch (viewType.value) {
     case 'week':
-      return { startDate: weekStart(safeWeekAnchor.value), endDate: weekEnd(safeWeekAnchor.value) }
+      return {
+        startDate: weekStart(safeWeekAnchor.value, firstDayOfWeek.value),
+        endDate: weekEnd(safeWeekAnchor.value, firstDayOfWeek.value),
+      }
     case 'month':
       return { startDate: monthStart(safeMonth.value), endDate: monthEnd(safeMonth.value) }
     case 'year':

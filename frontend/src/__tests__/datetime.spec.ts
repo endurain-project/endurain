@@ -4,7 +4,10 @@ import {
   formatMediumDate,
   formatMediumDateTime,
   formatRelativeTime,
+  shiftWeeks,
   todayIsoDate,
+  weekEnd,
+  weekStart,
 } from '@/utils/datetime'
 
 // Fixed reference point so assertions are deterministic regardless of the clock.
@@ -45,6 +48,22 @@ describe('todayIsoDate', () => {
     const result = todayIsoDate()
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     expect(result).toBe(new Date().toISOString().slice(0, 10))
+  })
+})
+
+describe('configurable week boundaries', () => {
+  it('uses Sunday as the first day when configured', () => {
+    expect(weekStart('2024-01-15', 'sunday')).toBe('2024-01-14')
+    expect(weekEnd('2024-01-15', 'sunday')).toBe('2024-01-20')
+  })
+
+  it('supports arbitrary configured first days', () => {
+    expect(weekStart('2024-01-15', 'wednesday')).toBe('2024-01-10')
+    expect(weekEnd('2024-01-15', 'wednesday')).toBe('2024-01-16')
+  })
+
+  it('shifts dates by whole weeks', () => {
+    expect(shiftWeeks('2024-01-14', -1)).toBe('2024-01-07')
   })
 })
 

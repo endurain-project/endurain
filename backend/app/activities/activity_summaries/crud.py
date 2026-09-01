@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, case, extract, func, select
 from sqlalchemy.orm import Session
 
+import core.calendar as core_calendar
 from activities.activity.models import Activity
 from activities.activity.utils import (
     ACTIVITY_NAME_TO_ID,
@@ -125,6 +126,7 @@ def get_weekly_summary(
     db: Session,
     user_id: int,
     target_date: date,
+    first_day_of_week: core_calendar.WeekdayValue,
     activity_type: str | None = None,
 ) -> WeeklySummaryResponse:
     """
@@ -135,13 +137,15 @@ def get_weekly_summary(
         user_id: Target user ID.
         target_date: Any date within the target
             week.
+        first_day_of_week: User's configured first weekday.
         activity_type: Optional activity type
             filter name.
 
     Returns:
         Weekly summary with daily breakdowns.
     """
-    start_of_week = target_date - timedelta(days=target_date.weekday())
+    first_day_index = core_calendar.get_weekday_index(first_day_of_week)
+    start_of_week = core_calendar.get_week_start(target_date, first_day_of_week)
     end_of_week = start_of_week + timedelta(days=7)
 
     # Database-agnostic ISO day of week
@@ -185,11 +189,13 @@ def get_weekly_summary(
 
     day_map = {d.day_of_week: d for d in daily_results}
 
-    for i in range(1, 8):
-        day_data = day_map.get(i)
+    for day_offset in range(7):
+        day_index = (first_day_index + day_offset) % 7
+        iso_day_index = day_index + 1
+        day_data = day_map.get(iso_day_index)
         if day_data:
             ds = DaySummary(
-                day_of_week=i - 1,
+                day_of_week=day_index,
                 total_distance=float(day_data.total_distance),
                 total_duration=float(day_data.total_duration),
                 total_elevation_gain=float(day_data.total_elevation_gain),
@@ -203,7 +209,7 @@ def get_weekly_summary(
             overall.total_calories += ds.total_calories
             overall.activity_count += ds.activity_count
         else:
-            breakdown.append(DaySummary(day_of_week=i - 1))
+            breakdown.append(DaySummary(day_of_week=day_index))
 
     return WeeklySummaryResponse(
         total_distance=overall.total_distance,
@@ -226,6 +232,7 @@ def get_monthly_summary(
     db: Session,
     user_id: int,
     target_date: date,
+    first_day_of_week: core_calendar.WeekdayValue,
     activity_type: str | None = None,
 ) -> MonthlySummaryResponse:
     """
@@ -236,6 +243,7 @@ def get_monthly_summary(
         user_id: Target user ID.
         target_date: Any date within the target
             month.
+        first_day_of_week: User's configured first weekday.
         activity_type: Optional activity type
             filter name.
 
@@ -245,7 +253,9 @@ def get_monthly_summary(
     start_of_month = target_date.replace(day=1)
     end_of_month = (start_of_month + timedelta(days=32)).replace(day=1)
 
-    week_expr = extract("week", Activity.start_time)
+    first_day_index = core_calendar.get_weekday_index(first_day_of_week)
+    leading_days = (start_of_month.weekday() - first_day_index) % 7
+    week_expr = func.floor((extract("day", Activity.start_time) + leading_days - 1) / 7) + 1
 
     stmt = select(
         week_expr.label("week_number"),

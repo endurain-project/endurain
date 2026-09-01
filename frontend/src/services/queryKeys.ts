@@ -227,7 +227,7 @@ export const queryKeys = {
      */
     monthCount: (userId: number) => ['activities', 'month-count', userId] as const,
     /**
-     * A user's activities for a single ISO week (public-profile week browser).
+     * A user's activities for a configured week (public-profile week browser).
      * Under the `list` prefix so an `all()` invalidation refetches it.
      *
      * @param userId - The profile owner's user id.

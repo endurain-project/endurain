@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 import auth.dependencies as auth_dependencies
 import core.database as core_database
+import users.users.utils as users_utils
 import users.users_goals.crud as user_goals_crud
 import users.users_goals.dependencies as user_goals_dependencies
 import users.users_goals.schema as user_goals_schema
@@ -78,7 +79,13 @@ async def get_user_goals_results(
     Returns:
         List of goal progress objects, or None if no goals.
     """
-    return user_goals_utils.calculate_user_goals(token_user_id, None, db)
+    user = users_utils.get_user_by_id_or_404(token_user_id, db)
+    return user_goals_utils.calculate_user_goals(
+        token_user_id,
+        None,
+        db,
+        user.first_day_of_week,
+    )
 
 
 @router.post(

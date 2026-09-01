@@ -25,7 +25,6 @@ def _build_app(mock_db):
 
     for dep in [
         auth_deps.check_scopes,
-        auth_deps.get_sub_from_access_token,
         auth_deps.get_user_id_from_auth,
         auth_deps.check_auth_scopes,
         core_dep.validate_pagination_values,
@@ -39,6 +38,7 @@ def _build_app(mock_db):
         gear_dep.validate_gear_id,
     ]:
         app.dependency_overrides[dep] = _mock
+    app.dependency_overrides[auth_deps.get_sub_from_access_token] = _uid
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -92,15 +92,43 @@ class TestReadActivitiesNumber:
 
 class TestReadWeek:
     def test_week_success(self, mock_db):
-        with patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
+        with (
+            patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m,
+            patch("activities.activity.router.users_utils.get_user_by_id_or_404") as mock_get_user,
+        ):
+            mock_get_user.return_value.first_day_of_week = "sunday"
             m.return_value = [_valid_activity()]
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/user/1/week/0", headers={"Authorization": "Bearer x"}
             )
             assert resp.status_code == 200
+            assert m.call_args.args[1].weekday() == 6
+
+    def test_week_uses_viewer_preference_for_another_profile(self, mock_db):
+        """Test cross-user week ranges follow the viewer's calendar."""
+        with (
+            patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as mock_activities,
+            patch("activities.activity.router.users_utils.get_user_by_id_or_404") as mock_get_user,
+        ):
+            mock_get_user.return_value.first_day_of_week = "sunday"
+            mock_activities.return_value = None
+
+            response = TestClient(_build_app(mock_db)).get(
+                "/activities/user/2/week/0",
+                headers={"Authorization": "Bearer x"},
+            )
+
+            assert response.status_code == 200
+            mock_get_user.assert_called_once_with(1, mock_db)
+            assert mock_activities.call_args.args[1].weekday() == 6
+            assert mock_activities.call_args.kwargs["requester_user_id"] == 1
 
     def test_week_none(self, mock_db):
-        with patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
+        with (
+            patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m,
+            patch("activities.activity.router.users_utils.get_user_by_id_or_404") as mock_get_user,
+        ):
+            mock_get_user.return_value.first_day_of_week = "sunday"
             m.return_value = None
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/user/1/week/0", headers={"Authorization": "Bearer x"}
@@ -113,16 +141,23 @@ class TestWeekStats:
         with (
             patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m,
             patch("activities.activity.router.activities_utils.calculate_activity_stats") as s,
+            patch("activities.activity.router.users_utils.get_user_by_id_or_404") as mock_get_user,
         ):
+            mock_get_user.return_value.first_day_of_week = "sunday"
             m.return_value = [_valid_activity()]
             s.return_value = {"bogus": {}}
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/user/1/thisweek/stats", headers={"Authorization": "Bearer x"}
             )
             assert resp.status_code == 200
+            assert m.call_args.args[1].weekday() == 6
 
     def test_stats_empty(self, mock_db):
-        with patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m:
+        with (
+            patch("activities.activity.router.activities_crud.get_user_activities_per_timeframe") as m,
+            patch("activities.activity.router.users_utils.get_user_by_id_or_404") as mock_get_user,
+        ):
+            mock_get_user.return_value.first_day_of_week = "sunday"
             m.return_value = None
             resp = TestClient(_build_app(mock_db)).get(
                 "/activities/user/1/thisweek/stats", headers={"Authorization": "Bearer x"}

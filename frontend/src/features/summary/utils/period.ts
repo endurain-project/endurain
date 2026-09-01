@@ -6,14 +6,13 @@
  *
  * Period ranges return an **inclusive** end date to match the activities list
  * endpoint, whose date filter is `date(start_time) BETWEEN start AND end`
- * inclusive on both bounds. Weeks are Monday-start to mirror the backend
- * summary, which always anchors the week on Monday regardless of user prefs.
+ * inclusive on both bounds. Week boundaries use the viewer's configured first
+ * day of the week.
  */
 
-import { todayIsoDate } from '@/utils/datetime'
+import { shiftWeeks, todayIsoDate, weekEnd, weekStart } from '@/utils/datetime'
 
-/** Milliseconds in one day. */
-const MS_PER_DAY = 86_400_000
+export { shiftWeeks, weekEnd, weekStart }
 
 /** An inclusive `[startDate, endDate]` range as `YYYY-MM-DD` strings. */
 export interface PeriodRange {
@@ -59,42 +58,6 @@ export function currentMonth(): string {
 /** The current calendar year (the default year anchor). */
 export function currentYear(): number {
   return Number(todayIsoDate().slice(0, 4))
-}
-
-/**
- * The Monday on or before the given date.
- *
- * @param iso - Any `YYYY-MM-DD` date within the target week.
- * @returns The week's Monday as `YYYY-MM-DD`.
- */
-export function weekStart(iso: string): string {
-  const date = parseIsoDate(iso)
-  // getUTCDay: 0 = Sunday … 6 = Saturday. Days back to Monday = (day + 6) % 7.
-  const daysSinceMonday = (date.getUTCDay() + 6) % 7
-  return toIsoDate(new Date(date.getTime() - daysSinceMonday * MS_PER_DAY))
-}
-
-/**
- * The Sunday on or after the given date (the inclusive end of its week).
- *
- * @param iso - Any `YYYY-MM-DD` date within the target week.
- * @returns The week's Sunday as `YYYY-MM-DD`.
- */
-export function weekEnd(iso: string): string {
-  const start = parseIsoDate(weekStart(iso))
-  return toIsoDate(new Date(start.getTime() + 6 * MS_PER_DAY))
-}
-
-/**
- * Shifts a date by whole weeks, preserving the day of week.
- *
- * @param iso - The `YYYY-MM-DD` anchor date.
- * @param delta - Number of weeks to add (negative to subtract).
- * @returns The shifted date as `YYYY-MM-DD`.
- */
-export function shiftWeeks(iso: string, delta: number): string {
-  const date = parseIsoDate(iso)
-  return toIsoDate(new Date(date.getTime() + delta * 7 * MS_PER_DAY))
 }
 
 /**
