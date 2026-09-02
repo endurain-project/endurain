@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo, available_timezones
 import fitdecode
 
 import core.logger as core_logger
+import modules.activities.activity.constants as activities_constants
 import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
@@ -45,7 +46,7 @@ def parse_frame_session(frame):
             activity_type = "hiit"
         elif activity_type == 64 and sub_sport == 85:
             activity_type = "padel"
-        else:
+        elif isinstance(sub_sport, str) and sub_sport.lower() in activities_constants.ACTIVITY_NAME_TO_ID:
             activity_type = sub_sport
 
     # Extracting time values

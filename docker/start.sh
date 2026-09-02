@@ -144,11 +144,95 @@ echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY, LOG_LEVEL=$LOG_
 # durable-job queue (requires JOBS_ENABLED=true). One image, two shapes.
 APP_ROLE="${APP_ROLE:-api}"
 
+# uvicorn only honours --proxy-headers for peers listed in FORWARDED_ALLOW_IPS
+# (default 127.0.0.1), so without it a proxy on any other address is ignored.
+# Derive that list from TRUSTED_PROXIES, which operators already set for the
+# application's own client-IP detection, so there is a single knob.
+FORWARDED_ALLOW_IPS_LIST=""
+
+append_forwarded_allow_ip() {
+    case ",$FORWARDED_ALLOW_IPS_LIST," in
+        *",$1,"*)
+            return 0
+            ;;
+    esac
+    if [ -z "$FORWARDED_ALLOW_IPS_LIST" ]; then
+        FORWARDED_ALLOW_IPS_LIST="$1"
+    else
+        FORWARDED_ALLOW_IPS_LIST="$FORWARDED_ALLOW_IPS_LIST,$1"
+    fi
+}
+
+# uvicorn cannot resolve hostnames (unmatched names become inert literals), so
+# TRUSTED_PROXIES hostnames are resolved here. The application re-resolves them
+# periodically for its own trust checks, so a proxy that changes IP after this
+# snapshot still gets the correct client IP from core/network.py even though the
+# uvicorn access log and request.client go stale until the next restart.
+build_forwarded_allow_ips() {
+    old_ifs="$IFS"
+    IFS=','
+    # -f disables pathname expansion so a literal "*" entry survives the split.
+    set -f
+    # shellcheck disable=SC2086
+    set -- $TRUSTED_PROXIES
+    set +f
+    IFS="$old_ifs"
+
+    for raw_entry in "$@"; do
+        entry=$(printf '%s' "$raw_entry" | tr -d '[:space:]')
+        if [ -z "$entry" ]; then
+            continue
+        fi
+
+        if [ "$entry" = "*" ]; then
+            FORWARDED_ALLOW_IPS_LIST="*"
+            return 0
+        fi
+
+        # Classify strictly: uvicorn silently turns anything it cannot parse as
+        # an IP/CIDR into an inert literal that never matches a peer, so entries
+        # that are not pure IP syntax must go through hostname resolution.
+        case "$entry" in
+            *[!0-9A-Fa-f:./]*) entry_is_ip=0 ;;
+            *:*) entry_is_ip=1 ;;
+            *[!0-9./]*) entry_is_ip=0 ;;
+            *) entry_is_ip=1 ;;
+        esac
+
+        if [ "$entry_is_ip" = "1" ]; then
+            append_forwarded_allow_ip "$entry"
+            continue
+        fi
+
+        resolved_ips=$(getent hosts "$entry" 2>/dev/null | awk '{print $1}')
+        if [ -z "$resolved_ips" ]; then
+            echo_error_log "Could not resolve TRUSTED_PROXIES hostname '$entry'; uvicorn will not honour forwarded headers from it."
+            continue
+        fi
+        for resolved_ip in $resolved_ips; do
+            append_forwarded_allow_ip "$resolved_ip"
+        done
+    done
+}
+
 case "$APP_ROLE" in
     api)
         CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
         if [ "$BEHIND_PROXY" = "true" ]; then
             CMD="$CMD --proxy-headers"
+            if [ -n "$FORWARDED_ALLOW_IPS" ]; then
+                echo_info_log "Honouring forwarded headers from FORWARDED_ALLOW_IPS override: $FORWARDED_ALLOW_IPS"
+            else
+                build_forwarded_allow_ips
+                if [ -n "$FORWARDED_ALLOW_IPS_LIST" ]; then
+                    # Exported rather than passed as --forwarded-allow-ips so it
+                    # also applies to an overridden Uvicorn/Gunicorn command.
+                    export FORWARDED_ALLOW_IPS="$FORWARDED_ALLOW_IPS_LIST"
+                    echo_info_log "Honouring forwarded headers from: $FORWARDED_ALLOW_IPS_LIST"
+                else
+                    echo_error_log "BEHIND_PROXY=true but no usable TRUSTED_PROXIES entry was found; uvicorn will only honour forwarded headers from 127.0.0.1. Set TRUSTED_PROXIES to your reverse proxy address, CIDR, or hostname."
+                fi
+            fi
         fi
         # Run multiple Uvicorn workers when WEB_WORKERS > 1. The backend's
         # deployment fail-fast (Settings._enforce_deployment_topology) requires

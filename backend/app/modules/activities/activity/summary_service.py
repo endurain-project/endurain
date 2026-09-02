@@ -122,18 +122,26 @@ def build_summary(
     )
 
     if period == "week":
+        user = users_integration_service.get_user(user_id, db)
+        if user is None:
+            raise core_exceptions.NotFoundError("User not found")
         return summary_crud.get_weekly_summary(
             db=db,
             user_id=user_id,
             target_date=today,
+            first_day_of_week=user.first_day_of_week,
             activity_type=activity_type,
         )
 
     if period == "month":
+        user = users_integration_service.get_user(user_id, db)
+        if user is None:
+            raise core_exceptions.NotFoundError("User not found")
         return summary_crud.get_monthly_summary(
             db=db,
             user_id=user_id,
             target_date=today.replace(day=1),
+            first_day_of_week=user.first_day_of_week,
             activity_type=activity_type,
         )
 

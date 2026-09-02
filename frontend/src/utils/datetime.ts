@@ -5,6 +5,37 @@
  * is delegated to the platform `Intl` APIs rather than a bundled date library.
  */
 
+import type { Schemas } from '@/types'
+
+const MS_PER_DAY = 86_400_000
+
+const WEEKDAY_UTC_INDEX: Record<Schemas['WeekDay'], number> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+}
+
+/** Parses a `YYYY-MM-DD` string into a UTC `Date` at midnight. */
+function parseIsoDate(iso: string): Date {
+  const parts = iso.split('-')
+  const year = Number(parts[0])
+  const month = Number(parts[1] ?? 1)
+  const day = Number(parts[2] ?? 1)
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+/** Formats a `Date` as a `YYYY-MM-DD` string using its UTC fields. */
+function toIsoDate(date: Date): string {
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /**
  * Largest magnitude (in the current unit) before rolling up to the next unit,
  * paired with the `Intl.RelativeTimeFormat` unit it represents. Ordered from
@@ -123,6 +154,43 @@ export function formatZonedDateTime(
     // time is a better outcome than blanking the field.
     return new Intl.DateTimeFormat(locale, options).format(date)
   }
+}
+
+/**
+ * Returns the configured first weekday on or before an ISO date.
+ *
+ * @param iso - Any `YYYY-MM-DD` date within the target week.
+ * @param firstDayOfWeek - User's configured first weekday.
+ * @returns The first date of the configured week as `YYYY-MM-DD`.
+ */
+export function weekStart(iso: string, firstDayOfWeek: Schemas['WeekDay']): string {
+  const date = parseIsoDate(iso)
+  const daysSinceWeekStart = (date.getUTCDay() - WEEKDAY_UTC_INDEX[firstDayOfWeek] + 7) % 7
+  return toIsoDate(new Date(date.getTime() - daysSinceWeekStart * MS_PER_DAY))
+}
+
+/**
+ * Returns the configured final weekday on or after an ISO date.
+ *
+ * @param iso - Any `YYYY-MM-DD` date within the target week.
+ * @param firstDayOfWeek - User's configured first weekday.
+ * @returns The final date of the configured week as `YYYY-MM-DD`.
+ */
+export function weekEnd(iso: string, firstDayOfWeek: Schemas['WeekDay']): string {
+  const start = parseIsoDate(weekStart(iso, firstDayOfWeek))
+  return toIsoDate(new Date(start.getTime() + 6 * MS_PER_DAY))
+}
+
+/**
+ * Shifts an ISO date by whole weeks.
+ *
+ * @param iso - The `YYYY-MM-DD` date to shift.
+ * @param delta - Number of weeks to add or subtract.
+ * @returns The shifted date as `YYYY-MM-DD`.
+ */
+export function shiftWeeks(iso: string, delta: number): string {
+  const date = parseIsoDate(iso)
+  return toIsoDate(new Date(date.getTime() + delta * 7 * MS_PER_DAY))
 }
 
 /**

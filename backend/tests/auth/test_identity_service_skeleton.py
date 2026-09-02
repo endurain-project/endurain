@@ -261,7 +261,7 @@ class TestResolveFromAccessToken:
     ):
         """Raises 401 when 'scope' claim is not a list."""
         mock_token_manager.get_token_claim.side_effect = lambda token, claim: {
-            "sub": 1,
+            "sub": "1",
             "scope": "not-a-list",
         }[claim]
         with pytest.raises(HTTPException) as exc_info:
@@ -276,7 +276,7 @@ class TestResolveFromAccessToken:
     ):
         """Raises 401 when 'sid' claim is not a string."""
         mock_token_manager.get_token_claim.side_effect = lambda token, claim: {
-            "sub": 1,
+            "sub": "1",
             "scope": ["profile"],
             "sid": 99,
         }[claim]

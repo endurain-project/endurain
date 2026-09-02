@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
+import core.network as core_network
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth._internal.services.account_security_service as auth_account_security_service
 import modules.auth._internal.services.identity_link_service as auth_identity_link_service
@@ -910,7 +911,7 @@ class DefaultIdentityService:
                 key_prefix=db_key.key_prefix,
                 user_id=db_key.user_id,
                 endpoint=request.url.path,
-                ip=request.client.host if request.client else "unknown",
+                ip=core_network.get_ip_address(request),
             ),
         )
 

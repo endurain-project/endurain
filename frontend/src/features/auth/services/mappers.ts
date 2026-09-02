@@ -61,5 +61,6 @@ export function mapUserProfile(dto: UserProfileDto): User {
     hasLocalPassword: dto.has_local_password ?? false,
     units: dto.units,
     currency: dto.currency,
+    firstDayOfWeek: dto.first_day_of_week ?? 'monday',
   }
 }

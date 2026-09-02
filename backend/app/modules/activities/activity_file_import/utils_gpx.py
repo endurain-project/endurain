@@ -190,7 +190,7 @@ def _sanitize_elevation(elevation: float | None) -> float | None:
 
 def _extract_extension_data(
     point: gpxpy.gpx.GPXTrackPoint,
-) -> tuple[int, int, int]:
+) -> tuple[int | None, int | None, int | None]:
     """
     Extract HR, cadence, and power from extensions.
 
@@ -198,11 +198,11 @@ def _extract_extension_data(
         point: A gpxpy trackpoint with optional extension elements.
 
     Returns:
-        Tuple of (heart_rate, cadence, power) as ints.
+        Tuple of sensor values, with None for absent tags.
     """
-    heart_rate: int = 0
-    cadence: int = 0
-    power: int = 0
+    heart_rate: int | None = None
+    cadence: int | None = None
+    power: int | None = None
 
     if not point.extensions:
         return heart_rate, cadence, power
@@ -330,11 +330,11 @@ def _process_trackpoint(
     heart_rate, cadence, raw_power = _extract_extension_data(point)
     power: int | None = raw_power
 
-    if heart_rate != 0:
+    if heart_rate is not None and heart_rate != 0:
         state.is_heart_rate_set = True
-    if cadence != 0:
+    if cadence is not None and cadence != 0:
         state.is_cadence_set = True
-    if raw_power != 0:
+    if raw_power is not None and raw_power != 0:
         state.is_power_set = True
     else:
         power = None
@@ -635,12 +635,12 @@ def parse_gpx_file(
             ele_waypoints=state.ele_waypoints,
             is_power_set=bool(state.power_waypoints),
             power_waypoints=state.power_waypoints,
-            is_heart_rate_set=bool(state.hr_waypoints),
+            is_heart_rate_set=state.is_heart_rate_set,
             hr_waypoints=state.hr_waypoints,
             is_velocity_set=bool(state.vel_waypoints),
             vel_waypoints=state.vel_waypoints,
             pace_waypoints=state.pace_waypoints,
-            is_cadence_set=bool(state.cad_waypoints),
+            is_cadence_set=state.is_cadence_set,
             cad_waypoints=state.cad_waypoints,
             is_lat_lon_set=bool(state.lat_lon_waypoints),
             lat_lon_waypoints=state.lat_lon_waypoints,

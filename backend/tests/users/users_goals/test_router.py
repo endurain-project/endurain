@@ -91,16 +91,21 @@ class TestGetUserGoalsResults:
         mock_calculate.return_value = [mock_progress]
 
         # Act
-        response = fast_api_client.get(
-            "/user_goals/results",
-            headers={"Authorization": "Bearer mock_token"},
-        )
+        with patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user:
+            mock_get_user.return_value.first_day_of_week = "sunday"
+            response = fast_api_client.get(
+                "/user_goals/results",
+                headers={"Authorization": "Bearer mock_token"},
+            )
 
         # Assert
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 1
+        mock_calculate.assert_called_once()
+        assert mock_calculate.call_args.args[0:2] == (1, None)
+        assert mock_calculate.call_args.args[3] == "sunday"
 
     @patch("modules.users.users_goals.router.user_goals_utils.calculate_user_goals")
     def test_get_user_goals_results_none(self, mock_calculate, fast_api_client, fast_api_app):
@@ -109,10 +114,12 @@ class TestGetUserGoalsResults:
         mock_calculate.return_value = None
 
         # Act
-        response = fast_api_client.get(
-            "/user_goals/results",
-            headers={"Authorization": "Bearer mock_token"},
-        )
+        with patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user:
+            mock_get_user.return_value.first_day_of_week = "sunday"
+            response = fast_api_client.get(
+                "/user_goals/results",
+                headers={"Authorization": "Bearer mock_token"},
+            )
 
         # Assert
         assert response.status_code == 200

@@ -413,9 +413,13 @@ class TestParseFrameSession:
         """generic sport + breathing sub_sport → hiit."""
         assert self._activity_type(sport="generic", sub_sport="breathing") == "hiit"
 
-    def test_unknown_sub_sport_falls_through(self):
-        """Unmapped sub_sport returns the sub_sport string."""
-        assert self._activity_type(sport="running", sub_sport="ultramarathon") == "ultramarathon"
+    def test_unknown_sub_sport_falls_back_to_sport(self):
+        """Unmapped sub_sport keeps the original sport value instead of overwriting it."""
+        assert self._activity_type(sport="running", sub_sport="ultramarathon") == "running"
+
+    def test_running_street_sub_sport_returns_running(self):
+        """street sub_sport (regression for #866) keeps the original sport value."""
+        assert self._activity_type(sport="running", sub_sport="street") == "running"
 
 
 class TestFindTimezoneName:

@@ -35,12 +35,15 @@ class TestCalculateUserGoals:
         mock_calc_progress.side_effect = [mock_progress1, mock_progress2]
 
         # Act
-        result = user_goals_utils.calculate_user_goals(user_id, date, mock_db)
+        result = user_goals_utils.calculate_user_goals(user_id, date, mock_db, "sunday")
 
         # Assert
         assert result == [mock_progress1, mock_progress2]
         mock_get_goals.assert_called_once_with(user_id, mock_db)
-        assert mock_calc_progress.call_count == 2
+        assert mock_calc_progress.call_args_list == [
+            ((mock_goal1, date, mock_db, "sunday"),),
+            ((mock_goal2, date, mock_db, "sunday"),),
+        ]
 
     @patch("modules.users.users_goals.utils.user_goals_crud.get_user_goals_by_user_id")
     def test_calculate_user_goals_no_goals(self, mock_get_goals):
@@ -52,7 +55,7 @@ class TestCalculateUserGoals:
         mock_get_goals.return_value = []
 
         # Act
-        result = user_goals_utils.calculate_user_goals(user_id, date, mock_db)
+        result = user_goals_utils.calculate_user_goals(user_id, date, mock_db, "monday")
 
         # Assert
         assert result is None
@@ -70,7 +73,7 @@ class TestCalculateUserGoals:
         mock_today.return_value = date_type(2024, 1, 15)
 
         # Act
-        result = user_goals_utils.calculate_user_goals(user_id, None, mock_db)
+        result = user_goals_utils.calculate_user_goals(user_id, None, mock_db, "monday")
 
         # Assert
         assert result is None
@@ -89,7 +92,7 @@ class TestCalculateUserGoals:
 
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_utils.calculate_user_goals(user_id, date, mock_db)
+            user_goals_utils.calculate_user_goals(user_id, date, mock_db, "monday")
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert exc_info.value.detail == "Invalid data provided"
@@ -127,7 +130,12 @@ class TestCalculateGoalProgressByActivityType:
         mock_get_activities.return_value = [mock_activity]
 
         # Act
-        result = user_goals_utils.calculate_goal_progress_by_activity_type(mock_goal, "2024-01-15", mock_db)
+        result = user_goals_utils.calculate_goal_progress_by_activity_type(
+            mock_goal,
+            "2024-01-15",
+            mock_db,
+            "monday",
+        )
 
         # Assert
         assert result.goal_id == 1
@@ -162,7 +170,12 @@ class TestCalculateGoalProgressByActivityType:
         mock_get_activities.return_value = [mock_activity]
 
         # Act
-        result = user_goals_utils.calculate_goal_progress_by_activity_type(mock_goal, "2024-01-15", mock_db)
+        result = user_goals_utils.calculate_goal_progress_by_activity_type(
+            mock_goal,
+            "2024-01-15",
+            mock_db,
+            "monday",
+        )
 
         # Assert
         assert result.total_distance == 10000
@@ -193,7 +206,12 @@ class TestCalculateGoalProgressByActivityType:
         mock_get_activities.return_value = [MagicMock(), MagicMock()]
 
         # Act
-        result = user_goals_utils.calculate_goal_progress_by_activity_type(mock_goal, "2024-01-15", mock_db)
+        result = user_goals_utils.calculate_goal_progress_by_activity_type(
+            mock_goal,
+            "2024-01-15",
+            mock_db,
+            "monday",
+        )
 
         # Assert
         assert result.total_activities_number == 2
@@ -226,7 +244,12 @@ class TestCalculateGoalProgressByActivityType:
         mock_get_activities.return_value = [mock_activity]
 
         # Act
-        result = user_goals_utils.calculate_goal_progress_by_activity_type(mock_goal, "2024-01-15", mock_db)
+        result = user_goals_utils.calculate_goal_progress_by_activity_type(
+            mock_goal,
+            "2024-01-15",
+            mock_db,
+            "monday",
+        )
 
         # Assert
         assert result.percentage_completed == 100
@@ -256,7 +279,12 @@ class TestCalculateGoalProgressByActivityType:
         mock_get_activities.return_value = [MagicMock()]
 
         # Act
-        user_goals_utils.calculate_goal_progress_by_activity_type(mock_goal, "2024-01-15", mock_db)
+        user_goals_utils.calculate_goal_progress_by_activity_type(
+            mock_goal,
+            "2024-01-15",
+            mock_db,
+            "monday",
+        )
 
         # Assert - verify exclude_hidden=True is passed
         mock_get_activities.assert_called_once()
@@ -272,7 +300,11 @@ class TestGetStartEndDateByInterval:
     def test_get_dates_daily_interval(self):
         """Test date calculation for daily interval."""
         # Act
-        start, end = user_goals_utils.get_start_end_date_by_interval("daily", "2024-01-15")
+        start, end = user_goals_utils.get_start_end_date_by_interval(
+            "daily",
+            "2024-01-15",
+            "monday",
+        )
 
         # Assert
         assert start == datetime(2024, 1, 15, 0, 0, 0)
@@ -284,16 +316,32 @@ class TestGetStartEndDateByInterval:
         start, end = user_goals_utils.get_start_end_date_by_interval(
             "weekly",
             "2024-01-15",  # Monday
+            "monday",
         )
 
         # Assert
         assert start.weekday() == 0  # Monday
         assert end.weekday() == 6  # Sunday
 
+    def test_get_dates_weekly_interval_with_sunday_start(self):
+        """Test weekly dates respect a Sunday first day."""
+        start, end = user_goals_utils.get_start_end_date_by_interval(
+            "weekly",
+            "2024-01-15",
+            "sunday",
+        )
+
+        assert start == datetime(2024, 1, 14, 0, 0, 0)
+        assert end == datetime(2024, 1, 20, 23, 59, 59)
+
     def test_get_dates_monthly_interval(self):
         """Test date calculation for monthly interval."""
         # Act
-        start, end = user_goals_utils.get_start_end_date_by_interval("monthly", "2024-01-15")
+        start, end = user_goals_utils.get_start_end_date_by_interval(
+            "monthly",
+            "2024-01-15",
+            "monday",
+        )
 
         # Assert
         assert start.day == 1
@@ -303,7 +351,11 @@ class TestGetStartEndDateByInterval:
     def test_get_dates_yearly_interval(self):
         """Test date calculation for yearly interval."""
         # Act
-        start, end = user_goals_utils.get_start_end_date_by_interval("yearly", "2024-06-15")
+        start, end = user_goals_utils.get_start_end_date_by_interval(
+            "yearly",
+            "2024-06-15",
+            "monday",
+        )
 
         # Assert
         assert start == datetime(2024, 1, 1, 0, 0, 0)
@@ -313,7 +365,11 @@ class TestGetStartEndDateByInterval:
         """Test invalid interval raises exception."""
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            user_goals_utils.get_start_end_date_by_interval("invalid", "2024-01-15")
+            user_goals_utils.get_start_end_date_by_interval(
+                "invalid",
+                "2024-01-15",
+                "monday",
+            )
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         assert "Invalid interval" in exc_info.value.detail

@@ -1,10 +1,25 @@
-from datetime import date
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import insert
 from sqlalchemy.exc import SQLAlchemyError
-from tests._helpers.db import setup_mock_execute
+from tests._helpers.db import create_sqlite_session, setup_mock_execute
 from tests._helpers.models import mock_model
+
+
+@pytest.fixture
+def sqlite_session():
+    """Provide a real in-memory database for period grouping tests."""
+    session = create_sqlite_session()
+    connection = session.connection().connection.driver_connection
+    connection.create_function("timezone", 2, lambda _timezone, value: value)
+    try:
+        yield session
+    finally:
+        session.close()
+        session.bind.dispose()
 
 
 class TestGetWeeklySummary:
@@ -15,7 +30,12 @@ class TestGetWeeklySummary:
         import modules.activities.activity.summary_crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        r = crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+        r = crud.get_weekly_summary(
+            user_id=1,
+            target_date=datetime(2024, 1, 15),
+            first_day_of_week="monday",
+            db=mock_db,
+        )
         assert r is not None
 
     def test_empty(self, mock_db):
@@ -24,7 +44,12 @@ class TestGetWeeklySummary:
         import modules.activities.activity.summary_crud as crud
 
         setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+        r = crud.get_weekly_summary(
+            user_id=1,
+            target_date=datetime(2024, 1, 15),
+            first_day_of_week="monday",
+            db=mock_db,
+        )
         assert r is not None
 
     def test_postgresql(self, mock_db):
@@ -47,8 +72,28 @@ class TestGetWeeklySummary:
             [row],
             [],
         ]
-        r = crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+        r = crud.get_weekly_summary(
+            user_id=1,
+            target_date=datetime(2024, 1, 15),
+            first_day_of_week="monday",
+            db=mock_db,
+        )
         assert r.activity_count == 1
+
+    def test_sunday_first_breakdown_order(self, mock_db):
+        """Test weekly rows begin with the configured first day."""
+        import modules.activities.activity.summary_crud as crud
+
+        mock_db.execute.return_value.all.side_effect = [[], []]
+
+        result = crud.get_weekly_summary(
+            user_id=1,
+            target_date=date(2024, 1, 15),
+            first_day_of_week="sunday",
+            db=mock_db,
+        )
+
+        assert [row.day_of_week for row in result.breakdown] == [6, 0, 1, 2, 3, 4, 5]
 
     def test_with_type_filter(self, mock_db):
         from datetime import datetime
@@ -66,7 +111,13 @@ class TestGetWeeklySummary:
             [row],
             [],
         ]
-        r = crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), activity_type="running", db=mock_db)
+        r = crud.get_weekly_summary(
+            user_id=1,
+            target_date=datetime(2024, 1, 15),
+            first_day_of_week="monday",
+            activity_type="running",
+            db=mock_db,
+        )
         assert r.activity_count == 1
 
     def test_db_error(self, mock_db):
@@ -76,7 +127,12 @@ class TestGetWeeklySummary:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(SQLAlchemyError):
-            crud.get_weekly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+            crud.get_weekly_summary(
+                user_id=1,
+                target_date=datetime(2024, 1, 15),
+                first_day_of_week="monday",
+                db=mock_db,
+            )
 
 
 class TestGetMonthlySummary:
@@ -96,7 +152,12 @@ class TestGetMonthlySummary:
             [row],
             [],
         ]
-        r = crud.get_monthly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+        r = crud.get_monthly_summary(
+            user_id=1,
+            target_date=datetime(2024, 1, 15),
+            first_day_of_week="monday",
+            db=mock_db,
+        )
         assert r.activity_count == 2
 
     def test_empty(self, mock_db):
@@ -108,8 +169,67 @@ class TestGetMonthlySummary:
             [],
             [],
         ]
-        r = crud.get_monthly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+        r = crud.get_monthly_summary(
+            user_id=1,
+            target_date=datetime(2024, 1, 15),
+            first_day_of_week="monday",
+            db=mock_db,
+        )
         assert r.activity_count == 0
+
+    def test_sunday_start_splits_monthly_buckets_on_sunday(self, sqlite_session):
+        """Test monthly week buckets roll over on the configured day."""
+        import modules.activities.activity.models as activity_models
+        import modules.activities.activity.summary_crud as crud
+
+        base_values = {
+            "user_id": 1,
+            "distance": 1000,
+            "activity_type": 1,
+            "end_time": datetime(2024, 1, 6, 9, tzinfo=UTC),
+            "created_at": datetime(2024, 1, 6, 8, tzinfo=UTC),
+            "total_elapsed_time": Decimal("3600"),
+            "total_timer_time": Decimal("3600"),
+            "visibility": 0,
+            "is_hidden": False,
+            "hide_start_time": False,
+            "hide_location": False,
+            "hide_map": False,
+            "hide_hr": False,
+            "hide_power": False,
+            "hide_cadence": False,
+            "hide_elevation": False,
+            "hide_speed": False,
+            "hide_pace": False,
+            "hide_laps": False,
+            "hide_workout_sets_steps": False,
+            "hide_gear": False,
+        }
+        sqlite_session.execute(
+            insert(activity_models.Activity),
+            [
+                {
+                    **base_values,
+                    "start_time": datetime(2024, 1, 6, 8, tzinfo=UTC),
+                },
+                {
+                    **base_values,
+                    "start_time": datetime(2024, 1, 7, 8, tzinfo=UTC),
+                    "end_time": datetime(2024, 1, 7, 9, tzinfo=UTC),
+                    "created_at": datetime(2024, 1, 7, 8, tzinfo=UTC),
+                },
+            ],
+        )
+        sqlite_session.commit()
+
+        result = crud.get_monthly_summary(
+            db=sqlite_session,
+            user_id=1,
+            target_date=date(2024, 1, 15),
+            first_day_of_week="sunday",
+        )
+
+        assert [(row.week_number, row.activity_count) for row in result.breakdown] == [(1, 1), (2, 1)]
 
     def test_db_error(self, mock_db):
         from datetime import datetime
@@ -118,7 +238,12 @@ class TestGetMonthlySummary:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(SQLAlchemyError):
-            crud.get_monthly_summary(user_id=1, target_date=datetime(2024, 1, 15), db=mock_db)
+            crud.get_monthly_summary(
+                user_id=1,
+                target_date=datetime(2024, 1, 15),
+                first_day_of_week="monday",
+                db=mock_db,
+            )
 
 
 class TestGetYearlySummary:
@@ -366,7 +491,12 @@ class TestLocalTimeBuckets:
         import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
-        crud.get_weekly_summary(db=db, user_id=1, target_date=date(2024, 1, 15))
+        crud.get_weekly_summary(
+            db=db,
+            user_id=1,
+            target_date=date(2024, 1, 15),
+            first_day_of_week="monday",
+        )
 
         sql = self._emitted_sql(db)
         assert "coalesce(activities.timezone, 'UTC')" in sql
@@ -376,7 +506,12 @@ class TestLocalTimeBuckets:
         import modules.activities.activity.summary_crud as crud
 
         db = self._mock_db()
-        crud.get_monthly_summary(db=db, user_id=1, target_date=date(2024, 1, 1))
+        crud.get_monthly_summary(
+            db=db,
+            user_id=1,
+            target_date=date(2024, 1, 1),
+            first_day_of_week="monday",
+        )
 
         assert "coalesce(activities.timezone, 'UTC')" in self._emitted_sql(db)
 

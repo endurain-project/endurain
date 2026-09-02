@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
+import core.network as core_network
 import modules.auth.identity_providers.service as idp_service
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.identity_service as auth_identity_service
@@ -90,7 +91,7 @@ async def link_identity_provider(
     # Validate and claim the link token via auth facade.
     # This encapsulates all auth-owned CRUD calls (hash lookup, IP check,
     # existing-link check, atomic token claim) behind a single boundary.
-    client_ip = request.client.host if request.client else None
+    client_ip = core_network.get_ip_address(request)
     token_user_id = identity_service.validate_and_claim_browser_link_token(
         link_token=link_token,
         idp_id=idp_id,
@@ -108,7 +109,6 @@ async def link_identity_provider(
 
     # Create database-backed OAuth state for link mode
     state, nonce = oauth_state_utils.create_state_id_and_nonce()
-    client_ip = request.client.host if request.client else None
 
     # A custom-scheme return target signals a native/mobile handoff (mirrors the
     # login flow); a plain relative path is a normal web return.

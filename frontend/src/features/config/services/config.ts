@@ -16,6 +16,11 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   branding: {
     appName: 'Endurain',
   },
+  map: {
+    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
   enabledLocales: null,
 }
 
@@ -36,6 +41,10 @@ export function mapServerSettingsToAppConfig(settings: PublicServerSettings): Ap
       signUp: settings.signup_enabled,
     },
     branding: DEFAULT_APP_CONFIG.branding,
+    map: {
+      tileUrl: settings.tileserver_url,
+      attribution: settings.tileserver_attribution,
+    },
     enabledLocales: DEFAULT_APP_CONFIG.enabledLocales,
   }
 }

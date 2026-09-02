@@ -29,6 +29,14 @@ describe('numberRange', () => {
   it('rejects negative values', () => {
     expect(validate(-1)).toBe('out of range')
   })
+
+  it("passes a cleared field even though it runtime-holds '' rather than null", () => {
+    // Regression: `<input type="number">` + `v-model.number` yields the raw
+    // '' string (not `null`) when a cleared field fails to parse, despite the
+    // field's `number | null` type. Without coercion this silently "passed"
+    // range validation instead of being treated as empty.
+    expect(validate('' as unknown as number)).toBeNull()
+  })
 })
 
 describe('resolveHeightCm', () => {
@@ -60,6 +68,30 @@ describe('resolveHeightCm', () => {
     expect(
       resolveHeightCm({ units: 'imperial', heightCm: null, heightFeet: 6, heightInches: null }),
     ).toBe(183)
+  })
+
+  it("treats a cleared metric field as null even though it runtime-holds ''", () => {
+    // Regression: same `v-model.number` quirk as above, applied to the height
+    // fields. A cleared metric field must resolve to `null`, not `''`.
+    expect(
+      resolveHeightCm({
+        units: 'metric',
+        heightCm: '' as unknown as number,
+        heightFeet: null,
+        heightInches: null,
+      }),
+    ).toBeNull()
+  })
+
+  it('treats cleared imperial feet/inches as null rather than zero', () => {
+    expect(
+      resolveHeightCm({
+        units: 'imperial',
+        heightCm: null,
+        heightFeet: '' as unknown as number,
+        heightInches: '' as unknown as number,
+      }),
+    ).toBeNull()
   })
 })
 

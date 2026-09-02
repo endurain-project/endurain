@@ -131,4 +131,11 @@ def frontend_not_found(
                 detail="Resource not found",
             )
         return result
-    return core_utils.return_frontend_index("index.html")
+
+    result = core_utils.return_frontend_index("index.html")
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Frontend index not found",
+        )
+    return result

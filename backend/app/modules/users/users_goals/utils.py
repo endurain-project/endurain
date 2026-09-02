@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import core.calendar as core_calendar
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activities_integration
 import modules.users.users.utils as users_utils
@@ -38,7 +39,10 @@ _DEFAULT_ACTIVITY_TYPES: list[int] = [10, 19]
 
 
 def calculate_user_goals(
-    user_id: int, date: str | None, db: Session
+    user_id: int,
+    date: str | None,
+    db: Session,
+    first_day_of_week: core_calendar.WeekdayValue,
 ) -> list[user_goals_schema.UsersGoalProgress] | None:
     """
     Calculate progress for all user goals on a specified date.
@@ -48,6 +52,7 @@ def calculate_user_goals(
         date: Date in YYYY-MM-DD format. If None, uses
             current date.
         db: SQLAlchemy database session.
+        first_day_of_week: User's configured first weekday.
 
     Returns:
         List of UsersGoalProgress objects, or None if no
@@ -68,7 +73,15 @@ def calculate_user_goals(
         if not goals:
             return None
 
-        return [calculate_goal_progress_by_activity_type(goal, date, db) for goal in goals]
+        return [
+            calculate_goal_progress_by_activity_type(
+                goal,
+                date,
+                db,
+                first_day_of_week,
+            )
+            for goal in goals
+        ]
     except HTTPException as http_err:
         raise http_err
     except (ValueError, TypeError) as err:
@@ -93,6 +106,7 @@ def calculate_goal_progress_by_activity_type(
     goal: user_goals_schema.UsersGoalRead,
     date: str,
     db: Session,
+    first_day_of_week: core_calendar.WeekdayValue,
 ) -> user_goals_schema.UsersGoalProgress:
     """
     Calculate goal progress for a specific activity type.
@@ -101,6 +115,7 @@ def calculate_goal_progress_by_activity_type(
         goal: User goal object with goal details.
         date: Reference date in YYYY-MM-DD format.
         db: SQLAlchemy database session.
+        first_day_of_week: User's configured first weekday.
 
     Returns:
         UsersGoalProgress object with progress details.
@@ -109,7 +124,11 @@ def calculate_goal_progress_by_activity_type(
         HTTPException: If database error occurs.
     """
     try:
-        start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
+        start_date, end_date = get_start_end_date_by_interval(
+            goal.interval,
+            date,
+            first_day_of_week,
+        )
 
         # Get activity types based on goal.activity_type
         activity_types = _ACTIVITY_TYPE_MAP.get(goal.activity_type, _DEFAULT_ACTIVITY_TYPES)
@@ -198,13 +217,18 @@ def calculate_goal_progress_by_activity_type(
         ) from err
 
 
-def get_start_end_date_by_interval(interval: str, date: str) -> tuple[datetime, datetime]:
+def get_start_end_date_by_interval(
+    interval: str,
+    date: str,
+    first_day_of_week: core_calendar.WeekdayValue,
+) -> tuple[datetime, datetime]:
     """
     Get start and end datetimes for interval containing date.
 
     Args:
         interval: One of yearly, monthly, weekly, or daily.
         date: Date string in YYYY-MM-DD format.
+        first_day_of_week: User's configured first weekday.
 
     Returns:
         Tuple of (start_date, end_date) datetimes.
@@ -218,7 +242,7 @@ def get_start_end_date_by_interval(interval: str, date: str) -> tuple[datetime, 
         # Calculate the last second of December 31st of the same year
         end_date = datetime(date_obj.year, 12, 31, 23, 59, 59)
     elif interval == "weekly":
-        start_date = date_obj - timedelta(days=date_obj.weekday())  # Monday
+        start_date = core_calendar.get_week_start(date_obj, first_day_of_week)
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = start_date + timedelta(days=6, hours=23, minutes=59, seconds=59)  # Sunday
     elif interval == "monthly":

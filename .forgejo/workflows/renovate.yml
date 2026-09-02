@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: https://data.forgejo.org/actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
 
@@ -47,7 +47,7 @@ jobs:
           fi
 
       - name: Run Renovate
-        uses: docker://ghcr.io/renovatebot/renovate@sha256:38aac6e29e09288bc3fb3b95ba9445962508a1081013144d5b6ec5a6735707b9 # 43.168.5
+        uses: docker://ghcr.io/renovatebot/renovate@sha256:cf5336c66c9a8a751dd16bc8b221225ed287d7a1361c10f065659d837374084d # latest
         env:
           RENOVATE_CONFIG_FILE: renovate.json
           RENOVATE_ENDPOINT: https://codeberg.org/api/v1/

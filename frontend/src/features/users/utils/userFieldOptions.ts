@@ -7,6 +7,7 @@
  */
 import type { Schemas } from '@/types'
 
+import { toNumberOrNull } from '@/utils/number'
 import { feetAndInchesToCm } from '@/utils/units'
 import type { Validator } from '@/utils/validators'
 
@@ -82,16 +83,22 @@ export const CURRENCY_OPTIONS: ReadonlyArray<Schemas['Currency']> = ['euro', 'do
  * Builds a validator for an optional whole-number field: an empty value passes,
  * otherwise it must fall within an inclusive `0..max` range.
  *
+ * `value` is typed `number | null`, but `<input type="number">` with
+ * `v-model.number` actually yields the raw string back when it can't parse to
+ * a finite number (e.g. the field was just cleared), so it's coerced through
+ * `toNumberOrNull` rather than compared directly.
+ *
  * @param max - Largest allowed value.
  * @param message - Error message when out of range.
  * @returns A validator for the numeric field.
  */
 export function numberRange(max: number, message: string): Validator<number | null> {
   return (value) => {
-    if (value === null) {
+    const parsed = toNumberOrNull(value ?? '')
+    if (parsed === null) {
       return null
     }
-    return value >= 0 && value <= max ? null : message
+    return parsed >= 0 && parsed <= max ? null : message
   }
 }
 
@@ -106,15 +113,21 @@ export interface HeightUnitFields {
 /**
  * Resolves the height in centimetres from whichever unit system is active.
  *
+ * Each field is coerced through `toNumberOrNull` because `v-model.number`
+ * leaves the raw (empty) string in place instead of `null` when a cleared
+ * field fails to parse as a finite number.
+ *
  * @param fields - The submitted height fields.
  * @returns Height in centimetres, or `null` when not provided.
  */
 export function resolveHeightCm(fields: HeightUnitFields): number | null {
   if (fields.units === 'metric') {
-    return fields.heightCm
+    return toNumberOrNull(fields.heightCm ?? '')
   }
-  if (fields.heightFeet === null && fields.heightInches === null) {
+  const feet = toNumberOrNull(fields.heightFeet ?? '')
+  const inches = toNumberOrNull(fields.heightInches ?? '')
+  if (feet === null && inches === null) {
     return null
   }
-  return feetAndInchesToCm(fields.heightFeet ?? 0, fields.heightInches ?? 0)
+  return feetAndInchesToCm(feet ?? 0, inches ?? 0)
 }

@@ -29,7 +29,7 @@ export interface SummaryTotals {
  * One row of a period breakdown. The meaning of {@link SummaryBreakdownRow.bucket}
  * depends on the view type:
  * - `week` → day of week, `0` = Monday … `6` = Sunday
- * - `month` → ISO week number
+ * - `month` → configured calendar week number within the month
  * - `year` → month number, `1` = January … `12` = December
  * - `lifetime` → calendar year
  */

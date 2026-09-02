@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -18,6 +19,16 @@ def stub_user_local_today():
     with patch(
         f"{_SERVICE}.users_integration_service.local_today",
         return_value=date(2026, 3, 12),
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def stub_user_preferences():
+    """Provide the configured week start used by summary buckets."""
+    with patch(
+        f"{_SERVICE}.users_integration_service.get_user",
+        return_value=SimpleNamespace(first_day_of_week="sunday"),
     ) as mock:
         yield mock
 
@@ -62,6 +73,7 @@ class TestReadWeeklySummary:
         # The route hands the parsed date straight through — no string parsing
         # of its own, unlike the previous ``/{view_type}`` handler.
         assert mock_get.call_args.kwargs["target_date"] == date(2024, 1, 15)
+        assert mock_get.call_args.kwargs["first_day_of_week"] == "sunday"
 
     def test_week_is_the_default_period(self, mock_db):
         from modules.activities.activity.summary_schema import WeeklySummaryResponse
@@ -106,6 +118,7 @@ class TestReadMonthlySummary:
         assert response.status_code == 200
         # A month summary always starts on the 1st, whatever day the caller sent.
         assert mock_get.call_args.kwargs["target_date"] == date(2024, 1, 1)
+        assert mock_get.call_args.kwargs["first_day_of_week"] == "sunday"
 
 
 class TestReadYearlySummary:

@@ -7,6 +7,29 @@ from unittest.mock import Mock
 import modules.strava.gear_utils as gear_utils
 
 
+def test_shoe_csv_uses_strava_import_directory(monkeypatch, tmp_path):
+    """Shoe CSV imports read from the Strava export directory."""
+    strava_import_dir = tmp_path / "strava_import"
+    generic_import_dir = tmp_path / "bulk_import"
+    shoes_file_path = strava_import_dir / "shoes.csv"
+    read_paths = []
+
+    monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_DIR", str(strava_import_dir))
+    monkeypatch.setattr(gear_utils.core_config, "FILES_BULK_IMPORT_DIR", str(generic_import_dir))
+    monkeypatch.setattr(gear_utils.os.path, "isfile", lambda path: path == str(shoes_file_path))
+
+    def read_csv(path):
+        read_paths.append(path)
+        return iter([{"Shoe Name": "Pegasus", "Shoe Brand": "Nike", "Shoe Model": "Pegasus"}])
+
+    monkeypatch.setattr(gear_utils.core_text_imports, "read_bounded_csv", read_csv)
+
+    shoes = gear_utils.iterate_over_shoes_csv()
+
+    assert shoes == [{"Shoe Name": "Pegasus", "Shoe Brand": "Nike", "Shoe Model": "Pegasus"}]
+    assert read_paths == [str(shoes_file_path)]
+
+
 def test_bike_transform_strips_whitespace():
     """Bike brand, model, and nickname are stripped of whitespace."""
     bikes_dict = {

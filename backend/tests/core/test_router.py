@@ -114,3 +114,11 @@ class TestCatchAll(_FileResponseTestMixin):
             response = client.get("/")
             mock.assert_called_once_with("index.html")
             assert response.status_code == 200
+
+    def test_root_path_returns_404_when_index_html_is_missing(self):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            mock.return_value = None
+            response = client.get("/")
+            mock.assert_called_once_with("index.html")
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Frontend index not found"

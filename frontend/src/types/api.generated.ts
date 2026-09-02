@@ -12098,7 +12098,7 @@ export interface components {
          * @description Weekly activity summary within a month.
          *
          *     Attributes:
-         *         week_number: ISO week number.
+         *         week_number: Calendar week number within the month.
          */
         WeekSummary: {
             /**
@@ -12133,7 +12133,7 @@ export interface components {
             total_elevation_gain: number;
             /**
              * Week Number
-             * @description ISO week number
+             * @description Calendar week number within the month
              */
             week_number: number;
         };

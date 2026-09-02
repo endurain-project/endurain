@@ -125,8 +125,7 @@ describe('buildChartConfiguration', () => {
       xUnit: 'km',
     })
     const tooltip = config.options?.plugins?.tooltip as
-      | { callbacks?: { title?: (items: { label: string }[]) => string } }
-      | undefined
+      { callbacks?: { title?: (items: { label: string }[]) => string } } | undefined
     expect(tooltip?.callbacks?.title?.([{ label: '0.7' }])).toBe('0.7 km')
   })
 

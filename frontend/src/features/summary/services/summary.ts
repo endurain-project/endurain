@@ -39,7 +39,7 @@ interface DaySummaryDto extends SummaryMetricsDto {
   day_of_week: number
 }
 
-/** Month-view weekly breakdown row (`week_number`: ISO week). */
+/** Month-view weekly breakdown row (`week_number`: configured calendar week). */
 interface WeekSummaryDto extends SummaryMetricsDto {
   week_number: number
 }

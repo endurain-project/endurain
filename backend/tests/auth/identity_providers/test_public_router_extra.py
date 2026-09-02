@@ -197,6 +197,56 @@ class TestTokenExchange:
         )
         assert response.status_code == 404
 
+    @patch("modules.auth.identity_providers.public_router.users_utils.get_user_by_id_or_404")
+    @patch("modules.auth.identity_providers.public_router.users_utils.check_user_is_active")
+    @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
+    @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.get_session_with_oauth_state")
+    def test_success_retrieves_user_from_session(
+        self,
+        mock_get_session,
+        mock_validate_pkce,
+        mock_claim_session,
+        mock_create_tokens,
+        mock_check_active,
+        mock_get_user_or_404,
+        mock_db,
+    ):
+        client = _build_app(mock_db)
+        session = MagicMock()
+        session.user_id = 42
+        session.tokens_exchanged = False
+        oauth_state = MagicMock()
+        oauth_state.id = "oauth-state-id"
+        oauth_state.code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        oauth_state.code_challenge_method = "S256"
+        oauth_state.client_type = "mobile"
+        mock_get_session.return_value = (session, oauth_state)
+        user = MagicMock()
+        mock_get_user_or_404.return_value = user
+        mock_create_tokens.return_value = (
+            None,
+            MagicMock(),
+            "access-token",
+            MagicMock(),
+            "refresh-token",
+            "csrf-token",
+        )
+        mock_claim_session.return_value = True
+
+        response = client.post(
+            "/api/v1/public/idp/session/session-id/tokens",
+            json={"code_verifier": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+            headers={"X-Client-Type": "mobile"},
+        )
+
+        assert response.status_code == 200
+        mock_validate_pkce.assert_called_once()
+        mock_get_user_or_404.assert_called_once_with(42, mock_db)
+        mock_check_active.assert_called_once_with(user)
+        mock_create_tokens.assert_called_once_with(user, mock_create_tokens.call_args.args[1], "session-id")
+
     @patch("modules.auth.identity_providers.public_router.auth_sessions_crud.claim_session_for_token_exchange")
     @patch("modules.auth.identity_providers.public_router.auth_utils.create_tokens")
     @patch("modules.auth.identity_providers.public_router.idp_utils.validate_pkce_verifier")

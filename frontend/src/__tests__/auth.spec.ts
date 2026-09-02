@@ -63,6 +63,7 @@ const authUser: User = {
   hasLocalPassword: true,
   units: 'metric',
   currency: 'euro',
+  firstDayOfWeek: 'sunday',
 }
 
 describe('auth store', () => {

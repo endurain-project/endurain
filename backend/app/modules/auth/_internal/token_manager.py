@@ -377,7 +377,7 @@ class TokenManager:
             "sid": session_id,
             "iss": core_config.settings.ENDURAIN_HOST,
             "aud": core_config.settings.ENDURAIN_HOST,
-            "sub": user.id,
+            "sub": str(user.id),
             "scope": scope,
             "iat": now,
             "nbf": now,

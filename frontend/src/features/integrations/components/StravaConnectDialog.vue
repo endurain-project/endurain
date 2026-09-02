@@ -8,6 +8,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import { toNumberOrNull } from '@/utils/number'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -22,15 +23,14 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const clientId = ref('')
+// `<input type="number">` bound with `v-model` yields a `number` (or `''` when
+// blank), so the raw ref is never guaranteed to be a string.
+const clientId = ref<string | number>('')
 const clientSecret = ref('')
 
-const canSubmit = computed(
-  () =>
-    clientId.value.trim().length > 0 &&
-    Number.isFinite(Number(clientId.value)) &&
-    clientSecret.value.length > 0,
-)
+const parsedClientId = computed(() => toNumberOrNull(clientId.value))
+
+const canSubmit = computed(() => parsedClientId.value !== null && clientSecret.value.length > 0)
 
 watch(open, (isOpen) => {
   if (isOpen) {
@@ -40,7 +40,10 @@ watch(open, (isOpen) => {
 })
 
 function onSubmit(): void {
-  emit('submit', { clientId: Number(clientId.value), clientSecret: clientSecret.value })
+  if (parsedClientId.value === null) {
+    return
+  }
+  emit('submit', { clientId: parsedClientId.value, clientSecret: clientSecret.value })
 }
 </script>
 

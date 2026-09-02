@@ -148,13 +148,13 @@ describe('fetchActivitySummary', () => {
 describe('period boundaries', () => {
   it('computes Monday-start week boundaries with an inclusive Sunday end', () => {
     // 2024-06-12 is a Wednesday.
-    expect(weekStart('2024-06-12')).toBe('2024-06-10')
-    expect(weekEnd('2024-06-12')).toBe('2024-06-16')
+    expect(weekStart('2024-06-12', 'monday')).toBe('2024-06-10')
+    expect(weekEnd('2024-06-12', 'monday')).toBe('2024-06-16')
   })
 
   it('keeps a Monday as its own week start and maps Sunday back to it', () => {
-    expect(weekStart('2024-06-10')).toBe('2024-06-10')
-    expect(weekStart('2024-06-16')).toBe('2024-06-10')
+    expect(weekStart('2024-06-10', 'monday')).toBe('2024-06-10')
+    expect(weekStart('2024-06-16', 'monday')).toBe('2024-06-10')
   })
 
   it('shifts weeks by whole weeks', () => {

@@ -8,6 +8,7 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import core.network as core_network
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth._internal.services.step_up_service as step_up_service
 import modules.auth.credentials.crud as auth_credentials_crud
@@ -63,7 +64,7 @@ def generate_link_token(
             detail=f"Identity provider {idp.name} is already linked to your account",
         )
 
-    ip_address = request.client.host if request.client else None
+    ip_address = core_network.get_ip_address(request)
     link_token = idp_link_token_utils.generate_idp_link_token(
         user_id=token_user_id,
         idp_id=idp_id,

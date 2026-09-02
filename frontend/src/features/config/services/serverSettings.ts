@@ -15,6 +15,9 @@ export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
   password_length_regular_users: 8,
   password_length_admin_users: 12,
   num_records_per_page: 25,
+  tileserver_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  tileserver_attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
 
 /**

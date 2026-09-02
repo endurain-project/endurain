@@ -60,7 +60,7 @@ export function useUserActivitiesFeed(
 }
 
 /**
- * A user's activities for a single ISO week, backing the public profile's
+ * A user's activities for a configured calendar week, backing the public profile's
  * week-by-week activity browser (v1 parity). Week `0` is the current week and
  * each increment steps one week into the past. Gated on a valid user id,
  * authentication, and the supplied `enabled` flag (e.g. "the Activities tab is
