@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey
+from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -28,6 +28,14 @@ class Notification(Base):
     """
 
     __tablename__ = "notifications"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_event_id",
+            "user_id",
+            "type",
+            name="uq_notifications_source_event_user_type",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -42,6 +50,11 @@ class Notification(Base):
     type: Mapped[int] = mapped_column(
         nullable=False,
         comment="Notification type",
+    )
+    source_event_id: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+        comment="Durable event ID used to make event-driven creation idempotent",
     )
     options: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,

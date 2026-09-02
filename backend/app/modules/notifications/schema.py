@@ -50,6 +50,11 @@ class NotificationCreate(NotificationBase):
         ge=1,
         description="FK to user",
     )
+    source_event_id: str | None = Field(
+        default=None,
+        max_length=36,
+        description="Durable event ID for idempotent creation",
+    )
 
 
 class NotificationRead(NotificationBase):

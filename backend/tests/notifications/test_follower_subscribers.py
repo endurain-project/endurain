@@ -27,10 +27,28 @@ class TestOnFollowerRequestedNotify:
         mock_notif.create_follow_request_notification.return_value = (
             MagicMock(id=5),
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
+            True,
         )
-        on_follower_requested_notify(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
+        event = _event("follower.requested", {"requester_user_id": 1, "target_user_id": 2})
+        on_follower_requested_notify(event)
         assert mock_notif.create_follow_request_notification.call_args.args[:2] == (1, 2)
+        assert mock_notif.create_follow_request_notification.call_args.args[2] == event.event_id
         mock_bridge.dispatch.assert_called_once()
+
+    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.subscribers.core_async_bridge")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_integration")
+    def test_skips_dispatch_for_replayed_event(self, mock_notif, mock_db, mock_bridge, mock_ws):
+        from modules.notifications.subscribers import notify_follower_requested_for_event
+
+        mock_notif.create_follow_request_notification.return_value = (
+            MagicMock(id=5),
+            "NEW_FOLLOWER_REQUEST_NOTIFICATION",
+            False,
+        )
+        notify_follower_requested_for_event(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
+        mock_bridge.dispatch.assert_not_called()
 
     @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
@@ -61,10 +79,28 @@ class TestOnFollowerAcceptedNotify:
         mock_notif.create_follow_accepted_notification.return_value = (
             MagicMock(id=7),
             "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
+            True,
         )
-        on_follower_accepted_notify(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
+        event = _event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2})
+        on_follower_accepted_notify(event)
         assert mock_notif.create_follow_accepted_notification.call_args.args[:2] == (1, 2)
+        assert mock_notif.create_follow_accepted_notification.call_args.args[2] == event.event_id
         mock_bridge.dispatch.assert_called_once()
+
+    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.subscribers.core_async_bridge")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_integration")
+    def test_skips_dispatch_for_replayed_event(self, mock_notif, mock_db, mock_bridge, mock_ws):
+        from modules.notifications.subscribers import notify_follower_accepted_for_event
+
+        mock_notif.create_follow_accepted_notification.return_value = (
+            MagicMock(id=7),
+            "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION",
+            False,
+        )
+        notify_follower_accepted_for_event(_event("follower.accepted", {"accepter_user_id": 1, "requester_user_id": 2}))
+        mock_bridge.dispatch.assert_not_called()
 
     @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")

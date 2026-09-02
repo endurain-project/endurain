@@ -121,8 +121,9 @@ def create_activity_created_notification(
 def create_new_follower_request_notification(
     requester_user_id: int,
     target_user_id: int,
+    source_event_id: str,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str]:
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """Create the 'new follower request' notification row (synchronous).
 
     For the ``follower.requested`` subscriber: it only writes the row (the record)
@@ -135,10 +136,11 @@ def create_new_follower_request_notification(
         requester_user_id: The user who requested to follow (named in the
             notification options).
         target_user_id: The user to notify (owns the notification row).
+        source_event_id: Stable durable event identifier.
         db: Database session used for the row write.
 
     Returns:
-        Tuple of the created notification and the websocket message type string.
+        The notification, websocket message type, and whether it was created.
 
     Raises:
         HTTPException: 404 if the requesting user no longer exists.
@@ -149,10 +151,11 @@ def create_new_follower_request_notification(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    notification = notifications_crud.create_notification(
+    notification, created = notifications_crud.create_notification_once(
         notifications_schema.NotificationCreate(
             user_id=target_user_id,
             type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST,
+            source_event_id=source_event_id,
             options={
                 "user_id": requester_user_id,
                 "user_name": user.name,
@@ -161,14 +164,15 @@ def create_new_follower_request_notification(
         ),
         db,
     )
-    return notification, "NEW_FOLLOWER_REQUEST_NOTIFICATION"
+    return notification, "NEW_FOLLOWER_REQUEST_NOTIFICATION", created
 
 
 def create_accepted_follower_request_notification(
     accepter_user_id: int,
     requester_user_id: int,
+    source_event_id: str,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str]:
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """Create the 'follow request accepted' notification row (synchronous).
 
     For the ``follower.accepted`` subscriber: it only writes the row (the record)
@@ -180,10 +184,11 @@ def create_accepted_follower_request_notification(
             notification options).
         requester_user_id: The original requester to notify (owns the
             notification row).
+        source_event_id: Stable durable event identifier.
         db: Database session used for the row write.
 
     Returns:
-        Tuple of the created notification and the websocket message type string.
+        The notification, websocket message type, and whether it was created.
 
     Raises:
         HTTPException: 404 if the accepting user no longer exists.
@@ -194,10 +199,11 @@ def create_accepted_follower_request_notification(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    notification = notifications_crud.create_notification(
+    notification, created = notifications_crud.create_notification_once(
         notifications_schema.NotificationCreate(
             user_id=requester_user_id,
             type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED,
+            source_event_id=source_event_id,
             options={
                 "user_id": accepter_user_id,
                 "user_name": user.name,
@@ -206,7 +212,7 @@ def create_accepted_follower_request_notification(
         ),
         db,
     )
-    return notification, "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION"
+    return notification, "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION", created
 
 
 async def create_admin_new_sign_up_approval_request_notification(
