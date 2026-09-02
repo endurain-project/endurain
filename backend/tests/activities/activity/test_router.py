@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -254,9 +255,15 @@ class TestUserStats:
         """
         from datetime import date
 
-        with patch(
-            "modules.activities.activity.service.users_integration_service.local_today",
-            return_value=date(2026, 3, 12),
+        with (
+            patch(
+                "modules.activities.activity.service.users_integration_service.local_today",
+                return_value=date(2026, 3, 12),
+            ),
+            patch(
+                "modules.activities.activity.service.users_integration_service.get_user",
+                return_value=SimpleNamespace(first_day_of_week="monday"),
+            ),
         ):
             yield
 

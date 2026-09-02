@@ -1,6 +1,7 @@
 """Tests for the activities read/stats/feed service orchestration."""
 
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -22,6 +23,16 @@ def stub_user_local_today():
     with patch(
         "modules.activities.activity.service.users_integration_service.local_today",
         return_value=_TODAY,
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def stub_requester_user():
+    """Default period tests to a Monday-start requester."""
+    with patch(
+        "modules.activities.activity.service.users_integration_service.get_user",
+        return_value=SimpleNamespace(first_day_of_week="monday"),
     ) as mock:
         yield mock
 
@@ -116,6 +127,24 @@ class TestPeriodBounds:
         assert start.weekday() == 0  # Monday
         assert (end - start).days == 6  # inclusive Sunday
 
+    def test_week_bounds_use_requester_first_day(self, stub_requester_user):
+        import modules.activities.activity.service as service
+
+        stub_requester_user.return_value = SimpleNamespace(first_day_of_week="sunday")
+
+        start, end = service._week_bounds(1, MagicMock(), anchor=date(2026, 3, 12))
+
+        assert start.date() == date(2026, 3, 8)
+        assert end.date() == date(2026, 3, 14)
+
+    def test_missing_requester_raises_not_found(self, stub_requester_user):
+        import modules.activities.activity.service as service
+
+        stub_requester_user.return_value = None
+
+        with pytest.raises(core_exceptions.NotFoundError, match="User not found"):
+            service._week_bounds(1, MagicMock(), anchor=date(2026, 3, 12))
+
     def test_week_bounds_walk_back_whole_weeks(self):
         import modules.activities.activity.service as service
 
@@ -191,8 +220,8 @@ class TestAnchoredPeriodBounds:
         assert end.date() == date(2026, 3, 15)
         assert start.tzinfo is not None
 
-    def test_an_anchor_does_not_hit_the_database(self, stub_user_local_today):
-        """The client's own date is authoritative; no need to resolve a timezone."""
+    def test_an_anchor_skips_timezone_resolution(self, stub_user_local_today):
+        """The client's own date is authoritative; no timezone lookup is needed."""
         import modules.activities.activity.service as service
 
         service._week_bounds(1, MagicMock(), 0, date(2026, 1, 1))

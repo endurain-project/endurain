@@ -20,6 +20,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.calendar as core_calendar
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -133,12 +134,15 @@ def _week_bounds(
     """Return the (start, end) of the week ``week_number`` weeks ago (0 = current).
 
     Both bounds are midnight-aligned so the window is a real calendar week
-    (Monday 00:00 through Sunday, inclusive). They previously carried the current
-    time of day, which made "this week" a rolling span anchored on *now* rather
-    than on the week's boundaries.
+    based on the requester's configured first day. They previously carried the
+    current time of day, which made "this week" a rolling span anchored on *now*
+    rather than on the week's boundaries.
     """
     today = _anchor_date(anchor, requester_user_id, db)
-    start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
+    requester = users_integration_service.get_user(requester_user_id, db)
+    if requester is None:
+        raise core_exceptions.NotFoundError("User not found")
+    start_of_week = core_calendar.get_week_start(today, requester.first_day_of_week) - timedelta(weeks=week_number)
     return start_of_week, start_of_week + timedelta(days=6)
 
 
