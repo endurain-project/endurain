@@ -586,10 +586,9 @@ async def exchange_tokens_for_session(
             client_type = header_client_type or "web"
 
         # PKCE verification successful - retrieve user and create tokens
-        user = session_obj.users
+        user = users_utils.get_user_by_id_or_404(session_obj.user_id, db)
         # Validate that the user is still active before minting tokens
         users_utils.check_user_is_active(user)
-        user_read = users_schema.UsersRead.model_validate(user)
 
         # Create JWT tokens (now that PKCE is verified)
         (
@@ -599,7 +598,7 @@ async def exchange_tokens_for_session(
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(user_read, token_manager, session_id)
+        ) = auth_utils.create_tokens(user, token_manager, session_id)
 
         # Calculate expires_in from access token expiration
         expires_in = int((access_token_exp - datetime.now(UTC)).total_seconds())
