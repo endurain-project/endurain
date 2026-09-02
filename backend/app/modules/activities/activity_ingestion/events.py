@@ -3,9 +3,8 @@
 from collections.abc import Callable
 from typing import ClassVar
 
+from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
-
-from infra.event_versioning import VersionedPayload
 
 # Published once per file when a bulk import is initiated with durable jobs
 # enabled; a durable subscriber imports each file as an independent,

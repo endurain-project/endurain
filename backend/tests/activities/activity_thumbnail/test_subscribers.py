@@ -3,8 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from infra.events import new_event
+from jasil.events import new_event
 
 
 class TestOnActivityCreatedGenerateThumbnail:
@@ -89,7 +88,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         assert gen_args[1] == waypoints
         assert gen_args[2] is storage
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_swallows_errors(self, mock_runtime, mock_logger):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
@@ -128,7 +127,7 @@ class TestOnActivityDeletedCleanupThumbnail:
         mock_delete.assert_called_once_with(9, storage)
 
     @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
     def test_swallows_errors(self, mock_runtime, mock_logger, mock_delete):
         from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
@@ -201,7 +200,8 @@ class TestDurableThumbnailHandlers:
             cleanup_activity_thumbnail_for_event(new_event("activity.deleted", {"activity_id": 1}, source="test"))
 
     def test_register_durable_handlers(self):
-        from infra.jobs.registry import JobHandlerRegistry
+        from jasil.jobs.registry import JobHandlerRegistry
+
         from modules.activities.activity_thumbnail.subscribers import (
             THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
             THUMBNAIL_GENERATE_SUBSCRIBER_ID,

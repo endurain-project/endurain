@@ -9,37 +9,38 @@ import modules.server_settings.jobs_router as jobs_router
 
 
 class TestReadJobsSummary:
-    def test_delegates_to_crud_with_hours(self):
-        fake_db = MagicMock()
+    def test_delegates_with_hours(self):
         sentinel = MagicMock()
         with patch(
-            "modules.server_settings.jobs_router.jobs_crud.get_jobs_summary", return_value=sentinel
+            "modules.server_settings.jobs_router.jasil_admin.get_jobs_summary", return_value=sentinel
         ) as get_summary:
-            result = jobs_router.read_jobs_summary(_check_scopes=None, db=fake_db, hours=12)
+            result = jobs_router.read_jobs_summary(_check_scopes=None, hours=12)
         assert result is sentinel
-        get_summary.assert_called_once_with(fake_db, hours=12)
+        get_summary.assert_called_once_with(hours=12)
 
     def test_defaults_to_24_hours(self):
-        fake_db = MagicMock()
-        with patch("modules.server_settings.jobs_router.jobs_crud.get_jobs_summary") as get_summary:
-            jobs_router.read_jobs_summary(_check_scopes=None, db=fake_db)
-        get_summary.assert_called_once_with(fake_db, hours=24)
+        with patch("modules.server_settings.jobs_router.jasil_admin.get_jobs_summary") as get_summary:
+            jobs_router.read_jobs_summary(_check_scopes=None)
+        get_summary.assert_called_once_with(hours=24)
 
 
 class TestReplayDeadLetterJob:
     def test_returns_result_when_replayed(self):
-        fake_db = MagicMock()
-        with patch("modules.server_settings.jobs_router.jobs_crud.replay_dead_letter_job", return_value=True) as replay:
-            result = jobs_router.replay_dead_letter_job(job_id="j1", _check_scopes=None, db=fake_db)
-        assert result.replayed is True
-        assert replay.call_args.args[0] == "j1"
-        assert replay.call_args.kwargs["db"] is fake_db
+        outcome = MagicMock(replayed=True)
+        with patch(
+            "modules.server_settings.jobs_router.jasil_admin.replay_dead_letter_job", return_value=outcome
+        ) as replay:
+            result = jobs_router.replay_dead_letter_job(job_id="j1", _check_scopes=None)
+        assert result is outcome
+        replay.assert_called_once_with("j1")
 
     def test_404_when_not_found(self):
-        fake_db = MagicMock()
         with (
-            patch("modules.server_settings.jobs_router.jobs_crud.replay_dead_letter_job", return_value=False),
+            patch(
+                "modules.server_settings.jobs_router.jasil_admin.replay_dead_letter_job",
+                return_value=MagicMock(replayed=False),
+            ),
             pytest.raises(HTTPException) as excinfo,
         ):
-            jobs_router.replay_dead_letter_job(job_id="nope", _check_scopes=None, db=fake_db)
+            jobs_router.replay_dead_letter_job(job_id="nope", _check_scopes=None)
         assert excinfo.value.status_code == 404

@@ -3,13 +3,13 @@
 from unittest.mock import patch
 
 import pytest
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
 from pydantic import ValidationError
 
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.ingestion_subscribers as ingestion_subscribers
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
 
 
 def _event(payload: dict, retry_count: int = 1) -> Event:

@@ -13,12 +13,20 @@ from alembic import command
 # transitively imports it runs.
 os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
+import jasil.container as platform_container
+import jasil.correlation as jasil_correlation
+import jasil.jobs.registry as jobs_registry
+import jasil.jobs.service as jobs_service
+import jasil.lifecycle as jasil_lifecycle
+import jasil.runtime as platform_runtime
+import jasil.settings as jasil_settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -26,15 +34,10 @@ import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
 import core.migrations as core_migrations
 import core.network as core_network
+import core.platform_settings as core_platform_settings
 import core.problem_details as core_problem_details
 import core.rate_limit as core_rate_limit
 import core.scheduler as core_scheduler
-import infra.async_bridge as platform_async_bridge
-import infra.capabilities as platform_capabilities
-import infra.container as platform_container
-import infra.jobs.registry as jobs_registry
-import infra.jobs.service as jobs_service
-import infra.runtime as platform_runtime
 import module_registry as runtime_module_registry
 import modules.activities.activity_ingestion.integration_service as activity_ingestion
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
@@ -176,43 +179,6 @@ async def _resolve_trusted_proxy_hostnames() -> dict[str, list[str]]:
     )
 
 
-def _log_capability_report() -> None:
-    """Log how each infrastructure capability is wired for this deployment.
-
-    Renders the resolved backend for state, storage, events, lock, and clock so
-    the effective wiring is visible at boot. Purely observational; the fatal
-    consistency checks live in ``core.config``
-    (``Settings._enforce_deployment_topology``).
-    """
-    settings = core_config.settings
-    state_label = "STATE_URI" if settings.STATE_URI else "REDIS_URL" if settings.REDIS_URL else "profile default"
-    storage_uri = settings.resolved_storage_uri
-    storage_backend = "s3" if storage_uri.startswith("s3://") else "local"
-    storage_source = "STORAGE_URI" if settings.STORAGE_URI else "profile default"
-    events_uri = settings.resolved_events_uri
-    events_backend = "redis" if events_uri.startswith(("redis://", "rediss://", "unix://")) else "in-process"
-    events_source = "EVENTS_URI" if settings.EVENTS_URI else "REDIS_URL" if settings.REDIS_URL else "profile default"
-    lock_uri = settings.resolved_lock_uri
-    lock_backend = "pg" if lock_uri.startswith("postgres-advisory://") else "none"
-    lock_source = "LOCK_URI" if settings.LOCK_URI else "profile default"
-    report = platform_capabilities.build_capability_report(
-        profile=settings.DEPLOYMENT_PROFILE,
-        web_workers=settings.WEB_WORKERS,
-        primary_state=platform_capabilities.StateSource(state_label, settings.resolved_state_uri),
-        storage_backend=storage_backend,
-        storage_source=storage_source,
-        events_backend=events_backend,
-        events_source=events_source,
-        lock_backend=lock_backend,
-        lock_source=lock_source,
-    )
-    # Emit each line as its own record so every line carries the standard log
-    # prefix; a single multi-line message only prefixes the first line.
-    logger.info("Deployment capability report:", extra=core_logger.context(console=True))
-    for line in report.render().splitlines():
-        logger.info(line, extra=core_logger.context(console=True))
-
-
 async def startup_event(fastapi_app: FastAPI) -> None:
     """Run startup tasks in well-defined phases.
 
@@ -227,21 +193,24 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     """
     logger.info(f"Backend startup event - {core_config.API_VERSION}", extra=core_logger.context(console=True))
 
-    # Observational capability report (reflects today's effective wiring).
-    _log_capability_report()
+    # Install the host's configuration and correlation source before anything
+    # reads them. The substrate logs its own capability report as it builds.
+    substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
+    jasil_settings.configure(substrate_settings)
+    jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
 
     # Build the platform substrate (providers + backends) and attach it to app state.
-    platform = platform_container.build_platform(core_config.settings)
+    platform = platform_container.build_platform(substrate_settings)
     fastapi_app.state.platform = platform
 
     # Publish it process-wide so background work (scheduler, Garmin login thread)
-    # that has no request can resolve providers via infra.runtime.
+    # that has no request can resolve providers via jasil.runtime.
     platform_runtime.set_active_platform(platform)
 
     # Capture the running event loop so synchronous code (sync routes in the
     # threadpool, in-process event subscribers) can dispatch async I/O — e.g. a
-    # websocket push — back onto it via infra.async_bridge.
-    platform_async_bridge.capture_running_loop()
+    # websocket push — back onto it via core.async_bridge.
+    core_async_bridge.capture_running_loop()
 
     # Configure activity contributors, then register every event-bus subscriber
     # and durable-job handler through the shared app composition root so the API
@@ -265,6 +234,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
+    core_migrations.bootstrap_substrate_schema()
     await core_migrations.check_migrations()
     # The composition root collects each module's own declaration; the scheduler
     # knows how to schedule, never what.
@@ -366,15 +336,11 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     """Stop the event bus and scheduler and release DB resources on shutdown."""
     logger.info("Backend shutdown event", extra=core_logger.context(console=True))
 
-    # Stop the event bus consumer (no-op for the in-process bus; joins the Redis
-    # Streams consumer thread in distributed mode). Guarded because startup may
-    # have failed before the platform was attached.
-    platform = getattr(fastapi_app.state, "platform", None)
-    if platform is not None:
-        platform.events.stop()
-
-    # Stop the in-process durable-job worker (safe if it was never started).
-    jobs_service.stop_job_worker()
+    # Stop the durable-job worker, then release what the platform owns (the bus
+    # consumer thread and any shared Redis clients) and unpublish it. That order
+    # matters: the worker runs subscribers, and a subscriber that publishes needs
+    # the bus still up.
+    jasil_lifecycle.shutdown()
 
     # Stop the bulk-import background pool (no-op when it was never started, i.e.
     # when durable jobs handle imports instead).
@@ -383,7 +349,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     core_scheduler.stop_scheduler()
 
     # Clear the captured event loop; nothing may dispatch onto it after shutdown.
-    platform_async_bridge.set_main_loop(None)
+    core_async_bridge.set_main_loop(None)
 
     # Dispose the SQLAlchemy engine so all pooled
     # psycopg connections are closed deterministically.

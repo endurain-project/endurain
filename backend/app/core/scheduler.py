@@ -13,11 +13,11 @@ The only jobs declared here are core's and the substrate's own.
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
+import jasil.retention as platform_retention
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import core.logger as core_logger
 import core.network as core_network
-import infra.retention as platform_retention
 
 logger = core_logger.get_logger(__name__)
 

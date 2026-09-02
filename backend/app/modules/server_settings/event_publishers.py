@@ -2,9 +2,9 @@
 
 from collections.abc import Callable, Iterable
 
+import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
-import infra.publisher as platform_publisher
 import modules.server_settings.events as server_settings_events
 
 

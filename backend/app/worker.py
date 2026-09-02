@@ -14,17 +14,21 @@ import signal
 import threading
 from types import FrameType
 
+import jasil.container as platform_container
+import jasil.jobs.registry as jobs_registry
+import jasil.jobs.service as jobs_service
+import jasil.lifecycle as jasil_lifecycle
+import jasil.runtime as platform_runtime
+import jasil.settings as jasil_settings
+from jasil.jobs.worker import run_worker
+
 import core.config as core_config
 import core.logger as core_logger
-import infra.container as platform_container
-import infra.jobs.registry as jobs_registry
-import infra.jobs.service as jobs_service
-import infra.runtime as platform_runtime
+import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
 import module_registry as runtime_module_registry
 import modules.garmin.provider_registry as garmin_provider_registry
 import modules.strava.provider_registry as strava_provider_registry
-from infra.jobs.worker import run_worker
 
 logger = core_logger.get_logger(__name__)
 
@@ -61,7 +65,9 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # directly - and a string-target relationship on one that it does touch
     # (Users -> PasswordResetToken) fails to resolve on the first claim.
     orm_model_registry.import_all_models()
-    platform = platform_container.build_platform(core_config.settings)
+    substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
+    jasil_settings.configure(substrate_settings)
+    platform = platform_container.build_platform(substrate_settings)
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any
     # claimed job's subscriber_id back to a handler. Uses the SAME shared surface
@@ -78,7 +84,13 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     runner = jobs_service.build_runner()
-    run_worker(runner, poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS, stop=stop)
+    try:
+        run_worker(runner, poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS, stop=stop)
+    finally:
+        # This process built a platform of its own, so it owns releasing it —
+        # under the distributed profile that is a Redis consumer thread and a
+        # pool of connections that would otherwise outlive the run.
+        jasil_lifecycle.shutdown()
     logger.info("Durable job worker stopped", extra=core_logger.context(console=True))
 
 

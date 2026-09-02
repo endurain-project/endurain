@@ -9,9 +9,9 @@ import os
 from pathlib import Path
 
 import pytest
+from jasil.backends.storage_local import LocalStorage
 
 import modules.activities.activity_ingestion.staging as staging
-from infra.backends.storage_local import LocalStorage
 
 
 @pytest.fixture

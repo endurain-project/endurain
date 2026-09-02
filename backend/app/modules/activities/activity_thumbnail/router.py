@@ -11,10 +11,10 @@ fetch the blob — while the activity owner keeps their map.
 
 from typing import Annotated
 
+import jasil.runtime as platform_runtime
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
 logger = core_logger.get_logger(__name__)

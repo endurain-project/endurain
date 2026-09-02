@@ -3,12 +3,12 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
 from pydantic import ValidationError
 
 import modules.activities.activity_ingestion.bulk_import_subscribers as bulk_import_subscribers
 import modules.activities.activity_ingestion.events as ingestion_events
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
 
 
 def _event(payload: dict, retry_count: int = 1, schema_version: int | None = None) -> Event:
@@ -57,7 +57,7 @@ class TestPublishBulkImportFile:
         Failing loudly dead-letters it (recoverable by re-dropping the file);
         defaulting the missing key would silently import nothing.
         """
-        import infra.event_versioning as platform_event_versioning
+        import jasil.event_versioning as platform_event_versioning
 
         legacy = _event({"file_path": "/tmp/x.gpx", "user_id": 3}, schema_version=1)
         with pytest.raises(platform_event_versioning.UnsupportedEventVersionError):

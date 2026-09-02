@@ -1,9 +1,10 @@
 """Subscriber registration for activity media cleanup."""
 
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+
 import modules.activities.activity_media.subscribers as media_subscribers
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:

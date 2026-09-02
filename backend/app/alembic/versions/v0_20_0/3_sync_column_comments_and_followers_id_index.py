@@ -15,7 +15,7 @@ docstrings, and added the missing explicit ``ix_followers_id`` index (the
 The autogenerate diff also proposed dropping ``idx_event_log_metadata`` (the
 GIN index on ``event_log.event_metadata``). That has been removed from this
 migration: the index is intentionally NOT declared on the SQLAlchemy model
-(see ``infra/event_log/models.py`` — GIN indexes aren't representable in a
+(see ``jasil/event_log/models.py`` — GIN indexes aren't representable in a
 dialect-agnostic ``Table`` since SQLite can't build them) but it does exist in
 the database, so autogenerate will always flag it as "extra" and propose
 dropping it. Do not reintroduce that drop/recreate here or in future

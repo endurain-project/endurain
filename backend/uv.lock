@@ -11,6 +11,9 @@ resolution-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P30D"
 
+[options.exclude-newer-package]
+jasil = "2026-08-22T00:00:00Z"
+
 [[package]]
 name = "aiofiles"
 version = "25.1.0"
@@ -696,6 +699,7 @@ dependencies = [
     { name = "gpxpy" },
     { name = "httpx" },
     { name = "itsdangerous" },
+    { name = "jasil", extra = ["fastapi", "geocoding", "jobs", "migrations"] },
     { name = "joserfc" },
     { name = "nh3" },
     { name = "numpy" },
@@ -726,6 +730,7 @@ dependencies = [
 [package.optional-dependencies]
 distributed = [
     { name = "boto3" },
+    { name = "jasil", extra = ["redis", "s3"] },
     { name = "redis" },
 ]
 
@@ -791,6 +796,8 @@ requires-dist = [
     { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
+    { name = "jasil", extras = ["fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.1.1,<0.2.0" },
+    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.1.1,<0.2.0" },
     { name = "joserfc", specifier = ">=1.6.4" },
     { name = "nh3", specifier = ">=0.3.1" },
     { name = "numpy", specifier = ">=2.4.4" },
@@ -1340,6 +1347,39 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/36/cf/ea4ef2920830dea3f5ab2ea4da6fb67724e6dca80ee2553788c3607243d0/jaraco_functools-4.5.0.tar.gz", hash = "sha256:3bb5665ea4a020cf78a7040e89154c77edadb3ca74f366479669c5999aa70b03", size = 20272, upload-time = "2026-05-15T21:34:10.025Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/96/9a/982e48afcffcd727a9144506720ffd4224b6b7e355c98641866f38b7c043/jaraco_functools-4.5.0-py3-none-any.whl", hash = "sha256:79ce39246eddbde4b3a03b77ea5f0f7878dc669b166a66cf3fa8e266aa3fa2f4", size = 10594, upload-time = "2026-05-15T21:34:08.595Z" },
+]
+
+[[package]]
+name = "jasil"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "sqlalchemy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6c/e6/4f633f15b96d0666e986430b956f2cc1f610d6b49bfeb56791566bc05bf5/jasil-0.1.1.tar.gz", hash = "sha256:14815d1acd2b031c439ce44d2274a3701fe01548135980ffbf887dd484314e84", size = 100090, upload-time = "2026-08-21T21:41:07.354Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/1c/6337e54b9d61eb86c07ba32a3a66454649762110e68607ba606843de8f91/jasil-0.1.1-py3-none-any.whl", hash = "sha256:bea0a044ab9a5d0a3563048a8f3fa8d69e682533e87b468a2f406d63bb0f092a", size = 122641, upload-time = "2026-08-21T21:41:06.356Z" },
+]
+
+[package.optional-dependencies]
+fastapi = [
+    { name = "fastapi" },
+]
+geocoding = [
+    { name = "requests" },
+]
+jobs = [
+    { name = "apscheduler" },
+]
+migrations = [
+    { name = "alembic" },
+]
+redis = [
+    { name = "redis" },
+]
+s3 = [
+    { name = "boto3" },
 ]
 
 [[package]]

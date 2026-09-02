@@ -3,9 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.events import new_event
 from pydantic import ValidationError
-
-from infra.events import new_event
 
 _SUB = "modules.activities.activity_geocoding.subscribers"
 
@@ -34,7 +33,7 @@ class TestOnActivityCreatedGeocode:
 
         assert mock_service.geocode_and_store_activity_location.call_args.args[0] == 1
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch(f"{_SUB}.core_database")
     @patch(f"{_SUB}.activity_geocoding_service")
     def test_swallows_errors(self, mock_service, _mock_db, mock_logger):

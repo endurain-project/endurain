@@ -3,10 +3,10 @@
 from unittest.mock import MagicMock
 
 import pytest
+from jasil.backends.state_memory import MemoryState
+from jasil.providers import StateBackendUnavailableError
 
 import modules.garmin.mfa_code_store as mfa_code_store
-from infra.backends.state_memory import MemoryState
-from infra.providers import StateBackendUnavailableError
 
 
 class TestGarminMFACodeStore:

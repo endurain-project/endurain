@@ -10,15 +10,14 @@ tense.
 The payload *versions* are owned here for the same reason. Bump a model's
 ``SCHEMA_VERSION`` (and register an upgrader for the step) whenever a field is
 renamed, removed, or given a new meaning — a purely additive optional field does
-not need one. See :mod:`infra.event_versioning` for why in-flight events make
+not need one. See :mod:`jasil.event_versioning` for why in-flight events make
 this necessary.
 """
 
 from typing import ClassVar
 
+from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict, Field
-
-from infra.event_versioning import VersionedPayload
 
 # Published by ``store_activity`` after an activity (and its streams/laps) has
 # been persisted, for every ingestion path (upload, Strava, Garmin, bulk).
@@ -43,7 +42,7 @@ class ActivityCreatedPayload(VersionedPayload):
     """Validated payload for the ``activity.created`` event.
 
     Subscribers parse the event through
-    :func:`infra.event_versioning.parse_payload`, so a payload written by another
+    :func:`jasil.event_versioning.parse_payload`, so a payload written by another
     build is upgraded or loudly refused instead of being silently misread, and a
     malformed one raises (surfacing via retry / dead-letter) instead of quietly
     marking the job complete.

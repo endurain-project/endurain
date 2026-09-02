@@ -28,8 +28,9 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+import jasil.runtime as platform_runtime
+
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 
 logger = core_logger.get_logger(__name__)
 

@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from infra.events import new_event
+from jasil.events import new_event
 
 
 def _event(event_type, payload):
@@ -18,7 +18,7 @@ class TestOnFollowerRequestedNotify:
         mock_notif.create_follow_request_notification.assert_not_called()
 
     @patch("modules.notifications.subscribers.websocket_integration")
-    @patch("modules.notifications.subscribers.platform_async_bridge")
+    @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
@@ -32,7 +32,7 @@ class TestOnFollowerRequestedNotify:
         assert mock_notif.create_follow_request_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
@@ -52,7 +52,7 @@ class TestOnFollowerAcceptedNotify:
         mock_notif.create_follow_accepted_notification.assert_not_called()
 
     @patch("modules.notifications.subscribers.websocket_integration")
-    @patch("modules.notifications.subscribers.platform_async_bridge")
+    @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
@@ -66,7 +66,7 @@ class TestOnFollowerAcceptedNotify:
         assert mock_notif.create_follow_accepted_notification.call_args.args[:2] == (1, 2)
         mock_bridge.dispatch.assert_called_once()
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
     @patch("modules.notifications.subscribers.notifications_integration")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):

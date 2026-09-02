@@ -3,12 +3,9 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security, status
-from sqlalchemy.orm import Session
+import jasil.admin as jasil_admin
+from fastapi import APIRouter, Query, Security, status
 
-import core.database as core_database
-import infra.event_log.crud as event_log_crud
-import infra.event_log.schema as event_log_schema
 import modules.auth.dependencies as auth_dependencies
 
 # Define the API router
@@ -17,7 +14,7 @@ router = APIRouter()
 
 @router.get(
     "/summary",
-    response_model=event_log_schema.EventLogSummary,
+    response_model=jasil_admin.EventLogSummary,
     status_code=status.HTTP_200_OK,
 )
 def read_event_log_summary(
@@ -25,23 +22,20 @@ def read_event_log_summary(
         Callable,
         Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
     hours: Annotated[int, Query(ge=1, le=168)] = 24,
-) -> event_log_schema.EventLogSummary:
+) -> jasil_admin.EventLogSummary:
     """
     Get aggregated event-processing observability for the admin dashboard.
 
-    Requires admin authentication with the server_settings:read scope.
+    Requires admin authentication with the server_settings:read scope. The
+    aggregate opens its own short-lived session rather than taking this
+    request's, so the read can never commit work the request left uncommitted.
 
     Args:
         hours: Look-back window in hours (1-168) for throughput/latency stats.
-        db: Active database session.
 
     Returns:
         Aggregated event_log summary — throughput, outcomes, latency, pending
         work, and the most recent failures.
     """
-    return event_log_crud.get_event_log_summary(db, hours=hours)
+    return jasil_admin.get_event_log_summary(hours=hours)

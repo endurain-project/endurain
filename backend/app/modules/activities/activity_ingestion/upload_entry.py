@@ -29,6 +29,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import jasil.runtime as platform_runtime
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -38,7 +39,6 @@ import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.pipeline as pipeline
 import modules.activities.activity_ingestion.sources as ingestion_sources

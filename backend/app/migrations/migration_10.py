@@ -22,11 +22,11 @@ the migration is idempotent.
 import os
 from pathlib import Path
 
+import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import migrations.crud as migrations_crud
 import modules.users.users.crud as users_crud
 import modules.users.users.signing as users_signing

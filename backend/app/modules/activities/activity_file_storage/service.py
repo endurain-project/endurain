@@ -13,8 +13,9 @@ extensions rather than reading a column. There is no servable URL — the retain
 file is only consumed in-process (profile export) and on cleanup, never served.
 """
 
+import jasil.providers as platform_providers
+
 import core.logger as core_logger
-import infra.providers as platform_providers
 
 logger = core_logger.get_logger(__name__)
 

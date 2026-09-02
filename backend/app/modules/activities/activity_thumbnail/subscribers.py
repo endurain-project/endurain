@@ -15,20 +15,21 @@ deletion (used on the best-effort bus path). Either way the scheduled backfill
 create path.
 """
 
+import jasil.event_versioning as platform_event_versioning
+import jasil.runtime as platform_runtime
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+from jasil.subscribers import best_effort
+
 import core.database as core_database
 import core.logger as core_logger
-import infra.event_versioning as platform_event_versioning
-import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.integration_service as activity_streams_service
 import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnail_jobs
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.server_settings.events as server_settings_events
-from infra.events import Event
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
-from infra.subscribers import best_effort
 
 logger = core_logger.get_logger(__name__)
 

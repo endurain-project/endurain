@@ -26,10 +26,10 @@ access decision, only against its own signature and age.
 import functools
 from dataclasses import dataclass
 
+import jasil.runtime as platform_runtime
 from itsdangerous import BadData, URLSafeTimedSerializer
 
 import core.config as core_config
-import infra.runtime as platform_runtime
 
 #: How long a capability token stays valid. Every blob signer used to declare
 #: this itself, each with a comment saying it was "kept identical for

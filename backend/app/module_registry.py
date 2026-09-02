@@ -3,6 +3,10 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+
 import core.scheduler as core_scheduler
 import modules.activities.activity_exercise_titles.integration_service as exercise_titles_integration
 import modules.activities.activity_file_storage.subscriber_registry as file_storage_subscribers
@@ -23,9 +27,6 @@ import modules.activities.activity_thumbnail.subscriber_registry as thumbnail_su
 import modules.activities.activity_workout_steps.integration_service as workout_steps_integration
 import modules.activities.contributor_registry as activity_contributor_registry
 import modules.notifications.subscriber_registry as notification_subscribers
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
-from infra.providers import EventBusProvider
 
 RegisterBus = Callable[[EventBusProvider], None]
 RegisterDurable = Callable[[JobHandlerRegistry], None]

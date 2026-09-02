@@ -3,7 +3,7 @@
 Thin domain layer co-locating the module's event publishers: each function knows
 its channel and correlation metadata and delegates envelope assembly, ambient
 request-id stamping, best-effort delivery, and the durable outbox to
-:mod:`infra.publisher`. Producers (``store_activity``, the edit/bulk-edit
+:mod:`jasil.publisher`. Producers (``store_activity``, the edit/bulk-edit
 service, the delete route) call these instead of building events themselves, so
 they stay ignorant of the substrate and of who subscribes. They pass their DB
 session so that, when durable jobs are enabled, the event is staged in the outbox
@@ -13,10 +13,10 @@ reconciliation net is the safety net).
 
 from collections.abc import Callable, Iterable, Sequence
 
+import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
-import infra.events as platform_events
-import infra.publisher as platform_publisher
+import core.event_metadata as core_event_metadata
 import modules.activities.activity.events as activity_events
 
 
@@ -42,7 +42,7 @@ def publish_activity_created(
         db: The producer's DB session, used for durable outbox delivery when
             durable jobs are enabled.
         commit: When provided, the event is published transactionally around this
-            zero-arg commit callable (:func:`infra.publisher.publish_committing`):
+            zero-arg commit callable (:func:`jasil.publisher.publish_committing`):
             the ingestion service owns a single commit for the activity + its
             children, and the durable outbox row joins that same transaction (or
             the event dispatches on the bus post-commit). When ``None`` the event
@@ -57,8 +57,8 @@ def publish_activity_created(
         duplicate_start_time=duplicate_start_time,
     )
     metadata = {
-        platform_events.META_ACTIVITY_ID: activity_id,
-        platform_events.META_USER_ID: user_id,
+        core_event_metadata.META_ACTIVITY_ID: activity_id,
+        core_event_metadata.META_USER_ID: user_id,
     }
     if commit is not None:
         platform_publisher.publish_committing(
@@ -114,8 +114,8 @@ def publish_activity_updated(
         changed_fields=sorted(changed_fields),
     )
     metadata = {
-        platform_events.META_ACTIVITY_ID: activity_id,
-        platform_events.META_USER_ID: user_id,
+        core_event_metadata.META_ACTIVITY_ID: activity_id,
+        core_event_metadata.META_USER_ID: user_id,
     }
     if commit is not None:
         platform_publisher.publish_committing(
@@ -155,7 +155,7 @@ def publish_activities_updated(
     reasoning as :func:`publish_activities_deleted`.
 
     The whole batch is staged in the caller's transaction and committed once via
-    :func:`infra.publisher.publish_many_committing`, so the updates and their
+    :func:`jasil.publisher.publish_many_committing`, so the updates and their
     events are atomic rather than one commit per activity.
 
     Args:
@@ -182,8 +182,8 @@ def publish_activities_updated(
         ],
         source=source,
         metadata_for=lambda payload: {
-            platform_events.META_ACTIVITY_ID: payload["activity_id"],
-            platform_events.META_USER_ID: user_id,
+            core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
+            core_event_metadata.META_USER_ID: user_id,
         },
         db=db,
         commit=commit,
@@ -204,7 +204,7 @@ def publish_activity_deleted(
         db: The producer's DB session, used for durable outbox delivery when
             durable jobs are enabled.
         commit: When provided, the event is published transactionally around this
-            zero-arg commit callable (:func:`infra.publisher.publish_committing`):
+            zero-arg commit callable (:func:`jasil.publisher.publish_committing`):
             the delete is staged uncommitted and the durable outbox row joins that
             same transaction, so the row deletion and the cleanup event commit
             together (a crash cannot delete the activity while orphaning its
@@ -216,8 +216,8 @@ def publish_activity_deleted(
     """
     deleted = activity_events.ActivityDeletedPayload(activity_id=activity_id)
     metadata = {
-        platform_events.META_ACTIVITY_ID: activity_id,
-        platform_events.META_USER_ID: user_id,
+        core_event_metadata.META_ACTIVITY_ID: activity_id,
+        core_event_metadata.META_USER_ID: user_id,
     }
     if commit is not None:
         platform_publisher.publish_committing(
@@ -260,7 +260,7 @@ def publish_activities_deleted(
     account deletion actually erase the user's stored artifacts.
 
     The whole batch is staged in the caller's transaction and committed once via
-    :func:`infra.publisher.publish_many_committing`, so the deletes and their
+    :func:`jasil.publisher.publish_many_committing`, so the deletes and their
     events are atomic rather than one commit per activity.
 
     Args:
@@ -279,8 +279,8 @@ def publish_activities_deleted(
         [activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump() for activity_id in activity_ids],
         source=source,
         metadata_for=lambda payload: {
-            platform_events.META_ACTIVITY_ID: payload["activity_id"],
-            platform_events.META_USER_ID: user_id,
+            core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
+            core_event_metadata.META_USER_ID: user_id,
         },
         db=db,
         commit=commit,

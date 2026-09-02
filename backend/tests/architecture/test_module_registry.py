@@ -2,11 +2,12 @@
 
 from unittest.mock import MagicMock
 
+from jasil.jobs.registry import JobHandlerRegistry
+
 import module_registry as runtime_module_registry
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.contributor_registry as activity_contributor_registry
-from infra.jobs.registry import JobHandlerRegistry
 
 _EXPECTED_CREATED_SUBSCRIBERS = {
     "activity_thumbnail.generate",

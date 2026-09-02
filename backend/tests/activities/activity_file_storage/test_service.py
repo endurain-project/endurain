@@ -1,7 +1,8 @@
 """Tests for the activity_file_storage service (storage-backed source files)."""
 
+from jasil.backends.storage_local import LocalStorage
+
 import modules.activities.activity_file_storage.service as service
-from infra.backends.storage_local import LocalStorage
 
 
 class TestActivityFileKey:

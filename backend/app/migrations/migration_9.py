@@ -20,11 +20,11 @@ separator; keys never do, so the migration is idempotent.
 import os
 from pathlib import Path
 
+import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
-import infra.runtime as platform_runtime
 import migrations.crud as migrations_crud
 import modules.activities.activity_media.migration_service as activity_media_crud
 import modules.activities.activity_media.migration_service as activity_media_signing

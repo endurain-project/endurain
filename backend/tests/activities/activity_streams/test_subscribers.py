@@ -3,9 +3,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.events import new_event
 from pydantic import ValidationError
-
-from infra.events import new_event
 
 
 def _event(payload):
@@ -32,7 +31,7 @@ class TestOnActivityCreatedComputeHrZones:
 
         assert mock_service.score_activity_hr_zones.call_args.args[:2] == (1, 2)
 
-    @patch("infra.subscribers.logger")
+    @patch("jasil.subscribers.logger")
     @patch("modules.activities.activity_streams.subscribers.core_database")
     @patch("modules.activities.activity_streams.subscribers.activity_streams_service")
     def test_swallows_errors(self, mock_service, mock_db, mock_logger):

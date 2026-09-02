@@ -2,9 +2,8 @@
 
 from typing import ClassVar
 
+from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict, Field
-
-from infra.event_versioning import VersionedPayload
 
 TILE_SETTINGS_CHANGED = "server_settings.tile_settings_changed"
 

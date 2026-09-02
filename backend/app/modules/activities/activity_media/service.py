@@ -16,6 +16,8 @@ pinned to one node's disk and served from a public static path.
 import uuid
 from pathlib import PurePosixPath
 
+import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
@@ -23,8 +25,6 @@ import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
 import core.logger as core_logger
-import infra.providers as platform_providers
-import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_service
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud

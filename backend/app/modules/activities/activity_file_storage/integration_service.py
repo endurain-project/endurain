@@ -1,6 +1,7 @@
 """Public storage operations for retained activity source files."""
 
-import infra.providers as platform_providers
+import jasil.providers as platform_providers
+
 import modules.activities.activity_file_storage.service as file_storage_service
 
 

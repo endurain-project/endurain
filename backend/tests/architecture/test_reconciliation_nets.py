@@ -6,7 +6,7 @@ one. This lived in ``tests/activities/test_subscriber_registry.py`` and checked
 exactly one module, because the ``DurableSubscriberNet`` type it asserts on lived
 in the activities module: followers registered two durable handlers with no net,
 no exemption and nothing to catch it. The type now belongs to
-:mod:`infra.jobs.reconciliation`, so the invariant is stated once here and every
+:mod:`jasil.jobs.reconciliation`, so the invariant is stated once here and every
 module in ``_MODULE_NETS`` is held to it.
 
 Module-specific consequences of a net (what a profile bulk-restore must heal, for
@@ -18,11 +18,11 @@ from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.jobs.reconciliation import DurableSubscriberNet
+from jasil.jobs.registry import JobHandlerRegistry
 
 import core.scheduler as core_scheduler
 import module_registry as runtime_module_registry
-from infra.jobs.reconciliation import DurableSubscriberNet
-from infra.jobs.registry import JobHandlerRegistry
 
 
 @dataclass(frozen=True)
