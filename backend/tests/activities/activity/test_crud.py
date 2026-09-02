@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -220,7 +221,7 @@ class TestGetActivityByID:
 class TestCreateActivity:
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_success(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -240,7 +241,7 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_does_not_mutate_the_ingestion_contract(self, mock_transform, mock_check, mock_serialize, mock_db):
         """The input is the write contract and must come back untouched.
 
@@ -298,7 +299,7 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_duplicate_start_time(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -319,7 +320,7 @@ class TestCreateActivity:
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_persists_dedup_key(self, mock_transform, mock_check, mock_serialize, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -336,7 +337,7 @@ class TestCreateActivity:
         assert m.dedup_key == "strava:99"
 
     @patch("modules.activities.activity.crud.get_activity_by_start_time")
-    @patch("modules.activities.activity.crud._transform_schema_activity_to_model_activity")
+    @patch("modules.activities.activity.crud.activities_serializers.deserialize_activity")
     def test_db_error(self, mock_transform, mock_check, mock_db):
         import modules.activities.activity.crud as crud
 
@@ -394,7 +395,7 @@ class TestEditActivity:
             crud.edit_activity(user_id=1, activity_id=1, activity_attributes=type("Nope", (), {"id": 1})(), db=mock_db)
 
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    @patch("modules.activities.activity.crud.core_sanitization.sanitize_markdown")
+    @patch("modules.activities.activity.serializers.core_sanitization.sanitize_markdown")
     def test_sanitization(self, mock_sanitize, mock_ser, mock_db):
         import modules.activities.activity.crud as crud
         import modules.activities.activity.schema as s
@@ -546,33 +547,6 @@ class TestGearActivities:
         assert e.value.status_code == 500
 
 
-class TestFollowing:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_following_activities(user_id=1, db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_user_following_activities(user_id=1, db=mock_db) is None
-
-    @patch("modules.activities.activity.crud.followers_integration.list_accepted_followee_ids", return_value=[2])
-    def test_db_error(self, _mock_followees, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_following_activities(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
 class TestCountUserActivities:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
@@ -592,27 +566,6 @@ class TestCountUserActivities:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.count_user_activities(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestCountFollowing:
-    def test_success(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.return_value.scalar.return_value = 3
-        assert crud.count_user_following_activities([2], db=mock_db) == 3
-
-    def test_no_followees(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        assert crud.count_user_following_activities([], db=mock_db) == 0
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.count_user_following_activities([2], db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -646,23 +599,6 @@ class TestBulkSetGear:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db)
-        assert e.value.status_code == 500
-        mock_db.rollback.assert_called_once()
-
-
-class TestUpdateGear:
-    def test_success(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        crud.update_activity_gear_id(activity_id=1, user_id=1, gear_id=5, db=mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.update_activity_gear_id(activity_id=1, user_id=1, gear_id=5, db=mock_db)
         assert e.value.status_code == 500
         mock_db.rollback.assert_called_once()
 
@@ -771,58 +707,6 @@ class TestGetUserActivitiesByGarminGear:
         assert e.value.status_code == 500
 
 
-class TestGetUserActivitiesPerTimeframeAndType:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1, user_id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_activities_per_timeframe_and_activity_type(
-            user_id=1,
-            activity_type=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-            user_is_owner=True,
-        )
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_user_activities_per_timeframe_and_activity_type(
-            user_id=1,
-            activity_type=1,
-            start=datetime(2024, 1, 1, tzinfo=UTC),
-            end=datetime(2024, 1, 31, tzinfo=UTC),
-            db=mock_db,
-        )
-        assert r is None
-
-    def test_db_error(self, mock_db):
-        from datetime import UTC, datetime
-
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_activities_per_timeframe_and_activity_type(
-                user_id=1,
-                activity_type=1,
-                start=datetime(2024, 1, 1, tzinfo=UTC),
-                end=datetime(2024, 1, 31, tzinfo=UTC),
-                db=mock_db,
-            )
-        assert e.value.status_code == 500
-
-
 class TestGetUserActivitiesPerTimeframeAndTypes:
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     def test_success(self, mock_ser, mock_db):
@@ -894,40 +778,6 @@ class TestGetUserActivitiesPerTimeframeAndTypes:
                 end=datetime(2024, 1, 31, tzinfo=UTC),
                 db=mock_db,
             )
-        assert e.value.status_code == 500
-
-
-class TestGetUserFollowingActivitiesWithPagination:
-    @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
-    def test_success(self, mock_ser, mock_db):
-        import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
-
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
-        mock_ser.return_value = MagicMock()
-        r = crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db)
-        assert r is not None and len(r) == 1
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert (
-            crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db) is None
-        )
-
-    def test_no_followees_short_circuits(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        assert crud.get_user_following_activities_with_pagination([], page_number=1, num_records=10, db=mock_db) is None
-        mock_db.execute.assert_not_called()
-
-    def test_db_error(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_following_activities_with_pagination([2], page_number=1, num_records=10, db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -1091,18 +941,9 @@ class TestGetActivityByIdIfIsPublic:
 
     # --- branch coverage (mock DB) ---
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
-    def test_disabled_setting(self, mock_settings, mock_db):
+    def test_db_error(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = False
-        assert crud.get_activity_by_id_if_is_public(activity_id=1, db=mock_db) is None
-
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
-    def test_db_error(self, mock_settings, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_settings.return_value.public_shareable_links = True
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.get_activity_by_id_if_is_public(activity_id=1, db=mock_db)
@@ -1110,14 +951,12 @@ class TestGetActivityByIdIfIsPublic:
 
     # --- access-control behavior (real SQLite DB) ---
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
-    def test_serves_public_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+    def test_serves_public_activity(self, mock_mask, mock_ser, sqlite_session):
         """Regression guard: a public, non-hidden activity is still served after the is_hidden filter."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         mock_ser.return_value = MagicMock()
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=False))
         sqlite_session.commit()
@@ -1128,14 +967,12 @@ class TestGetActivityByIdIfIsPublic:
         mock_ser.assert_called_once()
         assert mock_ser.call_args.args[0].id == 1
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
-    def test_excludes_hidden_activities(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+    def test_excludes_hidden_activities(self, mock_mask, mock_ser, sqlite_session):
         """A hidden activity must never be served publicly, even when its visibility is public."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=True))
         sqlite_session.commit()
 
@@ -1144,14 +981,12 @@ class TestGetActivityByIdIfIsPublic:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
-    def test_excludes_non_public_visibility(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+    def test_excludes_non_public_visibility(self, mock_mask, mock_ser, sqlite_session):
         """Only ``visibility == 0`` (public) activities are served."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         sqlite_session.add(_public_activity(id=1, visibility=1, is_hidden=False))
         sqlite_session.commit()
 
@@ -1160,13 +995,11 @@ class TestGetActivityByIdIfIsPublic:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
-    def test_excludes_live_strava_api_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+    def test_excludes_live_strava_api_activity(self, mock_mask, mock_ser, sqlite_session):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=False, strava_activity_id=123))
         sqlite_session.commit()
 
@@ -1175,12 +1008,10 @@ class TestGetActivityByIdIfIsPublic:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
-    def test_not_found(self, mock_settings, sqlite_session):
+    def test_not_found(self, sqlite_session):
         """A non-existent activity id returns None."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         assert crud.get_activity_by_id_if_is_public(activity_id=999, db=sqlite_session) is None
 
 
@@ -1196,14 +1027,12 @@ class TestGetPublicActivityForChildRead:
     per-resource ``hide_*`` flag.
     """
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
-    def test_excludes_hidden_activity(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+    def test_excludes_hidden_activity(self, mock_mask, mock_ser, sqlite_session):
         """A hidden activity must not expose its child resources publicly."""
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         sqlite_session.add(_public_activity(id=1, visibility=0, is_hidden=True))
         sqlite_session.commit()
 
@@ -1212,13 +1041,11 @@ class TestGetPublicActivityForChildRead:
         assert result is None
         mock_ser.assert_not_called()
 
-    @patch("modules.activities.activity.crud.server_settings_utils.get_server_settings_or_404")
     @patch("modules.activities.activity.crud.activities_serializers.serialize_activity")
     @patch("modules.activities.activity.crud.activities_serializers.apply_visibility_mask")
-    def test_excludes_non_public_visibility(self, mock_mask, mock_ser, mock_settings, sqlite_session):
+    def test_excludes_non_public_visibility(self, mock_mask, mock_ser, sqlite_session):
         import modules.activities.activity.crud as crud
 
-        mock_settings.return_value.public_shareable_links = True
         sqlite_session.add(_public_activity(id=1, visibility=1, is_hidden=False))
         sqlite_session.commit()
 
@@ -1401,7 +1228,10 @@ class TestGetViewableActivityByIdForUser:
         sqlite_session.add(followers_models.Follower(follower_id=1, followee_id=2, status="accepted"))
         sqlite_session.commit()
 
-        result = crud.get_viewable_activity_by_id_for_user(activity_id=1, user_id=1, db=sqlite_session)
+        # The accepted follow is resolved by the caller now, not mid-SELECT.
+        result = crud.get_viewable_activity_by_id_for_user(
+            activity_id=1, user_id=1, db=sqlite_session, followee_ids=[2]
+        )
 
         assert result is not None
         assert mock_ser.call_args.args[0].id == 1
@@ -1440,13 +1270,13 @@ class TestStravaApiVisibilityPolicy:
             user_id=2,
             db=sqlite_session,
             user_is_owner=False,
-            requester_user_id=1,
+            followee_ids=[],
         )
         count = crud.count_user_activities(
             user_id=2,
             db=sqlite_session,
             user_is_owner=False,
-            requester_user_id=1,
+            followee_ids=[],
         )
 
         assert activities is not None
@@ -1629,16 +1459,17 @@ class TestClearAllActivityThumbnailPaths:
 class TestGetActivitiesWithThumbnail:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
+        # Column-scoped select: the rows are (id, map_thumbnail_path) pairs, so
+        # the result is iterated directly rather than through ``scalars()``.
+        mock_db.execute.return_value = [SimpleNamespace(id=1, map_thumbnail_path="1.webp")]
         r = crud.get_activities_with_thumbnail(db=mock_db)
         assert len(r) == 1
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
+        mock_db.execute.return_value = []
         assert crud.get_activities_with_thumbnail(db=mock_db) == []
 
     def test_db_error(self, mock_db):
@@ -1647,20 +1478,29 @@ class TestGetActivitiesWithThumbnail:
         mock_db.execute.side_effect = SQLAlchemyError("err")
         assert crud.get_activities_with_thumbnail(db=mock_db) == []
 
+    def test_pages_from_the_cursor(self, mock_db):
+        """An unbounded scan of this table is what the ``after_id``/``limit`` pair exists to stop."""
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value = []
+        crud.get_activities_with_thumbnail(db=mock_db, after_id=7, limit=2)
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "activities.id > 7" in compiled
+        assert "LIMIT 2" in compiled
+
 
 class TestGetActivitiesWithoutThumbnail:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(am.Activity, id=1)])
+        mock_db.execute.return_value = [SimpleNamespace(id=1, map_thumbnail_path=None)]
         r = crud.get_activities_without_thumbnail(db=mock_db)
         assert len(r) == 1
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
+        mock_db.execute.return_value = []
         assert crud.get_activities_without_thumbnail(db=mock_db) == []
 
     def test_db_error(self, mock_db):
@@ -1668,6 +1508,16 @@ class TestGetActivitiesWithoutThumbnail:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         assert crud.get_activities_without_thumbnail(db=mock_db) == []
+
+    def test_pages_from_the_cursor(self, mock_db):
+        """The backfill walks the whole table, so it must do it in bounded steps."""
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value = []
+        crud.get_activities_without_thumbnail(db=mock_db, after_id=7, limit=2)
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "activities.id > 7" in compiled
+        assert "LIMIT 2" in compiled
 
 
 class TestUpdateActivityLocation:

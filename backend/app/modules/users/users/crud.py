@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import modules.activities.activity.integration_service as activities_integration
+import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.auth.password_policy as auth_password_policy
 import modules.health.health_weight.utils as health_weight_utils
 import modules.server_settings.schema as server_settings_schema
@@ -147,7 +148,7 @@ def _persist_user_edits(
     # avoid a users <-> activity_streams import cycle; the recompute
     # logs and swallows its own errors so it can't fail the edit.
     if max_heart_rate_before != db_users.max_heart_rate or birthdate_before != db_users.birthdate:
-        activities_integration.recompute_hr_zones_for_user(db_users.id, db)
+        activity_streams_integration.recompute_hr_zones_for_user(db_users.id, db)
 
     return _transform_users(db_users)
 

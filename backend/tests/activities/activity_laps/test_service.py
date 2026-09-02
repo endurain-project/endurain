@@ -1,89 +1,47 @@
-"""Tests for the activity laps service layer."""
+"""What the laps package declares itself to be.
 
-from datetime import UTC, datetime
+The paginated read itself is asserted once, in
+``tests/activities/activity/test_child_collection.py``. What remains
+package-specific is the declaration: the wrong hide flag or the wrong CRUD pair
+would silently serve — or refuse — the wrong rows.
+"""
+
 from unittest.mock import MagicMock, patch
 
-from modules.activities.activity_laps.schema import ActivityLapsRead
+import modules.activities.activity_laps.crud as activity_laps_crud
+import modules.activities.activity_laps.schema as activity_laps_schema
+import modules.activities.activity_laps.service as service
 
 
-def _item():
-    """A minimal valid row; the page envelope validates its items."""
-    return ActivityLapsRead(id=1, activity_id=1, start_time=datetime(2026, 1, 1, tzinfo=UTC))
+class TestCollectionDeclaration:
+    def test_it_is_guarded_by_the_right_parent_flag(self):
+        assert service._COLLECTION.hide_attr == "hide_laps"
+
+    def test_it_reads_through_its_own_crud(self):
+        assert service._COLLECTION.fetch is activity_laps_crud.get_activity_laps
+        assert service._COLLECTION.count is activity_laps_crud.count_activity_laps
+
+    def test_it_builds_its_own_page_type(self):
+        assert service._COLLECTION.build == activity_laps_schema.ActivityLapsPage.build
 
 
-class TestListActivityLaps:
-    @patch("modules.activities.activity_laps.service.activity_laps_crud")
-    @patch("modules.activities.activity_laps.service.activity_child_access")
-    def test_returns_a_page_when_permitted(self, mock_gate, mock_crud):
-        from modules.activities.activity_laps import service
-
+class TestDelegation:
+    @patch("modules.activities.activity.child_collection.activity_child_access")
+    def test_the_authenticated_read_goes_through_the_shared_gate(self, mock_gate):
+        mock_gate.may_read_child.return_value = False
         db = MagicMock()
-        mock_gate.may_read_child.return_value = True
-        mock_crud.get_activity_laps.return_value = [_item()]
-        mock_crud.count_activity_laps.return_value = 1
 
         page = service.list_activity_laps(5, 1, db)
 
-        assert len(page.items) == 1
-        assert page.total == 1
+        assert (page.items, page.total) == ([], 0)
         mock_gate.may_read_child.assert_called_once_with(5, 1, db, hide_attr="hide_laps")
 
-    @patch("modules.activities.activity_laps.service.activity_laps_crud")
-    @patch("modules.activities.activity_laps.service.activity_child_access")
-    def test_denied_never_touches_persistence(self, mock_gate, mock_crud):
-        """A refused read must not query, so it cannot leak timing or rows."""
-        from modules.activities.activity_laps import service
-
-        mock_gate.may_read_child.return_value = False
-
-        page = service.list_activity_laps(5, 1, MagicMock())
-
-        assert page.items == [] and page.total == 0
-        mock_crud.get_activity_laps.assert_not_called()
-        mock_crud.count_activity_laps.assert_not_called()
-
-    @patch("modules.activities.activity_laps.service.activity_laps_crud")
-    @patch("modules.activities.activity_laps.service.activity_child_access")
-    def test_paging_is_forwarded_and_the_total_spans_every_page(self, mock_gate, mock_crud):
-        """``total`` must count all matching rows, not the slice returned."""
-        from modules.activities.activity_laps import service
-
+    @patch("modules.activities.activity.child_collection.activity_child_access")
+    def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
+        mock_gate.may_read_public_child.return_value = False
         db = MagicMock()
-        mock_gate.may_read_child.return_value = True
-        mock_crud.get_activity_laps.return_value = [_item()]
-        mock_crud.count_activity_laps.return_value = 250
-
-        page = service.list_activity_laps(5, 1, db, page_number=2, num_records=100)
-
-        mock_crud.get_activity_laps.assert_called_once_with(5, db, page_number=2, num_records=100)
-        assert page.total == 250
-        assert page.next == 3
-
-
-class TestListPublicActivityLaps:
-    @patch("modules.activities.activity_laps.service.activity_laps_crud")
-    @patch("modules.activities.activity_laps.service.activity_child_access")
-    def test_returns_a_page_when_public(self, mock_gate, mock_crud):
-        from modules.activities.activity_laps import service
-
-        db = MagicMock()
-        mock_gate.may_read_public_child.return_value = True
-        mock_crud.get_activity_laps.return_value = [_item()]
-        mock_crud.count_activity_laps.return_value = 1
 
         page = service.list_public_activity_laps(5, db)
 
-        assert len(page.items) == 1
+        assert (page.items, page.total) == ([], 0)
         mock_gate.may_read_public_child.assert_called_once_with(5, db, hide_attr="hide_laps")
-
-    @patch("modules.activities.activity_laps.service.activity_laps_crud")
-    @patch("modules.activities.activity_laps.service.activity_child_access")
-    def test_denied_never_touches_persistence(self, mock_gate, mock_crud):
-        from modules.activities.activity_laps import service
-
-        mock_gate.may_read_public_child.return_value = False
-
-        page = service.list_public_activity_laps(5, MagicMock())
-
-        assert page.items == [] and page.total == 0
-        mock_crud.get_activity_laps.assert_not_called()

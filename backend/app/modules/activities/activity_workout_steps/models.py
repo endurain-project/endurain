@@ -1,15 +1,11 @@
 """Activity workout steps models."""
 
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.activities.activity.models import Activity
 
 
 class ActivityWorkoutSteps(Base):
@@ -34,7 +30,6 @@ class ActivityWorkoutSteps(Base):
             unit.
         secondary_target_value: Workout step secondary
             target value.
-        activity: Relationship to Activity model.
     """
 
     __tablename__ = "activity_workout_steps"
@@ -107,9 +102,4 @@ class ActivityWorkoutSteps(Base):
         String(250),
         nullable=True,
         comment=("Workout step secondary target value"),
-    )
-
-    # Define a relationship to the Activity model
-    activity: Mapped["Activity"] = relationship(
-        back_populates="activity_workout_steps",
     )

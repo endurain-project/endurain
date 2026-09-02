@@ -1,33 +1,32 @@
 """Application-layer orchestration for activity workout steps.
 
-Sits between the thin route and :mod:`crud`, matching the layering the activities
-core uses. It owns the access decision — delegated to the shared
-:mod:`modules.activities.activity.child_access` gate — so ``crud`` is left with
-nothing but persistence.
+Declares *what* an activity's workout steps are — the parent flag that hides them
+and the two CRUD calls that read them — and delegates *how* the paged read runs
+to the shared :mod:`modules.activities.activity.child_collection` seam, which
+owns the access gate and the rule that a refusal and an empty collection answer
+alike.
 
-Reads are paginated: a structured workout's step count has no domain ceiling, so the previous "return every row" read
-put no ceiling on the work or the payload one request could ask for.
+Reads are paginated: a structured workout's step count has no domain ceiling, so
+the previous "return every row" read put no ceiling on the work or the payload
+one request could ask for.
 """
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
 import core.pagination as core_pagination
-import modules.activities.activity.child_access as activity_child_access
+import modules.activities.activity.integration_service as activity_child_collection
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
-logger = core_logger.get_logger(__name__)
-
-# The parent activity flag that hides steps from a non-owner.
-_HIDE_ATTR = "hide_workout_sets_steps"
-
-
-def _page(
-    items, total: int, page_number: int, num_records: int
-) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
-    """Assemble the page envelope."""
-    return activity_workout_steps_schema.ActivityWorkoutStepsPage.build(items, total, page_number, num_records)
+_COLLECTION: activity_child_collection.ChildCollection[activity_workout_steps_schema.ActivityWorkoutStepsPage] = (
+    activity_child_collection.ChildCollection(
+        name="workout steps",
+        hide_attr="hide_workout_sets_steps",
+        fetch=activity_workout_steps_crud.get_activity_workout_steps,
+        count=activity_workout_steps_crud.count_activity_workout_steps,
+        build=activity_workout_steps_schema.ActivityWorkoutStepsPage.build,
+    )
+)
 
 
 def list_activity_workout_steps(
@@ -53,17 +52,13 @@ def list_activity_workout_steps(
         indistinguishable, so the endpoint cannot be used to probe which
         activities exist.
     """
-    if not activity_child_access.may_read_child(activity_id, requester_user_id, db, hide_attr=_HIDE_ATTR):
-        logger.debug(
-            "Refused a workout steps read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
-        )
-        return _page([], 0, page_number, num_records)
-    items = activity_workout_steps_crud.get_activity_workout_steps(
-        activity_id, db, page_number=page_number, num_records=num_records
+    return _COLLECTION.list_for_requester(
+        activity_id,
+        requester_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
     )
-    total = activity_workout_steps_crud.count_activity_workout_steps(activity_id, db)
-    return _page(items, total, page_number, num_records)
 
 
 def list_public_activity_workout_steps(
@@ -85,14 +80,4 @@ def list_public_activity_workout_steps(
         The page envelope, empty when the activity is not found, hidden, or not
         publicly visible.
     """
-    if not activity_child_access.may_read_public_child(activity_id, db, hide_attr=_HIDE_ATTR):
-        logger.debug(
-            "Refused a public workout steps read; answering with an empty page",
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return _page([], 0, page_number, num_records)
-    items = activity_workout_steps_crud.get_activity_workout_steps(
-        activity_id, db, page_number=page_number, num_records=num_records
-    )
-    total = activity_workout_steps_crud.count_activity_workout_steps(activity_id, db)
-    return _page(items, total, page_number, num_records)
+    return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)

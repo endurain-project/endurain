@@ -19,4 +19,4 @@ class ActivityExerciseTitles(BaseModel):
     exercise_name: StrictInt
     wkt_step_name: StrictStr = Field(..., max_length=250)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")

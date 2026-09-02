@@ -16,7 +16,7 @@ import core.logger as core_logger
 import infra.event_versioning as platform_event_versioning
 import infra.runtime as platform_runtime
 import modules.activities.activity.events as activity_events
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.service as activity_streams_service
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
 from infra.providers import EventBusProvider
@@ -45,9 +45,7 @@ def compute_hr_zones_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
     with core_database.SessionLocal() as db:
-        activity_streams_crud.compute_and_store_hr_zone_percentages_for_activity(
-            payload.activity_id, payload.user_id, db
-        )
+        activity_streams_service.score_activity_hr_zones(payload.activity_id, payload.user_id, db)
     logger.debug(
         "Handled HR zone computation for created activity",
         extra=core_logger.context(activity_id=payload.activity_id, user_id=payload.user_id),
@@ -112,7 +110,7 @@ def run_missing_hr_zone_backfill() -> None:
             logger.debug("HR-zone scheduler: another replica holds the backfill lock; skipping")
             return
         with core_database.SessionLocal() as db:
-            updated = activity_streams_crud.backfill_missing_hr_zone_percentages(db)
+            updated = activity_streams_service.backfill_missing_hr_zones(db)
         # Level varies so an idle scheduler pass stays at debug instead of
         # emitting an INFO line every tick.
         logger.log(

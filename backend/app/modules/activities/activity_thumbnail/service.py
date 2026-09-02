@@ -7,20 +7,68 @@ backfill (guarded by the ``LockProvider`` so a single replica runs it) and the
     full regeneration triggered when tile settings change.
 """
 
+from collections.abc import Iterator
+
 from sqlalchemy.orm import Session
 
-import core.cryptography as core_cryptography
 import core.database as core_database
 import core.logger as core_logger
 import infra.providers as platform_providers
 import infra.runtime as platform_runtime
-import modules.activities.activity.crud as activities_crud
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity.contracts as activities_contracts
+import modules.activities.activity.integration_service as activities_service
+import modules.activities.activity_streams.integration_service as activity_streams_service
 import modules.activities.activity_thumbnail.render as activity_thumbnail_render
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
-import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.integration_service as server_settings_integration
 
 logger = core_logger.get_logger(__name__)
+
+#: Rows per page for the passes that walk the whole activities table. These run
+#: against every activity on the instance, so they are read in bounded batches
+#: rather than materialised in one list.
+_SCAN_PAGE_SIZE = 500
+
+
+def _iter_activities_with_thumbnail(db: Session) -> Iterator[activities_contracts.ActivityThumbnailRef]:
+    """Yield every activity carrying a thumbnail key, one bounded page at a time.
+
+    Args:
+        db: Database session.
+
+    Yields:
+        Thumbnail references, ascending by activity id.
+    """
+    after_id = 0
+    while True:
+        page = activities_service.list_activities_with_thumbnail(db, after_id=after_id, limit=_SCAN_PAGE_SIZE)
+        if not page:
+            return
+        yield from page
+        after_id = page[-1].id
+
+
+def _iter_activities_without_thumbnail(db: Session) -> Iterator[list[activities_contracts.ActivityThumbnailRef]]:
+    """Yield pages of activities that have no thumbnail key.
+
+    Pages rather than rows: the caller batch-loads each page's waypoints in one
+    query. The cursor always advances past the page it just read — re-reading
+    from the last unrendered id would loop forever on a page whose activities
+    have no GPS stream to render.
+
+    Args:
+        db: Database session.
+
+    Yields:
+        Non-empty lists of thumbnail references, ascending by activity id.
+    """
+    after_id = 0
+    while True:
+        page = activities_service.list_activities_without_thumbnail(db, after_id=after_id, limit=_SCAN_PAGE_SIZE)
+        if not page:
+            return
+        yield page
+        after_id = page[-1].id
 
 
 def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
@@ -33,15 +81,12 @@ def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
         A ``(tile_url, background_color, api_key)`` tuple, using built-in
         defaults when server settings are unavailable.
     """
-    server_settings = server_settings_crud.get_server_settings(db)
-    tile_url = server_settings.tileserver_url if server_settings else activity_thumbnail_render._DEFAULT_TILE_URL
-    background_color = (
-        server_settings.map_background_color if server_settings else activity_thumbnail_render._DEFAULT_BG_COLOR
+    settings = server_settings_integration.get_tile_server_settings(db)
+    return (
+        settings.tile_url or activity_thumbnail_render._DEFAULT_TILE_URL,
+        settings.background_color or activity_thumbnail_render._DEFAULT_BG_COLOR,
+        settings.api_key,
     )
-    api_key = None
-    if server_settings and server_settings.tileserver_api_key:
-        api_key = core_cryptography.decrypt_token_fernet(server_settings.tileserver_api_key)
-    return tile_url, background_color, api_key
 
 
 def generate_and_store_thumbnail(
@@ -87,7 +132,7 @@ def generate_and_store_thumbnail(
         data,
         activity_thumbnail_render.THUMBNAIL_CONTENT_TYPE,
     )
-    activities_crud.set_activity_thumbnail_path(activity_id, key, db)
+    activities_service.set_thumbnail_key(activity_id, key, db)
     return key
 
 
@@ -131,7 +176,7 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
 
     deleted = 0
     with core_database.SessionLocal() as db:
-        for activity in activities_crud.get_activities_with_thumbnail(db):
+        for activity in _iter_activities_with_thumbnail(db):
             key = activity.map_thumbnail_path
             if key is None:
                 continue
@@ -144,7 +189,7 @@ def delete_and_regenerate_all_activity_thumbnails() -> None:
                     extra=core_logger.context(activity_id=activity.id, reason=str(err)),
                 )
         # Clear DB references so generate_missing picks them all up.
-        activities_crud.clear_all_activity_thumbnail_paths(db)
+        activities_service.clear_all_thumbnail_keys(db)
 
     logger.info("Thumbnail regeneration: deleted thumbnails", extra=core_logger.context(deleted=deleted))
 
@@ -187,54 +232,58 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
     with core_database.SessionLocal() as db:
         # Reconcile: clear DB references whose stored blob no longer exists so
         # they are regenerated below.
-        for activity in activities_crud.get_activities_with_thumbnail(db):
+        for activity in _iter_activities_with_thumbnail(db):
             key = activity.map_thumbnail_path
             if key is not None and not storage.exists(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key):
-                activities_crud.set_activity_thumbnail_path(activity.id, None, db)
+                activities_service.set_thumbnail_key(activity.id, None, db)
                 logger.info(
                     "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
                     extra=core_logger.context(activity_id=activity.id),
                 )
 
-        activities_without_thumbnail = activities_crud.get_activities_without_thumbnail(db)
+        generated = 0
+        candidates = 0
+        tile_settings: tuple[str, str, str | None] | None = None
+        for page in _iter_activities_without_thumbnail(db):
+            candidates += len(page)
+            # Resolved on the first page rather than up front: it reads server
+            # settings and decrypts the tile API key, which is wasted work on the
+            # usual pass where nothing is missing.
+            if tile_settings is None:
+                tile_settings = resolve_tile_settings(db)
+            tile_url, background_color, api_key = tile_settings
 
-        if not activities_without_thumbnail:
+            # Batch-load MAP-stream waypoints through the streams service (the ORM
+            # stays confined to that package) as an {activity_id: waypoints} mapping.
+            waypoints_by_activity_id = activity_streams_service.get_gps_waypoints_for_activities(
+                [activity.id for activity in page],
+                db,
+            )
+
+            for activity in page:
+                waypoints = waypoints_by_activity_id.get(activity.id)
+
+                if not waypoints:
+                    continue
+
+                key = generate_and_store_thumbnail(
+                    activity.id,
+                    waypoints,
+                    storage,
+                    db,
+                    tile_url=tile_url,
+                    background_color=background_color,
+                    api_key=api_key,
+                )
+
+                if key is not None:
+                    generated += 1
+
+        if not candidates:
             logger.debug("Thumbnail scheduler: no activities without thumbnail found")
             return
 
         logger.info(
-            "Thumbnail scheduler: generating missing thumbnails",
-            extra=core_logger.context(pending=len(activities_without_thumbnail)),
-        )
-
-        tile_url, background_color, api_key = resolve_tile_settings(db)
-
-        activity_ids = [activity.id for activity in activities_without_thumbnail]
-        # Batch-load MAP-stream waypoints through the streams CRUD (the ORM stays
-        # confined there) as an {activity_id: waypoints} mapping.
-        waypoints_by_activity_id = activity_streams_crud.get_gps_stream_waypoints_for_activities(activity_ids, db)
-
-        generated = 0
-        for activity in activities_without_thumbnail:
-            waypoints = waypoints_by_activity_id.get(activity.id)
-
-            if not waypoints:
-                continue
-
-            key = generate_and_store_thumbnail(
-                activity.id,
-                waypoints,
-                storage,
-                db,
-                tile_url=tile_url,
-                background_color=background_color,
-                api_key=api_key,
-            )
-
-            if key is not None:
-                generated += 1
-
-        logger.info(
             "Thumbnail scheduler pass complete",
-            extra=core_logger.context(generated=generated, candidates=len(activities_without_thumbnail)),
+            extra=core_logger.context(generated=generated, candidates=candidates),
         )

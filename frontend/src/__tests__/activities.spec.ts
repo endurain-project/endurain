@@ -257,21 +257,21 @@ describe('fetchUserWeekActivities', () => {
 
 describe('fetchActivityStreams', () => {
   it('requests the authenticated and public stream endpoints', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
     await fetchActivityStreams(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/streams',
+      '/activities/5/streams?page_number=1',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityStreams(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5/streams',
+      '/public/activities/5/streams?page_number=1',
       expect.objectContaining({ auth: false }),
     )
   })
 
-  it('maps a null response to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+  it('maps an empty page to an empty array', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: null, next: null })
     expect(await fetchActivityStreams(5, { authenticated: true })).toEqual([])
   })
 })

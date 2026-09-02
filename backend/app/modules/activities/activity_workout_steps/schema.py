@@ -52,6 +52,7 @@ class ActivityWorkoutSteps(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
+        extra="forbid",
     )
 
 

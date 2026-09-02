@@ -65,13 +65,32 @@ class TestNormalizeLocale:
 
 
 class TestSupportedLocalesSource:
-    """SUPPORTED_LOCALES must be derived from the Language enum."""
+    """Three lists name the same languages; nothing derives one from another.
+
+    ``core.i18n`` owns which locales it can render (a catalog ships for each),
+    the users module owns the ``Language`` a client may pick, and the catalogs
+    themselves are on disk. Core used to read the enum to avoid stating its own
+    list — a platform module reaching into a domain one. Asserting the three
+    agree keeps them honest without the import.
+    """
 
     def test_matches_language_enum(self):
-        """Every Language enum value appears in SUPPORTED_LOCALES."""
+        """A language a client can pick must be one we can write an email in."""
         from modules.users.users.schema import Language
 
         assert frozenset(language.value for language in Language) == core_i18n.SUPPORTED_LOCALES
+
+    def test_every_supported_locale_ships_a_catalog(self):
+        """Otherwise the locale silently renders in English."""
+        catalogs = {path.name for path in core_i18n._LOCALES_DIR.iterdir() if path.is_dir()}
+
+        assert catalogs >= core_i18n.SUPPORTED_LOCALES
+
+    def test_no_catalog_is_unreachable(self):
+        """A shipped translation nobody can select is dead weight."""
+        catalogs = {path.name for path in core_i18n._LOCALES_DIR.iterdir() if path.is_dir()}
+
+        assert catalogs <= core_i18n.SUPPORTED_LOCALES
 
 
 class TestHtmlLang:

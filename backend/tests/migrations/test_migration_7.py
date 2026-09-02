@@ -18,7 +18,7 @@ def test_process_migration_7_populates_missing_hr_zone_percentages(mock_db):
 
     with (
         patch(
-            "migrations.migration_7.activity_streams_crud.get_hr_streams_without_zone_percentages",
+            "migrations.migration_7.activity_streams_migration.get_hr_streams_without_zone_percentages",
             side_effect=[[stream], []],
         ),
         patch(
@@ -30,15 +30,15 @@ def test_process_migration_7_populates_missing_hr_zone_percentages(mock_db):
             return_value=mock_user,
         ),
         patch(
-            "migrations.migration_7.activity_streams_utils.resolve_max_heart_rate",
+            "migrations.migration_7.activity_streams_migration.resolve_max_heart_rate",
             return_value=200,
         ),
         patch(
-            "migrations.migration_7.activity_streams_utils.compute_hr_zone_breakdown_sync",
+            "migrations.migration_7.activity_streams_migration.compute_hr_zone_breakdown_sync",
             return_value={"zone_1": {}},
         ),
         patch(
-            "migrations.migration_7.activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams",
+            "migrations.migration_7.activity_streams_migration.backfill_zone_percentages_for_missing_hr_streams",
             return_value=True,
         ) as mock_backfill,
         patch("migrations.migration_7.migrations_crud.set_migration_as_executed") as mock_set_executed,
@@ -62,7 +62,7 @@ def test_process_migration_7_skips_existing_zone_percentages(mock_db):
 
     with (
         patch(
-            "migrations.migration_7.activity_streams_crud.get_hr_streams_without_zone_percentages",
+            "migrations.migration_7.activity_streams_migration.get_hr_streams_without_zone_percentages",
             side_effect=[[stream], []],
         ),
         patch(
@@ -74,11 +74,11 @@ def test_process_migration_7_skips_existing_zone_percentages(mock_db):
             return_value=MagicMock(max_heart_rate=200),
         ),
         patch(
-            "migrations.migration_7.activity_streams_utils.resolve_max_heart_rate",
+            "migrations.migration_7.activity_streams_migration.resolve_max_heart_rate",
             return_value=None,
         ),
         patch(
-            "migrations.migration_7.activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams",
+            "migrations.migration_7.activity_streams_migration.backfill_zone_percentages_for_missing_hr_streams",
             return_value=True,
         ) as mock_backfill,
         patch("migrations.migration_7.migrations_crud.set_migration_as_executed") as mock_set_executed,

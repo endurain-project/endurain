@@ -1,40 +1,29 @@
 """Pydantic schemas for follower relationships."""
 
-from enum import Enum
-
 from pydantic import BaseModel, ConfigDict, StrictInt, field_validator
 
 import core.pagination as core_pagination
-
-
-class FollowStatus(Enum):
-    """Status of a follow relationship.
-
-    Attributes:
-        PENDING: The follow request has been sent but not yet accepted.
-        ACCEPTED: The follow request has been accepted.
-    """
-
-    PENDING = "pending"
-    ACCEPTED = "accepted"
+from modules.followers.constants import FollowStatus
 
 
 class FollowRelationship(BaseModel):
     """Serialized representation of a follow relationship."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     follower_id: StrictInt
     followee_id: StrictInt
     status: FollowStatus
 
 
-class FollowRequestDecision(BaseModel):
-    """The decision applied to a pending follow request.
+class FollowRequestAccept(BaseModel):
+    """The body of an accept applied to a pending follow request.
 
-    Only ``accepted`` is a valid transition: declining deletes the request rather
-    than parking it in a rejected state, so a later request from the same user is
-    a fresh decision instead of hitting a tombstone. Unknown fields are rejected
+    Named for the single transition it expresses. ``accepted`` is the only valid
+    one: declining deletes the request rather than parking it in a rejected
+    state, so a later request from the same user is a fresh decision instead of
+    hitting a tombstone. The field is still required so the accept is explicit in
+    the payload rather than implied by the route. Unknown fields are rejected
     (``extra="forbid"``) rather than silently ignored, matching every other
     request-body schema in the activities/followers template modules.
     """
@@ -59,7 +48,7 @@ class RelationshipView(BaseModel):
         incoming: The other user's follow of the authenticated user, if any.
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     outgoing: FollowRelationship | None = None
     incoming: FollowRelationship | None = None

@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 import core.decorators as core_decorators
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.activities.activity.models as activity_models
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.models as activity_media_models
 
@@ -108,20 +107,21 @@ def get_media_for_activity(
 @core_decorators.handle_db_errors
 def get_activities_media(
     activity_ids: list[int],
-    token_user_id: int,
     db: Session,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
     """
-    Retrieve media records for the activities owned by the user.
+    Retrieve the media records of several activities at once.
+
+    Performs no access check and joins no parent row: which activities the
+    caller may read is decided before this is reached, by the activities
+    integration service that owns them.
 
     Args:
-        activity_ids: Activity IDs to consider.
-        token_user_id: ID of the user making the request.
+        activity_ids: The activities to read, already scoped to the caller.
         db: Database session.
 
     Returns:
-        The media records for activities owned by the user
-        (empty if none match).
+        The media records of those activities, empty when there are none.
 
     Raises:
         ProcessingError: If a database error occurs.
@@ -129,18 +129,10 @@ def get_activities_media(
     if not activity_ids:
         return []
 
-    allowed_stmt = select(activity_models.Activity.id).where(
-        activity_models.Activity.id.in_(activity_ids),
-        activity_models.Activity.user_id == token_user_id,
+    stmt = select(activity_media_models.ActivityMedia).where(
+        activity_media_models.ActivityMedia.activity_id.in_(activity_ids)
     )
-    allowed_ids = list(db.scalars(allowed_stmt).all())
-    if not allowed_ids:
-        return []
-
-    media_stmt = select(activity_media_models.ActivityMedia).where(
-        activity_media_models.ActivityMedia.activity_id.in_(allowed_ids)
-    )
-    return [_to_record(media) for media in db.scalars(media_stmt).all()]
+    return [_to_record(media) for media in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors

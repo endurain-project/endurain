@@ -17,6 +17,7 @@ subscriber is registered here (only a durable handler).
 """
 
 import os
+from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
@@ -26,7 +27,9 @@ import core.logger as core_logger
 import infra.event_versioning as platform_event_versioning
 import infra.publisher as platform_publisher
 import modules.activities.activity_ingestion.bulk_entry as bulk_entry
+import modules.activities.activity_ingestion.crud as ingestion_jobs_crud
 import modules.activities.activity_ingestion.events as ingestion_events
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.staging as staging
 from infra.events import Event
 from infra.jobs.registry import JobHandlerRegistry
@@ -38,8 +41,25 @@ logger = core_logger.get_logger(__name__)
 BULK_IMPORT_FILE_SUBSCRIBER_ID = "activity_ingestion.bulk_import_file"
 
 
+def _mark(job_id: str | None, transition: Callable[[str, Session], None]) -> None:
+    """Apply a job-state transition, if this file has a handle to report through.
+
+    Args:
+        job_id: The ``activity_ingestion_jobs`` row, or ``None`` for a v2 event
+            staged before per-file handles existed.
+        transition: The CRUD transition to run on its own session.
+
+    Returns:
+        None.
+    """
+    if job_id is None:
+        return
+    with core_database.SessionLocal() as db:
+        transition(job_id, db)
+
+
 def publish_bulk_import_files(
-    file_paths: list[str],
+    queued_files: list[tuple[str, str]],
     user_id: int,
     import_initiated_time: str,
     db: Session,
@@ -61,7 +81,10 @@ def publish_bulk_import_files(
     rather than thousands inside one request.
 
     Args:
-        file_paths: Absolute paths to the queued activity files.
+        queued_files: ``(ingestion job id, absolute file path)`` per queued file.
+            The job row is what the caller polls; it is created by
+            :mod:`~modules.activities.activity_ingestion.bulk_import_service` on
+            the same session, so it commits with the outbox rows.
         user_id: ID of the user performing the import.
         import_initiated_time: ISO timestamp of when the bulk import was initiated.
         db: The request's database session (the outbox rows are staged on it).
@@ -76,21 +99,22 @@ def publish_bulk_import_files(
     # Staged here, in the request thread, because this is the only place
     # guaranteed to see the dropped file. A worker that claims the job may be on
     # another node entirely.
-    staged: list[tuple[str, str]] = []
+    staged: list[tuple[str, str, str]] = []
     try:
-        for file_path in file_paths:
-            staged.append((staging.stage_file(user_id, file_path), file_path))
+        for job_id, file_path in queued_files:
+            staged.append((job_id, staging.stage_file(user_id, file_path), file_path))
 
         platform_publisher.publish_many_committing(
             ingestion_events.ACTIVITY_BULK_IMPORT_FILE,
             [
                 {
+                    "job_id": job_id,
                     "storage_key": key,
                     "filename": os.path.basename(file_path),
                     "user_id": user_id,
                     "import_initiated_time": import_initiated_time,
                 }
-                for key, file_path in staged
+                for job_id, key, file_path in staged
             ],
             source="api:bulk_import",
             db=db,
@@ -100,14 +124,14 @@ def publish_bulk_import_files(
     except Exception:
         # Nothing will import these blobs, and the caller gets a 500. Drop them
         # and leave the dropped files alone so the user can simply retry.
-        staging.unstage([key for key, _ in staged])
+        staging.unstage([key for _, key, _ in staged])
         raise
 
     # Only now are the jobs durable, so consuming the originals is safe.
-    staging.settle(staged, user_id)
+    staging.settle([(key, file_path) for _, key, file_path in staged], user_id)
     logger.info(
         "Bulk import: enqueued durable file jobs",
-        extra=core_logger.context(user_id=user_id, file_count=len(file_paths)),
+        extra=core_logger.context(user_id=user_id, file_count=len(queued_files)),
     )
 
 
@@ -120,15 +144,22 @@ def process_bulk_import_file_for_event(event: Event) -> None:
     first, so a dead-lettered file still leaves a human trail — but only after
     the retries are exhausted, not on the first error.
 
+    The caller's ``activity_ingestion_jobs`` row is moved along with the work, so
+    the handle returned by ``POST /activities/bulk-import`` reports the same
+    outcome the runner reached. Only the last attempt records a failure: an
+    earlier one is still going to be retried, and reporting it as terminal would
+    tell the owner the file failed while the import is still in progress.
+
     Args:
         event: The ``activity.bulk_import_file`` event (payload
-            ``{"storage_key": str, "filename": str, "user_id": int,
-            "import_initiated_time": str}``).
+            ``{"job_id": str | None, "storage_key": str, "filename": str,
+            "user_id": int, "import_initiated_time": str}``).
 
     Returns:
         None.
     """
     payload = platform_event_versioning.parse_payload(ingestion_events.BulkImportFilePayload, event)
+    _mark(payload.job_id, ingestion_jobs_crud.mark_processing)
     try:
         with staging.materialized(payload.storage_key, payload.filename) as file_path:
             if file_path is None:
@@ -142,8 +173,16 @@ def process_bulk_import_file_for_event(event: Event) -> None:
                 )
                 return
             with core_database.SessionLocal() as db:
-                bulk_entry.store_bulk_import_file(payload.user_id, file_path, payload.import_initiated_time, db)
+                activities = bulk_entry.store_bulk_import_file(
+                    payload.user_id, file_path, payload.import_initiated_time, db
+                )
         staging.discard(payload.storage_key)
+        _mark(
+            payload.job_id,
+            lambda job_id, db: ingestion_jobs_crud.mark_completed(
+                job_id, [activity.id for activity in activities or [] if activity.id is not None], db
+            ),
+        )
         logger.debug(
             "Imported a bulk-import file",
             extra=core_logger.context(user_id=payload.user_id, file=payload.filename),
@@ -153,6 +192,12 @@ def process_bulk_import_file_for_event(event: Event) -> None:
         # reached the ceiling this failure dead-letters the job.
         if event.retry_count >= core_config.settings.JOBS_MAX_ATTEMPTS:
             staging.move_to_errors(payload.storage_key, payload.user_id, payload.filename)
+            _mark(
+                payload.job_id,
+                lambda job_id, db: ingestion_jobs_crud.mark_failed(
+                    job_id, activity_ingestion_schema.IngestionJobErrorCode.PROCESSING_FAILED, db
+                ),
+            )
         else:
             logger.warning(
                 "Bulk-import file failed; the job will be retried",

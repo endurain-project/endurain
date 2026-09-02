@@ -1,21 +1,20 @@
 import asyncio
-import functools
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 from stravalib.exc import AccessUnauthorized
-from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.ingestion_service as ingestion_service
+import modules.activities.activity.integration_service as ingestion_service
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_file_import.computation as activities_computation
+import modules.activities.activity_streams.contracts as activity_streams_contracts
+import modules.activities.computation as activities_computation
 import modules.gears.gear.crud as gears_crud
 import modules.strava.utils as strava_utils
 import modules.users.users.crud as users_crud
@@ -127,17 +126,6 @@ async def fetch_and_process_activities(
     return processed_activities if processed_activities else None
 
 
-@functools.lru_cache(maxsize=1)
-def _get_timezone_finder() -> TimezoneFinder:
-    """Return a process-wide cached TimezoneFinder.
-
-    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so it
-    is built once and reused across activities instead of per parse (a single
-    instance is safe for concurrent ``timezone_at`` reads).
-    """
-    return TimezoneFinder()
-
-
 def parse_activity(
     activity,
     user_id: int,
@@ -146,8 +134,6 @@ def parse_activity(
     user_integrations: user_integrations_schema.UsersIntegrationsRead,
     db: Session,
 ) -> dict:
-    # Reuse the process-wide cached TimezoneFinder instead of rebuilding it per activity.
-    tf = _get_timezone_finder()
     # Fallback for activities with no GPS track (indoor rides, treadmill runs):
     # prefer the athlete's own timezone over the server's, which is meaningless
     # for a user on another continent.
@@ -317,9 +303,10 @@ def parse_activity(
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
     if activity_type != 3 and activity_type != 7 and is_lat_lon_set:
-        timezone = tf.timezone_at(
-            lat=lat_lon_waypoints[0]["lat"],
-            lng=lat_lon_waypoints[0]["lon"],
+        timezone = core_timezone.from_lat_lon(
+            lat_lon_waypoints[0]["lat"],
+            lat_lon_waypoints[0]["lon"],
+            timezone,
         )
 
     # Create the activity object
@@ -411,14 +398,13 @@ def save_activity_streams_laps(
         The created activity schema.
     """
     parsed_streams = [
-        activities_contracts.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
+        activity_streams_contracts.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
         for is_set, stream_type, waypoints in (stream_data or [])
         if is_set
     ]
     parsed = activities_contracts.ParsedActivity(
         activity=activity,
-        streams=parsed_streams,
-        laps=laps,
+        components={"streams": parsed_streams, "laps": laps},
         source=activities_contracts.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,

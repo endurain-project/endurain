@@ -867,7 +867,8 @@
       "title": "Bulk import",
       "subtitle": "Import activity files placed in the server's bulk-import folder",
       "button": "Import activities",
-      "started": "Importing activities in the background…",
+      "started": "Importing 1 file in the background… | Importing {count} files in the background…",
+      "empty": "No importable files found in the bulk-import folder",
       "error": "Couldn't start the import. Please try again."
     },
     "strava": {

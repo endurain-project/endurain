@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     DECIMAL,
@@ -13,20 +12,9 @@ from sqlalchemy import (
     Index,
     String,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.activities.activity_laps.models import ActivityLaps
-    from modules.activities.activity_media.models import ActivityMedia
-    from modules.activities.activity_sets.models import ActivitySets
-    from modules.activities.activity_streams.models import ActivityStreams
-    from modules.activities.activity_workout_steps.models import (
-        ActivityWorkoutSteps,
-    )
-    from modules.gears.gear.models import Gear
-    from modules.users.users.models import Users
 
 
 class Activity(Base):
@@ -89,13 +77,6 @@ class Activity(Base):
         tracker_model: Device model.
         map_thumbnail_path: Path to the static map thumbnail.
         dedup_key: Stable idempotency key (provider id now, content hash later) used to no-op re-imports.
-        users: Relationship to the owner user.
-        gear: Relationship to the associated gear.
-        activity_laps: Related activity laps.
-        activity_sets: Related activity sets.
-        activities_streams: Related activity streams.
-        activity_workout_steps: Related workout steps.
-        activity_media: Related activity media.
     """
 
     __tablename__ = "activities"
@@ -382,44 +363,4 @@ class Activity(Base):
         String(255),
         nullable=True,
         comment=("Stable idempotency key (provider id or content hash) to no-op re-imports"),
-    )
-
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(
-        back_populates="activities",
-    )
-
-    # Define a relationship to the Gear model
-    gear: Mapped["Gear | None"] = relationship(
-        back_populates="activities",
-    )
-
-    # Establish a one-to-many relationship with 'activity_laps'
-    activity_laps: Mapped[list["ActivityLaps"]] = relationship(
-        back_populates="activity",
-        cascade="all, delete-orphan",
-    )
-
-    # Establish a one-to-many relationship with 'activity_sets'
-    activity_sets: Mapped[list["ActivitySets"]] = relationship(
-        back_populates="activity",
-        cascade="all, delete-orphan",
-    )
-
-    # Establish a one-to-many relationship with 'activities_streams'
-    activities_streams: Mapped[list["ActivityStreams"]] = relationship(
-        back_populates="activity",
-        cascade="all, delete-orphan",
-    )
-
-    # Establish a one-to-many relationship with 'activity_workout_steps'
-    activity_workout_steps: Mapped[list["ActivityWorkoutSteps"]] = relationship(
-        back_populates="activity",
-        cascade="all, delete-orphan",
-    )
-
-    # Establish a one-to-many relationship with 'activity_media'
-    activity_media: Mapped[list["ActivityMedia"]] = relationship(
-        back_populates="activity",
-        cascade="all, delete-orphan",
     )

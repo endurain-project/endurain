@@ -1,13 +1,10 @@
 """Activity workout steps CRUD operations."""
 
-from collections.abc import Sequence
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
-import modules.activities.activity.models as activity_models
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
@@ -85,22 +82,21 @@ def count_activity_workout_steps(activity_id: int, db: Session) -> int:
 @core_decorators.handle_db_errors
 def get_activities_workout_steps(
     activity_ids: list[int],
-    token_user_id: int,
     db: Session,
-    activities: Sequence[activity_models.Activity] | None = None,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
     """
-    Get workout steps for multiple activities.
+    Retrieve the workout steps of several activities at once.
+
+    Performs no access check and joins no parent row: which activities the
+    caller may read is decided before this is reached, by the activities
+    integration service that owns them.
 
     Args:
-        activity_ids: List of activity IDs.
-        token_user_id: Authenticated user ID.
+        activity_ids: The activities to read, already scoped to the caller.
         db: Database session.
-        activities: Pre-fetched Activity ORM
-            instances (optional).
 
     Returns:
-        List of workout steps (may be empty).
+        The workout steps of those activities, empty when there are none.
 
     Raises:
         ProcessingError: If database error occurs.
@@ -108,31 +104,10 @@ def get_activities_workout_steps(
     if not activity_ids:
         return []
 
-    if not activities:
-        stmt = select(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids))
-        activities = db.scalars(stmt).all()
-
-    if not activities:
-        return []
-
-    allowed_ids = [
-        activity.id
-        for activity in activities
-        if (activity.user_id == token_user_id or not activity.hide_workout_sets_steps)
-    ]
-
-    if not allowed_ids:
-        return []
-
-    steps_stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(
-        activity_workout_steps_models.ActivityWorkoutSteps.activity_id.in_(allowed_ids)
+    stmt = select(activity_workout_steps_models.ActivityWorkoutSteps).where(
+        activity_workout_steps_models.ActivityWorkoutSteps.activity_id.in_(activity_ids)
     )
-    workout_steps = list(db.scalars(steps_stmt).all())
-
-    if not workout_steps:
-        return []
-
-    return [_to_read_schema(step) for step in workout_steps]
+    return [_to_read_schema(row) for row in db.scalars(stmt).all()]
 
 
 @core_decorators.handle_db_errors

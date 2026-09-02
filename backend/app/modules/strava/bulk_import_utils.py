@@ -16,9 +16,8 @@ import core.text_imports as core_text_imports
 import core.timezone as core_timezone
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_ingestion.bulk_entry as ingestion_bulk_entry
-import modules.activities.activity_ingestion.sources as ingestion_sources
-import modules.activities.activity_media.service as activity_media_service
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
+import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.crud as gears_crud
 import modules.users.users.crud as users_crud
@@ -162,6 +161,9 @@ def queue_bulk_export_activities_for_import(
 
     Returns: Number of files that were queued (which is not used currently by the calling function)
     """
+    # Imported here, not at module scope: the source subclass needs this module's
+    # metadata helpers, so the two would import each other.
+    import modules.strava.bulk_import_source as strava_bulk_import_source
 
     # Ensure the 'strava_import/activities' directory exists (activity files will be here)
     strava_activities_import_dir = core_config.STRAVA_BULK_IMPORT_ACTIVITIES_DIR
@@ -193,6 +195,7 @@ def queue_bulk_export_activities_for_import(
     async def _scan_and_validate() -> tuple[list[str], int]:
         importable: list[str] = []
         skipped = 0
+        base_dir = os.path.realpath(strava_activities_import_dir)
         for fname in filelist:
             fpath = os.path.join(strava_activities_import_dir, fname)
 
@@ -203,6 +206,19 @@ def queue_bulk_export_activities_for_import(
                     f"Strava bulk import: Skipping file {fpath} - "
                     "due to not having a supported file extension. "
                     f"Supported extensions are: {supported_file_formats}.",
+                    extra=core_logger.context(console=True),
+                )
+                skipped += 1
+                continue
+
+            # Everything downstream opens this path, so a symlink dropped in the
+            # export directory would import whatever it points at, anywhere on
+            # the server's filesystem. Only entries that resolve to themselves
+            # inside the import directory are considered — the same rule the
+            # generic bulk import applies.
+            if os.path.realpath(fpath) != os.path.join(base_dir, fname):
+                logger.warning(
+                    f"Strava bulk import: Skipping file {fpath} - it does not resolve inside the import directory.",
                     extra=core_logger.context(console=True),
                 )
                 skipped += 1
@@ -262,11 +278,11 @@ def queue_bulk_export_activities_for_import(
             # (dispatched via ``loop.run_in_executor`` from
             # ``strava/router.py``) with no running event loop, so the
             # sync file-validation inside it is safe.
-            ingestion_bulk_entry.store_activity_file(
+            activity_ingestion.ingest_activity_file(
                 token_user_id,
                 file_path,
                 db,
-                source=ingestion_sources.BulkImportSource(
+                source=strava_bulk_import_source.StravaBulkImportSource(
                     import_initiated_time=import_time,
                     strava_activities=strava_activities_dict,
                     gear_nickname_to_id=users_existing_gear_nickname_to_id,
@@ -365,8 +381,7 @@ def build_import_dictionary(
     """
     import_dict: dict[str, Any] = {}
     if is_strava_bulk_import:
-        import_dict["imported"] = True
-        import_dict["import_source"] = "Strava bulk import"
+        import_dict = activity_ingestion.build_import_record(import_initiated_time, "Strava bulk import")
         activity_id_value = strava_activities[file_base_name].get("Activity ID", "")
         if activity_id_value:
             try:
@@ -376,59 +391,9 @@ def build_import_dictionary(
                     f"Bulk file import: Ignoring invalid Strava Activity ID for {file_base_name}.",
                     extra=core_logger.context(console=True),
                 )
-        import_dict["import_ISO_time"] = import_initiated_time
     else:
-        import_dict["imported"] = True
-        import_dict["import_source"] = "Basic bulk import"
-        import_dict["import_ISO_time"] = import_initiated_time
+        import_dict = activity_ingestion.build_import_record(import_initiated_time)
     return import_dict
-
-
-def apply_bulk_import_metadata(
-    activity: activities_contracts.ActivityCore,  # A parsed activity about to be added to Endurain
-    activity_metadata_dict: dict,  # A dictionary containing parsed information from a Strava activities.csv file
-) -> None:
-    """
-    Function adds metadata to a parsed activity that is about to be imported via the bulk ingestion entry.
-
-    The function's primary purpose (i.e., why it was created) is to add metadata from a Strava activities.csv file to a parsed activity file from a Strava bulk import activity that is about to be imported.
-
-    But this function also adds the import_info dictionary metadata to all generic bulk import activities, so it is called in all cases during a bulk import.
-
-    The activity_metadata_dict is originally formed by the build_metadata_dict function, so see that function for contents / keys / etc.
-
-    The function presumes that anything stored in the activities.csv file takes preference over contents of the parsed activity file.  This could be changed in the future (possibly a target for a user-selected option?)
-        This decision was made becuase Joao's sample .fit files still contain a very generic title in the .fit files, but had a much more detailed name in Strava.
-        # Code to give preference to items in the parsed activity file, should we ever want such a thing:
-        #    if activity.name is None and activity_metadata_dict.get("name"):
-        #    if activity.description is None and activity_metadata_dict.get("description"):
-        #    if activity.gear_id is None and activity_metadata_dict.get("gear_id"):
-        #    if activity.import_info is None and activity_metadata_dict.get("import_dict"):
-    Note that basic bulk imports will not have many of these field names in activity_metadata_dict, so ensure that they are checked for existence before value checking.
-
-    Mutates the activity in place.
-    """
-    logger.debug(
-        "Applying Strava bulk-import metadata to a parsed activity",
-        extra=core_logger.context(fields=sorted(activity_metadata_dict)),
-    )
-    applied = []
-    if activity_metadata_dict.get("name"):
-        activity.name = activity_metadata_dict["name"]
-        applied.append("name")
-    if activity_metadata_dict.get("description"):
-        activity.description = activity_metadata_dict["description"]
-        applied.append("description")
-    if activity_metadata_dict.get("gear_id"):
-        activity.gear_id = activity_metadata_dict["gear_id"]
-        applied.append("gear_id")
-    if activity_metadata_dict.get("import_dict"):
-        activity.import_info = activity_metadata_dict["import_dict"]
-        applied.append("import_info")
-    logger.debug(
-        "Applied Strava bulk-import metadata",
-        extra=core_logger.context(applied=applied),
-    )
 
 
 def does_activity_start_time_match_the_data_in_strava_activities_csv(
@@ -568,7 +533,7 @@ def create_activity_media_from_strava_bulk_import(
         # validated bytes. Storing through it (rather than writing to the media
         # directory here) is what keeps the photo reachable on object storage and
         # only through the token-gated route.
-        activity_media_service.store_activity_media_bytes(activity_id, media_strava_filename, data, db)
+        activity_media_integration.attach_media_bytes(activity_id, media_strava_filename, data, db)
 
         with contextlib.suppress(OSError):
             source.unlink()

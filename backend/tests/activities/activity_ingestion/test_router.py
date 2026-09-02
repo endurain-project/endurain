@@ -125,15 +125,18 @@ class TestUploadRoute:
 class TestBulkImportRouteDelegates:
     """The route is a transport adapter: it delegates and shapes the response."""
 
-    def test_delegates_to_the_service_and_reports_the_count(self):
+    def test_delegates_to_the_service_and_returns_the_job_handles(self):
         db = MagicMock()
-        with patch.object(router.bulk_import_service, "start_bulk_import", return_value=2) as start:
+        jobs = [MagicMock(), MagicMock()]
+        with patch.object(router.bulk_import_service, "start_bulk_import", return_value=jobs) as start:
             result = router.create_activity_with_bulk_import(
                 request=MagicMock(), token_user_id=3, _check_scopes=None, db=db
             )
 
         start.assert_called_once_with(3, db)
-        assert "2 file(s)" in result.detail
+        # One pollable handle per queued file, so the caller can follow the
+        # import instead of being handed a message it cannot act on.
+        assert result == jobs
 
     def test_a_service_failure_is_not_swallowed(self):
         """The route must not answer 202 for files that were never queued."""

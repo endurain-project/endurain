@@ -9,7 +9,6 @@ from fastapi import HTTPException, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-import core.config as core_config
 import core.file_uploads as core_file_uploads
 import core.timezone as core_timezone
 import infra.runtime as platform_runtime
@@ -218,7 +217,7 @@ def timezone_or_default(timezone: str | None) -> str:
     Returns:
         An IANA timezone name.
     """
-    return timezone or core_config.settings.TZ
+    return core_timezone.or_default(timezone)
 
 
 def resolve_user_timezone(user_id: int, db: Session) -> str:

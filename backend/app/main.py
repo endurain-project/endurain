@@ -35,19 +35,23 @@ import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
-import modules.activities.activity_ingestion.background as activity_ingestion_background
-import modules.activities.subscriber_registry as activity_subscriber_registry
+import module_registry as runtime_module_registry
+import modules.activities.activity_ingestion.integration_service as activity_ingestion
 import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 import modules.auth.oauth_state.utils as oauth_state_utils
 import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
+import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
-import modules.followers.subscribers as followers_subscribers
 import modules.garmin.activity_utils as garmin_activity_utils
 import modules.garmin.health_utils as garmin_health_utils
+import modules.garmin.provider_registry as garmin_provider_registry
+import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.utils as server_settings_utils
 import modules.strava.activity_utils as strava_activity_utils
+import modules.strava.provider_registry as strava_provider_registry
+import modules.strava.scheduled_jobs as strava_scheduled_jobs
 import modules.strava.utils as strava_utils
 from api import router as api_router
 from core.database import SessionLocal
@@ -134,37 +138,6 @@ def _purge_expired_tokens() -> None:
     sign_up_tokens_utils.delete_invalid_tokens_from_db()
     oauth_state_utils.delete_expired_oauth_states_from_db()
     idp_link_token_utils.delete_idp_link_expired_tokens_from_db()
-
-
-def _generate_missing_thumbnails() -> None:
-    """Queue map-thumbnail generation for activities missing one.
-
-    Schedules a one-shot job on the background scheduler instead of
-    running the (potentially heavy) generation inline, so it cannot
-    block lifespan startup and delay the server from accepting
-    connections.
-    """
-    core_scheduler.schedule_missing_thumbnail_generation()
-
-
-def _backfill_missing_hr_zones() -> None:
-    """Queue HR-zone backfill for streams missing zone percentages.
-
-    Schedules a one-shot job on the background scheduler (the reconciliation net
-    for the activity.created HR-zone subscriber) instead of running the backfill
-    inline, so it cannot block lifespan startup.
-    """
-    core_scheduler.schedule_missing_hr_zone_backfill()
-
-
-def _backfill_missing_locations() -> None:
-    """Queue reverse-geocoding backfill for activities missing a location.
-
-    Schedules a one-shot job on the background scheduler (the reconciliation net
-    for the activity.created geocoding subscriber) instead of running the
-    network-bound backfill inline, so it cannot block lifespan startup.
-    """
-    core_scheduler.schedule_missing_location_backfill()
 
 
 def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
@@ -270,19 +243,21 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # websocket push — back onto it via infra.async_bridge.
     platform_async_bridge.capture_running_loop()
 
-    # Register every activities event-bus subscriber before starting the bus, and
-    # every activities durable-job handler on the registry — both via the single
-    # shared surface in activities.subscriber_registry so the API and the standalone
-    # worker can never drift. The bus subscribers (thumbnail, notification,
+    # Configure activity contributors, then register every event-bus subscriber
+    # and durable-job handler through the shared app composition root so the API
+    # and standalone worker cannot drift. The bus subscribers (thumbnail, notification,
     # HR-zone, geocoding) react to activity.created / activity.deleted; the durable
     # handlers are the same set keyed by stable subscriber id (harmless when durable
     # jobs are off, retryable per-subscriber when on). Each durable subscriber that
     # writes durable derived state declares a reconciliation net (scheduled backfill)
     # in that module.
-    activity_subscriber_registry.register_all_activity_bus_subscribers(platform.events)
-    activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
-    followers_subscribers.register_follower_notification_subscribers(platform.events)
-    followers_subscribers.register_follower_notification_durable_handlers(jobs_registry.registry)
+    runtime_module_registry.configure_activity_contributors()
+    runtime_module_registry.register_bus_subscribers(platform.events)
+    runtime_module_registry.register_durable_handlers(jobs_registry.registry)
+    # Providers register themselves with ingestion; ingestion imports none of
+    # them. Must also happen in worker.py, where refresh jobs are claimed.
+    strava_provider_registry.register_activity_provider()
+    garmin_provider_registry.register_activity_provider()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.
@@ -291,7 +266,17 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # Phase 1: critical pre-flight tasks.
     _run_alembic_migrations()
     await core_migrations.check_migrations()
-    core_scheduler.start_scheduler()
+    # The composition root collects each module's own declaration; the scheduler
+    # knows how to schedule, never what.
+    core_scheduler.start_scheduler(
+        [
+            *core_scheduler.platform_jobs(),
+            *auth_scheduled_jobs.recurring_jobs(),
+            *runtime_module_registry.recurring_jobs(),
+            *strava_scheduled_jobs.recurring_jobs(),
+            *garmin_scheduled_jobs.recurring_jobs(),
+        ]
+    )
 
     # Durable job processing (opt-in). Start the in-process worker that drains
     # processing_jobs and register the outbox relay + lease reaper on the
@@ -355,14 +340,9 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     )
     _safe_run("purge_expired_tokens", _purge_expired_tokens)
 
-    logger.info("Scheduling missing activity map thumbnail generation", extra=core_logger.context(console=True))
-    _safe_run("generate_missing_thumbnails", _generate_missing_thumbnails)
-
-    logger.info("Scheduling missing HR-zone backfill", extra=core_logger.context(console=True))
-    _safe_run("backfill_missing_hr_zones", _backfill_missing_hr_zones)
-
-    logger.info("Scheduling missing activity location backfill", extra=core_logger.context(console=True))
-    _safe_run("backfill_missing_locations", _backfill_missing_locations)
+    for task in runtime_module_registry.startup_tasks():
+        logger.info(task.description, extra=core_logger.context(console=True))
+        _safe_run(task.name, task.func)
 
     logger.info(
         "Initializing allowed tile domains for Content Security Policy", extra=core_logger.context(console=True)
@@ -398,7 +378,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
 
     # Stop the bulk-import background pool (no-op when it was never started, i.e.
     # when durable jobs handle imports instead).
-    activity_ingestion_background.shutdown()
+    activity_ingestion.shutdown_background_ingestion()
 
     core_scheduler.stop_scheduler()
 

@@ -50,34 +50,6 @@ class TestDoesActivityStartTimeMatchTheCsv:
         )
 
 
-class TestApplyBulkImportMetadata:
-    def test_csv_values_take_precedence_over_the_parsed_file(self):
-        activity = _activity("2023-10-21T07:41:47")
-
-        bulk_import_utils.apply_bulk_import_metadata(
-            activity,
-            {
-                "name": "Morning Ride",
-                "description": "Felt good",
-                "gear_id": 4,
-                "import_dict": {"import_ISO_time": "2026-07-21T00:00:00"},
-            },
-        )
-
-        assert activity.name == "Morning Ride"
-        assert activity.description == "Felt good"
-        assert activity.gear_id == 4
-        assert activity.import_info == {"import_ISO_time": "2026-07-21T00:00:00"}
-
-    def test_absent_metadata_leaves_the_parsed_values_alone(self):
-        activity = _activity("2023-10-21T07:41:47")
-
-        bulk_import_utils.apply_bulk_import_metadata(activity, {})
-
-        assert activity.name == "Workout"
-        assert activity.gear_id is None
-
-
 class _MockGear:
     def __init__(self, gear_id: int, brand: str | None, model: str | None, nickname: str):
         self.id = gear_id
@@ -104,8 +76,8 @@ def test_bulk_media_import_validates_before_storing(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(
-        bulk_import_utils.activity_media_service,
-        "store_activity_media_bytes",
+        bulk_import_utils.activity_media_integration,
+        "attach_media_bytes",
         store_media,
     )
 
@@ -142,8 +114,8 @@ def test_bulk_media_import_rejects_invalid_image(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", validate)
     monkeypatch.setattr(
-        bulk_import_utils.activity_media_service,
-        "store_activity_media_bytes",
+        bulk_import_utils.activity_media_integration,
+        "attach_media_bytes",
         store_media,
     )
 
@@ -158,14 +130,39 @@ def test_bulk_media_import_skips_a_missing_file(tmp_path, monkeypatch):
     """A media entry with no file on disk is skipped without storing anything."""
     store_media = Mock()
     monkeypatch.setattr(
-        bulk_import_utils.activity_media_service,
-        "store_activity_media_bytes",
+        bulk_import_utils.activity_media_integration,
+        "attach_media_bytes",
         store_media,
     )
 
     bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", str(tmp_path / "gone.jpg"), Mock())
 
     store_media.assert_not_called()
+
+
+def test_activity_scan_skips_a_symlink_out_of_the_import_directory(tmp_path, monkeypatch):
+    """Following it would import an arbitrary file from the server's disk."""
+    validate = Mock()
+    activities_dir = tmp_path / "strava_import" / "activities"
+    activities_dir.mkdir(parents=True)
+    (tmp_path / "media").mkdir()
+    outside = tmp_path / "secrets.gpx"
+    outside.write_bytes(b"<gpx/>")
+    (activities_dir / "ride.gpx").symlink_to(outside)
+
+    monkeypatch.setattr(
+        bulk_import_utils.core_config, "STRAVA_BULK_IMPORT_ACTIVITIES_DIR", str(activities_dir), raising=False
+    )
+    monkeypatch.setattr(
+        bulk_import_utils.core_config, "STRAVA_BULK_IMPORT_MEDIA_DIR", str(tmp_path / "media"), raising=False
+    )
+    monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file", validate)
+
+    queued = bulk_import_utils.queue_bulk_export_activities_for_import(7, Mock(), Mock(), {}, {}, "2026-08-21T00:00:00")
+
+    assert queued == 0
+    # Rejected before anything opens it.
+    validate.assert_not_called()
 
 
 def test_gear_dictionary_normal(monkeypatch):

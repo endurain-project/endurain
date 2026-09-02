@@ -145,8 +145,8 @@ def follow_user(
 ) -> followers_schema.FollowRelationship:
     """Add the authenticated user to ``user_id``'s followers.
 
-    Creates the relationship pending or accepted according to the target's
-    privacy settings; the returned ``status`` says which.
+    Always created pending: a follow takes effect only once the target accepts
+    it, so the returned ``status`` is ``pending`` and the target is notified.
     """
     return followers_service.follow_user(token_user_id, user_id, db)
 
@@ -157,15 +157,20 @@ def follow_user(
     status_code=status.HTTP_200_OK,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def decide_follow_request(
+def accept_follow_request(
     request: Request,
     requester_user_id: int,
-    decision: followers_schema.FollowRequestDecision,
+    accept: followers_schema.FollowRequestAccept,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> followers_schema.FollowRelationship:
     """Accept the pending follow request from ``requester_user_id``.
+
+    Accepting is the only transition this route writes; declining is ``DELETE``
+    on the same path, because it removes the request rather than moving it to a
+    rejected state. The route is named for what it does so a client does not read
+    a general "decide" surface into it and send a rejection here.
 
     Returns the row as persisted rather than one assembled from the request, so
     the response cannot claim a state the database does not hold.
@@ -189,6 +194,8 @@ def reject_follow_request(
 
     Distinct from removing an accepted follower: this refuses access that was
     never granted, which is a different decision even though the row is the same.
+    Scoped to pending requests, so removing an accepted follower goes through the
+    relationship route rather than arriving here by accident.
     """
     followers_service.reject_follow_request(token_user_id, requester_user_id, db)
 

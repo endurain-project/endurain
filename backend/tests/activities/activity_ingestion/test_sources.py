@@ -4,12 +4,26 @@ These replaced six loosely-related keyword arguments threaded through the
 pipeline, so what is tested here is mostly *decisions the source now owns*: which
 metadata applies to a file, where a failed file goes, and whether one activity of
 a multi-activity file should be imported at all.
+
+The Strava-export specialisation is a subclass owned by the Strava module and is
+tested in ``tests/strava/test_bulk_import_source.py`` — the split that stopped
+activities importing a provider.
 """
 
-from unittest.mock import patch
-
 import core.config as core_config
+import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity_ingestion.sources as sources
+
+
+def _activity() -> activities_contracts.ActivityCore:
+    return activities_contracts.ActivityCore(
+        user_id=1,
+        name="Workout",
+        distance=1000,
+        activity_type=1,
+        start_time="2023-10-21T07:41:47",
+        end_time="2023-10-21T08:41:47",
+    )
 
 
 class TestSourceKinds:
@@ -19,74 +33,80 @@ class TestSourceKinds:
         assert sources.BulkImportSource().kind == "bulk_import"
 
 
-class TestIsStrava:
-    def test_true_only_when_the_csv_data_is_present(self):
-        assert sources.BulkImportSource(strava_activities={"f.fit": {}}).is_strava is True
-        assert sources.BulkImportSource().is_strava is False
-        assert sources.BulkImportSource(strava_activities={}).is_strava is False
+class TestGarminSource:
+    def test_carries_a_gear_id_the_provider_already_resolved(self):
+        # Ingestion never asks a provider module which local gear a Garmin UUID
+        # maps to; the provider resolves it and hands the id over.
+        source = sources.GarminSource(gear_id=7, provider_gear_id="uuid-1")
+        assert (source.gear_id, source.provider_gear_id) == (7, "uuid-1")
 
 
 class TestErrorDirectory:
-    def test_strava_import_uses_the_strava_error_directory(self):
-        source = sources.BulkImportSource(strava_activities={"f.fit": {}})
-        assert source.error_directory == core_config.STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR
+    def test_per_user_directory_when_the_import_has_an_owner(self):
+        source = sources.BulkImportSource(user_id=7)
+        assert source.error_directory == core_config.bulk_import_error_dir_for(7)
 
-    def test_generic_import_uses_the_generic_error_directory(self):
+    def test_shared_directory_when_it_does_not(self):
         assert sources.BulkImportSource().error_directory == core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
 
 
 class TestMetadataFor:
     def test_no_metadata_without_an_initiated_time(self):
-        assert sources.BulkImportSource(strava_activities={"f.fit": {}}).metadata_for("f.fit") == {}
+        assert sources.BulkImportSource().metadata_for("f.gpx") == {}
 
-    @patch("modules.activities.activity_ingestion.sources.strava_bulk_import_utils")
-    def test_strava_import_builds_the_full_metadata_dict(self, mock_strava):
-        mock_strava.build_metadata_dict.return_value = {"name": "Morning Ride"}
-        source = sources.BulkImportSource(
-            import_initiated_time="2026-07-21T00:00:00",
-            strava_activities={"f.fit": {}},
-            gear_nickname_to_id={"Bike": 3},
-        )
-
-        assert source.metadata_for("f.fit") == {"name": "Morning Ride"}
-        mock_strava.build_metadata_dict.assert_called_once_with(
-            "f.fit", {"f.fit": {}}, "2026-07-21T00:00:00", {"Bike": 3}
-        )
-
-    @patch("modules.activities.activity_ingestion.sources.strava_bulk_import_utils")
-    def test_generic_import_records_only_the_import(self, mock_strava):
-        mock_strava.build_import_dictionary.return_value = {"import_ISO_time": "2026-07-21T00:00:00"}
+    def test_records_only_the_import(self):
         source = sources.BulkImportSource(import_initiated_time="2026-07-21T00:00:00")
 
-        assert source.metadata_for("f.gpx") == {"import_dict": {"import_ISO_time": "2026-07-21T00:00:00"}}
-        mock_strava.build_import_dictionary.assert_called_once_with("f.gpx", "2026-07-21T00:00:00", False)
+        assert source.metadata_for("f.gpx") == {
+            "import_dict": {
+                "imported": True,
+                "import_source": "Basic bulk import",
+                "import_ISO_time": "2026-07-21T00:00:00",
+            }
+        }
 
 
 class TestShouldImport:
-    """Strava lists a multi-activity .fit once per activity it contains."""
-
-    def test_single_activity_file_is_always_imported(self):
-        source = sources.BulkImportSource(strava_activities={"f.fit": {}})
-        assert source.should_import("activity", {"metadata_found_in_csv": True}, activities_in_file=1) is True
-
-    def test_generic_import_never_skips(self):
+    def test_a_plain_folder_import_never_skips(self):
+        # Nothing lists the same file once per activity, so nothing is a duplicate.
         assert sources.BulkImportSource().should_import("activity", {}, activities_in_file=5) is True
 
-    def test_imports_when_the_csv_has_no_row_for_the_file(self):
-        source = sources.BulkImportSource(strava_activities={"f.fit": {}})
-        assert source.should_import("activity", {"metadata_found_in_csv": False}, activities_in_file=5) is True
 
-    @patch("modules.activities.activity_ingestion.sources.strava_bulk_import_utils")
-    def test_imports_the_activity_whose_start_time_matches_the_csv(self, mock_strava):
-        mock_strava.does_activity_start_time_match_the_data_in_strava_activities_csv.return_value = True
-        source = sources.BulkImportSource(strava_activities={"f.fit": {}})
+class TestApplyBulkImportMetadata:
+    def test_manifest_values_take_precedence_over_the_parsed_file(self):
+        activity = _activity()
 
-        assert source.should_import("activity", {"metadata_found_in_csv": True}, activities_in_file=5) is True
+        sources.apply_bulk_import_metadata(
+            activity,
+            {
+                "name": "Morning Ride",
+                "description": "Felt good",
+                "gear_id": 4,
+                "import_dict": {"import_ISO_time": "2026-07-21T00:00:00"},
+            },
+        )
 
-    @patch("modules.activities.activity_ingestion.sources.strava_bulk_import_utils")
-    def test_skips_the_activities_the_csv_row_does_not_refer_to(self, mock_strava):
-        mock_strava.does_activity_start_time_match_the_data_in_strava_activities_csv.return_value = False
-        source = sources.BulkImportSource(strava_activities={"f.fit": {}})
+        assert activity.name == "Morning Ride"
+        assert activity.description == "Felt good"
+        assert activity.gear_id == 4
+        assert activity.import_info == {"import_ISO_time": "2026-07-21T00:00:00"}
 
-        assert source.should_import("activity", {"metadata_found_in_csv": True}, activities_in_file=5) is False
-        mock_strava.does_activity_start_time_match_the_data_in_strava_activities_csv.assert_called_once()
+    def test_absent_metadata_leaves_the_parsed_values_alone(self):
+        activity = _activity()
+
+        sources.apply_bulk_import_metadata(activity, {})
+
+        assert activity.name == "Workout"
+        assert activity.gear_id is None
+
+    def test_the_source_applies_through_the_shared_helper(self):
+        activity = _activity()
+
+        sources.BulkImportSource().apply_metadata(activity, {"name": "Morning Ride"})
+
+        assert activity.name == "Morning Ride"
+
+
+class TestImportSideArtifacts:
+    def test_a_plain_folder_import_has_no_sidecar(self):
+        assert sources.BulkImportSource().import_side_artifacts([], "f.gpx", None) is None

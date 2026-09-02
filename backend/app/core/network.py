@@ -7,6 +7,7 @@ modules such as rate limiting — can use it without
 creating a dependency on the ``users`` package.
 """
 
+import asyncio
 import ipaddress
 import re
 import socket
@@ -489,3 +490,23 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=reason,
         )
+
+
+async def reject_private_url_async(url: str, *, purpose: str | None = None) -> None:
+    """Await :func:`reject_private_url` without blocking the event loop.
+
+    The guard resolves every A/AAAA record with :func:`socket.getaddrinfo`, which
+    is blocking and has no timeout — on the event loop a slow or unreachable
+    resolver stalls every other request in the process, not just this one. Async
+    callers use this form; synchronous callers (scheduled jobs, subscribers) call
+    :func:`reject_private_url` directly.
+
+    Args:
+        url: The fully-qualified URL the caller intends to fetch.
+        purpose: Optional short tag identifying the outbound call, used only for
+            audit logging.
+
+    Raises:
+        HTTPException: 400, for the reasons listed on :func:`reject_private_url`.
+    """
+    await asyncio.to_thread(reject_private_url, url, purpose=purpose)

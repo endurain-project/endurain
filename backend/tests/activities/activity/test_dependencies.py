@@ -2,20 +2,6 @@ import pytest
 from fastapi import HTTPException
 
 
-class TestValidateWeekNumber:
-    def test_validate_week_number_valid(self):
-        from modules.activities.activity.dependencies import validate_week_number
-
-        validate_week_number(0)
-        validate_week_number(52)
-
-    def test_validate_week_number_invalid(self):
-        from modules.activities.activity.dependencies import validate_week_number
-
-        with pytest.raises(HTTPException):
-            validate_week_number(-1)
-
-
 class TestValidateActivityType:
     def test_validate_valid_type(self):
         from modules.activities.activity.dependencies import validate_activity_type
@@ -62,21 +48,6 @@ class TestValidateSortOrder:
         with pytest.raises(HTTPException) as exc:
             validate_sort_order("invalid")
         assert exc.value.status_code == 422
-
-
-class TestValidateVisibility:
-    def test_validate_valid_visibility(self):
-        from modules.activities.activity.dependencies import validate_visibility
-
-        validate_visibility(0)
-        validate_visibility(1)
-        validate_visibility(2)
-
-    def test_validate_invalid_visibility(self):
-        from modules.activities.activity.dependencies import validate_visibility
-
-        with pytest.raises(HTTPException):
-            validate_visibility(5)
 
 
 class TestValidateActivityID:

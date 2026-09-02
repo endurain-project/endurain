@@ -22,6 +22,8 @@ intermediate dict.
 
 import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -29,14 +31,14 @@ logger = core_logger.get_logger(__name__)
 # Mirrors the mapping the parsers populate. Stream types 5 and 6 both derive from
 # ``is_velocity_set`` (speed and pace share the velocity flag).
 _STREAM_MAPPING: dict[int, tuple[str, str]] = {
-    1: ("is_heart_rate_set", "hr_waypoints"),
-    2: ("is_power_set", "power_waypoints"),
-    3: ("is_cadence_set", "cad_waypoints"),
-    4: ("is_elevation_set", "ele_waypoints"),
-    5: ("is_velocity_set", "vel_waypoints"),
-    6: ("is_velocity_set", "pace_waypoints"),
-    7: ("is_lat_lon_set", "lat_lon_waypoints"),
-    8: ("is_temperature_set", "temp_waypoints"),
+    activity_streams_constants.STREAM_TYPE_HR: ("is_heart_rate_set", "hr_waypoints"),
+    activity_streams_constants.STREAM_TYPE_POWER: ("is_power_set", "power_waypoints"),
+    activity_streams_constants.STREAM_TYPE_CADENCE: ("is_cadence_set", "cad_waypoints"),
+    activity_streams_constants.STREAM_TYPE_ELEVATION: ("is_elevation_set", "ele_waypoints"),
+    activity_streams_constants.STREAM_TYPE_SPEED: ("is_velocity_set", "vel_waypoints"),
+    activity_streams_constants.STREAM_TYPE_PACE: ("is_velocity_set", "pace_waypoints"),
+    activity_streams_constants.STREAM_TYPE_MAP: ("is_lat_lon_set", "lat_lon_waypoints"),
+    activity_streams_constants.STREAM_TYPE_TEMPERATURE: ("is_temperature_set", "temp_waypoints"),
 }
 
 
@@ -57,24 +59,27 @@ def parsed_info_to_parsed_activity(
 
     Returns:
         The canonical parsed activity, with one
-        :class:`~modules.activities.activity.contracts.ParsedStream` per stream
-        that the parser flagged as set.
+        :class:`~modules.activities.activity_streams.contracts.ParsedStream` per
+        stream that the parser flagged as set.
     """
     streams = [
-        activities_contracts.ParsedStream(
+        activity_streams_contracts.ParsedStream(
             stream_type=stream_type,
             stream_waypoints=parsed_info.get(waypoints_key, []),
         )
         for stream_type, (is_set_key, waypoints_key) in _STREAM_MAPPING.items()
-        if (is_set_key(parsed_info) if callable(is_set_key) else parsed_info.get(is_set_key, False))
+        if parsed_info.get(is_set_key, False)
     ]
 
+    components = {
+        "streams": streams,
+        "laps": parsed_info.get("laps"),
+        "sets": parsed_info.get("sets"),
+        "workout_steps": parsed_info.get("workout_steps"),
+    }
     parsed = activities_contracts.ParsedActivity(
         activity=parsed_info["activity"],
-        streams=streams,
-        laps=parsed_info.get("laps"),
-        sets=parsed_info.get("sets"),
-        workout_steps=parsed_info.get("workout_steps"),
+        components=components,
     )
     # What the parser actually produced, before anything is persisted — the first
     # thing to check when an imported activity is missing a chart or its laps.
@@ -82,9 +87,7 @@ def parsed_info_to_parsed_activity(
         "Adapted parser output into a ParsedActivity",
         extra=core_logger.context(
             stream_types=[stream.stream_type for stream in streams],
-            lap_count=len(parsed.laps) if parsed.laps else 0,
-            set_count=len(parsed.sets) if parsed.sets else 0,
-            workout_step_count=len(parsed.workout_steps) if parsed.workout_steps else 0,
+            component_counts={key: len(value) if value else 0 for key, value in components.items()},
         ),
     )
     return parsed

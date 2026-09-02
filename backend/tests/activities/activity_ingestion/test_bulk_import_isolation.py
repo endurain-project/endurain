@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import core.config as core_config
 import modules.activities.activity_ingestion.bulk_import_service as bulk_import_service
 import modules.activities.activity_ingestion.sources as sources
+import modules.strava.bulk_import_source as strava_bulk_import_source
 
 
 class TestBulkImportDirResolution:
@@ -28,7 +29,7 @@ class TestBulkImportSourceErrorDirectory:
         assert source.error_directory == core_config.bulk_import_error_dir_for(7)
 
     def test_a_strava_export_keeps_its_own_directory(self):
-        source = sources.BulkImportSource(import_initiated_time="2026", user_id=7, strava_activities={"a.fit": {}})
+        source = strava_bulk_import_source.StravaBulkImportSource(import_initiated_time="2026", user_id=7)
         assert source.error_directory == core_config.STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR
 
     def test_falls_back_to_the_shared_directory_without_an_owner(self):
@@ -120,11 +121,12 @@ class TestBulkImportScoping:
             patch.object(bulk_import_service, "_warn_about_unowned_files"),
             patch.object(bulk_import_service.core_config.settings, "JOBS_ENABLED", True),
             patch.object(bulk_import_service.core_file_uploads, "validate_local_file_sync"),
+            patch.object(bulk_import_service.ingestion_jobs_crud, "create_ingestion_job"),
             patch.object(bulk_import_service.activity_bulk_import_subscribers, "publish_bulk_import_files") as publish,
         ):
             bulk_import_service.start_bulk_import(3, db)
 
-        queued = publish.call_args.args[0]
+        queued = [path for _job_id, path in publish.call_args.args[0]]
         assert queued == [os.path.join(str(user_dir), "ride.gpx")]
 
 

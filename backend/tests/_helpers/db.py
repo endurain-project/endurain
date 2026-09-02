@@ -1,6 +1,4 @@
-import pathlib
 from collections.abc import Sequence
-from importlib import import_module
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -8,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-_APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "app"
+import model_registry as orm_model_registry
 
 
 def setup_mock_execute(
@@ -70,15 +68,8 @@ def setup_mock_query(
 
 
 def _import_all_models() -> None:
-    """Import every ``models.py`` so the SQLAlchemy mapper registry is complete.
-
-    A real ORM query triggers ``configure_mappers()`` for the whole registry.
-    Relationships use string targets, so every related model must be imported
-    or configuration fails. ``import_module`` is cached, so repeat calls are
-    cheap.
-    """
-    for path in sorted(_APP_DIR.glob("**/models.py")):
-        import_module(".".join(path.relative_to(_APP_DIR).with_suffix("").parts))
+    """Import model contributions through the application composition root."""
+    orm_model_registry.import_all_models()
 
 
 def create_sqlite_session() -> Session:

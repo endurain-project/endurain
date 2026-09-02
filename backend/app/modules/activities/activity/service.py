@@ -7,6 +7,11 @@ instances. Access-control failures raise the transport-agnostic domain errors in
 :mod:`core.exceptions`, which the API boundary renders — this layer states *what*
 went wrong, never which HTTP status to send, so it stays usable from the durable
 job worker and unit-testable without FastAPI.
+
+Also the surface the module's **sibling sub-packages** read the activity row
+through (see *Derived-artifact maintenance* at the end of the file). The derived
+subsystems — thumbnails, geocoding, media — used to import ``activity.crud``
+directly, which made every one of them a second owner of the activities table.
 """
 
 import calendar
@@ -24,9 +29,29 @@ import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.stats as activities_stats
 import modules.followers.integration_service as followers_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
+
+
+def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
+    """Resolve whose followers-only activities the requester may see.
+
+    The cross-domain half of the visibility rule, answered here so the queries
+    below receive a plain list of ids. Persistence asking the followers module a
+    question mid-``SELECT`` is a service decision in the wrong layer.
+
+    Args:
+        requester_user_id: The authenticated caller, or ``None`` when anonymous.
+        db: Database session.
+
+    Returns:
+        The requester's accepted-followee user ids, empty when anonymous.
+    """
+    if requester_user_id is None:
+        return []
+    return followers_integration.list_accepted_followee_ids(requester_user_id, db)
 
 
 def get_activities_in_timeframe(
@@ -70,7 +95,7 @@ def get_activities_in_timeframe(
         end,
         db,
         False,
-        requester_user_id=requester_user_id,
+        followee_ids=_followees_of(requester_user_id, db),
     )
 
 
@@ -223,7 +248,7 @@ def list_gear_activities(
     return activities_crud.get_user_activities_by_gear_id_and_user_id(user_id, gear_id, db)
 
 
-def count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
+def _count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
     """Count a user's activities for a gear."""
     return activities_crud.get_gear_activities_count_by_user_id(user_id, gear_id, db)
 
@@ -260,7 +285,7 @@ def list_user_activities_paginated(
         sort_by=sort_by,
         sort_order=sort_order,
         user_is_owner=(user_id == requester_user_id),
-        requester_user_id=requester_user_id,
+        followee_ids=_followees_of(requester_user_id, db),
     )
     logger.debug(
         "Listed paginated user activities",
@@ -283,36 +308,6 @@ def _require_feed_owner(user_id: int, requester_user_id: int) -> None:
             extra=core_logger.context(requester_user_id=requester_user_id, user_id=user_id),
         )
         raise core_exceptions.PermissionDeniedError()
-
-
-def get_following_feed(
-    user_id: int,
-    requester_user_id: int,
-    page_number: int,
-    num_records: int,
-    db: Session,
-) -> list[activities_schema.Activity] | None:
-    """Return the requester's following feed (activities of users they follow)."""
-    _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    feed = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
-    logger.debug(
-        "Built following feed",
-        extra=core_logger.context(
-            requester_user_id=requester_user_id,
-            page_number=page_number,
-            followee_count=len(followee_ids) if followee_ids else 0,
-            returned=len(feed) if feed else 0,
-        ),
-    )
-    return feed
-
-
-def count_following_feed(user_id: int, requester_user_id: int, db: Session) -> int:
-    """Count the requester's following-feed activities."""
-    _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    return activities_crud.count_user_following_activities(followee_ids, db)
 
 
 # ---------------------------------------------------------------------------
@@ -378,36 +373,8 @@ def page_user_activities(
         end_date=end_date,
         name_search=name_search,
         user_is_owner=(user_id == requester_user_id),
-        requester_user_id=requester_user_id,
+        followee_ids=_followees_of(requester_user_id, db),
     )
-    return activities_schema.ActivityPage.build(items, total, page_number, num_records)
-
-
-def page_following_feed(
-    user_id: int,
-    requester_user_id: int,
-    page_number: int,
-    num_records: int,
-    db: Session,
-) -> activities_schema.ActivityPage:
-    """Return one page of the requester's following feed with the matching total.
-
-    Args:
-        user_id: The feed owner (must be the requester).
-        requester_user_id: The authenticated caller.
-        page_number: 1-based page number.
-        num_records: Page size.
-        db: Database session.
-
-    Returns:
-        The page envelope.
-    """
-    # Ownership is enforced once here; the followee lookup is then shared by the
-    # page and the count rather than resolved twice.
-    _require_feed_owner(user_id, requester_user_id)
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    items = activities_crud.get_user_following_activities_with_pagination(followee_ids, page_number, num_records, db)
-    total = activities_crud.count_user_following_activities(followee_ids, db)
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
 
 
@@ -476,7 +443,7 @@ def page_gear_activities(
         The page envelope.
     """
     items = list_gear_activities(user_id, gear_id, page_number, num_records, db)
-    total = count_gear_activities(user_id, gear_id, db)
+    total = _count_gear_activities(user_id, gear_id, db)
     return activities_schema.ActivityPage.build(items, total, page_number, num_records)
 
 
@@ -506,7 +473,9 @@ def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activ
             caller — indistinguishable on purpose, so the endpoint cannot be used
             to enumerate activity ids.
     """
-    activity = activities_crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id, requester_user_id, db)
+    activity = activities_crud.get_activity_by_id_from_user_id_or_has_visibility(
+        activity_id, requester_user_id, db, _followees_of(requester_user_id, db)
+    )
     if activity is None:
         logger.debug(
             "Activity read resolved to nothing visible",
@@ -529,6 +498,8 @@ def get_public_activity(activity_id: int, db: Session) -> activities_schema.Acti
     Raises:
         NotFoundError: When the activity does not exist or is not public.
     """
+    if not server_settings_integration.public_shareable_links_enabled(db):
+        raise core_exceptions.NotFoundError("Activity not found")
     activity = activities_crud.get_activity_by_id_if_is_public(activity_id, db)
     if activity is None:
         raise core_exceptions.NotFoundError("Activity not found")
@@ -655,3 +626,109 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
         "Deleted an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
     )
+
+
+def bulk_set_activities_gear(
+    user_id: int,
+    gear_assignments: dict[int, int | None],
+    db: Session,
+    *,
+    source: str,
+) -> int:
+    """Assign gear to many of a user's activities at once.
+
+    Publishes one ``activity.updated`` per changed row, atomically with the
+    updates. A provider re-syncing gear mutates activities from outside the
+    activities module, so without the event a consumer would see the same silent
+    change bulk deletes used to make.
+
+    Args:
+        user_id: The owning user id (ownership is enforced by the update).
+        gear_assignments: Map of activity id -> gear id (or ``None`` to clear).
+        db: Database session.
+        source: The caller recorded on the published events.
+
+    Returns:
+        The number of activities updated.
+    """
+    updated_ids = activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db, commit=False)
+    activity_event_publishers.publish_activities_updated(
+        updated_ids,
+        user_id,
+        ["gear_id"],
+        db,
+        db.commit,
+        source=source,
+    )
+    logger.info(
+        "Bulk-assigned gear to activities",
+        extra=core_logger.context(user_id=user_id, requested=len(gear_assignments), updated=len(updated_ids)),
+    )
+    return len(updated_ids)
+
+
+def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> int:
+    """Delete all of a user's Strava-sourced activities.
+
+    Emits one ``activity.deleted`` per removed activity, atomically with the
+    deletes, so the thumbnail and source-file cleanup subscribers reclaim the
+    blobs each activity owned. Without it the rows vanished silently and their
+    artifacts were orphaned in storage permanently.
+
+    Args:
+        user_id: The owning user id.
+        db: Database session.
+        source: The caller recorded on the published events.
+
+    Returns:
+        The number of activities deleted.
+    """
+    deleted_ids = activities_crud.delete_all_strava_activities_for_user(user_id, db, commit=False)
+    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, db.commit, source=source)
+    # Irreversible and triggered from another module, so the count is recorded
+    # here rather than left to the caller.
+    logger.info(
+        "Deleted all Strava-sourced activities for user",
+        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
+    )
+    return len(deleted_ids)
+
+
+def delete_all_activities_for_user(user_id: int, db: Session, *, source: str) -> int:
+    """Delete every activity owned by a user, emitting cleanup events.
+
+    The account-deletion path. Deleting the user row alone would let the database
+    FK cascade remove the activities silently, orphaning every thumbnail and
+    stored source file the user ever produced — an incomplete erasure. Removing
+    them explicitly first yields the ids needed to publish ``activity.deleted``,
+    so the cleanup subscribers delete the blobs too.
+
+    Args:
+        user_id: The owning user id.
+        db: Database session.
+        source: The caller recorded on the published events.
+
+    Returns:
+        The number of activities deleted.
+    """
+    deleted_ids = activities_crud.delete_all_activities_for_user(user_id, db, commit=False)
+    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, db.commit, source=source)
+    logger.info(
+        "Deleted all activities for user",
+        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
+    )
+    return len(deleted_ids)
+
+
+def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+    """Return whether the user owns the activity.
+
+    Args:
+        activity_id: The activity to check.
+        user_id: The claimed owner.
+        db: Database session.
+
+    Returns:
+        True when the activity exists and belongs to the user.
+    """
+    return activities_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None

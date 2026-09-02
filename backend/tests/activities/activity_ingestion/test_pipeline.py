@@ -5,7 +5,7 @@ plumbing the pipeline used to own — gzip expansion, content hashing, artifact
 cleanup — now lives in ``core.file_uploads`` and is tested there.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -101,7 +101,7 @@ class TestRetainSourceFile:
         source.write_bytes(b"<gpx/>")
 
         with (
-            patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store,
+            patch.object(pipeline.file_storage_integration, "store_activity_file_for_ids") as store,
             patch.object(pipeline.platform_runtime, "get_active_platform"),
         ):
             pipeline._retain_source_file(str(source), ".gpx", [4, 5])
@@ -114,7 +114,7 @@ class TestRetainSourceFile:
         source = tmp_path / "ride.gpx"
         source.write_bytes(b"<gpx/>")
 
-        with patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store:
+        with patch.object(pipeline.file_storage_integration, "store_activity_file_for_ids") as store:
             pipeline._retain_source_file(str(source), ".gpx", [])
 
         store.assert_not_called()
@@ -124,10 +124,68 @@ class TestRetainSourceFile:
 class TestParsedFileContract:
     def test_defaults_to_no_activities(self):
         assert activities_contracts.ParsedFile().activities == []
-        assert activities_contracts.ParsedFile().exercise_titles is None
+        assert activities_contracts.ParsedFile().components == {}
 
 
 class TestStoreActivitiesFromFile:
+    def test_persists_file_components_through_the_registry(self, tmp_path):
+        source_file = tmp_path / "empty.fit"
+        source_file.write_bytes(b"\x00")
+        contributor = MagicMock(key="exercise_titles")
+
+        with (
+            patch.object(pipeline.users_integration_service, "get_user"),
+            patch.object(pipeline.users_integration_service, "get_privacy_settings"),
+            patch.object(
+                pipeline,
+                "parse_file",
+                return_value=activities_contracts.ParsedFile(
+                    components={"exercise_titles": [{"exercise_name": "Press"}]}
+                ),
+            ),
+            patch.object(
+                pipeline.contributor_registry,
+                "get_file_ingestion_contributor",
+                return_value=contributor,
+            ) as get_contributor,
+            patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
+        ):
+            result = pipeline.store_activities_from_file(
+                1,
+                str(source_file),
+                ".fit",
+                "empty.fit",
+                "db",
+                source=sources.UploadSource(),
+            )
+
+        assert result == []
+        get_contributor.assert_called_once_with("exercise_titles")
+        contributor.persist.assert_called_once_with([{"exercise_name": "Press"}], "db")
+
+    def test_unknown_file_component_fails_closed(self, tmp_path):
+        source_file = tmp_path / "unknown.fit"
+        source_file.write_bytes(b"\x00")
+
+        with (
+            patch.object(pipeline.users_integration_service, "get_user"),
+            patch.object(pipeline.users_integration_service, "get_privacy_settings"),
+            patch.object(
+                pipeline,
+                "parse_file",
+                return_value=activities_contracts.ParsedFile(components={"unknown": [{}]}),
+            ),
+            pytest.raises(core_exceptions.ProcessingError, match="unknown"),
+        ):
+            pipeline.store_activities_from_file(
+                1,
+                str(source_file),
+                ".fit",
+                "unknown.fit",
+                "db",
+                source=sources.UploadSource(),
+            )
+
     def test_a_file_that_yields_no_activities_is_still_cleaned_up(self, tmp_path):
         # A parse that produces nothing must not leave the staged file behind for
         # the next import run to pick up again.
@@ -139,7 +197,7 @@ class TestStoreActivitiesFromFile:
             patch.object(pipeline.users_integration_service, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=activities_contracts.ParsedFile()),
             patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
-            patch.object(pipeline.activity_file_storage_service, "store_activity_file_for_ids") as store,
+            patch.object(pipeline.file_storage_integration, "store_activity_file_for_ids") as store,
         ):
             result = pipeline.store_activities_from_file(
                 1,

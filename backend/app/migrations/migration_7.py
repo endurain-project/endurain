@@ -4,11 +4,10 @@ from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import modules.activities.activity.crud as activity_crud
+import modules.activities.activity.migration_service as activity_crud
 import modules.activities.activity.schema as activity_schema
-import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.migration_service as activity_streams_migration
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_streams.utils as activity_streams_utils
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 
@@ -33,7 +32,7 @@ def process_migration_7(db: Session) -> None:
     while True:
         try:
             batch_streams: list[activity_streams_schema.ActivityStreamsRead] = (
-                activity_streams_crud.get_hr_streams_without_zone_percentages(db=db, after_id=last_id)
+                activity_streams_migration.get_hr_streams_without_zone_percentages(db=db, after_id=last_id)
             )
             if not batch_streams:
                 break
@@ -64,9 +63,9 @@ def process_migration_7(db: Session) -> None:
                     user_cache[activity.user_id] = user
 
                 try:
-                    max_heart_rate = activity_streams_utils.resolve_max_heart_rate(user)
+                    max_heart_rate = activity_streams_migration.resolve_max_heart_rate(user)
                     if max_heart_rate:
-                        hr_block = activity_streams_utils.compute_hr_zone_breakdown_sync(
+                        hr_block = activity_streams_migration.compute_hr_zone_breakdown_sync(
                             stream.stream_waypoints,
                             max_heart_rate,
                             activity.total_timer_time,
@@ -82,7 +81,7 @@ def process_migration_7(db: Session) -> None:
                     computed_streams.append({"stream_id": stream.id, "zone_percentages": zone_percentages})
 
             if computed_streams:
-                activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams(computed_streams, db)
+                activity_streams_migration.backfill_zone_percentages_for_missing_hr_streams(computed_streams, db)
 
             last_id = batch_streams[-1].id
 

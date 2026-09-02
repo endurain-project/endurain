@@ -33,13 +33,13 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activities_contracts
-import modules.activities.activity.ingestion_service as ingestion_service
+import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
-import modules.activities.activity_file_import.registry as parser_registry
-import modules.activities.activity_file_storage.service as activity_file_storage_service
+import modules.activities.activity_file_import.integration_service as file_import_integration
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
 import modules.activities.activity_ingestion.enrichment as enrichment
 import modules.activities.activity_ingestion.sources as ingestion_sources
+import modules.activities.contributor_registry as contributor_registry
 import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
@@ -78,9 +78,9 @@ def parse_file(
         # are pure (no db / privacy / gear / provider coupling); the
         # pipeline re-attaches that domain context afterwards — including
         # the owner's timezone, which the parsers cannot look up themselves.
-        parser = parser_registry.get_parser(file_extension)
+        parser = file_import_integration.get_parser(file_extension)
         if parser is None:
-            supported = ", ".join(parser_registry.supported_extensions())
+            supported = ", ".join(file_import_integration.supported_extensions())
             raise core_exceptions.UnsupportedFormatError(
                 f"File extension not supported. Supported file extensions are {supported}"
             )
@@ -129,7 +129,7 @@ def _retain_source_file(
     if activity_ids:
         with open(file_path, "rb") as source_file:
             file_bytes = source_file.read()
-        activity_file_storage_service.store_activity_file_for_ids(
+        file_storage_integration.store_activity_file_for_ids(
             activity_ids,
             file_extension,
             file_bytes,
@@ -217,10 +217,17 @@ def store_activities_from_file(
     # staged input — returning here would leak the temp file into the import
     # directory and have the next run pick it up again.
 
-    # Persist the file's exercise-title reference rows (parsed as data — the
-    # parser no longer writes them). File-scoped, so this happens once.
-    if parsed_file.exercise_titles:
-        activity_exercise_titles_crud.create_activity_exercise_titles(parsed_file.exercise_titles, db)
+    file_component_work = []
+    for key, data in parsed_file.components.items():
+        if data is None:
+            continue
+        contributor = contributor_registry.get_file_ingestion_contributor(key)
+        if contributor is None:
+            raise core_exceptions.ProcessingError(f"No file ingestion contributor registered for '{key}'")
+        file_component_work.append((contributor, data))
+
+    for contributor, data in file_component_work:
+        contributor.persist(data, db)
 
     # Supplemental metadata from a bulk import's manifest, when there is one.
     activity_metadata = bulk_source.metadata_for(file_base_name) if bulk_source else {}
@@ -246,10 +253,11 @@ def store_activities_from_file(
             db=db,
             from_garmin=garmin_source is not None,
             # Read through the narrowed source rather than a separate boolean:
-            # only ``GarminSource`` has ``gear``, and a plain ``from_garmin``
+            # only ``GarminSource`` carries gear, and a plain ``from_garmin``
             # flag left that unprovable (and one refactor away from an
             # AttributeError on the other two source types).
-            garminconnect_gear=garmin_source.gear if garmin_source else None,
+            provider_gear_id=garmin_source.gear_id if garmin_source else None,
+            garminconnect_gear_id=garmin_source.provider_gear_id if garmin_source else None,
             garmin_connect_activity_id=garmin_activity_id,
         )
 
@@ -263,7 +271,7 @@ def store_activities_from_file(
             bulk_source.apply_metadata(parsed.activity, activity_metadata)
 
         parsed.source = import_source
-        created_activities.append(ingestion_service.store_parsed_activity(parsed, db))
+        created_activities.append(activities_integration.store_parsed_activity(parsed, db))
 
     _retain_source_file(
         file_path,

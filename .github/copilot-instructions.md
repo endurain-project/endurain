@@ -29,6 +29,7 @@ Always reference these instructions first and fallback to search or bash command
 - When implementing changes, focus on the code implementation itself, not supplementary documentation.
 - Ask for clarification if the scope is unclear rather than assuming additional deliverables are wanted.
 - **Do NOT run `git commit` (or any other commit-creating command) unless the user explicitly asks for it.** Stage changes if needed for inspection (`git add`), but leave the actual commit to the user. This applies even when finishing a multi-step task, when tests pass, or when changes feel "done" — wait for explicit instruction.
+- **Module structure rule:** Every backend module follows `docs/developer-guide/module-structure.md`. Each package under `modules.activities` is an independent extraction unit; `modules.activities` only composes them. A package's `service`/`crud`/`models`/`query`/`utils`/`signing`/`subscribers` are private. Peers and outside modules consume behavior only through that package's `integration_service`, with `schema`/`contracts`/`constants`/`events` as data surfaces. Activity children contribute generic ingestion/profile behavior through factories in their `integration_service`; `app/module_registry.py` installs those factories explicitly in `modules.activities.contributor_registry`, never through package-import side effects. `model_registry` is composition-only, and `migration_service` is only for `app/migrations`. Cross-module rules are enforced by `backend/.importlinter`; own-package-versus-peer privacy is enforced by `backend/tests/architecture/test_module_boundaries.py`. Allowlist entries must be exact composition or read-model projection edges, never broad implementation access.
 - **Auth boundary rule:** Non-auth modules must consume identity **only** through the public surface — `modules.auth.dependencies` and `modules.auth.identity_service.IdentityService`. The single `auth-boundary` contract in `backend/.importlinter` forbids non-auth code from importing the private `modules.auth._internal` package (credential/token/lockout plumbing — `internal_dependencies`, `password_hasher`, `token_manager`, `security_stores` — and the `modules.auth._internal.services` workflow layer) or any auth CRUD module (matched structurally by `modules.auth.*.crud` / `modules.auth.*.*.crud`). The boundary is fully structural: no per-module `ignore_imports` exceptions.
 
 ---
@@ -95,7 +96,7 @@ Fast iteration workflow for frontend-only development:
 
 **Notes:**
 - ESLint uses flat config (`eslint.config.ts`) with Vue + TypeScript support
-- Unit tests not yet implemented (`npm run test:unit` exits with "No test files found")
+- Unit tests run with Vitest: `npm run test:unit` (≈9 seconds)
 
 **Pre-commit validation:**
 - Run `npm run format` and `npm run lint` before commits
@@ -184,7 +185,6 @@ Repository root:
 
 - Docker builds may fail with SSL issues in CI
 - Backend Python 3.13 required
-- No frontend test coverage yet
 
 ---
 

@@ -11,7 +11,6 @@ from sqlalchemy.sql import func
 from core.database import Base
 
 if TYPE_CHECKING:
-    from modules.activities.activity.models import Activity
     from modules.gears.gear_components.models import GearComponents
     from modules.users.users.models import Users
     from modules.users.users_default_gear.models import UsersDefaultGear
@@ -35,7 +34,6 @@ class Gear(Base):
         strava_gear_id: Strava gear ID.
         garminconnect_gear_id: Garmin gear ID.
         users: Relationship to Users model.
-        activities: Relationship to Activity.
         gear_components: Components relationship.
         users_default_run_gear: Default run gear.
         users_default_trail_run_gear: Trail run.
@@ -128,8 +126,6 @@ class Gear(Base):
 
     # Define a relationship to the Users model
     users: Mapped["Users"] = relationship(back_populates="gear")
-    # Establish a one-to-many relationship with 'activities'
-    activities: Mapped[list["Activity"]] = relationship(back_populates="gear")
     # Establish a one-to-many relationship with 'gear_components'
     gear_components: Mapped[list["GearComponents"]] = relationship(
         back_populates="gear",

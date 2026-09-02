@@ -26,11 +26,7 @@ def read_public_activities_exercise_titles_all(
         db: Database session.
 
     Returns:
-        List of ActivityExerciseTitles, or None if public sharable
-        links are disabled or no entries exist.
-
-    Raises:
-        HTTPException: If server settings are missing or a database
-            error occurs.
+        The exercise titles, or an empty list when public shareable links are
+        disabled or no entries exist.
     """
     return activity_exercise_titles_service.list_public_activity_exercise_titles(db)

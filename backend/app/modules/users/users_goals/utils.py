@@ -10,14 +10,27 @@ import modules.activities.activity.integration_service as activities_integration
 import modules.users.users.utils as users_utils
 import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.schema as user_goals_schema
+from modules.activities.activity.constants import ACTIVITY_TYPES_BY_SPORT
 
 logger = core_logger.get_logger(__name__)
 
+# Which activity types each goal counts. The sport groupings are owned by the
+# activities module; a goal states which sports it spans, so a new running or
+# cycling type starts counting towards goals the day it is added rather than
+# whenever someone remembers this list exists.
 _ACTIVITY_TYPE_MAP: dict[str, list[int]] = {
-    user_goals_schema.ActivityType.RUN.value: [1, 2, 3, 34, 40],
-    user_goals_schema.ActivityType.BIKE.value: [4, 5, 6, 7, 27, 28, 29, 35, 36],
-    user_goals_schema.ActivityType.SWIM.value: [8, 9],
-    user_goals_schema.ActivityType.WALK.value: [11, 12, 44],
+    user_goals_schema.ActivityType.RUN.value: [*ACTIVITY_TYPES_BY_SPORT["run"]],
+    user_goals_schema.ActivityType.BIKE.value: [*ACTIVITY_TYPES_BY_SPORT["bike"]],
+    user_goals_schema.ActivityType.SWIM.value: [*ACTIVITY_TYPES_BY_SPORT["swim"]],
+    # Deliberately wider than the walk sport: a walking goal also counts hiking
+    # and snowshoeing, which the stats view reports as their own sports.
+    user_goals_schema.ActivityType.WALK.value: [
+        *ACTIVITY_TYPES_BY_SPORT["walk"],
+        *ACTIVITY_TYPES_BY_SPORT["hike"],
+        *ACTIVITY_TYPES_BY_SPORT["snowshoeing"],
+    ],
+    # Crossfit, cardio training, HIIT and jump rope have no sport grouping of
+    # their own: they are goal-only, so the ids are stated here.
     user_goals_schema.ActivityType.CARDIO.value: [20, 41, 46, 47],
 }
 

@@ -34,7 +34,6 @@ def _build_app(mock_db):
         act_dep.validate_activity_type,
         act_dep.validate_sort_by,
         act_dep.validate_sort_order,
-        act_dep.validate_visibility,
         act_dep.validate_activity_id,
         gear_dep.validate_gear_id,
     ]:

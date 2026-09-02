@@ -41,9 +41,13 @@ class TestGetActivitiesInTimeframe:
         from modules.activities.activity import service
 
         db = MagicMock()
-        service.get_activities_in_timeframe(1, "s", "e", 2, db)
-        # Non-owner path: is_owner=False + requester scoping for the visibility mask.
-        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, False, requester_user_id=2)
+        with patch(
+            "modules.activities.activity.service.followers_integration.list_accepted_followee_ids",
+            return_value=[1],
+        ):
+            service.get_activities_in_timeframe(1, "s", "e", 2, db)
+        # Non-owner path: the service resolves the followees, the query filters on them.
+        mock_crud.get_user_activities_per_timeframe.assert_called_once_with(1, "s", "e", db, False, followee_ids=[1])
 
 
 class TestPeriodStats:
@@ -77,66 +81,26 @@ class TestPeriodStats:
         assert isinstance(service.month_stats(1, 1, MagicMock()), schema.ActivityStats)
 
 
-class TestFollowingFeed:
-    @patch("modules.activities.activity.service.followers_integration")
-    @patch("modules.activities.activity.service.activities_crud")
-    def test_owner_gets_feed(self, mock_crud, mock_followers):
-        from modules.activities.activity import service
-
-        db = MagicMock()
-        mock_followers.list_accepted_followee_ids.return_value = [5, 6]
-        service.get_following_feed(1, 1, 2, 10, db)
-        # The service resolves the followees, then the crud query filters by them.
-        mock_followers.list_accepted_followee_ids.assert_called_once_with(1, db)
-        mock_crud.get_user_following_activities_with_pagination.assert_called_once_with([5, 6], 2, 10, db)
-
-    def test_feed_other_user_forbidden(self):
-        from modules.activities.activity import service
-
-        with pytest.raises(core_exceptions.PermissionDeniedError) as exc:
-            service.get_following_feed(2, 1, 1, 10, MagicMock())
-        assert exc.value.status_code == 403
-
-    @patch("modules.activities.activity.service.followers_integration")
-    @patch(
-        "modules.activities.activity.service.activities_crud.count_user_following_activities",
-        return_value=2,
-    )
-    def test_count_owner(self, mock_count, mock_followers):
-        from modules.activities.activity import service
-
-        db = MagicMock()
-        mock_followers.list_accepted_followee_ids.return_value = [5]
-        assert service.count_following_feed(1, 1, db) == 2
-        mock_count.assert_called_once_with([5], db)
-
-    def test_count_other_user_forbidden(self):
-        from modules.activities.activity import service
-
-        with pytest.raises(core_exceptions.PermissionDeniedError) as exc:
-            service.count_following_feed(2, 1, MagicMock())
-        assert exc.value.status_code == 403
-
-
 class TestListUserActivitiesPaginated:
+    @patch("modules.activities.activity.service.followers_integration.list_accepted_followee_ids", return_value=[])
     @patch("modules.activities.activity.service.activities_crud")
-    def test_owner_scoping(self, mock_crud):
+    def test_owner_scoping(self, mock_crud, _mock_followers):
         from modules.activities.activity import service
 
         service.list_user_activities_paginated(1, 1, 1, 10, MagicMock(), activity_type=2)
         kwargs = mock_crud.get_user_activities_with_pagination.call_args.kwargs
         assert kwargs["user_is_owner"] is True
-        assert kwargs["requester_user_id"] == 1
         assert kwargs["activity_type"] == 2
 
+    @patch("modules.activities.activity.service.followers_integration.list_accepted_followee_ids", return_value=[9])
     @patch("modules.activities.activity.service.activities_crud")
-    def test_non_owner_scoping(self, mock_crud):
+    def test_non_owner_scoping(self, mock_crud, _mock_followers):
         from modules.activities.activity import service
 
         service.list_user_activities_paginated(1, 2, 1, 10, MagicMock())
         kwargs = mock_crud.get_user_activities_with_pagination.call_args.kwargs
         assert kwargs["user_is_owner"] is False
-        assert kwargs["requester_user_id"] == 2
+        assert kwargs["followee_ids"] == [9]
 
 
 class TestPeriodBounds:
@@ -301,3 +265,61 @@ class TestEditPublishesUpdated:
 
         db.rollback.assert_called_once()
         mock_publishers.publish_activity_updated.assert_not_called()
+
+
+class TestCrossModuleWrites:
+    """The writes other modules reach through ``integration_service``.
+
+    They are arranged here, in the module's own application layer, rather than on
+    the surface that publishes them: a write reached from another module must be
+    staged, published and committed exactly as one reached from a route.
+    """
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_bulk_set_activities_gear_publishes_one_event_per_row(self, mock_crud, mock_publishers):
+        """A provider re-gearing activities is a change consumers must be able to see."""
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.bulk_set_activities_gear_id.return_value = [7, 8]
+
+        updated = service.bulk_set_activities_gear(3, {7: 10, 8: 10}, db, source="api:test")
+
+        assert updated == 2
+        # Staged (commit=False) so the updates and their events are atomic.
+        mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {7: 10, 8: 10}, db, commit=False)
+        mock_publishers.publish_activities_updated.assert_called_once_with(
+            [7, 8], 3, ["gear_id"], db, db.commit, source="api:test"
+        )
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_delete_all_strava_activities_publishes_cleanup_events(self, mock_crud, mock_publishers):
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.delete_all_strava_activities_for_user.return_value = [11, 12, 13, 14, 15]
+
+        deleted = service.delete_all_strava_activities(3, db, source="api:test")
+
+        assert deleted == 5
+        mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db, commit=False)
+        mock_publishers.publish_activities_deleted.assert_called_once_with(
+            [11, 12, 13, 14, 15], 3, db, db.commit, source="api:test"
+        )
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activities_crud")
+    def test_delete_all_activities_for_user_publishes_cleanup_events(self, mock_crud, mock_publishers):
+        """Account deletion must emit activity.deleted so stored blobs are reclaimed."""
+        from modules.activities.activity import service
+
+        db = MagicMock()
+        mock_crud.delete_all_activities_for_user.return_value = [1, 2]
+
+        deleted = service.delete_all_activities_for_user(7, db, source="api:test")
+
+        assert deleted == 2
+        mock_crud.delete_all_activities_for_user.assert_called_once_with(7, db, commit=False)
+        mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, db.commit, source="api:test")

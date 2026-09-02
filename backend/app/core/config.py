@@ -927,8 +927,8 @@ def check_required_env_vars():
     validate_log_level(settings.LOG_LEVEL)
 
 
-# Environment variables retired in v0.19.x. Maps the removed variable name to a
-# short, actionable remediation string. These are validated by
+# Environment variables retired in v0.19.x and v0.20.0. Maps the removed variable
+# name to a short, actionable remediation string. These are validated by
 # ``check_deprecated_env_vars`` at startup: because ``Settings`` uses
 # ``extra="ignore"``, a stale value would otherwise be silently dropped, leaving
 # the operator with no feedback that their configuration no longer takes effect.
@@ -948,6 +948,20 @@ DEPRECATED_ENV_VARS: dict[str, str] = {
         "'Secure' flag across login, refresh, and SSO. Use ENVIRONMENT=production "
         "(or demo) to serve over HTTPS."
     ),
+    # Retired in v0.20.0. Refusing to start matters more here than for the
+    # others: both used to point rate-limit counters and auth lockout state at
+    # Redis, and silently ignoring them downgrades those to per-process memory —
+    # brute-force protection that no longer sees the other workers.
+    "RATE_LIMIT_STORAGE_URI": (
+        "replaced by REDIS_URL (or STATE_URI). One shared state backend now "
+        "serves rate-limit counters, auth lockout, pending MFA and websocket "
+        "tickets. Set REDIS_URL to the value this held."
+    ),
+    "AUTH_SECURITY_STORAGE_URI": (
+        "replaced by REDIS_URL (or STATE_URI). One shared state backend now "
+        "serves rate-limit counters, auth lockout, pending MFA and websocket "
+        "tickets. Set REDIS_URL to the value this held."
+    ),
 }
 
 
@@ -955,7 +969,7 @@ def check_deprecated_env_vars() -> None:
     """
     Abort startup when retired environment variables are still set.
 
-    Variables removed in v0.19.x are silently ignored by ``Settings``
+    Variables removed in v0.19.x and v0.20.0 are silently ignored by ``Settings``
     (``extra="ignore"``), so a leftover value would give the operator no
     feedback. Every offending variable is collected and reported together
     so the deployment can be fixed in a single pass rather than one restart

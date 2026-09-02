@@ -14,7 +14,6 @@ Key Features:
 import asyncio
 import json
 import os
-import re
 import time
 import zipfile
 from io import BytesIO
@@ -29,13 +28,9 @@ import infra.runtime as platform_runtime
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activities_integration
 import modules.activities.activity.schema as activity_schema
-import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.activities.activity_file_storage.service as activity_file_storage_service
-import modules.activities.activity_media.contracts as activity_media_contracts
-import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.activity_sets.schema as activity_sets_schema
-import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
+import modules.activities.activity_media.integration_service as activity_media_integration
+import modules.activities.contributor_registry as contributor_registry
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.schema as gear_schema
 import modules.gears.gear_components.crud as gear_components_crud
@@ -67,9 +62,6 @@ from modules.users.users_profile.exceptions import (
 )
 
 logger = core_logger.get_logger(__name__)
-
-# An activity media storage key: ``{activity_id}_{suffix}``, no path separators.
-_MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
 
 # Extensions accepted for a profile photo restored from an archive. Anything
 # else drops the photo rather than minting a key the upload path can't produce.
@@ -258,6 +250,8 @@ class ImportService:
                 del user_data, user_default_gear_data, user_integrations_data
                 del user_goals_data, user_privacy_settings_data
 
+                self._restore_global_activity_components(zipf)
+
                 # Load and import activities with their components
                 profile_utils.check_timeout(timeout_seconds, start_time, ImportTimeoutError, "Import")
 
@@ -339,6 +333,13 @@ class ImportService:
             error_msg = f"Failed to parse JSON from {filename}: {err}"
             logger.error(error_msg)
             raise JSONParseError(error_msg) from err
+
+    def _restore_global_activity_components(self, zipf: zipfile.ZipFile) -> None:
+        """Load and restore every global activity contribution once."""
+        for contributor in contributor_registry.profile_global_contributors():
+            records = self._load_single_json(zipf, contributor.archive_path, check_memory=False)
+            restored = contributor.restore(records, self.db)
+            self.counts[contributor.count_key] += restored
 
     def _read_zip_entry(
         self,
@@ -623,140 +624,25 @@ class ImportService:
 
     async def collect_and_import_activity_components(
         self,
-        activity_laps_data: list[Any],
-        activity_sets_data: list[Any],
-        activity_streams_data: list[Any],
-        activity_workout_steps_data: list[Any],
-        activity_media_data: list[Any],
-        activity_exercise_titles_data: list[Any],
+        component_data: dict[str, list[dict[str, Any]]],
         original_activity_id: int,
         new_activity: activity_schema.Activity,
     ) -> None:
-        """
-        Import all components for a single activity.
+        """Import contributed components for a single restored activity.
 
         Args:
-            activity_laps_data: Laps data for all activities.
-            activity_sets_data: Sets data for all activities.
-            activity_streams_data: Streams data.
-            activity_workout_steps_data: Workout steps data.
-            activity_media_data: Media data for all activities.
-            activity_exercise_titles_data: Exercise titles.
+            component_data: Records keyed by profile contributor key.
             original_activity_id: Old activity ID.
             new_activity: New activity object.
         """
-        # Import laps - filter for this activity
-        if activity_laps_data:
-            laps = []
-            laps_for_activity = [lap for lap in activity_laps_data if lap.get("activity_id") == original_activity_id]
-            for lap_data in laps_for_activity:
-                lap_data.pop("id", None)
-                lap_data["activity_id"] = new_activity.id
-                laps.append(lap_data)
-
-            if laps and new_activity.id is not None:
-                activities_integration.restore_activity_laps(laps, new_activity.id, self.db)
-                self.counts["activity_laps"] += len(laps)
-
-        # Import sets - filter for this activity
-        if activity_sets_data:
-            sets = []
-            sets_for_activity = [
-                activity_set
-                for activity_set in activity_sets_data
-                if activity_set.get("activity_id") == original_activity_id
-            ]
-            for activity_set in sets_for_activity:
-                activity_set.pop("id", None)
-                activity_set["activity_id"] = new_activity.id
-                set_activity = activity_sets_schema.ActivitySetsCreate(**activity_set)
-                sets.append(set_activity)
-
-            if sets and new_activity.id is not None:
-                activities_integration.restore_activity_sets(list(sets), new_activity.id, self.db)
-                self.counts["activity_sets"] += len(sets)
-
-        # Import streams - filter for this activity
-        if activity_streams_data:
-            streams = []
-            streams_for_activity = [
-                stream for stream in activity_streams_data if stream.get("activity_id") == original_activity_id
-            ]
-            for stream_data in streams_for_activity:
-                stream_data.pop("id", None)
-                stream_data["activity_id"] = new_activity.id
-                stream = activity_streams_schema.ActivityStreamsCreate(**stream_data)
-                streams.append(stream)
-
-            if streams:
-                activities_integration.restore_activity_streams(streams, new_activity, self.db)
-                self.counts["activity_streams"] += len(streams)
-
-        # Import workout steps
-        if activity_workout_steps_data:
-            steps = []
-            steps_for_activity = [
-                step for step in activity_workout_steps_data if step.get("activity_id") == original_activity_id
-            ]
-            for step_data in steps_for_activity:
-                step_data.pop("id", None)
-                step_data["activity_id"] = new_activity.id
-                step = activity_workout_steps_schema.ActivityWorkoutSteps(**step_data)
-                steps.append(step)
-
-            if steps and new_activity.id is not None:
-                activities_integration.restore_activity_workout_steps(steps, new_activity.id, self.db)
-                self.counts["activity_workout_steps"] += len(steps)
-
-        # Import media
-        if activity_media_data:
-            media = []
-            media_for_activity = [
-                media_item
-                for media_item in activity_media_data
-                if media_item.get("activity_id") == original_activity_id
-            ]
-            for media_data in media_for_activity:
-                # Re-key the storage key onto the new activity id; the blobs are
-                # restored under the same name by add_activity_media_from_zip.
-                # The archive is untrusted input, so the key must be a bare
-                # ``{activity_id}_{suffix}`` filename — a value carrying a path
-                # separator would address a blob outside the flat media area,
-                # where deletion cleanup would never find it again.
-                old_key = media_data.get("media_path", None)
-                if not old_key:
-                    continue
-                match = _MEDIA_KEY_PATTERN.fullmatch(str(old_key))
-                if match is None:
-                    logger.warning(f"Skipping activity media with invalid key: {old_key}")
-                    continue
-
-                media.append(
-                    activity_media_contracts.ActivityMediaCreate(
-                        media_path=f"{new_activity.id}_{match.group('suffix')}",
-                        media_type=media_data.get("media_type", 1),
-                    )
-                )
-
-            if media and new_activity.id is not None:
-                activities_integration.restore_activity_media(media, new_activity.id, self.db)
-                self.counts["activity_media"] += len(media)
-
-        # Import exercise titles
-        if activity_exercise_titles_data:
-            titles = []
-            exercise_titles_for_activity = [
-                title for title in activity_exercise_titles_data if title.get("activity_id") == original_activity_id
-            ]
-            for title_data in exercise_titles_for_activity:
-                title_data.pop("id", None)
-                title_data["activity_id"] = new_activity.id
-                title = activity_exercise_titles_schema.ActivityExerciseTitles(**title_data)
-                titles.append(title)
-
-            if titles:
-                activities_integration.restore_exercise_titles(titles, self.db)
-                self.counts["activity_exercise_titles"] += len(titles)
+        for contributor in contributor_registry.profile_activity_contributors():
+            restored = contributor.restore(
+                component_data.get(contributor.key, []),
+                original_activity_id,
+                new_activity,
+                self.db,
+            )
+            self.counts[contributor.count_key] += restored
 
     async def collect_and_import_activities_data_batched(
         self,
@@ -798,19 +684,21 @@ class ImportService:
                 f"Maximum allowed: {self.performance_config.max_activities}"
             )
 
-        # Load small component files that won't cause memory issues
-        activity_workout_steps_data = self._load_single_json(
-            zipf, "data/activity_workout_steps.json", check_memory=False
-        )
-        activity_media_data = self._load_single_json(zipf, "data/activity_media.json", check_memory=False)
-        activity_exercise_titles_data = self._load_single_json(
-            zipf, "data/activity_exercise_titles.json", check_memory=False
-        )
-
-        # Get list of split files for large components
-        laps_files = self._get_split_files_list(file_list, "data/activity_laps")
-        sets_files = self._get_split_files_list(file_list, "data/activity_sets")
-        streams_files = self._get_split_files_list(file_list, "data/activity_streams")
+        contributors = contributor_registry.profile_activity_contributors()
+        component_files: dict[str, list[str]] = {}
+        component_records: dict[str, list[Any]] = {}
+        for contributor in contributors:
+            if contributor.split:
+                component_files[contributor.key] = self._get_split_files_list(
+                    file_list,
+                    contributor.archive_path.removesuffix(".json"),
+                )
+            else:
+                component_records[contributor.key] = self._load_single_json(
+                    zipf,
+                    contributor.archive_path,
+                    check_memory=False,
+                )
 
         logger.info(f"Importing {len(activities_data)} activities with batched component loading")
 
@@ -826,10 +714,20 @@ class ImportService:
                 f"Processing activities batch {batch_start // batch_size + 1}: activities {batch_start}-{batch_end}"
             )
 
-            # Load components for this batch only
-            batch_laps = self._load_components_for_batch(zipf, laps_files, activities_batch, "laps")
-            batch_sets = self._load_components_for_batch(zipf, sets_files, activities_batch, "sets")
-            batch_streams = self._load_components_for_batch(zipf, streams_files, activities_batch, "streams")
+            batch_components: dict[str, list[dict[str, Any]]] = {}
+            for contributor in contributors:
+                if contributor.split:
+                    batch_components[contributor.key] = self._load_components_for_batch(
+                        zipf,
+                        component_files[contributor.key],
+                        activities_batch,
+                        contributor.key,
+                    )
+                else:
+                    batch_components[contributor.key] = self._filter_components_for_batch(
+                        component_records.get(contributor.key, []),
+                        activities_batch,
+                    )
 
             # Import activities in this batch
             for activity_data in activities_batch:
@@ -853,12 +751,7 @@ class ImportService:
 
                     # Import activity components using batch-loaded data
                     await self.collect_and_import_activity_components(
-                        batch_laps,
-                        batch_sets,
-                        batch_streams,
-                        activity_workout_steps_data,
-                        activity_media_data,
-                        activity_exercise_titles_data,
+                        batch_components,
                         original_activity_id,
                         new_activity,
                     )
@@ -866,7 +759,7 @@ class ImportService:
                 self.counts["activities"] += 1
 
             # Clear batch data from memory
-            del batch_laps, batch_sets, batch_streams
+            del batch_components
             profile_utils.check_memory_usage(
                 f"activities batch {batch_start // batch_size + 1}",
                 self.performance_config.max_memory_mb,
@@ -875,6 +768,19 @@ class ImportService:
 
         logger.info(f"Imported {self.counts['activities']} activities")
         return activities_id_mapping
+
+    @staticmethod
+    def _filter_components_for_batch(
+        records: list[Any],
+        activities_batch: list[Any],
+    ) -> list[dict[str, Any]]:
+        """Filter in-memory component records to the current activity batch."""
+        activity_ids = {
+            activity.get("id")
+            for activity in activities_batch
+            if isinstance(activity, dict) and activity.get("id") is not None
+        }
+        return [record for record in records if isinstance(record, dict) and record.get("activity_id") in activity_ids]
 
     def _get_split_files_list(self, file_list: set[str], base_filename: str) -> list[str]:
         """
@@ -927,8 +833,15 @@ class ImportService:
         for filename in component_files:
             try:
                 components = json.loads(self._read_zip_entry(zipf, filename))
+                if not isinstance(components, list):
+                    logger.warning(f"Expected list in {filename}, got {type(components).__name__}")
+                    continue
                 # Only keep components for activities in this batch
-                filtered = [comp for comp in components if comp.get("activity_id") in batch_activity_ids]
+                filtered = [
+                    component
+                    for component in components
+                    if isinstance(component, dict) and component.get("activity_id") in batch_activity_ids
+                ]
                 all_components.extend(filtered)
 
                 if filtered:
@@ -1075,7 +988,7 @@ class ImportService:
                         logger.warning(f"Profile import dropped invalid activity file {new_file_name}: {err.detail}")
                         continue
                     await asyncio.to_thread(
-                        activity_file_storage_service.store_activity_file,
+                        file_storage_integration.store_activity_file,
                         new_id,
                         ext,
                         file_bytes,
@@ -1142,10 +1055,12 @@ class ImportService:
                                 f"Profile import dropped invalid activity media {new_file_name}: {err.detail}"
                             )
                             continue
-                        platform_runtime.get_active_platform().storage.save(
-                            activity_media_signing.MEDIA_STORAGE_AREA,
-                            new_file_name,
+                        activity_media_integration.store_media_blob(
+                            new_id,
+                            suffix,
+                            ext,
                             file_bytes,
+                            platform_runtime.get_active_platform().storage,
                         )
                         self.counts["media"] += 1
                     except ValueError:

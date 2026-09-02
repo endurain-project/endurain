@@ -4,7 +4,6 @@ from collections import defaultdict
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any, cast
-from urllib.parse import unquote
 
 from pydantic import BaseModel
 from sqlalchemy import (
@@ -38,23 +37,21 @@ import modules.activities.activity.models as activities_models
 import modules.activities.activity.query as activities_query
 import modules.activities.activity.schema as activities_schema
 import modules.activities.activity.serializers as activities_serializers
-import modules.followers.integration_service as followers_integration
-import modules.server_settings.utils as server_settings_utils
 
 logger = core_logger.get_logger(__name__)
 
-# Mapping from frontend sort keys to model columns
-SORT_MAP = {
-    "type": activities_models.Activity.activity_type,
-    "name": activities_models.Activity.name,
-    "start_time": activities_models.Activity.start_time,
-    "duration": activities_models.Activity.total_timer_time,
-    "distance": activities_models.Activity.distance,
-    "calories": activities_models.Activity.calories,
-    "elevation": activities_models.Activity.elevation_gain,
-    "pace": activities_models.Activity.pace,
-    "average_hr": activities_models.Activity.average_hr,
+# Frontend sort keys resolved to their model columns. Derived from the single
+# vocabulary in ``constants`` rather than restated, so a key the transport layer
+# accepts always has an ordering here.
+SORT_MAP: dict[str, tuple[Any, ...]] = {
+    key: tuple(getattr(activities_models.Activity, name) for name in column_names)
+    for key, column_names in activities_constants.ACTIVITY_SORT_FIELDS.items()
 }
+
+_DEFAULT_SORT_COLUMNS = SORT_MAP[activities_constants.DEFAULT_ACTIVITY_SORT_FIELD]
+
+# Sorts below every real value, so NULLs land last.
+_NULL_SORT_SENTINEL = -999999
 
 # Columns that need COALESCE-with-sentinel so NULLs sort last
 _NUMERIC_SORT_COLUMNS = {
@@ -66,13 +63,45 @@ _NUMERIC_SORT_COLUMNS = {
     activities_models.Activity.average_hr,
 }
 
+# Text columns coalesced to "" so an unset place name orders with the empty ones
+# instead of wherever the backend happens to put NULL.
+_TEXT_SORT_COLUMNS = {
+    activities_models.Activity.country,
+    activities_models.Activity.city,
+    activities_models.Activity.town,
+}
+
+
+def _sort_order_by(sort_by: str | None, sort_order: str | None) -> list[Any]:
+    """Build the ORDER BY clauses for an activity list request.
+
+    Args:
+        sort_by: The requested sort key, already validated by the transport layer.
+        sort_order: ``asc`` or ``desc``; anything else orders descending.
+
+    Returns:
+        One clause per column the key orders by, highest precedence first.
+    """
+    ascending = bool(sort_order and sort_order.lower() == "asc")
+    columns = SORT_MAP.get(sort_by or "", _DEFAULT_SORT_COLUMNS)
+    clauses = []
+    for column in columns:
+        if column in _NUMERIC_SORT_COLUMNS:
+            ordered = func.coalesce(column, _NULL_SORT_SENTINEL)
+        elif column in _TEXT_SORT_COLUMNS:
+            ordered = func.coalesce(column, "")
+        else:
+            ordered = column
+        clauses.append(ordered.asc() if ascending else ordered.desc())
+    return clauses
+
 
 def _is_not_live_strava_api_activity():
     """Return the policy predicate excluding live Strava API data."""
     return activities_models.Activity.strava_activity_id.is_(None)
 
 
-def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
+def _visible_to_requester_condition(followee_ids: Sequence[int] | None):
     """Build the non-owner activity visibility condition.
 
     Live Strava API data is owner-only under the Strava API Policy, regardless
@@ -80,26 +109,27 @@ def _visible_to_requester_condition(requester_user_id: int | None, db: Session):
     the user does not populate ``strava_activity_id`` and remains governed by
     the normal visibility rules.
 
+    Takes the requester's accepted followees already resolved, rather than a
+    user id plus a session: answering "who does this person follow?" is a
+    question for another bounded context, and a ``SELECT`` that has to ask it
+    first is a service decision wearing a persistence layer's clothes.
+
     Args:
-        requester_user_id: Requesting user ID, or None for an
-            anonymous/public-only read.
-        db: Database session, used to resolve the requester's accepted
-            followees through the followers service interface.
+        followee_ids: The requester's accepted-followee user ids, or ``None``
+            for an anonymous/public-only read.
 
     Returns:
         SQLAlchemy condition limiting rows to public or accepted
         follower-visible activities.
     """
     visibility_conditions = [activities_models.Activity.visibility == 0]
-    if requester_user_id is not None:
-        followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-        if followee_ids:
-            visibility_conditions.append(
-                and_(
-                    activities_models.Activity.visibility == 1,
-                    activities_models.Activity.user_id.in_(followee_ids),
-                )
+    if followee_ids:
+        visibility_conditions.append(
+            and_(
+                activities_models.Activity.visibility == 1,
+                activities_models.Activity.user_id.in_(followee_ids),
             )
+        )
 
     return and_(
         activities_models.Activity.is_hidden.is_(False),
@@ -112,8 +142,7 @@ def _apply_activity_visibility_filter(
     stmt,
     *,
     user_is_owner: bool,
-    requester_user_id: int | None,
-    db: Session,
+    followee_ids: Sequence[int] | None,
 ):
     """Apply non-owner visibility filtering to an activity query.
 
@@ -121,9 +150,8 @@ def _apply_activity_visibility_filter(
         stmt: SQLAlchemy select statement.
         user_is_owner: Whether the requester owns all candidate
             rows.
-        requester_user_id: Requesting user ID for follower checks.
-        db: Database session, used to resolve the requester's accepted
-            followees through the followers service interface.
+        followee_ids: The requester's accepted-followee user ids, resolved by
+            the caller.
 
     Returns:
         The original statement for owner reads, otherwise a
@@ -131,143 +159,7 @@ def _apply_activity_visibility_filter(
     """
     if user_is_owner:
         return stmt
-    return stmt.where(_visible_to_requester_condition(requester_user_id, db))
-
-
-def _transform_schema_activity_to_model_activity(
-    activity: activities_schema.ActivityBase,
-) -> activities_models.Activity:
-    # Use an explicit UTC-aware created_at when provided,
-    # otherwise let the database stamp the row with now().
-    created_date = core_timezone.to_utc_aware(activity.created_at) if activity.created_at is not None else func.now()
-
-    # Sanitize markdown fields to prevent XSS
-    sanitized_description = core_sanitization.sanitize_markdown(activity.description)
-    sanitized_private_notes = core_sanitization.sanitize_markdown(activity.private_notes)
-
-    # Create a new activity object
-    new_activity = activities_models.Activity(
-        user_id=activity.user_id,
-        description=sanitized_description,
-        private_notes=sanitized_private_notes,
-        distance=activity.distance,
-        name=activity.name,
-        activity_type=activity.activity_type,
-        start_time=core_timezone.to_utc_aware(activity.start_time),
-        end_time=core_timezone.to_utc_aware(activity.end_time),
-        timezone=activity.timezone,
-        total_elapsed_time=activity.total_elapsed_time,
-        total_timer_time=(
-            activity.total_timer_time if activity.total_timer_time is not None else activity.total_elapsed_time
-        ),
-        city=activity.city,
-        town=activity.town,
-        country=activity.country,
-        created_at=created_date,
-        elevation_gain=activity.elevation_gain,
-        elevation_loss=activity.elevation_loss,
-        pace=activity.pace,
-        average_speed=activity.average_speed,
-        max_speed=activity.max_speed,
-        average_power=activity.average_power,
-        max_power=activity.max_power,
-        normalized_power=activity.normalized_power,
-        average_hr=activity.average_hr,
-        max_hr=activity.max_hr,
-        average_cad=activity.average_cad,
-        max_cad=activity.max_cad,
-        workout_feeling=activity.workout_feeling,
-        workout_rpe=activity.workout_rpe,
-        calories=activity.calories,
-        visibility=activity.visibility,
-        gear_id=activity.gear_id,
-        strava_gear_id=activity.strava_gear_id,
-        strava_activity_id=activity.strava_activity_id,
-        garminconnect_activity_id=activity.garminconnect_activity_id,
-        garminconnect_gear_id=activity.garminconnect_gear_id,
-        import_info=activity.import_info,
-        is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
-        hide_start_time=activity.hide_start_time,
-        hide_location=activity.hide_location,
-        hide_map=activity.hide_map,
-        hide_hr=activity.hide_hr,
-        hide_power=activity.hide_power,
-        hide_cadence=activity.hide_cadence,
-        hide_elevation=activity.hide_elevation,
-        hide_speed=activity.hide_speed,
-        hide_pace=activity.hide_pace,
-        hide_laps=activity.hide_laps,
-        hide_workout_sets_steps=activity.hide_workout_sets_steps,
-        hide_gear=activity.hide_gear,
-        tracker_manufacturer=activity.tracker_manufacturer,
-        tracker_model=activity.tracker_model,
-        total_cycles=activity.total_cycles,
-    )
-
-    return new_activity
-
-
-def _serialize_and_mask(
-    activities: list[activities_models.Activity],
-    *,
-    requester_user_id: int | None = None,
-    force_non_owner: bool = False,
-    mask_private_notes: bool = True,
-) -> list[activities_schema.Activity]:
-    """Serialize ORM rows and apply visibility masking.
-
-    Args:
-        activities: ORM Activity rows.
-        requester_user_id: ID of requesting user; treated as
-            owner when matches the row's user_id. Ignored when
-            ``force_non_owner`` is True.
-        force_non_owner: When True, every row is masked as if
-            the requester is not the owner.
-        mask_private_notes: Whether to mask ``private_notes``
-            for non-owners.
-
-    Returns:
-        List of Activity schema instances with visibility
-        masking applied.
-    """
-    result: list[activities_schema.Activity] = []
-    for orm_activity in activities:
-        schema = activities_serializers.serialize_activity(orm_activity)
-        is_owner = not force_non_owner and requester_user_id is not None and orm_activity.user_id == requester_user_id
-        activities_serializers.apply_visibility_mask(
-            schema,
-            is_owner=is_owner,
-            mask_private_notes=mask_private_notes,
-        )
-        result.append(schema)
-    return result
-
-
-def _apply_name_search(
-    stmt,
-    name_search: str,
-):
-    """Add a case-insensitive LIKE search across name/location.
-
-    Escapes ``%``/``_`` so user input cannot inject wildcards.
-
-    Args:
-        stmt: SQLAlchemy ``select()`` statement.
-        name_search: URL-encoded search term.
-
-    Returns:
-        Updated select statement.
-    """
-    raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{activities_query.escape_like(raw)}%"
-    return stmt.where(
-        or_(
-            func.lower(activities_models.Activity.name).like(pattern, escape="\\"),
-            func.lower(activities_models.Activity.town).like(pattern, escape="\\"),
-            func.lower(activities_models.Activity.city).like(pattern, escape="\\"),
-            func.lower(activities_models.Activity.country).like(pattern, escape="\\"),
-        )
-    )
+    return stmt.where(_visible_to_requester_condition(followee_ids))
 
 
 @core_decorators.handle_db_errors
@@ -336,7 +228,7 @@ def get_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool = True,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get activities owned by a user (with optional filters).
 
@@ -349,8 +241,8 @@ def get_user_activities(
         name_search: Optional case-insensitive name search.
         user_is_owner: When False, private (visibility=2) and
             hidden activities are excluded from the result.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when no matches.
@@ -362,8 +254,7 @@ def get_user_activities(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     if activity_type:
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -371,13 +262,13 @@ def get_user_activities(
     # user filtering "1 May" gets their 1 May, not UTC's.
     stmt = stmt.where(*activities_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
     if name_search:
-        stmt = _apply_name_search(stmt, name_search)
+        stmt = stmt.where(activities_query.name_search_condition(name_search))
     stmt = stmt.order_by(desc(activities_models.Activity.start_time))
 
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id if user_is_owner else None,
         force_non_owner=not user_is_owner,
@@ -393,7 +284,7 @@ def count_user_activities(
     end_date: date | None = None,
     name_search: str | None = None,
     user_is_owner: bool = True,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> int:
     """Count activities owned by a user (with optional filters).
 
@@ -409,8 +300,8 @@ def count_user_activities(
         name_search: Optional case-insensitive name search.
         user_is_owner: When False, private (visibility=2) and
             hidden activities are excluded from the count.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         Number of matching activities.
@@ -426,8 +317,7 @@ def count_user_activities(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     if activity_type:
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -435,7 +325,7 @@ def count_user_activities(
     # user filtering "1 May" gets their 1 May, not UTC's.
     stmt = stmt.where(*activities_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
     if name_search:
-        stmt = _apply_name_search(stmt, name_search)
+        stmt = stmt.where(activities_query.name_search_condition(name_search))
     count = db.execute(stmt).scalar()
     return count or 0
 
@@ -467,7 +357,7 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id,
     )
@@ -486,7 +376,7 @@ def get_user_activities_with_pagination(
     sort_by: str | None = None,
     sort_order: str | None = None,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get a page of user activities with filters and sorting.
 
@@ -503,8 +393,8 @@ def get_user_activities_with_pagination(
         sort_order: ``asc`` or ``desc``.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when empty.
@@ -518,8 +408,7 @@ def get_user_activities_with_pagination(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     if activity_type:
         stmt = stmt.where(activities_models.Activity.activity_type == activity_type)
@@ -527,32 +416,16 @@ def get_user_activities_with_pagination(
     # user filtering "1 May" gets their 1 May, not UTC's.
     stmt = stmt.where(*activities_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
     if name_search:
-        stmt = _apply_name_search(stmt, name_search)
+        stmt = stmt.where(activities_query.name_search_condition(name_search))
 
-    sort_ascending = bool(sort_order and sort_order.lower() == "asc")
-
-    if sort_by == "location":
-        location_cols = [
-            func.coalesce(activities_models.Activity.country, ""),
-            func.coalesce(activities_models.Activity.city, ""),
-            func.coalesce(activities_models.Activity.town, ""),
-        ]
-        order_cols = [col.asc() if sort_ascending else col.desc() for col in location_cols]
-        stmt = stmt.order_by(*order_cols)
-    else:
-        sort_column = SORT_MAP.get(sort_by or "", activities_models.Activity.start_time)
-        if sort_column in _NUMERIC_SORT_COLUMNS:
-            ordered = func.coalesce(sort_column, -999999)
-            stmt = stmt.order_by(ordered.asc() if sort_ascending else ordered.desc())
-        else:
-            stmt = stmt.order_by(sort_column.asc() if sort_ascending else sort_column.desc())
+    stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order))
 
     stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
 
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id if user_is_owner else None,
         force_non_owner=not user_is_owner,
@@ -594,7 +467,7 @@ def get_user_activities_per_timeframe(
     end: datetime,
     db: Session,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
 ) -> list[activities_schema.Activity] | None:
     """Get a user's activities within a date range.
 
@@ -605,8 +478,8 @@ def get_user_activities_per_timeframe(
         db: Database session.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
 
     Returns:
         List of activity schemas or None when empty.
@@ -625,67 +498,12 @@ def get_user_activities_per_timeframe(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
-    return _serialize_and_mask(
-        list(activities),
-        requester_user_id=user_id if user_is_owner else None,
-        force_non_owner=not user_is_owner,
-    )
-
-
-@core_decorators.handle_db_errors
-def get_user_activities_per_timeframe_and_activity_type(
-    user_id: int,
-    activity_type: int,
-    start: datetime,
-    end: datetime,
-    db: Session,
-    user_is_owner: bool = False,
-    requester_user_id: int | None = None,
-) -> list[activities_schema.Activity] | None:
-    """Get a user's activities within a date range by type.
-
-    Args:
-        user_id: Owner user ID.
-        activity_type: Activity type to filter by.
-        start: Inclusive start datetime.
-        end: Inclusive end datetime.
-        db: Database session.
-        user_is_owner: When False, private/hidden activities
-            are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    stmt = (
-        select(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id == user_id,
-            activities_models.Activity.activity_type == activity_type,
-            *activities_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
-        )
-        .order_by(desc(activities_models.Activity.start_time))
-    )
-    stmt = _apply_activity_visibility_filter(
-        stmt,
-        user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id if user_is_owner else None,
         force_non_owner=not user_is_owner,
@@ -700,7 +518,7 @@ def get_user_activities_per_timeframe_and_activity_types(
     end: datetime,
     db: Session,
     user_is_owner: bool = False,
-    requester_user_id: int | None = None,
+    followee_ids: Sequence[int] | None = None,
     exclude_hidden: bool = False,
 ) -> list[activities_schema.Activity]:
     """Get a user's activities within a date range by types.
@@ -713,8 +531,8 @@ def get_user_activities_per_timeframe_and_activity_types(
         db: Database session.
         user_is_owner: When False, private/hidden activities
             are excluded.
-        requester_user_id: Requesting user ID used to authorize
-            followers-only rows when ``user_is_owner`` is False.
+        followee_ids: The requester's accepted-followee user ids, resolved
+            by the caller; ``None`` for an owner-only or anonymous read.
         exclude_hidden: When True, hidden activities are excluded
             even for owner requests.
 
@@ -738,57 +556,16 @@ def get_user_activities_per_timeframe_and_activity_types(
     stmt = _apply_activity_visibility_filter(
         stmt,
         user_is_owner=user_is_owner,
-        requester_user_id=requester_user_id,
-        db=db,
+        followee_ids=followee_ids,
     )
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return []
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id if user_is_owner else None,
         force_non_owner=not user_is_owner,
     )
-
-
-@core_decorators.handle_db_errors
-def get_user_following_activities_with_pagination(
-    followee_ids: list[int], page_number: int, num_records: int, db: Session
-) -> list[activities_schema.Activity] | None:
-    """Get a page of activities from a set of followed users.
-
-    Args:
-        followee_ids: The requester's accepted-followee user ids, resolved by the
-            caller through the followers service interface (kept out of the ORM
-            layer so the feed's cross-domain dependency lives in the service).
-        page_number: 1-based page number.
-        num_records: Records per page.
-        db: Database session.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    if not followee_ids:
-        return None
-    stmt = (
-        select(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id.in_(followee_ids),
-            activities_models.Activity.visibility.in_([0, 1]),
-            activities_models.Activity.is_hidden.is_(False),
-            _is_not_live_strava_api_activity(),
-        )
-        .order_by(desc(activities_models.Activity.start_time))
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return _serialize_and_mask(list(activities), force_non_owner=True)
 
 
 @core_decorators.handle_db_errors
@@ -835,7 +612,7 @@ def get_following_feed_after(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return []
-    masked = _serialize_and_mask(list(activities), force_non_owner=True)
+    masked = activities_serializers.serialize_and_mask(list(activities), force_non_owner=True)
     return [
         activities_contracts.ActivityFeedEntry(
             activity=item,
@@ -844,68 +621,6 @@ def get_following_feed_after(
         )
         for orm_activity, item in zip(activities, masked, strict=True)
     ]
-
-
-@core_decorators.handle_db_errors
-def get_user_following_activities(user_id: int, db: Session) -> list[activities_schema.Activity] | None:
-    """Get all activities from users a user follows.
-
-    Args:
-        user_id: Requesting user ID.
-        db: Database session.
-
-    Returns:
-        List of activity schemas or None when empty.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    followee_ids = followers_integration.list_accepted_followee_ids(user_id, db)
-    if not followee_ids:
-        return None
-    stmt = select(activities_models.Activity).where(
-        activities_models.Activity.user_id.in_(followee_ids),
-        activities_models.Activity.visibility.in_([0, 1]),
-        activities_models.Activity.is_hidden.is_(False),
-        _is_not_live_strava_api_activity(),
-    )
-    activities = db.execute(stmt).scalars().all()
-    if not activities:
-        return None
-    return [activities_serializers.serialize_activity(a) for a in activities]
-
-
-@core_decorators.handle_db_errors
-def count_user_following_activities(followee_ids: list[int], db: Session) -> int:
-    """Count activities from a set of followed users.
-
-    Uses a SQL ``COUNT(*)`` so counting never loads or serializes rows.
-
-    Args:
-        followee_ids: The requester's accepted-followee user ids, resolved by the
-            caller through the followers service interface.
-        db: Database session.
-
-    Returns:
-        Number of following-feed activities.
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    if not followee_ids:
-        return 0
-    stmt = (
-        select(func.count())
-        .select_from(activities_models.Activity)
-        .where(
-            activities_models.Activity.user_id.in_(followee_ids),
-            activities_models.Activity.visibility.in_([0, 1]),
-            activities_models.Activity.is_hidden.is_(False),
-            _is_not_live_strava_api_activity(),
-        )
-    )
-    count = db.execute(stmt).scalar()
-    return count or 0
 
 
 @core_decorators.handle_db_errors
@@ -967,7 +682,7 @@ def get_user_activities_by_gear_id_and_user_id(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id,
     )
@@ -1009,7 +724,7 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
     activities = db.execute(stmt).scalars().all()
     if not activities:
         return None
-    return _serialize_and_mask(
+    return activities_serializers.serialize_and_mask(
         list(activities),
         requester_user_id=user_id,
     )
@@ -1095,7 +810,7 @@ def sum_gear_usage_by_window(
 
 @core_decorators.handle_db_errors
 def get_activity_by_id_from_user_id_or_has_visibility(
-    activity_id: int, user_id: int, db: Session
+    activity_id: int, user_id: int, db: Session, followee_ids: Sequence[int] | None = None
 ) -> activities_schema.Activity | None:
     """Get an activity by ID if owned or visible to the user.
 
@@ -1103,6 +818,8 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         activity_id: Activity ID.
         user_id: Requesting user ID.
         db: Database session.
+        followee_ids: The requester's accepted-followee user ids, resolved by
+            the caller.
 
     Returns:
         Activity schema or None if not found / not visible.
@@ -1113,7 +830,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     stmt = select(activities_models.Activity).where(
         or_(
             activities_models.Activity.user_id == user_id,
-            _visible_to_requester_condition(user_id, db),
+            _visible_to_requester_condition(followee_ids),
         ),
         activities_models.Activity.id == activity_id,
     )
@@ -1128,7 +845,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 
 @core_decorators.handle_db_errors
 def get_viewable_activity_by_id_for_user(
-    activity_id: int, user_id: int, db: Session
+    activity_id: int, user_id: int, db: Session, followee_ids: Sequence[int] | None = None
 ) -> activities_schema.Activity | None:
     """Return an activity (unmasked) iff the user may view it — child-resource authz gate.
 
@@ -1149,6 +866,8 @@ def get_viewable_activity_by_id_for_user(
         activity_id: Activity ID.
         user_id: Requesting user ID.
         db: Database session.
+        followee_ids: The requester's accepted-followee user ids, resolved by
+            the caller.
 
     Returns:
         The activity schema when the user may view it, otherwise ``None``.
@@ -1159,7 +878,7 @@ def get_viewable_activity_by_id_for_user(
     stmt = select(activities_models.Activity).where(
         or_(
             activities_models.Activity.user_id == user_id,
-            _visible_to_requester_condition(user_id, db),
+            _visible_to_requester_condition(followee_ids),
         ),
         activities_models.Activity.id == activity_id,
     )
@@ -1173,6 +892,10 @@ def get_viewable_activity_by_id_for_user(
 def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities_schema.Activity | None:
     """Get an activity by ID if it is publicly shareable.
 
+    Answers only the row-level question. Whether the server allows public
+    shareable links at all is a policy the caller checks first — asking another
+    module mid-``SELECT`` is a service decision, not a persistence one.
+
     Args:
         activity_id: Activity ID.
         db: Database session.
@@ -1183,10 +906,6 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
     Raises:
         ProcessingError: On database error.
     """
-    server_settings = server_settings_utils.get_server_settings_or_404(db)
-    if not server_settings.public_shareable_links:
-        return None
-
     stmt = select(activities_models.Activity).where(
         activities_models.Activity.visibility == 0,
         activities_models.Activity.is_hidden.is_(False),
@@ -1214,9 +933,9 @@ def get_public_activity_for_child_read(
     child rows are served anonymously:
 
     1. The activity itself is publicly shareable — delegated to
-       :func:`get_activity_by_id_if_is_public`, which enforces the server-wide
-       ``public_shareable_links`` setting, ``visibility == 0`` **and**
-       ``is_hidden is False``.
+       :func:`get_activity_by_id_if_is_public`, which enforces ``visibility == 0``
+       **and** ``is_hidden is False``. The server-wide ``public_shareable_links``
+       setting is checked by the caller, before this is reached.
     2. The per-activity privacy flag guarding this particular child resource
        (e.g. ``hide_laps``, ``hide_workout_sets_steps``) is not set.
 
@@ -1330,6 +1049,73 @@ def get_activity_by_dedup_key(dedup_key: str, user_id: int, db: Session) -> acti
     if not activity:
         return None
     return activities_serializers.serialize_activity(activity)
+
+
+def _to_scoring_context(row) -> activities_contracts.ActivityScoringContext:
+    """Convert one activity projection row to its scoring context."""
+    activity_id, owner_id, total_timer_time = row
+    return activities_contracts.ActivityScoringContext(
+        activity_id=activity_id,
+        owner_id=owner_id,
+        total_timer_time=float(total_timer_time) if total_timer_time is not None else None,
+    )
+
+
+@core_decorators.handle_db_errors
+def get_activity_scoring_context(
+    activity_id: int,
+    db: Session,
+) -> activities_contracts.ActivityScoringContext | None:
+    """Return parent columns needed to score an activity's streams."""
+    stmt = select(
+        activities_models.Activity.id,
+        activities_models.Activity.user_id,
+        activities_models.Activity.total_timer_time,
+    ).where(activities_models.Activity.id == activity_id)
+    row = db.execute(stmt).first()
+    return _to_scoring_context(row) if row is not None else None
+
+
+@core_decorators.handle_db_errors
+def get_activity_scoring_contexts(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, activities_contracts.ActivityScoringContext]:
+    """Return scoring contexts keyed by activity id."""
+    if not activity_ids:
+        return {}
+    stmt = select(
+        activities_models.Activity.id,
+        activities_models.Activity.user_id,
+        activities_models.Activity.total_timer_time,
+    ).where(activities_models.Activity.id.in_(activity_ids))
+    contexts = (_to_scoring_context(row) for row in db.execute(stmt).all())
+    return {context.activity_id: context for context in contexts}
+
+
+@core_decorators.handle_db_errors
+def list_user_activity_scoring_contexts(
+    user_id: int,
+    db: Session,
+    *,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[activities_contracts.ActivityScoringContext]:
+    """Return an id-ordered batch of one user's activity scoring contexts."""
+    stmt = (
+        select(
+            activities_models.Activity.id,
+            activities_models.Activity.user_id,
+            activities_models.Activity.total_timer_time,
+        )
+        .where(
+            activities_models.Activity.user_id == user_id,
+            activities_models.Activity.id > after_id,
+        )
+        .order_by(activities_models.Activity.id)
+        .limit(batch_size)
+    )
+    return [_to_scoring_context(row) for row in db.execute(stmt).all()]
 
 
 @core_decorators.handle_db_errors
@@ -1456,7 +1242,7 @@ def create_activity(
 
     activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
 
-    new_activity = _transform_schema_activity_to_model_activity(activity)
+    new_activity = activities_serializers.deserialize_activity(activity)
     # Flagged on the ORM row rather than on the caller's input: ``create_activity``
     # takes the write contract and must not mutate it (nor could it set the read
     # model's ``id``/``created_at`` there — those fields do not exist on the
@@ -1624,22 +1410,36 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
 
 def get_activities_with_thumbnail(
     db: Session,
+    after_id: int = 0,
+    limit: int = 500,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have a map thumbnail.
 
+    Ordered by id and paged via ``after_id`` so the thumbnail reconciliation pass
+    walks the table in bounded batches instead of materialising every row.
+
     Args:
         db: Database session.
+        after_id: Return only activities with ``id`` greater than this.
+        limit: Maximum number of rows to return.
 
     Returns:
         Thumbnail references (id + stored key) for rows with
         ``map_thumbnail_path`` set, or an empty list on error.
     """
     try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.isnot(None))
-        rows = db.execute(stmt).scalars().all()
+        stmt = (
+            select(activities_models.Activity.id, activities_models.Activity.map_thumbnail_path)
+            .where(
+                activities_models.Activity.map_thumbnail_path.isnot(None),
+                activities_models.Activity.id > after_id,
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
         return [
             activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
-            for row in rows
+            for row in db.execute(stmt)
         ]
     except SQLAlchemyError as err:
         logger.error(
@@ -1652,22 +1452,37 @@ def get_activities_with_thumbnail(
 
 def get_activities_without_thumbnail(
     db: Session,
+    after_id: int = 0,
+    limit: int = 500,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have no map thumbnail.
 
+    Ordered by id and paged via ``after_id``. The caller advances the cursor
+    rather than re-reading from zero: a batch whose thumbnails all fail to render
+    still has to be stepped over, or the pass loops on it forever.
+
     Args:
         db: Database session.
+        after_id: Return only activities with ``id`` greater than this.
+        limit: Maximum number of rows to return.
 
     Returns:
         Thumbnail references (id, with a null key) for rows with
         ``map_thumbnail_path`` set to NULL, or an empty list on error.
     """
     try:
-        stmt = select(activities_models.Activity).where(activities_models.Activity.map_thumbnail_path.is_(None))
-        rows = db.execute(stmt).scalars().all()
+        stmt = (
+            select(activities_models.Activity.id, activities_models.Activity.map_thumbnail_path)
+            .where(
+                activities_models.Activity.map_thumbnail_path.is_(None),
+                activities_models.Activity.id > after_id,
+            )
+            .order_by(activities_models.Activity.id)
+            .limit(limit)
+        )
         return [
             activities_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
-            for row in rows
+            for row in db.execute(stmt)
         ]
     except SQLAlchemyError as err:
         logger.error(
@@ -1873,39 +1688,6 @@ def bulk_set_activities_gear_id(
     if commit:
         db.commit()
     return updated_ids
-
-
-@core_decorators.handle_db_errors
-def update_activity_gear_id(
-    activity_id: int,
-    user_id: int,
-    gear_id: int | None,
-    db: Session,
-) -> None:
-    """Set the gear_id on a single activity.
-
-    Args:
-        activity_id: Activity ID.
-        user_id: Owner user ID.
-        gear_id: Gear ID to associate, or None to clear.
-        db: Database session.
-
-    Returns:
-        None
-
-    Raises:
-        ProcessingError: On database error.
-    """
-    stmt = (
-        sa_update(activities_models.Activity)
-        .where(
-            activities_models.Activity.id == activity_id,
-            activities_models.Activity.user_id == user_id,
-        )
-        .values(gear_id=gear_id, version=activities_models.Activity.version + 1)
-    )
-    db.execute(stmt)
-    db.commit()
 
 
 @core_decorators.handle_db_errors

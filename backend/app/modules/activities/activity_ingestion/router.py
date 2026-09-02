@@ -25,7 +25,6 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.logger as core_logger
 import core.rate_limit as core_rate_limit
-import modules.activities.activity.schema as activities_schema
 import modules.activities.activity_ingestion.bulk_import_service as bulk_import_service
 import modules.activities.activity_ingestion.ingestion_jobs as ingestion_jobs
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -161,7 +160,7 @@ def get_activity_ingestion_job(
 @router.post(
     "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
-    response_model=activities_schema.ActivityMessageResponse,
+    response_model=list[activity_ingestion_schema.ActivityIngestionJob],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_bulk_import(
@@ -172,11 +171,18 @@ def create_activity_with_bulk_import(
     ],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> activities_schema.ActivityMessageResponse:
+) -> list[activity_ingestion_schema.ActivityIngestionJob]:
     """Queue every importable file in the caller's bulk-import directory.
 
     Returns ``202``: the files are validated and queued in the request, but
     parsing them happens on a background worker.
+
+    One job handle per queued file, so the caller polls
+    ``GET /activities/ingestion-jobs/{job_id}`` for each exactly as it does for a
+    single upload. Per file rather than per batch because each file is retried,
+    dead-lettered and completed independently — there is no shared outcome a
+    batch-level handle could report. An empty list means nothing importable was
+    found in the directory.
 
     Args:
         token_user_id: Authenticated user ID.
@@ -184,19 +190,13 @@ def create_activity_with_bulk_import(
         db: Database session dependency.
 
     Returns:
-        A message describing how many files were queued.
+        The accepted jobs, one per queued file, in the pending state.
 
     Raises:
         ProcessingError: If the directory cannot be read or the jobs cannot be
             queued.
     """
-    queued = bulk_import_service.start_bulk_import(token_user_id, db)
-    return activities_schema.ActivityMessageResponse(
-        detail=(
-            f"Bulk import initiated for {queued} file(s) found in the "
-            "bulk_import directory. Processing of files will continue in the background."
-        )
-    )
+    return bulk_import_service.start_bulk_import(token_user_id, db)
 
 
 @router.post(

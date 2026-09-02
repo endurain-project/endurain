@@ -1,7 +1,7 @@
 """Tests for the standalone durable-job worker entrypoint."""
 
 import threading
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import worker
 
@@ -19,8 +19,7 @@ class TestRunWorkerProcess:
             patch("worker.core_config") as cfg,
             patch("worker.platform_container") as container,
             patch("worker.platform_runtime") as runtime,
-            patch("worker.activity_subscriber_registry") as subscriber_registry,
-            patch("worker.followers_subscribers") as followers_subscribers,
+            patch("worker.runtime_module_registry") as module_registry,
             patch("worker.jobs_registry") as jobs_registry,
             patch("worker.jobs_service") as service,
             patch("worker.run_worker") as run_worker_mock,
@@ -35,10 +34,12 @@ class TestRunWorkerProcess:
         # Every activity durable handler must be registered via the shared surface
         # so the worker can resolve any claimed job — the SAME call main.startup_event
         # makes, so the two entrypoints cannot drift.
-        subscriber_registry.register_all_activity_durable_handlers.assert_called_once_with(jobs_registry.registry)
-        followers_subscribers.register_follower_notification_durable_handlers.assert_called_once_with(
-            jobs_registry.registry
-        )
+        module_registry.configure_activity_contributors.assert_called_once_with()
+        module_registry.register_durable_handlers.assert_called_once_with(jobs_registry.registry)
+        assert module_registry.method_calls[:2] == [
+            call.configure_activity_contributors(),
+            call.register_durable_handlers(jobs_registry.registry),
+        ]
         service.build_runner.assert_called_once()
         install_signals.assert_called_once_with(stop)
         run_worker_mock.assert_called_once()

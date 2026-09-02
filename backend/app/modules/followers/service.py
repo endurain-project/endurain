@@ -21,11 +21,12 @@ import core.logger as core_logger
 import modules.followers.crud as followers_crud
 import modules.followers.event_publishers as followers_event_publishers
 import modules.followers.schema as followers_schema
+from modules.followers.constants import FollowStatus
 
 logger = core_logger.get_logger(__name__)
 
 
-def requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
+def _requester_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> bool:
     """Return whether the requester may view the target's follower/following graph.
 
     A user's social graph is visible only to the user themselves and to their
@@ -46,12 +47,12 @@ def requester_may_view_network(target_user_id: int, requester_user_id: int, db: 
         return True
 
     relationship = followers_crud.get_follower_for_user_id_and_target_user_id(requester_user_id, target_user_id, db)
-    return relationship is not None and relationship.status == followers_schema.FollowStatus.ACCEPTED
+    return relationship is not None and relationship.status == FollowStatus.ACCEPTED
 
 
 def _ensure_may_view_network(target_user_id: int, requester_user_id: int, db: Session) -> None:
     """Raise :class:`PermissionDeniedError` unless the requester may view the target's network."""
-    if not requester_may_view_network(target_user_id, requester_user_id, db):
+    if not _requester_may_view_network(target_user_id, requester_user_id, db):
         logger.warning(
             "Denied access to a user's follower network",
             extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
@@ -178,9 +179,11 @@ def list_pending_requests(
 def reject_follow_request(target_user_id: int, requester_user_id: int, db: Session) -> None:
     """Decline a pending follow request addressed to the caller.
 
-    Distinct from :func:`remove_follower`, which severs an already-accepted
+    Distinct from :func:`delete_relationship`, which severs an already-accepted
     relationship. Both delete the same row, but only one of them is a decision
-    the requester never had granted.
+    the requester never had granted — so this one is scoped to ``PENDING``, and
+    an accepted follower is removed through the relationship route instead of
+    silently through here.
 
     Args:
         target_user_id: The authenticated user declining the request.
@@ -189,8 +192,11 @@ def reject_follow_request(target_user_id: int, requester_user_id: int, db: Sessi
 
     Returns:
         None.
+
+    Raises:
+        NotFoundError: When no pending request from that user exists.
     """
-    followers_crud.delete_follower(requester_user_id, target_user_id, db)
+    followers_crud.delete_follower(requester_user_id, target_user_id, db, status=FollowStatus.PENDING)
     logger.debug(
         "Follow request rejected",
         extra=core_logger.context(target_user_id=target_user_id, requester_user_id=requester_user_id),

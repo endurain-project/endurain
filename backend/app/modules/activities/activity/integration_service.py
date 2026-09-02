@@ -13,7 +13,11 @@ read/gear/delete counterpart to the ingestion seam: ingestion
 Bulk deletes here also publish one ``activity.deleted`` per removed row, so the
 thumbnail and source-file cleanup subscribers reclaim each activity's blobs. That
 is the whole reason account deletion and Strava unlinking route through this
-module rather than issuing their own DELETE (or relying on the FK cascade).
+module rather than issuing their own DELETE (or relying on the FK cascade). The
+publishing itself belongs to ``activity.service``, which owns this module's write
+orchestration and its transaction boundaries; every function below is a
+delegation, so a write cannot be arranged two different ways depending on whether
+it was reached from a route or from another module.
 
 Enforced by the ``provider-activities-boundary`` import-linter contract:
 ``modules.strava`` / ``modules.garmin`` / ``modules.gears`` must not import
@@ -25,25 +29,15 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-import core.logger as core_logger
+import modules.activities.activity.child_access as activity_child_access
+import modules.activities.activity.child_collection as activity_child_collection
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.crud as activities_crud
-import modules.activities.activity.event_publishers as activity_event_publishers
+import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activities_schema
-import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
-import modules.activities.activity_exercise_titles.schema as activity_exercise_titles_schema
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_laps.schema as activity_laps_schema
-import modules.activities.activity_media.contracts as activity_media_contracts
-import modules.activities.activity_media.crud as activity_media_crud
-import modules.activities.activity_sets.crud as activity_sets_crud
-import modules.activities.activity_sets.schema as activity_sets_schema
-import modules.activities.activity_streams.crud as activity_streams_crud
-import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
-import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity.service as activity_service
 
-logger = core_logger.get_logger(__name__)
+ChildCollection = activity_child_collection.ChildCollection
 
 
 def get_activity_by_strava_id(
@@ -118,11 +112,6 @@ def bulk_set_activities_gear(
 ) -> int:
     """Assign gear to many of a user's activities at once.
 
-    Publishes one ``activity.updated`` per changed row, atomically with the
-    updates. A provider re-syncing gear mutates activities from outside the
-    activities module, so without the event a consumer would see the same silent
-    change bulk deletes used to make.
-
     Args:
         user_id: The owning user id (ownership is enforced by the update).
         gear_assignments: Map of activity id -> gear id (or ``None`` to clear).
@@ -131,20 +120,12 @@ def bulk_set_activities_gear(
     Returns:
         The number of activities updated.
     """
-    updated_ids = activities_crud.bulk_set_activities_gear_id(user_id, gear_assignments, db, commit=False)
-    activity_event_publishers.publish_activities_updated(
-        updated_ids,
+    return activity_service.bulk_set_activities_gear(
         user_id,
-        ["gear_id"],
+        gear_assignments,
         db,
-        db.commit,
         source="api:bulk_set_activities_gear",
     )
-    logger.info(
-        "Bulk-assigned gear to activities",
-        extra=core_logger.context(user_id=user_id, requested=len(gear_assignments), updated=len(updated_ids)),
-    )
-    return len(updated_ids)
 
 
 def get_gear_usage_totals(gear_id: int, db: Session) -> activities_contracts.ActivityUsageTotals:
@@ -278,13 +259,132 @@ def restore_activity(
     return activities_crud.create_activity(activity, db)
 
 
+def store_parsed_activity(
+    parsed: activities_contracts.ParsedActivity,
+    db: Session,
+) -> activities_schema.Activity:
+    """Persist a canonical parsed activity through the atomic ingestion seam.
+
+    Args:
+        parsed: Parsed root and child data to store.
+        db: Database session.
+
+    Returns:
+        The stored activity.
+    """
+    return activity_ingestion_service.store_parsed_activity(parsed, db)
+
+
+def resolve_readable_parent(
+    activity_id: int,
+    requester_user_id: int,
+    db: Session,
+) -> activities_schema.Activity | None:
+    """Return the parent activity when an authenticated caller may read it."""
+    return activity_child_access.resolve_readable_parent(activity_id, requester_user_id, db)
+
+
+def resolve_public_parent(activity_id: int, db: Session) -> activities_schema.Activity | None:
+    """Return the parent activity when it is publicly shareable."""
+    return activity_child_access.resolve_public_parent(activity_id, db)
+
+
+def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+    """Return whether a user owns an activity."""
+    return activity_service.owns_activity(activity_id, user_id, db)
+
+
+def get_activity_scoring_context(
+    activity_id: int,
+    db: Session,
+) -> activities_contracts.ActivityScoringContext | None:
+    """Return parent columns needed to score one activity's streams."""
+    return activities_crud.get_activity_scoring_context(activity_id, db)
+
+
+def get_activity_scoring_contexts(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, activities_contracts.ActivityScoringContext]:
+    """Return stream-scoring contexts keyed by activity id."""
+    return activities_crud.get_activity_scoring_contexts(activity_ids, db)
+
+
+def list_user_activity_scoring_contexts(
+    user_id: int,
+    db: Session,
+    *,
+    after_id: int = 0,
+    batch_size: int = 500,
+) -> list[activities_contracts.ActivityScoringContext]:
+    """Return a bounded batch of one user's stream-scoring contexts."""
+    return activities_crud.list_user_activity_scoring_contexts(
+        user_id,
+        db,
+        after_id=after_id,
+        batch_size=batch_size,
+    )
+
+
+# Derived-artifact maintenance. The thumbnail and geocoding subsystems reach the
+# activity row through these. Each is a system-level operation with no requester
+# to authorize — the derived work runs detached from any request — so there is no
+# decision for ``service`` to make and these go straight to CRUD rather than
+# through a middle layer that only forwarded its arguments.
+
+
+def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> None:
+    """Record or clear an activity's stored thumbnail key."""
+    activities_crud.set_activity_thumbnail_path(activity_id, key, db)
+
+
+def clear_all_thumbnail_keys(db: Session) -> None:
+    """Clear every stored activity thumbnail key."""
+    activities_crud.clear_all_activity_thumbnail_paths(db)
+
+
+def list_activities_with_thumbnail(
+    db: Session,
+    after_id: int = 0,
+    limit: int = 500,
+) -> list[activities_contracts.ActivityThumbnailRef]:
+    """Return one bounded page of activity references carrying a stored thumbnail key."""
+    return activities_crud.get_activities_with_thumbnail(db, after_id=after_id, limit=limit)
+
+
+def list_activities_without_thumbnail(
+    db: Session,
+    after_id: int = 0,
+    limit: int = 500,
+) -> list[activities_contracts.ActivityThumbnailRef]:
+    """Return one bounded page of activity references that have no stored thumbnail key."""
+    return activities_crud.get_activities_without_thumbnail(db, after_id=after_id, limit=limit)
+
+
+def list_activities_missing_location(
+    db: Session,
+    limit: int = 200,
+) -> list[activities_contracts.ActivityLocationRef]:
+    """Return bounded activity references whose location is unresolved."""
+    return activities_crud.get_activities_missing_location(db, limit)
+
+
+def set_activity_location(
+    activity_id: int,
+    city: str | None,
+    town: str | None,
+    country: str | None,
+    db: Session,
+) -> bool:
+    """Persist a reverse-geocoded activity location."""
+    return activities_crud.update_activity_location(activity_id, city, town, country, db)
+
+
 def delete_all_strava_activities(user_id: int, db: Session) -> int:
     """Delete all of a user's Strava-sourced activities.
 
-    Emits one ``activity.deleted`` per removed activity, atomically with the
-    deletes, so the thumbnail and source-file cleanup subscribers reclaim the
-    blobs each activity owned. Without it the rows vanished silently and their
-    artifacts were orphaned in storage permanently.
+    Emits one ``activity.deleted`` per removed activity so the thumbnail and
+    source-file cleanup subscribers reclaim the blobs each one owned.
 
     Args:
         user_id: The owning user id.
@@ -293,21 +393,7 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activities_crud.delete_all_strava_activities_for_user(user_id, db, commit=False)
-    activity_event_publishers.publish_activities_deleted(
-        deleted_ids,
-        user_id,
-        db,
-        db.commit,
-        source="api:delete_all_strava_activities",
-    )
-    # Irreversible and triggered from another module, so the count is recorded
-    # here rather than left to the caller.
-    logger.info(
-        "Deleted all Strava-sourced activities for user",
-        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
-    )
-    return len(deleted_ids)
+    return activity_service.delete_all_strava_activities(user_id, db, source="api:delete_all_strava_activities")
 
 
 def delete_all_activities_for_user(user_id: int, db: Session) -> int:
@@ -315,9 +401,7 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
 
     The account-deletion path. Deleting the user row alone would let the database
     FK cascade remove the activities silently, orphaning every thumbnail and
-    stored source file the user ever produced — an incomplete erasure. Removing
-    them explicitly first yields the ids needed to publish ``activity.deleted``,
-    so the cleanup subscribers delete the blobs too.
+    stored source file the user ever produced.
 
     Args:
         user_id: The owning user id.
@@ -326,153 +410,4 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activities_crud.delete_all_activities_for_user(user_id, db, commit=False)
-    activity_event_publishers.publish_activities_deleted(
-        deleted_ids,
-        user_id,
-        db,
-        db.commit,
-        source="api:delete_user",
-    )
-    logger.info(
-        "Deleted all activities for user",
-        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
-    )
-    return len(deleted_ids)
-
-
-# ---------------------------------------------------------------------------
-# Child sub-resources (laps / sets / streams / workout steps / exercise titles)
-#
-# The profile export and import are the only callers outside this domain that
-# need an activity's *children*. They used to import each child package's
-# ``crud`` module directly — five persistence modules reached across a module
-# boundary, which is what the ``consumer-activities-boundary`` contract exists to
-# prevent for the parent. Routing them through here means the activities domain
-# owns which child operations are public, and a consumer keeps one import.
-# ---------------------------------------------------------------------------
-
-
-def list_activities_laps(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_laps_schema.ActivityLapsRead]:
-    """Return the laps of many of a user's activities (profile export)."""
-    return activity_laps_crud.get_activities_laps(activity_ids, user_id, db, activities)
-
-
-def list_activities_sets(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_sets_schema.ActivitySetsRead]:
-    """Return the workout sets of many of a user's activities (profile export)."""
-    return activity_sets_crud.get_activities_sets(activity_ids, user_id, db, activities)
-
-
-def list_activities_streams(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """Return the streams of many of a user's activities (profile export)."""
-    return activity_streams_crud.get_activities_streams(activity_ids, user_id, db, activities)
-
-
-def list_activities_workout_steps(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_workout_steps_schema.ActivityWorkoutSteps]:
-    """Return the workout steps of many of a user's activities (profile export)."""
-    return activity_workout_steps_crud.get_activities_workout_steps(activity_ids, user_id, db, activities)
-
-
-def list_exercise_titles(db: Session) -> list[activity_exercise_titles_schema.ActivityExerciseTitles]:
-    """Return the server-wide exercise-title reference rows (profile export)."""
-    return activity_exercise_titles_crud.get_activity_exercise_titles(db)
-
-
-def list_activities_media(
-    activity_ids: list[int],
-    user_id: int,
-    db: Session,
-    activities: list[activities_schema.Activity] | None = None,
-) -> list[activity_media_contracts.ActivityMediaRecord]:
-    """Return the media records of many of a user's activities (profile export).
-
-    ``activities`` is accepted and ignored so every batch read in the export
-    shares one call shape; the media query resolves ownership itself.
-    """
-    return activity_media_crud.get_activities_media(activity_ids, user_id, db)
-
-
-def restore_activity_media(
-    media: list[activity_media_contracts.ActivityMediaCreate],
-    activity_id: int,
-    db: Session,
-) -> None:
-    """Persist a restored activity's media records (profile import)."""
-    activity_media_crud.create_activity_medias(media, activity_id, db)
-
-
-def restore_activity_laps(laps: list[dict], activity_id: int, db: Session) -> None:
-    """Persist a restored activity's laps (profile import)."""
-    activity_laps_crud.create_activity_laps(laps, activity_id, db)
-
-
-def restore_activity_sets(
-    sets: list[activity_sets_schema.ActivitySetsCreate | list],
-    activity_id: int,
-    db: Session,
-) -> None:
-    """Persist a restored activity's workout sets (profile import)."""
-    activity_sets_crud.create_activity_sets(sets, activity_id, db)
-
-
-def restore_activity_streams(
-    streams: list[activity_streams_schema.ActivityStreamsCreate],
-    activity: activities_schema.Activity,
-    db: Session,
-) -> None:
-    """Persist a restored activity's streams (profile import)."""
-    activity_streams_crud.create_activity_streams(streams, activity, db)
-
-
-def restore_activity_workout_steps(
-    steps: list[activity_workout_steps_schema.ActivityWorkoutSteps],
-    activity_id: int,
-    db: Session,
-) -> None:
-    """Persist a restored activity's workout steps (profile import)."""
-    activity_workout_steps_crud.create_activity_workout_steps(steps, activity_id, db)
-
-
-def restore_exercise_titles(
-    titles: list[activity_exercise_titles_schema.ActivityExerciseTitles],
-    db: Session,
-) -> None:
-    """Persist restored exercise-title reference rows (profile import)."""
-    activity_exercise_titles_crud.create_activity_exercise_titles(titles, db)
-
-
-def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
-    """Re-derive every stored HR-zone breakdown for a user.
-
-    Called by the users module when a change to max heart rate or birthdate
-    invalidates the zones computed at import time. It logs and swallows its own
-    errors, so it cannot fail the profile edit that triggered it.
-
-    Args:
-        user_id: The owning user id.
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    activity_streams_crud.recompute_hr_zone_percentages_for_user(user_id, db)
+    return activity_service.delete_all_activities_for_user(user_id, db, source="api:delete_user")

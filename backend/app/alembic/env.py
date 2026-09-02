@@ -2,9 +2,9 @@ from logging.config import fileConfig
 
 from alembic import context
 
-
 # import Base and engine from database file
-from core.database import Base, engine, import_all_models
+import model_registry as orm_model_registry
+from core.database import Base, engine
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -20,7 +20,7 @@ if config.attributes.get("configure_logger", True):
 # autogenerate compares it against the database. The CLI
 # runs only this env.py, which would otherwise leave the
 # metadata empty and emit drop_table for the whole schema.
-import_all_models()
+orm_model_registry.import_all_models()
 
 # add your model's MetaData object here
 # for 'autogenerate' support

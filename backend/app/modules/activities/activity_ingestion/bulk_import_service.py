@@ -6,12 +6,13 @@ decision, and a bare ``HTTPException(500)`` — which made it the one activities
 handler that was not a thin transport adapter, and the one place a domain rule
 lived in a router.
 
-Nothing here is transport-aware: it takes a user id and a session, returns how
-many files it queued, and raises :mod:`core.exceptions` so the same call works
+Nothing here is transport-aware: it takes a user id and a session, returns the
+job handles it queued, and raises :mod:`core.exceptions` so the same call works
 from a future CLI or scheduled trigger without constructing an HTTP response.
 """
 
 import os
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -24,6 +25,8 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.bulk_import_subscribers as activity_bulk_import_subscribers
+import modules.activities.activity_ingestion.crud as ingestion_jobs_crud
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -134,11 +137,19 @@ def _collect_importable_files(user_id: int, bulk_import_dir: str) -> list[str]:
     return files_to_process
 
 
-def start_bulk_import(user_id: int, db: Session) -> int:
+def start_bulk_import(user_id: int, db: Session) -> list[activity_ingestion_schema.ActivityIngestionJob]:
     """Queue every importable file in a user's drop directory.
 
     Each user drops files into their own directory; scanning the shared root
     would import whatever anyone else left there and attribute it to this caller.
+
+    One :class:`~modules.activities.activity_ingestion.schema.ActivityIngestionJob`
+    is created per file and returned, so the caller polls
+    ``GET /activities/ingestion-jobs/{job_id}`` for each one exactly as it does
+    for a single upload. One handle per file rather than one per batch because
+    the fan-out below is already per file: each is retried, dead-lettered and
+    completed independently, so a batch-level status could only report an
+    average of outcomes that are not shared.
 
     When durable jobs are enabled, one durable job per file is staged in the
     transactional outbox on this session and committed once, then the relay fans
@@ -156,7 +167,7 @@ def start_bulk_import(user_id: int, db: Session) -> int:
         db: Database session, used to stage the durable jobs.
 
     Returns:
-        How many files were queued.
+        The accepted jobs, one per queued file, in the pending state.
 
     Raises:
         ProcessingError: When the directory cannot be read or the jobs cannot be
@@ -175,10 +186,33 @@ def start_bulk_import(user_id: int, db: Session) -> int:
 
         files_to_process = _collect_importable_files(user_id, bulk_import_dir)
 
+        # Created before either executor is chosen so the handle the caller gets
+        # back is the same row both paths transition, and the pending state is
+        # visible from the moment the 202 is returned.
+        jobs = [
+            (
+                ingestion_jobs_crud.create_ingestion_job(
+                    str(uuid.uuid4()),
+                    user_id,
+                    activity_ingestion_schema.IngestionJobKind.BULK_IMPORT,
+                    db,
+                    filename=os.path.basename(file_path),
+                    commit=False,
+                ),
+                file_path,
+            )
+            for file_path in files_to_process
+        ]
+
         if core_config.settings.JOBS_ENABLED:
-            activity_bulk_import_subscribers.publish_bulk_import_files(files_to_process, user_id, import_time, db)
+            activity_bulk_import_subscribers.publish_bulk_import_files(
+                [(job.id, file_path) for job, file_path in jobs], user_id, import_time, db
+            )
         else:
-            activity_ingestion_background.submit_bulk_import(user_id, files_to_process, import_time)
+            db.commit()
+            activity_ingestion_background.submit_bulk_import(
+                user_id, [(job.id, file_path) for job, file_path in jobs], import_time
+            )
     except (OSError, RuntimeError, SQLAlchemyError) as err:
         logger.error(
             "Error starting the bulk import",
@@ -189,6 +223,6 @@ def start_bulk_import(user_id: int, db: Session) -> int:
 
     logger.info(
         "Bulk import queued; processing continues in the background",
-        extra=core_logger.context(console=True, user_id=user_id, file_count=len(files_to_process)),
+        extra=core_logger.context(console=True, user_id=user_id, file_count=len(jobs)),
     )
-    return len(files_to_process)
+    return [job for job, _ in jobs]

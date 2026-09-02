@@ -9,59 +9,96 @@ Streams mask differently from the other child resources: there is no single
 (``hide_hr``, ``hide_power``, ``hide_cadence``, ...). So instead of the boolean
 gate the siblings use, this module resolves the parent activity through
 :mod:`modules.activities.activity.child_access` and hands it to
-:mod:`~modules.activities.activity_streams.utils`, which decides per stream.
+:mod:`~modules.activities.activity_streams.serializers`, which decides per stream.
 
-They are also the one child resource that is **not** paginated, deliberately.
-Laps, sets and workout steps have no domain ceiling on their row count, so a
-read of "all of them" is unbounded work. A stream row count is bounded by the
-closed ``stream_type`` enum (one row per type, validated on the way in), so
-paging them would cap a number that is already capped at single digits. What is
-large here is ``stream_waypoints`` — the samples inside one row — which page
-numbers cannot bound; reducing that is a downsampling question, not a pagination
-one, and is deliberately left alone rather than answered with a control that
-looks like a fix without being one.
+They are also the one child resource whose page is not cut in SQL, deliberately.
+Laps, sets and workout steps have no domain ceiling on their row count, so a read
+of "all of them" is unbounded work that has to be bounded by a ``LIMIT``. A stream
+row count is bounded by the closed ``stream_type`` enum (one row per type,
+validated on the way in), and the per-type mask is applied *after* the read, so a
+SQL window would page rows the caller may not see. They are therefore read whole,
+masked, and then cut in Python — the same
+:class:`~core.pagination.Page` envelope the siblings answer with, so a client has
+one list contract rather than one per child resource, over a total that already
+reflects the mask. What is large here is ``stream_waypoints`` — the samples inside
+one row — which page numbers cannot bound; reducing that is a downsampling
+question, not a pagination one, and is deliberately left alone rather than
+answered with a control that looks like a fix without being one.
 """
 
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.activities.activity.child_access as activity_child_access
+import core.pagination as core_pagination
+import modules.activities.activity.integration_service as activity_child_access
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.hr_zones as activity_streams_hr_zones
 import modules.activities.activity_streams.schema as activity_streams_schema
-import modules.activities.activity_streams.utils as activity_streams_utils
+import modules.activities.activity_streams.serializers as activity_streams_serializers
+import modules.users.users.integration_service as users_integration_service
 
 logger = core_logger.get_logger(__name__)
+
+
+def _page_of(
+    streams: list[activity_streams_schema.ActivityStreamsRead],
+    page_number: int,
+    num_records: int,
+) -> activity_streams_schema.ActivityStreamsPage:
+    """Cut an already-masked stream list into the shared page envelope.
+
+    Args:
+        streams: The streams the caller may see, in read order.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope, whose ``total`` counts only the visible streams.
+    """
+    start = (page_number - 1) * num_records
+    return activity_streams_schema.ActivityStreamsPage.build(
+        streams[start : start + num_records],
+        len(streams),
+        page_number,
+        num_records,
+    )
 
 
 def list_activity_streams(
     activity_id: int,
     requester_user_id: int,
     db: Session,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_streams_schema.ActivityStreamsPage:
     """Return an activity's streams for an authenticated caller, masked per type.
 
     Args:
         activity_id: The parent activity.
         requester_user_id: The authenticated caller.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The visible streams, empty when the activity is not visible to the caller
-        or has none.
+        The page envelope. An empty page when the activity is not visible to the
+        caller or has none.
     """
     activity = activity_child_access.resolve_readable_parent(activity_id, requester_user_id, db)
     if activity is None:
         logger.debug(
-            "Refused a streams read; answering with an empty list",
+            "Refused a streams read; answering with an empty page",
             extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
         )
-        return []
+        return _page_of([], page_number, num_records)
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
     if requester_user_id != activity.user_id:
-        streams = activity_streams_utils.filter_visible_streams(streams, activity)
+        streams = activity_streams_serializers.filter_visible_streams(streams, activity)
 
-    return streams
+    return _page_of(streams, page_number, num_records)
 
 
 def get_activity_stream(
@@ -90,7 +127,9 @@ def get_activity_stream(
     if stream is None:
         return None
 
-    if requester_user_id != activity.user_id and activity_streams_utils.is_stream_hidden(activity, stream.stream_type):
+    if requester_user_id != activity.user_id and activity_streams_serializers.is_stream_hidden(
+        activity, stream.stream_type
+    ):
         return None
 
     return stream
@@ -99,26 +138,35 @@ def get_activity_stream(
 def list_public_activity_streams(
     activity_id: int,
     db: Session,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_streams_schema.ActivityStreamsPage:
     """Return a publicly shared activity's streams, masked per type.
 
     Args:
         activity_id: The parent activity.
         db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
 
     Returns:
-        The visible streams, empty when the activity is not publicly shareable.
+        The page envelope, empty when the activity is not publicly shareable.
     """
     activity = activity_child_access.resolve_public_parent(activity_id, db)
     if activity is None:
         logger.debug(
-            "Refused a public streams read; answering with an empty list",
+            "Refused a public streams read; answering with an empty page",
             extra=core_logger.context(activity_id=activity_id),
         )
-        return []
+        return _page_of([], page_number, num_records)
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
-    return activity_streams_utils.filter_visible_streams(streams, activity)
+    return _page_of(
+        activity_streams_serializers.filter_visible_streams(streams, activity),
+        page_number,
+        num_records,
+    )
 
 
 def get_public_activity_stream(
@@ -145,7 +193,219 @@ def get_public_activity_stream(
     if stream is None:
         return None
 
-    if activity_streams_utils.is_stream_hidden(activity, stream.stream_type):
+    if activity_streams_serializers.is_stream_hidden(activity, stream.stream_type):
         return None
 
     return stream
+
+
+# ---------------------------------------------------------------------------
+# Derived-artifact reads
+#
+# The sibling surface: the thumbnail and geocoding subsystems need an activity's
+# recorded track to render a map or resolve a place name. They read it through
+# these instead of importing ``activity_streams.crud``, which made each of them a
+# second owner of the streams table. No masking is applied and none is wanted —
+# the caller is deriving an artifact for the owner, not serving a viewer.
+
+
+def get_stream_for_derivation(
+    activity_id: int,
+    stream_type: int,
+    db: Session,
+) -> activity_streams_schema.ActivityStreamsRead | None:
+    """Return one raw stream of an activity for a derived-artifact producer.
+
+    Args:
+        activity_id: The parent activity.
+        stream_type: The stream type code.
+        db: Database session.
+
+    Returns:
+        The stream, or ``None`` when the activity has no such stream.
+    """
+    return activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
+
+
+def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list]:
+    """Return each activity's GPS waypoints, keyed by activity id.
+
+    The batch read behind the thumbnail and geocoding backfills: one query for
+    many activities rather than one per activity. Activities with no GPS stream
+    are absent from the result.
+
+    Args:
+        activity_ids: The activities to fetch waypoints for.
+        db: Database session.
+
+    Returns:
+        Mapping of ``activity_id -> waypoints``.
+    """
+    return activity_streams_crud.get_gps_stream_waypoints_for_activities(activity_ids, db)
+
+
+# ---------------------------------------------------------------------------
+# Heart-rate zone scoring
+#
+# "What is this athlete's max heart rate?" is a users question, and the answer
+# scales every zone. Asking it used to happen inside ``crud``, mid-batch —
+# persistence pausing to consult another bounded context. The loop lives here
+# now: the service resolves the max HR, computes each breakdown, and hands crud
+# a plain ``{stream_id: zones}`` map to store.
+
+
+def _zones_for(
+    stream: activity_streams_contracts.HrStreamForScoring,
+    max_heart_rate: int | None,
+) -> dict | None:
+    """Compute one stream's zone breakdown, or ``None`` when it cannot be scored."""
+    if not max_heart_rate:
+        return None
+    breakdown = activity_streams_hr_zones.compute_hr_zone_breakdown_sync(
+        stream.waypoints,
+        max_heart_rate,
+        stream.total_timer_time,
+    )
+    return {"hr": breakdown} if breakdown else None
+
+
+def _with_context(
+    stream: activity_streams_contracts.HrStreamRecord,
+    context,
+) -> activity_streams_contracts.HrStreamForScoring:
+    """Combine stream-owned columns with its activity scoring context."""
+    return activity_streams_contracts.HrStreamForScoring(
+        stream_id=stream.stream_id,
+        activity_id=stream.activity_id,
+        owner_id=context.owner_id,
+        waypoints=stream.waypoints,
+        total_timer_time=context.total_timer_time,
+    )
+
+
+def _max_heart_rate_of(user_id: int, db: Session) -> int | None:
+    """Resolve a user's max heart rate, or ``None`` when it cannot be derived."""
+    user = users_integration_service.get_user(user_id, db)
+    if user is None:
+        return None
+    return activity_streams_hr_zones.resolve_max_heart_rate(user.max_heart_rate, user.birthdate, user.timezone)
+
+
+def recompute_hr_zones_for_user(user_id: int, db: Session) -> None:
+    """Recompute every stored HR-zone breakdown for one user.
+
+    Called after the user's max heart rate or birthdate changes, so activities
+    imported earlier reflect the new zones. Errors are logged and swallowed: a
+    recompute problem must not fail the profile edit that triggered it.
+
+    Args:
+        user_id: The user whose HR streams should be refreshed.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    try:
+        max_heart_rate = _max_heart_rate_of(user_id, db)
+        last_activity_id = 0
+        while True:
+            contexts = activity_child_access.list_user_activity_scoring_contexts(
+                user_id,
+                db,
+                after_id=last_activity_id,
+            )
+            if not contexts:
+                break
+            context_by_activity = {context.activity_id: context for context in contexts}
+            records = activity_streams_crud.list_hr_streams_for_activities(list(context_by_activity), db)
+            batch = [
+                _with_context(record, context_by_activity[record.activity_id])
+                for record in records
+                if record.activity_id in context_by_activity
+            ]
+            activity_streams_crud.set_zone_percentages(
+                {stream.stream_id: _zones_for(stream, max_heart_rate) for stream in batch},
+                db,
+            )
+            last_activity_id = contexts[-1].activity_id
+        logger.info(
+            "Recomputed HR zone percentages for a user",
+            extra=core_logger.context(user_id=user_id),
+        )
+    except Exception as err:
+        logger.error(
+            "Failed to recompute HR zone percentages for user",
+            exc_info=err,
+            extra=core_logger.context(console=True, user_id=user_id),
+        )
+
+
+def score_activity_hr_zones(activity_id: int, user_id: int, db: Session) -> None:
+    """Compute and store the HR-zone breakdown for one activity.
+
+    Driven by the ``activity.created`` subscriber so scoring stays off the
+    synchronous ingestion path. No-ops when the owner has no resolvable max heart
+    rate or the activity recorded no heart rate. Raises on database error so the
+    durable handler can retry.
+
+    Args:
+        activity_id: The activity whose HR stream should be scored.
+        user_id: The owning user, whose max heart rate scales the zones.
+        db: Database session.
+
+    Returns:
+        None.
+    """
+    context = activity_child_access.get_activity_scoring_context(activity_id, db)
+    if context is None or context.owner_id != user_id:
+        return
+    max_heart_rate = _max_heart_rate_of(context.owner_id, db)
+    if not max_heart_rate:
+        return
+    record = activity_streams_crud.get_activity_hr_stream(activity_id, db)
+    if record is None:
+        return
+    stream = _with_context(record, context)
+    activity_streams_crud.set_zone_percentages({stream.stream_id: _zones_for(stream, max_heart_rate)}, db)
+
+
+def backfill_missing_hr_zones(db: Session, batch_size: int = 500) -> int:
+    """Score HR streams that carry no zone breakdown yet (reconciliation net).
+
+    The scheduled safety net for the ``activity.created`` HR-zone subscriber.
+    Each owner's max heart rate is resolved once per run; streams whose owner has
+    none are left untouched so a later profile edit can still score them.
+
+    Args:
+        db: Database session.
+        batch_size: Number of streams to score per batch.
+
+    Returns:
+        The number of streams updated.
+    """
+    updated = 0
+    max_hr_cache: dict[int, int | None] = {}
+    last_id = 0
+    while True:
+        records = activity_streams_crud.list_hr_streams_missing_zones(db, after_id=last_id, batch_size=batch_size)
+        if not records:
+            break
+        contexts = activity_child_access.get_activity_scoring_contexts(
+            [record.activity_id for record in records],
+            db,
+        )
+        zones_by_stream_id: dict[int, dict | None] = {}
+        for record in records:
+            context = contexts.get(record.activity_id)
+            if context is None:
+                continue
+            stream = _with_context(record, context)
+            if stream.owner_id not in max_hr_cache:
+                max_hr_cache[stream.owner_id] = _max_heart_rate_of(stream.owner_id, db)
+            zones = _zones_for(stream, max_hr_cache[stream.owner_id])
+            if zones is not None:
+                zones_by_stream_id[stream.stream_id] = zones
+        activity_streams_crud.set_zone_percentages(zones_by_stream_id, db)
+        updated += len(zones_by_stream_id)
+        last_id = records[-1].stream_id
+    return updated

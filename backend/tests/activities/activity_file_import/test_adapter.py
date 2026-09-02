@@ -15,6 +15,21 @@ def _activity() -> activities_schema.Activity:
 
 
 class TestParsedInfoToParsedActivity:
+    def test_stream_mapping_uses_every_canonical_stream_type(self):
+        import modules.activities.activity_file_import.adapter as adapter
+        import modules.activities.activity_streams.constants as stream_constants
+
+        assert set(adapter._STREAM_MAPPING) == {
+            stream_constants.STREAM_TYPE_HR,
+            stream_constants.STREAM_TYPE_POWER,
+            stream_constants.STREAM_TYPE_CADENCE,
+            stream_constants.STREAM_TYPE_ELEVATION,
+            stream_constants.STREAM_TYPE_SPEED,
+            stream_constants.STREAM_TYPE_PACE,
+            stream_constants.STREAM_TYPE_MAP,
+            stream_constants.STREAM_TYPE_TEMPERATURE,
+        }
+
     def test_parse_streams_hr_set(self):
         from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 
@@ -30,7 +45,7 @@ class TestParsedInfoToParsedActivity:
             "is_temperature_set": False,
         }
 
-        result = parsed_info_to_parsed_activity(parsed_info).streams
+        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
 
         assert len(result) == 1
         assert result[0].stream_type == 1
@@ -53,7 +68,7 @@ class TestParsedInfoToParsedActivity:
             "is_temperature_set": False,
         }
 
-        result = parsed_info_to_parsed_activity(parsed_info).streams
+        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
 
         assert len(result) == 3
 
@@ -71,7 +86,7 @@ class TestParsedInfoToParsedActivity:
             "is_temperature_set": False,
         }
 
-        result = parsed_info_to_parsed_activity(parsed_info).streams
+        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
 
         assert len(result) == 0
 
@@ -89,7 +104,9 @@ class TestParsedInfoToParsedActivity:
         result = parsed_info_to_parsed_activity(parsed_info)
 
         assert result.activity is activity
-        assert result.laps == [{"lap": 1}]
-        assert result.sets == [{"set": 1}]
-        assert result.workout_steps == [{"step": 1}]
-        assert result.streams == []
+        assert result.components == {
+            "streams": [],
+            "laps": [{"lap": 1}],
+            "sets": [{"set": 1}],
+            "workout_steps": [{"step": 1}],
+        }

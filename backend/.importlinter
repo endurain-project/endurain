@@ -63,6 +63,25 @@ source_modules =
 forbidden_modules =
     modules
 
+# The same rule one layer up, for ``core``. ``core.scheduler`` used to import
+# four activities internals plus auth, Strava and Garmin in order to enumerate
+# their recurring jobs — the platform reaching up into the domain to ask what
+# work exists. Each module now declares its own ``scheduled_jobs``, and the
+# composition root (``main``) hands the collected list to ``start_scheduler``.
+# One exception remains, recorded here so it is reviewed rather than assumed:
+# ``core.middleware`` reads the server-settings SCHEMA (a data shape, not
+# behaviour) to type the settings it stamps onto the request.
+[importlinter:contract:core-not-domain]
+name = Core must not import domain modules
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    core
+forbidden_modules =
+    modules
+ignore_imports =
+    core.middleware -> modules.server_settings.schema
+
 [importlinter:contract:redis-owned-by-platform]
 name = Only the platform Redis capability may import redis
 type = forbidden
@@ -92,46 +111,107 @@ layers =
     providers
     events
 
-# The activities core (activity/) is parsing- AND provider-agnostic: it exposes the typed
-# ParsedActivity contract + ingestion_service.store_parsed_activity, but never imports a
-# file parser or a provider (Strava/Garmin) client. All format/provider knowledge lives in
-# the sibling activity_ingestion/ package, which produces the contract and calls the core.
-# The provider live-refresh route was relocated there too,
-# so the core no longer needs any Strava/Garmin import — the boundary is now the whole
-# provider packages, not just the bulk-import glue. Direct imports only
-# (allow_indirect_imports): the rule is that the core must not reach for a parser/provider
-# directly, not that it must avoid transitive shared dependencies.
+# The whole activities module is provider-agnostic, not just its core. Strava and
+# Garmin depend on activities — they parse a provider payload and hand it to the
+# ingestion seam — and activities used to depend on them right back:
+# ``activity_ingestion.refresh_entry`` imported both provider clients,
+# ``sources`` imported the Strava bulk-import helpers, and ``enrichment``
+# imported Garmin to resolve synced gear. That cycle meant neither side could be
+# built, tested or extracted without the other.
+#
+# The direction is now one-way, via three seams activities owns and providers
+# plug into:
+#   * ``activity_ingestion.provider_registry`` — a provider registers a fetch
+#     callable at startup; the refresh path names no provider.
+#   * ``activity_ingestion.sources.BulkImportSource`` — a provider export
+#     subclasses it (``modules.strava.bulk_import_source``) instead of the base
+#     class branching on ``strava_activities``.
+#   * ``GarminSource.gear_id`` — the provider resolves its own synced gear and
+#     passes the id, so enrichment only answers "and if not, what is the default?".
+#
+# This contract replaces the narrower ``activities-parsing-boundary`` and
+# ``ingestion-pipeline-provider-agnostic`` provider clauses: stating it over the
+# whole module means a new sub-package inherits it instead of having to be added
+# to a list.
+[importlinter:contract:activities-provider-agnostic]
+name = The activities module must not import a provider — providers register with it
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities
+forbidden_modules =
+    modules.strava
+    modules.garmin
+
+# The activities core (activity/) is parsing-agnostic: it exposes the typed
+# ParsedActivity contract + ingestion_service.store_parsed_activity, but never
+# imports a file parser. All format knowledge lives in the sibling
+# activity_ingestion/ package, which produces the contract and calls the core.
+# Direct imports only (allow_indirect_imports): the rule is that the core must
+# not reach for a parser directly, not that it must avoid transitive shared
+# dependencies. The provider half of this boundary is now the module-wide
+# ``activities-provider-agnostic`` contract above.
 [importlinter:contract:activities-parsing-boundary]
-name = Activities core must not import file parsers or Strava/Garmin provider clients
+name = Activities core must not import file parsers
 type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.activities.activity
 forbidden_modules =
     modules.activities.activity_file_import
-    modules.strava
-    modules.garmin
 
 # The ingestion PIPELINE is provider-agnostic, the same way it is already
 # format-agnostic. It owns "validate -> parse -> enrich -> store -> retain" and nothing
-# about where a file came from: the Strava-export specifics (which duplicate listings to
+# about where a file came from: the export specifics (which duplicate listings to
 # skip, what metadata to apply, the sidecar photos) are answered by the sources object it
-# is handed. It used to call ``strava_bulk_import_utils`` directly for two of those, which
-# meant the one module that must not branch on provider held two provider branches.
-# ``sources.py`` is deliberately NOT in scope here: describing what a Strava bulk import
-# is *is* its job, and it is the seam that keeps the knowledge in one place.
-[importlinter:contract:ingestion-pipeline-provider-agnostic]
-name = The ingestion pipeline must not import provider clients — sources own provider specifics
+# is handed. ``sources.py`` is deliberately NOT in scope here: defining the seam a
+# provider export subclasses *is* its job.
+# Superseded in the provider dimension by ``activities-provider-agnostic`` above;
+# kept because it also forbids the pipeline reaching for the *parsers*, which is a
+# different rule with the same shape.
+[importlinter:contract:ingestion-pipeline-format-agnostic]
+name = The ingestion pipeline must not import a parser directly — the registry resolves one
 type = forbidden
 allow_indirect_imports = True
 source_modules =
-    modules.activities.activity_ingestion.pipeline
     modules.activities.activity_ingestion.upload_entry
     modules.activities.activity_ingestion.bulk_entry
     modules.activities.activity_ingestion.ingestion_jobs
+    modules.activities.activity_ingestion.sources
 forbidden_modules =
-    modules.strava
-    modules.garmin
+    modules.activities.activity_file_import
+
+# The activities persistence layer answers with rows, never by asking another
+# bounded context a question first. ``activity.crud`` used to resolve the
+# requester's accepted followees (followers module) while building a visibility
+# condition, read the server-wide shareable-links policy (server_settings) mid
+# -``SELECT``, and ``activity_streams.crud`` loaded each owner (users) to scale
+# HR zones — a service decision wearing a persistence layer's clothes, and three
+# reasons a query could not be reasoned about, tested, or reused without three
+# other modules present.
+#
+# Those values are now resolved by the layer above and passed in: ``followee_ids``
+# on the visibility filter, the policy check in ``activity.service`` /
+# ``activity.child_access``, and the HR-zone loop in ``activity_streams.service``.
+# Schemas stay allowed — a shape is not a question.
+[importlinter:contract:activities-persistence-asks-nothing]
+name = Activities persistence must not call another module
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.*.crud
+    modules.activities.activity.summary_crud
+    modules.activities.activity.query
+    modules.activities.*.serializers
+    modules.activities.*.utils
+forbidden_modules =
+    modules.users.users.integration_service
+    modules.followers.integration_service
+    modules.server_settings.integration_service
+    modules.notifications.integration_service
+    modules.websocket.integration_service
+    modules.gears
+    modules.auth
 
 # The file parsers (activity_file_import/) are PURE: bytes -> parsed dict/Activity, with no
 # db, privacy, gear, provider, or exercise-title-crud coupling. Every bit
@@ -160,7 +240,7 @@ forbidden_modules =
 # one exception: it built provider URLs, resolved and denylisted the configured
 # host against SSRF (OWASP A10), and spoke HTTP — none of which is a fact about
 # activities, and all of which protected exactly one call site. That now sits
-# behind the platform GeocodingProvider, with the host checks in infra.egress
+# behind the platform GeocodingProvider, with the host checks in core.network
 # where a future outbound integration inherits them instead of reimplementing
 # them. This contract is what stops the egress code drifting back into the domain:
 # an outbound call from activities must be added as a platform provider.
@@ -182,17 +262,16 @@ forbidden_modules =
 
 # The consumer modules — the providers (Strava, Garmin), gears, and users — must not
 # reach into any activities CRUD or its ORM directly. They go through the curated
-# activity integration_service interface (activity/integration_service.py), the
-# read/gear/aggregate/delete counterpart to the ingestion seam they already use to
-# STORE activities. Going through the interface is what keeps the activities tables
-# queried only by their owner, and what makes bulk deletes emit the cleanup events
-# that reclaim thumbnails and stored source files.
+# integration_service owned by the package whose data they need. Root activity
+# reads/writes go through activity/integration_service.py; laps, streams, media,
+# retained files and the other child packages each publish their own surface.
+# Going through those interfaces keeps every table and storage layout owned by one
+# package while preserving the activity-wide transactions at the orchestration layer.
 # The forbidden list is a WILDCARD over every activities sub-package, not just the
 # parent: naming ``activity.crud`` alone left the profile export/import reaching into
 # five CHILD cruds (laps, sets, streams, workout steps, exercise titles, media) and the
 # users CRUD into activity_streams — the same boundary violation the contract exists to
-# stop, one level down. Those consumers now call the child operations the integration
-# service exposes.
+# stop, one level down. Those consumers now call each child's integration service.
 # allow_indirect_imports keeps this to DIRECT imports: the interface itself
 # legitimately imports crud (it is inside activities), so the transitive
 # consumer -> integration_service -> crud path is fine — only a bare
@@ -209,13 +288,27 @@ source_modules =
 forbidden_modules =
     modules.activities.*.crud
     modules.activities.*.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.activity.query
 
-# The companion ORM rule, stated structurally so it can exclude one thing: ORM
-# models legitimately reference each other across modules, because SQLAlchemy
-# relationships share a single registry and are typed with TYPE_CHECKING imports
-# (``Gear`` <-> ``Activity`` <-> ``Users``). What must NOT happen is a consumer's
-# *behaviour* layer querying the activities table itself — which is exactly how
+# Data migrations are version-pinned orchestration, but that does not grant them
+# unrestricted access to every package implementation. Each package exposes the
+# exact legacy operations it supports through ``migration_service.py``; those
+# adapters are for app/migrations only and must never become a general-purpose
+# domain dependency.
+[importlinter:contract:activities-migration-surfaces-are-private]
+name = Activity migration services are consumed only by application migrations
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules
+    core
+    infra
+forbidden_modules =
+    modules.activities.*.migration_service
+
+# The companion ORM rule rejects a consumer's behaviour layer querying the
+# activities table itself — which is exactly how
 # the gear and gear-component usage totals used to be computed, complete with
 # their own copy of the local-timezone date rule. Those aggregations now live in
 # the activities module and are reached through the integration service.
@@ -249,6 +342,63 @@ source_modules =
 forbidden_modules =
     modules.users.users_integrations.models
     modules.users.users_privacy_settings.models
+
+# The followers module is the flat-module counterpart of the activities rules
+# above, stated once now that it is the second module converted to the structure
+# guide. Its router delegates to ``service`` and holds no persistence, its
+# ``crud`` raises domain errors rather than HTTP ones (already covered by
+# ``persistence-no-http``), and — the rule this contract adds — no layer of it
+# reaches into another module's internals. Its subscribers used to import
+# ``notifications.utils``, ``websocket.manager`` and ``websocket.utils``: three
+# reaches past two modules' surfaces to do what
+# ``notifications.integration_service`` + ``websocket.integration_service``
+# already state as one operation each, and the reason the module could not be
+# lifted out without dragging the websocket connection registry with it.
+[importlinter:contract:followers-consumes-surfaces]
+name = Followers must consume other modules through their integration services
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.followers
+forbidden_modules =
+    modules.notifications.utils
+    modules.notifications.crud
+    modules.notifications.models
+    modules.websocket.manager
+    modules.websocket.utils
+    modules.users.users.crud
+    modules.users.users.utils
+    modules.activities
+
+# The companion rule pointing inward: the followers router delegates to the
+# service, exactly as the activities routers do. Stated separately from
+# ``activities-router-delegates`` because the module is flat (no sub-package
+# wildcard to match on).
+[importlinter:contract:followers-router-delegates]
+name = The followers router delegates to the service — no CRUD, ORM or event publishing
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.followers.router
+forbidden_modules =
+    modules.followers.crud
+    modules.followers.models
+    modules.followers.event_publishers
+
+# ORM ownership for followers, matching ``activities-orm-ownership``: the ORM
+# model is touched only by ``crud``, the single persistence surface, which
+# returns schemas. The application layers go through it.
+[importlinter:contract:followers-orm-ownership]
+name = Followers ORM models stay in the persistence layer
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.followers.service
+    modules.followers.router
+    modules.followers.event_publishers
+    modules.followers.integration_service
+forbidden_modules =
+    modules.followers.models
 
 # The activities core consumes the followers module through the curated
 # followers.integration_service interface (list_accepted_followee_ids) — used by both
@@ -294,12 +444,13 @@ allow_indirect_imports = True
 source_modules =
     modules.activities.*.router
     modules.activities.*.public_router
+    modules.activities.activity.summary_router
 forbidden_modules =
     modules.activities.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.*.models
     modules.activities.*.query
     modules.activities.*.event_publishers
-    modules.activities.activity_ingestion.ingestion_jobs_crud
 
 # ORM ownership: the activities ORM models are owned by their subpackage's models.py
 # and touched only by the persistence layer — crud.py (the single ORM surface) and the
@@ -343,8 +494,9 @@ type = forbidden
 allow_indirect_imports = True
 source_modules =
     modules.activities.*.crud
+    modules.activities.activity.summary_crud
     modules.activities.activity.query
-    modules.activities.activity.serializers
+    modules.activities.*.serializers
     modules.followers.crud
 forbidden_modules =
     fastapi
@@ -370,6 +522,53 @@ forbidden_modules =
     modules.activities.activity.crud
     modules.activities.activity.child_access
 
+# One level up, the same rule for the SERVICES. Laps, sets and workout steps are
+# one read three times over — check the gate, page the rows, count them, wrap
+# them, and answer a refusal exactly like an empty collection. Each held its own
+# copy, ~98% identical after renaming the resource, and the copies had already
+# drifted. They now declare what they are (hide flag + CRUD pair + page type) and
+# hand the read to the root activity integration surface, which publishes the
+# shared ``ChildCollection`` operation without exposing its implementation file.
+# Forbidding the gate is what keeps that true: a service that cannot call
+# ``child_access`` cannot quietly grow a fourth copy of the read around it.
+# ``activity_streams.service`` is deliberately absent — its masking is per stream
+# *type* rather than one flag, so it resolves the parent and applies its own
+# filter, which is a different read rather than a copy of this one.
+[importlinter:contract:activities-child-collection-shared]
+name = Activity child services use the shared paginated read, not their own gate call
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.activity_laps.service
+    modules.activities.activity_sets.service
+    modules.activities.activity_workout_steps.service
+forbidden_modules =
+    modules.activities.activity.child_access
+    modules.activities.activity.crud
+
+# An ``integration_service`` is a face, not a layer. It presents a narrow, curated
+# set of its own module's operations to callers outside it, and reads its own
+# module freely to do so — but the *arrangement* of a write (stage the rows,
+# publish the fact, own the commit) belongs to ``service``, which is where the
+# module's transaction boundaries live.
+#
+# The root activity surface was doing it both ways: ``bulk_set_activities_gear``,
+# ``delete_all_strava_activities`` and ``delete_all_activities_for_user`` each
+# called CRUD with ``commit=False``, published their own events and handed
+# ``db.commit`` to the publisher — so the module had two write-orchestration
+# layers, and which one a write went through depended only on whether it was
+# reached from a route or from another module. Forbidding the event publishers
+# here is what makes "call your own service" the only remaining option: a surface
+# that cannot publish cannot own the commit that has to be atomic with it.
+[importlinter:contract:activities-surfaces-delegate-writes]
+name = Activity integration surfaces delegate writes to the service — they do not publish events
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.activities.*.integration_service
+forbidden_modules =
+    modules.activities.*.event_publishers
+
 # The counterpart to consumer-activities-boundary, pointing the other way: the
 # activities module consumes users through the curated users integration service
 # (users/users/integration_service.py), never by reaching into the users CRUD or
@@ -378,10 +577,6 @@ forbidden_modules =
 # and the health-targets CRUD for a caller that only wanted a timezone. Schemas
 # stay allowed (data shapes, not behaviour), as do the FastAPI dependencies the
 # routers mount, which are an HTTP-boundary concern rather than a domain reach.
-# The users ORM is also not listed: SQLAlchemy relationships share one registry and
-# are typed with TYPE_CHECKING imports (``Activity`` <-> ``Users``), so the model
-# cross-reference is structural rather than a behaviour-layer reach — the same
-# exception consumer-activities-orm makes in the opposite direction.
 # allow_indirect_imports keeps this to DIRECT imports: the interface itself
 # legitimately imports users crud/utils, so activities -> integration_service ->
 # crud is fine.

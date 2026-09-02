@@ -123,7 +123,7 @@ class TestListTileMapsTemplates:
 class TestEditServerSettings:
     """Test suite for edit_server_settings endpoint."""
 
-    @patch("modules.server_settings.router.server_settings_crud.edit_server_settings")
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
     def test_edit_server_settings_success(self, mock_edit_settings, fast_api_client, fast_api_app):
         """Test successful update of server settings."""
         # Arrange
@@ -185,7 +185,7 @@ class TestEditServerSettings:
         assert data["units"] == "imperial"
         assert data["num_records_per_page"] == 50
 
-    @patch("modules.server_settings.router.server_settings_crud.edit_server_settings")
+    @patch("modules.server_settings.router.server_settings_service.edit_server_settings")
     def test_edit_server_settings_not_found(self, mock_edit_settings, fast_api_client, fast_api_app):
         """Test update when settings not found."""
         # Arrange

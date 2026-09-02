@@ -34,7 +34,7 @@ class TestAdapters:
         result = parser("/f.gpx", 7, "Name", "Asia/Tokyo")
 
         assert result.activities == ["parsed-gpx"]
-        assert result.exercise_titles is None
+        assert result.components == {}
         mock_gpx.parse_gpx_file.assert_called_once_with("/f.gpx", 7, "Name", "Asia/Tokyo")
         mock_adapter.parsed_info_to_parsed_activity.assert_called_once_with({"activity": "gpx"})
 
@@ -72,7 +72,7 @@ class TestAdapters:
         result = parser("/f.fit", 7, "Name", "Asia/Tokyo")
 
         assert result.activities == ["parsed-info-a", "parsed-info-b"]
-        assert result.exercise_titles == ["title"]
+        assert result.components == {"exercise_titles": ["title"]}
         mock_fit.parse_fit_file.assert_called_once_with("/f.fit", "Name")
         mock_fit.split_records_by_activity.assert_called_once_with({"exercise_titles": ["title"]})
         mock_fit.create_activity_objects.assert_called_once_with(["session-a", "session-b"], 7, "Asia/Tokyo")
@@ -90,4 +90,4 @@ class TestAdapters:
         result = registry.get_parser(".fit")("/f.fit", 7)
 
         assert result.activities == ["i1", "i2", "i3"]
-        assert result.exercise_titles is None
+        assert result.components == {"exercise_titles": None}

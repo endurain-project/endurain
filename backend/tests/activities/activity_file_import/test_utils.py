@@ -36,7 +36,9 @@ class TestTimezoneFinderCache:
     """The TimezoneFinder is built once and reused (perf on the ingestion path)."""
 
     def test_returns_same_cached_instance(self):
-        assert afi_utils._get_timezone_finder() is afi_utils._get_timezone_finder()
+        import core.timezone as core_timezone
+
+        assert core_timezone._timezone_finder() is core_timezone._timezone_finder()
 
     def test_resolve_timezone_uses_cached_finder(self):
         # A known land coordinate resolves to its IANA zone through the cached finder.

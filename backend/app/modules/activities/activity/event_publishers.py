@@ -51,11 +51,11 @@ def publish_activity_created(
     Returns:
         None.
     """
-    payload = {
-        "activity_id": activity_id,
-        "user_id": user_id,
-        "duplicate_start_time": duplicate_start_time,
-    }
+    payload = activity_events.ActivityCreatedPayload(
+        activity_id=activity_id,
+        user_id=user_id,
+        duplicate_start_time=duplicate_start_time,
+    )
     metadata = {
         platform_events.META_ACTIVITY_ID: activity_id,
         platform_events.META_USER_ID: user_id,
@@ -63,19 +63,21 @@ def publish_activity_created(
     if commit is not None:
         platform_publisher.publish_committing(
             activity_events.ACTIVITY_CREATED,
-            payload,
+            payload.model_dump(),
             source="api:store_activity",
             metadata=metadata,
             db=db,
             commit=commit,
+            schema_version=payload.SCHEMA_VERSION,
         )
     else:
         platform_publisher.publish(
             activity_events.ACTIVITY_CREATED,
-            payload,
+            payload.model_dump(),
             source="api:store_activity",
             metadata=metadata,
             db=db,
+            schema_version=payload.SCHEMA_VERSION,
         )
 
 
@@ -106,11 +108,11 @@ def publish_activity_updated(
     Returns:
         None.
     """
-    payload = {
-        "activity_id": activity_id,
-        "user_id": user_id,
-        "changed_fields": sorted(changed_fields),
-    }
+    payload = activity_events.ActivityUpdatedPayload(
+        activity_id=activity_id,
+        user_id=user_id,
+        changed_fields=sorted(changed_fields),
+    )
     metadata = {
         platform_events.META_ACTIVITY_ID: activity_id,
         platform_events.META_USER_ID: user_id,
@@ -118,19 +120,21 @@ def publish_activity_updated(
     if commit is not None:
         platform_publisher.publish_committing(
             activity_events.ACTIVITY_UPDATED,
-            payload,
+            payload.model_dump(),
             source="api:edit_activity",
             metadata=metadata,
             db=db,
             commit=commit,
+            schema_version=payload.SCHEMA_VERSION,
         )
     else:
         platform_publisher.publish(
             activity_events.ACTIVITY_UPDATED,
-            payload,
+            payload.model_dump(),
             source="api:edit_activity",
             metadata=metadata,
             db=db,
+            schema_version=payload.SCHEMA_VERSION,
         )
 
 
@@ -170,7 +174,12 @@ def publish_activities_updated(
     fields = sorted(changed_fields)
     platform_publisher.publish_many_committing(
         activity_events.ACTIVITY_UPDATED,
-        [{"activity_id": activity_id, "user_id": user_id, "changed_fields": fields} for activity_id in activity_ids],
+        [
+            activity_events.ActivityUpdatedPayload(
+                activity_id=activity_id, user_id=user_id, changed_fields=fields
+            ).model_dump()
+            for activity_id in activity_ids
+        ],
         source=source,
         metadata_for=lambda payload: {
             platform_events.META_ACTIVITY_ID: payload["activity_id"],
@@ -205,6 +214,7 @@ def publish_activity_deleted(
     Returns:
         None.
     """
+    deleted = activity_events.ActivityDeletedPayload(activity_id=activity_id)
     metadata = {
         platform_events.META_ACTIVITY_ID: activity_id,
         platform_events.META_USER_ID: user_id,
@@ -212,19 +222,21 @@ def publish_activity_deleted(
     if commit is not None:
         platform_publisher.publish_committing(
             activity_events.ACTIVITY_DELETED,
-            {"activity_id": activity_id},
+            deleted.model_dump(),
             source="api:delete_activity",
             metadata=metadata,
             db=db,
             commit=commit,
+            schema_version=deleted.SCHEMA_VERSION,
         )
     else:
         platform_publisher.publish(
             activity_events.ACTIVITY_DELETED,
-            {"activity_id": activity_id},
+            deleted.model_dump(),
             source="api:delete_activity",
             metadata=metadata,
             db=db,
+            schema_version=deleted.SCHEMA_VERSION,
         )
 
 
@@ -264,7 +276,7 @@ def publish_activities_deleted(
     """
     platform_publisher.publish_many_committing(
         activity_events.ACTIVITY_DELETED,
-        [{"activity_id": activity_id} for activity_id in activity_ids],
+        [activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump() for activity_id in activity_ids],
         source=source,
         metadata_for=lambda payload: {
             platform_events.META_ACTIVITY_ID: payload["activity_id"],

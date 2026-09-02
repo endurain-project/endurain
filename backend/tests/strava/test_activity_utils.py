@@ -170,8 +170,8 @@ class TestSaveActivityStreamsLaps:
 
         assert result.id == 42
         parsed = captured["parsed"]
-        assert [s.stream_type for s in parsed.streams] == [1, 7]
-        assert parsed.laps == laps
+        assert [stream.stream_type for stream in parsed.components["streams"]] == [1, 7]
+        assert parsed.components["laps"] == laps
         assert parsed.source.kind == "strava"
         assert parsed.source.provider_activity_id == 555
         assert captured["db"] is db
@@ -192,8 +192,7 @@ class TestSaveActivityStreamsLaps:
         activity_utils.save_activity_streams_laps(activity, [], None, Mock())
 
         parsed = captured["parsed"]
-        assert parsed.streams == []
-        assert parsed.laps is None
+        assert parsed.components == {"streams": [], "laps": None}
         assert parsed.source.kind == "strava"
 
 

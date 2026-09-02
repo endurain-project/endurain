@@ -115,14 +115,16 @@ class TestDeleteRelationship:
 
 
 class TestRejectFollowRequest:
-    def test_deletes_the_pending_row(self):
+    def test_deletes_only_the_pending_row(self):
+        """Declining must not double as removing an accepted follower."""
+        from modules.followers.constants import FollowStatus
         from modules.followers.service import reject_follow_request
 
         db = MagicMock()
         with patch("modules.followers.service.followers_crud") as crud:
             reject_follow_request(1, 2, db)
 
-        crud.delete_follower.assert_called_once_with(2, 1, db)
+        crud.delete_follower.assert_called_once_with(2, 1, db, status=FollowStatus.PENDING)
 
 
 class TestListAcceptedFolloweeIds:

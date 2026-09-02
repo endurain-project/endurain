@@ -10,7 +10,14 @@ from pathlib import Path
 
 import pytest
 
+import model_registry as app_model_registry
+import module_registry as runtime_module_registry
+import modules.activities.contributor_registry as activity_contributor_registry
+import modules.activities.model_registry as activities_model_registry
+import modules.followers.model_registry as followers_model_registry
+
 _MODULES_DIR = Path(__file__).resolve().parents[2] / "app" / "modules"
+_APP_DIR = _MODULES_DIR.parent
 _TEMPLATE_PACKAGES = sorted(
     [*(_MODULES_DIR / "activities").glob("activity*"), _MODULES_DIR / "followers"],
 )
@@ -18,6 +25,17 @@ _TEMPLATE_PACKAGES = sorted(
 
 def _init_files() -> list[Path]:
     return [pkg / "__init__.py" for pkg in _TEMPLATE_PACKAGES if (pkg / "__init__.py").is_file()]
+
+
+def _absolute_imports(path: Path) -> set[str]:
+    """Return absolute modules imported by a Python source file."""
+    imports: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            imports.add(node.module)
+    return imports
 
 
 @pytest.mark.parametrize("init_file", _init_files(), ids=lambda p: p.parent.name)
@@ -48,13 +66,107 @@ def test_every_module_exposes_one_cross_module_surface_name() -> None:
     privacy-checked application logic, so "what may I depend on?" had a different
     answer per module and consumers got the internals in scope too.
     """
-    followers = _MODULES_DIR / "followers"
-    assert (followers / "integration_service.py").is_file()
-    assert (followers / "service.py").is_file()
+    missing = [
+        package.relative_to(_MODULES_DIR)
+        for package in _TEMPLATE_PACKAGES
+        if not (package / "integration_service.py").is_file()
+    ]
+    assert not missing, (
+        "Every independently extractable package must publish behavior through "
+        f"integration_service.py; missing: {', '.join(map(str, missing))}"
+    )
 
-    activity = _MODULES_DIR / "activities" / "activity"
-    assert (activity / "integration_service.py").is_file()
-    assert (activity / "service.py").is_file()
+
+def test_every_persistence_package_declares_its_models() -> None:
+    """A package that owns a table contributes it without a core filesystem sweep."""
+    missing = [
+        package.relative_to(_MODULES_DIR)
+        for package in _TEMPLATE_PACKAGES
+        if (package / "models.py").is_file() and not (package / "model_registry.py").is_file()
+    ]
+    assert not missing, (
+        f"Every persistence-owning package must publish model_registry.py; missing: {', '.join(map(str, missing))}"
+    )
+
+
+def test_model_registries_collect_every_converted_model() -> None:
+    """Registry contents match the tables owned by converted packages."""
+    expected_activities = {
+        f"modules.activities.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "activities" and (package / "models.py").is_file()
+    }
+    assert set(activities_model_registry.MODEL_MODULES) == expected_activities
+    assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
+    assert (
+        expected_activities | set(followers_model_registry.MODEL_MODULES) == app_model_registry._CONVERTED_MODEL_MODULES
+    )
+
+
+def test_core_database_does_not_discover_domain_models() -> None:
+    """Model discovery belongs to app composition, never the core substrate."""
+    tree = ast.parse((_APP_DIR / "core" / "database.py").read_text())
+    function_names = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    filesystem_scans = {
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in {"glob", "rglob"}
+    }
+    assert "import_all_models" not in function_names
+    assert not filesystem_scans
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "allowed_child_imports"),
+    [
+        ("activities/activity/ingestion_service.py", set()),
+        (
+            "users/users_profile/export_service.py",
+            {
+                "modules.activities.activity_file_storage.integration_service",
+                "modules.activities.activity_media.integration_service",
+            },
+        ),
+        (
+            "users/users_profile/import_service.py",
+            {
+                "modules.activities.activity_file_storage.integration_service",
+                "modules.activities.activity_media.integration_service",
+            },
+        ),
+    ],
+)
+def test_activity_orchestrators_do_not_enumerate_child_packages(
+    relative_path: str,
+    allowed_child_imports: set[str],
+) -> None:
+    """Root orchestration depends on contributors, not child JSON packages."""
+    path = _MODULES_DIR / relative_path
+    child_imports = {
+        imported
+        for imported in _absolute_imports(path)
+        if imported.startswith("modules.activities.activity_")
+        and not imported.startswith("modules.activities.activity.contracts")
+        and not imported.startswith("modules.activities.activity.integration_service")
+        and not imported.startswith("modules.activities.activity.schema")
+    }
+    assert child_imports == allowed_child_imports
+    assert "modules.activities.contributor_registry" in _absolute_imports(path)
+
+
+def test_installed_activity_contributor_keys_are_unique_per_kind() -> None:
+    """App composition installs every stable contributor key exactly once."""
+    runtime_module_registry.configure_activity_contributors()
+    groups = (
+        activity_contributor_registry.activity_ingestion_contributors(),
+        activity_contributor_registry.file_ingestion_contributors(),
+        activity_contributor_registry.profile_activity_contributors(),
+        activity_contributor_registry.profile_global_contributors(),
+    )
+    for group in groups:
+        keys = [contributor.key for contributor in group]
+        assert keys
+        assert len(keys) == len(set(keys))
 
 
 def _template_sources() -> list[Path]:
@@ -171,7 +283,7 @@ def test_event_subscribers_log_what_they_did() -> None:
     """
     offenders = []
     for path in _template_sources():
-        if path.name not in {"subscribers.py", "ingestion_subscribers.py", "bulk_import_subscribers.py"}:
+        if not path.name.endswith("subscribers.py"):
             continue
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):

@@ -24,8 +24,9 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import infra.runtime as platform_runtime
 import modules.activities.activity.integration_service as activities_integration
-import modules.activities.activity_file_storage.service as activity_file_storage_service
-import modules.activities.activity_media.signing as activity_media_signing
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
+import modules.activities.activity_media.integration_service as activity_media_integration
+import modules.activities.contributor_registry as contributor_registry
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.health.health_targets.crud as health_targets_crud
@@ -201,6 +202,7 @@ class ExportService:
                 logger.info(f"No activities found for user {self.user_id}")
                 # Write empty activities file
                 users_profile_utils.write_json_to_zip(zipf, "data/activities.json", [], self.counts)
+                self._collect_and_write_global_activity_components(zipf)
                 return []
 
             # Write activities to ZIP immediately
@@ -214,25 +216,10 @@ class ExportService:
 
             if not activity_ids:
                 logger.warning(f"No valid activity IDs found for user {self.user_id}")
-                return all_activities
+            else:
+                self._collect_and_write_activity_components(zipf, activity_ids, all_activities)
 
-            # Collect and write activity components progressively
-            self._collect_and_write_activity_components(zipf, activity_ids, all_activities)
-
-            # Exercise titles don't depend on activity IDs
-            try:
-                exercise_titles = activities_integration.list_exercise_titles(self.db)
-                if exercise_titles:
-                    exercise_titles_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(e) for e in exercise_titles]
-                    users_profile_utils.write_json_to_zip(
-                        zipf,
-                        "data/activity_exercise_titles.json",
-                        exercise_titles_dicts,
-                        self.counts,
-                    )
-            except Exception as err:
-                logger.error(f"Failed to collect exercise titles: {err}", exc_info=err)
-                raise DataCollectionError(f"Failed to collect exercise titles: {err}") from err
+            self._collect_and_write_global_activity_components(zipf)
 
         except SQLAlchemyError as err:
             logger.error(f"Database error collecting activities: {err}", exc_info=err)
@@ -247,6 +234,18 @@ class ExportService:
             raise DataCollectionError(f"Failed to collect activity data: {err}") from err
 
         return all_activities
+
+    def _collect_and_write_global_activity_components(self, zipf: zipfile.ZipFile) -> None:
+        """Collect and write file-global activity package records once."""
+        for contributor in contributor_registry.profile_global_contributors():
+            try:
+                records = contributor.export(self.db)
+                record_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(record) for record in records]
+                users_profile_utils.write_json_to_zip(zipf, contributor.archive_path, record_dicts, self.counts)
+                self.counts[contributor.count_key] = len(record_dicts)
+            except Exception as err:
+                logger.error(f"Failed to collect {contributor.key}: {err}", exc_info=err)
+                raise DataCollectionError(f"Failed to collect {contributor.key}: {err}") from err
 
     def _get_activities_batch(self, offset: int, limit: int) -> list[Any]:
         """
@@ -294,48 +293,14 @@ class ExportService:
         # Process activity IDs in smaller batches to reduce memory usage
         batch_size = self.performance_config.batch_size // 2  # Smaller batches for components
 
-        # Component definitions: (key, filename, crud_function, should_split)
-        component_types = [
-            (
-                "laps",
-                "data/activity_laps.json",
-                activities_integration.list_activities_laps,
-                True,
-            ),
-            (
-                "sets",
-                "data/activity_sets.json",
-                activities_integration.list_activities_sets,
-                True,
-            ),
-            (
-                "streams",
-                "data/activity_streams.json",
-                activities_integration.list_activities_streams,
-                True,
-            ),
-            (
-                "steps",
-                "data/activity_workout_steps.json",
-                activities_integration.list_activities_workout_steps,
-                False,
-            ),
-            (
-                "media",
-                "data/activity_media.json",
-                activities_integration.list_activities_media,
-                False,
-            ),
-        ]
-
-        for component_key, base_filename, crud_func, should_split in component_types:
+        for contributor in contributor_registry.profile_activity_contributors():
             # For large splittable components, write in chunks during collection
-            if should_split:
+            if contributor.split:
                 self._collect_and_write_component_chunked(
                     zipf,
-                    component_key,
-                    base_filename,
-                    crud_func,
+                    contributor.count_key,
+                    contributor.archive_path,
+                    contributor.export,
                     activity_ids,
                     user_activities,
                     batch_size,
@@ -344,9 +309,9 @@ class ExportService:
                 # For small components, collect all then write
                 self._collect_and_write_component_simple(
                     zipf,
-                    component_key,
-                    base_filename,
-                    crud_func,
+                    contributor.count_key,
+                    contributor.archive_path,
+                    contributor.export,
                     activity_ids,
                     user_activities,
                     batch_size,
@@ -382,7 +347,6 @@ class ExportService:
         # Collect component data in batches
         for i in range(0, len(activity_ids), batch_size):
             batch_ids = activity_ids[i : i + batch_size]
-            batch_activities = user_activities[i : i + batch_size]
 
             users_profile_utils.check_memory_usage(
                 f"{component_key} batch {i // batch_size + 1}",
@@ -391,7 +355,7 @@ class ExportService:
             )
 
             try:
-                data = crud_func(batch_ids, self.user_id, self.db, batch_activities)
+                data = crud_func(batch_ids, self.db)
                 if data:
                     # Convert to dicts and add to chunk buffer
                     batch_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(item) for item in data]
@@ -441,6 +405,7 @@ class ExportService:
             logger.info(f"No {component_key} data found, written empty file")
         else:
             logger.info(f"Written total {total_items} {component_key} items to {file_counter} file(s)")
+        self.counts[component_key] = total_items
 
     def _collect_and_write_component_simple(
         self,
@@ -469,7 +434,6 @@ class ExportService:
         # Collect component data in batches
         for i in range(0, len(activity_ids), batch_size):
             batch_ids = activity_ids[i : i + batch_size]
-            batch_activities = user_activities[i : i + batch_size]
 
             users_profile_utils.check_memory_usage(
                 f"{component_key} batch {i // batch_size + 1}",
@@ -478,7 +442,7 @@ class ExportService:
             )
 
             try:
-                data = crud_func(batch_ids, self.user_id, self.db, batch_activities)
+                data = crud_func(batch_ids, self.db)
                 if data:
                     all_component_data.extend(data)
             except Exception as err:
@@ -694,7 +658,7 @@ class ExportService:
         storage = platform_runtime.get_active_platform().storage
         for activity in user_activities:
             try:
-                stored = activity_file_storage_service.get_activity_file(activity.id, storage)
+                stored = file_storage_integration.get_activity_file(activity.id, storage)
                 if stored is None:
                     continue
                 key, data = stored
@@ -730,17 +694,13 @@ class ExportService:
 
         for activity in user_activities:
             try:
-                keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, f"{activity.id}_")
+                blobs = activity_media_integration.list_media_blobs(activity.id, storage)
             except Exception as err:
                 logger.warning(f"Failed to list media for activity {activity.id}: {err}", exc_info=err)
                 continue
 
-            for key in keys:
+            for key, data in blobs:
                 try:
-                    data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
-                    if data is None:
-                        logger.warning(f"Media blob not found for key: {key}")
-                        continue
                     zipf.writestr(os.path.join("activity_media", key), data)
                     self.counts["media"] += 1
                 except MemoryAllocationError:

@@ -8,6 +8,14 @@ from tests._helpers.models import mock_model
 import core.exceptions as core_exceptions
 
 
+def test_hr_migration_read_has_one_database_error_wrapper():
+    import modules.activities.activity_streams.crud as crud
+
+    wrapped = crud.get_hr_streams_without_zone_percentages
+    assert hasattr(wrapped, "__wrapped__")
+    assert not hasattr(wrapped.__wrapped__, "__wrapped__")
+
+
 class TestCreateActivityStreams:
     @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
     def test_success(self, mock_streams_model, mock_db):
@@ -67,7 +75,7 @@ class TestCreateActivityStreams:
 class TestGetActivityStreams:
     """Persistence only — access and per-type masking live in ``activity_streams.service``."""
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
+    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.transform_activity_streams")
     def test_success(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
@@ -101,7 +109,7 @@ class TestGetActivityStreams:
         mock_db.scalars.return_value.first.return_value = None
         assert crud.get_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db) is None
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
+    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.transform_activity_streams")
     def test_empty(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -119,56 +127,37 @@ class TestGetActivityStreams:
 
 
 class TestGetActivitiesStreams:
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.transform_activity_streams")
+    """The batch read no longer joins the parent: it is handed scoped ids."""
+
+    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.transform_activity_streams")
     def test_success(self, mock_transform, mock_db):
-        import modules.activities.activity.models as am
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
 
         mock_transform.return_value = [MagicMock()]
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1)
-        mock_stream = MagicMock(spec=m.ActivityStreams, id=1, activity_id=1)
-        mock_db.scalars.return_value.all.return_value = [mock_stream]
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[mock_activity])
-        assert len(r) == 1
+        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityStreams, id=1, activity_id=1)]
 
-    def test_empty_ids(self, mock_db):
+        assert len(crud.get_activities_streams(activity_ids=[1], db=mock_db)) == 1
+
+    def test_empty_ids_short_circuits(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
-        r = crud.get_activities_streams(activity_ids=[], _user_id=1, db=mock_db, _activities=[])
-        assert r == []
-
-    def test_no_activities(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[])
-        assert r == []
-
-    def test_no_allowed(self, mock_db):
-        import modules.activities.activity.models as am
-        import modules.activities.activity_streams.crud as crud
-
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=2)
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[mock_activity])
-        assert r == []
+        assert crud.get_activities_streams(activity_ids=[], db=mock_db) == []
+        mock_db.scalars.assert_not_called()
 
     def test_no_streams(self, mock_db):
-        import modules.activities.activity.models as am
         import modules.activities.activity_streams.crud as crud
 
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1)
         mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[mock_activity])
-        assert r == []
+
+        assert crud.get_activities_streams(activity_ids=[1], db=mock_db) == []
 
     def test_db_error(self, mock_db):
         import modules.activities.activity_streams.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_activities_streams(activity_ids=[1], _user_id=1, db=mock_db, _activities=[])
+            crud.get_activities_streams(activity_ids=[1], db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -188,140 +177,3 @@ class TestGetGpsStreamWaypointsForActivities:
         ]
         result = crud.get_gps_stream_waypoints_for_activities([1, 2], mock_db)
         assert result == {1: [{"lat": 38.0, "lon": -9.0}], 2: []}
-
-
-class TestRecomputeHrZonePercentagesForUser:
-    @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync")
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
-    def test_updates_streams_and_commits(self, mock_get_user, mock_compute, mock_batch, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_user.return_value = MagicMock(max_heart_rate=200, birthdate=None)
-        hr_block = {"zone_1": {"percent": 100.0, "hr": "< 120", "time_seconds": 60}}
-        mock_compute.return_value = hr_block
-        stream = MagicMock(id=7, stream_waypoints=[{"hr": 100}])
-        mock_batch.side_effect = [[(stream, 60.0)], []]
-
-        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
-
-        assert stream.zone_percentages == {"hr": hr_block}
-        mock_compute.assert_called_once_with([{"hr": 100}], 200, 60.0)
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
-    def test_clears_zones_when_max_hr_unresolvable(self, mock_get_user, mock_batch, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_user.return_value = MagicMock(max_heart_rate=None, birthdate=None)
-        stream = MagicMock(id=7, stream_waypoints=[{"hr": 100}])
-        mock_batch.side_effect = [[(stream, 60.0)], []]
-
-        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
-
-        assert stream.zone_percentages is None
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
-    def test_no_user_is_noop(self, mock_get_user, mock_batch, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_user.return_value = None
-
-        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
-
-        mock_batch.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    @patch("modules.activities.activity_streams.crud._get_user_hr_streams_batch")
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user")
-    def test_swallows_errors_and_rolls_back(self, mock_get_user, mock_batch, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_get_user.return_value = MagicMock(max_heart_rate=200, birthdate=None)
-        mock_batch.side_effect = SQLAlchemyError("boom")
-
-        crud.recompute_hr_zone_percentages_for_user(1, mock_db)
-
-        mock_db.rollback.assert_called_once()
-
-
-class TestComputeAndStoreHrZonePercentagesForActivity:
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=None)
-    def test_noop_when_user_missing(self, mock_user, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
-
-        mock_db.commit.assert_not_called()
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=None)
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
-    def test_noop_when_no_max_hr(self, mock_user, mock_max, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
-
-        mock_db.commit.assert_not_called()
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
-    def test_noop_when_no_hr_stream(self, mock_user, mock_max, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_db.execute.return_value.first.return_value = None
-
-        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
-
-        mock_db.commit.assert_not_called()
-
-    @patch(
-        "modules.activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync",
-        return_value={"zone_1": 1},
-    )
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
-    def test_stores_zone_percentages(self, mock_user, mock_max, mock_compute, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        stream = MagicMock(stream_waypoints=[{"hr": 100}])
-        mock_db.execute.return_value.first.return_value = (stream, 600.0)
-
-        crud.compute_and_store_hr_zone_percentages_for_activity(1, 2, mock_db)
-
-        assert stream.zone_percentages == {"hr": {"zone_1": 1}}
-        mock_db.commit.assert_called_once()
-
-
-class TestBackfillMissingHrZonePercentages:
-    @patch(
-        "modules.activities.activity_streams.crud.activity_streams_utils.compute_hr_zone_breakdown_sync",
-        return_value={"zone_1": 1},
-    )
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=190)
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
-    def test_scores_missing_streams(self, mock_user, mock_max, mock_compute, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        stream = MagicMock(id=5, stream_waypoints=[{"hr": 100}])
-        # First batch returns one (stream, total_timer_time, owner_id); second is empty.
-        mock_db.execute.return_value.all.side_effect = [[(stream, 600.0, 2)], []]
-
-        updated = crud.backfill_missing_hr_zone_percentages(mock_db)
-
-        assert updated == 1
-        assert stream.zone_percentages == {"hr": {"zone_1": 1}}
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_utils.resolve_max_heart_rate", return_value=None)
-    @patch("modules.activities.activity_streams.crud.users_integration_service.get_user", return_value=MagicMock())
-    def test_skips_when_owner_has_no_max_hr(self, mock_user, mock_max, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        stream = MagicMock(id=5, stream_waypoints=[{"hr": 100}])
-        mock_db.execute.return_value.all.side_effect = [[(stream, 600.0, 2)], []]
-
-        updated = crud.backfill_missing_hr_zone_percentages(mock_db)
-
-        assert updated == 0

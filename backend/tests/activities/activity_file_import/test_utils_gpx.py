@@ -7,8 +7,8 @@ import pytest
 from geopy.distance import geodesic
 
 import core.exceptions as core_exceptions
-import modules.activities.activity_file_import.computation as activities_computation
 import modules.activities.activity_file_import.utils_gpx as utils_gpx
+import modules.activities.computation as activities_computation
 
 
 def _write_gpx(tmp_path, body: str) -> str:

@@ -15,14 +15,15 @@ import threading
 from types import FrameType
 
 import core.config as core_config
-import core.database as core_database
 import core.logger as core_logger
 import infra.container as platform_container
 import infra.jobs.registry as jobs_registry
 import infra.jobs.service as jobs_service
 import infra.runtime as platform_runtime
-import modules.activities.subscriber_registry as activity_subscriber_registry
-import modules.followers.subscribers as followers_subscribers
+import model_registry as orm_model_registry
+import module_registry as runtime_module_registry
+import modules.garmin.provider_registry as garmin_provider_registry
+import modules.strava.provider_registry as strava_provider_registry
 from infra.jobs.worker import run_worker
 
 logger = core_logger.get_logger(__name__)
@@ -59,16 +60,21 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # the ORM registry would be missing every model a job never touches
     # directly - and a string-target relationship on one that it does touch
     # (Users -> PasswordResetToken) fails to resolve on the first claim.
-    core_database.import_all_models()
+    orm_model_registry.import_all_models()
     platform = platform_container.build_platform(core_config.settings)
     platform_runtime.set_active_platform(platform)
     # Register every activity durable-job handler so this worker can resolve any
     # claimed job's subscriber_id back to a handler. Uses the SAME shared surface
-    # as main.startup_event (activities.subscriber_registry) so the two entrypoints
+    # as main.startup_event (app module_registry) so the two entrypoints
     # cannot drift — a handler registered in one but not the other would leave its
     # jobs unresolvable (and dead-lettered) on a dedicated worker.
-    activity_subscriber_registry.register_all_activity_durable_handlers(jobs_registry.registry)
-    followers_subscribers.register_follower_notification_durable_handlers(jobs_registry.registry)
+    runtime_module_registry.configure_activity_contributors()
+    runtime_module_registry.register_durable_handlers(jobs_registry.registry)
+    # Same reason, for the refresh job: it pulls from whichever providers are
+    # registered, and a provider registered in the API but not here would make a
+    # refresh claimed by this worker silently return nothing.
+    strava_provider_registry.register_activity_provider()
+    garmin_provider_registry.register_activity_provider()
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     runner = jobs_service.build_runner()

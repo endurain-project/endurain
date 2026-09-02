@@ -2,26 +2,25 @@
 
 The file parsers (:mod:`modules.activities.activity_file_import`) are **pure** —
 they derive only what the file bytes contain and never touch the DB, privacy
-settings, gear, or Garmin. This adapter seam re-attaches the
-domain context the parsers used to resolve inline:
+settings or gear. This adapter seam re-attaches the domain context the parsers
+used to resolve inline:
 
 * the owner's **privacy defaults** (visibility + ``hide_*`` flags),
-* the **gear id** (Garmin-synced gear for a Garmin import, else the user's
-  default gear for the activity type),
-* the **Garmin provider ids** on a Garmin sync.
+* the **gear id** — whatever the source already resolved, else the user's
+  default gear for the activity type,
+* the **provider ids** on a provider sync.
 
-Living in ``activity_ingestion`` (not the activities core) is what lets it import
-``gears`` / ``users`` / ``garmin`` — the ``activities-parsing-boundary`` and the
-``activity-file-import-purity`` import-linter contracts keep those imports out of
-the core and the parsers respectively.
+It resolves no *provider* gear itself. Doing so meant importing
+``modules.garmin`` to check the sync flag and ``modules.gears`` to look the gear
+up, which put a provider on the inbound side of the activities module. The
+provider knows it is a provider: it resolves its own gear and hands ingestion the
+id, so this seam only has to answer "and if not, what is the default?".
 """
 
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.activities.activity.contracts as activities_contracts
-import modules.garmin.utils as garmin_utils
-import modules.gears.gear.crud as gears_crud
 import modules.users.users.integration_service as users_integration_service
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
@@ -63,33 +62,24 @@ def resolve_gear_id(
     user_id: int,
     db: Session,
     *,
-    from_garmin: bool = False,
-    garminconnect_gear: dict | None = None,
+    provider_gear_id: int | None = None,
 ) -> int | None:
     """Resolve the gear id to associate with a parsed activity.
 
-    Prefers the Garmin-synced gear (only when the import comes from Garmin, the
-    user has gear sync enabled, and a matching gear exists), otherwise falls back
-    to the user's default gear for the activity type.
+    Prefers the gear the source already resolved (a provider sync matching its
+    own synced gear), otherwise falls back to the user's default gear for the
+    activity type.
 
     Args:
         activity_type: The parsed activity's sport-type code (may be ``None``).
         user_id: Owner user id.
         db: Database session.
-        from_garmin: Whether the activity originates from a Garmin Connect sync.
-        garminconnect_gear: Garmin gear metadata (``[{"uuid": ...}, ...]``) when
-            available.
+        provider_gear_id: Gear id the source resolved, when it had one.
 
     Returns:
         The resolved gear id, or ``None`` when no gear applies.
     """
-    gear_id: int | None = None
-    if from_garmin and garminconnect_gear:
-        user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(user_id, db)
-        if user_integrations is not None and user_integrations.garminconnect_sync_gear:
-            gear = gears_crud.get_gear_by_garminconnect_id_from_user_id(garminconnect_gear[0]["uuid"], user_id, db)
-            if gear is not None:
-                gear_id = gear.id
+    gear_id = provider_gear_id
     if gear_id is None and activity_type is not None:
         gear_id = users_integration_service.get_default_gear_for_activity_type(user_id, activity_type, db)
     logger.debug(
@@ -98,7 +88,7 @@ def resolve_gear_id(
             user_id=user_id,
             activity_type=activity_type,
             gear_id=gear_id,
-            from_garmin=from_garmin,
+            from_provider=provider_gear_id is not None,
         ),
     )
     return gear_id
@@ -111,7 +101,8 @@ def enrich_parsed_activity(
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
     db: Session,
     from_garmin: bool = False,
-    garminconnect_gear: dict | None = None,
+    provider_gear_id: int | None = None,
+    garminconnect_gear_id: str | None = None,
     garmin_connect_activity_id: int | None = None,
 ) -> None:
     """Populate owner privacy defaults, gear, and Garmin ids on a parsed activity in place.
@@ -125,7 +116,9 @@ def enrich_parsed_activity(
         user_privacy_settings: The owner's privacy-settings DTO.
         db: Database session.
         from_garmin: Whether the activity originates from a Garmin Connect sync.
-        garminconnect_gear: Garmin gear metadata, when available.
+        provider_gear_id: Gear id the source resolved, when it had one.
+        garminconnect_gear_id: The Garmin Connect gear UUID recorded on the
+            activity, for a Garmin sync.
         garmin_connect_activity_id: The Garmin Connect activity id, for a Garmin
             sync.
     """
@@ -136,13 +129,12 @@ def enrich_parsed_activity(
         activity.activity_type,
         user_id,
         db,
-        from_garmin=from_garmin,
-        garminconnect_gear=garminconnect_gear,
+        provider_gear_id=provider_gear_id,
     )
 
     if from_garmin:
         activity.garminconnect_activity_id = garmin_connect_activity_id
-        activity.garminconnect_gear_id = garminconnect_gear[0]["uuid"] if garminconnect_gear else None
+        activity.garminconnect_gear_id = garminconnect_gear_id
         logger.debug(
             "Attached Garmin provider ids to a parsed activity",
             extra=core_logger.context(

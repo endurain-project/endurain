@@ -98,12 +98,27 @@ class TestProcessAllFilesSync:
     def test_processes_every_file_with_the_same_import_time(self):
         with (
             patch.object(bulk_entry.core_database, "get_db", return_value=iter([MagicMock()])),
+            patch.object(bulk_entry, "ingestion_jobs_crud"),
             patch.object(bulk_entry, "store_activity_file") as store,
         ):
-            bulk_entry.process_all_files_sync(7, ["/a.gpx", "/b.fit"], "2026-07-21T00:00:00")
+            bulk_entry.process_all_files_sync(7, [("job-a", "/a.gpx"), ("job-b", "/b.fit")], "2026-07-21T00:00:00")
 
         assert store.call_count == 2
         assert [call.args[1] for call in store.call_args_list] == ["/a.gpx", "/b.fit"]
         assert all(
             call.kwargs["source"].import_initiated_time == "2026-07-21T00:00:00" for call in store.call_args_list
         )
+
+    def test_each_file_reports_its_own_terminal_state(self):
+        """Nothing retries on this path, so the handle must end resolved either way."""
+        created = MagicMock(id=11)
+        with (
+            patch.object(bulk_entry.core_database, "get_db", return_value=iter([MagicMock()])),
+            patch.object(bulk_entry, "ingestion_jobs_crud") as jobs,
+            patch.object(bulk_entry, "store_activity_file", side_effect=[[created], None]),
+        ):
+            bulk_entry.process_all_files_sync(7, [("job-a", "/a.gpx"), ("job-b", "/b.fit")], "2026-07-21T00:00:00")
+
+        assert [call.args[0] for call in jobs.mark_processing.call_args_list] == ["job-a", "job-b"]
+        assert jobs.mark_completed.call_args.args[:2] == ("job-a", [11])
+        assert jobs.mark_failed.call_args.args[0] == "job-b"
