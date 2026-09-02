@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.users.users_goals
+::: backend.app.modules.users.users_goals
     handler: python
     options:
       docstring_style: google
