@@ -11,9 +11,10 @@ it enforces.
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
-import requests
 from staticmap import CircleMarker, Line, StaticMap
+from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
 
 import core.logger as core_logger
 import core.network as core_network
@@ -47,15 +48,51 @@ class UnsafeTileServerError(ValueError):
     """Raised when a tile URL violates the shared outbound-network policy."""
 
 
-def _ensure_safe_url(url: str) -> None:
-    """Reject a tile URL that could target an internal service."""
-    reason = core_network.url_rejection_reason(url, purpose="activity_thumbnail_tile")
+def _ensure_safe_url(url: str) -> tuple[str, ...]:
+    """Resolve a tile URL or reject one that could target an internal service."""
+    addresses, reason = core_network.resolve_url_addresses(url, purpose="activity_thumbnail_tile")
     if reason is not None:
         logger.warning(
             "Rejected an unsafe activity thumbnail tile URL",
             extra=core_logger.context(reason=reason),
         )
         raise UnsafeTileServerError(reason)
+    return addresses
+
+
+def _pinned_get(url: str, address: str, *, timeout: float, headers: dict[str, str]) -> tuple[int, bytes]:
+    """Fetch a URL by validated IP while preserving its HTTP and TLS hostname."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if hostname is None:
+        raise UnsafeTileServerError("URL has no hostname")
+
+    request_headers = dict(headers)
+    request_headers["Host"] = parsed.netloc.rsplit("@", maxsplit=1)[-1]
+    target = urlunparse(("", "", parsed.path or "/", parsed.params, parsed.query, ""))
+    port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    if parsed.scheme.lower() == "https":
+        pool = HTTPSConnectionPool(
+            address,
+            port=port,
+            assert_hostname=hostname,
+            server_hostname=hostname,
+        )
+    else:
+        pool = HTTPConnectionPool(address, port=port)
+
+    try:
+        response = pool.request(
+            "GET",
+            target,
+            headers=request_headers,
+            timeout=timeout,
+            redirect=False,
+            retries=False,
+        )
+        return response.status, response.data
+    finally:
+        pool.close()
 
 
 class _GuardedStaticMap(StaticMap):
@@ -63,10 +100,10 @@ class _GuardedStaticMap(StaticMap):
 
     def get(self, url: str, **kwargs: Any) -> tuple[int, bytes]:
         """Fetch one validated tile without following redirects."""
-        _ensure_safe_url(url)
+        addresses = _ensure_safe_url(url)
         timeout = kwargs.pop("timeout", None) or 10.0
-        response = requests.get(url, allow_redirects=False, timeout=timeout, **kwargs)
-        return response.status_code, response.content
+        headers = kwargs.pop("headers", {})
+        return _pinned_get(url, addresses[0], timeout=timeout, headers=headers)
 
 
 def render(request: RouteMapRenderRequest) -> bytes:

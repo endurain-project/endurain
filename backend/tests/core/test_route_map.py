@@ -29,7 +29,10 @@ def _request() -> RouteMapRenderRequest:
 
 class TestRenderRouteMap:
     @patch("core.route_map._GuardedStaticMap")
-    @patch("core.route_map.core_network.url_rejection_reason", return_value=None)
+    @patch(
+        "core.route_map.core_network.resolve_url_addresses",
+        return_value=(("203.0.113.10",), None),
+    )
     def test_renders_webp_with_a_bounded_tile_timeout(self, _mock_rejection, mock_static_map):
         image = MagicMock()
         image.save.side_effect = lambda buffer, *_args, **_kwargs: buffer.write(b"webpdata")
@@ -44,8 +47,8 @@ class TestRenderRouteMap:
 
     @patch("core.route_map._GuardedStaticMap")
     @patch(
-        "core.route_map.core_network.url_rejection_reason",
-        return_value="URL resolves to a non-public address",
+        "core.route_map.core_network.resolve_url_addresses",
+        return_value=((), "URL resolves to a non-public address"),
     )
     def test_rejects_a_private_tile_target_before_rendering(self, _mock_rejection, mock_static_map):
         with pytest.raises(UnsafeTileServerError):
@@ -55,23 +58,35 @@ class TestRenderRouteMap:
 
 
 class TestGuardedStaticMap:
-    @patch("core.route_map.requests.get")
-    @patch("core.route_map.core_network.url_rejection_reason", return_value=None)
-    def test_validates_each_url_and_refuses_redirects(self, mock_rejection, mock_get):
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.content = b"tile"
+    @patch("core.route_map.HTTPSConnectionPool")
+    @patch(
+        "core.route_map.core_network.resolve_url_addresses",
+        return_value=(("203.0.113.10",), None),
+    )
+    def test_pins_each_request_to_the_validated_address(self, mock_resolve, mock_pool):
+        mock_pool.return_value.request.return_value.status = 200
+        mock_pool.return_value.request.return_value.data = b"tile"
         tile_map = _GuardedStaticMap(100, 100)
 
         result = tile_map.get("https://tiles.example.com/1/2/3.png", timeout=10, headers={})
 
         assert result == (200, b"tile")
-        mock_rejection.assert_called_once_with(
+        mock_resolve.assert_called_once_with(
             "https://tiles.example.com/1/2/3.png",
             purpose="activity_thumbnail_tile",
         )
-        mock_get.assert_called_once_with(
-            "https://tiles.example.com/1/2/3.png",
-            allow_redirects=False,
-            timeout=10,
-            headers={},
+        mock_pool.assert_called_once_with(
+            "203.0.113.10",
+            port=443,
+            assert_hostname="tiles.example.com",
+            server_hostname="tiles.example.com",
         )
+        mock_pool.return_value.request.assert_called_once_with(
+            "GET",
+            "/1/2/3.png",
+            headers={"Host": "tiles.example.com"},
+            timeout=10,
+            redirect=False,
+            retries=False,
+        )
+        mock_pool.return_value.close.assert_called_once_with()
