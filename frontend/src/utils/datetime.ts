@@ -20,7 +20,7 @@ const WEEKDAY_UTC_INDEX: Record<Schemas['WeekDay'], number> = {
 }
 
 /** Parses a `YYYY-MM-DD` string into a UTC `Date` at midnight. */
-function parseIsoDate(iso: string): Date {
+export function parseIsoDate(iso: string): Date {
   const parts = iso.split('-')
   const year = Number(parts[0])
   const month = Number(parts[1] ?? 1)
@@ -29,7 +29,7 @@ function parseIsoDate(iso: string): Date {
 }
 
 /** Formats a `Date` as a `YYYY-MM-DD` string using its UTC fields. */
-function toIsoDate(date: Date): string {
+export function toIsoDate(date: Date): string {
   const year = date.getUTCFullYear()
   const month = String(date.getUTCMonth() + 1).padStart(2, '0')
   const day = String(date.getUTCDate()).padStart(2, '0')

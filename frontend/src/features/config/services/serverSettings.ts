@@ -2,6 +2,8 @@ import type { PublicServerSettings } from '@/features/config/types'
 
 import { apiFetch } from '@/services/http'
 
+import { DEFAULT_MAP_CONFIG } from '../defaults'
+
 /** Defaults used when public server settings cannot be reached. */
 export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
   login_photo_set: false,
@@ -15,9 +17,8 @@ export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
   password_length_regular_users: 8,
   password_length_admin_users: 12,
   num_records_per_page: 25,
-  tileserver_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  tileserver_attribution:
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  tileserver_url: DEFAULT_MAP_CONFIG.tileUrl,
+  tileserver_attribution: DEFAULT_MAP_CONFIG.attribution,
 }
 
 /**
