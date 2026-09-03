@@ -29,6 +29,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
+import core.pagination as core_pagination
 import modules.activities.activity.child_access as activity_child_access
 import modules.activities.activity.child_collection as activity_child_collection
 import modules.activities.activity.contracts as activities_contracts
@@ -315,7 +316,7 @@ def list_user_activity_scoring_contexts(
     db: Session,
     *,
     after_id: int = 0,
-    batch_size: int = 500,
+    batch_size: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityScoringContext]:
     """Return a bounded batch of one user's stream-scoring contexts."""
     return activities_crud.list_user_activity_scoring_contexts(
@@ -346,7 +347,7 @@ def clear_all_thumbnail_keys(db: Session) -> None:
 def list_activities_with_thumbnail(
     db: Session,
     after_id: int = 0,
-    limit: int = 500,
+    limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return one bounded page of activity references carrying a stored thumbnail key."""
     return activities_crud.get_activities_with_thumbnail(db, after_id=after_id, limit=limit)
@@ -355,7 +356,7 @@ def list_activities_with_thumbnail(
 def list_activities_without_thumbnail(
     db: Session,
     after_id: int = 0,
-    limit: int = 500,
+    limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return one bounded page of activity references that have no stored thumbnail key."""
     return activities_crud.get_activities_without_thumbnail(db, after_id=after_id, limit=limit)
@@ -363,7 +364,7 @@ def list_activities_without_thumbnail(
 
 def list_activities_missing_location(
     db: Session,
-    limit: int = 200,
+    limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityLocationRef]:
     """Return bounded activity references whose location is unresolved."""
     return activities_crud.get_activities_missing_location(db, limit)

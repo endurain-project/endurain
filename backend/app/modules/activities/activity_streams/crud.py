@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
@@ -149,7 +150,7 @@ def get_gps_stream_waypoints_for_activities(
 def get_hr_streams_without_zone_percentages(
     db: Session,
     after_id: int = 0,
-    batch_size: int = 500,
+    batch_size: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """Return HR streams lacking pre-computed zone_percentages in batches."""
     stmt = (
@@ -216,7 +217,7 @@ def list_hr_streams_missing_zones(
     db: Session,
     *,
     after_id: int = 0,
-    batch_size: int = 500,
+    batch_size: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_streams_contracts.HrStreamRecord]:
     """
     Return a batch of HR streams that carry no zone breakdown yet.
