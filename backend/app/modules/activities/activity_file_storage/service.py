@@ -19,11 +19,11 @@ import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
 
-# Domain-owned storage namespace for retained activity source files. For the
-# ``local`` backend this maps to ``{DATA_DIR}/activity_files/processed`` — the
-# exact directory the files were previously moved to — so existing self-host
-# installs need no data migration; for S3 it is the object key prefix.
-ACTIVITY_FILE_STORAGE_AREA = "activity_files/processed"
+# Domain-owned storage namespace for retained activity source files. The
+# ``processed`` hierarchy belongs in the key because JASIL storage areas are
+# single namespace components.
+ACTIVITY_FILE_STORAGE_AREA = "activity_files"
+_PROCESSED_KEY_PREFIX = "processed"
 
 # The activity source-file extensions we retain and can address by activity id.
 # A ``.gz`` upload is decompressed before storage, so only the inner formats are
@@ -46,6 +46,10 @@ def activity_file_key(activity_id: int, extension: str) -> str:
     return f"{activity_id}{ext.lower()}"
 
 
+def _processed_storage_key(key: str) -> str:
+    return f"{_PROCESSED_KEY_PREFIX}/{key}"
+
+
 def store_activity_file(
     activity_id: int,
     extension: str,
@@ -64,7 +68,7 @@ def store_activity_file(
         The storage key the file was saved under.
     """
     key = activity_file_key(activity_id, extension)
-    storage.save(ACTIVITY_FILE_STORAGE_AREA, key, data)
+    storage.save(ACTIVITY_FILE_STORAGE_AREA, _processed_storage_key(key), data)
     logger.debug(
         "Stored the activity source file",
         extra=core_logger.context(activity_id=activity_id, storage_key=key),
@@ -113,7 +117,7 @@ def get_activity_file(
     """
     for extension in _STORED_EXTENSIONS:
         key = activity_file_key(activity_id, extension)
-        data = storage.get(ACTIVITY_FILE_STORAGE_AREA, key)
+        data = storage.get(ACTIVITY_FILE_STORAGE_AREA, _processed_storage_key(key))
         if data is not None:
             return key, data
     return None
@@ -137,4 +141,5 @@ def delete_activity_file(
         None.
     """
     for extension in _STORED_EXTENSIONS:
-        storage.delete(ACTIVITY_FILE_STORAGE_AREA, activity_file_key(activity_id, extension))
+        key = activity_file_key(activity_id, extension)
+        storage.delete(ACTIVITY_FILE_STORAGE_AREA, _processed_storage_key(key))

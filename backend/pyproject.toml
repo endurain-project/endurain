@@ -45,7 +45,7 @@ dependencies = [
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[fastapi,geocoding,jobs,migrations]>=0.1.1,<0.2.0",
+    "jasil[fastapi,geocoding,jobs,migrations]>=0.4.0,<0.5.0",
 ]
 
 [project.optional-dependencies]
@@ -55,7 +55,7 @@ dependencies = [
 distributed = [
     "boto3>=1.35",
     "redis>=7.4.0",
-    "jasil[redis,s3]>=0.1.1,<0.2.0",
+    "jasil[redis,s3]>=0.4.0,<0.5.0",
 ]
 
 [dependency-groups]
