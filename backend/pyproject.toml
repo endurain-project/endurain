@@ -214,7 +214,6 @@ ignore = [
 "app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
 "app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["S105"]  # false positive on env var value
-"app/infra/profile.py" = ["A005"]  # 'profile' deliberately shadows a stdlib module name
 
 [tool.ruff.format]
 quote-style = "double"
