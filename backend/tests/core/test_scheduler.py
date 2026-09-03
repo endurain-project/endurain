@@ -1,6 +1,6 @@
 """Tests for core.scheduler — APScheduler setup and lifecycle."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestSchedulerJobId:
@@ -51,6 +51,46 @@ class TestStartScheduler:
 
             start_scheduler([ScheduledJob(dummy, 5, "a"), ScheduledJob(dummy, 10, "b")])
             assert mock_add_job.call_count == 2
+
+    def test_registers_locked_sync_job_through_sync_adapter(self):
+        with (
+            patch("core.scheduler.scheduler") as mock_scheduler,
+            patch("core.scheduler.add_scheduler_job") as mock_add_job,
+        ):
+            mock_scheduler.running = True
+            from core.scheduler import ScheduledJob, _run_locked_job, start_scheduler
+
+            operation = MagicMock()
+            start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_sync")])
+
+            mock_add_job.assert_called_once_with(
+                _run_locked_job,
+                "interval",
+                5,
+                ("provider_sync", operation, 1),
+                "locked",
+            )
+
+    def test_registers_locked_async_job_through_async_adapter(self):
+        with (
+            patch("core.scheduler.scheduler") as mock_scheduler,
+            patch("core.scheduler.add_scheduler_job") as mock_add_job,
+        ):
+            mock_scheduler.running = True
+            from core.scheduler import ScheduledJob, _run_locked_async_job, start_scheduler
+
+            async def operation(value):
+                return value
+
+            start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_async")])
+
+            mock_add_job.assert_called_once_with(
+                _run_locked_async_job,
+                "interval",
+                5,
+                ("provider_async", operation, 1),
+                "locked",
+            )
 
     def test_registers_nothing_when_handed_nothing(self):
         """The scheduler owns no domain job list of its own."""
@@ -114,6 +154,50 @@ class TestAddSchedulerJob:
             mock_log.error.assert_any_call(
                 "Failed to add scheduler job to failing job: ValueError", exc_info=mock_scheduler.add_job.side_effect
             )
+
+
+class TestLockedSchedulerJobs:
+    """Tests for cross-replica execution guards."""
+
+    @patch("core.scheduler.platform_runtime")
+    def test_sync_job_runs_when_lock_is_acquired(self, mock_runtime):
+        from core.scheduler import _run_locked_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
+        operation = MagicMock(return_value="done")
+
+        assert _run_locked_job("provider_sync", operation, 1) == "done"
+        operation.assert_called_once_with(1)
+
+    @patch("core.scheduler.platform_runtime")
+    def test_sync_job_skips_when_lock_is_held(self, mock_runtime):
+        from core.scheduler import _run_locked_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
+        operation = MagicMock()
+
+        assert _run_locked_job("provider_sync", operation, 1) is None
+        operation.assert_not_called()
+
+    @patch("core.scheduler.platform_runtime")
+    async def test_async_job_runs_when_lock_is_acquired(self, mock_runtime):
+        from core.scheduler import _run_locked_async_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
+        operation = AsyncMock(return_value="done")
+
+        assert await _run_locked_async_job("provider_async", operation, 1) == "done"
+        operation.assert_awaited_once_with(1)
+
+    @patch("core.scheduler.platform_runtime")
+    async def test_async_job_skips_when_lock_is_held(self, mock_runtime):
+        from core.scheduler import _run_locked_async_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
+        operation = AsyncMock()
+
+        assert await _run_locked_async_job("provider_async", operation, 1) is None
+        operation.assert_not_awaited()
 
 
 class TestStopScheduler:

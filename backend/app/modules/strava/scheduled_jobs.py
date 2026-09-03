@@ -29,11 +29,13 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             60,
             "refresh Strava user tokens every 60 minutes",
             [True],
+            "strava_token_refresh",
         ),
         core_scheduler.ScheduledJob(
             strava_activity_utils.retrieve_strava_users_activities_for_days,
             60,
             "retrieve last day Strava users activities",
             [1, True],
+            "strava_activity_sync",
         ),
     )
