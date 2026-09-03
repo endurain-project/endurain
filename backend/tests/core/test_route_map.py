@@ -90,3 +90,16 @@ class TestGuardedStaticMap:
             retries=False,
         )
         mock_pool.return_value.close.assert_called_once_with()
+
+    @patch("core.route_map.HTTPSConnectionPool")
+    @patch(
+        "core.route_map.core_network.resolve_url_addresses",
+        return_value=(("203.0.113.10",), None),
+    )
+    def test_uses_the_shared_default_timeout_when_staticmap_omits_one(self, _mock_resolve, mock_pool):
+        mock_pool.return_value.request.return_value.status = 200
+        mock_pool.return_value.request.return_value.data = b"tile"
+
+        _GuardedStaticMap(100, 100).get("https://tiles.example.com/1/2/3.png", headers={})
+
+        assert mock_pool.return_value.request.call_args.kwargs["timeout"] == _request().request_timeout_seconds

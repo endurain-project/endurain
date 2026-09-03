@@ -8,6 +8,7 @@ bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
 import re
+from urllib.parse import urlparse
 
 import core.config as core_config
 import core.logger as core_logger
@@ -101,9 +102,9 @@ def render_activity_thumbnail(
         tile_url: Leaflet-style tile URL template. {s} subdomains
             are normalised to 'a' automatically.
         background_color: Hex background color for the map canvas.
-        api_key: Optional tile provider API key. When provided,
-            sent as 'Authorization: Stadia-Auth <key>' HTTP header
-            (compatible with Stadia Maps and similar providers).
+        api_key: Optional tile provider API key. Stadia receives it through its
+            authorization header; other providers receive it as an HTTPS query
+            parameter.
         width: Thumbnail width in pixels.
         height: Thumbnail height in pixels.
 
@@ -141,6 +142,12 @@ def render_activity_thumbnail(
         if api_key and "stadiamaps.com" in normalised_url:
             headers["Authorization"] = f"Stadia-Auth {api_key}"
         elif api_key:
+            if urlparse(normalised_url).scheme.lower() != "https":
+                logger.warning(
+                    "Skipping thumbnail render: a tile API key requires HTTPS",
+                    extra=core_logger.context(console=True, activity_id=activity_id),
+                )
+                return None
             separator = "&" if "?" in normalised_url else "?"
             normalised_url += f"{separator}api_key={api_key}"
 
@@ -174,7 +181,10 @@ def render_activity_thumbnail(
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
         logger.warning(
             "Thumbnail generation failed",
-            exc_info=exc,
-            extra=core_logger.context(console=True, activity_id=activity_id),
+            extra=core_logger.context(
+                console=True,
+                activity_id=activity_id,
+                error_type=type(exc).__name__,
+            ),
         )
         return None
