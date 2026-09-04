@@ -86,6 +86,18 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {}
 #: ``(importer module path, imported glob): reason``.
 _INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {}
 
+#: Multi-activity reads that trust their activity ids were owner-scoped before
+#: reaching persistence. Their call surface is deliberately narrower than an
+#: ordinary package operation because a new caller could otherwise create an
+#: indirect object reference vulnerability.
+_BULK_ACTIVITY_READS = {
+    "get_activities_laps": "activity_laps",
+    "get_activities_media": "activity_media",
+    "get_activities_sets": "activity_sets",
+    "get_activities_streams": "activity_streams",
+    "get_activities_workout_steps": "activity_workout_steps",
+}
+
 
 def _module_path(path: pathlib.Path, root: pathlib.Path) -> str:
     """
@@ -171,6 +183,31 @@ def _python_files(root: pathlib.Path) -> list[pathlib.Path]:
         The sorted list of ``.py`` files, excluding caches.
     """
     return sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
+
+
+def _symbol_reference_nodes(tree: ast.AST, symbols: set[str]) -> list[tuple[ast.AST, str]]:
+    """Return AST nodes that reference any named symbol.
+
+    Args:
+        tree: Syntax tree to inspect.
+        symbols: Unqualified symbol names to locate.
+
+    Returns:
+        Reference nodes paired with the symbol each one names.
+    """
+    references: list[tuple[ast.AST, str]] = []
+    for node in ast.walk(tree):
+        candidates: tuple[str | None, ...]
+        if isinstance(node, ast.Name):
+            candidates = (node.id,)
+        elif isinstance(node, ast.Attribute):
+            candidates = (node.attr,)
+        elif isinstance(node, ast.alias):
+            candidates = (node.name.rsplit(".", 1)[-1], node.asname)
+        else:
+            continue
+        references.extend((node, candidate) for candidate in candidates if candidate in symbols)
+    return references
 
 
 def _package_graph(module_name: str) -> dict[str, set[str]]:
@@ -350,6 +387,91 @@ class TestPackageIndependence:
             "Import cycle between packages that are supposed to be independently "
             "extractable. Invert the edge that points from the depended-on "
             "package back to its dependant:\n  " + "\n  ".join(offenders)
+        )
+
+
+class TestOwnerScopedBulkReads:
+    """Bulk reads without access checks stay behind owner-scoped profile export."""
+
+    def test_bulk_reads_are_referenced_only_inside_their_own_package(self):
+        """Reject callers outside each bulk read's CRUD and integration surface."""
+        offenders: list[str] = []
+        symbols = set(_BULK_ACTIVITY_READS)
+        for path in _python_files(_APP_ROOT):
+            tree = ast.parse(path.read_text())
+            for node, symbol in _symbol_reference_nodes(tree, symbols):
+                package = _BULK_ACTIVITY_READS[symbol]
+                package_root = _MODULES_ROOT / "activities" / package
+                if path in {package_root / "crud.py", package_root / "integration_service.py"}:
+                    continue
+                offenders.append(f"{path}:{node.lineno}: references {symbol}")
+        assert not offenders, (
+            "A multi-activity bulk read that trusts pre-scoped ids gained a "
+            "caller outside its package. A new caller is a latent IDOR; route "
+            "profile export through the owning package's contributor:\n  " + "\n  ".join(sorted(offenders))
+        )
+
+    def test_bulk_read_helpers_are_private_profile_exports(self):
+        """Keep each integration wrapper private and wired only as ``export``."""
+        offenders: list[str] = []
+        for bulk_read, package in _BULK_ACTIVITY_READS.items():
+            integration_path = _MODULES_ROOT / "activities" / package / "integration_service.py"
+            integration_tree = ast.parse(integration_path.read_text())
+            reader_functions = [
+                node
+                for node in integration_tree.body
+                if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+                and _symbol_reference_nodes(node, {bulk_read})
+            ]
+            if len(reader_functions) != 1:
+                offenders.append(
+                    f"{integration_path}: expected one wrapper around {bulk_read}, found {len(reader_functions)}"
+                )
+                continue
+
+            helper = reader_functions[0]
+            if not helper.name.startswith("_"):
+                offenders.append(f"{integration_path}:{helper.lineno}: {helper.name} must be private")
+
+            permitted_reference_ids: set[int] = set()
+            for call in (node for node in ast.walk(integration_tree) if isinstance(node, ast.Call)):
+                if isinstance(call.func, ast.Attribute):
+                    constructor = call.func.attr
+                elif isinstance(call.func, ast.Name):
+                    constructor = call.func.id
+                else:
+                    constructor = None
+                if constructor != "ProfileActivityContributor":
+                    continue
+                for keyword in call.keywords:
+                    if (
+                        keyword.arg == "export"
+                        and isinstance(keyword.value, ast.Name)
+                        and keyword.value.id == helper.name
+                    ):
+                        permitted_reference_ids.add(id(keyword.value))
+
+            references: list[tuple[pathlib.Path, ast.AST]] = []
+            for path in _python_files(_APP_ROOT):
+                tree = integration_tree if path == integration_path else ast.parse(path.read_text())
+                references.extend(
+                    (path, node)
+                    for node, _symbol in _symbol_reference_nodes(tree, {helper.name})
+                    if id(node) not in permitted_reference_ids
+                )
+            if len(permitted_reference_ids) != 1:
+                offenders.append(
+                    f"{integration_path}:{helper.lineno}: {helper.name} must be the export callback of exactly one "
+                    "ProfileActivityContributor"
+                )
+            offenders.extend(
+                f"{path}:{node.lineno}: references {helper.name} outside its profile export wiring"
+                for path, node in references
+            )
+
+        assert not offenders, (
+            "A wrapper around an owner-scoped bulk read escaped the private "
+            "profile export seam:\n  " + "\n  ".join(sorted(offenders))
         )
 
 
