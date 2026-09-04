@@ -45,10 +45,15 @@ import modules.activities.activity_ingestion.sources as ingestion_sources
 
 logger = core_logger.get_logger(__name__)
 
-# Domain-owned storage namespace for uploads awaiting their parse. For the
-# ``local`` backend this maps to ``{DATA_DIR}/activity_files/upload_staging``;
-# for S3 it is the object key prefix.
-UPLOAD_STAGING_STORAGE_AREA = "activity_files/upload_staging"
+# Domain-owned storage namespace for uploads awaiting their parse. The staging
+# hierarchy belongs in the key because JASIL storage areas are single path
+# components.
+UPLOAD_STAGING_STORAGE_AREA = "activity_files"
+_UPLOAD_STAGING_KEY_PREFIX = "upload_staging"
+
+
+def _upload_staging_storage_key(key: str) -> str:
+    return f"{_UPLOAD_STAGING_KEY_PREFIX}/{key}"
 
 
 @dataclass(frozen=True)
@@ -149,7 +154,7 @@ def store_received_upload(received: ReceivedUpload) -> str:
     try:
         platform_runtime.get_active_platform().storage.save(
             UPLOAD_STAGING_STORAGE_AREA,
-            received.storage_key,
+            _upload_staging_storage_key(received.storage_key),
             received.data,
         )
     finally:
@@ -197,7 +202,7 @@ def process_staged_upload(
         ProcessingError: On an internal failure.
     """
     storage = platform_runtime.get_active_platform().storage
-    data = storage.get(UPLOAD_STAGING_STORAGE_AREA, staged_key)
+    data = storage.get(UPLOAD_STAGING_STORAGE_AREA, _upload_staging_storage_key(staged_key))
     if data is None:
         raise core_exceptions.InvalidInputError("The uploaded file is no longer available")
 
@@ -282,7 +287,10 @@ def discard_staged_upload(staged_key: str) -> None:
         None.
     """
     try:
-        platform_runtime.get_active_platform().storage.delete(UPLOAD_STAGING_STORAGE_AREA, staged_key)
+        platform_runtime.get_active_platform().storage.delete(
+            UPLOAD_STAGING_STORAGE_AREA,
+            _upload_staging_storage_key(staged_key),
+        )
     except Exception as err:
         logger.warning(
             "Could not remove a staged upload",
