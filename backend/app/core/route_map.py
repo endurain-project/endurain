@@ -21,6 +21,8 @@ import core.network as core_network
 
 logger = core_logger.get_logger(__name__)
 
+_DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS = 10.0
+
 
 @dataclass(frozen=True)
 class RouteMapRenderRequest:
@@ -41,7 +43,7 @@ class RouteMapRenderRequest:
     marker_inner_radius: int
     quality: int
     encoder_method: int
-    request_timeout_seconds: float = 10.0
+    request_timeout_seconds: float = _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS
 
 
 class UnsafeTileServerError(ValueError):
@@ -101,7 +103,7 @@ class _GuardedStaticMap(StaticMap):
     def get(self, url: str, **kwargs: Any) -> tuple[int, bytes]:
         """Fetch one validated tile without following redirects."""
         addresses = _ensure_safe_url(url)
-        timeout = kwargs.pop("timeout", None) or 10.0
+        timeout = kwargs.pop("timeout", None) or _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS
         headers = kwargs.pop("headers", {})
         return _pinned_get(url, addresses[0], timeout=timeout, headers=headers)
 
