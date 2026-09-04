@@ -208,7 +208,7 @@ class TestResolveFromAccessToken:
         mock_user = _mock_user()
 
         mock_token_manager.get_token_claim.side_effect = lambda token, claim: {
-            "sub": 1,
+            "sub": "1",
             "scope": ["profile", "users:read"],
             "sid": "sid-abc",
         }[claim]
@@ -242,12 +242,12 @@ class TestResolveFromAccessToken:
 
         assert exc_info.value.status_code == 401
 
-    def test_non_integer_sub_raises_401(
+    def test_non_decimal_sub_raises_401(
         self,
         service: DefaultIdentityService,
         mock_token_manager: MagicMock,
     ):
-        """Raises 401 when 'sub' claim is not an integer."""
+        """Raises 401 when 'sub' claim is not a decimal string."""
         mock_token_manager.get_token_claim.return_value = "not-an-int"
         with pytest.raises(HTTPException) as exc_info:
             service.resolve_from_access_token("bad_token")
