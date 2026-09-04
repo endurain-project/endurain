@@ -327,6 +327,7 @@ class TestGenerateMissingThumbnails:
         have to hold. A cursor that failed to advance would re-serve page one
         forever; one that skipped would silently leave activities unrendered.
         """
+        import core.pagination as core_pagination
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         mock_db = MagicMock()
@@ -347,13 +348,14 @@ class TestGenerateMissingThumbnails:
 
         generate_missing_activity_thumbnails()
 
-        # Cursor advances past the last id of each page, and stops on the empty one.
+        # Every read stays bounded and advances past the last id of its page.
         assert [
-            call.kwargs["after_id"] for call in mock_activities.list_activities_without_thumbnail.call_args_list
+            (call.kwargs["after_id"], call.kwargs["limit"])
+            for call in mock_activities.list_activities_without_thumbnail.call_args_list
         ] == [
-            0,
-            2,
-            3,
+            (0, core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE),
+            (2, core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE),
+            (3, core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE),
         ]
         # One waypoint batch per page, not one per activity.
         assert mock_streams_service.get_gps_waypoints_for_activities.call_count == 2

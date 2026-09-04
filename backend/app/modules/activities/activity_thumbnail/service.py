@@ -7,7 +7,7 @@ backfill (guarded by the ``LockProvider`` so a single replica runs it) and the
     full regeneration triggered when tile settings change.
 """
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import jasil.providers as platform_providers
 import jasil.runtime as platform_runtime
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.integration_service as activities_service
 import modules.activities.activity_streams.integration_service as activity_streams_service
@@ -24,10 +25,32 @@ import modules.server_settings.integration_service as server_settings_integratio
 
 logger = core_logger.get_logger(__name__)
 
-#: Rows per page for the passes that walk the whole activities table. These run
-#: against every activity on the instance, so they are read in bounded batches
-#: rather than materialised in one list.
-_SCAN_PAGE_SIZE = 500
+type _ActivityPageFetcher = Callable[..., list[activities_contracts.ActivityThumbnailRef]]
+
+
+def _iter_activity_pages(
+    db: Session, fetch_page: _ActivityPageFetcher
+) -> Iterator[list[activities_contracts.ActivityThumbnailRef]]:
+    """Yield every non-empty page returned by an activity scan.
+
+    Args:
+        db: Database session.
+        fetch_page: Activity scan operation to page through.
+
+    Yields:
+        Non-empty pages of activity thumbnail references, ordered by id.
+    """
+    after_id = 0
+    while True:
+        page = fetch_page(
+            db,
+            after_id=after_id,
+            limit=core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
+        )
+        if not page:
+            return
+        yield page
+        after_id = page[-1].id
 
 
 def _iter_activities_with_thumbnail(db: Session) -> Iterator[activities_contracts.ActivityThumbnailRef]:
@@ -39,13 +62,8 @@ def _iter_activities_with_thumbnail(db: Session) -> Iterator[activities_contract
     Yields:
         Thumbnail references, ascending by activity id.
     """
-    after_id = 0
-    while True:
-        page = activities_service.list_activities_with_thumbnail(db, after_id=after_id, limit=_SCAN_PAGE_SIZE)
-        if not page:
-            return
+    for page in _iter_activity_pages(db, activities_service.list_activities_with_thumbnail):
         yield from page
-        after_id = page[-1].id
 
 
 def _iter_activities_without_thumbnail(db: Session) -> Iterator[list[activities_contracts.ActivityThumbnailRef]]:
@@ -62,13 +80,7 @@ def _iter_activities_without_thumbnail(db: Session) -> Iterator[list[activities_
     Yields:
         Non-empty lists of thumbnail references, ascending by activity id.
     """
-    after_id = 0
-    while True:
-        page = activities_service.list_activities_without_thumbnail(db, after_id=after_id, limit=_SCAN_PAGE_SIZE)
-        if not page:
-            return
-        yield page
-        after_id = page[-1].id
+    yield from _iter_activity_pages(db, activities_service.list_activities_without_thumbnail)
 
 
 def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:

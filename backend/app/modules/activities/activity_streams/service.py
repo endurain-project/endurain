@@ -369,7 +369,10 @@ def score_activity_hr_zones(activity_id: int, user_id: int, db: Session) -> None
     activity_streams_crud.set_zone_percentages({stream.stream_id: _zones_for(stream, max_heart_rate)}, db)
 
 
-def backfill_missing_hr_zones(db: Session, batch_size: int = 500) -> int:
+def backfill_missing_hr_zones(
+    db: Session,
+    batch_size: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
+) -> int:
     """Score HR streams that carry no zone breakdown yet (reconciliation net).
 
     The scheduled safety net for the ``activity.created`` HR-zone subscriber.

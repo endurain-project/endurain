@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 import core.decorators as core_decorators
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activities_constants
@@ -1099,7 +1100,7 @@ def list_user_activity_scoring_contexts(
     db: Session,
     *,
     after_id: int = 0,
-    batch_size: int = 500,
+    batch_size: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityScoringContext]:
     """Return an id-ordered batch of one user's activity scoring contexts."""
     stmt = (
@@ -1349,7 +1350,7 @@ def update_activity_location(
 
 def get_activities_missing_location(
     db: Session,
-    limit: int = 200,
+    limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityLocationRef]:
     """Return references to activities that have no resolved location.
 
@@ -1411,7 +1412,7 @@ def clear_all_activity_thumbnail_paths(db: Session) -> None:
 def get_activities_with_thumbnail(
     db: Session,
     after_id: int = 0,
-    limit: int = 500,
+    limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have a map thumbnail.
 
@@ -1453,7 +1454,7 @@ def get_activities_with_thumbnail(
 def get_activities_without_thumbnail(
     db: Session,
     after_id: int = 0,
-    limit: int = 500,
+    limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities that have no map thumbnail.
 
@@ -1496,7 +1497,7 @@ def get_activities_without_thumbnail(
 def get_activities_with_legacy_thumbnail_path(
     db: Session,
     after_id: int = 0,
-    limit: int = 200,
+    limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activities_contracts.ActivityThumbnailRef]:
     """Return references to activities whose thumbnail value is a legacy filesystem path.
 

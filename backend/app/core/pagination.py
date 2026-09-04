@@ -41,6 +41,14 @@ MAX_NUM_RECORDS = 200
 #: the common read a multi-page walk.
 DEFAULT_CHILD_NUM_RECORDS = MAX_NUM_RECORDS
 
+#: Rows per database-only maintenance scan. These passes batch-load records and
+#: process them in memory without performing one external request per row.
+DEFAULT_MAINTENANCE_BATCH_SIZE = 500
+
+#: Rows per maintenance scan whose consumer performs external I/O for each row,
+#: such as reverse geocoding or moving legacy files into managed storage.
+DEFAULT_EXTERNAL_IO_BATCH_SIZE = 200
+
 
 @dataclass(frozen=True)
 class PageParams:

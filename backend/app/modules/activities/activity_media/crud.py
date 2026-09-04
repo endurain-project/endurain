@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 import core.decorators as core_decorators
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.models as activity_media_models
 
@@ -170,7 +171,7 @@ def get_activity_media_by_content_hash(
 def get_media_with_legacy_path(
     db: Session,
     after_id: int = 0,
-    limit: int = 200,
+    limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activity_media_contracts.ActivityMediaRecord]:
     """Return media rows whose stored value is a legacy filesystem path.
 
