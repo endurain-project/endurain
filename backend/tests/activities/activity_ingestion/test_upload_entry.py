@@ -1,8 +1,10 @@
 """Tests for the split upload entry: staging in the request, parsing in the job."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.storage_local import LocalStorage
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.upload_entry as upload_entry
@@ -19,6 +21,11 @@ def _platform() -> MagicMock:
     platform = MagicMock()
     platform.storage = MagicMock()
     return platform
+
+
+@pytest.fixture
+def local_storage(tmp_path) -> LocalStorage:
+    return LocalStorage(base_dir=str(tmp_path / "storage"), url_prefix="/files")
 
 
 class TestReceiveUpload:
@@ -110,7 +117,11 @@ class TestStoreReceivedUpload:
             key = upload_entry.store_received_upload(self._received())
 
         assert key == "abc.gpx"
-        platform.storage.save.assert_called_once_with(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "abc.gpx", b"<gpx/>")
+        platform.storage.save.assert_called_once_with(
+            upload_entry.UPLOAD_STAGING_STORAGE_AREA,
+            "upload_staging/abc.gpx",
+            b"<gpx/>",
+        )
         remove.assert_called_once_with(["/incoming/x.gpx"])
 
     def test_removes_the_incoming_file_when_storage_fails(self):
@@ -146,11 +157,17 @@ class TestProcessStagedUpload:
             result = upload_entry.process_staged_upload(7, "abc.gpx", db)
 
         assert result == ["activity"]
-        platform.storage.get.assert_called_once_with(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "abc.gpx")
+        platform.storage.get.assert_called_once_with(
+            upload_entry.UPLOAD_STAGING_STORAGE_AREA,
+            "upload_staging/abc.gpx",
+        )
         assert store.call_args.args[0] == 7
         assert store.call_args.args[3] == "abc.gpx"
         # Consumed on success.
-        platform.storage.delete.assert_called_once_with(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "abc.gpx")
+        platform.storage.delete.assert_called_once_with(
+            upload_entry.UPLOAD_STAGING_STORAGE_AREA,
+            "upload_staging/abc.gpx",
+        )
 
     def test_rejects_a_blob_that_is_gone(self):
         db = MagicMock()
@@ -174,7 +191,10 @@ class TestProcessStagedUpload:
             result = upload_entry.process_staged_upload(7, "abc.gpx", db)
 
         assert result is None
-        platform.storage.delete.assert_called_once_with(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "abc.gpx")
+        platform.storage.delete.assert_called_once_with(
+            upload_entry.UPLOAD_STAGING_STORAGE_AREA,
+            "upload_staging/abc.gpx",
+        )
 
     def test_keeps_the_blob_when_the_failure_may_be_transient(self):
         """A retry has to have something left to read."""
@@ -224,7 +244,10 @@ class TestDiscardStagedUpload:
         platform = _platform()
         with patch.object(upload_entry.platform_runtime, "get_active_platform", return_value=platform):
             upload_entry.discard_staged_upload("abc.gpx")
-        platform.storage.delete.assert_called_once_with(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "abc.gpx")
+        platform.storage.delete.assert_called_once_with(
+            upload_entry.UPLOAD_STAGING_STORAGE_AREA,
+            "upload_staging/abc.gpx",
+        )
 
     def test_a_storage_failure_never_propagates(self):
         """Cleanup must not turn a finished import into a failed one."""
@@ -232,3 +255,37 @@ class TestDiscardStagedUpload:
         platform.storage.delete.side_effect = RuntimeError("bucket down")
         with patch.object(upload_entry.platform_runtime, "get_active_platform", return_value=platform):
             upload_entry.discard_staged_upload("abc.gpx")
+
+
+class TestLocalStorageStaging:
+    def test_staged_upload_round_trips_and_is_deleted(self, local_storage):
+        platform = MagicMock()
+        platform.storage = local_storage
+        parsed_data: list[bytes] = []
+        received = upload_entry.ReceivedUpload(
+            incoming_path="/incoming/x.gpx",
+            storage_key="abc.gpx",
+            data=b"<gpx/>",
+        )
+
+        def store_materialized_file(_user_id, file_path, *_args, **_kwargs):
+            parsed_data.append(Path(file_path).read_bytes())
+            return []
+
+        with (
+            patch.object(upload_entry.platform_runtime, "get_active_platform", return_value=platform),
+            patch.object(upload_entry.core_file_uploads, "remove_files"),
+        ):
+            upload_entry.store_received_upload(received)
+            assert local_storage.get(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "upload_staging/abc.gpx") == b"<gpx/>"
+
+            with patch.object(upload_entry.pipeline, "store_activities_from_file", side_effect=store_materialized_file):
+                assert upload_entry.process_staged_upload(7, "abc.gpx", MagicMock()) == []
+
+            assert parsed_data == [b"<gpx/>"]
+            assert local_storage.get(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "upload_staging/abc.gpx") is None
+
+            upload_entry.store_received_upload(received)
+            upload_entry.discard_staged_upload("abc.gpx")
+
+        assert local_storage.get(upload_entry.UPLOAD_STAGING_STORAGE_AREA, "upload_staging/abc.gpx") is None
