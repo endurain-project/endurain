@@ -1,5 +1,7 @@
 """Tests for application configuration validation."""
 
+from unittest.mock import patch
+
 import jasil.profile as platform_profile
 import pytest
 from pydantic import ValidationError
@@ -243,6 +245,42 @@ class TestDeploymentProfileEnforcement:
             STATE_URI="memory://",
         )
         assert settings.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.DISTRIBUTED
+
+    def test_development_multi_worker_warns(self):
+        with patch("core.config.logger") as mock_logger:
+            core_config.Settings(_env_file=None, ENVIRONMENT="development", WEB_WORKERS=3)
+
+        assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)
+
+    def test_development_distributed_warns(self):
+        with patch("core.config.logger") as mock_logger:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="development",
+                DEPLOYMENT_PROFILE="distributed",
+            )
+
+        assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)
+
+    def test_development_custom_warns(self):
+        with patch("core.config.logger") as mock_logger:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="development",
+                DEPLOYMENT_PROFILE="custom",
+                STATE_URI="memory://",
+                EVENTS_URI="memory://",
+                STORAGE_URI="local://",
+                LOCK_URI="noop://",
+            )
+
+        assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)
+
+    def test_development_local_single_worker_is_silent(self):
+        with patch("core.config.logger") as mock_logger:
+            core_config.Settings(_env_file=None, ENVIRONMENT="development")
+
+        mock_logger.warning.assert_not_called()
 
     def test_custom_profile_memory_not_fatal(self):
         # 'custom' promises no defaults, so nothing can contradict one and the

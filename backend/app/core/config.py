@@ -694,6 +694,14 @@ class Settings(BaseSettings):
         keeps local storage (shared host disk) but still needs a shared lock.
         """
         if self.ENVIRONMENT == "development":
+            if self.WEB_WORKERS > 1 or self.DEPLOYMENT_PROFILE is not platform_profile.DeploymentProfile.LOCAL:
+                logger.warning(
+                    "ENVIRONMENT=development with WEB_WORKERS>1 or a non-local deployment profile: state and "
+                    "event-bus fall back to per-process memory://, so rate-limit, auth lockout, MFA and WS-ticket "
+                    "state diverge across workers, and durable events do not cross processes. Set STATE_URI/EVENTS_URI "
+                    "or REDIS_URL to share them, or run single-process.",
+                    extra=core_logger.context(console=True),
+                )
             return self
         state_label = "STATE_URI" if self.STATE_URI else "REDIS_URL" if self.REDIS_URL else "STATE_URI/REDIS_URL"
         events_label = "EVENTS_URI" if self.EVENTS_URI else "REDIS_URL" if self.REDIS_URL else "EVENTS_URI/REDIS_URL"

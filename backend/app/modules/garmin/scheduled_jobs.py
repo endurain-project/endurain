@@ -29,11 +29,13 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             60,
             "retrieve last day Garmin Connect users activities",
             [1],
+            "garmin_activity_sync",
         ),
         core_scheduler.ScheduledJob(
             garmin_health_utils.retrieve_garminconnect_users_health_for_days,
             240,
             "retrieve last day Garmin Connect users health data",
             [1],
+            "garmin_health_sync",
         ),
     )

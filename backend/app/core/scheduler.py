@@ -10,10 +10,12 @@ composition root (``main``) hands the collected list to :func:`start_scheduler`.
 The only jobs declared here are core's and the substrate's own.
 """
 
+import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 import jasil.retention as platform_retention
+import jasil.runtime as platform_runtime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import core.logger as core_logger
@@ -34,12 +36,60 @@ class ScheduledJob:
         minutes: Interval between runs, in minutes.
         description: Human-readable description, also the job's stable ID.
         args: Positional arguments passed to func.
+        lock_name: Distributed lock guarding execution, or ``None`` when every
+            scheduler process may run the job.
     """
 
     func: Callable[..., object]
     minutes: int
     description: str
     args: Sequence[object] = field(default_factory=tuple)
+    lock_name: str | None = None
+
+
+def _run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
+    """Run a synchronous scheduled job only while holding its distributed lock.
+
+    Args:
+        lock_name: Stable coordination-lock name.
+        func: Scheduled operation to run.
+        *args: Positional arguments forwarded to the operation.
+
+    Returns:
+        The operation result, or ``None`` when another replica holds the lock.
+    """
+    with platform_runtime.get_active_platform().lock.try_acquire(lock_name) as acquired:
+        if not acquired:
+            logger.debug(
+                "Scheduler job skipped because another replica holds its lock",
+                extra=core_logger.context(lock_name=lock_name),
+            )
+            return None
+        return func(*args)
+
+
+async def _run_locked_async_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
+    """Run an asynchronous scheduled job only while holding its distributed lock.
+
+    Args:
+        lock_name: Stable coordination-lock name.
+        func: Scheduled coroutine function to run.
+        *args: Positional arguments forwarded to the operation.
+
+    Returns:
+        The awaited result, or ``None`` when another replica holds the lock.
+    """
+    with platform_runtime.get_active_platform().lock.try_acquire(lock_name) as acquired:
+        if not acquired:
+            logger.debug(
+                "Scheduler job skipped because another replica holds its lock",
+                extra=core_logger.context(lock_name=lock_name),
+            )
+            return None
+        result = func(*args)
+        if inspect.isawaitable(result):
+            return await result
+        return result
 
 
 def platform_jobs() -> tuple[ScheduledJob, ...]:
@@ -90,7 +140,12 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         scheduler.start()
 
     for job in jobs:
-        add_scheduler_job(job.func, "interval", job.minutes, job.args, job.description)
+        func = job.func
+        args: Sequence[object] = job.args
+        if job.lock_name is not None:
+            func = _run_locked_async_job if inspect.iscoroutinefunction(job.func) else _run_locked_job
+            args = (job.lock_name, job.func, *job.args)
+        add_scheduler_job(func, "interval", job.minutes, args, job.description)
 
     # Clears any backlog promptly, so a frequently-restarted deployment does not
     # starve the daily prune declared in platform_jobs().
