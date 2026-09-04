@@ -45,7 +45,7 @@ dependencies = [
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[fastapi,geocoding,jobs,migrations]>=0.1.1,<0.2.0",
+    "jasil[fastapi,geocoding,jobs,migrations]>=0.4.0,<0.5.0",
 ]
 
 [project.optional-dependencies]
@@ -55,7 +55,7 @@ dependencies = [
 distributed = [
     "boto3>=1.35",
     "redis>=7.4.0",
-    "jasil[redis,s3]>=0.1.1,<0.2.0",
+    "jasil[redis,s3]>=0.4.0,<0.5.0",
 ]
 
 [dependency-groups]
@@ -98,7 +98,7 @@ exclude-newer = "30 days"
 # jasil is first-party (endurain-project) and published through PyPI Trusted
 # Publishing with PEP 740 attestations, so it is exempt from the quarantine the
 # cutoff applies to third-party releases. Every other dependency keeps it.
-exclude-newer-package = { jasil = "2026-08-22T00:00:00Z" }
+exclude-newer-package = { jasil = false }
 
 [[tool.uv.index]]
 name = "pypi"
@@ -214,7 +214,6 @@ ignore = [
 "app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
 "app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["S105"]  # false positive on env var value
-"app/infra/profile.py" = ["A005"]  # 'profile' deliberately shadows a stdlib module name
 
 [tool.ruff.format]
 quote-style = "double"

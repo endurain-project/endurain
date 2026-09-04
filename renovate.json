@@ -110,6 +110,10 @@
       "minimumReleaseAge": "30 days",
       "matchPackageNames": ["codeberg.org/endurain-project/endurain"],
       "pinDigests": false
+    },
+    {
+      "matchDepNames": ["jasil"],
+      "minimumReleaseAge": null
     }
   ]
 }

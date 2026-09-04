@@ -34,13 +34,13 @@ class TestStoreAndGet:
         service.store_activity_file(5, ".tcx", b"tcx", storage)
         assert service.get_activity_file(5, storage) == ("5.tcx", b"tcx")
 
-    def test_storage_area_coincides_with_processed_dir_layout(self, tmp_path):
-        # The local area maps to {DATA_DIR}/activity_files/processed, the exact
-        # directory files used to be moved into, so existing self-host installs
-        # need no data migration.
+    def test_reads_file_from_legacy_processed_dir_layout(self, tmp_path):
+        legacy_file = tmp_path / "activity_files" / "processed" / "1.gpx"
+        legacy_file.parent.mkdir(parents=True)
+        legacy_file.write_bytes(b"legacy")
+
         storage = LocalStorage(str(tmp_path))
-        service.store_activity_file(1, ".gpx", b"data", storage)
-        assert (tmp_path / "activity_files" / "processed" / "1.gpx").is_file()
+        assert service.get_activity_file(1, storage) == ("1.gpx", b"legacy")
 
 
 class TestDelete:
