@@ -5,29 +5,19 @@ not match the schema this application's own history creates would fail here
 rather than on a production boot.
 """
 
-import pathlib
-
 import jasil.migrations as jasil_migrations
 import jasil.orm as jasil_orm
 import pytest
 import sqlalchemy as sa
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 
-import core.migrations as core_migrations
 from core.database import Base
-
-BASELINE = core_migrations.SUBSTRATE_BASELINE_REVISION
 
 
 def _bootstrap(engine) -> None:
     """Run the production bootstrap sequence against an arbitrary engine."""
-    inspector = sa.inspect(engine)
-    if jasil_migrations.db_revision(engine) is None and all(
-        inspector.has_table(name) for name in jasil_orm.jasil_table_names()
-    ):
-        jasil_migrations.stamp(engine, BASELINE)
+    jasil_migrations.adopt_existing_schema(engine)
     jasil_migrations.upgrade(engine)
+    jasil_migrations.verify_schema_current(engine)
 
 
 @pytest.fixture
@@ -66,21 +56,12 @@ class TestBootstrapAgainstSqlite:
         assert jasil_migrations.db_revision(sqlite_engine) == recorded
 
 
-class TestBaselineAssumptions:
-    def test_baseline_is_the_substrates_base_revision(self):
-        # If JASIL ever re-bases its history, stamping the old id would record a
-        # revision that no longer exists, so the assumption is checked against
-        # the installed release rather than held.
-        config = Config()
-        config.set_main_option("script_location", str(pathlib.Path(jasil_migrations.__file__).parent))
-
-        assert ScriptDirectory.from_config(config).get_base() == BASELINE
-
+class TestMigrationOwnership:
     def test_application_history_still_creates_the_substrate_tables(self):
-        # The bootstrap stamps because these revisions exist. Were they removed,
-        # a fresh install would arrive with no tables and skip the stamp, which
-        # is still correct but for a different reason than the one documented.
-        versions = pathlib.Path("app/alembic/versions")
+        """Legacy Endurain revisions remain available to existing installations."""
+        from pathlib import Path
+
+        versions = Path("app/alembic/versions")
         sources = "\n".join(p.read_text() for p in versions.rglob("*.py"))
 
         for table in jasil_orm.jasil_table_names():
