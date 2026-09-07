@@ -384,6 +384,8 @@ def validate_prepare_and_store_file(
             "File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"
         )
 
+    if file_extension != ".gz":
+        core_file_uploads.strip_xml_prefix_whitespace_sync(file_path)
     # Defense-in-depth signature check on files queued for
     # processing (Garmin / Strava import paths).
     core_file_uploads.validate_local_file_sync(
@@ -409,6 +411,7 @@ def validate_prepare_and_store_file(
             file_extension = file_extension.lower()
             if file_extension not in core_config.SUPPORTED_FILE_FORMATS or file_extension == ".gz":
                 raise core_exceptions.InvalidInputError("Decompressed file extension is not supported")
+            core_file_uploads.strip_xml_prefix_whitespace_sync(file_path)
             core_file_uploads.validate_local_file_sync(
                 file_path,
                 kind=core_file_uploads.UploadKind.ACTIVITY,
