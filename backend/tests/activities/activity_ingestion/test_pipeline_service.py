@@ -5,7 +5,9 @@ plumbing the pipeline used to own — gzip expansion, content hashing, artifact
 cleanup — now lives in ``core.file_uploads`` and is tested there.
 """
 
+import gzip
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -349,3 +351,30 @@ class TestGzipArtifacts:
         assert archive.exists()
         assert len(temp_paths) == 1
         assert not os.path.exists(temp_paths[0])
+
+
+class TestXmlPrefixWhitespace:
+    """Whitespace in front of ``<?xml`` is removed before the file is validated."""
+
+    @pytest.mark.parametrize("name,wrap", [("ride.gpx", lambda data: data), ("ride.gpx.gz", gzip.compress)])
+    def test_the_validated_activity_starts_with_the_declaration(self, tmp_path, name, wrap):
+        path = tmp_path / name
+        path.write_bytes(wrap(b"\n  <?xml version='1.0'?><gpx/>"))
+        validated: list[bytes] = []
+
+        def _validate(file_path, **_kwargs):
+            validated.append(Path(file_path).read_bytes())
+
+        with (
+            patch.object(pipeline.core_file_uploads, "validate_local_file_sync", side_effect=_validate),
+            patch.object(pipeline, "store_activities_from_file", return_value=["activity"]),
+        ):
+            pipeline.validate_prepare_and_store_file(
+                3,
+                str(path),
+                MagicMock(),
+                source=sources.BulkImportSource(import_initiated_time="2026-07-21T00:00:00"),
+                storage=MagicMock(),
+            )
+
+        assert validated[-1] == b"<?xml version='1.0'?><gpx/>"

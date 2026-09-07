@@ -52,7 +52,7 @@ class TestStagingTransit:
 
         platform.storage.save_stream.side_effect = record_save
 
-        upload = UploadFile(filename="ride.gpx", file=io.BytesIO(b"<gpx></gpx>"))
+        upload = UploadFile(filename="ride.gpx", file=io.BytesIO(b'<?xml version="1.0"?><gpx></gpx>'))
 
         with (
             patch.object(core_config, "FILES_UPLOAD_INCOMING_DIR", str(incoming)),
@@ -64,7 +64,7 @@ class TestStagingTransit:
 
         # It really was written to disk first, under the server-generated name.
         assert observed["during"] == [key]
-        assert observed["bytes"] == b"<gpx></gpx>"
+        assert observed["bytes"] == b'<?xml version="1.0"?><gpx></gpx>'
         assert observed["area"] == upload_entry_service.UPLOAD_STAGING_STORAGE_AREA
         # …and the local copy is gone once the provider owns it, so the incoming
         # directory never accumulates.

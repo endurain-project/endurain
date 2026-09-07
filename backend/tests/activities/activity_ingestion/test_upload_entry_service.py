@@ -1,5 +1,6 @@
 """Tests for the split upload entry: staging in the request, parsing in the job."""
 
+import gzip
 import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -164,6 +165,27 @@ class TestProcessStagedUpload:
         assert store.call_args.args[3] == "abc.gpx"
         # Left for the caller, which removes it only once the outcome is committed.
         platform.storage.delete.assert_not_called()
+
+    def test_strips_whitespace_before_the_declaration_of_a_decompressed_payload(self):
+        db = MagicMock()
+        platform = _platform()
+        _blob(platform, gzip.compress(b"\n  <?xml version='1.0'?><gpx/>"))
+        validated: list[bytes] = []
+
+        def _validate(file_path, **_kwargs):
+            validated.append(Path(file_path).read_bytes())
+
+        with (
+            patch.object(upload_entry_service.core_file_uploads, "validate_local_file_sync", side_effect=_validate),
+            patch.object(
+                upload_entry_service.activity_ingestion_pipeline_service,
+                "store_activities_from_file",
+                return_value=["activity"],
+            ),
+        ):
+            upload_entry_service.process_staged_upload(7, "abc.gpx.gz", platform.storage, db)
+
+        assert validated == [b"<?xml version='1.0'?><gpx/>"]
 
     def test_rejects_a_blob_that_is_gone(self):
         db = MagicMock()
