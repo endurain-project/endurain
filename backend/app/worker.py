@@ -20,7 +20,6 @@ import jasil.jobs.service as jobs_service
 import jasil.lifecycle as jasil_lifecycle
 import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
-from jasil.jobs.worker import run_worker
 
 import core.config as core_config
 import core.logger as core_logger
@@ -65,6 +64,10 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # directly - and a string-target relationship on one that it does touch
     # (Users -> PasswordResetToken) fails to resolve on the first claim.
     orm_model_registry.import_all_models()
+    # Importing the worker pulls in JASIL's ProcessingJob model. The app's
+    # Base is mapped by the model imports above, so it must happen afterwards.
+    from jasil.jobs.worker import run_worker
+
     substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
     jasil_settings.configure(substrate_settings)
     platform = platform_container.build_platform(substrate_settings)

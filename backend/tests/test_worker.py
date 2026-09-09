@@ -26,7 +26,7 @@ class TestRunWorkerProcess:
             patch("worker.runtime_module_registry") as module_registry,
             patch("worker.jobs_registry") as jobs_registry,
             patch("worker.jobs_service") as service,
-            patch("worker.run_worker") as run_worker_mock,
+            patch("jasil.jobs.worker.run_worker") as run_worker_mock,
             patch("worker.jasil_lifecycle") as lifecycle,
             patch("worker._install_signal_handlers") as install_signals,
         ):
@@ -67,7 +67,7 @@ class TestRunWorkerProcess:
             patch("worker.runtime_module_registry"),
             patch("worker.jobs_registry"),
             patch("worker.jobs_service"),
-            patch("worker.run_worker", side_effect=RuntimeError("boom")),
+            patch("jasil.jobs.worker.run_worker", side_effect=RuntimeError("boom")),
             patch("worker.jasil_lifecycle") as lifecycle,
             patch("worker._install_signal_handlers"),
         ):
