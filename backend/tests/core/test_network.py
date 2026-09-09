@@ -1,5 +1,6 @@
 """Tests for core.network module."""
 
+import asyncio
 import ipaddress
 import socket
 from unittest.mock import MagicMock, patch
@@ -470,6 +471,65 @@ class TestRejectPrivateUrl:
             core_network.reject_private_url("http://internal.example.com", purpose="test")
             mock_log.info.assert_called_once()
             assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
+
+
+class TestRejectPrivateUrlAsync:
+    """Tests for bounded asynchronous SSRF validation."""
+
+    @pytest.mark.asyncio
+    async def test_uses_dedicated_executor_and_forwards_context(self):
+        loop = asyncio.get_running_loop()
+        completed = loop.create_future()
+        completed.set_result(None)
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.return_value = completed
+
+        with (
+            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            patch("core.network.reject_private_url") as mock_reject,
+        ):
+            await core_network.reject_private_url_async("https://idp.example.com", purpose="oidc_discovery")
+
+        executor, operation = mock_loop.run_in_executor.call_args.args
+        assert executor is core_network._SSRF_DNS_EXECUTOR
+        operation()
+        mock_reject.assert_called_once_with("https://idp.example.com", purpose="oidc_discovery")
+
+    @pytest.mark.asyncio
+    async def test_timeout_fails_closed_without_exposing_url(self):
+        loop = asyncio.get_running_loop()
+        unresolved = loop.create_future()
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.return_value = unresolved
+        secret_url = "https://idp.example.com/discovery?client_secret=secret"
+
+        with (
+            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await core_network.reject_private_url_async(secret_url, purpose="oidc_discovery")
+
+        assert exc_info.value.status_code == 504
+        assert exc_info.value.detail == "Hostname resolution timed out"
+        assert secret_url not in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_guard_http_exception_is_preserved(self):
+        blocked = HTTPException(status_code=400, detail="URL resolves to a non-public address")
+        loop = asyncio.get_running_loop()
+        failed = loop.create_future()
+        failed.set_exception(blocked)
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.return_value = failed
+
+        with (
+            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await core_network.reject_private_url_async("https://internal.example.com")
+
+        assert exc_info.value is blocked
 
 
 class TestHostRejectionReason:

@@ -13,6 +13,8 @@ import re
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request, status
@@ -25,6 +27,12 @@ logger = core_logger.get_logger(__name__)
 _TRUSTED_PROXY_HOSTNAME_REFRESH_SECONDS = 60.0
 _trusted_proxy_hostname_refresh_lock = threading.Lock()
 _trusted_proxy_hostname_last_refresh = float("-inf")
+
+# Keep slow OS resolver calls away from asyncio's shared executor. A running
+# getaddrinfo call cannot be cancelled, but this cap prevents unresolved OIDC
+# hosts from consuming every worker used by unrelated to_thread operations.
+_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS = 5.0
+_SSRF_DNS_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ssrf-dns")
 
 # RFC 1123 hostname syntax: labels of 1-63 alphanumeric/hyphen
 # characters, separated by dots. Hyphens may not start or end
@@ -530,10 +538,11 @@ async def reject_private_url_async(url: str, *, purpose: str | None = None) -> N
     """Await :func:`reject_private_url` without blocking the event loop.
 
     The guard resolves every A/AAAA record with :func:`socket.getaddrinfo`, which
-    is blocking and has no timeout — on the event loop a slow or unreachable
-    resolver stalls every other request in the process, not just this one. Async
-    callers use this form; synchronous callers (scheduled jobs, subscribers) call
-    :func:`reject_private_url` directly.
+    is blocking and cannot be cancelled once started. Async callers run it in a
+    small dedicated executor so stalled DNS calls cannot exhaust asyncio's shared
+    worker pool, and stop awaiting it after a bounded interval. Synchronous
+    callers (scheduled jobs, subscribers) call :func:`reject_private_url`
+    directly.
 
     Args:
         url: The fully-qualified URL the caller intends to fetch.
@@ -542,5 +551,21 @@ async def reject_private_url_async(url: str, *, purpose: str | None = None) -> N
 
     Raises:
         HTTPException: 400, for the reasons listed on :func:`reject_private_url`.
+        HTTPException: 504 when hostname resolution exceeds the allowed time.
     """
-    await asyncio.to_thread(reject_private_url, url, purpose=purpose)
+    loop = asyncio.get_running_loop()
+    operation = partial(reject_private_url, url, purpose=purpose)
+    try:
+        await asyncio.wait_for(
+            loop.run_in_executor(_SSRF_DNS_EXECUTOR, operation),
+            timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS,
+        )
+    except TimeoutError as err:
+        logger.warning(
+            "SSRF hostname resolution timed out",
+            extra=core_logger.context(purpose=purpose or "unspecified"),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Hostname resolution timed out",
+        ) from err

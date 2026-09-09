@@ -345,10 +345,6 @@ class TestFetchJwks:
 
     @pytest.mark.asyncio
     async def test_invalid_structure_is_rejected(self, service):
-        # NOTE: the source raises 502 for a malformed JWKS, but _fetch_jwks has
-        # no ``except HTTPException: raise`` clause, so that 502 is caught by
-        # the trailing ``except Exception`` and downgraded to a generic 500.
-        # This test pins the *actual* behaviour rather than the intended 502.
         client = self._client_returning(json_value={"no_keys": True})
         with (
             patch("modules.auth.identity_providers.service.core_network.reject_private_url"),
@@ -356,7 +352,7 @@ class TestFetchJwks:
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await service._fetch_jwks(JWKS_URI)
-            assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+            assert exc_info.value.status_code == status.HTTP_502_BAD_GATEWAY
 
     @pytest.mark.asyncio
     async def test_timeout_raises_504(self, service):
@@ -389,23 +385,20 @@ class TestFetchJwks:
     async def test_ssrf_guard_blocks_before_any_fetch(self, service):
         """A private/internal JWKS URL must be blocked before any HTTP call.
 
-        The SSRF guard fires before ``_get_http_client``/``client.get``, so no
-        outbound request is ever made. NOTE: because the guard runs *inside*
-        the try block and ``_fetch_jwks`` lacks an ``except HTTPException:
-        raise`` clause, the guard's 4xx is downgraded to a generic 500 by the
-        trailing ``except Exception``. The request is still blocked; only the
-        surfaced status code is coarser than the guard intended.
+        The SSRF guard fires before ``_get_http_client``/``client.get``, and its
+        status is preserved for the caller.
         """
         with (
             patch(
-                "modules.auth.identity_providers.service.core_network.reject_private_url",
+                "modules.auth.identity_providers.service.core_network.reject_private_url_async",
+                new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="blocked"),
             ),
             patch.object(service, "_get_http_client", AsyncMock()) as mock_client,
             pytest.raises(HTTPException) as exc_info,
         ):
             await service._fetch_jwks("http://169.254.169.254/jwks")
-        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         mock_client.assert_not_called()
 
 

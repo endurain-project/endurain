@@ -246,6 +246,8 @@ class IdentityProviderService:
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Identity provider returned invalid JWKS JSON",
             ) from err
+        except HTTPException:
+            raise
         except Exception as err:
             logger.error(f"Unexpected error fetching JWKS from {jwks_uri}: {err}", exc_info=err)
             raise HTTPException(
