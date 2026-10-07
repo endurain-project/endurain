@@ -1,12 +1,11 @@
 import { apiFetch } from '@/services/http'
 
-/** The Codeberg API endpoint for the latest stable release of Endurain. */
-const LATEST_RELEASE_URL =
-  'https://codeberg.org/api/v1/repos/endurain-project/endurain/releases/latest'
+/** The GitHub API endpoint for the latest stable release of Endurain. */
+const LATEST_RELEASE_URL = 'https://api.github.com/repos/endurain-project/endurain/releases/latest'
 
-/** The Codeberg API endpoint listing recent releases (includes pre-releases). */
+/** The GitHub API endpoint listing recent releases (includes pre-releases). */
 const RELEASES_LIST_URL =
-  'https://codeberg.org/api/v1/repos/endurain-project/endurain/releases?limit=10'
+  'https://api.github.com/repos/endurain-project/endurain/releases?per_page=10'
 
 /** Minimal shape returned by the backend `/about` endpoint. */
 export interface AboutResponse {
@@ -14,8 +13,8 @@ export interface AboutResponse {
   version: string
 }
 
-/** Minimal shape returned by the Codeberg releases API. */
-interface CodebergRelease {
+/** Minimal shape returned by the GitHub releases API. */
+interface GitHubRelease {
   tag_name: string
   prerelease: boolean
 }
@@ -41,7 +40,7 @@ export async function fetchBackendVersion(signal?: AbortSignal): Promise<string>
 }
 
 /**
- * Fetches the latest published release tag from the Codeberg repository.
+ * Fetches the latest published release tag from the GitHub repository.
  *
  * The tag is normalised by stripping a leading `v` so it can be compared
  * directly against the version string returned by `/about`.
@@ -55,7 +54,7 @@ export async function fetchLatestRelease(signal?: AbortSignal): Promise<string |
   try {
     const res = await fetch(LATEST_RELEASE_URL, { signal })
     if (!res.ok) return null
-    const data = (await res.json()) as CodebergRelease
+    const data = (await res.json()) as GitHubRelease
     if (data.prerelease) return null
     const tag = data.tag_name ?? ''
     return tag.startsWith('v') ? tag.slice(1) : tag || null
@@ -65,7 +64,7 @@ export async function fetchLatestRelease(signal?: AbortSignal): Promise<string |
 }
 
 /**
- * Fetches the latest pre-release tag from the Codeberg repository.
+ * Fetches the latest pre-release tag from the GitHub repository.
  *
  * Used to notify users who are already running a pre-release build about a
  * newer beta. Stable users never see this result.
@@ -78,7 +77,7 @@ export async function fetchLatestPreRelease(signal?: AbortSignal): Promise<strin
   try {
     const res = await fetch(RELEASES_LIST_URL, { signal })
     if (!res.ok) return null
-    const data = (await res.json()) as CodebergRelease[]
+    const data = (await res.json()) as GitHubRelease[]
     const found = data.find((r) => r.prerelease)
     if (!found) return null
     const tag = found.tag_name ?? ''

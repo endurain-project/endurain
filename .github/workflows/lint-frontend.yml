@@ -7,24 +7,27 @@ on:
       - main
     paths:
       - frontend/**
-      - .forgejo/workflows/lint-frontend.yml
+      - .github/workflows/lint-frontend.yml
   pull_request:
     paths:
       - frontend/**
-      - .forgejo/workflows/lint-frontend.yml
+      - .github/workflows/lint-frontend.yml
 
 concurrency:
-  group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
 
   frontend:
     name: Frontend (format + lint + type-check + test)
-    runs-on: local-runner
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
 

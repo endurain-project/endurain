@@ -55,7 +55,7 @@ Committing should use clear messages following [Conventional Commits](https://ww
 
 **Format:** `<type>(<scope>)!: <description>` — `(<scope>)` and the breaking-change `!` are optional.
 
-The following rules are enforced automatically on every PR (against the PR title and every commit subject) by `.forgejo/workflows/conventional-commits.yml`. Validation follows the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) spec, with a single project-policy addition (the allowed-type whitelist). Generated commit messages must comply:
+The following rules are enforced automatically on every PR (against the PR title and every commit subject) by `.github/workflows/conventional-commits.yml`. Validation follows the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) spec, with a single project-policy addition (the allowed-type whitelist). Generated commit messages must comply:
 
 - **Header format:** `<type>(<scope>)!: <description>` — the `(<scope>)` and breaking-change `!` are optional, and a space is required after the colon.
 - **Allowed types (project policy):** `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`. Types are matched case-insensitively per the spec.
@@ -78,7 +78,7 @@ Examples:
 
 ### Quick Start
 
-1. Clone repository: `git clone https://codeberg.org/endurain-project/endurain.git`
+1. Clone repository: `git clone https://github.com/endurain-project/endurain.git`
 2. Navigate to the project root
 3. Choose development approach:
    - **Frontend Only** – see _Frontend Development_ below

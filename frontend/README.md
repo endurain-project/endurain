@@ -35,7 +35,7 @@ npm run dev        # dev server with hot reload
 | `npm run check` | type-check + lint + format + test (run before pushing) |
 | `npm run gen:api` | Regenerate the typed API client (see below) |
 
-CI (`.forgejo/workflows/lint-frontend.yml`) runs format, lint, type-check, and
+CI (`.github/workflows/lint-frontend.yml`) runs format, lint, type-check, and
 the coverage-gated tests on every PR touching `frontend`.
 
 ## Typed API client
@@ -54,7 +54,7 @@ python ../../backend/scripts/export_openapi.py openapi.json
 npm run gen:api
 ```
 
-`.forgejo/workflows/openapi-types-drift.yml` regenerates the client in CI and
+`.github/workflows/openapi-types-drift.yml` regenerates the client in CI and
 fails if the committed copy is stale, so it can never drift from the backend.
 The intermediate `openapi.json` is gitignored.
 
