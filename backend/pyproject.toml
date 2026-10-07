@@ -188,7 +188,7 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://github.com/endurain-project/endurain/issues/680
+    "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://github.com/endurain-project/endurain/issues/653
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -201,7 +201,7 @@ ignore = [
 "app/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["S105"]  # false positive on env var value
 "app/profile/mfa_store.py" = ["S105"]  # false positive on Redis key prefix
-"app/profile/**/*.py" = ["A005"]  # tracked in https://github.com/endurain-project/endurain/issues/677
+"app/profile/**/*.py" = ["A005"]  # tracked in https://github.com/endurain-project/endurain/issues/651
 
 [tool.ruff.format]
 quote-style = "double"
