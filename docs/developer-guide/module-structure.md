@@ -296,7 +296,7 @@ and two of the copies had already drifted before this was extracted.
 Two mechanisms, deliberately:
 
 **`backend/.importlinter`** — cross-module rules, run in CI by
-`.forgejo/workflows/test-backend.yml`:
+`.github/workflows/test-backend.yml`:
 
 ```bash
 cd backend && PYTHONPATH=app uv run lint-imports

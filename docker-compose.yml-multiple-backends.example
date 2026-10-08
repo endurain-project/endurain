@@ -37,7 +37,7 @@ services:
   # so the API only publishes and schedules the outbox relay + lease reaper.
   # endurain-worker:
   #   container_name: endurain-worker
-  #   image: codeberg.org/endurain-project/endurain:latest
+  #   image: ghcr.io/endurain-project/endurain:latest
   #   environment:
   #     - TZ=Europe/Lisbon
   #     - APP_ROLE=worker
