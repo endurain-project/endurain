@@ -15,6 +15,11 @@ import users.users_privacy_settings.utils as users_privacy_settings_utils
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
 
+# Gaps between waypoints no longer than this are folded into moving time,
+# since they are more likely brief GPS reacquisition than an actual pause.
+# Longer gaps are treated as paused time and excluded.
+PAUSE_GAP_THRESHOLD_SECONDS = 10.0
+
 # Canonical keys present in every activity file payload's waypoint streams.
 # Used as documentation and for IDE hint support.
 STREAM_KEYS: tuple[str, ...] = (
@@ -513,4 +518,32 @@ def compute_distance_from_waypoints(lat_lon_waypoints: list[dict]) -> float:
             (prev_point["lat"], prev_point["lon"]),
             (current_point["lat"], current_point["lon"]),
         ).meters
+    return total
+
+
+def compute_moving_time_from_spans(spans: list[tuple[datetime, datetime]]) -> float:
+    """Sum segment spans to derive moving time, excluding long inter-segment gaps.
+
+    Each span is a (first, last) waypoint time pair for one contiguous
+    recording segment (e.g. a GPX ``<trkseg>`` or a TCX ``<Track>``). Every
+    span's own duration is always included. Gaps between consecutive spans
+    longer than ``PAUSE_GAP_THRESHOLD_SECONDS`` are excluded as paused time;
+    shorter gaps are folded back in, since they are more likely brief GPS
+    reacquisition than an actual pause.
+
+    Args:
+        spans: (first, last) timestamp tuples in chronological order.
+
+    Returns:
+        Total moving time in seconds.
+    """
+    total = 0.0
+    prev_last: datetime | None = None
+    for first, last in spans:
+        if prev_last is not None:
+            gap = (first - prev_last).total_seconds()
+            if gap <= PAUSE_GAP_THRESHOLD_SECONDS:
+                total += gap
+        total += (last - first).total_seconds()
+        prev_last = last
     return total

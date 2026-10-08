@@ -445,6 +445,18 @@ class TestCalculatePace:
         )
         assert result == 1500.0 / 5000
 
+    def test_uses_total_timer_time_seconds_when_provided(self):
+        from activities.activity.utils import calculate_pace
+
+        result = calculate_pace(
+            distance=1000,
+            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
+            last_waypoint_time=datetime(2024, 1, 15, 9, 0, 0),
+            total_timer_time_seconds=1000.0,
+        )
+        # Moving pace uses total_timer_time_seconds, not the elapsed span.
+        assert result == 1.0
+
 
 class TestCalculateAvgAndMax:
     def test_returns_zero_for_empty_data(self):

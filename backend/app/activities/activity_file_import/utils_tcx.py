@@ -1,8 +1,11 @@
 """Utilities for parsing TCX files into activity data."""
 
-from typing import Any
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from typing import Any, TypedDict
 
 import tcxreader
+from defusedxml.ElementTree import parse as safe_xml_parse
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -14,6 +17,128 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import users.users_default_gear.utils as user_default_gear_utils
 import users.users_privacy_settings.models as users_privacy_settings_models
+
+# Matches tcxreader's own namespace assumption for Garmin TCX files.
+_TCX_NAMESPACE = "{http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2}"
+
+# Time formats accepted by tcxreader's own Trackpoint parser.
+_TCX_TIME_FORMATS = (
+    "%Y-%m-%dT%H:%M:%S.%fZ",
+    "%Y-%m-%dT%H:%M:%S.%f%z",
+    "%Y-%m-%dT%H:%M:%SZ",
+    "%Y-%m-%dT%H:%M:%S%z",
+)
+
+
+class TcxLapTrackData(TypedDict):
+    """Track-level timing and position data for one TCX activity lap.
+
+    Attributes:
+        time_spans: First and last timestamps for each non-empty track.
+        lat_lon_tracks: Timed GPS waypoints grouped by track.
+    """
+
+    time_spans: list[tuple[datetime, datetime]]
+    lat_lon_tracks: list[list[dict[str, float]]]
+
+
+def _parse_tcx_time(text: str) -> datetime | None:
+    """
+    Parse a TCX ``<Time>`` element's text into a datetime.
+
+    Args:
+        text: Raw element text.
+
+    Returns:
+        Parsed datetime, or None if no known format matches.
+    """
+    for pattern in _TCX_TIME_FORMATS:
+        try:
+            return datetime.strptime(text, pattern)
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_activity_lap_tracks(file: str) -> list[TcxLapTrackData]:
+    """
+    Parse track timing and positions for each TCX activity lap.
+
+    tcxreader flattens every ``<Track>`` under a ``<Lap>`` into a single
+    trackpoint list, discarding the segment boundary a pause/resume creates
+    (a new ``<Track>`` is opened on resume, mirroring GPX's ``<trkseg>``).
+    This walks only ``<Activities>`` to recover those boundaries without
+    including unrelated course tracks.
+
+    Args:
+        file: Path to the TCX file on disk.
+
+    Returns:
+        Track timing and position data aligned with tcxreader's lap order.
+        Empty if the file cannot be parsed.
+    """
+    try:
+        root = safe_xml_parse(file).getroot()
+    except (ET.ParseError, OSError, ValueError):
+        return []
+
+    if root is None:
+        return []
+
+    parsed_laps: list[TcxLapTrackData] = []
+    for activities in root.findall(f"{_TCX_NAMESPACE}Activities"):
+        for activity in activities.findall(f"{_TCX_NAMESPACE}Activity"):
+            for lap in activity.findall(f"{_TCX_NAMESPACE}Lap"):
+                has_trackpoints = False
+                time_spans: list[tuple[datetime, datetime]] = []
+                lat_lon_tracks: list[list[dict[str, float]]] = []
+
+                for track in lap.findall(f"{_TCX_NAMESPACE}Track"):
+                    times: list[datetime] = []
+                    lat_lon_waypoints: list[dict[str, float]] = []
+
+                    for trackpoint in track.findall(f"{_TCX_NAMESPACE}Trackpoint"):
+                        has_trackpoints = True
+                        time_el = trackpoint.find(f"{_TCX_NAMESPACE}Time")
+                        if time_el is None or not time_el.text:
+                            continue
+
+                        parsed_time = _parse_tcx_time(time_el.text)
+                        if parsed_time is None:
+                            continue
+                        times.append(parsed_time)
+
+                        position = trackpoint.find(f"{_TCX_NAMESPACE}Position")
+                        if position is None:
+                            continue
+                        latitude = position.find(f"{_TCX_NAMESPACE}LatitudeDegrees")
+                        longitude = position.find(f"{_TCX_NAMESPACE}LongitudeDegrees")
+                        if latitude is None or longitude is None:
+                            continue
+                        try:
+                            lat_lon_waypoints.append(
+                                {
+                                    "lat": float(latitude.text),
+                                    "lon": float(longitude.text),
+                                }
+                            )
+                        except (TypeError, ValueError):
+                            continue
+
+                    if times:
+                        time_spans.append((times[0], times[-1]))
+                    if lat_lon_waypoints:
+                        lat_lon_tracks.append(lat_lon_waypoints)
+
+                if has_trackpoints:
+                    parsed_laps.append(
+                        {
+                            "time_spans": time_spans,
+                            "lat_lon_tracks": lat_lon_tracks,
+                        }
+                    )
+
+    return parsed_laps
 
 
 def _parse_lap_power(
@@ -47,25 +172,33 @@ def _parse_lap_power(
 
 def _parse_laps(
     tcx_file: Any,
+    parsed_lap_tracks: list[TcxLapTrackData],
 ) -> list[dict]:
     """
     Parse all TCX laps into structured dicts.
 
     Args:
         tcx_file: Parsed TCX file object.
+        parsed_lap_tracks: Raw track data aligned with tcxreader's laps.
 
     Returns:
         List of lap dicts with metrics.
     """
     laps: list[dict] = []
 
-    for lap in tcx_file.laps:
+    for lap_index, lap in enumerate(tcx_file.laps):
         if lap.start_time is None:
             continue
 
         lap_avg_pw, lap_max_pw, lap_np = _parse_lap_power(lap)
 
         max_spd_val = lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
+        elapsed = (lap.end_time - lap.start_time).total_seconds() if lap.end_time else None
+        timer_time = elapsed
+        if lap_index < len(parsed_lap_tracks):
+            time_spans = parsed_lap_tracks[lap_index]["time_spans"]
+            if time_spans:
+                timer_time = activity_file_import_utils.compute_moving_time_from_spans(time_spans)
 
         laps.append(
             {
@@ -74,12 +207,8 @@ def _parse_laps(
                 "start_position_long": (lap.trackpoints[0].longitude),
                 "end_position_lat": (lap.trackpoints[-1].latitude),
                 "end_position_long": (lap.trackpoints[-1].longitude),
-                "total_elapsed_time": (
-                    (lap.end_time - lap.start_time).total_seconds() if lap.start_time and lap.end_time else None
-                ),
-                "total_timer_time": (
-                    (lap.end_time - lap.start_time).total_seconds() if lap.start_time and lap.end_time else None
-                ),
+                "total_elapsed_time": elapsed,
+                "total_timer_time": timer_time,
                 "total_distance": (round(lap.distance) if lap.distance else None),
                 "total_calories": (round(lap.calories) if lap.calories else None),
                 "avg_heart_rate": (round(lap.hr_avg) if lap.hr_avg else None),
@@ -245,6 +374,7 @@ def _build_activity(
     norm_power: float | None,
     gear_id: int | None,
     user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    timer_time_seconds: float | None = None,
 ) -> activities_schema.Activity:
     """
     Construct an Activity schema from parsed TCX data.
@@ -266,6 +396,9 @@ def _build_activity(
         gear_id: Gear ID or None.
         user_privacy_settings: User privacy settings
             ORM instance.
+        timer_time_seconds: Moving time computed from each <Track> element's
+            span, or None when it could not be computed. Falls back to the
+            elapsed span when None.
 
     Returns:
         Populated Activity Pydantic schema.
@@ -285,7 +418,7 @@ def _build_activity(
         start_time=(core_timezone.format_utc(tcx_file.start_time) if tcx_file.start_time else None),
         end_time=(core_timezone.format_utc(tcx_file.end_time) if tcx_file.end_time else None),
         total_elapsed_time=elapsed,
-        total_timer_time=elapsed,
+        total_timer_time=timer_time_seconds if timer_time_seconds is not None else elapsed,
         city=city,
         town=town,
         country=country,
@@ -350,7 +483,8 @@ def parse_tcx_file(
 
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
-        laps = _parse_laps(tcx_file)
+        parsed_lap_tracks = _parse_activity_lap_tracks(file)
+        laps = _parse_laps(tcx_file, parsed_lap_tracks)
         waypoints = _extract_waypoints(trackpoints, tcx_file)
 
         lat_lon_wp = waypoints["lat_lon_waypoints"]
@@ -360,14 +494,29 @@ def parse_tcx_file(
         if not distance and lat_lon_wp:
             # Some TCX sources omit the summary Distance element even when a
             # GPS track is present. Fall back to the geodesic sum over the
-            # track, mirroring the FIT/GPX importers.
-            distance = round(activity_file_import_utils.compute_distance_from_waypoints(lat_lon_wp))
+            # individual tracks so pause/resume boundaries are not bridged.
+            lat_lon_tracks = [track for parsed_lap in parsed_lap_tracks for track in parsed_lap["lat_lon_tracks"]]
+            if lat_lon_tracks:
+                distance = round(
+                    sum(activity_file_import_utils.compute_distance_from_waypoints(track) for track in lat_lon_tracks)
+                )
+            else:
+                distance = round(activity_file_import_utils.compute_distance_from_waypoints(lat_lon_wp))
+
+        # tcxreader flattens a Lap's Track elements into one trackpoint list,
+        # discarding the segment boundaries GPX preserves, so moving time is
+        # derived from each <Track> element's own first/last timestamp.
+        track_spans = [span for parsed_lap in parsed_lap_tracks for span in parsed_lap["time_spans"]]
+        timer_time_seconds = (
+            activity_file_import_utils.compute_moving_time_from_spans(track_spans) if track_spans else None
+        )
 
         if lat_lon_wp:
             pace = activities_utils.calculate_pace(
                 distance,
                 trackpoints[0]["time"],
                 trackpoints[-1]["time"],
+                total_timer_time_seconds=timer_time_seconds,
             )
 
             location_data = activity_file_import_utils.resolve_location(
@@ -419,6 +568,7 @@ def parse_tcx_file(
             norm_power=norm_power,
             gear_id=gear_id,
             user_privacy_settings=user_privacy_settings,
+            timer_time_seconds=timer_time_seconds,
         )
 
         waypoints_combined = {
