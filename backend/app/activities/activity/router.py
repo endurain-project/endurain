@@ -34,6 +34,7 @@ import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import garmin.activity_utils as garmin_activity_utils
+import garmin.bulk_import_utils as garmin_bulk_import_utils
 import gears.gear.dependencies as gears_dependencies
 import strava.activity_utils as strava_activity_utils
 import users.users.dependencies as users_dependencies
@@ -727,6 +728,11 @@ async def create_activity_with_bulk_import(
         # Grab list of supported file formats
         supported_file_formats = core_config.SUPPORTED_FILE_FORMATS
 
+        # Index Garmin export summarizedActivities.json files so
+        # bulk-imported activities can reuse the Garmin Connect
+        # activity names (issue #492).
+        garmin_summaries = garmin_bulk_import_utils.load_summarized_activities(bulk_import_dir)
+
         # Iterate over each file in the 'bulk_import' directory
         files_to_process = []
         for filename in os.listdir(bulk_import_dir):
@@ -736,6 +742,9 @@ async def create_activity_with_bulk_import(
             _, file_extension = os.path.splitext(file_path)
             file_extension = file_extension.lower()
             if file_extension not in supported_file_formats:
+                if filename.lower().endswith(garmin_bulk_import_utils.SUMMARIZED_ACTIVITIES_SUFFIX):
+                    # Already consumed above as an activity-name source.
+                    continue
                 core_logger.print_to_log_and_console(
                     f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}."
                 )
@@ -780,6 +789,7 @@ async def create_activity_with_bulk_import(
                 files_to_process,
                 ws_manager,
                 import_initiated_time=import_time,
+                garmin_summaries=garmin_summaries,
             ),
         )
 
