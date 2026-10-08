@@ -47,12 +47,15 @@ def _parse_lap_power(
 
 def _parse_laps(
     tcx_file: Any,
+    smoothed_ele_waypoints: list[dict],
 ) -> list[dict]:
     """
     Parse all TCX laps into structured dicts.
 
     Args:
         tcx_file: Parsed TCX file object.
+        smoothed_ele_waypoints: Full elevation stream, already smoothed
+            once (see smooth_elevation_waypoints).
 
     Returns:
         List of lap dicts with metrics.
@@ -66,6 +69,21 @@ def _parse_laps(
         lap_avg_pw, lap_max_pw, lap_np = _parse_lap_power(lap)
 
         max_spd_val = lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
+
+        # tcxreader's lap.ascent/descent are raw positive/negative delta
+        # sums — GPS altitude noise inflates them several-fold. Compute
+        # from the once-smoothed stream instead, matching the GPX importer
+        # (issue #161).
+        lap_ascent, lap_descent = None, None
+        if smoothed_ele_waypoints and lap.end_time is not None:
+            lap_ele = activity_file_import_utils.filter_waypoints_by_time_range(
+                smoothed_ele_waypoints,
+                core_timezone.format_utc(lap.start_time),
+                core_timezone.format_utc(lap.end_time),
+            )
+            if lap_ele:
+                lap_gain, lap_loss = activities_utils.sum_elevation_deltas(lap_ele)
+                lap_ascent, lap_descent = round(lap_gain), round(lap_loss)
 
         laps.append(
             {
@@ -88,8 +106,8 @@ def _parse_laps(
                 "max_cadence": (round(lap.cadence_max) if lap.cadence_max else None),
                 "avg_power": (round(lap_avg_pw) if lap_avg_pw else None),
                 "max_power": (round(lap_max_pw) if lap_max_pw else None),
-                "total_ascent": (round(lap.ascent) if lap.ascent else None),
-                "total_descent": (round(lap.descent) if lap.descent else None),
+                "total_ascent": lap_ascent,
+                "total_descent": lap_descent,
                 "normalized_power": (round(lap_np) if lap_np else None),
                 "enhanced_avg_pace": (1 / lap.avg_speed if lap.avg_speed and lap.avg_speed != 0 else None),
                 "enhanced_avg_speed": (lap.avg_speed if lap.avg_speed else None),
@@ -245,6 +263,8 @@ def _build_activity(
     norm_power: float | None,
     gear_id: int | None,
     user_privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
+    elevation_gain: int | None = None,
+    elevation_loss: int | None = None,
 ) -> activities_schema.Activity:
     """
     Construct an Activity schema from parsed TCX data.
@@ -266,6 +286,8 @@ def _build_activity(
         gear_id: Gear ID or None.
         user_privacy_settings: User privacy settings
             ORM instance.
+        elevation_gain: Smoothed elevation gain in metres or None.
+        elevation_loss: Smoothed elevation loss in metres or None.
 
     Returns:
         Populated Activity Pydantic schema.
@@ -289,8 +311,8 @@ def _build_activity(
         city=city,
         town=town,
         country=country,
-        elevation_gain=(round(tcx_file.ascent) if tcx_file.ascent else None),
-        elevation_loss=(round(tcx_file.descent) if tcx_file.descent else None),
+        elevation_gain=elevation_gain,
+        elevation_loss=elevation_loss,
         pace=pace,
         average_power=(round(avg_power) if avg_power else None),
         max_power=(round(max_power) if max_power else None),
@@ -350,8 +372,20 @@ def parse_tcx_file(
 
         gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
 
-        laps = _parse_laps(tcx_file)
         waypoints = _extract_waypoints(trackpoints, tcx_file)
+
+        # Smooth the altitude stream once and derive activity and lap
+        # elevation from it, mirroring the GPX importer. tcxreader's
+        # ascent/descent are raw delta sums inflated by GPS noise
+        # (issue #161).
+        ele_wp = waypoints["ele_waypoints"]
+        smoothed_ele_wp = activities_utils.smooth_elevation_waypoints(ele_wp) if ele_wp else []
+        elevation_gain, elevation_loss = None, None
+        if smoothed_ele_wp:
+            ele_gain, ele_loss = activities_utils.sum_elevation_deltas(smoothed_ele_wp)
+            elevation_gain, elevation_loss = round(ele_gain), round(ele_loss)
+
+        laps = _parse_laps(tcx_file, smoothed_ele_wp)
 
         lat_lon_wp = waypoints["lat_lon_waypoints"]
         power_wp = waypoints["power_waypoints"]
@@ -419,6 +453,8 @@ def parse_tcx_file(
             norm_power=norm_power,
             gear_id=gear_id,
             user_privacy_settings=user_privacy_settings,
+            elevation_gain=elevation_gain,
+            elevation_loss=elevation_loss,
         )
 
         waypoints_combined = {
