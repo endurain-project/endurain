@@ -34,13 +34,13 @@ const CONTENT_SECURITY_POLICY = [
   "form-action 'self'",
   "frame-src 'none'",
   "manifest-src 'self'",
-  // Same-origin API + realtime sockets are covered by 'self'. codeberg.org is the
+  // Same-origin API + realtime sockets are covered by 'self'. api.github.com is the
   // release-update check (features/core/services/updateCheck.ts), a direct browser
   // fetch. Split-origin deployments additionally get their exact backend origin
   // pinned here at container start by docker/start.sh (from ENDURAIN_HOST), which
   // rewrites this directive by matching to the end of the meta `content` attribute
   // — so connect-src MUST stay the LAST directive in this list.
-  "connect-src 'self' https://codeberg.org",
+  "connect-src 'self' https://api.github.com",
 ].join('; ')
 
 /**

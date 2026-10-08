@@ -1,0 +1,30 @@
+name: Mirror to GitLab
+
+on:
+  push:
+
+concurrency:
+  group: gitlab-mirror
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push full mirror to GitLab
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mirror_dir="$RUNNER_TEMP/endurain.git"
+          git clone --mirror \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "$mirror_dir"
+          cd "$mirror_dir"
+          git remote set-url --push origin \
+            "https://oauth2:${GITLAB_TOKEN}@gitlab.com/endurain-project/endurain.git"
+          git push --mirror

@@ -1,5 +1,5 @@
 site_name: Endurain documentation
-repo_url: https://codeberg.org/endurain-project/endurain
+repo_url: https://github.com/endurain-project/endurain
 theme:
   name: material
   logo: assets/brand_logo_light_theme.png

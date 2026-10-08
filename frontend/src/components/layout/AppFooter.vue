@@ -27,7 +27,7 @@ const yearRange = computed(() => {
         <span aria-hidden="true">•</span>
         <a
           class="inline-flex items-center hover:text-foreground"
-          href="https://codeberg.org/endurain-project"
+          href="https://github.com/endurain-project"
           target="_blank"
           rel="noopener noreferrer"
           :aria-label="t('footer.repository')"

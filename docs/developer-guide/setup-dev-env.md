@@ -6,7 +6,7 @@ Bellow are the steps to create a dev environment. Examples bellow will use Endur
 
 ```bash
 cd <folder_to_store_code>
-git clone https://codeberg.org/endurain-project/endurain.git # this will clone the repo structure to the previous folder inside a folder called endurain
+git clone https://github.com/endurain-project/endurain.git # this will clone the repo structure to the previous folder inside a folder called endurain
 ```
 
 ## Docker image and backend logic
