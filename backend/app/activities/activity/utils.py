@@ -9,7 +9,6 @@ import shutil
 import statistics
 import time
 import uuid
-from datetime import datetime
 from pathlib import Path
 from statistics import mean
 from tempfile import NamedTemporaryFile
@@ -1502,37 +1501,27 @@ def compute_elevation_gain_and_loss(
     return total_gain, total_loss
 
 
-def calculate_pace(
+def calculate_pace_from_duration(
     distance: float,
-    first_waypoint_time,
-    last_waypoint_time,
+    duration_seconds: float,
 ) -> float:
-    """Compute average pace (seconds per meter).
+    """Compute average pace (seconds per meter) from an active duration.
+
+    Mirrors the FIT importer semantics (pace = timer time / distance) so
+    GPX/TCX imports exclude recording pauses from pace (issue #571).
 
     Args:
         distance: Total distance in meters.
-        first_waypoint_time: Datetime of the first waypoint.
-        last_waypoint_time: Datetime of the last waypoint.
+        duration_seconds: Active (timer) time in seconds.
 
     Returns:
-        Pace in s/m, or 0 when ``distance`` is 0.
+        Pace in s/m, or 0 when ``distance`` is 0 or the duration is not
+        positive.
     """
-    # If the distance is 0, return 0
-    if distance == 0:
+    if distance == 0 or duration_seconds <= 0:
         return 0
 
-    # Convert the time strings to datetime objects
-    start_datetime = datetime.fromisoformat(first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
-    end_datetime = datetime.fromisoformat(last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
-
-    # Calculate the time difference in seconds
-    total_time_in_seconds = (end_datetime - start_datetime).total_seconds()
-
-    # Calculate pace in seconds per meter
-    pace_seconds_per_meter = total_time_in_seconds / distance
-
-    # Return the pace
-    return pace_seconds_per_meter
+    return duration_seconds / distance
 
 
 def calculate_avg_and_max(data: list[dict], stream_type: str, exclude_zeros: bool = False) -> tuple[float, float]:

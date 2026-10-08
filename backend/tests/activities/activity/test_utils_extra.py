@@ -417,32 +417,28 @@ class TestComputeElevationGainAndLoss:
         assert loss == 0.0
 
 
-class TestCalculatePace:
+class TestCalculatePaceFromDuration:
     def test_returns_zero_when_distance_zero(self):
-        from activities.activity.utils import calculate_pace
+        from activities.activity.utils import calculate_pace_from_duration
 
-        t = datetime(2024, 1, 15, 8, 0, 0)
-        result = calculate_pace(distance=0, first_waypoint_time=t, last_waypoint_time=t)
-        assert result == 0
+        assert calculate_pace_from_duration(distance=0, duration_seconds=600) == 0
+
+    def test_returns_zero_when_duration_non_positive(self):
+        from activities.activity.utils import calculate_pace_from_duration
+
+        assert calculate_pace_from_duration(distance=5000, duration_seconds=0) == 0
+        assert calculate_pace_from_duration(distance=5000, duration_seconds=-10) == 0
 
     def test_calculates_pace_correctly(self):
-        from activities.activity.utils import calculate_pace
+        from activities.activity.utils import calculate_pace_from_duration
 
-        result = calculate_pace(
-            distance=10000,
-            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
-            last_waypoint_time=datetime(2024, 1, 15, 9, 0, 0),
-        )
+        result = calculate_pace_from_duration(distance=10000, duration_seconds=3600)
         assert result == 3600.0 / 10000
 
-    def test_calculates_pace_with_fractional_distance(self):
-        from activities.activity.utils import calculate_pace
+    def test_calculates_pace_with_fractional_duration(self):
+        from activities.activity.utils import calculate_pace_from_duration
 
-        result = calculate_pace(
-            distance=5000,
-            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
-            last_waypoint_time=datetime(2024, 1, 15, 8, 25, 0),
-        )
+        result = calculate_pace_from_duration(distance=5000, duration_seconds=1500)
         assert result == 1500.0 / 5000
 
 
