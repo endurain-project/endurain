@@ -1,7 +1,8 @@
 """Tests for FIT activity file import utilities."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import activities.activity_file_import.utils_fit as utils_fit
 
@@ -387,6 +388,90 @@ class TestUtilsFit:
         )
 
         assert activities_list[0]["activity"].distance == 5000
+
+    def test_resolves_timezone_from_activity_local_timestamp(self):
+        """No GPS: timezone is recovered from the FIT activity message offset."""
+        # activity.local_timestamp - activity.timestamp = +2h (e.g. CEST).
+        record = _session_record(None)
+        record["activity_time_offset"] = 7200
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        tz_name = activities_list[0]["activity"].timezone
+        assert tz_name is not None
+        start = record["session"]["first_waypoint_time"]
+        # Whatever zone name is chosen, its offset on the workout date must be +2h.
+        assert start.astimezone(ZoneInfo(tz_name)).utcoffset() == timedelta(hours=2)
+
+    def test_activity_offset_takes_precedence_over_device_settings(self):
+        """activity.local_timestamp offset wins over device_settings.time_offset."""
+        record = _session_record(None)
+        record["activity_time_offset"] = 7200  # +2h from the activity message
+        record["time_offset"] = 3600  # +1h from device_settings — should be ignored
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        tz_name = activities_list[0]["activity"].timezone
+        start = record["session"]["first_waypoint_time"]
+        assert start.astimezone(ZoneInfo(tz_name)).utcoffset() == timedelta(hours=2)
+
+    def test_falls_back_to_device_settings_without_activity_offset(self):
+        """No activity offset → device_settings.time_offset is still honored."""
+        record = _session_record(None)
+        record["activity_time_offset"] = None
+        record["time_offset"] = 3600  # +1h
+
+        activities_list = utils_fit.create_activity_objects(
+            [record],
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        tz_name = activities_list[0]["activity"].timezone
+        start = record["session"]["first_waypoint_time"]
+        assert start.astimezone(ZoneInfo(tz_name)).utcoffset() == timedelta(hours=1)
+
+
+class _RawFrame:
+    """Frame exposing get_raw_value, mimicking fitdecode raw field access."""
+
+    def __init__(self, **values):
+        self._values = values
+
+    def get_raw_value(self, key):
+        if key not in self._values:
+            raise KeyError(key)
+        return self._values[key]
+
+
+class TestParseFrameActivity:
+    """Tests for parse_frame_activity offset derivation."""
+
+    def test_returns_positive_offset(self):
+        """local_timestamp ahead of timestamp yields a positive offset."""
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=1_007_200)
+        assert utils_fit.parse_frame_activity(frame) == 7200
+
+    def test_returns_negative_offset(self):
+        """local_timestamp behind timestamp yields a negative offset."""
+        frame = _RawFrame(timestamp=1_000_000, local_timestamp=982_000)
+        assert utils_fit.parse_frame_activity(frame) == -18_000
+
+    def test_none_when_local_timestamp_missing(self):
+        """A missing local_timestamp returns None (no timezone signal)."""
+        assert utils_fit.parse_frame_activity(_RawFrame(timestamp=1_000_000)) is None
+
+    def test_none_when_timestamp_missing(self):
+        """A missing timestamp returns None (cannot compute the offset)."""
+        assert utils_fit.parse_frame_activity(_RawFrame(local_timestamp=1_000_000)) is None
 
 
 class TestParseFrameSession:
