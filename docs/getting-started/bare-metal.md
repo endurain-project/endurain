@@ -28,8 +28,8 @@ Run the following command to download and unpack the latest release.
 mkdir -p /path/to/endurain
 cd /path/to/endurain
 
-TAG=$(curl -s https://codeberg.org/api/v1/repos/endurain-project/endurain/releases | grep -oP '"tag_name": "\K([^"]+)' | head -n 1)
-curl -L "https://codeberg.org/endurain-project/endurain/archive/$TAG.tar.gz" \
+TAG=$(curl -s https://api.github.com/repos/endurain-project/endurain/releases | grep -oP '"tag_name": "\K([^"]+)' | head -n 1)
+curl -L "https://github.com/endurain-project/endurain/archive/refs/tags/$TAG.tar.gz" \
   | tar xz
 EXTRACTED=$(ls -d endurain-*)
 shopt -s dotglob
@@ -220,8 +220,8 @@ systemctl stop endurain
 rm -rf /path/to/endurain/*
 cd /path/to/endurain
 
-TAG=$(curl -s https://codeberg.org/api/v1/repos/endurain-project/endurain/releases | grep -oP '"tag_name": "\K([^"]+)' | head -n 1)
-curl -L "https://codeberg.org/endurain-project/endurain/archive/$TAG.tar.gz" \
+TAG=$(curl -s https://api.github.com/repos/endurain-project/endurain/releases | grep -oP '"tag_name": "\K([^"]+)' | head -n 1)
+curl -L "https://github.com/endurain-project/endurain/archive/refs/tags/$TAG.tar.gz" \
   | tar xz
 EXTRACTED=$(ls -d endurain-*)
 shopt -s dotglob

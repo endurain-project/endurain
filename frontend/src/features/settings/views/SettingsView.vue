@@ -34,7 +34,7 @@ const { updateAvailable, latestVersion } = useUpdateCheck()
             }}
           </p>
           <a
-            href="https://codeberg.org/endurain-project/endurain/releases"
+            href="https://github.com/endurain-project/endurain/releases"
             target="_blank"
             rel="noopener noreferrer"
             class="mt-0.5 block text-meta underline underline-offset-2 opacity-80 hover:opacity-100"

@@ -15,32 +15,35 @@ on:
       - frontend/src/types/api.generated.ts
       - frontend/package.json
       - frontend/package-lock.json
-      - .forgejo/workflows/openapi-types-drift.yml
+      - .github/workflows/openapi-types-drift.yml
   pull_request:
     paths:
       - backend/**
       - frontend/src/types/api.generated.ts
       - frontend/package.json
       - frontend/package-lock.json
-      - .forgejo/workflows/openapi-types-drift.yml
+      - .github/workflows/openapi-types-drift.yml
 
 concurrency:
-  group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
 
   drift:
     name: Generated API types in sync with backend
-    runs-on: local-runner
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
 
       - name: Install uv
-        uses: https://data.forgejo.org/astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           working-directory: backend
 

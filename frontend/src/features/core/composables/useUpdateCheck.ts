@@ -18,7 +18,7 @@ const RELEASE_STALE_MS = 6 * 60 * 60 * 1_000
  * Checks whether a newer Endurain release is available.
  *
  * Both queries are gated on the user being an admin so that the external HTTP
- * request to Codeberg is never made for regular users. Results are cached for
+ * request to GitHub is never made for regular users. Results are cached for
  * 6 hours to avoid hammering the external API on every page load.
  *
  * @returns

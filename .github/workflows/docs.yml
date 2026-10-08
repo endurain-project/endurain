@@ -1,0 +1,71 @@
+name: Deploy documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build docs but do not deploy
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'backend/app/**/*.py'
+      - '.github/workflows/docs.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: backend
+
+      - name: Sync documentation dependencies
+        working-directory: backend
+        run: uv sync --frozen --only-group docs
+      - name: Build documentation
+        run: uv run --no-sync --project backend mkdocs build --site-dir site
+
+      - name: Upload Pages artifact
+        if: ${{ inputs.dry-run != true }}
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/
+
+  deploy:
+
+    needs: build
+    if: ${{ inputs.dry-run != true }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy documentation to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

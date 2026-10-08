@@ -69,13 +69,13 @@ Splitting up the setup like this make it easy to handle updates to the container
 
 To make it as easy as possible for selfhoster to get up and running examples of docker-compose.yml and .env is on the git repo. Here are links to the files on the repo:
 
-* [docker-compose.yml.example](https://codeberg.org/endurain-project/endurain/raw/branch/master/docker-compose.yml.example)
-* [.env.example](https://codeberg.org/endurain-project/endurain/raw/branch/master/.env.example)
+* [docker-compose.yml.example](https://raw.githubusercontent.com/endurain-project/endurain/master/docker-compose.yml.example)
+* [.env.example](https://raw.githubusercontent.com/endurain-project/endurain/master/.env.example)
 
 ```bash
 cd /var/opt/endurain
-wget https://codeberg.org/endurain-project/endurain/raw/branch/master/docker-compose.yml.example
-wget https://codeberg.org/endurain-project/endurain/raw/branch/master/.env.example
+wget https://raw.githubusercontent.com/endurain-project/endurain/master/docker-compose.yml.example
+wget https://raw.githubusercontent.com/endurain-project/endurain/master/.env.example
 
 mv docker-compose.yml.example docker-compose.yml
 mv .env.example .env
@@ -274,7 +274,7 @@ You should now be able to access your site on endurain.yourdomain.com
 ## How to update
 
 * Take a backup of your files and db.
-* Check for new releases of the container image [here](https://codeberg.org/endurain-project/endurain). Read release notes carefully for breaking changes.
+* Check for new releases of the container image [here](https://github.com/endurain-project/endurain). Read release notes carefully for breaking changes.
 * Log on your server and run:
 * In docker-compose.yml, update the image tag. If you are running the `:latest` tag, no changes are needed.
 

@@ -93,7 +93,7 @@ docs = [
 ]
 
 [tool.uv]
-required-version = "0.11.18"
+required-version = "0.12.23"
 exclude-newer = "30 days"
 # jasil is first-party (endurain-project) and published through PyPI Trusted
 # Publishing with PEP 740 attestations, so it is exempt from the quarantine the
@@ -202,7 +202,7 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://codeberg.org/endurain-project/endurain/issues/680
+    "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://github.com/endurain-project/endurain/issues/653
 ]
 
 [tool.ruff.lint.per-file-ignores]

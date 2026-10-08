@@ -12,7 +12,7 @@ Usage::
     check_conventional_commits.py "feat(api): add endpoint"
     git log --format=%s base..head | check_conventional_commits.py --stdin
 
-Designed to run with the Python interpreter already available on the Forgejo
+Designed to run with the Python interpreter already available on the GitHub
 runner image. Uses only the standard library so there is no third-party
 supply-chain surface.
 """

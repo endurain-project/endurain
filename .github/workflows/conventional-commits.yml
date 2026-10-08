@@ -5,8 +5,11 @@ on:
     types: [opened, edited, synchronize, reopened]
 
 concurrency:
-  group: ${{ forgejo.workflow }}-${{ forgejo.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -14,39 +17,39 @@ jobs:
     # which the host provides (the container CI image intentionally does not
     # bake it in). Running on the shared host is safe ONLY because the job never
     # executes any file from the untrusted PR tree — see the checkout step.
-    runs-on: local-runner
+    runs-on: ubuntu-latest
 
     steps:
       # SECURITY — `pull_request` runs against attacker-controlled code. Check
       # out the BASE branch (already reviewed, trusted) instead of the PR head,
       # so the validator that runs below is always the trusted base-ref copy: a
-      # malicious PR that rewrites `.forgejo/scripts/check_conventional_commits.py`
+      # malicious PR that rewrites `.github/scripts/check_conventional_commits.py`
       # cannot get its version executed on the runner. The PR contributes only
       # DATA (its title and commit subjects), which is validated as strings.
       # Full history (fetch-depth 0) is needed so the base..head range resolves.
       - name: Check out the trusted base ref
-        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ forgejo.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
 
       - name: Validate PR title
         # The PR title is untrusted data: passed through an environment variable
         # (never interpolated into the shell) to the trusted base-ref checker.
         env:
-          PR_TITLE: ${{ forgejo.event.pull_request.title }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          python3 .forgejo/scripts/check_conventional_commits.py "$PR_TITLE"
+          python3 .github/scripts/check_conventional_commits.py "$PR_TITLE"
 
       - name: Validate commits in PR
         # Reads only commit metadata (%s subjects) for the base..head range; the
         # PR tree is never checked out or executed. Base/head SHAs come from the
         # event payload, and the checker is the trusted base-ref copy above.
         env:
-          BASE_SHA: ${{ forgejo.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ forgejo.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin "$BASE_SHA" "$HEAD_SHA"
           git log --no-merges --format=%s "$BASE_SHA".."$HEAD_SHA" \
-            | python3 .forgejo/scripts/check_conventional_commits.py --stdin
+            | python3 .github/scripts/check_conventional_commits.py --stdin

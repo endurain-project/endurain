@@ -26,7 +26,7 @@ INFO_BG = "#e1f5ee"  # brand secondary tint for informational details
 INFO_BORDER = "#bfe6d8"
 INFO_TEXT = BRAND_PRIMARY_DARK
 
-_LOGO_URL = "https://codeberg.org/endurain-project/endurain/raw/branch/master/frontend/public/logo_light.png"
+_LOGO_URL = "https://raw.githubusercontent.com/endurain-project/endurain/master/frontend/public/logo_light.png"
 
 
 def html_header(title: str, heading: str, lang: str = "en") -> str:
@@ -101,7 +101,7 @@ def html_footer(
 
     Closes the content ``<div>`` opened by :func:`html_header`,
     renders the footer with a sign-off greeting and links to the
-    frontend host and the Codeberg repository, then closes the outer
+    frontend host and the GitHub repository, then closes the outer
     wrapper, ``<body>``, and ``<html>``.
 
     Args:
@@ -140,9 +140,9 @@ def html_footer(
                 </a> - {source_code_label}
                 <a
                     style="color: {link_color};"
-                    href="https://codeberg.org/endurain-project/endurain"
+                    href="https://github.com/endurain-project/endurain"
                 >
-                    Codeberg
+                    GitHub
                 </a>
             </p>
         </div>

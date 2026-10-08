@@ -13,90 +13,94 @@ on:
       - published
 
 concurrency:
-  group: ${{ forgejo.workflow }}-${{ forgejo.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
 
   build-arch-images:
 
     name: Build ${{ matrix.arch }} image
-    runs-on: local-runner
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: amd64
             platform: linux/amd64
+            runner: ubuntu-latest
           - arch: arm64
             platform: linux/arm64
+            runner: ubuntu-24.04-arm
     env:
-      IMAGE_NAME: codeberg.org/${{ forgejo.repository }}
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
 
     steps:
       - name: Checkout code
-        uses: https://data.forgejo.org/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
 
-      - name: Login to Codeberg registry with Docker
+      - name: Login to GitHub Container Registry
         env:
-          REGISTRY_PASSWORD: ${{ secrets.TOKEN_FOR_ACTIONS }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "${REGISTRY_PASSWORD}" | docker login \
-            --username "${{ forgejo.repository_owner }}" \
+            --username "${{ github.actor }}" \
             --password-stdin \
-            codeberg.org
+            ghcr.io
 
       - name: Publish release architecture image
-        if: ${{ forgejo.event_name == 'release' }}
+        if: ${{ github.event_name == 'release' }}
         run: |
           set -eu
           docker buildx build \
             --platform "${{ matrix.platform }}" \
-            --network host \
             --file docker/Dockerfile \
-            --tag "${IMAGE_NAME}:${{ forgejo.ref_name }}-${{ matrix.arch }}" \
+            --tag "${IMAGE_NAME}:${{ github.ref_name }}-${{ matrix.arch }}" \
             --push \
             .
 
       - name: Publish development architecture image
-        if: ${{ forgejo.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
-          PYTHON_EXTRAS: ${{ forgejo.event.inputs.python_extras }}
+          PYTHON_EXTRAS: ${{ github.event.inputs.python_extras }}
         run: |
           set -eu
           docker buildx build \
             --platform "${{ matrix.platform }}" \
-            --network host \
             --file docker/Dockerfile \
             --build-arg "PYTHON_EXTRAS=${PYTHON_EXTRAS}" \
-            --tag "${IMAGE_NAME}:dev-${{ forgejo.sha }}-${{ matrix.arch }}" \
+            --tag "${IMAGE_NAME}:dev-${{ github.sha }}-${{ matrix.arch }}" \
             --push \
             .
 
   publish-manifests:
 
     name: Publish multi-arch manifests
-    runs-on: local-runner
+    runs-on: ubuntu-latest
     needs: build-arch-images
     env:
-      IMAGE_NAME: codeberg.org/${{ forgejo.repository }}
+      IMAGE_NAME: ghcr.io/${{ github.repository }}
 
     steps:
-      - name: Login to Codeberg registry
+      - name: Login to GitHub Container Registry
         env:
-          REGISTRY_PASSWORD: ${{ secrets.TOKEN_FOR_ACTIONS }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "${REGISTRY_PASSWORD}" | docker login \
-            --username "${{ forgejo.repository_owner }}" \
+            --username "${{ github.actor }}" \
             --password-stdin \
-            codeberg.org
+            ghcr.io
 
       - name: Publish release tag manifest
-        if: ${{ forgejo.event_name == 'release' }}
+        if: ${{ github.event_name == 'release' }}
         env:
-          RELEASE_TAG: ${{ forgejo.ref_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -eu
           docker buildx imagetools create \
@@ -105,9 +109,9 @@ jobs:
             "${IMAGE_NAME}:${RELEASE_TAG}-arm64"
 
       - name: Publish major.minor version manifest
-        if: ${{ forgejo.event_name == 'release' && !forgejo.event.release.prerelease }}
+        if: ${{ github.event_name == 'release' && !github.event.release.prerelease }}
         env:
-          RELEASE_TAG: ${{ forgejo.ref_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -eu
           if [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -119,9 +123,9 @@ jobs:
           fi
 
       - name: Publish latest manifest
-        if: ${{ forgejo.event_name == 'release' && !forgejo.event.release.prerelease }}
+        if: ${{ github.event_name == 'release' && !github.event.release.prerelease }}
         env:
-          RELEASE_TAG: ${{ forgejo.ref_name }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -eu
           docker buildx imagetools create \
@@ -130,9 +134,9 @@ jobs:
             "${IMAGE_NAME}:${RELEASE_TAG}-arm64"
 
       - name: Publish development manifest
-        if: ${{ forgejo.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
-          DEVELOPMENT_TAG: dev-${{ forgejo.sha }}
+          DEVELOPMENT_TAG: dev-${{ github.sha }}
         run: |
           set -eu
           docker buildx imagetools create \

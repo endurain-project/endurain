@@ -92,7 +92,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             # Extra connect-src origins for deployments behind a
             # forward-auth reverse proxy that redirects API calls
             # to its own domain (see CSP_ADDITIONAL_CONNECT_SRC).
-            connect_src = "'self' https://cdn.jsdelivr.net https://codeberg.org"
+            connect_src = "'self' https://cdn.jsdelivr.net https://api.github.com"
             extra_connect_src = core_config.settings.CSP_ADDITIONAL_CONNECT_SRC
             if extra_connect_src:
                 connect_src = f"{connect_src} {' '.join(extra_connect_src)}"
