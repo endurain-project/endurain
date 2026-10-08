@@ -1,4 +1,4 @@
-> > [!NOTE]
+> [!NOTE]
 > **Endurain is on a temporary feature freeze** - The project is not paused. The focus is shifting from new features to strengthening the foundations. More details [here](https://docs.endurain.com/blog/2026/05/23/pausing-new-features-so-endurain-can-keep-growing/)
 
 <div align="center">

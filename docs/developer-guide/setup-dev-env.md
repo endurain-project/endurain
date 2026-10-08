@@ -131,3 +131,21 @@ npm run dev
 ![Frontend running](../assets/developer-guide/npm_run_dev.png)
 
 - Some processes, like token refresh may redirect your dev env from port `5173` to `8080` (or other, depending on your compose file). If this happens simply navigate again to `5173`.
+
+## Code navigation with CodeGraph
+
+This project uses [CodeGraph](https://github.com/colbymchenry/codegraph) to index the codebase (symbols, call paths and dependencies) so that code can be explored and understood faster, either by you or by AI coding assistants such as Claude Code. Using it is optional.
+
+- Install CodeGraph following its documentation.
+- From the repository root, initialize and index the project:
+
+```bash
+codegraph init
+```
+
+- The index is stored in the `.codegraph/` directory at the repository root. It is a local artifact and should not be committed.
+- Once indexed, you can query the codebase from the terminal, for example:
+
+```bash
+codegraph explore "how does token refresh work"
+```
