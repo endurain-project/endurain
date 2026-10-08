@@ -75,6 +75,22 @@ describe('buildActivityMetrics', () => {
     elevation: true,
   }
 
+  it('uses moving (timer) time for the time tile, falling back to elapsed', () => {
+    const timer = buildActivityMetrics(
+      makeActivity({ activityType: 1, totalTimerTime: 3500, totalElapsedTime: 3600 }),
+      'metric',
+      visible,
+    )
+    expect(timer.find((tile) => tile.key === 'time')?.value).toBe('58:20')
+
+    const elapsedOnly = buildActivityMetrics(
+      makeActivity({ activityType: 1, totalTimerTime: null, totalElapsedTime: 3600 }),
+      'metric',
+      visible,
+    )
+    expect(elapsedOnly.find((tile) => tile.key === 'time')?.value).toBe('1:00:00')
+  })
+
   it('shows a curated set of six running stats (distance/time/pace/power/elevation/calories)', () => {
     const tiles = buildActivityMetrics(
       makeActivity({ activityType: 1, averagePower: 250 }),
