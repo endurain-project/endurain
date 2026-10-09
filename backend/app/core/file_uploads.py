@@ -229,6 +229,54 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
         raise _to_http_exception(err) from err
 
 
+_UTF8_BOM = b"\xef\xbb\xbf"
+_XML_DECLARATION = b"<?xml"
+
+_XML_PREFIX_SCAN_BYTES = 128
+
+
+def _strip_xml_prefix_whitespace_sync(path: Path) -> None:
+    """Remove the whitespace in an activity file in front of ``<?xml``.
+
+    libmagic sniffs xml files with leading whitespace as ``text/plain``
+    instead of ``text/xml``. Removing it lets the file take the normal
+    validation and parsing path.
+
+    Args:
+        path: Activity file to inspect and rewrite if needed.
+
+    Raises:
+        OSError: Re-raised after best-effort cleanup of ``.part``.
+    """
+    with open(path, "rb") as fh:
+        head = fh.read(_XML_PREFIX_SCAN_BYTES)
+
+    bom = _UTF8_BOM if head.startswith(_UTF8_BOM) else b""
+    body = head[len(bom) :]
+    stripped = body.lstrip()
+    if len(stripped) == len(body) or not stripped.startswith(_XML_DECLARATION):
+        return
+
+    whitespace_length = len(body) - len(stripped)
+    part = path.with_suffix(path.suffix + ".part")
+    try:
+        with open(path, "rb") as src, open(part, "wb") as out:
+            out.write(bom)
+            src.seek(len(bom) + whitespace_length)
+            shutil.copyfileobj(src, out, _STREAM_CHUNK_BYTES)
+        os.replace(part, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            if part.exists():
+                part.unlink()
+        raise
+
+    core_logger.print_to_log(
+        f"Stripped {whitespace_length} byte(s) of whitespace before the XML declaration of {path.name}",
+        "info",
+    )
+
+
 async def validate_local_file(
     path: str | os.PathLike,
     *,
@@ -251,6 +299,8 @@ async def validate_local_file(
         HTTPException: As :func:`validate_upload`.
     """
     actual_filename = filename or os.path.basename(os.fspath(path))
+    if kind is UploadKind.ACTIVITY:
+        await asyncio.to_thread(_strip_xml_prefix_whitespace_sync, Path(os.fspath(path)))
     # Open in binary mode; UploadFile accepts any binary file object.
     with open(path, "rb") as fh:
         wrapped = UploadFile(file=fh, filename=actual_filename)

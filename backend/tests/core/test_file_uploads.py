@@ -41,6 +41,7 @@ from core.file_uploads import (
     save_validated_bytes,
     save_validated_upload,
     validate_bytes,
+    validate_local_file,
     validate_upload,
 )
 
@@ -89,6 +90,23 @@ def _make_gpx_bytes() -> bytes:
         b'<trkpt lat="0" lon="0"></trkpt>'
         b"</trkseg></trk>\n"
         b"</gpx>\n"
+    )
+
+
+def _make_tcx_bytes(prefix: bytes = b"") -> bytes:
+    """Return a minimal valid TCX v2 document, optionally prefixed.
+
+    ``prefix`` adds different kinds of whitespace and optionally a BOM before the XML declaration.
+    """
+    ns = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    return (
+        prefix
+        + b'<?xml version="1.0"?>\r\n'
+        + f'<TrainingCenterDatabase xmlns="{ns}">\r\n'.encode()
+        + b'<Activities><Activity Sport="Running">'
+        b"<Id>2024-01-01T00:00:00Z</Id>"
+        b"</Activity></Activities>\r\n"
+        b"</TrainingCenterDatabase>\r\n"
     )
 
 
@@ -196,6 +214,94 @@ async def test_validate_upload_rejects_garbage(kind: UploadKind, filename: str, 
     # 400 for signature/MIME mismatch, 413 if size cap would
     # somehow trigger first; both are acceptable rejections.
     assert exc.value.status_code in {400, 413}
+
+
+# ---------------------------------------------------------------------------
+# Whitespace before an activity file's XML declaration
+# ---------------------------------------------------------------------------
+
+_UTF8_BOM = b"\xef\xbb\xbf"
+
+_XML_PREFIXES = [
+    pytest.param(b"          ", id="leading-spaces"),
+    pytest.param(b"\n", id="leading-newline"),
+    pytest.param(b"\t", id="leading-tab"),
+    pytest.param(b"\r\n  ", id="leading-crlf-spaces"),
+    pytest.param(_UTF8_BOM + b"\n", id="bom-then-newline"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prefix", _XML_PREFIXES)
+async def test_validate_local_file_strips_xml_prefix_whitespace(
+    tmp_path: Path,
+    prefix: bytes,
+):
+    """The import paths strip the whitespace, then validate normally."""
+    path = tmp_path / "ride.tcx"
+    path.write_bytes(_make_tcx_bytes(prefix))
+
+    await validate_local_file(path, kind=UploadKind.ACTIVITY)
+
+    # Content is preserved apart from the stripped whitespace; a BOM
+    # (legal in XML) survives.
+    expected_prefix = _UTF8_BOM if prefix.startswith(_UTF8_BOM) else b""
+    assert path.read_bytes() == _make_tcx_bytes(expected_prefix)
+    # Nothing is left behind by the atomic rewrite.
+    assert list(tmp_path.iterdir()) == [path]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "filename,builder",
+    [("ride.gpx", _make_gpx_bytes), ("ride.tcx", _make_tcx_bytes)],
+)
+async def test_validate_local_file_leaves_clean_activity_untouched(
+    tmp_path: Path,
+    filename: str,
+    builder,
+):
+    """A well-formed activity file is not rewritten."""
+    path = tmp_path / filename
+    path.write_bytes(builder())
+    before = path.stat().st_mtime_ns
+
+    await validate_local_file(path, kind=UploadKind.ACTIVITY)
+
+    assert path.read_bytes() == builder()
+    assert path.stat().st_mtime_ns == before
+
+
+@pytest.mark.asyncio
+async def test_validate_local_file_rejects_non_xml_text(tmp_path: Path):
+    """Stripping whitespace must not let arbitrary text files in."""
+    path = tmp_path / "ride.tcx"
+    payload = b"   this is plain text, not an activity file\n"
+    path.write_bytes(payload)
+
+    with pytest.raises(HTTPException) as exc:
+        await validate_local_file(path, kind=UploadKind.ACTIVITY)
+    assert exc.value.status_code == 400
+    assert path.read_bytes() == payload
+
+
+@pytest.mark.asyncio
+async def test_failed_strip_leaves_no_part_file(tmp_path: Path, monkeypatch):
+    """A rewrite that dies mid-copy cleans up and keeps the original."""
+    path = tmp_path / "ride.tcx"
+    payload = _make_tcx_bytes(b"   ")
+    path.write_bytes(payload)
+
+    def _boom(*_args, **_kwargs):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(core_file_uploads.shutil, "copyfileobj", _boom)
+
+    with pytest.raises(OSError, match="no space left"):
+        await validate_local_file(path, kind=UploadKind.ACTIVITY)
+
+    assert path.read_bytes() == payload
+    assert list(tmp_path.iterdir()) == [path]
 
 
 # ---------------------------------------------------------------------------
