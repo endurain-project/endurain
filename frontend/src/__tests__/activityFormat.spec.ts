@@ -121,6 +121,12 @@ describe('formatElevation', () => {
 })
 
 describe('presentCadence', () => {
+  it.each([11, 12, 31, 44])('presents walking type %i cadence in SPM', (type) => {
+    expect(presentCadence(70, type)).toBe(140)
+    expect(presentCadence(0, type)).toBe(0)
+    expect(cadenceUnitLabel(type)).toBe('spm')
+  })
+
   it('doubles running cadence to SPM but leaves cycling RPM unchanged', () => {
     expect(presentCadence(85, RUN)).toBe(170)
     expect(presentCadence(90, CYCLE)).toBe(90)
