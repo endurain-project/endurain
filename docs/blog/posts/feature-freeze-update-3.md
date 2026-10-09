@@ -15,6 +15,7 @@ This is the third update on feature-freeze progress. Before I start, have you al
 Yesterday, we released v0.19.0, the first release in Endurain's new release cycle, which was announced in the previous blog post. We are not sure whether an August release will happen because of the holiday period, but beta releases for the upcoming v0.20.0 will take place during August.
 
 For v0.19.0, you can check the changelog in the [release notes](https://codeberg.org/endurain-project/endurain/releases/tag/v0.19.0), but I will summarize some of it here:
+
 - We fixed an authorization issue affecting activity media uploads. Under certain conditions, an authenticated user could upload media to an activity they did not own. The issue was reported responsibly by Christian Flaßkamp. Thank you for helping make Endurain safer. Users should update to the latest release;
 - Endurain has a new frontend, rebuilt from scratch with the help of AI. This is where AI shines: it worked with the existing code and helped us refactor it into a better overall position. In the past, a new version could ship with broken functionality because a schema or another part of the frontend had not been updated to reflect API changes. Now, those changes go through CI, which reports a non-passing status so they no longer go unnoticed. The frontend is now fully type-checked, more modular, and provides the foundation for caching and other important future features. We also think it looks better, which is supported by some of your feedback. You will also see a visual hint in the frontend when a new version is available;
 - We also introduced new [logos](https://codeberg.org/endurain-project/endurain/src/branch/master/logo) and [brand guidelines](https://docs.endurain.com/developer-guide/brand-and-ux-guidelines/). This gives Endurain a more mature and polished feel, making the product more cohesive overall;
@@ -37,6 +38,7 @@ We are exploring the launch of official Endurain gear and merchandise to help pr
 ## Going forward
 
 As mentioned previously, we have defined the next steps for the rework. They will consist of the following:
+
 - Move to an event-driven architecture:
   - This will allow the service to grow to multiple nodes when needed, with Redis, S3, and pub/sub support;
   - We do not want to break existing instances or introduce unnecessary complexity, so this additional overhead will be optional. For a single-node setup, as it works today, processing will happen in memory and use local storage without changes;

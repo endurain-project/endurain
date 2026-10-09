@@ -23,6 +23,7 @@ Some details below.
 If you are on Discord, you have seen this text, nevertheless here it is.
 
 Since moving Endurain to Codeberg, we ran into some real problems:
+
 - We've been hit with repeated availability problems, especially with SSH access, Codeberg going down, and commit operations failing as a result. This was starting to actively slow down development, especially since we do this in our free time;
 - It may be our lack of knowledge, but we had to configure a Forgejo Runner in order to build ARM64 images and to run some actions that were hitting Codeberg time limits. That's okay overall, however once again we got hit with some issues on the runner, sometimes we had to reboot, images would not build, the Android APK sometimes built successfully and sometimes didn't. And once again this was time we were spending on troubleshooting this instead of working on Endurain's development.
 - Codeberg e.V. members recently voted through changes discouraging/prohibiting projects that are "written and maintained with heavy use of LLMs" or that accept LLM-generated contributions without oversight (details: https://blog.codeberg.org/protecting-our-floss-commons-from-llms.html). Endurain uses AI tooling in development and we accept AI-assisted PRs from contributors. Given that, we don't feel confident we're compliant with the new terms, and we don't want to keep the project somewhere it isn't clearly welcome. We also feel the terms are somewhat vague and open to interpretation depending on circumstances, meaning Endurain might be fine under them today, but not tomorrow.
@@ -40,6 +41,7 @@ The migration is done, v0.19.3 has already been released from GitHub.
 The mobile app is out there in the wild, already being used by several Endurain users! The app functions well and does what it states, however it still has some things to get better. It is now free on the stores, we dropped the paid route, and it is available on Apple [TestFlight](https://testflight.apple.com/join/BjZ4DWPa) and Google closed beta. We are trying to get it to open beta for Android.
 
 To join the closed beta on Android, here are the steps:
+
 - Join the Google group [here](https://groups.google.com/g/endurain-test-group)
 - Join the closed beta after you have been accepted into the group (it should be automatic) [here](https://play.google.com/apps/testing/com.endurain.endurain)
 - Then install the app
@@ -51,6 +53,7 @@ The app repo is available [here](https://github.com/endurain-project/endurain-fl
 As stated in the previous blog post, some work was being done to split some logic into their own libraries. We did this, but why did we go this route? More things to maintain right? Yes, however some parts of the code were starting to be its own thing, trying to solve some specific things that are not only an Endurain problem. Any other application might need to do file sanitization on uploads, authenticate users, handle storage, etc., so by going this route we give something back to the community. The implementation in theory can get better, because it solves a specific problem, more devs may adopt them, improve them, etc.
 
 So we already had [safeuploads](https://github.com/endurain-project/safeuploads) and we now also have:
+
 - [jasil](https://github.com/endurain-project/jasil) - Just Another Substrate & Infrastructure Library, a framework-agnostic infrastructure substrate for Python services: swappable capability backends, an event pipeline, durable jobs, and observability.
 - [jafaal](https://github.com/endurain-project/jafaal) - Just Another FastAPI Authentication Library, a batteries-included, embedded FastAPI authentication library and a standards-shaped authorization server for applications controlled by one host.
 
