@@ -231,7 +231,9 @@ class TestSanitizeAttribution:
         assert 'href="https://example.com"' in result
         assert 'title="Author"' in result
         assert 'target="_blank"' in result
-        assert 'rel="noopener"' in result
+        # ``rel`` is set by the sanitizer, not carried over from the document, so
+        # the guard cannot be weakened by the content it is protecting against.
+        assert 'rel="noopener noreferrer"' in result
 
     def test_sanitize_attribution_removes_other_tags(self):
         """Test that non-link tags are removed."""
@@ -330,3 +332,27 @@ class TestXSSPrevention:
         assert "javascript:" not in result
         assert "onclick" not in result
         assert "<script>" not in result
+
+    @pytest.mark.parametrize(
+        ("scheme_url", "expected_kept"),
+        [
+            ("https://example.com", True),
+            ("http://example.com", True),
+            ("mailto:someone@example.com", True),
+            ("javascript:alert(1)", False),
+            ("data:text/html;base64,PHNjcmlwdD4=", False),
+            ("vbscript:msgbox(1)", False),
+            ("file:///etc/passwd", False),
+        ],
+    )
+    def test_only_allowlisted_href_schemes_survive(self, scheme_url, expected_kept):
+        """The sanitizer checks the attribute's *value*, not just its name.
+
+        The previous ``bleach`` backend allowed any ``href`` because ``href`` was
+        on the allowed-attribute list, so ``javascript:`` links passed through.
+        """
+        result = sanitization.sanitize_attribution(f'<a href="{scheme_url}">x</a>')
+
+        assert ("href=" in result) is expected_kept
+        # The text always survives; only the dangerous attribute is dropped.
+        assert "x</a>" in result

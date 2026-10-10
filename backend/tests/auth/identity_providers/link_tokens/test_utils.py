@@ -4,9 +4,9 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-import auth.identity_providers.link_tokens.crud as idp_link_token_crud
-import auth.identity_providers.link_tokens.schema as idp_link_token_schema
-import auth.identity_providers.link_tokens.utils as idp_link_token_utils
+import modules.auth.identity_providers.link_tokens.crud as idp_link_token_crud
+import modules.auth.identity_providers.link_tokens.schema as idp_link_token_schema
+import modules.auth.identity_providers.link_tokens.utils as idp_link_token_utils
 
 
 class TestHashIdpLinkToken:
@@ -29,8 +29,8 @@ class TestHashIdpLinkToken:
 class TestGenerateIdpLinkToken:
     """Test suite for generate_idp_link_token function."""
 
-    @patch("auth.identity_providers.link_tokens.utils.uuid4")
-    @patch("auth.identity_providers.link_tokens.utils.secrets.token_urlsafe")
+    @patch("modules.auth.identity_providers.link_tokens.utils.uuid4")
+    @patch("modules.auth.identity_providers.link_tokens.utils.secrets.token_urlsafe")
     def test_generate_token_success(self, mock_token_urlsafe, mock_uuid4, mock_db):
         """Test successful IdP link token generation."""
         # Arrange
@@ -113,7 +113,7 @@ class TestDeleteIdpLinkExpiredTokensFromDb:
         mock_db = MagicMock()
 
         with (
-            patch("auth.identity_providers.link_tokens.utils.core_database.SessionLocal") as mock_session_local,
+            patch("modules.auth.identity_providers.link_tokens.utils.core_database.SessionLocal") as mock_session_local,
             patch.object(idp_link_token_crud, "delete_expired_tokens", return_value=5) as mock_delete,
         ):
             mock_session_local.return_value.__enter__.return_value = mock_db
@@ -131,7 +131,7 @@ class TestDeleteIdpLinkExpiredTokensFromDb:
         mock_db = MagicMock()
 
         with (
-            patch("auth.identity_providers.link_tokens.utils.core_database.SessionLocal") as mock_session_local,
+            patch("modules.auth.identity_providers.link_tokens.utils.core_database.SessionLocal") as mock_session_local,
             patch.object(idp_link_token_crud, "delete_expired_tokens", return_value=0) as mock_delete,
         ):
             mock_session_local.return_value.__enter__.return_value = mock_db

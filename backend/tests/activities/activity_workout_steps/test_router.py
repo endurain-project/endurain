@@ -3,14 +3,16 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_workout_steps.schema import ActivityWorkoutStepsPage
+
 
 def _build_app(mock_db):
-    import activities.activity_workout_steps.router as router
-    import auth.dependencies as auth_deps
     import core.database as core_db
+    import modules.activities.activity_workout_steps.router as router
+    import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/activities_workout_steps")
+    app.include_router(router.router, prefix="/activities/{activity_id}")
 
     def _mock():
         return None
@@ -25,10 +27,12 @@ def _build_app(mock_db):
 
 
 class TestReadWorkoutSteps:
-    @patch("activities.activity_workout_steps.router.activity_workout_steps_crud.get_activity_workout_steps")
+    @patch(
+        "modules.activities.activity_workout_steps.router.activity_workout_steps_service.list_activity_workout_steps"
+    )
     def test_read_steps_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivityWorkoutStepsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities_workout_steps/activity_id/1/all", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/workout-steps", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200

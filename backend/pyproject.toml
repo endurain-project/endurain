@@ -1,39 +1,34 @@
 [project]
 name = "endurain"
-version = "0.19.3"
+version = "0.20.0-beta1"
 description = "Endurain API for the Endurain app"
 authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI
 requires-python = ">=3.13,<4.0"
 dependencies = [
-    "fastapi>=0.136.0",
+    "fastapi>=0.141.1",
     "uvicorn>=0.44.0",
     "python-dotenv>=1.2.2",
-    "sqlalchemy>=2.0.49",
+    "sqlalchemy>=2.0.51",
     "apscheduler>=3.11.2",
     "requests>=2.33.1",
     "stravalib>=2.4",
-    "opentelemetry-sdk>=1.25.0",
-    "opentelemetry-instrumentation-fastapi>=0.62b0",
-    "opentelemetry-exporter-otlp>=1.25.0",
     "python-multipart>=0.0.26",
     "gpxpy>=1.6.2",
     "tcxreader>=0.4.11",
-    "alembic>=1.18.4",
+    "alembic>=1.19.0",
     "joserfc>=1.6.4",
     "fitdecode>=0.11.0",
     "numpy>=2.4.4",
     "geopy>=2.4.1",
-    "flexparser>=0.4",
     "pydantic-core>=2.46.2",
     "pydantic-settings>=2.6.0",
-    "importlib-metadata>=8.5.0",
     "garminconnect>=0.3.2",
     "websockets>=16.0",
     "timezonefinder>=8.2.2",
-    "psycopg[binary,pool]>=3.3.3",
+    "psycopg[binary,pool]>=3.3.4",
     "user-agents>=2.2.0",
-    "pydantic[email]>=2.12.5",
+    "pydantic[email]>=2.13.4",
     "apprise>=1.9.9",
     "pyotp>=2.9.0",
     "qrcode[pil]>=8.2",
@@ -45,17 +40,28 @@ dependencies = [
     "itsdangerous>=2.2.0",
     "slowapi>=0.1.9",
     "safeuploads[fastapi]>=1.0.0",
-    "bleach>=6.3.0",
+    "nh3>=0.3.1",
     "aiofiles>=25.1.0",
     "staticmap>=0.5.7",
+    # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
+    # changes on minor versions.
+    "jasil[fastapi,geocoding,jobs,migrations]>=0.5.0,<0.6.0",
+]
+
+[project.optional-dependencies]
+# Extra pulled in for multi-node (`distributed`) deployments: Redis-backed
+# shared state / event bus and S3-compatible object storage. The default image
+# (`uv export --no-dev`) ships neither, so `local` deployments stay lean.
+distributed = [
+    "boto3>=1.35",
     "redis>=7.4.0",
+    "jasil[redis,s3]>=0.5.0,<0.6.0",
 ]
 
 [dependency-groups]
 typecheck = [
     "mypy>=1.20.2",
     "types-requests",
-    "types-bleach",
     "types-psutil",
     "types-qrcode",
     "types-aiofiles",
@@ -72,6 +78,8 @@ test = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.1.0",
+    "boto3>=1.35",
+    "redis>=7.4.0",
 ]
 dev = [
     "hatch>=1.16.5",
@@ -87,6 +95,10 @@ docs = [
 [tool.uv]
 required-version = "0.12.23"
 exclude-newer = "30 days"
+# jasil is first-party (endurain-project) and published through PyPI Trusted
+# Publishing with PEP 740 attestations, so it is exempt from the quarantine the
+# cutoff applies to third-party releases. Every other dependency keeps it.
+exclude-newer-package = { jasil = false }
 
 [[tool.uv.index]]
 name = "pypi"
@@ -163,6 +175,8 @@ module = [
     "tcxreader",
     "user_agents",
     "safeuploads.*",
+    "boto3",
+    "botocore.*",
 ]
 ignore_missing_imports = true
 
@@ -192,16 +206,14 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S105", "S106"]  # allow assert and test data with password-like strings
+"tests/**/*.py" = ["S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["E402", "I001"]  # alembic migrations have specific import order
 "app/alembic/versions/v0_3_0_migration.py" = ["S105", "S106"]  # legitimate password hashes in seed migration
-"app/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
-"app/auth/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
-"app/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
-"app/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
+"app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
+"app/modules/auth/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
+"app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
+"app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/main.py" = ["S105"]  # false positive on env var value
-"app/profile/mfa_store.py" = ["S105"]  # false positive on Redis key prefix
-"app/profile/**/*.py" = ["A005"]  # tracked in https://github.com/endurain-project/endurain/issues/651
 
 [tool.ruff.format]
 quote-style = "double"

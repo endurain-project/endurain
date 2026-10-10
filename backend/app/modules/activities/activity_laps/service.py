@@ -1,0 +1,83 @@
+"""Application-layer orchestration for activity laps.
+
+Declares *what* an activity's laps are — the parent flag that hides them and the
+two CRUD calls that read them — and delegates *how* the paged read runs to the
+shared :mod:`modules.activities.activity.child_collection` seam, which owns the
+access gate and the rule that a refusal and an empty collection answer alike.
+
+Reads are paginated. A lap count is not bounded by anything in the domain (a lap
+per kilometre over an ultra, or a lap button pressed all day), so the previous
+"return every row" read had no ceiling on the work or the payload one request
+could ask for.
+"""
+
+from sqlalchemy.orm import Session
+
+import core.pagination as core_pagination
+import modules.activities.activity.integration_service as activity_child_collection
+import modules.activities.activity_laps.crud as activity_laps_crud
+import modules.activities.activity_laps.schema as activity_laps_schema
+
+_COLLECTION: activity_child_collection.ChildCollection[activity_laps_schema.ActivityLapsPage] = (
+    activity_child_collection.ChildCollection(
+        name="laps",
+        hide_attr="hide_laps",
+        fetch=activity_laps_crud.get_activity_laps,
+        count=activity_laps_crud.count_activity_laps,
+        build=activity_laps_schema.ActivityLapsPage.build,
+    )
+)
+
+
+def list_activity_laps(
+    activity_id: int,
+    requester_user_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_laps_schema.ActivityLapsPage:
+    """Return one page of an activity's laps for an authenticated caller.
+
+    Args:
+        activity_id: The parent activity.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope. An empty page when the activity is not visible to the
+        caller, its laps are hidden, or it has none — deliberately
+        indistinguishable, so the endpoint cannot be used to probe which
+        activities exist.
+    """
+    return _COLLECTION.list_for_requester(
+        activity_id,
+        requester_user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+    )
+
+
+def list_public_activity_laps(
+    activity_id: int,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_laps_schema.ActivityLapsPage:
+    """Return one page of a publicly shared activity's laps for an anonymous caller.
+
+    Args:
+        activity_id: The parent activity.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope, empty when the activity is not found, hidden, or not
+        publicly visible.
+    """
+    return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)

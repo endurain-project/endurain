@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-import auth.sessions.rotated_refresh_tokens.schema as rotated_token_schema
+import modules.auth.sessions.rotated_refresh_tokens.schema as rotated_token_schema
 
 
 class TestRotatedRefreshTokenCreateSchema:

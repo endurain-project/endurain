@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.server_settings
+::: backend.app.modules.server_settings
     handler: python
     options:
       docstring_style: google

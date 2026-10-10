@@ -1,27 +1,24 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
-from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
+
+import core.exceptions as core_exceptions
 
 
 class TestCreateActivityWorkoutSteps:
-    @patch("activities.activity_workout_steps.crud.activity_workout_steps_models.ActivityWorkoutSteps")
+    @patch("modules.activities.activity_workout_steps.crud.activity_workout_steps_models.ActivityWorkoutSteps")
     def test_success(self, mock_steps_model, mock_db):
-        import activities.activity_workout_steps.crud as crud
-        from activities.activity_workout_steps.schema import ActivityWorkoutSteps
+        import modules.activities.activity_workout_steps.crud as crud
+        from modules.activities.activity_workout_steps.schema import ActivityWorkoutSteps
 
         mock_steps_model.return_value = MagicMock()
         steps = [
             ActivityWorkoutSteps(
                 activity_id=1,
-                step_number=1,
-                step_type="warm_up",
-                step_duration=300.0,
                 message_index=0,
                 duration_type="time",
+                duration_value=300.0,
             )
         ]
         crud.create_activity_workout_steps(steps, 1, mock_db)
@@ -29,14 +26,14 @@ class TestCreateActivityWorkoutSteps:
         mock_db.commit.assert_called_once()
 
     def test_empty(self, mock_db):
-        import activities.activity_workout_steps.crud as crud
+        import modules.activities.activity_workout_steps.crud as crud
 
         crud.create_activity_workout_steps([], 1, mock_db)
         mock_db.commit.assert_called_once()
 
-    @patch("activities.activity_workout_steps.crud.activity_workout_steps_models.ActivityWorkoutSteps")
+    @patch("modules.activities.activity_workout_steps.crud.activity_workout_steps_models.ActivityWorkoutSteps")
     def test_db_error(self, mock_steps_model, mock_db):
-        import activities.activity_workout_steps.crud as crud
+        import modules.activities.activity_workout_steps.crud as crud
 
         mock_steps_model.return_value = MagicMock()
         mock_db.commit.side_effect = SQLAlchemyError("err")
@@ -50,184 +47,67 @@ class TestCreateActivityWorkoutSteps:
                 duration_type="time",
             )
         ]
-        with pytest.raises(HTTPException) as e:
+        with pytest.raises(core_exceptions.ProcessingError) as e:
             crud.create_activity_workout_steps(steps, 1, mock_db)
         assert e.value.status_code == 500
 
 
 class TestGetActivityWorkoutSteps:
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_success(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
-        import activities.activity_workout_steps.models as m
+    """Persistence only — the access decision lives in ``activity_workout_steps.service``."""
 
-        mock_get_act.return_value = MagicMock(user_id=1, hide_workout_sets_steps=False)
-        setup_mock_execute(mock_db, return_scalars_all=[mock_model(m.ActivityWorkoutSteps, id=1, activity_id=1)])
-        r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
-        assert len(r) == 1
+    @patch("modules.activities.activity_workout_steps.crud._to_read_schema")
+    def test_success(self, mock_to_read, mock_db):
+        import modules.activities.activity_workout_steps.crud as crud
 
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_not_found(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
+        mock_to_read.return_value = MagicMock()
+        mock_db.scalars.return_value.all.return_value = [MagicMock()]
+        assert len(crud.get_activity_workout_steps(activity_id=1, db=mock_db)) == 1
 
-        mock_get_act.return_value = None
-        r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
+    def test_empty(self, mock_db):
+        import modules.activities.activity_workout_steps.crud as crud
 
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_hidden(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(user_id=2, hide_workout_sets_steps=True)
-        r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_empty(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(user_id=1, hide_workout_sets_steps=False)
         mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
-        assert r is None
+        assert crud.get_activity_workout_steps(activity_id=1, db=mock_db) == []
 
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_db_error(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
+    def test_db_error(self, mock_db):
+        import modules.activities.activity_workout_steps.crud as crud
 
-        mock_get_act.return_value = MagicMock(user_id=1, hide_workout_sets_steps=False)
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
-            crud.get_activity_workout_steps(activity_id=1, token_user_id=1, db=mock_db)
+        with pytest.raises(core_exceptions.ProcessingError) as e:
+            crud.get_activity_workout_steps(activity_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
 class TestGetActivitiesWorkoutSteps:
-    def test_success(self, mock_db):
-        import activities.activity.models as am
-        import activities.activity_workout_steps.crud as crud
-        import activities.activity_workout_steps.models as m
+    """The batch read no longer joins the parent: it is handed scoped ids."""
 
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1, hide_workout_sets_steps=False)
-        mock_steps = [MagicMock(spec=m.ActivityWorkoutSteps, id=1, activity_id=1)]
-        mock_db.scalars.return_value.all.side_effect = [
-            [mock_activity],
-            mock_steps,
-        ]
-        r = crud.get_activities_workout_steps(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert len(r) == 1
+    @patch("modules.activities.activity_workout_steps.crud._to_read_schema")
+    def test_success(self, mock_to_read, mock_db):
+        import modules.activities.activity_workout_steps.crud as crud
+        import modules.activities.activity_workout_steps.models as m
 
-    def test_empty_ids(self, mock_db):
-        import activities.activity_workout_steps.crud as crud
+        mock_to_read.return_value = MagicMock()
+        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityWorkoutSteps, id=1, activity_id=1)]
 
-        r = crud.get_activities_workout_steps(activity_ids=[], token_user_id=1, db=mock_db)
-        assert r == []
+        assert len(crud.get_activities_workout_steps(activity_ids=[1], db=mock_db)) == 1
 
-    def test_no_activities(self, mock_db):
-        import activities.activity_workout_steps.crud as crud
+    def test_empty_ids_short_circuits(self, mock_db):
+        import modules.activities.activity_workout_steps.crud as crud
+
+        assert crud.get_activities_workout_steps(activity_ids=[], db=mock_db) == []
+        mock_db.scalars.assert_not_called()
+
+    def test_no_rows(self, mock_db):
+        import modules.activities.activity_workout_steps.crud as crud
 
         mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_activities_workout_steps(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert r == []
 
-    def test_no_allowed_ids(self, mock_db):
-        import activities.activity.models as am
-        import activities.activity_workout_steps.crud as crud
-
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=2, hide_workout_sets_steps=True)
-        mock_db.scalars.return_value.all.return_value = [mock_activity]
-        r = crud.get_activities_workout_steps(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert r == []
-
-    def test_no_steps(self, mock_db):
-        import activities.activity.models as am
-        import activities.activity_workout_steps.crud as crud
-
-        mock_activity = MagicMock(spec=am.Activity, id=1, user_id=1, hide_workout_sets_steps=False)
-        mock_db.scalars.return_value.all.side_effect = [
-            [mock_activity],
-            [],
-        ]
-        r = crud.get_activities_workout_steps(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert r == []
+        assert crud.get_activities_workout_steps(activity_ids=[1], db=mock_db) == []
 
     def test_db_error(self, mock_db):
-        import activities.activity_workout_steps.crud as crud
+        import modules.activities.activity_workout_steps.crud as crud
 
         mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
-            crud.get_activities_workout_steps(activity_ids=[1], token_user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetPublicActivityWorkoutSteps:
-    @patch("activities.activity_workout_steps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_success(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_workout_steps.crud as crud
-        import activities.activity_workout_steps.models as m
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0)
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityWorkoutSteps, id=1, activity_id=1)]
-        r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
-        assert len(r) == 1
-
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_not_found(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = None
-        r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_hidden(self, mock_get_act, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=True)
-        r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_workout_steps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_no_public_links(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False)
-        mock_settings.return_value = MagicMock(public_shareable_links=False)
-        r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_workout_steps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_not_public(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=2)
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_workout_steps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_no_steps(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0)
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_workout_steps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_workout_steps.crud.activity_crud.get_activity_by_id")
-    def test_db_error(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_workout_steps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_workout_sets_steps=False, visibility=0)
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        mock_db.scalars.side_effect = SQLAlchemyError("err")
-        with pytest.raises(HTTPException) as e:
-            crud.get_public_activity_workout_steps(activity_id=1, db=mock_db)
+        with pytest.raises(core_exceptions.ProcessingError) as e:
+            crud.get_activities_workout_steps(activity_ids=[1], db=mock_db)
         assert e.value.status_code == 500

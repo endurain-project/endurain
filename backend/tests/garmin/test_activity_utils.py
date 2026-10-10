@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from fastapi import HTTPException, status
 
-import garmin.activity_utils as activity_utils
+import modules.garmin.activity_utils as activity_utils
 
 
 def _make_garminconnect_client(activity_id: int = 12345) -> Mock:
@@ -39,8 +39,8 @@ async def _call(client: Mock, user_id: int = 1) -> list | None:
 def _patch_common(monkeypatch):
     """Patch dependencies shared by every test in this module."""
     monkeypatch.setattr(
-        activity_utils.activities_crud,
-        "get_activity_by_garminconnect_id_from_user_id",
+        activity_utils.activities_integration,
+        "get_activity_by_garminconnect_id",
         Mock(return_value=None),
     )
     monkeypatch.setattr(
@@ -49,7 +49,7 @@ def _patch_common(monkeypatch):
         AsyncMock(return_value=Path("/data/12345.zip")),
     )
     monkeypatch.setattr(activity_utils.file_uploads, "safe_remove_within", Mock(return_value=True))
-    monkeypatch.setattr(activity_utils.core_logger, "print_to_log", Mock())
+    monkeypatch.setattr(activity_utils, "logger", Mock())
 
 
 class TestExtractionFailureLogging:
@@ -76,7 +76,7 @@ class TestExtractionFailureLogging:
         result = await _call(client)
 
         assert result is None
-        logged_messages = [call.args[0] for call in activity_utils.core_logger.print_to_log.call_args_list]
+        logged_messages = [call.args[0] for call in activity_utils.logger.warning.call_args_list]
         assert any(str(detail) in message for message in logged_messages)
         assert any("HTTPException" in message for message in logged_messages)
 
@@ -92,7 +92,7 @@ class TestExtractionFailureLogging:
         result = await _call(client)
 
         assert result is None
-        logged_messages = [call.args[0] for call in activity_utils.core_logger.print_to_log.call_args_list]
+        logged_messages = [call.args[0] for call in activity_utils.logger.warning.call_args_list]
         assert any(message.endswith("OSError") for message in logged_messages)
 
 
@@ -108,9 +108,9 @@ class TestOrphanedExtractedFileCleanup:
             AsyncMock(return_value=[extracted_path]),
         )
         monkeypatch.setattr(
-            activity_utils.activities_utils,
-            "parse_and_store_activity_from_file",
-            AsyncMock(return_value=None),
+            activity_utils.activity_ingestion,
+            "ingest_activity_file",
+            Mock(return_value=None),
         )
 
         client = _make_garminconnect_client()
@@ -131,9 +131,9 @@ class TestOrphanedExtractedFileCleanup:
             AsyncMock(return_value=[extracted_path]),
         )
         monkeypatch.setattr(
-            activity_utils.activities_utils,
-            "parse_and_store_activity_from_file",
-            AsyncMock(return_value=["created-activity"]),
+            activity_utils.activity_ingestion,
+            "ingest_activity_file",
+            Mock(return_value=["created-activity"]),
         )
 
         client = _make_garminconnect_client()

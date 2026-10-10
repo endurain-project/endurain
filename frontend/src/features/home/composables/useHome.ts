@@ -2,7 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { Activity, ActivityStats } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
 import type { GoalProgress } from '@/features/goals/types'
 
 import { queryKeys } from '@/services/queryKeys'
@@ -17,6 +17,8 @@ import {
   refreshActivities,
 } from '@/features/activities/services/activities'
 import { fetchGoalResults } from '@/features/goals/services/goals'
+import { pollIngestionJob } from '@/features/upload/composables/useUpload'
+import type { ActivityIngestionJob } from '@/features/upload/types'
 
 /** Default number of activities fetched per feed page (matches v1's fallback). */
 export const DEFAULT_FEED_PAGE_SIZE = 25
@@ -49,7 +51,7 @@ export function useUserActivitiesFeed(
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.userFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchUserActivities(id.value, pageParam, pageSize, signal),
+    queryFn: ({ pageParam, signal }) => fetchUserActivities(pageParam, pageSize, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
       lastPage.length < pageSize ? undefined : lastPageParam + 1,
@@ -106,11 +108,11 @@ export function useFollowersActivitiesFeed(
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) =>
-      fetchFollowersActivities(id.value, pageParam, pageSize, signal),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
-      lastPage.length < pageSize ? undefined : lastPageParam + 1,
+    queryFn: ({ pageParam, signal }) => fetchFollowersActivities(pageParam, pageSize, signal),
+    // Keyset, not offset: the server hands back the position of the last row it
+    // returned, so activities arriving mid-scroll cannot shift the window.
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastSlice: ActivityFeedSlice) => lastSlice.nextCursor ?? undefined,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
 }
@@ -181,16 +183,27 @@ export function useGoalResultsQuery(enabled: MaybeRefOrGetter<boolean> = true) {
 
 /**
  * Triggers a refresh of the viewer's linked-integration activities (Strava /
- * Garmin Connect). On settle it invalidates the activities domain so every feed
- * refetches and shows any newly imported activities.
+ * Garmin Connect).
+ *
+ * The request returns a `202` job handle rather than the imported activities —
+ * a provider sync is a chain of third-party round-trips and now runs on a
+ * background worker — so the mutation polls that job to completion before
+ * resolving. It therefore stays pending for the whole sync, exactly as it did
+ * when the request was synchronous.
+ *
+ * On settle it invalidates the activities domain so every feed refetches and
+ * shows any newly imported activities.
  *
  * @returns The TanStack mutation for refreshing integration activities.
  */
 export function useRefreshActivitiesMutation() {
   const client = useQueryClient()
 
-  return useMutation<Activity[], Error, void>({
-    mutationFn: () => refreshActivities(),
+  return useMutation<ActivityIngestionJob, Error, void>({
+    mutationFn: async () => {
+      const job = await refreshActivities()
+      return pollIngestionJob(job.id)
+    },
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
     },

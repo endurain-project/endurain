@@ -3,7 +3,7 @@ from datetime import date as datetime_date
 import pytest
 from pydantic import ValidationError
 
-import health.health_steps.schema as health_steps_schema
+import modules.health.health_steps.schema as health_steps_schema
 
 
 class TestHealthStepsSchema:

@@ -1,7 +1,9 @@
 import {
   FolderInput,
   KeyRound,
+  Layers,
   Plug,
+  ScrollText,
   ServerCog,
   ShieldCheck,
   Target,
@@ -36,6 +38,18 @@ export const SETTINGS_ZONES: readonly SettingsZone[] = [
   { name: 'settings-users', labelKey: 'settings.nav.users', icon: Users, adminOnly: true },
   { name: 'settings-idp', labelKey: 'settings.nav.idp', icon: KeyRound, adminOnly: true },
   { name: 'settings-server', labelKey: 'settings.nav.server', icon: ServerCog, adminOnly: true },
+  {
+    name: 'settings-event-log',
+    labelKey: 'settings.nav.eventLog',
+    icon: ScrollText,
+    adminOnly: true,
+  },
+  {
+    name: 'settings-jobs',
+    labelKey: 'settings.nav.jobs',
+    icon: Layers,
+    adminOnly: true,
+  },
   { name: 'settings-profile', labelKey: 'settings.nav.profile', icon: User, adminOnly: false },
   { name: 'settings-goals', labelKey: 'settings.nav.goals', icon: Target, adminOnly: false },
   {

@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Skjul treningssett og -trinn",
     "hideGear": "Skjul utstyr",
     "success": "Aktivitet oppdatert",
-    "error": "Kunne ikke oppdatere aktiviteten"
+    "error": "Kunne ikke oppdatere aktiviteten",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Denne aktiviteten er skjult. Bare du kan se den.",

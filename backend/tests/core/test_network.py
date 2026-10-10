@@ -1,5 +1,6 @@
 """Tests for core.network module."""
 
+import asyncio
 import ipaddress
 import socket
 from unittest.mock import MagicMock, patch
@@ -464,9 +465,162 @@ class TestRejectPrivateUrl:
         with (
             patch("core.network.socket.getaddrinfo") as mock_gai,
             patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
-            patch.object(core_network.core_logger, "print_to_log") as mock_log,
+            patch.object(core_network, "logger") as mock_log,
         ):
             mock_gai.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 0))]
             core_network.reject_private_url("http://internal.example.com", purpose="test")
-            mock_log.assert_called_once()
-            assert "SSRF allowlist hit" in mock_log.call_args[0][0]
+            mock_log.info.assert_called_once()
+            assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
+
+
+class TestRejectPrivateUrlAsync:
+    """Tests for bounded asynchronous SSRF validation."""
+
+    @pytest.mark.asyncio
+    async def test_uses_dedicated_executor_and_forwards_context(self):
+        loop = asyncio.get_running_loop()
+        completed = loop.create_future()
+        completed.set_result(None)
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.return_value = completed
+
+        with (
+            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            patch("core.network.reject_private_url") as mock_reject,
+        ):
+            await core_network.reject_private_url_async("https://idp.example.com", purpose="oidc_discovery")
+
+        executor, operation = mock_loop.run_in_executor.call_args.args
+        assert executor is core_network._SSRF_DNS_EXECUTOR
+        operation()
+        mock_reject.assert_called_once_with("https://idp.example.com", purpose="oidc_discovery")
+
+    @pytest.mark.asyncio
+    async def test_timeout_fails_closed_without_exposing_url(self):
+        loop = asyncio.get_running_loop()
+        unresolved = loop.create_future()
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.return_value = unresolved
+        secret_url = "https://idp.example.com/discovery?client_secret=secret"
+
+        with (
+            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await core_network.reject_private_url_async(secret_url, purpose="oidc_discovery")
+
+        assert exc_info.value.status_code == 504
+        assert exc_info.value.detail == "Hostname resolution timed out"
+        assert secret_url not in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_guard_http_exception_is_preserved(self):
+        blocked = HTTPException(status_code=400, detail="URL resolves to a non-public address")
+        loop = asyncio.get_running_loop()
+        failed = loop.create_future()
+        failed.set_exception(blocked)
+        mock_loop = MagicMock()
+        mock_loop.run_in_executor.return_value = failed
+
+        with (
+            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await core_network.reject_private_url_async("https://internal.example.com")
+
+        assert exc_info.value is blocked
+
+
+class TestHostRejectionReason:
+    """The host-authority SSRF guard, for config-supplied ``host[:port]`` values.
+
+    Shares its address denylist and allowlist with ``reject_private_url``; the
+    difference is that it *returns* a reason so a caller can disable an optional
+    feature rather than fail a request.
+    """
+
+    def _public(self):
+        return patch(
+            "core.network.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("8.8.8.8", 0))],
+        )
+
+    def _resolving_to(self, ip):
+        return patch(
+            "core.network.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 0, "", (ip, 0))],
+        )
+
+    def test_accepts_bare_hosts(self):
+        with self._public():
+            assert core_network.host_rejection_reason("nominatim.openstreetmap.org") is None
+            assert core_network.host_rejection_reason("nominatim.local") is None
+            assert core_network.host_rejection_reason("nominatim:8080") is None
+
+    def test_rejects_ssrf_shapes_without_resolving(self):
+        # A configured value carrying a scheme/path/credentials would be
+        # interpolated into a URL by the caller and redirect the request.
+        with patch("core.network.socket.getaddrinfo") as mock_gai:
+            for value in (None, "", "http://host", "host/reverse", "user@host", "host name", "host:notaport"):
+                assert core_network.host_rejection_reason(value) is not None
+            mock_gai.assert_not_called()
+
+    def test_private_ip_is_rejected(self):
+        with (
+            self._resolving_to("10.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("nominatim.internal")
+
+    def test_link_local_metadata_is_rejected(self):
+        with (
+            self._resolving_to("169.254.169.254"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("metadata")
+
+    def test_loopback_is_rejected(self):
+        with (
+            self._resolving_to("127.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("localhost:8080")
+
+    def test_unresolvable_host_is_rejected(self):
+        with patch("core.network.socket.getaddrinfo", side_effect=socket.gaierror("nxdomain")):
+            assert "resolved" in core_network.host_rejection_reason("does.not.exist")
+
+    def test_rejected_when_any_resolved_address_is_private(self):
+        # DNS-rebinding shape: a name answering with both a public and a private
+        # address must not be treated as public.
+        with (
+            patch(
+                "core.network.socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("8.8.8.8", 0)),
+                    (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 0)),
+                ],
+            ),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
+        ):
+            assert "non-public" in core_network.host_rejection_reason("mixed.example.com")
+
+    def test_allowlisted_private_host_is_permitted(self):
+        # A self-hosted service on a private network is a supported deployment;
+        # the operator opts in through SSRF_ALLOWED_HOSTS.
+        with (
+            self._resolving_to("10.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
+        ):
+            assert core_network.host_rejection_reason("nominatim.internal") is None
+
+    def test_allowlisted_private_host_is_audited(self):
+        with (
+            self._resolving_to("10.0.0.1"),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
+            patch.object(core_network, "logger") as mock_log,
+        ):
+            core_network.host_rejection_reason("nominatim.internal", purpose="reverse_geocoding")
+            assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
+            assert "reverse_geocoding" in mock_log.info.call_args[0][0]

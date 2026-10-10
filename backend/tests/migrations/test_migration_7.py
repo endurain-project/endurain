@@ -1,12 +1,9 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import migrations.migration_7 as migration_7
 
 
-@pytest.mark.asyncio
-async def test_process_migration_7_populates_missing_hr_zone_percentages(mock_db):
+def test_process_migration_7_populates_missing_hr_zone_percentages(mock_db):
     stream = MagicMock(
         id=1,
         activity_id=10,
@@ -21,7 +18,7 @@ async def test_process_migration_7_populates_missing_hr_zone_percentages(mock_db
 
     with (
         patch(
-            "migrations.migration_7.activity_streams_crud.get_hr_streams_without_zone_percentages",
+            "migrations.migration_7.activity_streams_migration.get_hr_streams_without_zone_percentages",
             side_effect=[[stream], []],
         ),
         patch(
@@ -33,23 +30,26 @@ async def test_process_migration_7_populates_missing_hr_zone_percentages(mock_db
             return_value=mock_user,
         ),
         patch(
-            "migrations.migration_7.activity_streams_utils.build_zone_percentages",
-            return_value={"hr": {"zone_1": {}}},
+            "migrations.migration_7.activity_streams_migration.resolve_max_heart_rate",
+            return_value=200,
         ),
         patch(
-            "migrations.migration_7.activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams",
+            "migrations.migration_7.activity_streams_migration.compute_hr_zone_breakdown_sync",
+            return_value={"zone_1": {}},
+        ),
+        patch(
+            "migrations.migration_7.activity_streams_migration.backfill_zone_percentages_for_missing_hr_streams",
             return_value=True,
         ) as mock_backfill,
         patch("migrations.migration_7.migrations_crud.set_migration_as_executed") as mock_set_executed,
     ):
-        await migration_7.process_migration_7(mock_db)
+        migration_7.process_migration_7(mock_db)
 
     mock_backfill.assert_called_once()
     mock_set_executed.assert_called_once_with(7, mock_db)
 
 
-@pytest.mark.asyncio
-async def test_process_migration_7_skips_existing_zone_percentages(mock_db):
+def test_process_migration_7_skips_existing_zone_percentages(mock_db):
     existing_payload = {"hr": {"zone_1": {"percent": 50.0}}}
     stream = MagicMock(
         id=2,
@@ -62,7 +62,7 @@ async def test_process_migration_7_skips_existing_zone_percentages(mock_db):
 
     with (
         patch(
-            "migrations.migration_7.activity_streams_crud.get_hr_streams_without_zone_percentages",
+            "migrations.migration_7.activity_streams_migration.get_hr_streams_without_zone_percentages",
             side_effect=[[stream], []],
         ),
         patch(
@@ -74,16 +74,16 @@ async def test_process_migration_7_skips_existing_zone_percentages(mock_db):
             return_value=MagicMock(max_heart_rate=200),
         ),
         patch(
-            "migrations.migration_7.activity_streams_utils.build_zone_percentages",
+            "migrations.migration_7.activity_streams_migration.resolve_max_heart_rate",
             return_value=None,
         ),
         patch(
-            "migrations.migration_7.activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams",
+            "migrations.migration_7.activity_streams_migration.backfill_zone_percentages_for_missing_hr_streams",
             return_value=True,
         ) as mock_backfill,
         patch("migrations.migration_7.migrations_crud.set_migration_as_executed") as mock_set_executed,
     ):
-        await migration_7.process_migration_7(mock_db)
+        migration_7.process_migration_7(mock_db)
 
     # Should not be called because no computed_streams
     mock_backfill.assert_not_called()

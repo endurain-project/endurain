@@ -340,7 +340,9 @@ export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | nul
   const client = useQueryClient()
 
   return useMutation<void, Error, number>({
-    mutationFn: (mediaId) => deleteActivityMedia(mediaId),
+    // The delete route is nested under the activity, so the id the composable
+    // already tracks for cache invalidation is now part of the request path.
+    mutationFn: (mediaId) => deleteActivityMedia(resolveId(id) ?? 0, mediaId),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.activities.media(resolveId(id)) })
     },
@@ -357,8 +359,12 @@ export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | nul
 export function useEditActivityMutation() {
   const client = useQueryClient()
 
-  return useMutation<Activity, Error, { id: number; input: ActivityEditInput }>({
-    mutationFn: ({ id, input }) => editActivity(id, input),
+  return useMutation<
+    Activity,
+    Error,
+    { id: number; input: ActivityEditInput; version?: number | null }
+  >({
+    mutationFn: ({ id, input, version }) => editActivity(id, input, version),
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)
     },

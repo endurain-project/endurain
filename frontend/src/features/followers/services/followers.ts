@@ -1,25 +1,43 @@
-import type { FollowEdge, FollowerDto, FollowStatus } from '@/features/followers/types'
+import type {
+  FollowEdge,
+  FollowerDto,
+  FollowStatus,
+  RelationshipDto,
+} from '@/features/followers/types'
 import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
 
 /**
- * Derives the viewer's {@link FollowStatus} from the raw relationship record
- * returned by the state endpoint (`null` when no relationship exists).
+ * Page size used when loading a full follower/following list.
  *
- * @param dto - The viewer → target relationship, or `null`.
+ * The endpoints are paginated (a popular account's list would otherwise be an
+ * unbounded query and response); this matches the backend's per-request cap, so
+ * a single call still covers every list the UI renders today.
+ */
+const MAX_PAGE_SIZE = 200
+
+/**
+ * Derives the viewer's {@link FollowStatus} from a raw follow-relationship
+ * record (`null` when no relationship exists).
+ *
+ * @param dto - The relationship record, or `null`.
  * @returns `none` (no record), `pending` (unaccepted), or `accepted`.
  */
 export function mapFollowStatus(dto: FollowerDto | null): FollowStatus {
   if (!dto) {
     return 'none'
   }
-  return dto.is_accepted ? 'accepted' : 'pending'
+  return dto.status === 'accepted' ? 'accepted' : 'pending'
 }
 
 /**
  * Fetches the people who follow a user (the user's followers list). Each row's
  * *other* user is the follower (`follower_id`).
+ *
+ * The endpoint is paginated and returns a page envelope; this reads the first
+ * page at the maximum size, which covers every follower count the UI renders
+ * today without an unbounded response.
  *
  * @param userId - The profile owner whose followers to load.
  * @param signal - Optional abort signal for cancellation.
@@ -27,10 +45,14 @@ export function mapFollowStatus(dto: FollowerDto | null): FollowStatus {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowers(userId: number, signal?: AbortSignal): Promise<FollowEdge[]> {
-  const dtos = await apiFetch<FollowerDto[] | null>(`/followers/user/${userId}/followers/all`, {
-    signal,
-  })
-  return (dtos ?? []).map((dto) => ({ userId: dto.follower_id, isAccepted: dto.is_accepted }))
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/followers?num_records=${MAX_PAGE_SIZE}`,
+    { signal },
+  )
+  return (page?.items ?? []).map((dto) => ({
+    userId: dto.follower_id,
+    isAccepted: dto.status === 'accepted',
+  }))
 }
 
 /**
@@ -43,10 +65,14 @@ export async function fetchFollowers(userId: number, signal?: AbortSignal): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowing(userId: number, signal?: AbortSignal): Promise<FollowEdge[]> {
-  const dtos = await apiFetch<FollowerDto[] | null>(`/followers/user/${userId}/following/all`, {
-    signal,
-  })
-  return (dtos ?? []).map((dto) => ({ userId: dto.following_id, isAccepted: dto.is_accepted }))
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/following?num_records=${MAX_PAGE_SIZE}`,
+    { signal },
+  )
+  return (page?.items ?? []).map((dto) => ({
+    userId: dto.followee_id,
+    isAccepted: dto.status === 'accepted',
+  }))
 }
 
 /**
@@ -58,7 +84,13 @@ export async function fetchFollowing(userId: number, signal?: AbortSignal): Prom
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersCount(userId: number, signal?: AbortSignal): Promise<number> {
-  return apiFetch<number>(`/followers/user/${userId}/followers/count/accepted`, { signal })
+  // `total` on the page envelope describes the same filter, so the dedicated
+  // count endpoint (a bare JSON number, and a second round trip) is gone.
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/followers?accepted_only=true&num_records=1`,
+    { signal },
+  )
+  return page?.total ?? 0
 }
 
 /**
@@ -70,29 +102,31 @@ export async function fetchFollowersCount(userId: number, signal?: AbortSignal):
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowingCount(userId: number, signal?: AbortSignal): Promise<number> {
-  return apiFetch<number>(`/followers/user/${userId}/following/count/accepted`, { signal })
+  const page = await apiFetch<Schemas['Page_FollowRelationship_']>(
+    `/followers/users/${userId}/following?accepted_only=true&num_records=1`,
+    { signal },
+  )
+  return page?.total ?? 0
 }
 
 /**
  * Fetches the authenticated viewer's follow relationship to a target user,
- * backing the follow button's state.
+ * backing the follow button's state. The backend's relationship endpoint reports
+ * both directions; the button only needs the viewer's *outgoing* follow.
  *
- * @param viewerId - The authenticated viewer's id.
  * @param targetId - The profile owner's id.
  * @param signal - Optional abort signal for cancellation.
  * @returns The viewer's {@link FollowStatus} for the target.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowStatus(
-  viewerId: number,
   targetId: number,
   signal?: AbortSignal,
 ): Promise<FollowStatus> {
-  const dto = await apiFetch<FollowerDto | null>(
-    `/followers/user/${viewerId}/targetUser/${targetId}`,
-    { signal },
-  )
-  return mapFollowStatus(dto)
+  const view = await apiFetch<RelationshipDto | null>(`/followers/users/${targetId}/relationship`, {
+    signal,
+  })
+  return mapFollowStatus(view?.outgoing ?? null)
 }
 
 /**
@@ -102,7 +136,7 @@ export async function fetchFollowStatus(
  * @throws {HttpError} When the request fails.
  */
 export async function followUser(targetId: number): Promise<void> {
-  await apiFetch<FollowerDto>(`/followers/create/targetUser/${targetId}`, { method: 'POST' })
+  await apiFetch<FollowerDto>(`/followers/users/${targetId}/followers`, { method: 'POST' })
 }
 
 /**
@@ -113,8 +147,9 @@ export async function followUser(targetId: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function acceptFollower(targetId: number): Promise<void> {
-  await apiFetch<Schemas['MessageResponse']>(`/followers/accept/targetUser/${targetId}`, {
-    method: 'PUT',
+  await apiFetch<FollowerDto>(`/followers/follow-requests/${targetId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'accepted' }),
   })
 }
 
@@ -125,8 +160,9 @@ export async function acceptFollower(targetId: number): Promise<void> {
  * @param targetId - The followed (or requested) user to drop.
  * @throws {HttpError} When the request fails.
  */
-export async function unfollowUser(targetId: number): Promise<void> {
-  await apiFetch<Schemas['MessageResponse']>(`/followers/delete/follower/targetUser/${targetId}`, {
+export async function unfollowUser(targetId: number, viewerId: number): Promise<void> {
+  // One route serves both directions; the viewer is the follower here.
+  await apiFetch<void>(`/followers/users/${targetId}/followers/${viewerId}`, {
     method: 'DELETE',
   })
 }
@@ -138,8 +174,9 @@ export async function unfollowUser(targetId: number): Promise<void> {
  * @param targetId - The follower to remove.
  * @throws {HttpError} When the request fails.
  */
-export async function removeFollower(targetId: number): Promise<void> {
-  await apiFetch<Schemas['MessageResponse']>(`/followers/delete/following/targetUser/${targetId}`, {
+export async function removeFollower(targetId: number, viewerId: number): Promise<void> {
+  // Same route as unfollow, with the viewer as the followee instead.
+  await apiFetch<void>(`/followers/users/${viewerId}/followers/${targetId}`, {
     method: 'DELETE',
   })
 }

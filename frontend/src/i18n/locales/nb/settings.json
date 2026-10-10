@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Lagre reservekodene dine",
       "description": "Bruk en reservekode for å logge inn hvis du mister tilgangen til autentiseringsappen din.",
-      "warning": "Disse kodene vises bare én gang. Oppbevar dem et trygt sted — hver kode fungerer én gang.",
+      "warning": "Disse kodene vises bare én gang. Oppbevar dem et trygt sted, hver kode fungerer én gang.",
       "copy": "Kopier",
       "copied": "Reservekoder kopiert",
       "copyError": "Kunne ikke kopiere kodene.",
@@ -898,7 +898,7 @@
       "export": "Eksporter data",
       "import": "Importer data",
       "invalidType": "Vennligst velg et .zip-arkiv.",
-      "exportSuccess": "Eksport klar — nedlastingen din bør starte snart",
+      "exportSuccess": "Eksport klar, nedlastingen din bør starte snart",
       "exportError": "Kunne ikke eksportere dataene dine. Vennligst prøv igjen.",
       "importSuccess": "Data importert",
       "importError": "Kunne ikke importere arkivet. Vennligst sjekk filen og prøv igjen."

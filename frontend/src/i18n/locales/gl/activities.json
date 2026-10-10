@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Ocultar series e pasos do adestramento",
     "hideGear": "Ocultar equipamento",
     "success": "Actividade actualizada",
-    "error": "Non se puido actualizar a actividade"
+    "error": "Non se puido actualizar a actividade",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Esta actividade está oculta. Só ti podes vela.",

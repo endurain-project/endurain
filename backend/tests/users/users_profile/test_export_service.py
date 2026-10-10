@@ -8,10 +8,9 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import core.config as core_config
-import users.users_profile.export_service as profile_export_service
-import users.users_profile.utils as profile_utils
-from users.users_profile.exceptions import (
+import modules.users.users_profile.export_service as profile_export_service
+import modules.users.users_profile.utils as profile_utils
+from modules.users.users_profile.exceptions import (
     DatabaseConnectionError,
     DataCollectionError,
     ExportTimeoutError,
@@ -109,11 +108,13 @@ class TestExportServiceCollectUserActivities:
             with (
                 patch.object(service, "_get_activities_batch", return_value=[]),
                 patch.object(profile_utils, "write_json_to_zip") as mock_write,
+                patch.object(service, "_collect_and_write_global_activity_components") as collect_global,
             ):
                 result = service.collect_user_activities_data(z)
 
         assert result == []
         mock_write.assert_called_once()
+        collect_global.assert_called_once_with(z)
 
     def test_collects_activities_in_batches(self) -> None:
         buf = io.BytesIO()
@@ -147,7 +148,7 @@ class TestExportServiceCollectUserActivities:
         mock_activity = _make_activity_mock(1)
 
         with patch(
-            "users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
+            "modules.users.users_profile.export_service.activities_integration.list_user_activities_page",
             return_value=[mock_activity],
         ):
             result = service._get_activities_batch(0, 10)
@@ -161,7 +162,7 @@ class TestExportServiceCollectUserActivities:
 
         with (
             patch(
-                "users.users_profile.export_service.activities_crud.get_user_activities_with_pagination",
+                "modules.users.users_profile.export_service.activities_integration.list_user_activities_page",
                 side_effect=Exception("db error"),
             ),
             pytest.raises(Exception, match="db error"),
@@ -276,9 +277,10 @@ class TestExportServiceCollectGearData:
             service.performance_config.enable_memory_monitoring = False
 
             with (
-                patch("users.users_profile.export_service.gear_crud.get_gear_user", return_value=[]),
+                patch("modules.users.users_profile.export_service.gear_crud.get_gear_user", return_value=[]),
                 patch(
-                    "users.users_profile.export_service.gear_components_crud.get_gear_components_user", return_value=[]
+                    "modules.users.users_profile.export_service.gear_components_crud.get_gear_components_user",
+                    return_value=[],
                 ),
             ):
                 service.collect_gear_data(z)
@@ -293,7 +295,7 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     return_value=mock_gears,
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -310,7 +312,7 @@ class TestExportServiceCollectGearData:
             service.performance_config.enable_memory_monitoring = False
 
             with patch(
-                "users.users_profile.export_service.gear_crud.get_gear_user",
+                "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                 return_value=[],
             ):
                 service.collect_gear_data(z)
@@ -327,7 +329,7 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     side_effect=Exception("unexpected"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -343,11 +345,11 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.gear_components_crud.get_gear_components_user",
+                    "modules.users.users_profile.export_service.gear_components_crud.get_gear_components_user",
                     side_effect=Exception("components fail"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -366,11 +368,11 @@ class TestExportServiceCollectHealthWeight:
 
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     return_value=mock_health,
                 ),
                 patch(
-                    "users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
+                    "modules.users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -388,7 +390,7 @@ class TestExportServiceCollectHealthWeight:
 
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     side_effect=Exception("unexpected"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -404,11 +406,11 @@ class TestExportServiceCollectHealthWeight:
 
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
+                    "modules.users.users_profile.export_service.health_targets_crud.get_health_targets_by_user_id",
                     return_value=None,
                 ),
             ):
@@ -425,19 +427,19 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     return_value=None,
                 ),
             ):
@@ -452,19 +454,19 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     return_value=[MagicMock()],
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     return_value=MagicMock(),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -484,19 +486,19 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     return_value=[],
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     return_value=None,
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     return_value=None,
                 ),
             ):
@@ -515,7 +517,7 @@ class TestExportServiceCollectUserSettings:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     side_effect=Exception("fail"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -524,14 +526,19 @@ class TestExportServiceCollectUserSettings:
 
 
 class TestExportServiceActivityFiles:
-    def test_add_activity_files_missing_dir(self) -> None:
+    def test_add_activity_files_none_stored(self) -> None:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with patch("os.path.exists", return_value=False):
+            with patch(
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
+                return_value=None,
+            ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts.get("activity_files", 0) == 0
 
     def test_add_activity_files_no_activities(self) -> None:
         buf = io.BytesIO()
@@ -548,16 +555,16 @@ class TestExportServiceActivityFiles:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
-                patch.object(z, "write"),
+            with patch(
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
+                return_value=("1.gpx", b"<gpx></gpx>"),
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts["activity_files"] == 1
+        buf.seek(0)
+        with zipfile.ZipFile(buf, "r") as z:
+            assert "activity_files/1.gpx" in z.namelist()
 
 
 class TestExportServiceActivityMedia:
@@ -567,11 +574,11 @@ class TestExportServiceActivityMedia:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=False),
-            ):
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                runtime.get_active_platform.return_value.storage.list_keys.return_value = []
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts["media"] == 0
 
     def test_add_activity_media_no_activities(self) -> None:
         buf = io.BytesIO()
@@ -588,17 +595,29 @@ class TestExportServiceActivityMedia:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-                patch.object(z, "write"),
-            ):
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.return_value = ["1_image.jpg"]
+                storage.get.return_value = b"image-bytes"
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts["media"] == 1
+        with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as written:
+            assert written.read("activity_media/1_image.jpg") == b"image-bytes"
+
+    def test_add_activity_media_skips_a_missing_blob(self) -> None:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+            mock_db = MagicMock(spec=Session)
+            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.return_value = ["1_image.jpg"]
+                storage.get.return_value = None
+                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts["media"] == 0
 
 
 def _make_scandir_mock(entries: list) -> MagicMock:
@@ -610,90 +629,72 @@ def _make_scandir_mock(entries: list) -> MagicMock:
 
 
 class TestExportServiceUserImages:
-    def test_add_user_images_missing_dir(self) -> None:
+    """User photos are exported through the StorageProvider, not a local walk."""
+
+    @staticmethod
+    def _export(user_id: int, keys: list[str], blob: bytes | None = b"image-bytes"):
         buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+        mock_db = MagicMock(spec=Session)
+        service = profile_export_service.ExportService(user_id=user_id, db=mock_db)
+        service.performance_config.enable_memory_monitoring = False
 
-            with patch("os.path.exists", return_value=False):
-                service.add_user_images_to_zip(z)
+        with (
+            zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
+            patch("modules.users.users_profile.export_service.platform_runtime") as runtime,
+        ):
+            storage = runtime.get_active_platform.return_value.storage
+            storage.list_keys.return_value = keys
+            storage.get.return_value = blob
+            service.add_user_images_to_zip(z)
+        return service, buf, storage
 
-    def test_add_user_images_with_matching_file(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = MagicMock(spec=["name", "path", "is_file", "is_dir", "stat"])
-            mock_entry.name = "1.jpg"
-            mock_entry.path = "/images/1.jpg"
-            mock_entry.is_file.return_value = True
-            mock_entry.is_dir.return_value = False
-            mock_entry.stat.return_value.st_size = 1024
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", return_value=_make_scandir_mock([mock_entry])),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
-
-        assert service.counts["user_images"] == 1
-
-    def test_add_user_images_skips_non_matching(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=2, db=mock_db)
-
-            mock_entry = MagicMock(spec=["name", "is_file", "stat"])
-            mock_entry.name = "1.jpg"
-            mock_entry.is_file.return_value = True
-            mock_entry.stat.return_value.st_size = 1024
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", return_value=_make_scandir_mock([mock_entry])),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
+    def test_no_stored_photo(self) -> None:
+        service, _, _ = self._export(1, [])
 
         assert service.counts["user_images"] == 0
 
-    def test_large_image_triggers_warning(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
+    def test_writes_the_blob_under_its_key(self) -> None:
+        service, buf, storage = self._export(1, ["1.jpg"])
 
-            mock_entry = MagicMock(spec=["name", "path", "is_file", "stat"])
-            mock_entry.name = "1.jpg"
-            mock_entry.path = "/images/1.jpg"
-            mock_entry.is_file.return_value = True
-            mock_entry.stat.return_value.st_size = 11 * 1024 * 1024  # >10MB
+        assert service.counts["user_images"] == 1
+        storage.list_keys.assert_called_once_with("user_images", "1.")
+        with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as written:
+            assert written.read("user_images/1.jpg") == b"image-bytes"
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", return_value=_make_scandir_mock([mock_entry])),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
+    def test_only_the_owner_prefix_is_listed(self) -> None:
+        """Listing by prefix is what stops user 1's export leaking user 12's photo."""
+        _, _, storage = self._export(1, ["1.jpg"])
+
+        assert storage.list_keys.call_args.args[1] == "1."
+
+    def test_skips_a_missing_blob(self) -> None:
+        service, _, _ = self._export(1, ["1.jpg"], blob=None)
+
+        assert service.counts["user_images"] == 0
+
+    def test_large_image_is_still_exported(self) -> None:
+        service, _, _ = self._export(1, ["1.jpg"], blob=b"x" * (11 * 1024 * 1024))
 
         assert service.counts["user_images"] == 1
 
-    def test_user_images_os_error_logged(self) -> None:
+    def test_a_listing_failure_is_logged_not_raised(self) -> None:
         buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+        mock_db = MagicMock(spec=Session)
+        service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", side_effect=OSError("perms")),
-            ):
-                service.add_user_images_to_zip(z)
+        with (
+            zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
+            patch("modules.users.users_profile.export_service.platform_runtime") as runtime,
+        ):
+            runtime.get_active_platform.return_value.storage.list_keys.side_effect = OSError("perms")
+            service.add_user_images_to_zip(z)
+
+        assert service.counts["user_images"] == 0
+
+    def test_a_read_failure_skips_only_that_blob(self) -> None:
+        service, _, _ = self._export(1, ["1.jpg"], blob=None)
+
+        assert service.counts["user_images"] == 0
 
 
 class TestExportServiceGenerateExportArchive:
@@ -794,18 +795,27 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
             service.performance_config.enable_memory_monitoring = False
 
             activity = _make_activity_mock(1)
+            contributor = MagicMock(
+                key="exercise_titles",
+                archive_path="data/activity_exercise_titles.json",
+                count_key="activity_exercise_titles",
+            )
+            contributor.export.return_value = [MagicMock(), MagicMock()]
 
             with (
                 patch.object(service, "_get_activities_batch", side_effect=[[activity], []]),
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
-                patch(
-                    "users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
-                    return_value=[MagicMock(), MagicMock()],
+                patch.object(
+                    profile_export_service.contributor_registry,
+                    "profile_global_contributors",
+                    return_value=(contributor,),
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"title": "t"}),
             ):
                 service.collect_user_activities_data(z)
+
+            contributor.export.assert_called_once_with(mock_db)
 
     def test_exercise_titles_collection_exception_raises(self) -> None:
         """Exception during exercise titles raises DataCollectionError."""
@@ -817,14 +827,21 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
             service.performance_config.enable_memory_monitoring = False
 
             activity = _make_activity_mock(1)
+            contributor = MagicMock(
+                key="exercise_titles",
+                archive_path="data/activity_exercise_titles.json",
+                count_key="activity_exercise_titles",
+            )
+            contributor.export.side_effect = Exception("boom")
 
             with (
                 patch.object(service, "_get_activities_batch", side_effect=[[activity], []]),
                 patch.object(profile_utils, "write_json_to_zip"),
                 patch.object(service, "_collect_and_write_activity_components"),
-                patch(
-                    "users.users_profile.export_service.activity_exercise_titles_crud.get_activity_exercise_titles",
-                    side_effect=Exception("boom"),
+                patch.object(
+                    profile_export_service.contributor_registry,
+                    "profile_global_contributors",
+                    return_value=(contributor,),
                 ),
                 pytest.raises(DataCollectionError),
             ):
@@ -881,7 +898,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [MagicMock()] * len(ids) if ids else [],
+                    lambda ids, db: [MagicMock()] * len(ids) if ids else [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     5,
@@ -905,7 +922,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [MagicMock()] * (len(ids) + 1) if ids else [],
+                    lambda ids, db: [MagicMock()] * (len(ids) + 1) if ids else [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     2,
@@ -927,7 +944,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [MagicMock()] * len(ids) if ids else [],
+                    lambda ids, db: [MagicMock()] * len(ids) if ids else [],
                     [1, 2, 3],
                     [_make_activity_mock(1), _make_activity_mock(2), _make_activity_mock(3)],
                     2,
@@ -948,7 +965,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     5,
@@ -974,7 +991,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: (_ for _ in ()).throw(Exception("fail")),
+                    lambda ids, db: (_ for _ in ()).throw(Exception("fail")),
                     [1, 2, 3],
                     [_make_activity_mock(1), _make_activity_mock(2), _make_activity_mock(3)],
                     2,
@@ -998,7 +1015,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
                     z,
                     "laps",
                     "data/activity_laps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1, 2],
                     [_make_activity_mock(1), _make_activity_mock(2)],
                     5,
@@ -1059,7 +1076,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                     z,
                     "steps",
                     "data/activity_workout_steps.json",
-                    lambda ids, uid, db, acts: (_ for _ in ()).throw(Exception("fail")),
+                    lambda ids, db: (_ for _ in ()).throw(Exception("fail")),
                     [1, 2, 3],
                     [_make_activity_mock(1), _make_activity_mock(2), _make_activity_mock(3)],
                     2,
@@ -1086,7 +1103,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                     z,
                     "steps",
                     "data/activity_workout_steps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1],
                     [_make_activity_mock(1)],
                     5,
@@ -1108,7 +1125,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                     z,
                     "steps",
                     "data/activity_workout_steps.json",
-                    lambda ids, uid, db, acts: [],
+                    lambda ids, db: [],
                     [1],
                     [_make_activity_mock(1)],
                     5,
@@ -1126,7 +1143,7 @@ class TestExportServiceDbErrorWrapsDataCollectionError:
             service.performance_config.enable_memory_monitoring = False
             with (
                 patch(
-                    "users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1139,7 +1156,7 @@ class TestExportServiceDbErrorWrapsDataCollectionError:
             service.performance_config.enable_memory_monitoring = False
             with (
                 patch(
-                    "users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
+                    "modules.users.users_profile.export_service.health_weight_crud.get_all_health_weight_by_user_id",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1160,19 +1177,19 @@ class TestExportServiceCollectUserSettingsEdgeCases:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     side_effect=Exception("gear fail"),
                 ),
                 patch(
-                    "users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
+                    "modules.users.users_profile.export_service.user_goals_crud.get_user_goals_by_user_id",
                     side_effect=Exception("goals fail"),
                 ),
                 patch(
-                    "users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
+                    "modules.users.users_profile.export_service.user_integrations_crud.get_user_integrations_by_user_id",
                     side_effect=Exception("integrations fail"),
                 ),
                 patch(
-                    "users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
+                    "modules.users.users_profile.export_service.users_privacy_settings_crud.get_user_privacy_settings_by_user_id",
                     side_effect=Exception("privacy fail"),
                 ),
                 patch.object(profile_utils, "write_json_to_zip"),
@@ -1190,7 +1207,7 @@ class TestExportServiceCollectUserSettingsEdgeCases:
 
             with (
                 patch(
-                    "users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                    "modules.users.users_profile.export_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1199,315 +1216,73 @@ class TestExportServiceCollectUserSettingsEdgeCases:
 
 
 class TestExportServiceActivityFilesEdgeCases:
-    """Cover lines 802-803, 812-829 of add_activity_files_to_zip."""
+    """Cover the storage-backed add_activity_files_to_zip edge cases."""
 
-    def test_file_not_found_skipped(self) -> None:
-        """os.path.isfile returns False -> skip file (lines 802-803)."""
+    def test_activity_without_stored_file_skipped(self) -> None:
+        """An activity with no retained source file is skipped (get returns None)."""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=False),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
+            with patch(
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
+                return_value=None,
             ):
                 service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts.get("activity_files", 0) == 0
 
-    def test_oserror_during_add_continues(self) -> None:
-        """OSError from zipf.write caught and loop continues (lines 812-818)."""
+    def test_read_error_continues(self) -> None:
+        """An OSError reading one activity's file is caught and the loop continues."""
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
-                patch.object(z, "write", side_effect=OSError("disk full")),
+            with patch(
+                "modules.users.users_profile.export_service.file_storage_integration.get_activity_file",
+                side_effect=[OSError("read failed"), ("2.gpx", b"<gpx></gpx>")],
             ):
-                service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
+                service.add_activity_files_to_zip(z, [_make_activity_mock(1), _make_activity_mock(2)])
 
-        assert service.counts.get("activity_files", 0) == 0
-
-    def test_unexpected_error_during_add_continues(self) -> None:
-        """Generic exception from zipf.write caught and loop continues (lines 819-825)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/files", [], ["1.gpx"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1", ".gpx")),
-                patch.object(z, "write", side_effect=ValueError("unexpected")),
-            ):
-                service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
-
-        assert service.counts.get("activity_files", 0) == 0
-
-    def test_outer_os_error_raises_file_system_error(self) -> None:
-        """OSError from os.walk raises FileSystemError (lines 827-829)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", side_effect=OSError("permission denied")),
-                pytest.raises(FileSystemError),
-            ):
-                service.add_activity_files_to_zip(z, [_make_activity_mock(1)])
+        # The first activity errored and was skipped; the second still exported.
+        assert service.counts["activity_files"] == 1
+        buf.seek(0)
+        with zipfile.ZipFile(buf, "r") as z:
+            assert "activity_files/2.gpx" in z.namelist()
 
 
 class TestExportServiceActivityMediaEdgeCases:
-    """Cover lines 864-865, 874-891 of add_activity_media_to_zip."""
+    """Failure handling while reading media blobs out of storage."""
 
-    def test_media_file_not_found_skipped(self) -> None:
-        """os.path.isfile returns False -> skip file (lines 864-865)."""
+    def test_a_failing_blob_does_not_abort_the_rest(self) -> None:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             mock_db = MagicMock(spec=Session)
             service = profile_export_service.ExportService(user_id=1, db=mock_db)
 
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=False),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-            ):
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.return_value = ["1_bad.jpg", "1_good.jpg"]
+                storage.get.side_effect = [OSError("backend down"), b"good-bytes"]
+                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
+
+        assert service.counts.get("media", 0) == 1
+
+    def test_media_listing_failure_does_not_abort_the_export(self) -> None:
+        """A storage outage skips that activity's media rather than failing the export."""
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+            mock_db = MagicMock(spec=Session)
+            service = profile_export_service.ExportService(user_id=1, db=mock_db)
+
+            with patch("modules.users.users_profile.export_service.platform_runtime") as runtime:
+                storage = runtime.get_active_platform.return_value.storage
+                storage.list_keys.side_effect = OSError("permission denied")
                 service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
 
         assert service.counts.get("media", 0) == 0
-
-    def test_media_oserror_during_add_continues(self) -> None:
-        """OSError from zipf.write caught and loop continues (lines 874-880)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-                patch.object(z, "write", side_effect=OSError("disk full")),
-            ):
-                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
-
-        assert service.counts.get("media", 0) == 0
-
-    def test_media_unexpected_error_during_add_continues(self) -> None:
-        """Generic exception from zipf.write caught (lines 881-886)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", return_value=[("/media", [], ["1_image.jpg"])]),
-                patch("os.path.isfile", return_value=True),
-                patch("os.path.splitext", return_value=("1_image", ".jpg")),
-                patch.object(z, "write", side_effect=ValueError("unexpected")),
-            ):
-                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
-
-        assert service.counts.get("media", 0) == 0
-
-    def test_media_outer_os_error_raises_file_system_error(self) -> None:
-        """OSError from os.walk raises FileSystemError (lines 889-891)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch.object(core_config.settings, "ACTIVITY_MEDIA_DIR", "/media"),
-                patch("os.path.exists", return_value=True),
-                patch("os.walk", side_effect=OSError("permission denied")),
-                pytest.raises(FileSystemError),
-            ):
-                service.add_activity_media_to_zip(z, [_make_activity_mock(1)])
-
-
-class TestExportServiceUserImagesEdgeCases:
-    """Cover lines 913-915, 930-934 of add_user_images_to_zip and _add_user_images_optimized."""
-
-    def test_add_user_images_os_error_raises_file_system_error(self) -> None:
-        """OSError in add_user_images_to_zip raises FileSystemError."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch.object(service, "_add_user_images_optimized", side_effect=OSError("permission denied")),
-                pytest.raises(FileSystemError),
-            ):
-                service.add_user_images_to_zip(z)
-
-    def test_recursive_subdirectory_processed(self) -> None:
-        """_add_user_images_optimized recurses into subdirectories (lines 930-932)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            sub_entry_file = MagicMock()
-            sub_entry_file.name = "1.jpg"
-            sub_entry_file.path = "/images/sub/1.jpg"
-            sub_entry_file.is_file.return_value = True
-            sub_entry_file.is_dir.return_value = False
-            sub_entry_file.stat.return_value.st_size = 1024
-
-            sub_dir_entry = MagicMock()
-            sub_dir_entry.name = "sub"
-            sub_dir_entry.path = "/images/sub"
-            sub_dir_entry.is_file.return_value = False
-            sub_dir_entry.is_dir.return_value = True
-
-            root_file_entry = MagicMock()
-            root_file_entry.name = "other.txt"
-            root_file_entry.path = "/images/other.txt"
-            root_file_entry.is_file.return_value = True
-            root_file_entry.is_dir.return_value = False
-            root_file_entry.stat.return_value.st_size = 100
-
-            scandir_calls = [0]
-
-            def scandir_side(path):
-                scandir_calls[0] += 1
-                if scandir_calls[0] == 1:
-                    return _make_scandir_mock([sub_dir_entry, root_file_entry])
-                return _make_scandir_mock([sub_entry_file])
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", side_effect=scandir_side),
-                patch.object(z, "write"),
-            ):
-                service.add_user_images_to_zip(z)
-
-            assert service.counts["user_images"] == 1
-
-    def test_permission_error_on_scandir_logged(self) -> None:
-        """PermissionError in _add_user_images_optimized caught (line 934)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            with (
-                patch("os.path.exists", return_value=True),
-                patch("os.scandir", side_effect=PermissionError("no access")),
-            ):
-                service.add_user_images_to_zip(z)
-
-            assert service.counts.get("user_images", 0) == 0
-
-
-class TestExportServiceProcessUserImageFile:
-    """Cover lines 975-982 of _process_user_image_file."""
-
-    def _make_entry_mock(self, name: str = "1.jpg", path: str = "/images/1.jpg", size: int = 1024):
-        mock_entry = MagicMock(spec=["name", "path", "is_file", "is_dir", "stat"])
-        mock_entry.name = name
-        mock_entry.path = path
-        mock_entry.is_file.return_value = True
-        mock_entry.is_dir.return_value = False
-        mock_entry.stat.return_value.st_size = size
-        return mock_entry
-
-    def test_file_not_found_error(self) -> None:
-        """FileNotFoundError from zipf.write caught (line 975-976)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=FileNotFoundError("not found")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_permission_error(self) -> None:
-        """PermissionError from zipf.write caught (lines 977-978)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=PermissionError("denied")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_os_error(self) -> None:
-        """OSError from zipf.write caught (lines 979-980)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=OSError("io error")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_unexpected_exception(self) -> None:
-        """Generic exception from zipf.write caught (lines 981-982)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-
-            mock_entry = self._make_entry_mock()
-
-            with patch.object(z, "write", side_effect=ValueError("unexpected")):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        assert service.counts.get("user_images", 0) == 0
-
-    def test_large_file_triggers_memory_check(self) -> None:
-        """File >5MB triggers check_memory_usage (lines 960-966)."""
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, db=mock_db)
-            service.performance_config.enable_memory_monitoring = True
-            service.performance_config.max_memory_mb = 1024
-
-            mock_entry = self._make_entry_mock(size=6 * 1024 * 1024)
-
-            with (
-                patch.object(z, "write"),
-                patch.object(profile_utils, "check_memory_usage") as mock_mem,
-            ):
-                service._process_user_image_file(z, mock_entry, "/images")
-
-        mock_mem.assert_called_once()
-        assert service.counts["user_images"] == 1
 
 
 class _MockNamedTempFile:
@@ -1557,7 +1332,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch(
-                "users.users_profile.export_service.zipfile.ZipFile",
+                "modules.users.users_profile.export_service.zipfile.ZipFile",
                 side_effect=zipfile.BadZipFile("corrupt"),
             ),
             pytest.raises(ZipCreationError),
@@ -1572,7 +1347,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch(
-                "users.users_profile.export_service.zipfile.ZipFile",
+                "modules.users.users_profile.export_service.zipfile.ZipFile",
                 side_effect=zipfile.LargeZipFile("too large"),
             ),
             pytest.raises(ZipCreationError),

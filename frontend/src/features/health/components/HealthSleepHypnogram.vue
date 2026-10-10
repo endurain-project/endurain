@@ -9,6 +9,15 @@ import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 const props = defineProps<{
   /** The night's stage segments, in any order. */
   stages: SleepStage[]
+  /**
+   * Minutes to add to the GMT instants to get the sleeper's wall clock.
+   *
+   * Stage times are true UTC instants, so formatting them in the viewer's zone
+   * would show a Tokyo night as an afternoon to a Lisbon viewer. The parent
+   * derives this from the entry's recorded local/GMT pair; `0` falls back to
+   * plain UTC labels.
+   */
+  offsetMinutes?: number
 }>()
 
 const { t, locale } = useI18n()
@@ -94,14 +103,18 @@ function xFor(ms: number): number {
   return PLOT_LEFT + frac * PLOT_W
 }
 
-/** Formats an epoch ms as a locale-aware `HH:mm` clock label. */
+/** Formats an epoch ms as a locale-aware `HH:mm` clock label in the sleeper's zone. */
 const clockLabel = computed(() => {
   const formatter = new Intl.DateTimeFormat(locale.value, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    // Shift the instant by the recording offset and read it back in UTC, so the
+    // label is the wall clock the sleeper saw rather than the viewer's.
+    timeZone: 'UTC',
   })
-  return (ms: number) => formatter.format(new Date(ms))
+  const offsetMs = (props.offsetMinutes ?? 0) * 60000
+  return (ms: number) => formatter.format(new Date(ms + offsetMs))
 })
 
 /** The drawable rectangles, one per stage segment. */

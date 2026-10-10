@@ -15,7 +15,7 @@ class TestRequestPasswordReset:
     """
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
         new_callable=AsyncMock,
     )
     def test_request_password_reset_success(
@@ -37,7 +37,7 @@ class TestRequestPasswordReset:
         assert "password reset link" in body["message"]
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
         new_callable=AsyncMock,
     )
     def test_request_password_reset_send_fails(
@@ -80,7 +80,7 @@ class TestRequestPasswordReset:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
         new_callable=AsyncMock,
     )
     def test_request_propagates_503_when_email_not_configured(
@@ -105,7 +105,7 @@ class TestRequestPasswordReset:
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
         new_callable=AsyncMock,
     )
     def test_request_returns_same_200_for_unknown_email(
@@ -147,7 +147,7 @@ class TestConfirmPasswordReset:
     """
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
     )
     def test_confirm_password_reset_success(
         self,
@@ -169,7 +169,7 @@ class TestConfirmPasswordReset:
         assert response.json()["message"] == "Password reset successful"
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
     )
     def test_confirm_password_reset_invalid_token(
         self,
@@ -193,7 +193,7 @@ class TestConfirmPasswordReset:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
     )
     def test_confirm_password_reset_policy_violation(
         self,
@@ -246,7 +246,7 @@ class TestConfirmPasswordReset:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch(
-        "auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
     )
     def test_confirm_propagates_500_from_use_password_reset_token(
         self,

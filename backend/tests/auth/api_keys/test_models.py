@@ -1,6 +1,6 @@
 """Tests for users_api_keys database models."""
 
-import auth.api_keys.models as users_api_keys_models
+import modules.auth.api_keys.models as users_api_keys_models
 
 
 class TestUsersApiKeysModel:

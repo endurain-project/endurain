@@ -9,6 +9,7 @@ import type { ActivityMedia } from '@/features/activities/types'
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Image } from '@/components/ui/image'
+import { Skeleton } from '@/components/ui/skeleton'
 import ActivityMap from '@/features/activities/components/ActivityMap.vue'
 import { useToasts } from '@/composables/useToasts'
 import {
@@ -31,6 +32,12 @@ const props = withDefaults(
     /** Optional route that turns the thumbnail slide into a link to the activity. */
     thumbnailTo?: RouteLocationRaw
     /**
+     * Whether a thumbnail is still being generated server-side. Shows a
+     * placeholder in the slot the thumbnail will occupy, so the card does not
+     * jump when it lands. Ignored once `thumbnailUrl` or a map is available.
+     */
+    thumbnailPending?: boolean
+    /**
      * Tailwind height class(es) applied to every slide. The home feed shows a
      * shorter preview than the detail view, so the consumer controls it.
      * Defaults to the detail view's height.
@@ -39,7 +46,13 @@ const props = withDefaults(
     /** Whether the viewer owns the activity (gates the per-photo delete button). */
     isOwner?: boolean
   }>(),
-  { thumbnailUrl: null, thumbnailTo: undefined, heightClass: 'h-72 lg:h-150', isOwner: false },
+  {
+    thumbnailUrl: null,
+    thumbnailTo: undefined,
+    thumbnailPending: false,
+    heightClass: 'h-72 lg:h-150',
+    isOwner: false,
+  },
 )
 
 const { t } = useI18n()
@@ -51,14 +64,24 @@ const photos = computed(() => media.value ?? [])
 const hasMap = computed(() => props.points.length > 0)
 // The static thumbnail stands in for the map when no live track is supplied.
 const hasThumbnail = computed(() => !hasMap.value && Boolean(props.thumbnailUrl))
+// Placeholder for a thumbnail still being rendered: it takes the exact slide the
+// real one will occupy, so its arrival swaps content rather than shifting layout.
+const hasPendingThumbnail = computed(
+  () => !hasMap.value && !hasThumbnail.value && props.thumbnailPending,
+)
 
-type Slide = { kind: 'map' } | { kind: 'thumbnail' } | { kind: 'photo'; media: ActivityMedia }
+type Slide =
+  | { kind: 'map' }
+  | { kind: 'thumbnail' }
+  | { kind: 'thumbnailPending' }
+  | { kind: 'photo'; media: ActivityMedia }
 
 // The lead slide (interactive map or static thumbnail) comes first, mirroring
 // v1's gallery, then the photos.
 const slides = computed<Slide[]>(() => [
   ...(hasMap.value ? [{ kind: 'map' as const }] : []),
   ...(hasThumbnail.value ? [{ kind: 'thumbnail' as const }] : []),
+  ...(hasPendingThumbnail.value ? [{ kind: 'thumbnailPending' as const }] : []),
   ...photos.value.map((item) => ({ kind: 'photo' as const, media: item })),
 ])
 
@@ -174,6 +197,14 @@ async function confirmDelete(): Promise<void> {
         >
           <img :src="thumbnailUrl ?? ''" alt="" loading="lazy" class="size-full object-cover" />
         </component>
+        <div
+          v-else-if="slide.kind === 'thumbnailPending'"
+          class="flex size-full items-center justify-center"
+          role="status"
+          :aria-label="t('activities.media.thumbnailPending')"
+        >
+          <Skeleton class="size-full rounded-none" />
+        </div>
         <template v-else>
           <button
             type="button"

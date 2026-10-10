@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.activities.activity_workout_steps
+::: backend.app.modules.activities.activity_workout_steps
     handler: python
     options:
       docstring_style: google

@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Peida treeningu seeriad ja sammud",
     "hideGear": "Peida varustus",
     "success": "Tegevus uuendatud",
-    "error": "Tegevust ei õnnestunud uuendada"
+    "error": "Tegevust ei õnnestunud uuendada",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "See tegevus on peidetud. Ainult sina näed seda.",

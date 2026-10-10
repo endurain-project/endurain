@@ -4,12 +4,13 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
-import auth.oauth_state.crud as oauth_state_crud
-import auth.oauth_state.models as oauth_state_models
-import auth.sessions.models as users_session_models
+import core.exceptions as core_exceptions
+import modules.auth.oauth_state.crud as oauth_state_crud
+import modules.auth.oauth_state.models as oauth_state_models
+import modules.auth.sessions.models as users_session_models
 
 
 class TestGetOAuthStateById:
@@ -146,7 +147,7 @@ class TestCreateOAuthState:
         client_type = "web"
         ip_address = "192.168.1.1"
 
-        with patch("auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
+        with patch("modules.auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
             mock_oauth_state = MagicMock()
             mock_model.return_value = mock_oauth_state
 
@@ -178,7 +179,7 @@ class TestCreateOAuthState:
         code_challenge = "test_challenge"
         code_challenge_method = "S256"
 
-        with patch("auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
+        with patch("modules.auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
             mock_oauth_state = MagicMock()
             mock_model.return_value = mock_oauth_state
 
@@ -210,7 +211,7 @@ class TestCreateOAuthState:
         ip_address = "192.168.1.1"
         user_id = 42
 
-        with patch("auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
+        with patch("modules.auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
             mock_oauth_state = MagicMock()
             mock_model.return_value = mock_oauth_state
 
@@ -239,7 +240,7 @@ class TestCreateOAuthState:
         client_type = "web"
         ip_address = "192.168.1.1"
 
-        with patch("auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
+        with patch("modules.auth.oauth_state.crud.oauth_state_models.OAuthState") as mock_model:
             mock_oauth_state = MagicMock()
             mock_model.return_value = mock_oauth_state
 
@@ -335,7 +336,7 @@ class TestDeleteOAuthState:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             oauth_state_crud.delete_oauth_state(oauth_state_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

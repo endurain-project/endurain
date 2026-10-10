@@ -26,7 +26,9 @@ const dateLabel = computed(() => {
   if (Number.isNaN(date.getTime())) {
     return null
   }
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(date)
+  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeZone: 'UTC' }).format(
+    date,
+  )
 })
 </script>
 

@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.activities.activity_file_import
+::: backend.app.modules.activities.activity_file_import
     handler: python
     options:
       docstring_style: google

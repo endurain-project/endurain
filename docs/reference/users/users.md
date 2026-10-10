@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.users.users
+::: backend.app.modules.users.users
     handler: python
     options:
       docstring_style: google

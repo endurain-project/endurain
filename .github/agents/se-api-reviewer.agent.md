@@ -92,7 +92,7 @@ Inspect `schema.py` in each module:
 
 ## Step 3: Authentication & Authorization Review
 
-Check `backend/app/auth/` and how dependencies are applied to routes:
+Check `backend/app/modules/auth/` and how dependencies are applied to routes:
 
 - Every non-public endpoint must declare a security dependency (e.g., `Depends(get_current_user)`)
 - **Authorization must verify ownership or role**, not just authentication

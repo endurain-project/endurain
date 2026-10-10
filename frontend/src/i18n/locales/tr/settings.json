@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Yedek kodlarınızı kaydedin",
       "description": "Kimlik doğrulayıcı uygulamanıza erişiminizi kaybederseniz giriş yapmak için bir yedek kod kullanın.",
-      "warning": "Bu kodlar yalnızca bir kez gösterilir. Onları güvenli bir yerde saklayın — her kod yalnızca bir kez çalışır.",
+      "warning": "Bu kodlar yalnızca bir kez gösterilir. Onları güvenli bir yerde saklayın, her kod yalnızca bir kez çalışır.",
       "copy": "Kopyala",
       "copied": "Yedek kodlar kopyalandı",
       "copyError": "Kodlar kopyalanamadı.",
@@ -898,7 +898,7 @@
       "export": "Verileri dışa aktar",
       "import": "Verileri içe aktar",
       "invalidType": "Lütfen bir .zip arşivi seçin.",
-      "exportSuccess": "Dışa aktarım hazır — indirme işleminiz kısa süre içinde başlamalı",
+      "exportSuccess": "Dışa aktarım hazır, indirme işleminiz kısa süre içinde başlamalı",
       "exportError": "Verileriniz dışa aktarılamadı. Lütfen tekrar deneyin.",
       "importSuccess": "Veriler içe aktarıldı",
       "importError": "Arşiv içe aktarılamadı. Lütfen dosyayı kontrol edip tekrar deneyin."

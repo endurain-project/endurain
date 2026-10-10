@@ -27,6 +27,7 @@ const profileInput: ProfileEditInput = {
   maxHeartRate: null,
   preferredLanguage: 'en',
   firstDayOfWeek: 'sunday',
+  timezone: 'Europe/Lisbon',
 }
 
 let wrapper: ReturnType<typeof mount> | undefined

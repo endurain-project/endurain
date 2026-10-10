@@ -5,9 +5,10 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import health.health_weight.crud as health_weight_crud
-import health.health_weight.models as health_weight_models
-import health.health_weight.schema as health_weight_schema
+import core.exceptions as core_exceptions
+import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.models as health_weight_models
+import modules.health.health_weight.schema as health_weight_schema
 
 
 class TestGetAllHealthWeight:
@@ -70,7 +71,7 @@ class TestGetAllHealthWeight:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.get_all_health_weight(mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -121,7 +122,7 @@ class TestGetHealthWeightNumber:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.get_health_weight_number_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -208,7 +209,7 @@ class TestGetAllHealthWeightByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.get_all_health_weight_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -298,7 +299,7 @@ class TestGetHealthWeightWithPagination:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.get_health_weight_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -365,7 +366,7 @@ class TestGetHealthWeightByDate:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.get_health_weight_by_date_and_user_id(user_id, test_date, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -377,7 +378,7 @@ class TestCreateHealthWeight:
     Test suite for create_health_weight function.
     """
 
-    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("modules.health.health_weight.crud.health_weight_utils.calculate_bmi")
     def test_create_health_weight_success(self, mock_calculate_bmi, mock_db):
         """
         Test successful creation of health weight entry.
@@ -507,7 +508,7 @@ class TestCreateHealthWeight:
         mock_db.add.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.create_health_weight(user_id, health_weight, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -520,8 +521,8 @@ class TestEditHealthWeight:
     Test suite for edit_health_weight function.
     """
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
-    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud.health_weight_utils.calculate_bmi")
     def test_edit_health_weight_success(self, mock_calculate_bmi, mock_get_by_id, mock_db):
         """
         Test successful edit of health weight entry.
@@ -562,7 +563,7 @@ class TestEditHealthWeight:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_edit_health_weight_not_found(self, mock_get_by_id, mock_db):
         """
         Test edit when health weight record not found.
@@ -606,7 +607,7 @@ class TestEditHealthWeight:
 
         assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_edit_health_weight_with_bmi_provided(self, mock_get_by_id, mock_db):
         """
         Test edit without BMI calculation when BMI provided.
@@ -638,7 +639,7 @@ class TestEditHealthWeight:
         # Assert
         mock_db.commit.assert_called_once()
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_edit_health_weight_exception(self, mock_get_by_id, mock_db):
         """
         Test exception handling in edit_health_weight.
@@ -650,7 +651,7 @@ class TestEditHealthWeight:
         mock_get_by_id.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.edit_health_weight(user_id, health_weight, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -663,7 +664,7 @@ class TestDeleteHealthWeight:
     Test suite for delete_health_weight function.
     """
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_delete_health_weight_success(self, mock_get_by_id, mock_db):
         """
         Test successful deletion of health weight entry.
@@ -682,7 +683,7 @@ class TestDeleteHealthWeight:
         mock_db.delete.assert_called_once_with(mock_db_weight)
         mock_db.commit.assert_called_once()
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_delete_health_weight_not_found(self, mock_get_by_id, mock_db):
         """
         Test deletion when health weight record not found.
@@ -702,7 +703,7 @@ class TestDeleteHealthWeight:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         assert exc_info.value.detail == "Health weight not found"
 
-    @patch("health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
+    @patch("modules.health.health_weight.crud._get_health_weight_model_by_id_and_user_id_or_404")
     def test_delete_health_weight_exception(self, mock_get_by_id, mock_db):
         """
         Test exception handling in delete_health_weight.
@@ -713,7 +714,7 @@ class TestDeleteHealthWeight:
         mock_get_by_id.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.delete_health_weight(user_id, health_weight_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -756,7 +757,7 @@ class TestRecalculateBmiForUser:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_weight_crud.recalculate_bmi_for_user(1, 175.0, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

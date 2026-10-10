@@ -17,27 +17,28 @@ working unchanged.
 import ipaddress
 import os
 import stat
-import threading
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
 
+import jasil.capabilities as platform_capabilities
+import jasil.profile as platform_profile
 from cryptography.fernet import Fernet
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.logger as core_logger
 import core.network as core_network
-import core.redis as core_redis
+
+logger = core_logger.get_logger(__name__)
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.19.3"
+API_VERSION = "v0.20.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 
-USER_IMAGES_URL_PATH = "user_images"
 SERVER_IMAGES_URL_PATH = "server_images"
 
 STRAVA_BULK_IMPORT_ACTIVITIES_FILE = "activities.csv"
@@ -74,6 +75,31 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     TZ: str = "UTC"
 
+    # --- Deployment shape ---
+    # DEPLOYMENT_PROFILE shapes every infrastructure capability
+    # (state, storage, events, coordination lock):
+    #   local       - single process/node; in-memory state, local disk (default)
+    #   distributed - multi-node; requires shared state (Redis) + object storage
+    #   custom      - no profile defaults; every capability set explicitly
+    # WEB_WORKERS is the number of web-server worker processes; when it is > 1
+    # the deployment needs shared state even under the local profile.
+    DEPLOYMENT_PROFILE: platform_profile.DeploymentProfile = platform_profile.DeploymentProfile.LOCAL
+    WEB_WORKERS: int = 1
+    # Sync-route concurrency. Every activities/followers route is now a sync
+    # ``def`` handler, so FastAPI runs it in Starlette's shared anyio worker
+    # threadpool (default ~40 tokens per process). That thread count — not the event
+    # loop — bounds how many requests can do blocking DB work at once, so the
+    # practical per-process ceiling under sustained load is roughly the smaller of
+    # the ~40 anyio threads and the SQLAlchemy pool (60 = pool_size 20 + overflow 40,
+    # see core/database.py). Recommendation: the ~40 default threads sit safely under
+    # that 60-connection pool, so leave both as-is for typical self-host use, and
+    # scale out with WEB_WORKERS (each worker gets its own threadpool + pool) rather
+    # than inflating a single threadpool. If you raise the anyio token count
+    # (``anyio.to_thread.current_default_thread_limiter().total_tokens`` at startup),
+    # raise the DB pool to match — extra threads contending for the same 60
+    # connections just trade event-loop blocking for pool-checkout latency. Monitor
+    # DB pool-checkout wait time and threadpool saturation before tuning either.
+
     # --- Host / redirects ---
     ENDURAIN_HOST: str = "http://localhost:8080"
     # NoDecode disables the default JSON pre-parsing for
@@ -108,18 +134,96 @@ class Settings(BaseSettings):
     _resolved_trusted_proxy_ips: set[str] = set()
 
     # --- Filesystem layout ---
+    # Activity media and thumbnails are deliberately absent: they are blobs
+    # addressed through the platform StorageProvider, whose local backend owns
+    # the ``{DATA_DIR}/{area}`` layout. A settable directory here would be a
+    # second source of truth for the same path, and meaningless on object storage.
     FRONTEND_DIR: str = "/app/frontend/dist"
     BACKEND_DIR: str = "/app/backend"
     DATA_DIR: str = ""
     LOGS_DIR: str = ""
     FILES_DIR: str = ""
-    ACTIVITY_MEDIA_DIR: str = ""
-    ACTIVITY_THUMBNAILS_DIR: str = ""
 
     # --- Rate limiting ---
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_STORAGE_URI: str = "memory://"
-    AUTH_SECURITY_STORAGE_URI: str | None = None
+
+    # --- Shared ephemeral state ---
+    # One backend for rate-limit counters, auth lockout, pending-MFA, MFA
+    # setup secrets, Garmin MFA codes, and websocket tickets. Selected by
+    # DEPLOYMENT_PROFILE with this precedence (highest wins):
+    #   STATE_URI (explicit) -> REDIS_URL (shared Redis) -> memory:// (the
+    #   local-profile default). A distributed or multi-worker deployment that
+    #   resolves to memory:// is rejected at startup.
+    STATE_URI: str | None = None
+    # Shared Redis DSN; the default for every Redis-backed capability with no
+    # explicit per-capability URI.
+    REDIS_URL: str | None = None
+
+    # --- Blob storage (activity thumbnails, media, images) ---
+    # local:// (default) stores each area as a subdirectory under DATA_DIR;
+    # s3://bucket/prefix uses S3-compatible object storage (install the `s3` extra
+    # for boto3). The scheme selects the StorageProvider backend independently of
+    # DEPLOYMENT_PROFILE.
+    STORAGE_URI: str | None = None
+
+    # --- Event bus (pub/sub) ---
+    # memory:// (default) dispatches subscribers in-process synchronously;
+    # redis://… uses Redis Streams with a consumer group. Precedence:
+    # EVENTS_URI -> REDIS_URL -> memory:// (the local-profile default).
+    EVENTS_URI: str | None = None
+
+    # --- Event observability (event_log table) ---
+    # When enabled (default), the event bus records every event's lifecycle
+    # (published -> processing -> completed/failed) to the ``event_log`` table so
+    # it can be queried and summarized in the admin dashboard. Disable to skip the
+    # per-event database writes if the extra import-path latency ever matters.
+    EVENT_LOG_ENABLED: bool = True
+    # Age in days after which ``event_log`` rows are pruned by a scheduled cleanup
+    # (daily, plus once at startup). event_log is a best-effort, safe-to-lose
+    # observability trail, so every row past this age is removed regardless of
+    # status. Set to 0 (or negative) to disable pruning and keep rows forever.
+    EVENT_LOG_RETENTION_DAYS: int = 90
+
+    # --- Coordination lock (scheduler/backfill single-runner) ---
+    # noop:// always acquires (single process); postgres-advisory:// uses
+    # pg_try_advisory_lock on the main database so only one replica runs a
+    # scheduled job. Precedence: LOCK_URI -> profile default (noop:// locally,
+    # postgres-advisory:// for the distributed profile).
+    LOCK_URI: str | None = None
+
+    # --- Durable job queue (processing_jobs + outbox) ---
+    # When enabled, derived work (thumbnails and future computations) reacting to
+    # a domain event is staged in the ``event_outbox``, relayed into per-subscriber
+    # ``processing_jobs`` rows, and run by a worker with retry/backoff and a
+    # dead-letter terminal state — so a failed or crashed handler is retried
+    # instead of silently lost. Delivery is best-effort at the publish seam (the
+    # outbox write is not atomic with the per-CRUD domain commit), so every
+    # subscriber must also have a reconciliation net. Disabled by default: derived
+    # work then dispatches inline through the event bus (the local-profile
+    # behaviour). PostgreSQL is the source of truth in both cases.
+    JOBS_ENABLED: bool = False
+    # Attempt ceiling before a job is dead-lettered.
+    JOBS_MAX_ATTEMPTS: int = 5
+    # Exponential backoff between retries: base delay and ceiling (seconds).
+    JOBS_BACKOFF_BASE_SECONDS: int = 5
+    JOBS_BACKOFF_MAX_SECONDS: int = 3600
+    # How long a claimed job's lease lasts before the reaper requeues it (seconds).
+    JOBS_LEASE_SECONDS: int = 300
+    # Maximum jobs a worker claims (and outbox rows the relay drains) per pass.
+    JOBS_BATCH_SIZE: int = 10
+    # Idle wait between empty worker polls (seconds).
+    JOBS_POLL_INTERVAL_SECONDS: float = 2.0
+    # Whether the API process also runs an in-process job worker. Keep on for
+    # single-node deployments; turn off when running dedicated worker processes
+    # (APP_ROLE=worker) so the API only publishes and schedules maintenance.
+    JOBS_RUN_IN_PROCESS_WORKER: bool = True
+    # Age in days after which completed durable-job bookkeeping is pruned by a
+    # scheduled cleanup (daily, plus once at startup): relayed ``event_outbox``
+    # rows and ``completed`` ``processing_jobs`` rows. In-flight and
+    # human-actionable rows are never pruned — unrelayed outbox rows (pending
+    # relay), pending/claimed jobs (in-flight work), and dead-lettered jobs (kept
+    # for operator review). Set to 0 (or negative) to disable pruning.
+    JOBS_RETENTION_DAYS: int = 90
 
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
@@ -163,6 +267,28 @@ class Settings(BaseSettings):
     def _to_lower(cls, v: str) -> str:
         return v.lower() if isinstance(v, str) else v
 
+    @field_validator("DEPLOYMENT_PROFILE", mode="before")
+    @classmethod
+    def _parse_deployment_profile(cls, v):
+        """Normalise DEPLOYMENT_PROFILE to a DeploymentProfile (raises on typo)."""
+        return platform_profile.parse_profile(v)
+
+    @field_validator("WEB_WORKERS", mode="before")
+    @classmethod
+    def _parse_web_workers(cls, v):
+        """Coerce WEB_WORKERS to an int >= 1, tolerating blank/invalid input."""
+        if v is None or v == "":
+            return 1
+        try:
+            parsed = int(v)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid WEB_WORKERS value, expected a positive integer; defaulting to 1",
+                extra=core_logger.context(console=True),
+            )
+            return 1
+        return parsed if parsed >= 1 else 1
+
     @field_validator("PHOTON_API_HOST", "NOMINATIM_API_HOST", mode="before")
     @classmethod
     def _host_lower(cls, v: str) -> str:
@@ -182,9 +308,9 @@ class Settings(BaseSettings):
             return "starttls"
         normalised = v.lower().strip()
         if normalised not in ("starttls", "ssl"):
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 "Invalid SMTP_SECURE_TYPE value, expected 'starttls' or 'ssl'; defaulting to 'starttls'",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return "starttls"
         return normalised
@@ -277,25 +403,25 @@ class Settings(BaseSettings):
             if not entry:
                 continue
             if ";" in entry or any(c.isspace() for c in entry):
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Ignoring invalid CSP_ADDITIONAL_CONNECT_SRC entry '{entry}': must not contain whitespace or ';'.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             if entry == "*":
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     "Ignoring wildcard '*' in CSP_ADDITIONAL_CONNECT_SRC: it would allow "
                     "connections to any origin and defeats the connect-src protection.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             # Scheme-only sources (e.g. "https:", "ws:") end in ':' with no host
             # and allow any host on that scheme — too broad for an allowlist.
             if entry.endswith(":") and "/" not in entry:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Ignoring scheme-only CSP_ADDITIONAL_CONNECT_SRC entry '{entry}': "
                     "it allows any host on that scheme and is too broad for connect-src.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             cleaned.append(entry)
@@ -337,9 +463,9 @@ class Settings(BaseSettings):
         for entry in raw_entries:
             if not entry or entry == "*":
                 if entry == "*":
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         "Ignoring wildcard '*' entry in SSRF_ALLOWED_HOSTS (not permitted).",
-                        "warning",
+                        extra=core_logger.context(console=True),
                     )
                 continue
 
@@ -348,19 +474,19 @@ class Settings(BaseSettings):
                 try:
                     network = ipaddress.ip_network(entry, strict=False)
                 except ValueError:
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         f"Ignoring invalid SSRF_ALLOWED_HOSTS entry '{entry}': not a valid IP or CIDR.",
-                        "warning",
+                        extra=core_logger.context(console=True),
                     )
                     continue
                 min_prefix = 8 if network.version == 4 else 32
                 if network.prefixlen < min_prefix:
-                    core_logger.print_to_log_and_console(
+                    logger.warning(
                         f"Ignoring overly broad SSRF_ALLOWED_HOSTS "
                         f"entry '{entry}': prefix /{network.prefixlen} "
                         f"is wider than the minimum /{min_prefix} for "
                         f"IPv{network.version}.",
-                        "warning",
+                        extra=core_logger.context(console=True),
                     )
                     continue
                 cleaned.append(str(network))
@@ -378,9 +504,9 @@ class Settings(BaseSettings):
             elif ":" in host and host.count(":") == 1:
                 host = host.split(":", 1)[0]
             if not host:
-                core_logger.print_to_log_and_console(
+                logger.warning(
                     f"Ignoring empty SSRF_ALLOWED_HOSTS hostname from entry '{entry}'.",
-                    "warning",
+                    extra=core_logger.context(console=True),
                 )
                 continue
             cleaned.append(host)
@@ -396,9 +522,9 @@ class Settings(BaseSettings):
         try:
             return float(v)
         except (TypeError, ValueError):
-            core_logger.print_to_log_and_console(
+            logger.warning(
                 "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number; defaulting to 1.0",
-                "warning",
+                extra=core_logger.context(console=True),
             )
             return 1.0
 
@@ -411,48 +537,196 @@ class Settings(BaseSettings):
             self.LOGS_DIR = f"{self.BACKEND_DIR}/logs"
         if not self.FILES_DIR:
             self.FILES_DIR = f"{self.DATA_DIR}/activity_files"
-        if not self.ACTIVITY_MEDIA_DIR:
-            self.ACTIVITY_MEDIA_DIR = f"{self.DATA_DIR}/activity_media"
-        if not self.ACTIVITY_THUMBNAILS_DIR:
-            self.ACTIVITY_THUMBNAILS_DIR = f"{self.DATA_DIR}/activity_thumbnails"
         if not self.TRUSTED_PROXIES and self.ENVIRONMENT == "development" and "TRUSTED_PROXIES" not in os.environ:
             self.TRUSTED_PROXIES = ["*"]
         return self
 
     @property
-    def resolved_auth_security_storage_uri(self) -> str:
-        """Effective storage URI for auth-security and MFA stores.
+    def resolved_state_uri(self) -> str:
+        """Effective storage URI for all shared ephemeral state.
 
-        Resolves the precedence shared by the auth security stores, MFA
-        setup-secret store, and Garmin MFA code store:
-        ``AUTH_SECURITY_STORAGE_URI`` overrides ``RATE_LIMIT_STORAGE_URI``,
-        falling back to ``memory://`` when neither is set.
+        One profile-driven backend for rate-limit counters, auth lockout,
+        pending-MFA, MFA setup secrets, Garmin MFA codes, and websocket
+        tickets. Precedence: ``STATE_URI`` -> ``REDIS_URL`` -> ``memory://``
+        (the local-profile default). A distributed or multi-worker deployment
+        that resolves to ``memory://`` is rejected by
+        :meth:`_enforce_deployment_topology`.
         """
-        return self.AUTH_SECURITY_STORAGE_URI or self.RATE_LIMIT_STORAGE_URI or "memory://"
+        return self.STATE_URI or self.REDIS_URL or "memory://"
+
+    @property
+    def resolved_storage_uri(self) -> str:
+        """Effective blob-storage URI: ``STORAGE_URI`` or the ``local://`` default.
+
+        The scheme (``local`` or ``s3``) selects the ``StorageProvider`` backend in
+        :func:`jasil.container.build_platform`.
+        """
+        return self.STORAGE_URI or "local://"
+
+    @property
+    def resolved_events_uri(self) -> str:
+        """Effective event-bus URI: ``EVENTS_URI`` -> ``REDIS_URL`` -> ``memory://``.
+
+        The scheme (``memory`` or ``redis``) selects the ``EventBusProvider`` backend
+        in :func:`jasil.container.build_platform`.
+        """
+        return self.EVENTS_URI or self.REDIS_URL or "memory://"
+
+    @property
+    def resolved_lock_uri(self) -> str:
+        """Effective coordination-lock URI: ``LOCK_URI`` or the profile default.
+
+        Defaults to ``noop://`` for a single-process ``local`` deployment and to
+        ``postgres-advisory://`` (the main database) whenever the topology runs
+        more than one process — the ``distributed`` profile *or* a multi-worker
+        ``local`` deployment — so the default never coordinates scheduled jobs
+        with a no-op lock. The scheme (``noop`` or ``postgres-advisory``) selects
+        the ``LockProvider`` backend in
+        :func:`jasil.container.build_platform`. An explicit
+        ``LOCK_URI=noop://`` under a multi-process topology is rejected by
+        :meth:`_enforce_deployment_topology`.
+        """
+        if self.LOCK_URI:
+            return self.LOCK_URI
+        if self.resolved_deployment_topology.requires_shared_state:
+            return "postgres-advisory://"
+        return "noop://"
+
+    @property
+    def resolved_deployment_topology(self) -> platform_profile.DeploymentTopology:
+        """Resolved deployment shape (profile + worker count)."""
+        return platform_profile.resolve_topology(self.DEPLOYMENT_PROFILE, self.WEB_WORKERS)
+
+    # The ``substrate_*_uri`` properties below are what the platform substrate is
+    # handed; the ``resolved_*`` ones above fold in the host's fallbacks for the
+    # application's own use. They differ deliberately: only the ``local`` profile
+    # is entitled to a default capability URI, so under any other profile an
+    # unconfigured capability stays ``None`` rather than silently becoming
+    # process-local. ``_enforce_deployment_topology`` refuses that boot, which is
+    # what keeps the failure here — naming the environment variable — instead of
+    # inside the substrate, naming the field it maps to.
+
+    @property
+    def _substrate_keeps_host_fallbacks(self) -> bool:
+        """Whether the substrate gets the host's fallbacks instead of bare settings.
+
+        Only in ``development``, so a developer can run any profile without
+        standing up its infrastructure — the same escape hatch
+        :meth:`_enforce_deployment_topology` grants.
+        """
+        return self.ENVIRONMENT == "development"
+
+    @property
+    def substrate_state_uri(self) -> str | None:
+        """``state_uri`` as handed to the substrate."""
+        return self.resolved_state_uri if self._substrate_keeps_host_fallbacks else (self.STATE_URI or self.REDIS_URL)
+
+    @property
+    def substrate_storage_uri(self) -> str | None:
+        """``storage_uri`` as handed to the substrate."""
+        return self.resolved_storage_uri if self._substrate_keeps_host_fallbacks else self.STORAGE_URI
+
+    @property
+    def substrate_events_uri(self) -> str | None:
+        """``events_uri`` as handed to the substrate."""
+        return self.resolved_events_uri if self._substrate_keeps_host_fallbacks else (self.EVENTS_URI or self.REDIS_URL)
+
+    @property
+    def substrate_lock_uri(self) -> str | None:
+        """``lock_uri`` as handed to the substrate.
+
+        Keeps Endurain's multi-process default rather than leaving it unset: the
+        substrate defaults the lock to ``noop://`` for the whole ``local``
+        profile, but a multi-worker deployment has scheduled jobs to coordinate.
+        """
+        if self._substrate_keeps_host_fallbacks:
+            return self.resolved_lock_uri
+        if self.LOCK_URI:
+            return self.LOCK_URI
+        return "postgres-advisory://" if self.resolved_deployment_topology.requires_shared_state else None
+
+    def _unconfigured_capability_issues(self) -> list[str]:
+        """Return an issue per capability URI a non-``local`` profile leaves unset.
+
+        Only ``local`` has capability defaults. Every other profile must name its
+        shared infrastructure, and the substrate refuses to guess one — so
+        catching it here is what makes this validator strictly stronger than the
+        substrate's own check, and therefore always the one that fires.
+        """
+        if self.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.LOCAL:
+            return []
+        return [
+            f"{label} must be set explicitly for the '{self.DEPLOYMENT_PROFILE.value}' deployment profile; "
+            "only the 'local' profile has a default"
+            for label, uri in (
+                ("STATE_URI/REDIS_URL", self.substrate_state_uri),
+                ("EVENTS_URI/REDIS_URL", self.substrate_events_uri),
+                ("STORAGE_URI", self.substrate_storage_uri),
+                ("LOCK_URI", self.substrate_lock_uri),
+            )
+            if not uri
+        ]
 
     @model_validator(mode="after")
-    def _warn_on_memory_security_storage(self) -> Self:
-        """Warn when production-like auth protections are process-local."""
+    def _enforce_deployment_topology(self) -> Self:
+        """Fail fast when a shared-state deployment is wired to process-local infrastructure.
+
+        A ``distributed`` or multi-worker deployment cannot use process-local
+        memory for the cross-process backends (rate-limit / auth-security / MFA
+        state and the event bus) — they would diverge silently across processes —
+        nor an in-process ``noop`` coordination lock, or every process would run
+        every scheduled job. A ``distributed`` deployment also cannot use the
+        local filesystem for blob storage, because replicas do not share a disk.
+        A profile other than ``local`` additionally has to name each capability
+        outright, because only ``local`` carries defaults.
+
+        Raising here aborts ``Settings`` construction so the misconfiguration
+        surfaces at boot rather than at request time, naming the environment
+        variable at fault rather than the substrate field it maps to. That is the
+        only reason this duplicates a check the substrate also runs on the
+        settings it is handed: this one must stay **strictly stronger**, so the
+        substrate's can never be the one that fires. ``tests/core`` pins that —
+        anything ``Settings`` accepts, the substrate must resolve.
+
+        ``development`` is never fatal, and the ``custom`` profile is exempt from
+        the consistency rules (it promises no defaults, so nothing can contradict
+        one) though not from naming its capabilities. Multi-worker ``local``
+        keeps local storage (shared host disk) but still needs a shared lock.
+        """
         if self.ENVIRONMENT == "development":
+            if self.WEB_WORKERS > 1 or self.DEPLOYMENT_PROFILE is not platform_profile.DeploymentProfile.LOCAL:
+                logger.warning(
+                    "ENVIRONMENT=development with WEB_WORKERS>1 or a non-local deployment profile: state and "
+                    "event-bus fall back to per-process memory://, so rate-limit, auth lockout, MFA and WS-ticket "
+                    "state diverge across workers, and durable events do not cross processes. Set STATE_URI/EVENTS_URI "
+                    "or REDIS_URL to share them, or run single-process.",
+                    extra=core_logger.context(console=True),
+                )
             return self
-
-        if self.RATE_LIMIT_ENABLED and core_redis.is_memory_storage_uri(self.RATE_LIMIT_STORAGE_URI):
-            core_logger.print_to_log_and_console(
-                "RATE_LIMIT_STORAGE_URI uses process-local memory outside "
-                "development. API rate-limit counters are not shared "
-                "across workers; use Redis for multi-worker deployments.",
-                "warning",
-            )
-
-        if core_redis.is_memory_storage_uri(self.resolved_auth_security_storage_uri):
-            core_logger.print_to_log_and_console(
-                "AUTH_SECURITY_STORAGE_URI resolves to process-local "
-                "memory outside development. Login lockout and pending "
-                "MFA state, including setup secrets, are not shared "
-                "across workers; use Redis for multi-worker deployments.",
-                "warning",
-            )
-
+        state_label = "STATE_URI" if self.STATE_URI else "REDIS_URL" if self.REDIS_URL else "STATE_URI/REDIS_URL"
+        events_label = "EVENTS_URI" if self.EVENTS_URI else "REDIS_URL" if self.REDIS_URL else "EVENTS_URI/REDIS_URL"
+        issues = self._unconfigured_capability_issues()
+        issues += platform_capabilities.check_state_consistency(
+            profile=self.DEPLOYMENT_PROFILE,
+            web_workers=self.WEB_WORKERS,
+            state_sources=[
+                platform_capabilities.StateSource(state_label, self.resolved_state_uri),
+                platform_capabilities.StateSource(events_label, self.resolved_events_uri),
+            ],
+        )
+        issues += platform_capabilities.check_storage_consistency(
+            profile=self.DEPLOYMENT_PROFILE,
+            storage_uri=self.resolved_storage_uri,
+            storage_label="STORAGE_URI",
+        )
+        issues += platform_capabilities.check_lock_consistency(
+            profile=self.DEPLOYMENT_PROFILE,
+            web_workers=self.WEB_WORKERS,
+            lock_uri=self.resolved_lock_uri,
+            lock_label="LOCK_URI",
+        )
+        if issues:
+            raise ValueError("Inconsistent deployment configuration:\n" + "\n".join(f"  - {issue}" for issue in issues))
         return self
 
 
@@ -460,20 +734,54 @@ settings = Settings()
 
 
 # Derived module-level paths and runtime state.
-USER_IMAGES_DIR = f"{settings.DATA_DIR}/{USER_IMAGES_URL_PATH}"
 SERVER_IMAGES_DIR = f"{settings.DATA_DIR}/{SERVER_IMAGES_URL_PATH}"
 
 FILES_PROCESSED_DIR = f"{settings.FILES_DIR}/processed"
 FILES_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/bulk_import"
 FILES_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{FILES_BULK_IMPORT_DIR}/import_errors"
+# Landing spot for an upload's stream, between the request receiving the bytes
+# and the platform StorageProvider taking ownership of them. This is the only
+# upload directory the application itself manages: the staged blob then lives
+# under the provider's ``activity_files/upload_staging`` area, which is a
+# directory the local backend creates on demand and is not a directory at all
+# on S3. Kept under DATA_DIR rather than the system temp dir because an
+# activity file can be up to 200 MiB.
+FILES_UPLOAD_INCOMING_DIR = f"{settings.FILES_DIR}/upload_incoming"
 STRAVA_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/strava_import"
 STRAVA_BULK_IMPORT_ACTIVITIES_DIR = f"{STRAVA_BULK_IMPORT_DIR}/activities"
 STRAVA_BULK_IMPORT_MEDIA_DIR = f"{STRAVA_BULK_IMPORT_DIR}/media"
 STRAVA_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{STRAVA_BULK_IMPORT_DIR}/import_errors"
 
-REVERSE_GEO_MIN_INTERVAL = 1.0 / settings.REVERSE_GEO_RATE_LIMIT if settings.REVERSE_GEO_RATE_LIMIT > 0 else 0
-REVERSE_GEO_LOCK = threading.Lock()
-REVERSE_GEO_LAST_CALL = 0.0
+
+def bulk_import_dir_for(user_id: int) -> str:
+    """Return the bulk-import drop directory belonging to one user.
+
+    Bulk import used to scan a single shared directory, so on a multi-user
+    server any user triggering an import would ingest every file present —
+    including another user's — and have the resulting activities attributed to
+    themselves. Giving each user their own directory makes that impossible by
+    construction rather than by convention.
+
+    Args:
+        user_id: The owning user's id. Coerced to ``int`` so the value can only
+            ever be a single path segment.
+
+    Returns:
+        Absolute path of that user's bulk-import directory.
+    """
+    return f"{FILES_BULK_IMPORT_DIR}/{int(user_id)}"
+
+
+def bulk_import_error_dir_for(user_id: int) -> str:
+    """Return the import-error directory belonging to one user.
+
+    Args:
+        user_id: The owning user's id.
+
+    Returns:
+        Absolute path of that user's import-error directory.
+    """
+    return f"{bulk_import_dir_for(user_id)}/import_errors"
 
 
 # Secret loading and environment validation
@@ -510,29 +818,28 @@ def read_secret(
 
             # Security: Validate file path to prevent path traversal
             if not _is_safe_path(file_path):
-                core_logger.print_to_log_and_console(f"Unsafe file path detected for {file_env_var}", "error")
+                logger.error(f"Unsafe file path detected for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Unsafe file path for {file_env_var}")
 
             # Check if file exists and is readable
             if not file_path.exists():
-                core_logger.print_to_log_and_console(f"Secret file not found for {file_env_var}", "error")
+                logger.error(f"Secret file not found for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Secret file not found for {file_env_var}")
 
             if not file_path.is_file():
-                core_logger.print_to_log_and_console(f"Secret path is not a file for {file_env_var}", "error")
+                logger.error(f"Secret path is not a file for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Secret path is not a file for {file_env_var}")
 
             # Security: Check file permissions (should not be world-readable)
             file_stat = file_path.stat()
             if file_stat.st_mode & stat.S_IROTH:
-                core_logger.print_to_log_and_console(
-                    f"Secret file is world-readable for {file_env_var}",
-                    "warning",
+                logger.warning(
+                    f"Secret file is world-readable for {file_env_var}", extra=core_logger.context(console=True)
                 )
 
             # Security: limit file size to prevent memory exhaustion.
             if file_stat.st_size > 65536:  # 64KB
-                core_logger.print_to_log_and_console(f"Secret file too large for {file_env_var}", "error")
+                logger.error(f"Secret file too large for {file_env_var}", extra=core_logger.context(console=True))
                 raise OSError(f"Secret file too large for {file_env_var}")
 
             # Read the secret file
@@ -540,25 +847,25 @@ def read_secret(
                 content = secret_file.read().strip()
 
                 if content:
-                    core_logger.print_to_log_and_console(
+                    logger.debug(
                         f"Successfully loaded secret from file for {env_var_name}",
-                        "debug",
+                        extra=core_logger.context(console=True),
                     )
                     return content
                 else:
-                    core_logger.print_to_log_and_console(f"Secret file is empty for {file_env_var}", "warning")
+                    logger.warning(f"Secret file is empty for {file_env_var}", extra=core_logger.context(console=True))
 
         except (OSError, UnicodeDecodeError) as e:
             # Log error without exposing file path details
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Error reading secret file for {file_env_var}: {type(e).__name__}",
-                "error",
+                extra=core_logger.context(console=True),
             )
             raise OSError(f"Error reading secret file for {file_env_var}") from e
         except Exception as e:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Unexpected error reading secret for {file_env_var}: {type(e).__name__}",
-                "error",
+                extra=core_logger.context(console=True),
             )
             raise OSError(f"Unexpected error reading secret for {file_env_var}") from e
 
@@ -611,10 +918,7 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         True if key is valid, False otherwise.
     """
     if not fernet_key:
-        core_logger.print_to_log_and_console(
-            "FERNET_KEY is not set or empty",
-            "error",
-        )
+        logger.error("FERNET_KEY is not set or empty", extra=core_logger.context(console=True))
         return False
 
     try:
@@ -622,18 +926,18 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         fernet_key_bytes = fernet_key.encode("utf-8")
         Fernet(fernet_key_bytes)
 
-        core_logger.print_to_log_and_console("FERNET_KEY validation successful", "debug")
+        logger.debug("FERNET_KEY validation successful", extra=core_logger.context(console=True))
         return True
     except ValueError as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"FERNET_KEY validation failed: Invalid key format ({type(err).__name__})",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return False
     except Exception as err:
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"FERNET_KEY validation failed: Unexpected error ({type(err).__name__})",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return False
 
@@ -653,9 +957,9 @@ def validate_log_level(log_level: str) -> bool:
         return True
     else:
         allowed_values = ", ".join(sorted(valid_levels))
-        core_logger.print_to_log_and_console(
+        logger.error(
             f"Log level '{log_level}' is invalid. Must be one of: {allowed_values}",
-            "error",
+            extra=core_logger.context(console=True),
         )
         return False
 
@@ -680,9 +984,9 @@ def check_required_env_vars():
     for var in email_vars:
         value = read_secret(var) if var == "SMTP_PASSWORD" else os.getenv(var)
         if not value:
-            core_logger.print_to_log_and_console(
+            logger.info(
                 f"Email not configured (missing: {var}). Password reset feature will not work.",
-                "info",
+                extra=core_logger.context(console=True),
             )
 
     # Check secret variables. Direct env var or _FILE must be present.
@@ -690,20 +994,14 @@ def check_required_env_vars():
         file_var = f"{var}_FILE"
         if var not in os.environ and file_var not in os.environ:
             message = f"Missing required environment variable: {var} (or {file_var} for Docker secrets)"
-            core_logger.print_to_log_and_console(
-                message,
-                "error",
-            )
+            logger.error(message, extra=core_logger.context(console=True))
             raise OSError(message)
 
     # Check non-secret required variables
     for var in required_env_vars:
         if var not in os.environ:
             message = f"Missing required environment variable: {var}"
-            core_logger.print_to_log_and_console(
-                message,
-                "error",
-            )
+            logger.error(message, extra=core_logger.context(console=True))
             raise OSError(message)
 
     # Validate FERNET_KEY if it's available
@@ -712,17 +1010,14 @@ def check_required_env_vars():
         is_valid = validate_fernet_key(fernet_key)
         if not is_valid:
             message = "FERNET_KEY validation failed. Please check the key format and regenerate if necessary."
-            core_logger.print_to_log_and_console(
-                message,
-                "warning",
-            )
+            logger.warning(message, extra=core_logger.context(console=True))
             raise ValueError(message)
 
     validate_log_level(settings.LOG_LEVEL)
 
 
-# Environment variables retired in v0.19.x. Maps the removed variable name to a
-# short, actionable remediation string. These are validated by
+# Environment variables retired in v0.19.x and v0.20.0. Maps the removed variable
+# name to a short, actionable remediation string. These are validated by
 # ``check_deprecated_env_vars`` at startup: because ``Settings`` uses
 # ``extra="ignore"``, a stale value would otherwise be silently dropped, leaving
 # the operator with no feedback that their configuration no longer takes effect.
@@ -742,6 +1037,20 @@ DEPRECATED_ENV_VARS: dict[str, str] = {
         "'Secure' flag across login, refresh, and SSO. Use ENVIRONMENT=production "
         "(or demo) to serve over HTTPS."
     ),
+    # Retired in v0.20.0. Refusing to start matters more here than for the
+    # others: both used to point rate-limit counters and auth lockout state at
+    # Redis, and silently ignoring them downgrades those to per-process memory —
+    # brute-force protection that no longer sees the other workers.
+    "RATE_LIMIT_STORAGE_URI": (
+        "replaced by REDIS_URL (or STATE_URI). One shared state backend now "
+        "serves rate-limit counters, auth lockout, pending MFA and websocket "
+        "tickets. Set REDIS_URL to the value this held."
+    ),
+    "AUTH_SECURITY_STORAGE_URI": (
+        "replaced by REDIS_URL (or STATE_URI). One shared state backend now "
+        "serves rate-limit counters, auth lockout, pending MFA and websocket "
+        "tickets. Set REDIS_URL to the value this held."
+    ),
 }
 
 
@@ -749,7 +1058,7 @@ def check_deprecated_env_vars() -> None:
     """
     Abort startup when retired environment variables are still set.
 
-    Variables removed in v0.19.x are silently ignored by ``Settings``
+    Variables removed in v0.19.x and v0.20.0 are silently ignored by ``Settings``
     (``extra="ignore"``), so a leftover value would give the operator no
     feedback. Every offending variable is collected and reported together
     so the deployment can be fixed in a single pass rather than one restart
@@ -763,16 +1072,13 @@ def check_deprecated_env_vars() -> None:
     if not found:
         return
 
-    core_logger.print_to_log_and_console(
+    logger.error(
         "Deprecated environment variable(s) detected. Endurain will not start "
         "until they are removed from your configuration:",
-        "error",
+        extra=core_logger.context(console=True),
     )
     for name in found:
-        core_logger.print_to_log_and_console(
-            f"  - {name}: {DEPRECATED_ENV_VARS[name]}",
-            "error",
-        )
+        logger.error(f"  - {name}: {DEPRECATED_ENV_VARS[name]}", extra=core_logger.context(console=True))
 
     message = (
         f"Deprecated environment variable(s) in use: {', '.join(found)}. "
@@ -792,14 +1098,12 @@ def check_required_dirs():
     """
     required_dirs = [
         settings.DATA_DIR,
-        USER_IMAGES_DIR,
         SERVER_IMAGES_DIR,
-        settings.ACTIVITY_MEDIA_DIR,
-        settings.ACTIVITY_THUMBNAILS_DIR,
         settings.FILES_DIR,
         FILES_PROCESSED_DIR,
         FILES_BULK_IMPORT_DIR,
         FILES_BULK_IMPORT_IMPORT_ERRORS_DIR,
+        FILES_UPLOAD_INCOMING_DIR,
         settings.LOGS_DIR,
     ]
 
@@ -808,8 +1112,7 @@ def check_required_dirs():
         if not required_path.exists():
             required_path.mkdir(parents=True)
         elif not required_path.is_dir():
-            core_logger.print_to_log_and_console(
-                f"Required directory is not a directory: {required_dir}",
-                "error",
+            logger.error(
+                f"Required directory is not a directory: {required_dir}", extra=core_logger.context(console=True)
             )
             raise OSError(f"Required directory is not a directory: {required_dir}")

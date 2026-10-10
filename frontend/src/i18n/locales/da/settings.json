@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Gem dine backup-koder",
       "description": "Brug en backup-kode til at logge ind, hvis du mister adgangen til din autentificeringsapp.",
-      "warning": "Disse koder vises kun én gang. Opbevar dem et sikkert sted — hver kode virker kun en enkelt gang.",
+      "warning": "Disse koder vises kun én gang. Opbevar dem et sikkert sted, hver kode virker kun en enkelt gang.",
       "copy": "Kopiér",
       "copied": "Backup-koder kopieret",
       "copyError": "Kunne ikke kopiere koderne.",
@@ -898,7 +898,7 @@
       "export": "Eksportér data",
       "import": "Importér data",
       "invalidType": "Vælg venligst et .zip-arkiv.",
-      "exportSuccess": "Eksport klar — dit download bør begynde snart",
+      "exportSuccess": "Eksport klar, dit download bør begynde snart",
       "exportError": "Kunne ikke eksportere dine data. Prøv venligst igen.",
       "importSuccess": "Data importeret",
       "importError": "Kunne ikke importere arkivet. Tjek venligst filen, og prøv igen."

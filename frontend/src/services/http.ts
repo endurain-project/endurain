@@ -32,15 +32,36 @@ export class HttpError extends Error {
    * @param status - The HTTP status code of the failed response.
    * @param statusText - The HTTP status text.
    * @param detail - Backend-provided error detail, when available.
+   * @param type - RFC 9457 problem type URN, e.g. `urn:endurain:error:conflict`.
+   *   This is the member to branch on; `status` alone cannot distinguish two
+   *   different 409s.
+   * @param requestId - The backend's `X-Request-ID` for this failure. Quoting it
+   *   in a bug report resolves to the exact server log line.
    */
   constructor(
     readonly status: number,
     statusText: string,
     readonly detail: unknown = null,
+    readonly type: string | null = null,
+    readonly requestId: string | null = null,
   ) {
     super(getErrorMessage(status, statusText, detail))
     this.name = 'HttpError'
   }
+}
+
+/** An RFC 9457 problem document, as returned by every API error path. */
+interface ProblemDocument {
+  type?: unknown
+  detail?: unknown
+  request_id?: unknown
+}
+
+/** The parsed pieces of a failed response the client keeps. */
+interface ParsedError {
+  detail: unknown
+  type: string | null
+  requestId: string | null
 }
 
 /**
@@ -59,21 +80,30 @@ function getErrorMessage(status: number, statusText: string, detail: unknown): s
 }
 
 /**
- * Parses a non-2xx response body into a backend detail value.
+ * Parses a non-2xx response body into its problem-document parts.
+ *
+ * Tolerates a non-conforming body (a plain string, or `{detail}` without the
+ * other members) so a proxy or gateway error page does not become an unhandled
+ * parse failure.
  *
  * @param response - Failed response.
- * @returns The parsed `detail` field or raw text when JSON parsing fails.
+ * @returns The problem type, detail and request id, as far as they are present.
  */
-async function parseErrorDetail(response: Response): Promise<unknown> {
+async function parseError(response: Response): Promise<ParsedError> {
+  const empty: ParsedError = { detail: null, type: null, requestId: null }
   const text = await response.text()
   if (!text) {
-    return null
+    return empty
   }
   try {
-    const parsed = JSON.parse(text) as { detail?: unknown }
-    return parsed.detail ?? parsed
+    const parsed = JSON.parse(text) as ProblemDocument
+    return {
+      detail: parsed.detail ?? parsed,
+      type: typeof parsed.type === 'string' ? parsed.type : null,
+      requestId: typeof parsed.request_id === 'string' ? parsed.request_id : null,
+    }
   } catch {
-    return text
+    return { ...empty, detail: text }
   }
 }
 
@@ -180,7 +210,14 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
   })
 
   if (!response.ok) {
-    throw new HttpError(response.status, response.statusText, await parseErrorDetail(response))
+    const parsed = await parseError(response)
+    throw new HttpError(
+      response.status,
+      response.statusText,
+      parsed.detail,
+      parsed.type,
+      parsed.requestId,
+    )
   }
 
   if (init.responseType === 'void' || response.status === 204) {

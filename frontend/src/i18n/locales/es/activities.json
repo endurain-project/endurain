@@ -126,7 +126,7 @@
   "gear": {
     "title": "Equipamiento",
     "notSet": "Sin equipamiento asignado",
-    "loading": "Cargando\u2026",
+    "loading": "Cargando…",
     "add": "Añadir equipamiento",
     "change": "Cambiar equipamiento",
     "remove": "Eliminar equipamiento",
@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Ocultar series y pasos del entrenamiento",
     "hideGear": "Ocultar equipamiento",
     "success": "Actividad actualizada",
-    "error": "No se pudo actualizar la actividad"
+    "error": "No se pudo actualizar la actividad",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Esta actividad está oculta. Solo tú puedes verla.",

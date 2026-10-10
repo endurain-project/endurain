@@ -83,7 +83,10 @@ const metaLabel = computed(() => {
   if (props.component.purchaseDate) {
     const date = new Date(props.component.purchaseDate)
     if (!Number.isNaN(date.getTime())) {
-      const formatted = new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(date)
+      const formatted = new Intl.DateTimeFormat(locale.value, {
+        dateStyle: 'medium',
+        timeZone: 'UTC',
+      }).format(date)
       parts.push(t('gears.components.purchasedOn', { date: formatted }))
     }
   }

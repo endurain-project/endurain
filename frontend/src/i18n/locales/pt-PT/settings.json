@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Guarda os teus códigos de recuperação",
       "description": "Usa um código de recuperação para iniciar sessão se perderes o acesso à tua aplicação de autenticação.",
-      "warning": "Estes códigos são mostrados apenas uma vez. Guarda-os num local seguro — cada código funciona uma única vez.",
+      "warning": "Estes códigos são mostrados apenas uma vez. Guarda-os num local seguro, cada código funciona uma única vez.",
       "copy": "Copiar",
       "copied": "Códigos de recuperação copiados",
       "copyError": "Não foi possível copiar os códigos.",
@@ -898,7 +898,7 @@
       "export": "Exportar dados",
       "import": "Importar dados",
       "invalidType": "Escolhe um arquivo .zip.",
-      "exportSuccess": "Exportação pronta — o teu download deve começar em breve",
+      "exportSuccess": "Exportação pronta, o teu download deve começar em breve",
       "exportError": "Não foi possível exportar os teus dados. Tenta novamente.",
       "importSuccess": "Dados importados",
       "importError": "Não foi possível importar o arquivo. Verifica o ficheiro e tenta novamente."

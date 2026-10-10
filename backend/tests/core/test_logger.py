@@ -145,15 +145,15 @@ class TestDevFormatter:
         assert "user_id=42" in result
 
 
-class TestBuildHandler:
-    """Tests for _build_handler function."""
+class TestBuildHandlers:
+    """Tests for _build_handlers function."""
 
     def test_production_returns_stream_handler(self):
         with (
             patch("core.config.settings.ENVIRONMENT", "production"),
             patch("core.config.settings.LOGS_DIR", ""),
         ):
-            handlers = core_logger._build_handler(logging.INFO)
+            handlers = core_logger._build_handlers(logging.INFO)
         assert len(handlers) == 1
         handler = handlers[0]
         assert isinstance(handler, logging.StreamHandler)
@@ -165,23 +165,25 @@ class TestBuildHandler:
             patch("core.config.settings.ENVIRONMENT", "demo"),
             patch("core.config.settings.LOGS_DIR", ""),
         ):
-            handlers = core_logger._build_handler(logging.WARNING)
+            handlers = core_logger._build_handlers(logging.WARNING)
         assert len(handlers) == 1
         handler = handlers[0]
         assert isinstance(handler, logging.StreamHandler)
         assert isinstance(handler.formatter, core_logger.JsonFormatter)
 
-    def test_development_returns_file_handler(self, tmp_path):
+    def test_development_returns_file_handler_and_console_mirror(self, tmp_path):
         with (
             patch("core.config.settings.ENVIRONMENT", "development"),
             patch("core.config.settings.LOGS_DIR", str(tmp_path)),
         ):
-            handlers = core_logger._build_handler(logging.DEBUG)
-        assert len(handlers) == 1
-        handler = handlers[0]
-        assert isinstance(handler, logging.FileHandler)
-        assert isinstance(handler.formatter, core_logger._DevFormatter)
-        assert handler.level == logging.DEBUG
+            handlers = core_logger._build_handlers(logging.DEBUG)
+        assert len(handlers) == 2
+        file_handler, console_handler = handlers
+        assert isinstance(file_handler, logging.FileHandler)
+        assert isinstance(file_handler.formatter, core_logger._DevFormatter)
+        assert file_handler.level == logging.DEBUG
+        assert isinstance(console_handler, logging.StreamHandler)
+        assert any(isinstance(f, core_logger.ConsoleMirrorFilter) for f in console_handler.filters)
 
 
 class TestReplaceHandlers:
@@ -250,65 +252,94 @@ class TestSetupMainLogger:
         assert logging.getLogger("safeuploads.audit").propagate is True
 
 
-class TestGetMainLogger:
-    """Tests for get_main_logger function."""
+class TestGetLogger:
+    """Tests for get_logger function."""
 
-    def test_returns_main_logger(self):
-        logger = core_logger.get_main_logger()
-        assert isinstance(logger, logging.Logger)
-        assert logger.name == "main_logger"
+    def test_returns_root_logger_without_name(self):
+        assert core_logger.get_logger().name == core_logger.ROOT_LOGGER_NAME
 
+    def test_returns_child_of_root_logger(self):
+        logger = core_logger.get_logger("modules.activities.activity.crud")
+        assert logger.name == f"{core_logger.ROOT_LOGGER_NAME}.modules.activities.activity.crud"
+        assert logger.parent is not None
 
-class TestPrintToLog:
-    """Tests for print_to_log function."""
+    def test_does_not_double_prefix(self):
+        name = f"{core_logger.ROOT_LOGGER_NAME}.already.prefixed"
+        assert core_logger.get_logger(name).name == name
 
-    def test_info_level(self):
-        mock_logger = MagicMock()
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log("info message", "info")
-        mock_logger.info.assert_called_once_with("info message")
-
-    def test_error_level(self):
-        mock_logger = MagicMock()
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log("error message", "error")
-        mock_logger.error.assert_called_once_with("error message", exc_info=False)
-
-    def test_error_with_exception(self):
-        mock_logger = MagicMock()
-        exc = ValueError("test error")
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log("error message", "error", exc=exc)
-        mock_logger.error.assert_called_once_with("error message", exc_info=True)
-
-    def test_warning_level(self):
-        mock_logger = MagicMock()
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log("warning message", "warning")
-        mock_logger.warning.assert_called_once_with("warning message")
-
-    def test_debug_level(self):
-        mock_logger = MagicMock()
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log("debug message", "debug")
-        mock_logger.debug.assert_called_once_with("debug message")
-
-    def test_critical_level(self):
-        mock_logger = MagicMock()
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log("critical message", "critical")
-        mock_logger.critical.assert_called_once_with("critical message")
+    def test_root_name_returns_root(self):
+        assert core_logger.get_logger(core_logger.ROOT_LOGGER_NAME).name == core_logger.ROOT_LOGGER_NAME
 
 
-class TestPrintToLogAndConsole:
-    """Tests for print_to_log_and_console function."""
+class TestContext:
+    """Tests for the context helper."""
 
-    def test_adds_and_removes_console_handler(self):
-        mock_logger = MagicMock()
-        with patch("core.logger.get_main_logger", return_value=mock_logger):
-            core_logger.print_to_log_and_console("test message", "info")
-        assert mock_logger.addHandler.called
-        assert mock_logger.removeHandler.called
-        added = mock_logger.addHandler.call_args[0][0]
-        removed = mock_logger.removeHandler.call_args[0][0]
-        assert added is removed
+    def test_drops_none_values(self):
+        assert core_logger.context(activity_id=7, gear_id=None) == {"activity_id": 7}
+
+    def test_namespaces_reserved_keys(self):
+        assert core_logger.context(module="strava") == {"ctx_module": "strava"}
+
+    def test_console_flag(self):
+        assert core_logger.context(console=True) == {core_logger.CONSOLE_FIELD: True}
+
+    def test_console_absent_by_default(self):
+        assert core_logger.CONSOLE_FIELD not in core_logger.context(user_id=1)
+
+
+class TestConsoleMirrorFilter:
+    """Tests for ConsoleMirrorFilter class."""
+
+    def _record(self, **extra):
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="/f.py",
+            lineno=1,
+            msg="msg",
+            args=(),
+            exc_info=None,
+        )
+        for key, value in extra.items():
+            setattr(record, key, value)
+        return record
+
+    def test_passes_flagged_record(self):
+        assert core_logger.ConsoleMirrorFilter().filter(self._record(console=True)) is True
+
+    def test_rejects_unflagged_record(self):
+        assert core_logger.ConsoleMirrorFilter().filter(self._record()) is False
+
+
+class TestEndToEnd:
+    """A record logged through a module logger reaches the configured handlers."""
+
+    def test_module_logger_record_carries_name_and_context(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "production"),
+            patch("core.config.settings.LOG_LEVEL", "debug"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+        ):
+            core_logger.setup_main_logger()
+
+        logger = core_logger.get_logger("modules.activities.activity.crud")
+        records: list[logging.LogRecord] = []
+
+        class _Capture(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                records.append(record)
+
+        capture = _Capture()
+        logging.getLogger(core_logger.ROOT_LOGGER_NAME).addHandler(capture)
+        try:
+            logger.warning("stored", extra=core_logger.context(activity_id=42, gear_id=None))
+        finally:
+            logging.getLogger(core_logger.ROOT_LOGGER_NAME).removeHandler(capture)
+
+        assert len(records) == 1
+        record = records[0]
+        assert record.name == f"{core_logger.ROOT_LOGGER_NAME}.modules.activities.activity.crud"
+        assert record.levelno == logging.WARNING
+        assert record.activity_id == 42
+        assert not hasattr(record, "gear_id")
+        assert json.loads(core_logger.JsonFormatter().format(record))["context"] == {"activity_id": 42}

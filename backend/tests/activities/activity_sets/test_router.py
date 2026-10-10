@@ -3,14 +3,16 @@ from unittest.mock import patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from modules.activities.activity_sets.schema import ActivitySetsPage
+
 
 def _build_app(mock_db):
-    import activities.activity_sets.router as router
-    import auth.dependencies as auth_deps
     import core.database as core_db
+    import modules.activities.activity_sets.router as router
+    import modules.auth.dependencies as auth_deps
 
     app = FastAPI()
-    app.include_router(router.router, prefix="/activities_sets")
+    app.include_router(router.router, prefix="/activities/{activity_id}")
 
     def _mock():
         return None
@@ -25,19 +27,19 @@ def _build_app(mock_db):
 
 
 class TestReadActivitySets:
-    @patch("activities.activity_sets.router.activity_sets_crud.get_activity_sets")
+    @patch("modules.activities.activity_sets.router.activity_sets_service.list_activity_sets")
     def test_read_sets_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        mock_get.return_value = ActivitySetsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities_sets/activity_id/1/all", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/sets", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("activities.activity_sets.router.activity_sets_crud.get_activity_sets")
+    @patch("modules.activities.activity_sets.router.activity_sets_service.list_activity_sets")
     def test_read_sets_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+        mock_get.return_value = ActivitySetsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities_sets/activity_id/999/all", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/999/sets", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() is None
+        assert response.json()["items"] == [] and response.json()["total"] == 0

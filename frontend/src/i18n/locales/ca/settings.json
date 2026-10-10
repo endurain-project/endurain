@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Desa els teus codis de seguretat",
       "description": "Fes servir un codi de seguretat per iniciar sessió si perds l'accés a la teva aplicació d'autenticació.",
-      "warning": "Aquests codis es mostren una sola vegada. Guarda'ls en un lloc segur — cada codi funciona una sola vegada.",
+      "warning": "Aquests codis es mostren una sola vegada. Guarda'ls en un lloc segur, cada codi funciona una sola vegada.",
       "copy": "Copia",
       "copied": "Codis de seguretat copiats",
       "copyError": "No s'han pogut copiar els codis.",
@@ -898,7 +898,7 @@
       "export": "Exporta les dades",
       "import": "Importa les dades",
       "invalidType": "Tria un arxiu .zip.",
-      "exportSuccess": "Exportació llesta — la descàrrega hauria de començar aviat",
+      "exportSuccess": "Exportació llesta, la descàrrega hauria de començar aviat",
       "exportError": "No s'han pogut exportar les teves dades. Torna-ho a intentar.",
       "importSuccess": "Dades importades",
       "importError": "No s'ha pogut importar l'arxiu. Comprova el fitxer i torna-ho a intentar."

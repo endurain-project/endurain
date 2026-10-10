@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from auth.identity_providers.links.schema import (
+from modules.auth.identity_providers.links.schema import (
     UsersIdentityProviderBase,
     UsersIdentityProviderCreate,
     UsersIdentityProviderRead,

@@ -1,11 +1,11 @@
-import pathlib
-from importlib import import_module
 from logging.config import fileConfig
+
+import jasil.orm as jasil_orm
 
 from alembic import context
 
-
 # import Base and engine from database file
+import model_registry as orm_model_registry
 from core.database import Base, engine
 
 # this is the Alembic Config object, which provides
@@ -18,33 +18,40 @@ if config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 
-def _import_all_models() -> None:
-    """
-    Import every models.py so Base.metadata is complete.
-
-    Autogenerate diffs Base.metadata against the live
-    database. A model's table only registers on the
-    metadata when its module is imported. The Alembic CLI
-    runs only this env.py, which would otherwise leave the
-    metadata empty and make autogenerate emit drop_table
-    for the entire schema.
-
-    Returns:
-        None.
-    """
-    app_dir = pathlib.Path(__file__).resolve().parents[1]
-    for path in sorted(app_dir.glob("**/models.py")):
-        module = ".".join(path.relative_to(app_dir).with_suffix("").parts)
-        import_module(module)
-
-
 # Populate Base.metadata with every ORM model before
-# autogenerate compares it against the database.
-_import_all_models()
+# autogenerate compares it against the database. The CLI
+# runs only this env.py, which would otherwise leave the
+# metadata empty and emit drop_table for the whole schema.
+orm_model_registry.import_all_models()
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = Base.metadata
+
+
+def include_object(obj, name, type_, reflected, compare_to) -> bool:
+    """Keep this history off the tables JASIL owns.
+
+    ``jasil.orm.map_models`` maps ``event_log``, ``event_outbox`` and
+    ``processing_jobs`` into the same registry as the application's own models,
+    so autogenerate would otherwise diff them here as well — and propose
+    dropping them the day the substrate moves one. They are migrated by
+    ``jasil.migrations`` against its own version table instead.
+
+    Args:
+        obj: The schema object being considered.
+        name: Its name.
+        type_: The kind of object (``table``, ``column``, ``index``, ...).
+        reflected: Whether it came from the database rather than the metadata.
+        compare_to: The object it is being compared against, if any.
+
+    Returns:
+        False for a JASIL-owned table, True otherwise.
+    """
+    if type_ == "table":
+        return name not in jasil_orm.jasil_table_names()
+    return True
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -68,6 +75,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -92,6 +100,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
-import websocket.utils as websocket_utils
+import modules.websocket.utils as websocket_utils
 
 
 class TestNotifyFrontend:

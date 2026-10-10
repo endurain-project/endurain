@@ -6,10 +6,10 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
-    import auth.identity_providers.dependencies as idp_deps
-    import auth.identity_providers.router as router
     import core.database as core_db
+    import modules.auth.dependencies as auth_deps
+    import modules.auth.identity_providers.dependencies as idp_deps
+    import modules.auth.identity_providers.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/auth/identity_providers")
@@ -24,9 +24,9 @@ def _build_app(mock_db):
 
 
 class TestListIdentityProviders:
-    @patch("auth.identity_providers.router.idp_crud.get_all_identity_providers")
+    @patch("modules.auth.identity_providers.router.idp_crud.get_all_identity_providers")
     def test_list_success(self, mock_get, mock_db):
-        from auth.identity_providers.schema import IdentityProvider
+        from modules.auth.identity_providers.schema import IdentityProvider
 
         client = TestClient(_build_app(mock_db))
         now = datetime.now()
@@ -36,7 +36,7 @@ class TestListIdentityProviders:
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    @patch("auth.identity_providers.router.idp_crud.get_all_identity_providers")
+    @patch("modules.auth.identity_providers.router.idp_crud.get_all_identity_providers")
     def test_list_empty(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -47,9 +47,9 @@ class TestListIdentityProviders:
 
 
 class TestListIdpTemplates:
-    @patch("auth.identity_providers.router.idp_utils.get_idp_templates")
+    @patch("modules.auth.identity_providers.router.idp_utils.get_idp_templates")
     def test_templates_success(self, mock_get, mock_db):
-        from auth.identity_providers.schema import IdentityProviderTemplate
+        from modules.auth.identity_providers.schema import IdentityProviderTemplate
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [
@@ -67,9 +67,9 @@ class TestListIdpTemplates:
 
 
 class TestCreateIdentityProvider:
-    @patch("auth.identity_providers.router.idp_crud.create_identity_provider")
+    @patch("modules.auth.identity_providers.router.idp_crud.create_identity_provider")
     def test_create_success(self, mock_create, mock_db):
-        from auth.identity_providers.schema import IdentityProvider
+        from modules.auth.identity_providers.schema import IdentityProvider
 
         client = TestClient(_build_app(mock_db))
         now = datetime.now()
@@ -88,9 +88,9 @@ class TestCreateIdentityProvider:
 
 
 class TestUpdateIdentityProvider:
-    @patch("auth.identity_providers.router.idp_crud.update_identity_provider")
+    @patch("modules.auth.identity_providers.router.idp_crud.update_identity_provider")
     def test_update_success(self, mock_update, mock_db):
-        from auth.identity_providers.schema import IdentityProvider
+        from modules.auth.identity_providers.schema import IdentityProvider
 
         client = TestClient(_build_app(mock_db))
         now = datetime.now()
@@ -107,7 +107,7 @@ class TestUpdateIdentityProvider:
 
 
 class TestDeleteIdentityProvider:
-    @patch("auth.identity_providers.router.idp_crud.delete_identity_provider")
+    @patch("modules.auth.identity_providers.router.idp_crud.delete_identity_provider")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
 

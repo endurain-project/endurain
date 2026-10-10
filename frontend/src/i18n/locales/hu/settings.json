@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Mentsd el a tartalék kódjaidat",
       "description": "Használj egy tartalék kódot a bejelentkezéshez, ha elveszíted a hozzáférést a hitelesítő alkalmazásodhoz.",
-      "warning": "Ezek a kódok csak egyszer jelennek meg. Tárold őket biztonságos helyen — minden kód egyszer használható.",
+      "warning": "Ezek a kódok csak egyszer jelennek meg. Tárold őket biztonságos helyen, minden kód egyszer használható.",
       "copy": "Másolás",
       "copied": "Tartalék kódok másolva",
       "copyError": "Nem sikerült másolni a kódokat.",
@@ -898,7 +898,7 @@
       "export": "Adatok exportálása",
       "import": "Adatok importálása",
       "invalidType": "Kérjük, válassz egy .zip archívumot.",
-      "exportSuccess": "Az export kész — a letöltésed hamarosan elkezdődik",
+      "exportSuccess": "Az export kész, a letöltésed hamarosan elkezdődik",
       "exportError": "Nem sikerült exportálni az adataidat. Kérjük, próbáld újra.",
       "importSuccess": "Adatok importálva",
       "importError": "Nem sikerült importálni az archívumot. Kérjük, ellenőrizd a fájlt, és próbáld újra."

@@ -3,8 +3,8 @@
 import string
 from unittest.mock import MagicMock, patch
 
-import auth.mfa.backup_codes.crud as backup_crud
-import auth.mfa.backup_codes.utils as backup_utils
+import modules.auth.mfa.backup_codes.crud as backup_crud
+import modules.auth.mfa.backup_codes.utils as backup_utils
 
 
 class TestGenerateBackupCode:

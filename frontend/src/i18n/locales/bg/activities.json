@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Скрий сериите и стъпките от тренировката",
     "hideGear": "Скрий екипировката",
     "success": "Активността е обновена",
-    "error": "Активността не можа да се обнови"
+    "error": "Активността не можа да се обнови",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Тази активност е скрита. Само вие можете да я виждате.",

@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Slēpt treniņa piegājienus un soļus",
     "hideGear": "Slēpt inventāru",
     "success": "Aktivitāte atjaunināta",
-    "error": "Neizdevās atjaunināt aktivitāti"
+    "error": "Neizdevās atjaunināt aktivitāti",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Šī aktivitāte ir slēpta. Tikai jūs to varat redzēt.",

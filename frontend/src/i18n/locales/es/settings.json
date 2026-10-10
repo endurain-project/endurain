@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Guarda tus códigos de respaldo",
       "description": "Usa un código de respaldo para iniciar sesión si pierdes acceso a tu app de autenticación.",
-      "warning": "Estos códigos se muestran una sola vez. Guárdalos en un lugar seguro — cada código funciona una única vez.",
+      "warning": "Estos códigos se muestran una sola vez. Guárdalos en un lugar seguro, cada código funciona una única vez.",
       "copy": "Copiar",
       "copied": "Códigos de respaldo copiados",
       "copyError": "No se pudieron copiar los códigos.",
@@ -898,7 +898,7 @@
       "export": "Exportar datos",
       "import": "Importar datos",
       "invalidType": "Elige un archivo .zip.",
-      "exportSuccess": "Exportación lista — tu descarga debería comenzar pronto",
+      "exportSuccess": "Exportación lista, tu descarga debería comenzar pronto",
       "exportError": "No se pudieron exportar tus datos. Inténtalo de nuevo.",
       "importSuccess": "Datos importados",
       "importError": "No se pudo importar el archivo. Comprueba el archivo e inténtalo de nuevo."

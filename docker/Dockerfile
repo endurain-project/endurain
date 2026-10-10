@@ -20,6 +20,12 @@ RUN npm run build
 # Stage 2: Install requirements
 FROM python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc AS requirements-stage
 
+# Optional project extras baked into the image. Empty by default so the image
+# stays lean for `local` deployments. Build with
+# `--build-arg PYTHON_EXTRAS=distributed` to add the Redis / S3 dependencies
+# required by REDIS_URL / STATE_URI / EVENTS_URI=redis://... and STORAGE_URI=s3://...
+ARG PYTHON_EXTRAS=""
+
 # Set the working directory
 WORKDIR /tmp/backend
 
@@ -30,7 +36,7 @@ COPY --from=uv-dist /uv /uvx /usr/local/bin/
 COPY backend/pyproject.toml backend/uv.lock ./
 
 # Export production dependencies to requirements.txt
-RUN uv export --no-emit-project --no-dev -o requirements.txt
+RUN uv export --no-emit-project --no-dev ${PYTHON_EXTRAS:+--extra "$PYTHON_EXTRAS"} -o requirements.txt
 
 # Stage 3: Build FastAPI app
 FROM python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc

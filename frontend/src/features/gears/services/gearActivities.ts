@@ -23,7 +23,11 @@ export function mapGearActivity(dto: GearActivityDto): GearActivity {
     id: dto.id ?? 0,
     name: dto.name,
     activityType: dto.activity_type,
+    // The raw UTC instant plus the recording timezone, matching the main
+    // activities list, so the row renders in the timezone the activity happened
+    // in rather than the viewer's.
     startTime: dto.start_time ?? null,
+    timezone: dto.timezone ?? null,
     distance: dto.distance,
     totalTimerTime: dto.total_timer_time ?? null,
   }
@@ -48,12 +52,12 @@ export async function fetchGearActivities(
     page_number: String(page),
     num_records: String(numRecords),
   })
-  const response = await apiFetch<Schemas['GearActivitiesListResponse']>(
-    `/activities/gear/${gearId}/list?${params.toString()}`,
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(
+    `/activities/gears/${gearId}?${params.toString()}`,
     { signal },
   )
   return {
-    records: (response.records ?? []).map(mapGearActivity),
-    total: response.total,
+    records: (page_.items ?? []).map((dto) => mapGearActivity(dto as GearActivityDto)),
+    total: page_.total,
   }
 }

@@ -1,6 +1,6 @@
 """Tests for user default gear database models."""
 
-import users.users_default_gear.models as user_default_gear_models
+import modules.users.users_default_gear.models as user_default_gear_models
 
 
 class TestUsersDefaultGearModel:

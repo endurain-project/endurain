@@ -9,9 +9,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import users.users_profile.import_service as profile_import_service
-import users.users_profile.utils as profile_utils
-from users.users_profile.exceptions import (
+import modules.users.users_profile.import_service as profile_import_service
+import modules.users.users_profile.utils as profile_utils
+from modules.users.users_profile.exceptions import (
     ActivityLimitError,
     FileFormatError,
     FileSizeError,
@@ -247,7 +247,7 @@ class TestImportServiceGears:
         mock_new_gear.id = 10
 
         with patch(
-            "users.users_profile.import_service.gear_crud.create_gear",
+            "modules.users.users_profile.import_service.gear_crud.create_gear",
             return_value=mock_new_gear,
         ):
             mapping = await service.collect_and_import_gears_data([{"id": 5, "nickname": "Garmin", "gear_type": 1}])
@@ -275,7 +275,7 @@ class TestImportServiceGears:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.gear_components_crud.create_gear_component"):
+        with patch("modules.users.users_profile.import_service.gear_components_crud.create_gear_component"):
             await service.collect_and_import_gear_components_data(
                 [{"gear_id": 5, "type": "chain", "brand": "Shimano", "model": "Ultegra"}],
                 {5: 10},
@@ -318,11 +318,13 @@ class TestImportServiceUserData:
         )
         with (
             patch(
-                "users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                "modules.users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                 return_value=None,
             ),
-            patch("users.users_profile.import_service.user_default_gear_crud.create_user_default_gear") as mock_create,
-            patch("users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
+            patch(
+                "modules.users.users_profile.import_service.user_default_gear_crud.create_user_default_gear"
+            ) as mock_create,
+            patch("modules.users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
         ):
             mock_create.return_value.id = 99
             await service.collect_and_import_user_default_gear([{"run_gear_id": 5}], {5: 10})
@@ -341,10 +343,10 @@ class TestImportServiceUserData:
         mock_existing.id = 99
         with (
             patch(
-                "users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
+                "modules.users.users_profile.import_service.user_default_gear_crud.get_user_default_gear_by_user_id",
                 return_value=mock_existing,
             ),
-            patch("users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
+            patch("modules.users.users_profile.import_service.user_default_gear_crud.edit_user_default_gear"),
         ):
             await service.collect_and_import_user_default_gear(
                 [{"run_gear_id": 5, "ride_gear_id": 7}],
@@ -396,7 +398,7 @@ class TestImportServiceUserData:
 
         with (
             patch(
-                "users.users_profile.import_service.users_crud.edit_profile_user",
+                "modules.users.users_profile.import_service.users_crud.edit_profile_user",
                 new_callable=AsyncMock,
             ),
             patch.object(service, "collect_and_import_user_default_gear", new_callable=AsyncMock),
@@ -448,7 +450,7 @@ class TestImportServiceUserData:
         )
 
         with patch(
-            "users.users_profile.import_service.user_integrations_crud.edit_user_integrations",
+            "modules.users.users_profile.import_service.user_integrations_crud.edit_user_integrations",
         ):
             await service.collect_and_import_user_integrations([{"strava_sync_gear": True}])
 
@@ -463,7 +465,7 @@ class TestImportServiceUserData:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.user_goals_crud.create_user_goal"):
+        with patch("modules.users.users_profile.import_service.user_goals_crud.create_user_goal"):
             await service.collect_and_import_user_goals(
                 [{"interval": "daily", "activity_type": "run", "goal_type": "distance", "goal_distance": 5000}]
             )
@@ -480,7 +482,7 @@ class TestImportServiceUserData:
         )
 
         with patch(
-            "users.users_profile.import_service.users_privacy_settings_crud.edit_user_privacy_settings",
+            "modules.users.users_profile.import_service.users_privacy_settings_crud.edit_user_privacy_settings",
         ):
             await service.collect_and_import_user_privacy_settings([{"hide_activity_map": True}])
 
@@ -523,7 +525,7 @@ class TestImportServiceUserData:
 
         assert not hasattr(service, "collect_and_import_user_identity_providers")
         with patch(
-            "users.users_profile.import_service.users_crud.edit_profile_user",
+            "modules.users.users_profile.import_service.users_crud.edit_profile_user",
             new_callable=AsyncMock,
         ) as mock_edit_profile:
             result = await service.import_from_zip_data(zip_data)
@@ -548,12 +550,12 @@ class TestImportServiceHealth:
         mock_health_target.id = 1
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=mock_health_target,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": 75.5}],
@@ -576,12 +578,12 @@ class TestImportServiceHealth:
         mock_target.id = 1
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=mock_target,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": "abc", "physique_rating": "xyz", "metabolic_age": "invalid"}],
@@ -601,12 +603,12 @@ class TestImportServiceHealth:
         )
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=None,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.create_health_targets"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.create_health_targets"),
         ):
             await service.collect_and_import_health_weight(
                 [{"weight": 75.5}],
@@ -660,7 +662,20 @@ class TestImportServiceActivities:
 
 
 class TestImportServiceActivityComponents:
-    async def test_collect_and_import_activity_components_empty_laps(self) -> None:
+    @pytest.mark.parametrize(
+        ("key", "count_key"),
+        [
+            ("laps", "activity_laps"),
+            ("sets", "activity_sets"),
+            ("streams", "activity_streams"),
+            ("workout_steps", "activity_workout_steps"),
+        ],
+    )
+    async def test_collect_and_import_activity_components_uses_contributor(
+        self,
+        key: str,
+        count_key: str,
+    ) -> None:
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -668,94 +683,26 @@ class TestImportServiceActivityComponents:
             db=mock_db,
             websocket_manager=mock_ws,
         )
+        contributor = MagicMock(key=key, count_key=count_key)
+        contributor.restore.return_value = 1
+        records = [{"activity_id": 1}]
+        new_activity = MagicMock(id=10, user_id=1)
 
-        await service.collect_and_import_activity_components(
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            1,
-            10,
-        )
-        assert service.counts.get("activity_laps", 0) == 0
-
-    async def test_collect_and_import_activity_components_with_laps(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        mock_ws = MagicMock()
-        service = profile_import_service.ImportService(
-            user_id=1,
-            db=mock_db,
-            websocket_manager=mock_ws,
-        )
-
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_laps_crud.create_activity_laps"):
-            await service.collect_and_import_activity_components(
-                [{"activity_id": 1, "lap_index": 1}],
-                [],
-                [],
-                [],
-                [],
-                [],
-                1,
-                mock_activity,
-            )
-
-        assert service.counts.get("activity_laps") == 1
-
-    async def test_collect_and_import_activity_components_with_sets(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        mock_ws = MagicMock()
-        service = profile_import_service.ImportService(
-            user_id=1,
-            db=mock_db,
-            websocket_manager=mock_ws,
-        )
-
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_sets_crud.create_activity_sets"):
-            await service.collect_and_import_activity_components(
-                [],
-                [{"activity_id": 1, "duration": 30.0, "set_type": "manual", "start_time": "2024-01-01T00:00:00"}],
-                [],
-                [],
-                [],
-                [],
-                1,
-                mock_activity,
-            )
-
-        assert service.counts.get("activity_sets") == 1
-
-    async def test_collect_and_import_activity_components_with_streams(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        mock_ws = MagicMock()
-        service = profile_import_service.ImportService(
-            user_id=1,
-            db=mock_db,
-            websocket_manager=mock_ws,
-        )
-
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch(
-            "users.users_profile.import_service.activity_streams_crud.create_activity_streams", new_callable=AsyncMock
+        with patch.object(
+            profile_import_service.contributor_registry,
+            "profile_activity_contributors",
+            return_value=(contributor,),
         ):
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [{"activity_id": 1, "stream_type": 1, "stream_waypoints": []}],
-                [],
-                [],
-                [],
+                {key: records},
                 1,
-                mock_activity,
+                new_activity,
             )
 
-        assert service.counts.get("activity_streams") == 1
+        contributor.restore.assert_called_once_with(records, 1, new_activity, mock_db)
+        assert service.counts[count_key] == 1
 
-    async def test_collect_and_import_activity_components_with_workout_steps(self) -> None:
+    async def test_collect_and_import_activity_components_passes_empty_records(self) -> None:
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -763,23 +710,21 @@ class TestImportServiceActivityComponents:
             db=mock_db,
             websocket_manager=mock_ws,
         )
+        contributor = MagicMock(key="laps", count_key="activity_laps")
+        contributor.restore.return_value = 0
+        new_activity = MagicMock(id=10, user_id=1)
 
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_workout_steps_crud.create_activity_workout_steps"):
-            await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "message_index": 0, "duration_type": "time"}],
-                [],
-                [],
-                1,
-                mock_activity,
-            )
+        with patch.object(
+            profile_import_service.contributor_registry,
+            "profile_activity_contributors",
+            return_value=(contributor,),
+        ):
+            await service.collect_and_import_activity_components({}, 1, new_activity)
 
-        assert service.counts.get("activity_workout_steps") == 1
+        contributor.restore.assert_called_once_with([], 1, new_activity, mock_db)
+        assert service.counts["activity_laps"] == 0
 
-    async def test_collect_and_import_activity_components_with_exercise_titles(self) -> None:
+    def test_restore_global_activity_components_once(self) -> None:
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -787,21 +732,28 @@ class TestImportServiceActivityComponents:
             db=mock_db,
             websocket_manager=mock_ws,
         )
+        contributor = MagicMock(
+            key="exercise_titles",
+            archive_path="data/activity_exercise_titles.json",
+            count_key="activity_exercise_titles",
+        )
+        contributor.restore.return_value = 2
+        records = [{"exercise_name": 1}, {"exercise_name": 2}]
+        zipf = MagicMock()
 
-        mock_activity = MagicMock(id=10, user_id=1)
-        with patch("users.users_profile.import_service.activity_exercise_titles_crud.create_activity_exercise_titles"):
-            await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "exercise_category": 1, "exercise_name": 1, "wkt_step_name": "Running"}],
-                1,
-                mock_activity,
-            )
+        with (
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_global_contributors",
+                return_value=(contributor,),
+            ),
+            patch.object(service, "_load_single_json", return_value=records) as load_json,
+        ):
+            service._restore_global_activity_components(zipf)
 
-        assert service.counts.get("activity_exercise_titles") == 1
+        load_json.assert_called_once_with(zipf, contributor.archive_path, check_memory=False)
+        contributor.restore.assert_called_once_with(records, mock_db)
+        assert service.counts["activity_exercise_titles"] == 2
 
 
 class TestImportServiceFromZip:
@@ -1115,28 +1067,35 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
+        records = [{"activity_id": 1, "media_path": "1_photo.jpg", "media_type": 1}]
         with (
-            patch(
-                "users.users_profile.import_service.file_uploads.resolve_storage_path",
-                return_value="/safe/path/10_photo.jpg",
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
             ),
-            patch("users.users_profile.import_service.activity_media_crud.create_activity_medias"),
+            patch.object(media_integration, "_restore_media_records") as restore_media,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "media_path": "activity_media/1_photo.jpg", "media_type": 1}],
-                [],
+                {"media": records},
                 1,
                 mock_activity,
             )
 
+        restore_media.assert_called_once()
+        assert records[0]["media_path"] == "1_photo.jpg"
         assert service.counts.get("activity_media") == 1
 
-    async def test_collect_and_import_activity_components_with_media_no_underscore(self) -> None:
+    async def test_collect_and_import_activity_components_rejects_a_key_with_a_separator(self) -> None:
+        """A key carrying a path separator is skipped.
+
+        The archive is untrusted: such a value would address a blob outside the
+        flat media area, where the deletion cleanup could never find it again.
+        """
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -1145,15 +1104,20 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.activity_media_crud.create_activity_medias") as mock_create:
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
+        with (
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
+            ),
+            patch.object(media_integration, "_restore_media_records") as mock_create,
+        ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "media_path": "activity_media/nounderscore.jpg", "media_type": 1}],
-                [],
+                {"media": [{"activity_id": 1, "media_path": "../../etc/1_passwd.jpg", "media_type": 1}]},
                 1,
                 mock_activity,
             )
@@ -1161,7 +1125,8 @@ class TestImportServiceActivityComponentsMedia:
         mock_create.assert_not_called()
         assert service.counts.get("activity_media", 0) == 0
 
-    async def test_collect_and_import_activity_components_with_media_http_exception(self) -> None:
+    async def test_collect_and_import_activity_components_with_media_invalid_key(self) -> None:
+        """A media entry whose key carries no ``{activity_id}_`` prefix is skipped."""
         mock_db = MagicMock(spec=Session)
         mock_ws = MagicMock()
         service = profile_import_service.ImportService(
@@ -1170,21 +1135,20 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
         with (
-            patch(
-                "users.users_profile.import_service.file_uploads.resolve_storage_path",
-                side_effect=HTTPException(status_code=400, detail="unsafe path"),
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
             ),
-            patch("users.users_profile.import_service.activity_media_crud.create_activity_medias") as mock_create,
+            patch.object(media_integration, "_restore_media_records") as mock_create,
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [{"activity_id": 1, "media_path": "activity_media/1_unsafe.jpg", "media_type": 1}],
-                [],
+                {"media": [{"activity_id": 1, "media_path": "nounderscore.jpg", "media_type": 1}]},
                 1,
                 mock_activity,
             )
@@ -1201,25 +1165,26 @@ class TestImportServiceActivityComponentsMedia:
             websocket_manager=mock_ws,
         )
 
+        import modules.activities.activity_media.integration_service as media_integration
+
+        contributor = media_integration.profile_contributor()
         with (
-            patch(
-                "users.users_profile.import_service.file_uploads.resolve_storage_path",
-                return_value="/safe/path/10_photo.jpg",
+            patch.object(
+                profile_import_service.contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
             ),
-            patch("users.users_profile.import_service.activity_media_crud.create_activity_medias"),
+            patch.object(media_integration, "_restore_media_records"),
         ):
             mock_activity = MagicMock(id=10, user_id=1)
             await service.collect_and_import_activity_components(
-                [],
-                [],
-                [],
-                [],
-                [
-                    {"activity_id": 1, "media_path": "activity_media/1_a.jpg", "media_type": 1},
-                    {"activity_id": 1, "media_path": "activity_media/1_b.jpg", "media_type": 1},
-                    {"activity_id": 2, "media_path": "activity_media/2_c.jpg", "media_type": 1},
-                ],
-                [],
+                {
+                    "media": [
+                        {"activity_id": 1, "media_path": "1_a.jpg", "media_type": 1},
+                        {"activity_id": 1, "media_path": "1_b.jpg", "media_type": 1},
+                        {"activity_id": 2, "media_path": "2_c.jpg", "media_type": 1},
+                    ]
+                },
                 1,
                 mock_activity,
             )
@@ -1241,7 +1206,15 @@ class TestImportServiceActivitiesDataBatched:
         zip_data = _make_zip_with_json(
             {
                 "data/activities.json": [
-                    {"id": 1, "gear_id": 5, "distance": 1000, "name": "Morning Run", "activity_type": 1},
+                    {
+                        "id": 1,
+                        "gear_id": 5,
+                        "distance": 1000,
+                        "name": "Morning Run",
+                        "activity_type": 1,
+                        "start_time": "2024-01-01T08:00:00",
+                        "end_time": "2024-01-01T09:00:00",
+                    },
                 ],
                 "data/activity_laps_000.json": [{"activity_id": 1, "lap_index": 1}],
                 "data/activity_sets_000.json": [
@@ -1261,8 +1234,7 @@ class TestImportServiceActivitiesDataBatched:
 
         with (
             patch(
-                "users.users_profile.import_service.activities_crud.create_activity",
-                new_callable=AsyncMock,
+                "modules.users.users_profile.import_service.activities_integration.restore_activity",
                 return_value=mock_new_activity,
             ),
             patch.object(service, "collect_and_import_activity_components", new_callable=AsyncMock),
@@ -1293,7 +1265,14 @@ class TestImportServiceActivitiesDataBatched:
         zip_data = _make_zip_with_json(
             {
                 "data/activities.json": [
-                    {"distance": 1000, "name": "Test", "activity_type": 1, "gear_id": 5},
+                    {
+                        "distance": 1000,
+                        "name": "Test",
+                        "activity_type": 1,
+                        "gear_id": 5,
+                        "start_time": "2024-01-01T08:00:00",
+                        "end_time": "2024-01-01T09:00:00",
+                    },
                 ],
                 "data/activity_laps_000.json": [{"activity_id": 1, "lap_index": 1}],
                 "data/activity_sets_000.json": [],
@@ -1311,8 +1290,7 @@ class TestImportServiceActivitiesDataBatched:
 
         with (
             patch(
-                "users.users_profile.import_service.activities_crud.create_activity",
-                new_callable=AsyncMock,
+                "modules.users.users_profile.import_service.activities_integration.restore_activity",
                 return_value=mock_new_activity,
             ),
             patch.object(service, "collect_and_import_activity_components", new_callable=AsyncMock) as mock_components,
@@ -1351,8 +1329,11 @@ class TestImportServiceAddActivityFiles:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_activity_file_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
+            patch(
+                "modules.users.users_profile.import_service.file_storage_integration.store_activity_file"
+            ) as mock_store,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_files_from_zip(
@@ -1362,6 +1343,7 @@ class TestImportServiceAddActivityFiles:
             )
 
         assert service.counts["activity_files"] == 1
+        mock_store.assert_called_once()
 
     async def test_add_activity_files_from_zip_no_mapping(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1380,8 +1362,8 @@ class TestImportServiceAddActivityFiles:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
-            ) as mock_save,
+                "modules.users.users_profile.import_service.file_storage_integration.store_activity_file"
+            ) as mock_store,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_files_from_zip(
@@ -1390,7 +1372,7 @@ class TestImportServiceAddActivityFiles:
                 {1: 10},
             )
 
-        mock_save.assert_not_called()
+        mock_store.assert_not_called()
         assert service.counts.get("activity_files", 0) == 0
 
     async def test_add_activity_files_from_zip_http_exception(self) -> None:
@@ -1411,9 +1393,9 @@ class TestImportServiceAddActivityFiles:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_activity_file_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.validate_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid file"),
             ),
@@ -1447,8 +1429,9 @@ class TestImportServiceAddActivityMediaFromZip:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_media_from_zip(
@@ -1458,6 +1441,10 @@ class TestImportServiceAddActivityMediaFromZip:
             )
 
         assert service.counts["media"] == 1
+        # Re-keyed onto the new activity id and written through the provider.
+        runtime.get_active_platform.return_value.storage.save.assert_called_once_with(
+            "activity_media", "10_photo.jpg", b"image-data"
+        )
 
     async def test_add_activity_media_from_zip_no_mapping(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1476,7 +1463,7 @@ class TestImportServiceAddActivityMediaFromZip:
 
         with (
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
+                "modules.users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock
             ) as mock_save,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
@@ -1507,12 +1494,13 @@ class TestImportServiceAddActivityMediaFromZip:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.validate_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid image"),
             ),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_activity_media_from_zip(
@@ -1522,6 +1510,8 @@ class TestImportServiceAddActivityMediaFromZip:
             )
 
         assert service.counts.get("media", 0) == 0
+        # A rejected image is never stored.
+        runtime.get_active_platform.return_value.storage.save.assert_not_called()
 
     async def test_add_activity_media_from_zip_value_error(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1567,13 +1557,19 @@ class TestImportServiceAddUserImages:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("users.users_profile.import_service.file_uploads.save_validated_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes", new_callable=AsyncMock),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_user_images_from_zip(z, {"user_images/old_photo.jpg"})
 
         assert service.counts["user_images"] == 1
+        # The archive's filename is discarded: the key is minted for the
+        # importing user so a crafted ZIP cannot write over someone else's blob.
+        runtime.get_active_platform.return_value.storage.save.assert_called_once_with(
+            "user_images", "1.jpg", b"image-data"
+        )
 
     async def test_add_user_images_from_zip_http_exception(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -1593,17 +1589,19 @@ class TestImportServiceAddUserImages:
         mock_validator = MagicMock()
         mock_validator.config.limits.max_image_size = 1000000
         with (
-            patch("users.users_profile.import_service.file_uploads.file_validator", mock_validator),
+            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
             patch(
-                "users.users_profile.import_service.file_uploads.save_validated_bytes",
+                "modules.users.users_profile.import_service.file_uploads.validate_bytes",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(status_code=400, detail="invalid image"),
             ),
+            patch("modules.users.users_profile.import_service.platform_runtime") as runtime,
             zipfile.ZipFile(BytesIO(zip_data)) as z,
         ):
             await service.add_user_images_from_zip(z, {"user_images/old_photo.jpg"})
 
         assert service.counts.get("user_images", 0) == 0
+        runtime.get_active_platform.return_value.storage.save.assert_not_called()
 
 
 class TestImportServiceHealthEmptyBranches:
@@ -1621,10 +1619,10 @@ class TestImportServiceHealthEmptyBranches:
 
         with (
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=mock_target,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
         ):
             await service.collect_and_import_health_weight([], [{"weight": 80.0}])
 
@@ -1641,14 +1639,15 @@ class TestImportServiceHealthEmptyBranches:
         )
 
         with (
-            patch("users.users_profile.import_service.health_weight_crud.create_health_weight"),
+            patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"),
             patch(
-                "users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
+                "modules.users.users_profile.import_service.health_targets_crud.get_health_targets_by_user_id",
                 return_value=None,
             ),
-            patch("users.users_profile.import_service.health_targets_crud.edit_health_target"),
+            patch("modules.users.users_profile.import_service.health_targets_crud.edit_health_target"),
             patch(
-                "users.users_profile.import_service.health_targets_schema.HealthTargetsUpdate", return_value=MagicMock()
+                "modules.users.users_profile.import_service.health_targets_schema.HealthTargetsUpdate",
+                return_value=MagicMock(),
             ),
         ):
             await service.collect_and_import_health_weight(
@@ -1668,7 +1667,7 @@ class TestImportServiceHealthEmptyBranches:
             websocket_manager=mock_ws,
         )
 
-        with patch("users.users_profile.import_service.health_weight_crud.create_health_weight"):
+        with patch("modules.users.users_profile.import_service.health_weight_crud.create_health_weight"):
             await service.collect_and_import_health_weight([{"weight": 75.5}], [])
 
         assert service.counts["health_weight"] == 1

@@ -1,6 +1,10 @@
 import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
+import { todayIsoDate } from '@/utils/datetime'
+
+/** Job handle returned by the refresh endpoint; polled via `fetchIngestionJob`. */
+type ActivityIngestionJob = Schemas['ActivityIngestionJob']
 
 import type {
   ActivitiesPage,
@@ -10,6 +14,7 @@ import type {
   ActivityEditInput,
   ActivityExerciseTitle,
   ActivityExerciseTitleDto,
+  ActivityFeedSlice,
   ActivityLap,
   ActivityLapDto,
   ActivitySetDto,
@@ -36,6 +41,44 @@ function resourcePath(authenticated: boolean, authedPath: string, publicPath: st
   return authenticated ? authedPath : publicPath
 }
 
+/** One page of an activity child collection, as the API returns it. */
+interface ChildPage<T> {
+  items: T[] | null
+  /** Next page number, or `null`/absent on the last page. */
+  next?: number | null
+}
+
+/**
+ * Reads every page of an activity child collection (laps, sets, workout steps,
+ * streams).
+ *
+ * These reads are paginated server-side so a single request cannot ask for an
+ * unbounded number of rows. The views want the whole collection, so this walks
+ * the pages the server advertises via `next` rather than silently rendering only
+ * the first one — in practice a single request, since the default page size
+ * covers any realistic activity.
+ *
+ * @param path - The collection path, without pagination query parameters.
+ * @param context - Auth + cancellation context.
+ * @returns Every row across all pages, in server order.
+ */
+async function fetchAllChildPages<T>(path: string, context: ActivityFetchContext): Promise<T[]> {
+  const rows: T[] = []
+  let page: number | null = 1
+
+  while (page !== null) {
+    const separator = path.includes('?') ? '&' : '?'
+    const dto: ChildPage<T> = await apiFetch<ChildPage<T>>(
+      `${path}${separator}page_number=${page}`,
+      { auth: context.authenticated, signal: context.signal },
+    )
+    rows.push(...(dto?.items ?? []))
+    page = dto?.next ?? null
+  }
+
+  return rows
+}
+
 /**
  * Maps an activity DTO to the clean camelCase domain model, collapsing the
  * nullable wire fields into stable defaults.
@@ -54,8 +97,13 @@ export function mapActivity(dto: ActivityDto): Activity {
     visibility: dto.visibility ?? 0,
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
+    version: dto.version ?? null,
 
-    startTime: dto.start_time_tz_applied ?? dto.start_time ?? null,
+    // The UTC instant plus the recording timezone. Views localize for display
+    // via `formatZonedDateTime`, so the athlete's own wall clock is shown to
+    // every viewer regardless of where they are.
+    startTime: dto.start_time ?? null,
+    timezone: dto.timezone ?? null,
     city: dto.city ?? null,
     town: dto.town ?? null,
     country: dto.country ?? null,
@@ -216,22 +264,20 @@ export async function searchActivitiesByName(
   name: string,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(
-    `/activities/name/contains/${encodeURIComponent(name)}`,
-    { signal },
-  )
-  return (dtos ?? []).map(mapActivity)
+  const params = new URLSearchParams({ name })
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities?${params.toString()}`, {
+    signal,
+  })
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** A timeframe accepted by the activity stats endpoints. */
 export type ActivityStatsTimeframe = 'week' | 'month'
 
 /**
- * Fetches one page of a user's own activities for the home feed, newest first.
- * Authenticated-only; the backend scopes the result to the viewer's followees
- * and visibility rules.
+ * Fetches one page of the authenticated viewer's own activities for the home
+ * feed, newest first.
  *
- * @param userId - The feed owner's user id (the authenticated viewer).
  * @param page - 1-based page number.
  * @param numRecords - Page size.
  * @param signal - Optional abort signal for cancellation.
@@ -239,40 +285,87 @@ export type ActivityStatsTimeframe = 'week' | 'month'
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserActivities(
-  userId: number,
   page: number,
   numRecords: number,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(
-    `/activities/user/${userId}/page_number/${page}/num_records/${numRecords}`,
-    { signal },
-  )
-  return (dtos ?? []).map(mapActivity)
+  const params = new URLSearchParams({
+    page_number: String(page),
+    num_records: String(numRecords),
+  })
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities?${params.toString()}`, {
+    signal,
+  })
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /**
- * Fetches one page of activities from the people a user follows, newest first.
- * Authenticated-only.
+ * Fetches one slice of activities from the people the viewer follows (the
+ * following feed), newest first. Authenticated-only.
  *
- * @param userId - The viewer's user id.
- * @param page - 1-based page number.
- * @param numRecords - Page size.
+ * Keyset- rather than offset-paginated: the feed takes inserts at the head
+ * continuously, so paging by offset would repeat the boundary activity and skip
+ * whatever it displaced.
+ *
+ * @param cursor - Opaque cursor from the previous slice, or null to start.
+ * @param numRecords - Slice size.
  * @param signal - Optional abort signal for cancellation.
- * @returns The page's activities, mapped to the clean model.
+ * @returns The slice's activities plus the cursor for the next one.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersActivities(
-  userId: number,
-  page: number,
+  cursor: string | null,
   numRecords: number,
   signal?: AbortSignal,
-): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(
-    `/activities/user/${userId}/followed/page_number/${page}/num_records/${numRecords}`,
+): Promise<ActivityFeedSlice> {
+  const params = new URLSearchParams({ num_records: String(numRecords) })
+  if (cursor) {
+    params.set('cursor', cursor)
+  }
+  const slice = await apiFetch<Schemas['CursorPage_Activity_']>(
+    `/activities/feed?${params.toString()}`,
     { signal },
   )
-  return (dtos ?? []).map(mapActivity)
+  return {
+    items: (slice.items ?? []).map(mapActivity),
+    nextCursor: slice.next_cursor ?? null,
+  }
+}
+
+/** Formats a `Date` as a `YYYY-MM-DD` string using its local calendar fields. */
+function isoDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Computes the inclusive Monday–Sunday date range for an ISO-week offset, where
+ * `0` is the current week and each increment steps one week into the past.
+ *
+ * Uses the viewer's **local** calendar. Reading UTC fields meant a user far
+ * enough east or west was shown the neighbouring week for part of every day —
+ * for someone at UTC+13, all of Monday morning belonged to "last week".
+ */
+function weekDateRange(weekOffset: number): { startDate: string; endDate: string } {
+  const now = new Date()
+  const mondayIndex = (now.getDay() + 6) % 7 // 0 = Monday
+  const monday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - mondayIndex - weekOffset * 7,
+  )
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  return { startDate: isoDate(monday), endDate: isoDate(sunday) }
+}
+
+/** Computes the inclusive first-of-month → today date range in the viewer's local calendar. */
+function currentMonthRange(): { startDate: string; endDate: string } {
+  const now = new Date()
+  const first = new Date(now.getFullYear(), now.getMonth(), 1)
+  return { startDate: isoDate(first), endDate: isoDate(now) }
 }
 
 /**
@@ -292,10 +385,17 @@ export async function fetchUserWeekActivities(
   week: number,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>(`/activities/user/${userId}/week/${week}`, {
-    signal,
+  const { startDate, endDate } = weekDateRange(week)
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+    num_records: '200',
   })
-  return (dtos ?? []).map(mapActivity)
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(
+    `/activities/users/${userId}?${params.toString()}`,
+    { signal },
+  )
+  return (page_.items ?? []).map(mapActivity)
 }
 
 /** Backend-validated sortable columns for the user activities list. */
@@ -361,46 +461,37 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
   }
   const name = filters.nameSearch?.trim()
   if (name) {
-    params.set('name_search', name)
+    params.set('name', name)
   }
 }
 
 /**
  * Fetches one filtered, sorted page of a user's own activities together with the
- * total matching count, powering the activities list view. The list and count
- * requests run in parallel and share the same filters; only the list request
- * carries the paging and sort parameters. Authenticated-only.
+ * total matching count, powering the activities list view. The backend returns
+ * both in a single page envelope, so the filters cannot drift between a list and
+ * a separate count request. Authenticated-only.
  *
  * @param params - The list owner, page, size, filters, and sort.
  * @param signal - Optional abort signal for cancellation.
  * @returns The page's activities (mapped) plus the total matching count.
- * @throws {HttpError} When either request fails.
+ * @throws {HttpError} When the request fails.
  */
 export async function fetchUserActivitiesPage(
-  { userId, page, numRecords, filters, sortBy, sortOrder }: ActivityListParams,
+  { page, numRecords, filters, sortBy, sortOrder }: ActivityListParams,
   signal?: AbortSignal,
 ): Promise<ActivitiesPage> {
   const listParams = new URLSearchParams()
   appendActivityFilters(listParams, filters)
   listParams.set('sort_by', sortBy)
   listParams.set('sort_order', sortOrder)
+  listParams.set('page_number', String(page))
+  listParams.set('num_records', String(numRecords))
 
-  const countParams = new URLSearchParams()
-  appendActivityFilters(countParams, filters)
-  const countQuery = countParams.toString()
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(`/activities?${listParams.toString()}`, {
+    signal,
+  })
 
-  const [dtos, total] = await Promise.all([
-    apiFetch<ActivityDto[] | null>(
-      `/activities/user/${userId}/page_number/${page}/num_records/${numRecords}?${listParams.toString()}`,
-      { signal },
-    ),
-    apiFetch<number | null>(
-      countQuery ? `/activities/number?${countQuery}` : '/activities/number',
-      { signal },
-    ),
-  ])
-
-  return { records: (dtos ?? []).map(mapActivity), total: total ?? 0 }
+  return { records: (page_.items ?? []).map(mapActivity), total: page_.total }
 }
 
 /**
@@ -448,6 +539,9 @@ export async function fetchUserActivityTypeCodes(signal?: AbortSignal): Promise<
  * Fetches a user's per-sport aggregated stats for the current week or month,
  * powering the home dashboard's distance/time/calories summary.
  *
+ * Sends the viewer's local calendar date so the backend resolves "this week" /
+ * "this month" against their calendar rather than the server's UTC one.
+ *
  * @param userId - The user whose stats to fetch.
  * @param timeframe - `week` (this week) or `month` (this month).
  * @param signal - Optional abort signal for cancellation.
@@ -459,10 +553,11 @@ export async function fetchActivityStats(
   timeframe: ActivityStatsTimeframe,
   signal?: AbortSignal,
 ): Promise<ActivityStats> {
-  const window = timeframe === 'week' ? 'thisweek' : 'thismonth'
-  const stats = await apiFetch<ActivityStats | null>(`/activities/user/${userId}/${window}/stats`, {
-    signal,
-  })
+  const params = new URLSearchParams({ period: timeframe, date: todayIsoDate() })
+  const stats = await apiFetch<ActivityStats | null>(
+    `/activities/users/${userId}/stats?${params.toString()}`,
+    { signal },
+  )
   return stats ?? {}
 }
 
@@ -479,23 +574,36 @@ export async function fetchUserThisMonthActivityCount(
   userId: number,
   signal?: AbortSignal,
 ): Promise<number> {
-  const count = await apiFetch<number | null>(`/activities/user/${userId}/thismonth/number`, {
-    signal,
+  const { startDate, endDate } = currentMonthRange()
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+    num_records: '200',
   })
-  return count ?? 0
+  const page_ = await apiFetch<Schemas['Page_Activity_']>(
+    `/activities/users/${userId}?${params.toString()}`,
+    { signal },
+  )
+  // The envelope's total is the real match count. This previously returned the
+  // length of the returned page, so any week with more than num_records
+  // activities under-reported.
+  return page_.total
 }
 
 /**
- * Triggers a refresh of the viewer's linked-integration activities (Strava /
- * Garmin Connect) and returns the freshly imported ones. Authenticated-only.
+ * Queues a refresh of the viewer's linked-integration activities (Strava /
+ * Garmin Connect). Authenticated-only.
+ *
+ * Resolves as soon as the sync is queued, not when it finishes: the endpoint
+ * answers `202` and pulls the providers on a background worker, so the caller
+ * must poll `fetchIngestionJob` for the outcome.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns The newly imported activities, mapped to the clean model.
+ * @returns The accepted refresh job, in the pending state.
  * @throws {HttpError} When the request fails.
  */
-export async function refreshActivities(signal?: AbortSignal): Promise<Activity[]> {
-  const dtos = await apiFetch<ActivityDto[] | null>('/activities/refresh', { signal })
-  return (dtos ?? []).map(mapActivity)
+export async function refreshActivities(signal?: AbortSignal): Promise<ActivityIngestionJob> {
+  return apiFetch<ActivityIngestionJob>('/activities/refresh', { method: 'POST', signal })
 }
 
 /**
@@ -511,14 +619,11 @@ export async function fetchActivityStreams(
 ): Promise<ActivityStream[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_streams/activity_id/${id}/all`,
-    `/public/activities_streams/activity_id/${id}/all`,
+    `/activities/${id}/streams`,
+    `/public/activities/${id}/streams`,
   )
-  const dtos = await apiFetch<ActivityStreamDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityStream)
+  const dtos = await fetchAllChildPages<ActivityStreamDto>(path, context)
+  return dtos.map(mapActivityStream)
 }
 
 /**
@@ -534,14 +639,11 @@ export async function fetchActivityLaps(
 ): Promise<ActivityLap[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_laps/activity_id/${id}/all`,
-    `/public/activities_laps/activity_id/${id}/all`,
+    `/activities/${id}/laps`,
+    `/public/activities/${id}/laps`,
   )
-  const dtos = await apiFetch<ActivityLapDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityLap)
+  const dtos = await fetchAllChildPages<ActivityLapDto>(path, context)
+  return dtos.map(mapActivityLap)
 }
 
 /**
@@ -610,14 +712,11 @@ export async function fetchActivityWorkoutSteps(
 ): Promise<ActivityWorkoutStep[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_workout_steps/activity_id/${id}/all`,
-    `/public/activities_workout_steps/activity_id/${id}/all`,
+    `/activities/${id}/workout-steps`,
+    `/public/activities/${id}/workout-steps`,
   )
-  const dtos = await apiFetch<ActivityWorkoutStepDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityWorkoutStep)
+  const dtos = await fetchAllChildPages<ActivityWorkoutStepDto>(path, context)
+  return dtos.map(mapActivityWorkoutStep)
 }
 
 /**
@@ -633,14 +732,11 @@ export async function fetchActivitySets(
 ): Promise<ActivityWorkoutSet[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_sets/activity_id/${id}/all`,
-    `/public/activities_sets/activity_id/${id}/all`,
+    `/activities/${id}/sets`,
+    `/public/activities/${id}/sets`,
   )
-  const dtos = await apiFetch<ActivitySetDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivitySet)
+  const dtos = await fetchAllChildPages<ActivitySetDto>(path, context)
+  return dtos.map(mapActivitySet)
 }
 
 /**
@@ -656,8 +752,8 @@ export async function fetchActivityExerciseTitles(
 ): Promise<ActivityExerciseTitle[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities_exercise_titles/all`,
-    `/public/activities_exercise_titles/all`,
+    `/activities/exercise-titles/all`,
+    `/public/activities/exercise-titles/all`,
   )
   const dtos = await apiFetch<ActivityExerciseTitleDto[] | null>(path, {
     auth: context.authenticated,
@@ -667,29 +763,37 @@ export async function fetchActivityExerciseTitles(
 }
 
 /**
- * Sets the gear associated with an activity, or clears it when `gearId` is
- * `null`. The backend `PUT /activities/edit` applies a partial update, but the
- * `ActivityEdit` contract requires `id`, `name`, and `activity_type`, so those
- * are sent alongside the gear (mirroring v1's editActivity payload).
+ * Builds the conditional-write headers for an activity mutation.
  *
- * @param activity - The activity to update (supplies the required fields).
+ * Without `If-Match` the write is last-writer-wins: the edit form posts every
+ * field it holds, so saving a copy loaded before someone else's change silently
+ * reverts that change.
+ *
+ * @param version - The row version the caller's copy was read at.
+ * @returns The headers to merge into the request, empty when no version is known.
+ */
+function ifMatchHeaders(version: number | null | undefined): HeadersInit {
+  return version == null ? {} : { 'If-Match': `"${version}"` }
+}
+
+/**
+ * Sets the gear associated with an activity, or clears it when `gearId` is
+ * `null`, via a partial `PATCH /activities/{id}` update.
+ *
+ * @param activity - The activity to update (supplies its id and version).
  * @param gearId - The gear to associate, or `null` to remove the association.
  * @returns The updated activity domain model.
- * @throws {HttpError} When the update fails.
+ * @throws {HttpError} When the update fails, including 412 when the copy is stale.
  */
 export async function setActivityGear(
   activity: Activity,
   gearId: number | null,
 ): Promise<Activity> {
-  const body: ActivityEditDto = {
-    id: activity.id,
-    name: activity.name,
-    activity_type: activity.activityType,
-    gear_id: gearId,
-  }
-  const dto = await apiFetch<ActivityDto>('/activities/edit', {
-    method: 'PUT',
+  const body: ActivityEditDto = { gear_id: gearId }
+  const dto = await apiFetch<ActivityDto>(`/activities/${activity.id}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
+    headers: ifMatchHeaders(activity.version),
   })
   return mapActivity(dto)
 }
@@ -701,7 +805,20 @@ export async function setActivityGear(
  * @throws {HttpError} When the delete fails (e.g. not found or not owned).
  */
 export async function deleteActivity(id: number): Promise<void> {
-  await apiFetch(`/activities/${id}/delete`, { method: 'DELETE' })
+  await apiFetch(`/activities/${id}`, { method: 'DELETE' })
+}
+
+/**
+ * Wire values the backend stores for each visibility level.
+ *
+ * The activities API works in these integers while the profile UI works in the
+ * `ActivityVisibility` names, so the translation has to happen somewhere. It
+ * belongs here, at the one call site that talks to the activities endpoint.
+ */
+const VISIBILITY_TO_WIRE: Record<Schemas['ActivityVisibility'], number> = {
+  public: 0,
+  followers: 1,
+  private: 2,
 }
 
 /**
@@ -714,26 +831,31 @@ export async function deleteActivity(id: number): Promise<void> {
 export async function updateUserActivitiesVisibility(
   visibility: Schemas['ActivityVisibility'],
 ): Promise<void> {
-  await apiFetch<void>(`/activities/visibility/${visibility}`, {
-    method: 'PUT',
+  await apiFetch<void>('/activities', {
+    method: 'PATCH',
+    body: JSON.stringify({ visibility: VISIBILITY_TO_WIRE[visibility] }),
     responseType: 'void',
   })
 }
 
 /**
- * Applies a full edit to an activity. Empty description / private notes are sent
- * as `null` to clear them. `id`, `name`, and `activity_type` are required by the
- * `ActivityEdit` contract; the remaining fields are sent so the partial update
- * (backend `exclude_unset`) applies every editable value, mirroring v1.
+ * Applies a full edit to an activity via `PATCH /activities/{id}`. Empty
+ * description / private notes are sent as `null` to clear them; the remaining
+ * fields are sent so the partial update (backend `exclude_unset`) applies every
+ * editable value, mirroring v1.
  *
  * @param id - Activity identifier.
  * @param input - The edited field values from the form.
+ * @param version - The row version the form was loaded at, for `If-Match`.
  * @returns The updated activity domain model.
- * @throws {HttpError} When the update fails.
+ * @throws {HttpError} When the update fails, including 412 when the copy is stale.
  */
-export async function editActivity(id: number, input: ActivityEditInput): Promise<Activity> {
+export async function editActivity(
+  id: number,
+  input: ActivityEditInput,
+  version?: number | null,
+): Promise<Activity> {
   const body: ActivityEditDto = {
-    id,
     name: input.name,
     activity_type: input.activityType,
     description: input.description.trim() ? input.description : null,
@@ -753,9 +875,10 @@ export async function editActivity(id: number, input: ActivityEditInput): Promis
     hide_workout_sets_steps: input.hideWorkoutSetsSteps,
     hide_gear: input.hideGear,
   }
-  const dto = await apiFetch<ActivityDto>('/activities/edit', {
-    method: 'PUT',
+  const dto = await apiFetch<ActivityDto>(`/activities/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
+    headers: ifMatchHeaders(version),
   })
   return mapActivity(dto)
 }

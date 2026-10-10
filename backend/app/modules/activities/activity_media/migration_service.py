@@ -1,0 +1,10 @@
+"""Version-pinned activity-media operations exposed only to data migrations."""
+
+import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.signing as activity_media_signing
+
+MEDIA_STORAGE_AREA = activity_media_signing.MEDIA_STORAGE_AREA
+get_all_activity_media = activity_media_crud.get_all_activity_media
+get_media_with_legacy_path = activity_media_crud.get_media_with_legacy_path
+edit_activity_media_media_path = activity_media_crud.edit_activity_media_media_path
+delete_activity_media = activity_media_crud.delete_activity_media

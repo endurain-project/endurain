@@ -1,9 +1,16 @@
 {
   "addActivity": "Add activity",
   "upload": {
-    "uploading": "Uploading…",
+    "uploading": "Importing…",
     "success": "Activity uploaded successfully",
-    "error": "Could not upload the activity file"
+    "error": "Could not upload the activity file",
+    "timeout": "Your file is still importing. It will appear once it finishes.",
+    "failed": {
+      "unsupported_format": "That file type is not supported",
+      "invalid_file": "That file could not be read",
+      "no_activities_found": "No activity was found in that file",
+      "processing_failed": "Could not import the activity file"
+    }
   },
   "refresh": {
     "label": "Refresh",

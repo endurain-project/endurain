@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Sakrij serije i korake treninga",
     "hideGear": "Sakrij opremu",
     "success": "Aktivnost je ažurirana",
-    "error": "Nije moguće ažurirati aktivnost"
+    "error": "Nije moguće ažurirati aktivnost",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ova aktivnost je skrivena. Samo vi je možete videti.",

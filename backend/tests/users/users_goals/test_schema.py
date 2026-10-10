@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-import users.users_goals.schema as user_goals_schema
+import modules.users.users_goals.schema as user_goals_schema
 
 
 class TestIntervalEnum:

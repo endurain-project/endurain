@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Switch } from '@/components/ui/switch'
+import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
 import { useEditActivityMutation } from '@/features/activities/composables/useActivityDetail'
 import { ACTIVITY_TYPE_LABEL_KEYS } from '@/features/activities/utils/activityType'
@@ -98,10 +99,22 @@ async function submit(): Promise<void> {
     return
   }
   try {
-    await editMutation.mutateAsync({ id: props.activity.id, input: { ...form } })
+    await editMutation.mutateAsync({
+      id: props.activity.id,
+      input: { ...form },
+      version: props.activity.version,
+    })
     open.value = false
     toasts.success(t('activities.edit.success'))
-  } catch {
+  } catch (error) {
+    // 412 is not a failure to save, it is a refusal to overwrite: the form was
+    // built from a copy that someone else has since changed. Saying so lets the
+    // user reopen the (now refreshed) activity instead of retrying blindly.
+    if (error instanceof HttpError && error.status === 412) {
+      open.value = false
+      toasts.error(t('activities.edit.staleError'))
+      return
+    }
     toasts.error(t('activities.edit.error'))
   }
 }

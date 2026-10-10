@@ -5,13 +5,17 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
-    import followers.router as router
-    import users.users.dependencies as users_deps
+    import core.exceptions as core_exceptions
+    import modules.auth.dependencies as auth_deps
+    import modules.followers.router as router
+    import modules.users.users.dependencies as users_deps
 
     app = FastAPI()
     app.include_router(router.router)
+    # Same domain-error boundary the real app registers, so these tests assert
+    # the status codes clients actually receive.
+    core_exceptions.register_exception_handlers(app)
 
     def _mock():
         return None
@@ -28,125 +32,252 @@ def _build_app(mock_db):
 
 
 class TestGetUserFollowers:
-    @patch("followers.router.followers_crud.get_all_followers_by_user_id")
-    def test_all_success(self, mock_get, mock_db):
-        from followers.schema import Follower
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    def test_self_success(self, mock_get, mock_count, mock_db):
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
+        mock_get.return_value = [FollowRelationship(follower_id=3, followee_id=1, status="accepted")]
+        mock_count.return_value = 1
 
-        response = client.get("/user/1/followers/all", headers={"Authorization": "Bearer x"})
+        # Requester (1) == target (1): always allowed.
+        response = client.get("/users/1/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        # The list is a page envelope, matching the activities list endpoints.
+        body = response.json()
+        assert body["total"] == 1
+        assert body["page"] == 1
+        assert body["next"] is None
+        assert len(body["items"]) == 1
 
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    def test_pagination_is_passed_through_and_next_is_derived(self, mock_get, mock_count, mock_db):
+        from modules.followers.schema import FollowRelationship
 
-class TestGetUserFollowerCount:
-    @patch("followers.router.followers_crud.count_followers_by_user_id")
-    def test_count_all(self, mock_count, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_count.return_value = 5
+        mock_get.return_value = [FollowRelationship(follower_id=3, followee_id=1, status="accepted")]
+        mock_count.return_value = 40
 
-        response = client.get("/user/1/followers/count/all", headers={"Authorization": "Bearer x"})
+        response = client.get(
+            "/users/1/followers?page_number=2&num_records=10",
+            headers={"Authorization": "Bearer x"},
+        )
+
         assert response.status_code == 200
-        assert response.json() == 5
+        assert mock_get.call_args.kwargs == {"page_number": 2, "num_records": 10, "accepted_only": False}
+        # 2 * 10 < 40, so another page exists.
+        assert response.json()["next"] == 3
 
-    @patch("followers.router.followers_crud.count_followers_by_user_id")
-    def test_count_accepted(self, mock_count, mock_db):
+    def test_page_size_is_capped(self, mock_db):
+        response = TestClient(_build_app(mock_db)).get(
+            "/users/1/followers?num_records=5000",
+            headers={"Authorization": "Bearer x"},
+        )
+        assert response.status_code == 422
+
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_stranger_forbidden(self, mock_rel, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_count.return_value = 3
+        mock_rel.return_value = None  # requester is not an accepted follower of the target
 
-        response = client.get("/user/1/followers/count/accepted", headers={"Authorization": "Bearer x"})
+        response = client.get("/users/2/followers", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_accepted_follower_allowed(self, mock_rel, mock_get, mock_count, mock_db):
+        from modules.followers.schema import FollowRelationship
+
+        client = TestClient(_build_app(mock_db))
+        # Requester (1) is an accepted follower of target (2).
+        mock_rel.return_value = FollowRelationship(follower_id=1, followee_id=2, status="accepted")
+        mock_get.return_value = []
+        mock_count.return_value = 0
+
+        response = client.get("/users/2/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() == 3
 
 
 class TestGetUserFollowing:
-    @patch("followers.router.followers_crud.get_all_following_by_user_id")
-    def test_all_success(self, mock_get, mock_db):
-        from followers.schema import Follower
+    @patch("modules.followers.crud.count_following_by_user_id")
+    @patch("modules.followers.crud.get_all_following_by_user_id")
+    def test_self_success(self, mock_get, mock_count, mock_db):
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [Follower(follower_id=1, following_id=2, is_accepted=True)]
+        mock_get.return_value = [FollowRelationship(follower_id=1, followee_id=2, status="accepted")]
+        mock_count.return_value = 1
 
-        response = client.get("/user/1/following/all", headers={"Authorization": "Bearer x"})
+        # Requester (1) == target (1): always allowed.
+        response = client.get("/users/1/following", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        assert response.json()["total"] == 1
 
-
-class TestGetUserFollowingCount:
-    @patch("followers.router.followers_crud.count_following_by_user_id")
-    def test_count_all(self, mock_count, mock_db):
+    @patch("modules.followers.crud.get_all_following_by_user_id")
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_stranger_forbidden(self, mock_rel, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_count.return_value = 5
+        mock_rel.return_value = None
 
-        response = client.get("/user/1/following/count/all", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() == 5
-
-    @patch("followers.router.followers_crud.count_following_by_user_id")
-    def test_count_accepted(self, mock_count, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_count.return_value = 3
-
-        response = client.get("/user/1/following/count/accepted", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() == 3
+        response = client.get("/users/2/following", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
 
 
-class TestReadFollowerSpecificUser:
-    @patch("followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
+class TestReadUserRelationship:
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
     def test_success(self, mock_get, mock_db):
-        from followers.schema import Follower
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = Follower(follower_id=1, following_id=2, is_accepted=True)
+        mock_get.return_value = FollowRelationship(follower_id=1, followee_id=2, status="accepted")
 
-        response = client.get("/user/1/targetUser/2", headers={"Authorization": "Bearer x"})
+        response = client.get("/users/2/relationship", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        body = response.json()
+        assert body["outgoing"]["followee_id"] == 2
+        assert body["incoming"]["followee_id"] == 2
 
-    @patch("followers.router.followers_crud.get_follower_for_user_id_and_target_user_id")
-    def test_not_found(self, mock_get, mock_db):
+    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
+    def test_no_relationship(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
 
-        response = client.get("/user/1/targetUser/999", headers={"Authorization": "Bearer x"})
+        response = client.get("/users/2/relationship", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
-        assert response.json() is None
+        body = response.json()
+        assert body["outgoing"] is None
+        assert body["incoming"] is None
 
 
-class TestCreateFollow:
-    @patch("followers.router.websocket_manager.get_websocket_manager")
-    @patch("followers.router.followers_crud.create_follower")
-    async def test_create_success(self, mock_create, mock_ws, mock_db):
-        from followers.schema import Follower
+class TestFollowUser:
+    @patch("modules.followers.service.follow_user")
+    def test_success(self, mock_follow, mock_db):
+        from modules.followers.schema import FollowRelationship
 
         client = TestClient(_build_app(mock_db))
-        mock_create.return_value = Follower(follower_id=1, following_id=2, is_accepted=False)
+        mock_follow.return_value = FollowRelationship(follower_id=1, followee_id=2, status="pending")
 
-        response = client.post("/create/targetUser/2", headers={"Authorization": "Bearer x"})
+        response = client.post("/users/2/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 201
+        mock_follow.assert_called_once_with(1, 2, mock_db)
 
 
-class TestAcceptFollow:
-    @patch("followers.router.websocket_manager.get_websocket_manager")
-    @patch("followers.router.followers_crud.accept_follower")
-    async def test_accept_success(self, mock_accept, mock_ws, mock_db):
+class TestListFollowRequests:
+    @patch("modules.followers.crud.count_pending_requests_for_user_id")
+    @patch("modules.followers.crud.get_pending_requests_for_user_id")
+    def test_lists_only_the_callers_requests(self, mock_get, mock_count, mock_db):
+        """There is no user id in the path, so no other inbox is addressable."""
+        from modules.followers.schema import FollowRelationship
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = [FollowRelationship(follower_id=3, followee_id=1, status="pending")]
+        mock_count.return_value = 1
+
+        response = client.get("/follow-requests", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 200
+        assert response.json()["total"] == 1
+        assert mock_get.call_args.args[0] == 1
+
+
+class TestAcceptFollowRequest:
+    @patch("modules.followers.service.accept_follow_request")
+    def test_accept(self, mock_accept, mock_db):
+        import modules.followers.schema as followers_schema
+
+        # The response must be the row as persisted, not one built from the
+        # request body — a fabricated body could claim a state the DB lacks.
+        mock_accept.return_value = followers_schema.FollowRelationship(
+            follower_id=2, followee_id=1, status=followers_schema.FollowStatus.ACCEPTED
+        )
         client = TestClient(_build_app(mock_db))
 
-        response = client.put("/accept/targetUser/2", headers={"Authorization": "Bearer x"})
+        response = client.patch(
+            "/follow-requests/2", json={"status": "accepted"}, headers={"Authorization": "Bearer x"}
+        )
+
         assert response.status_code == 200
-        assert response.json()["detail"] == "Follower accepted successfully"
+        assert response.json() == {"follower_id": 2, "followee_id": 1, "status": "accepted"}
+        mock_accept.assert_called_once_with(1, 2, mock_db)
 
-
-class TestDeleteFollower:
-    @patch("followers.router.followers_crud.delete_follower")
-    def test_delete_follower_success(self, mock_delete, mock_db):
+    @patch("modules.followers.service.accept_follow_request")
+    def test_rejects_an_unsupported_transition(self, mock_accept, mock_db):
+        """``pending`` is not a decision; only ``accepted`` may be written."""
         client = TestClient(_build_app(mock_db))
 
-        response = client.delete("/delete/follower/targetUser/2", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
+        response = client.patch("/follow-requests/2", json={"status": "pending"}, headers={"Authorization": "Bearer x"})
 
-    @patch("followers.router.followers_crud.delete_follower")
-    def test_delete_following_success(self, mock_delete, mock_db):
+        assert response.status_code == 422
+        mock_accept.assert_not_called()
+
+    @patch("modules.followers.service.accept_follow_request")
+    def test_rejects_an_unknown_field(self, mock_accept, mock_db):
+        """Mass-assignment guard: an unrecognized field 422s instead of being
+        silently ignored."""
         client = TestClient(_build_app(mock_db))
 
-        response = client.delete("/delete/following/targetUser/2", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
+        response = client.patch(
+            "/follow-requests/2",
+            json={"status": "accepted", "followee_id": 99},
+            headers={"Authorization": "Bearer x"},
+        )
+
+        assert response.status_code == 422
+        mock_accept.assert_not_called()
+
+
+class TestRejectFollowRequest:
+    @patch("modules.followers.service.reject_follow_request")
+    def test_success(self, mock_reject, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete("/follow-requests/2", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 204
+        mock_reject.assert_called_once_with(1, 2, mock_db)
+
+
+class TestDeleteFollowRelationship:
+    @patch("modules.followers.service.delete_relationship")
+    def test_unfollowing_is_the_caller_as_follower(self, mock_delete, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete("/users/2/followers/1", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 204
+        mock_delete.assert_called_once_with(2, 1, 1, mock_db)
+
+    @patch("modules.followers.service.delete_relationship")
+    def test_removing_a_follower_is_the_caller_as_followee(self, mock_delete, mock_db):
+        """Same route, opposite direction — previously two endpoints told apart
+        only by a singular/plural path segment."""
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete("/users/1/followers/2", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 204
+        mock_delete.assert_called_once_with(1, 2, 1, mock_db)
+
+    def test_a_third_party_cannot_delete_someone_elses_relationship(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete("/users/2/followers/3", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 403
+
+
+class TestRemovedCountEndpoints:
+    def test_counts_are_gone(self, mock_db):
+        """``total`` on the page envelope replaced them, for the same filter."""
+        client = TestClient(_build_app(mock_db))
+
+        for path in ("/users/1/followers/count", "/users/1/following/count"):
+            # 405 rather than 404 for the followers path: it now matches the
+            # DELETE relationship route, which does not serve GET.
+            assert client.get(path, headers={"Authorization": "Bearer x"}).status_code in {404, 405}

@@ -33,14 +33,18 @@ from core.file_uploads import (
     _resolve_upload_path,
     _stream_to_path,
     _to_http_exception,
+    ensure_within,
     extract_validated_zip,
     move_within,
+    read_validated_upload_sync,
     resolve_storage_path,
     safe_remove_within,
     save_file,
     save_validated_bytes,
     save_validated_upload,
+    save_validated_upload_sync,
     validate_bytes,
+    validate_local_file_sync,
     validate_upload,
 )
 
@@ -323,7 +327,7 @@ async def test_save_validated_upload_signature_mismatch_no_partial(
 def test_module_exposes_singleton_validator():
     """The application uses one shared FileValidator instance."""
     assert core_file_uploads.file_validator is not None
-    # Limits configured per the unification plan.
+    # Limits configured on the shared validator.
     limits = core_file_uploads.file_validator.config.limits
     assert limits.max_activity_file_size == 200 * 1024 * 1024
     assert limits.max_gzip_size == 200 * 1024 * 1024
@@ -663,6 +667,28 @@ def test_move_within_rejects_source_outside_base(tmp_path: Path):
         )
     assert exc.value.status_code == 400
     assert outside.exists()
+
+
+def test_ensure_within_returns_resolved_inside(tmp_path: Path):
+    """A path inside the base dir resolves and is returned."""
+    base = tmp_path / "base"
+    base.mkdir()
+    target = base / "sub" / "file.bin"
+
+    resolved = ensure_within(target, base)
+
+    assert resolved == target.resolve()
+
+
+def test_ensure_within_rejects_escape(tmp_path: Path):
+    """A path outside the base dir is rejected with HTTP 400."""
+    base = tmp_path / "base"
+    base.mkdir()
+    outside = tmp_path / "outside.bin"
+
+    with pytest.raises(HTTPException) as exc:
+        ensure_within(outside, base)
+    assert exc.value.status_code == 400
 
 
 def test_safe_remove_within_removes_inside(tmp_path: Path):
@@ -1141,3 +1167,183 @@ def test_safe_remove_within_oserror_handling(tmp_path: Path, monkeypatch):
 
     result = safe_remove_within(target, base_dir=tmp_path)
     assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Synchronous entry points: save_validated_upload_sync / validate_local_file_sync
+# ---------------------------------------------------------------------------
+
+
+def test_save_validated_upload_sync_happy_path(tmp_path: Path):
+    """A valid activity is validated then streamed to disk synchronously."""
+    upload = _upload("ride.gpx", _make_gpx_bytes())
+    path = save_validated_upload_sync(
+        upload,
+        kind=UploadKind.ACTIVITY,
+        upload_dir=str(tmp_path),
+        filename="server.gpx",
+    )
+    assert path == str(tmp_path / "server.gpx")
+    assert Path(path).read_bytes() == _make_gpx_bytes()
+    assert not (tmp_path / "server.gpx.part").exists()
+
+
+def test_save_validated_upload_sync_rejects_garbage(tmp_path: Path):
+    """Garbage bytes with a valid extension are rejected before any write."""
+    upload = _upload("ride.gpx", b"not a real activity file")
+    with pytest.raises(HTTPException) as exc:
+        save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="server.gpx",
+        )
+    assert exc.value.status_code in {400, 413}
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_save_validated_upload_sync_traversal_rejected(tmp_path: Path):
+    """A traversal filename never produces a file on disk (validation passes first)."""
+    upload = _upload("ride.gpx", _make_gpx_bytes())
+    with pytest.raises(HTTPException) as exc:
+        save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="../escape.gpx",
+        )
+    assert exc.value.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+    assert not (tmp_path.parent / "escape.gpx").exists()
+
+
+def test_validate_local_file_sync_accepts_valid(tmp_path: Path):
+    """A valid on-disk activity validates without raising."""
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(_make_gpx_bytes())
+    validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+
+
+def test_read_validated_upload_sync_returns_bytes(tmp_path: Path):
+    """A valid image is validated and returned without touching the filesystem."""
+    png = _make_png_bytes()
+    data = read_validated_upload_sync(_upload("photo.png", png), kind=UploadKind.IMAGE)
+    assert data == png
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_read_validated_upload_sync_rejects_garbage():
+    """Garbage bytes with a valid extension are rejected rather than returned."""
+    with pytest.raises(HTTPException) as exc:
+        read_validated_upload_sync(_upload("photo.png", b"not a real image"), kind=UploadKind.IMAGE)
+    assert exc.value.status_code in {400, 413}
+
+
+def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
+    """Garbage on-disk content is rejected with a 4xx/413."""
+    path = tmp_path / "ride.gpx"
+    path.write_bytes(b"not a real activity file")
+    with pytest.raises(HTTPException) as exc:
+        validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
+    assert exc.value.status_code in {400, 413}
+
+
+# ---------------------------------------------------------------------------
+# Generic on-disk file helpers (moved here from the activity ingestion
+# orchestrator, which had reimplemented them for its own use)
+# ---------------------------------------------------------------------------
+
+
+def test_sha256_file_matches_hashlib(tmp_path: Path):
+    """The streamed digest matches a one-shot hash of the same bytes."""
+    import hashlib
+
+    from core.file_uploads import sha256_file
+
+    path = tmp_path / "activity.gpx"
+    payload = b"<gpx>some deterministic content</gpx>"
+    path.write_bytes(payload)
+
+    assert sha256_file(path) == hashlib.sha256(payload).hexdigest()
+
+
+def test_sha256_file_is_stable_across_reads(tmp_path: Path):
+    """The same bytes hash identically every time (what makes re-import a no-op)."""
+    from core.file_uploads import sha256_file
+
+    path = tmp_path / "activity.fit"
+    path.write_bytes(b"\x00\x01\x02repeatable\xff")
+
+    assert sha256_file(path) == sha256_file(path)
+
+
+def test_remove_files_removes_only_existing(tmp_path: Path):
+    """Existing files are removed; missing ones are silently skipped."""
+    from core.file_uploads import remove_files
+
+    present = tmp_path / "a"
+    present.write_bytes(b"x")
+    missing = tmp_path / "b"
+
+    remove_files([present, missing])
+
+    assert not present.exists()
+
+
+def test_remove_files_swallows_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A removal failure is logged, never raised — cleanup must not mask the real error."""
+    import core.file_uploads as file_uploads
+
+    present = tmp_path / "a"
+    present.write_bytes(b"x")
+
+    def _boom(_path):
+        raise OSError("Permission denied")
+
+    monkeypatch.setattr(file_uploads.os, "remove", _boom)
+
+    file_uploads.remove_files([present])
+
+
+def test_decompress_gzip_returns_inner_payload(tmp_path: Path):
+    """A ``.gz`` is expanded to a temp file and the staging archive is consumed."""
+    from core.file_uploads import decompress_gzip
+
+    payload = _make_gpx_bytes()
+    archive = tmp_path / "activity_123.gpx.gz"
+    archive.write_bytes(gzip.compress(payload))
+
+    temp_path, extension = decompress_gzip(archive)
+
+    try:
+        assert extension == ".gpx"
+        assert Path(temp_path).read_bytes() == payload
+        # The compressed staging copy is redundant once expanded.
+        assert not archive.exists()
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+
+
+def test_decompress_gzip_rejects_invalid_archive(tmp_path: Path):
+    """Non-gzip content is a 400, not a traceback."""
+    from core.file_uploads import decompress_gzip
+
+    archive = tmp_path / "bad.gpx.gz"
+    archive.write_bytes(b"definitely not gzip")
+
+    with pytest.raises(HTTPException) as exc:
+        decompress_gzip(archive)
+    assert exc.value.status_code == 400
+
+
+def test_decompress_gzip_rejects_decompression_bomb(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Output beyond the activity cap is a 413 and leaves no temp file behind."""
+    import core.file_uploads as file_uploads
+
+    archive = tmp_path / "big.gpx.gz"
+    archive.write_bytes(gzip.compress(b"x" * 4096))
+    monkeypatch.setattr(file_uploads, "_MAX_ACTIVITY_BYTES", 16)
+
+    with pytest.raises(HTTPException) as exc:
+        file_uploads.decompress_gzip(archive)
+    assert exc.value.status_code == 413

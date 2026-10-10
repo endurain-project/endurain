@@ -13,7 +13,8 @@ const activityDto: GearActivityDto = {
   id: 11,
   name: 'Morning Ride',
   activity_type: 1,
-  start_time: '2024-03-01T07:00:00',
+  start_time: '2024-03-01T07:00:00Z',
+  timezone: 'Europe/Lisbon',
   distance: 25_000,
   total_timer_time: 3600,
   is_hidden: false,
@@ -23,7 +24,8 @@ const mappedActivity: GearActivity = {
   id: 11,
   name: 'Morning Ride',
   activityType: 1,
-  startTime: '2024-03-01T07:00:00',
+  startTime: '2024-03-01T07:00:00Z',
+  timezone: 'Europe/Lisbon',
   distance: 25_000,
   totalTimerTime: 3600,
 }
@@ -41,6 +43,7 @@ describe('mapGearActivity', () => {
       name: 'Run',
       activityType: 2,
       startTime: null,
+      timezone: null,
       distance: 5000,
       totalTimerTime: null,
     })
@@ -52,20 +55,34 @@ describe('fetchGearActivities', () => {
     vi.clearAllMocks()
   })
 
-  it('requests the paginated gear-activities path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ records: [activityDto], total: 1 })
+  it('requests the paginated gear-activities page and maps the records', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [activityDto],
+      total: 1,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
 
     const result = await fetchGearActivities(5, { page: 1, numRecords: 25 })
 
+    // One request: the total arrives with the page.
+    expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/gear/5/list?page_number=1&num_records=25',
+      '/activities/gears/5?page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedActivity], total: 1 })
   })
 
-  it('treats an absent records array as an empty page', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ total: 0 })
+  it('treats an empty page as no records', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     await expect(fetchGearActivities(5, { page: 1, numRecords: 25 })).resolves.toEqual({
       records: [],
       total: 0,

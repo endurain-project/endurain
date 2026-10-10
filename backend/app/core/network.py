@@ -7,11 +7,14 @@ modules such as rate limiting — can use it without
 creating a dependency on the ``users`` package.
 """
 
+import asyncio
 import ipaddress
 import re
 import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request, status
@@ -19,9 +22,17 @@ from fastapi import HTTPException, Request, status
 import core.config as core_config
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 _TRUSTED_PROXY_HOSTNAME_REFRESH_SECONDS = 60.0
 _trusted_proxy_hostname_refresh_lock = threading.Lock()
 _trusted_proxy_hostname_last_refresh = float("-inf")
+
+# Keep slow OS resolver calls away from asyncio's shared executor. A running
+# getaddrinfo call cannot be cancelled, but this cap prevents unresolved OIDC
+# hosts from consuming every worker used by unrelated to_thread operations.
+_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS = 5.0
+_SSRF_DNS_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ssrf-dns")
 
 # RFC 1123 hostname syntax: labels of 1-63 alphanumeric/hyphen
 # characters, separated by dots. Hyphens may not start or end
@@ -94,9 +105,8 @@ def _resolve_hostname(hostname: str) -> list[str]:
                 unique_ips.append(ip)
         return unique_ips
     except socket.gaierror as err:
-        core_logger.print_to_log_and_console(
-            f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}",
-            "warning",
+        logger.warning(
+            f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}", extra=core_logger.context(console=True)
         )
         return []
 
@@ -171,9 +181,8 @@ def refresh_trusted_proxy_hostnames(
             resolved_map[hostname] = ips
             all_resolved_ips.update(ips)
             if log_success:
-                core_logger.print_to_log_and_console(
-                    f"Resolved TRUSTED_PROXIES hostname '{hostname}' to {ips}",
-                    "info",
+                logger.info(
+                    f"Resolved TRUSTED_PROXIES hostname '{hostname}' to {ips}", extra=core_logger.context(console=True)
                 )
 
         core_config.settings._resolved_trusted_proxy_ips = all_resolved_ips
@@ -326,6 +335,158 @@ def _is_ssrf_allowlisted(
     return any(addr in network for network in networks)
 
 
+# Reasons a destination is refused. Phrased to read correctly after either
+# ``"URL "`` (reject_private_url) or a host value (host_rejection_reason), so the
+# two entry points share one set of checks and one vocabulary.
+_UNRESOLVABLE = "hostname could not be resolved"
+_UNPARSEABLE = "resolves to an unparseable address"
+_NON_PUBLIC = "resolves to a non-public address"
+_NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
+
+
+def _resolve_checked_addresses(
+    hostname: str,
+    *,
+    purpose: str | None = None,
+) -> tuple[tuple[str, ...], str | None]:
+    """Resolve a hostname and return its validated addresses or rejection reason.
+
+    Resolves every A/AAAA record and requires all of them to be public unicast.
+    A single private/loopback/link-local answer rejects the host — this defends
+    against DNS rebinding, where an attacker-controlled name returns a public IP
+    on the first lookup and a private IP on the next.
+
+    An address that would otherwise be rejected is permitted when it (or its
+    hostname) is covered by ``SSRF_ALLOWED_HOSTS``; every such hit is logged so
+    operators can review what the exception is being used for.
+
+    Args:
+        hostname: The hostname to resolve, without a port.
+        purpose: Optional short tag identifying the outbound call, used only for
+            audit logging.
+
+    Returns:
+        Validated addresses and ``None``, or no addresses and a reason string.
+    """
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return (), _UNRESOLVABLE
+
+    addresses: list[str] = []
+    for info in infos:
+        ip_text = info[4][0]
+        try:
+            addr = ipaddress.ip_address(ip_text)
+        except ValueError:
+            # Defensive: if the resolver hands back something we
+            # can't parse, treat it as unsafe.
+            return (), _UNPARSEABLE
+        if _is_private_or_reserved(addr):
+            if _is_ssrf_allowlisted(hostname, addr):
+                # Audit trail: every allowlisted private destination is logged
+                # so operators can review what the SSRF exception is used for.
+                logger.info(
+                    f"SSRF allowlist hit: dialing private address {ip_text} for host "
+                    f"{hostname} (purpose={purpose or 'unspecified'})"
+                )
+            else:
+                return (), _NON_PUBLIC
+        normalized_address = str(addr)
+        if normalized_address not in addresses:
+            addresses.append(normalized_address)
+    if not addresses:
+        return (), _UNRESOLVABLE
+    return tuple(addresses), None
+
+
+def _address_rejection_reason(hostname: str, *, purpose: str | None = None) -> str | None:
+    """Return why ``hostname`` must not be dialed, or None when every address is safe."""
+    _, reason = _resolve_checked_addresses(hostname, purpose=purpose)
+    return reason
+
+
+def host_rejection_reason(host: str | None, *, purpose: str | None = None) -> str | None:
+    """Return why an operator-configured ``host[:port]`` must not be dialed, or None.
+
+    The host-authority counterpart to :func:`reject_private_url`, for callers
+    handed a bare authority from configuration rather than a full URL, and which
+    must *degrade* (disable the feature) rather than fail a request — so this
+    returns a reason instead of raising.
+
+    It adds one check the URL form does not need: the configured value must be a
+    plain ``host[:port]``. A value carrying a scheme, path, or credentials would
+    otherwise be interpolated into a URL by the caller and silently redirect the
+    request elsewhere — ``"evil.example.com/x"`` becomes
+    ``"https://evil.example.com/x/reverse"``, whose hostname check passes.
+
+    Args:
+        host: The configured host authority, or ``None``.
+        purpose: Optional short tag identifying the outbound call, used only for
+            audit logging.
+
+    Returns:
+        A short human-readable reason, or ``None`` when the host may be dialed.
+    """
+    if host is None:
+        return _NOT_AN_AUTHORITY
+
+    hostname, separator, port = host.rpartition(":")
+    if not separator:
+        hostname = host
+    elif not (port.isdigit() and len(port) <= 5):
+        return _NOT_AN_AUTHORITY
+
+    if not _is_valid_hostname(hostname):
+        return _NOT_AN_AUTHORITY
+
+    return _address_rejection_reason(hostname, purpose=purpose)
+
+
+def resolve_url_addresses(
+    url: str,
+    *,
+    purpose: str | None = None,
+) -> tuple[tuple[str, ...], str | None]:
+    """Resolve an outbound URL to validated addresses or a rejection reason.
+
+    Args:
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+
+    Returns:
+        Validated addresses and ``None``, or no addresses and a safe reason.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return (), "Malformed URL"
+
+    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
+        return (), "URL scheme is not permitted"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return (), "URL has no hostname"
+
+    addresses, reason = _resolve_checked_addresses(hostname, purpose=purpose)
+    return addresses, f"URL {reason}" if reason is not None else None
+
+
+def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
+    """Return why an outbound URL must not be dialed, or ``None``.
+
+    Args:
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+
+    Returns:
+        A safe client-facing reason, or ``None`` when the URL may be dialed.
+    """
+    _, reason = resolve_url_addresses(url, purpose=purpose)
+    return reason
+
+
 def reject_private_url(url: str, *, purpose: str | None = None) -> None:
     """Refuse to dial URLs that resolve to private/internal hosts.
 
@@ -365,66 +526,46 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             is not covered by the
             ``SSRF_ALLOWED_HOSTS`` allowlist.
     """
-    try:
-        parsed = urlparse(url)
-    except ValueError as err:
+    reason = url_rejection_reason(url, purpose=purpose)
+    if reason is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Malformed URL",
-        ) from err
-
-    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL scheme is not permitted",
+            detail=reason,
         )
 
-    hostname = parsed.hostname
-    if not hostname:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL has no hostname",
-        )
 
-    # Resolve every A/AAAA record and require that all
-    # of them be public. ``getaddrinfo`` returns a list
-    # of ``(family, type, proto, canonname, sockaddr)``
-    # tuples; ``sockaddr[0]`` is the textual IP.
+async def reject_private_url_async(url: str, *, purpose: str | None = None) -> None:
+    """Await :func:`reject_private_url` without blocking the event loop.
+
+    The guard resolves every A/AAAA record with :func:`socket.getaddrinfo`, which
+    is blocking and cannot be cancelled once started. Async callers run it in a
+    small dedicated executor so stalled DNS calls cannot exhaust asyncio's shared
+    worker pool, and stop awaiting it after a bounded interval. Synchronous
+    callers (scheduled jobs, subscribers) call :func:`reject_private_url`
+    directly.
+
+    Args:
+        url: The fully-qualified URL the caller intends to fetch.
+        purpose: Optional short tag identifying the outbound call, used only for
+            audit logging.
+
+    Raises:
+        HTTPException: 400, for the reasons listed on :func:`reject_private_url`.
+        HTTPException: 504 when hostname resolution exceeds the allowed time.
+    """
+    loop = asyncio.get_running_loop()
+    operation = partial(reject_private_url, url, purpose=purpose)
     try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror as err:
+        await asyncio.wait_for(
+            loop.run_in_executor(_SSRF_DNS_EXECUTOR, operation),
+            timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS,
+        )
+    except TimeoutError as err:
+        logger.warning(
+            "SSRF hostname resolution timed out",
+            extra=core_logger.context(purpose=purpose or "unspecified"),
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="URL hostname could not be resolved",
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Hostname resolution timed out",
         ) from err
-
-    for info in infos:
-        sockaddr = info[4]
-        ip_text = sockaddr[0]
-        try:
-            addr = ipaddress.ip_address(ip_text)
-        except ValueError as err:
-            # Defensive: if the resolver hands back
-            # something we can't parse, treat as unsafe.
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="URL resolves to an unparseable address",
-            ) from err
-        if _is_private_or_reserved(addr):
-            if _is_ssrf_allowlisted(hostname, addr):
-                # Audit trail: every allowlisted private
-                # destination is logged so operators can
-                # review what the SSRF exception is being
-                # used for.
-                core_logger.print_to_log(
-                    "SSRF allowlist hit: dialing private "
-                    f"address {ip_text} for host "
-                    f"{hostname} (purpose="
-                    f"{purpose or 'unspecified'})",
-                    "info",
-                )
-                continue
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="URL resolves to a non-public address",
-            )

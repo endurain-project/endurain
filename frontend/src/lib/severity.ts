@@ -11,3 +11,17 @@ export const severityClasses: Record<Severity, string> = {
   warning: 'border-effort/40 bg-effort/10 text-effort',
   error: 'border-hr/40 bg-hr/10 text-hr',
 }
+
+/**
+ * Toast variant of {@link severityClasses}. Toasts float over arbitrary page
+ * content rather than a known card/surface background, so they need an
+ * opaque backing (`bg-popover`) instead of a tinted, translucent one —
+ * otherwise whatever is behind the toast shows through and the message
+ * becomes hard to read.
+ */
+export const severityToastClasses: Record<Severity, string> = {
+  info: 'border-info/40 bg-popover text-info',
+  success: 'border-goal/40 bg-popover text-goal',
+  warning: 'border-effort/40 bg-popover text-effort',
+  error: 'border-hr/40 bg-popover text-hr',
+}

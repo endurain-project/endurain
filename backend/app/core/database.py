@@ -4,6 +4,7 @@ import os
 from collections.abc import Generator
 from datetime import datetime
 
+import jasil.orm as jasil_orm
 from sqlalchemy import DateTime, create_engine, func
 from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import (
@@ -77,6 +78,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create a base class for declarative models
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
+
+
+# JASIL's companion tables (event_log, event_outbox, processing_jobs) are mapped
+# into this registry so one metadata object and one migration run cover the whole
+# schema. Both calls must precede any import of a JASIL model module.
+jasil_orm.map_models(Base)
+jasil_orm.configure_sessionmaker(SessionLocal)
 
 
 class TimestampMixin:

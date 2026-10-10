@@ -1,39 +1,14 @@
 """Tests for GPX activity file import utilities."""
 
-from datetime import datetime, timedelta
-from types import SimpleNamespace
-from unittest.mock import MagicMock
+from datetime import UTC, datetime, timedelta
 
 import gpxpy
 import pytest
 from geopy.distance import geodesic
 
-import activities.activity.utils as activities_utils
-import activities.activity_file_import.utils_gpx as utils_gpx
-
-
-def _privacy_settings() -> SimpleNamespace:
-    """
-    Build privacy settings for parser tests.
-
-    Returns:
-        Object with the attributes expected by privacy kwarg builder.
-    """
-    return SimpleNamespace(
-        default_activity_visibility="public",
-        hide_activity_start_time=False,
-        hide_activity_location=False,
-        hide_activity_map=False,
-        hide_activity_hr=False,
-        hide_activity_power=False,
-        hide_activity_cadence=False,
-        hide_activity_elevation=False,
-        hide_activity_speed=False,
-        hide_activity_pace=False,
-        hide_activity_laps=False,
-        hide_activity_workout_sets_steps=False,
-        hide_activity_gear=False,
-    )
+import core.exceptions as core_exceptions
+import modules.activities.activity_file_import.utils_gpx as utils_gpx
+import modules.activities.computation as activities_computation
 
 
 def _write_gpx(tmp_path, body: str) -> str:
@@ -64,18 +39,8 @@ def _patch_parser_side_effects(monkeypatch) -> None:
     """
     monkeypatch.setattr(
         utils_gpx.activity_file_import_utils,
-        "resolve_location",
-        lambda _lat, _lon: None,
-    )
-    monkeypatch.setattr(
-        utils_gpx.activity_file_import_utils,
         "resolve_timezone_from_lat_lon",
         lambda _lat, _lon, fallback: fallback,
-    )
-    monkeypatch.setattr(
-        utils_gpx.user_default_gear_utils,
-        "get_user_default_gear_by_activity_type",
-        lambda _user_id, _activity_type, _db: None,
     )
 
 
@@ -122,8 +87,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         expected_distance = (
@@ -186,8 +149,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         expected_distance = (
@@ -228,14 +189,12 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
-        # 08:19:19-07:00 == 15:19:19 UTC; the offset must be
-        # converted, not silently dropped.
-        assert result["activity"].start_time == "2026-03-28T15:19:19"
-        assert result["activity"].end_time == "2026-03-28T15:19:29"
+        # 08:19:19-07:00 == 15:19:19 UTC; the offset must be converted (not
+        # silently dropped) and ActivityCore stores it as an aware-UTC datetime.
+        assert result["activity"].start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
+        assert result["activity"].end_time == datetime(2026, 3, 28, 15, 19, 29, tzinfo=UTC)
         assert result["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
         assert result["laps"][0]["start_time"] == "2026-03-28T15:19:19"
 
@@ -264,12 +223,10 @@ class TestParseGpxFile:
             """.strip(),
         )
 
-        with pytest.raises(utils_gpx.HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             utils_gpx.parse_gpx_file(
                 gpx_path,
                 user_id=1,
-                user_privacy_settings=_privacy_settings(),
-                db=MagicMock(),
             )
 
         assert exc_info.value.status_code == 400
@@ -316,8 +273,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         assert result["ele_waypoints"] == [
@@ -368,8 +323,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         assert result["activity"].calories == 123
@@ -405,8 +358,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         assert result["is_heart_rate_set"] is False
@@ -453,8 +404,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         assert result["is_heart_rate_set"] is True
@@ -502,8 +451,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         assert result["is_cadence_set"] is True
@@ -547,8 +494,6 @@ class TestParseGpxFile:
         result = utils_gpx.parse_gpx_file(
             gpx_path,
             user_id=1,
-            user_privacy_settings=_privacy_settings(),
-            db=MagicMock(),
         )
 
         assert result["is_heart_rate_set"] is False
@@ -669,7 +614,7 @@ class TestExtractExtensionData:
             (0.0, 0.0001),
         ).meters
 
-        speed = activities_utils.calculate_instant_speed(
+        speed = activities_computation.calculate_instant_speed(
             start,
             end,
             0.0,

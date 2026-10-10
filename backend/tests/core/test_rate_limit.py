@@ -77,7 +77,7 @@ class TestRateLimitExceededHandler:
 
         exc = MagicMock()
 
-        with patch("core.rate_limit.core_logger.print_to_log"):
+        with patch("core.rate_limit.logger"):
             response = rate_limit_exceeded_handler(request, exc)
 
         assert isinstance(response, JSONResponse)
@@ -97,12 +97,12 @@ class TestRateLimitExceededHandler:
 
         with (
             patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.1"),
-            patch("core.rate_limit.core_logger.print_to_log") as mock_log,
+            patch("core.rate_limit.logger") as mock_log,
         ):
             rate_limit_exceeded_handler(request, exc)
 
-        mock_log.assert_called_once()
-        call_args = mock_log.call_args[0]
+        assert len(mock_log.method_calls) == 1
+        call_args = mock_log.warning.call_args[0]
         assert "Rate limit exceeded" in call_args[0]
         assert "10.0.0.1" in call_args[0]
 
@@ -118,7 +118,7 @@ class TestRateLimitExceededHandler:
 
         exc = MagicMock()
 
-        with patch("core.rate_limit.core_logger.print_to_log"):
+        with patch("core.rate_limit.logger"):
             response = rate_limit_exceeded_handler(request, exc)
 
         assert response.status_code == 429

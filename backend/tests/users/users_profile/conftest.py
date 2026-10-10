@@ -7,14 +7,14 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-import auth.dependencies as auth_dependencies
-import auth.identity_service as auth_identity_service
-import auth.mfa.setup_store as auth_mfa_setup_store
 import core.config as core_config
 import core.database as core_database
-import users.users_profile.browser_redirect_router as profile_browser_redirect_router
-import users.users_profile.router as profile_router
-import websocket.manager as websocket_manager
+import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_service as auth_identity_service
+import modules.auth.mfa.setup_store as auth_mfa_setup_store
+import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
+import modules.users.users_profile.router as profile_router
+import modules.websocket.manager as websocket_manager
 
 
 class FakeMFASecretStore:

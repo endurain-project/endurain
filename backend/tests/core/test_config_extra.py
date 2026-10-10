@@ -128,7 +128,7 @@ class TestSettings:
     def test_smtp_secure_type_invalid(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SMTP_SECURE_TYPE="invalid_value")
         assert s.SMTP_SECURE_TYPE == "starttls"
 
@@ -145,8 +145,18 @@ class TestSettings:
         assert s.DATA_DIR == "/custom/backend/data"
         assert s.LOGS_DIR == "/custom/backend/logs"
         assert s.FILES_DIR == "/custom/backend/data/activity_files"
-        assert s.ACTIVITY_MEDIA_DIR == "/custom/backend/data/activity_media"
-        assert s.ACTIVITY_THUMBNAILS_DIR == "/custom/backend/data/activity_thumbnails"
+
+    def test_no_blob_directory_settings(self):
+        """Blob directories are owned by the StorageProvider area convention.
+
+        A settable directory for media/thumbnails would be a second source of
+        truth for a path the local storage backend already derives, and would be
+        meaningless on object storage.
+        """
+        from core.config import Settings
+
+        assert "ACTIVITY_MEDIA_DIR" not in Settings.model_fields
+        assert "ACTIVITY_THUMBNAILS_DIR" not in Settings.model_fields
 
     def test_data_dir_custom(self):
         from core.config import Settings
@@ -248,7 +258,7 @@ class TestSettings:
     def test_csp_additional_connect_src_rejects_injection_entries(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(
                 _env_file=None,
                 CSP_ADDITIONAL_CONNECT_SRC="https://ok.example.com,bad; script-src *,has space",
@@ -259,7 +269,7 @@ class TestSettings:
     def test_csp_additional_connect_src_drops_bare_wildcard_keeps_host_wildcard(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(
                 _env_file=None,
                 CSP_ADDITIONAL_CONNECT_SRC="*,https://*.example.com,https://auth.example.com",
@@ -273,7 +283,7 @@ class TestSettings:
     def test_csp_additional_connect_src_drops_scheme_only_sources(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(
                 _env_file=None,
                 CSP_ADDITIONAL_CONNECT_SRC="https:,ws:,https://auth.example.com",
@@ -290,14 +300,14 @@ class TestSettings:
     def test_reverse_geo_rate_limit_empty(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="")
         assert s.REVERSE_GEO_RATE_LIMIT == 1.0
 
     def test_reverse_geo_rate_limit_invalid(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="not-a-number")
         assert s.REVERSE_GEO_RATE_LIMIT == 1.0
 
@@ -357,35 +367,35 @@ class TestSettingsSsrfAllowedHosts:
     def test_wildcard_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="*")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_broad_ipv4_range_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="0.0.0.0/0")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_broad_ipv6_range_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="::/0")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_invalid_cidr_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="not-a-cidr/abc")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_mixed_valid_and_invalid(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="valid.example.com,*,10.10.0.0/24")
         assert "valid.example.com" in s.SSRF_ALLOWED_HOSTS
         assert "10.10.0.0/24" in s.SSRF_ALLOWED_HOSTS
@@ -406,60 +416,9 @@ class TestSettingsSsrfAllowedHosts:
     def test_bracket_only_hostname_empty_after_strip(self):
         from core.config import Settings
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="[]")
         assert s.SSRF_ALLOWED_HOSTS == []
-
-
-@patch.dict(os.environ, {}, clear=True)
-class TestSettingsWarnings:
-    """Settings model_validator warnings."""
-
-    def test_memory_rate_limit_warning_production(self):
-        from core.config import Settings
-
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
-            Settings(
-                _env_file=None,
-                ENVIRONMENT="production",
-                RATE_LIMIT_STORAGE_URI="memory://",
-                RATE_LIMIT_ENABLED=True,
-            )
-        mock_log.assert_any_call(
-            "RATE_LIMIT_STORAGE_URI uses process-local memory outside "
-            "development. API rate-limit counters are not shared "
-            "across workers; use Redis for multi-worker deployments.",
-            "warning",
-        )
-
-    def test_memory_auth_security_storage_warning_production(self):
-        from core.config import Settings
-
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
-            Settings(
-                _env_file=None,
-                ENVIRONMENT="production",
-                RATE_LIMIT_STORAGE_URI="memory://",
-                AUTH_SECURITY_STORAGE_URI=None,
-                RATE_LIMIT_ENABLED=True,
-            )
-        mock_log.assert_any_call(
-            "AUTH_SECURITY_STORAGE_URI resolves to process-local "
-            "memory outside development. Login lockout and pending "
-            "MFA state, including setup secrets, are not shared "
-            "across workers; use Redis for multi-worker deployments.",
-            "warning",
-        )
-
-    def test_no_warnings_in_development(self):
-        from core.config import Settings
-
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
-            Settings(
-                _env_file=None, ENVIRONMENT="development", RATE_LIMIT_STORAGE_URI="memory://", RATE_LIMIT_ENABLED=True
-            )
-        relevant = [c for c in mock_log.call_args_list if "process-local memory" in str(c)]
-        assert len(relevant) == 0
 
 
 class TestReadSecret:
@@ -547,12 +506,12 @@ class TestReadSecret:
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(secret_file)}),
             patch("core.config._is_safe_path", return_value=True),
-            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            patch("core.config.logger") as mock_log,
         ):
             result = read_secret("MY_SECRET")
 
         assert result == "secret_value"
-        warning_calls = [c for c in mock_log.call_args_list if "world-readable" in str(c)]
+        warning_calls = [c for c in mock_log.method_calls if "world-readable" in str(c)]
         assert len(warning_calls) >= 1
 
     def test_empty_file_warning(self, tmp_path):
@@ -565,12 +524,12 @@ class TestReadSecret:
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(empty_file)}),
             patch("core.config._is_safe_path", return_value=True),
-            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            patch("core.config.logger") as mock_log,
         ):
             result = read_secret("MY_SECRET")
 
         assert result is None
-        warning_calls = [c for c in mock_log.call_args_list if "empty" in str(c)]
+        warning_calls = [c for c in mock_log.method_calls if "empty" in str(c)]
         assert len(warning_calls) >= 1
 
     def test_unsafe_path_raises(self):
@@ -675,7 +634,7 @@ class TestValidateFernetKey:
     def test_unexpected_exception_during_fernet_validation_returns_false(self):
         from core.config import validate_fernet_key
 
-        with patch("core.config.core_logger.print_to_log_and_console"):
+        with patch("core.config.logger"):
             result = validate_fernet_key(b"some bytes")
         assert result is False
 
@@ -719,7 +678,7 @@ class TestCheckRequiredEnvVars:
 
         with (
             patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.core_logger.print_to_log_and_console"),
+            patch("core.config.logger"),
         ):
             check_required_env_vars()
 
@@ -759,11 +718,11 @@ class TestCheckRequiredEnvVars:
 
         with (
             patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            patch("core.config.logger") as mock_log,
         ):
             check_required_env_vars()
 
-        info_calls = [c for c in mock_log.call_args_list if "Email not configured" in str(c)]
+        info_calls = [c for c in mock_log.method_calls if "Email not configured" in str(c)]
         assert len(info_calls) >= 1
 
     def test_secret_via_file_variant(self):
@@ -777,7 +736,7 @@ class TestCheckRequiredEnvVars:
                 ),
                 clear=True,
             ),
-            patch("core.config.core_logger.print_to_log_and_console"),
+            patch("core.config.logger"),
         ):
             check_required_env_vars()
 
@@ -793,15 +752,16 @@ class TestCheckRequiredDirs:
             patch("core.config.settings.DATA_DIR", str(test_data)),
             patch("core.config.settings.LOGS_DIR", str(tmp_path / "logs")),
             patch("core.config.settings.FILES_DIR", str(test_data / "activity_files")),
-            patch("core.config.settings.ACTIVITY_MEDIA_DIR", str(test_data / "activity_media")),
-            patch("core.config.settings.ACTIVITY_THUMBNAILS_DIR", str(test_data / "activity_thumbnails")),
-            patch("core.config.USER_IMAGES_DIR", str(test_data / "user_images")),
             patch("core.config.SERVER_IMAGES_DIR", str(test_data / "server_images")),
             patch("core.config.FILES_PROCESSED_DIR", str(test_data / "activity_files" / "processed")),
             patch("core.config.FILES_BULK_IMPORT_DIR", str(test_data / "activity_files" / "bulk_import")),
             patch(
                 "core.config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR",
                 str(test_data / "activity_files" / "bulk_import" / "import_errors"),
+            ),
+            patch(
+                "core.config.FILES_UPLOAD_INCOMING_DIR",
+                str(test_data / "activity_files" / "upload_incoming"),
             ),
         ):
             check_required_dirs()
@@ -818,9 +778,6 @@ class TestCheckRequiredDirs:
             patch("core.config.settings.DATA_DIR", str(file_path)),
             patch("core.config.settings.LOGS_DIR", str(tmp_path / "logs")),
             patch("core.config.settings.FILES_DIR", str(tmp_path / "files")),
-            patch("core.config.settings.ACTIVITY_MEDIA_DIR", str(tmp_path / "activity_media")),
-            patch("core.config.settings.ACTIVITY_THUMBNAILS_DIR", str(tmp_path / "activity_thumbnails")),
-            patch("core.config.USER_IMAGES_DIR", str(tmp_path / "user_images")),
             patch("core.config.SERVER_IMAGES_DIR", str(tmp_path / "server_images")),
             patch("core.config.FILES_PROCESSED_DIR", str(tmp_path / "processed")),
             patch("core.config.FILES_BULK_IMPORT_DIR", str(tmp_path / "bulk_import")),
@@ -836,7 +793,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.19.3"
+        assert API_VERSION == "v0.20.0-beta1"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
@@ -851,16 +808,15 @@ class TestModuleLevelConstants:
         assert ROOT_PATH == "/api/v1"
 
     def test_image_dirs(self):
-        from core.config import SERVER_IMAGES_DIR, USER_IMAGES_DIR, settings
+        from core.config import SERVER_IMAGES_DIR, settings
 
-        assert f"{settings.DATA_DIR}/user_images" == USER_IMAGES_DIR
         assert f"{settings.DATA_DIR}/server_images" == SERVER_IMAGES_DIR
 
-    def test_reverse_geo_constants(self):
-        from core.config import REVERSE_GEO_LAST_CALL, REVERSE_GEO_MIN_INTERVAL
+    def test_no_user_images_dir(self):
+        """User photos live behind the StorageProvider, not a config path."""
+        import core.config as core_config
 
-        assert isinstance(REVERSE_GEO_MIN_INTERVAL, float)
-        assert REVERSE_GEO_LAST_CALL == 0.0
+        assert not hasattr(core_config, "USER_IMAGES_DIR")
 
     def test_supported_file_formats(self):
         from core.config import SUPPORTED_FILE_FORMATS
@@ -876,31 +832,31 @@ class TestCheckDeprecatedEnvVars:
     def test_no_deprecated_vars_passes_silently(self):
         from core.config import check_deprecated_env_vars
 
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
+        with patch("core.config.logger") as mock_log:
             check_deprecated_env_vars()
 
-        assert mock_log.call_count == 0
+        assert len(mock_log.method_calls) == 0
 
     @patch.dict(os.environ, {"SOME_CURRENT_VAR": "value"}, clear=True)
     def test_unrelated_var_passes_silently(self):
         from core.config import check_deprecated_env_vars
 
-        with patch("core.config.core_logger.print_to_log_and_console") as mock_log:
+        with patch("core.config.logger") as mock_log:
             check_deprecated_env_vars()
 
-        assert mock_log.call_count == 0
+        assert len(mock_log.method_calls) == 0
 
     @patch.dict(os.environ, {"FRONTEND_PROTOCOL": "https"}, clear=True)
     def test_frontend_protocol_aborts_with_replacement_hint(self):
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            patch("core.config.logger") as mock_log,
             pytest.raises(OSError, match="FRONTEND_PROTOCOL"),
         ):
             check_deprecated_env_vars()
 
-        logged = " ".join(str(call) for call in mock_log.call_args_list)
+        logged = " ".join(str(call) for call in mock_log.method_calls)
         assert "FRONTEND_PROTOCOL" in logged
         # Remediation points operators at the replacement variable.
         assert "ENVIRONMENT" in logged
@@ -910,12 +866,12 @@ class TestCheckDeprecatedEnvVars:
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            patch("core.config.logger") as mock_log,
             pytest.raises(OSError, match="UID"),
         ):
             check_deprecated_env_vars()
 
-        logged = " ".join(str(call) for call in mock_log.call_args_list)
+        logged = " ".join(str(call) for call in mock_log.method_calls)
         assert "docker-compose" in logged
 
     @patch.dict(
@@ -927,7 +883,7 @@ class TestCheckDeprecatedEnvVars:
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.core_logger.print_to_log_and_console") as mock_log,
+            patch("core.config.logger") as mock_log,
             pytest.raises(OSError) as exc_info,
         ):
             check_deprecated_env_vars()
@@ -940,10 +896,29 @@ class TestCheckDeprecatedEnvVars:
         assert "FRONTEND_PROTOCOL" in message
 
         # One header line plus one line per offending variable.
-        assert mock_log.call_count == 4
+        assert len(mock_log.method_calls) == 4
 
     def test_mapping_contains_expected_keys(self):
         from core.config import DEPRECATED_ENV_VARS
 
-        assert set(DEPRECATED_ENV_VARS) == {"UID", "GID", "FRONTEND_PROTOCOL"}
+        assert set(DEPRECATED_ENV_VARS) == {
+            "UID",
+            "GID",
+            "FRONTEND_PROTOCOL",
+            "RATE_LIMIT_STORAGE_URI",
+            "AUTH_SECURITY_STORAGE_URI",
+        }
         assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())
+
+    def test_the_retired_state_uris_name_their_replacement(self):
+        """Silently ignoring these downgrades rate limiting and lockout to per-process memory.
+
+        Both used to point shared ephemeral state at Redis. ``Settings`` sets
+        ``extra="ignore"``, so an operator who upgrades without editing their
+        ``.env`` would keep the old keys, get no warning, and lose the shared
+        buckets that make brute-force protection work across workers.
+        """
+        from core.config import DEPRECATED_ENV_VARS
+
+        for retired in ("RATE_LIMIT_STORAGE_URI", "AUTH_SECURITY_STORAGE_URI"):
+            assert "REDIS_URL" in DEPRECATED_ENV_VARS[retired]

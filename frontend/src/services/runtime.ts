@@ -38,10 +38,17 @@ export function getApiBaseUrl(): string {
 /**
  * Resolves a backend-served asset URL.
  *
- * @param path - Asset path relative to the backend host.
+ * Values that are already absolute (a presigned object-storage URL) are
+ * returned untouched — prefixing them with the backend host would corrupt them.
+ * Same-origin paths are resolved against the runtime host when one is set.
+ *
+ * @param path - Asset path relative to the backend host, or an absolute URL.
  * @returns Absolute URL when runtime host exists, otherwise same-origin path.
  */
 export function getBackendAssetUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    return path
+  }
   const normalizedPath = path.replace(/^\/+/, '')
   const runtimeHost = getRuntimeBackendHost()
   return runtimeHost ? `${runtimeHost}/${normalizedPath}` : `/${normalizedPath}`

@@ -1,13 +1,106 @@
 """Centralized timezone conversion utilities."""
 
-from datetime import datetime
+import functools
+from datetime import date, datetime, timedelta
+from typing import overload
 from zoneinfo import ZoneInfo
+
+from timezonefinder import TimezoneFinder
 
 import core.config as core_config
 
 # ISO 8601 datetime format without offset, used for the
 # naive UTC wall-clock strings persisted by file parsers.
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
+
+#: Widest real-world UTC offset (Pacific/Kiritimati, +14:00).
+#:
+#: Used wherever the server has to be tolerant of a timezone the request never
+#: carries: widening an indexable pre-filter on a raw UTC column so it cannot
+#: exclude a row the exact local-time predicate would keep, and bounding "is this
+#: plausibly the caller's current year?" checks.
+MAX_UTC_OFFSET = timedelta(hours=14)
+
+
+def or_default(tz_name: str | None) -> str:
+    """Return the given IANA timezone, or the server's configured default.
+
+    The fallback is a fact about the *server* (``settings.TZ``), so it belongs
+    here rather than in whichever domain module happens to hold a nullable
+    timezone column.
+
+    Args:
+        tz_name: An IANA timezone name, or None.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return tz_name or core_config.settings.TZ
+
+
+@functools.lru_cache(maxsize=1)
+def _timezone_finder() -> TimezoneFinder:
+    """Return a process-wide cached TimezoneFinder.
+
+    Constructing ``TimezoneFinder`` loads its bundled timezone polygon data, so
+    it is built once and reused instead of per activity (a single instance is
+    safe for concurrent ``timezone_at`` reads).
+
+    Returns:
+        The shared TimezoneFinder.
+    """
+    return TimezoneFinder()
+
+
+def from_lat_lon(latitude: float, longitude: float, fallback_tz: str | None = None) -> str:
+    """Return the IANA timezone a coordinate falls in, or a fallback.
+
+    ``timezone_at`` answers ``None`` over open ocean and in the gaps between
+    timezone polygons, so the fallback is not optional decoration: the Strava
+    adapter used to assign the raw result straight onto the activity, discarding
+    the athlete's own timezone it had just resolved whenever the lookup missed.
+    Every caller resolves the same way now.
+
+    Args:
+        latitude: WGS-84 latitude in decimal degrees.
+        longitude: WGS-84 longitude in decimal degrees.
+        fallback_tz: Timezone to use when the lookup finds none; defaults to the
+            server's configured timezone.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return _timezone_finder().timezone_at(lat=latitude, lng=longitude) or or_default(fallback_tz)
+
+
+def today_in(tz_name: str) -> date:
+    """Return today's calendar date in the given IANA timezone.
+
+    "Which day is it?" is a local question that the server cannot answer from
+    its own clock: a request carries no timezone, so ``date.today()`` silently
+    answers in the container's zone and ``datetime.now(UTC).date()`` in UTC.
+    Either is wrong for any user not on that zone — a day behind for up to 13
+    hours at UTC+13, a day ahead for up to 11 hours at UTC-11.
+
+    Callers supply the zone explicitly (typically the athlete's stored
+    ``users.timezone``, falling back to ``settings.TZ``) so the choice is
+    visible at the call site rather than buried in a default.
+
+    Args:
+        tz_name: IANA timezone name to resolve "today" in.
+
+    Returns:
+        The current calendar date in that timezone.
+    """
+    return datetime.now(ZoneInfo(tz_name)).date()
+
+
+@overload
+def to_utc_aware(dt: datetime | str) -> datetime: ...
+
+
+@overload
+def to_utc_aware(dt: None) -> None: ...
 
 
 def to_utc_aware(dt: datetime | str | None) -> datetime | None:
@@ -19,6 +112,11 @@ def to_utc_aware(dt: datetime | str | None) -> datetime | None:
     clock values). Ensures stored timestamps carry an
     explicit UTC offset instead of relying on the
     database session timezone.
+
+    The overloads state the actual contract: ``None`` is
+    returned only for a ``None`` input, so callers that
+    already hold a value do not have to re-check the
+    result for ``None``.
 
     Args:
         dt: A datetime, ISO 8601 string, or None.
@@ -45,6 +143,12 @@ def format_utc(dt: datetime | str | None) -> str:
     offset is silently dropped and the wall-clock is stored
     as if it were UTC. Naive datetimes are assumed to be UTC.
 
+    Used for the **waypoint** timestamps inside stream payloads, which are
+    stored as JSON strings. For an activity's ``start_time``/``end_time`` use
+    :func:`to_utc_second` instead — those are real ``datetime`` columns, and
+    round-tripping them through a string only to parse it back loses the type
+    for no benefit.
+
     Args:
         dt: A datetime, ISO 8601 string, or None.
 
@@ -56,31 +160,35 @@ def format_utc(dt: datetime | str | None) -> str:
     return aware.strftime(_DT_FMT) if aware else ""
 
 
-def format_aware_datetime(
-    dt: datetime | str,
-    tz_name: str | None = None,
-) -> str:
-    """
-    Convert a datetime to a timezone-aware string.
+@overload
+def to_utc_second(dt: datetime | str) -> datetime: ...
 
-    Assumes UTC if the datetime has no tzinfo.
-    Converts to the specified timezone (or the
-    server default) and formats as ISO 8601 without
-    offset.
+
+@overload
+def to_utc_second(dt: None) -> None: ...
+
+
+def to_utc_second(dt: datetime | str | None) -> datetime | None:
+    """
+    Normalize to UTC-aware and truncate to whole seconds.
+
+    The resolution every ingestion producer already agreed on: the file parsers
+    and the provider adapters all used to format their activity start/end times
+    with a second-precision pattern and let the schema validator parse them
+    back. That round-trip made the value a ``str`` at the type level even though
+    every consumer needs a ``datetime``, so this does the same normalization
+    directly.
+
+    Truncation is preserved rather than dropped because the start-time duplicate
+    check compares stored instants for equality: devices report whole seconds,
+    and letting sub-second noise through would make the same activity re-imported
+    from a different source look like a new one.
 
     Args:
-        dt: A datetime object or ISO 8601 string.
-        tz_name: IANA timezone name. Falls back to
-            the server TZ setting if None.
+        dt: A datetime, ISO 8601 string, or None.
 
     Returns:
-        Formatted datetime string without offset.
+        A UTC-aware datetime with microseconds zeroed, or None if dt is None.
     """
-    if isinstance(dt, str):
-        dt = datetime.fromisoformat(dt)
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-
-    timezone = ZoneInfo(tz_name) if tz_name else ZoneInfo(core_config.settings.TZ)
-
-    return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
+    aware = to_utc_aware(dt)
+    return aware.replace(microsecond=0) if aware is not None else None

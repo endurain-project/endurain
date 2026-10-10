@@ -7,7 +7,7 @@ export type StravaClientDto = Schemas['StravaClient']
 export type GarminLoginDto = Schemas['GarminLogin']
 
 /** Garmin Connect MFA-code body. */
-export type GarminMfaDto = Schemas['garmin__schema__MFARequest']
+export type GarminMfaDto = Schemas['modules__garmin__schema__MFARequest']
 
 /** The clean credentials the Strava connect dialog collects. */
 export interface StravaClientInput {

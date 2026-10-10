@@ -1,7 +1,7 @@
 /**
  * Activity summary service — the DTO ↔ domain boundary for the `/summary` view.
  *
- * The backend exposes `GET /activities_summaries/{view_type}` returning one of
+ * The backend exposes `GET /activities/summaries?period=<view>` returning one of
  * four response shapes (week/month/year/lifetime), each carrying period totals,
  * a sub-period `breakdown`, and an optional per-type `type_breakdown`. These
  * schemas are not part of the generated OpenAPI types, so the snake-cased DTOs
@@ -150,6 +150,7 @@ export async function fetchActivitySummary(
   signal?: AbortSignal,
 ): Promise<ActivitySummary> {
   const search = new URLSearchParams()
+  search.set('period', viewType)
   if ((viewType === 'week' || viewType === 'month') && params.date) {
     search.set('date', params.date)
   }
@@ -161,10 +162,7 @@ export async function fetchActivitySummary(
     search.set('type', typeName)
   }
 
-  const query = search.toString()
-  const path = query
-    ? `/activities_summaries/${viewType}?${query}`
-    : `/activities_summaries/${viewType}`
+  const path = `/activities/summaries?${search.toString()}`
 
   const dto = await apiFetch<SummaryResponseDto | null>(path, { signal })
   return mapActivitySummary(viewType, dto ?? EMPTY_RESPONSE)

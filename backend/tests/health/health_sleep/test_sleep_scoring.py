@@ -1,7 +1,7 @@
 from datetime import datetime
 
-import health.health_sleep.schema as health_sleep_schema
-import health.health_sleep.sleep_scoring as sleep_scoring
+import modules.health.health_sleep.schema as health_sleep_schema
+import modules.health.health_sleep.sleep_scoring as sleep_scoring
 
 
 class TestCalculateSleepDurationHours:

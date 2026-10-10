@@ -1,4 +1,4 @@
-"""Tests for ``auth.mfa.crud.update_user_mfa``.
+"""Tests for ``modules.auth.mfa.crud.update_user_mfa``.
 
 Verifies that ``update_user_mfa`` writes MFA state
 exclusively to the ``users_mfa`` table and never touches
@@ -9,9 +9,9 @@ session — no live database required.
 import contextlib
 from unittest.mock import MagicMock, patch
 
-import auth.mfa.crud as auth_mfa_crud
-import auth.mfa.models as auth_mfa_models
-import users.users.models as users_models
+import modules.auth.mfa.crud as auth_mfa_crud
+import modules.auth.mfa.models as auth_mfa_models
+import modules.users.users.models as users_models
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -168,11 +168,11 @@ class TestUpdateUserMFADualWrite:
         mock_stmt = MagicMock()
         with (
             patch(
-                "auth.mfa.crud.select",
+                "modules.auth.mfa.crud.select",
                 return_value=mock_stmt,
             ),
             patch(
-                "auth.mfa.crud.auth_mfa_models.UsersMFA",
+                "modules.auth.mfa.crud.auth_mfa_models.UsersMFA",
                 return_value=mock_new_row,
             ) as mock_class,
         ):
@@ -197,11 +197,11 @@ class TestUpdateUserMFADualWrite:
         mock_stmt = MagicMock()
         with (
             patch(
-                "auth.mfa.crud.select",
+                "modules.auth.mfa.crud.select",
                 return_value=mock_stmt,
             ),
             patch(
-                "auth.mfa.crud.auth_mfa_models.UsersMFA",
+                "modules.auth.mfa.crud.auth_mfa_models.UsersMFA",
                 return_value=mock_new_row,
             ) as mock_class,
         ):

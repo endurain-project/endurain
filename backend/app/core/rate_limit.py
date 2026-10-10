@@ -25,14 +25,16 @@ Architecture
 import hashlib
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
+
+logger = core_logger.get_logger(__name__)
 
 #: Baseline applied globally via ``SlowAPIMiddleware``.
 DEFAULT: str = "120/minute"
@@ -43,6 +45,19 @@ WRITE: str = "30/minute"
 #: Sensitive operations — login, MFA, password reset,
 #: signup, OAuth flows.
 SENSITIVE: str = "10/minute"
+
+#: Activity file uploads / imports — CPU/IO-heavy parsing
+#: of user-supplied files; tighter than WRITE to bound
+#: resource consumption on the ingestion endpoints.
+UPLOAD: str = "20/minute"
+
+#: Endpoints that trigger OUTBOUND calls to a third-party
+#: provider (Strava, Garmin Connect). Tighter than WRITE
+#: because each request amplifies into several external
+#: HTTP calls: without a cap a caller can burn the
+#: server's shared provider quota (or have the server
+#: throttled/banned) with almost no local cost.
+PROVIDER_SYNC: str = "6/minute"
 
 
 def _get_rate_limit_key(request: Request) -> str:
@@ -72,8 +87,16 @@ limiter: Limiter = Limiter(
     key_func=_get_rate_limit_key,
     default_limits=[DEFAULT],
     enabled=core_config.settings.RATE_LIMIT_ENABLED,
-    storage_uri=core_config.settings.RATE_LIMIT_STORAGE_URI,
+    storage_uri=core_config.settings.resolved_state_uri,
 )
+
+# slowapi's ``headers_enabled`` is deliberately left off. It injects the
+# ``X-RateLimit-*`` headers on *successful* responses too, and to do that the
+# decorator requires every rate-limited endpoint to either return a ``Response``
+# or declare a ``response: Response`` parameter — it raises on any handler that
+# returns a plain model, which is most of them. The refusal is where a client
+# actually needs the numbers, and :func:`rate_limit_exceeded_handler` sets them
+# there without that constraint.
 
 
 def rate_limit_exceeded_handler(
@@ -83,9 +106,8 @@ def rate_limit_exceeded_handler(
     """
     Return a JSON 429 response when a limit is breached.
 
-    Injects standard ``X-RateLimit-*`` and
-    ``Retry-After`` headers so clients can back off
-    gracefully.
+    Sets ``Retry-After`` and the ``X-RateLimit-*`` headers so clients can back
+    off gracefully rather than guessing an interval.
 
     Args:
         request: The request that exceeded the limit.
@@ -96,29 +118,24 @@ def rate_limit_exceeded_handler(
         JSON response with 429 status and rate-limit
         headers attached when available.
     """
-    core_logger.print_to_log(
-        f"Rate limit exceeded: {_get_rate_limit_key(request)} on {request.method} {request.url.path}",
-        "warning",
-    )
-    response = JSONResponse(
+    logger.warning(f"Rate limit exceeded: {_get_rate_limit_key(request)} on {request.method} {request.url.path}")
+    response = core_exceptions.build_problem_response(
+        request=request,
         status_code=429,
-        content={
-            "detail": ("Too many requests. Please try again later."),
-        },
+        code="rate-limited",
+        title="Too Many Requests",
+        detail="Too many requests. Please try again later.",
     )
-    # Inject X-RateLimit-* and Retry-After headers.
-    # request.state.view_rate_limit is populated by
-    # SlowAPIMiddleware before this handler is called.
+    # Read off the breached limit rather than slowapi's ``_inject_headers``,
+    # which is inert unless ``headers_enabled`` is set on the limiter — see the
+    # note there for why it cannot be.
     try:
-        response = request.app.state.limiter._inject_headers(
-            response,
-            request.state.view_rate_limit,
-        )
+        breached = exc.limit.limit
+        response.headers["Retry-After"] = str(breached.get_expiry())
+        response.headers["X-RateLimit-Limit"] = str(breached.amount)
+        response.headers["X-RateLimit-Remaining"] = "0"
     except Exception as header_err:
-        # Headers are informational — never let injection
-        # errors break the 429 response itself.
-        core_logger.print_to_log(
-            f"Failed to inject rate-limit headers: {header_err}",
-            "debug",
-        )
+        # Headers are informational — never let a missing attribute break the
+        # 429 response itself.
+        logger.debug(f"Failed to set rate-limit headers: {header_err}")
     return response

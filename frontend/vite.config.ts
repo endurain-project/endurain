@@ -100,7 +100,12 @@ export default defineConfig({
         // env.js is written at container start (docker/start.sh) and is NOT
         // content-hashed; precaching it would freeze each tenant's runtime
         // config to a stale build-time snapshot.
-        globIgnores: ['**/env.js'],
+        //
+        // The default login background is a multi-MB decorative image used on
+        // a single screen; it is above Workbox's 2 MiB precache cap and would
+        // bloat the install payload for every client, so it is fetched from
+        // the network instead.
+        globIgnores: ['**/env.js', '**/assets/login-*.png'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

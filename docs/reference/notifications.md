@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.notifications
+::: backend.app.modules.notifications
     handler: python
     options:
       docstring_style: google

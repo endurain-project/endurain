@@ -14,7 +14,15 @@ const bulkImport = useBulkImportMutation()
 
 function onImport(): void {
   bulkImport.mutate(undefined, {
-    onSuccess: () => toasts.info(t('settings.import.bulk.started')),
+    onSuccess: (jobs) => {
+      // The server answers with one job handle per queued file, so an empty
+      // list is "the folder held nothing importable" rather than a failure.
+      if (jobs.length === 0) {
+        toasts.info(t('settings.import.bulk.empty'))
+        return
+      }
+      toasts.info(t('settings.import.bulk.started', jobs.length))
+    },
     onError: () => toasts.error(t('settings.import.bulk.error')),
   })
 }

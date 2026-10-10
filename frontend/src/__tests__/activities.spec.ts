@@ -8,6 +8,7 @@ import {
   editActivity,
   fetchActivity,
   fetchActivityLaps,
+  fetchActivityStats,
   fetchActivityStreams,
   fetchUserActivitiesPage,
   fetchUserActivityTypeCodes,
@@ -37,6 +38,7 @@ vi.mock('@/services/http', () => {
 
 const activityDto: ActivityDto = {
   id: 5,
+  version: 3,
   user_id: 7,
   name: 'Morning run',
   description: 'Felt great',
@@ -193,73 +195,116 @@ describe('fetchActivity', () => {
 
 describe('searchActivitiesByName', () => {
   it('encodes the name search term and maps the results', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto])
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [activityDto],
+      total: 1,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     const result = await searchActivitiesByName('morning run')
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/name/contains/morning%20run',
+      '/activities?name=morning+run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
     expect(result[0]?.id).toBe(5)
   })
 
-  it('treats a null search body as no matches', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+  it('treats an empty page as no matches', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     await expect(searchActivitiesByName('x')).resolves.toEqual([])
   })
 })
 
 describe('fetchUserWeekActivities', () => {
   it('requests the user week endpoint and maps the results', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto])
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [activityDto],
+      total: 1,
+      page: 1,
+      num_records: 200,
+      next: null,
+    })
     const result = await fetchUserWeekActivities(7, 3)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/user/7/week/3',
+      expect.stringMatching(
+        /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
+      ),
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
     expect(result[0]?.id).toBe(5)
   })
 
-  it('treats a null body as no activities', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+  it('treats an empty page as no activities', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 200,
+      next: null,
+    })
     await expect(fetchUserWeekActivities(7, 0)).resolves.toEqual([])
   })
 })
 
 describe('fetchActivityStreams', () => {
   it('requests the authenticated and public stream endpoints', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
     await fetchActivityStreams(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_streams/activity_id/5/all',
+      '/activities/5/streams?page_number=1',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityStreams(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities_streams/activity_id/5/all',
+      '/public/activities/5/streams?page_number=1',
       expect.objectContaining({ auth: false }),
     )
   })
 
-  it('maps a null response to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
+  it('maps an empty page to an empty array', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: null, next: null })
     expect(await fetchActivityStreams(5, { authenticated: true })).toEqual([])
   })
 })
 
 describe('fetchActivityLaps', () => {
   it('requests the authenticated and public lap endpoints', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
     await fetchActivityLaps(5, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_laps/activity_id/5/all',
+      '/activities/5/laps?page_number=1',
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityLaps(5, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities_laps/activity_id/5/all',
+      '/public/activities/5/laps?page_number=1',
       expect.objectContaining({ auth: false }),
+    )
+  })
+
+  it('walks every page the server advertises', async () => {
+    // The read is paginated server-side; showing only page 1 would silently
+    // drop laps from a long activity.
+    const lap = { id: 1, activity_id: 5, start_time: '2024-01-15T08:00:00Z' }
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [lap], next: 2 })
+      .mockResolvedValueOnce({ items: [{ ...lap, id: 2 }], next: null })
+
+    const laps = await fetchActivityLaps(5, { authenticated: true })
+
+    expect(laps).toHaveLength(2)
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/activities/5/laps?page_number=2',
+      expect.objectContaining({ auth: true }),
     )
   })
 })
@@ -271,9 +316,10 @@ describe('setActivityGear', () => {
 
     const updated = await setActivityGear(activity, 42)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/edit', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 5, name: 'Morning run', activity_type: 1, gear_id: 42 }),
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'PATCH',
+      body: JSON.stringify({ gear_id: 42 }),
+      headers: { 'If-Match': '"3"' },
     })
     expect(updated.gearId).toBe(42)
   })
@@ -284,10 +330,22 @@ describe('setActivityGear', () => {
 
     await setActivityGear(activity, null)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/edit', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 5, name: 'Morning run', activity_type: 1, gear_id: null }),
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'PATCH',
+      body: JSON.stringify({ gear_id: null }),
+      headers: { 'If-Match': '"3"' },
     })
+  })
+
+  it('omits If-Match when the copy carries no version', async () => {
+    // A conditional write needs something to be conditional on; sending a made
+    // up tag would fail every save.
+    const activity = { ...mapActivity(activityDto), version: null }
+    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
+
+    await setActivityGear(activity, 42)
+
+    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({})
   })
 })
 
@@ -297,20 +355,37 @@ describe('deleteActivity', () => {
 
     await deleteActivity(5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/delete', { method: 'DELETE' })
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', { method: 'DELETE' })
   })
 })
 
 describe('updateUserActivitiesVisibility', () => {
-  it('updates every existing activity to the requested visibility', async () => {
+  it('patches the collection with the wire value for the requested visibility', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
 
     await updateUserActivitiesVisibility('followers')
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/visibility/followers', {
-      method: 'PUT',
+    // The profile UI works in names, the activities API in integers; sending
+    // the name produced a 422 before this mapping existed.
+    expect(apiFetch).toHaveBeenCalledWith('/activities', {
+      method: 'PATCH',
+      body: JSON.stringify({ visibility: 1 }),
       responseType: 'void',
     })
+  })
+
+  it('maps every visibility level to its wire value', async () => {
+    for (const [name, wire] of [
+      ['public', 0],
+      ['followers', 1],
+      ['private', 2],
+    ] as const) {
+      vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+      await updateUserActivitiesVisibility(name)
+      expect(vi.mocked(apiFetch).mock.lastCall?.[1]).toMatchObject({
+        body: JSON.stringify({ visibility: wire }),
+      })
+    }
   })
 })
 
@@ -343,10 +418,10 @@ describe('editActivity', () => {
       hideGear: false,
     })
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/edit', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+      method: 'PATCH',
+      headers: {},
       body: JSON.stringify({
-        id: 5,
         name: 'Evening run',
         activity_type: 1,
         description: null,
@@ -372,8 +447,14 @@ describe('editActivity', () => {
 })
 
 describe('fetchUserActivitiesPage', () => {
-  it('builds the list and count URLs from the shared filters and combines the results', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([activityDto]).mockResolvedValueOnce(42)
+  it('builds the list URL from the filters and reads the total from the envelope', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [activityDto],
+      total: 42,
+      page: 2,
+      num_records: 25,
+      next: 3,
+    })
 
     const result = await fetchUserActivitiesPage({
       userId: 7,
@@ -384,14 +465,11 @@ describe('fetchUserActivitiesPage', () => {
       sortOrder: 'asc',
     })
 
-    expect(apiFetch).toHaveBeenNthCalledWith(
-      1,
-      '/activities/user/7/page_number/2/num_records/25?type=1&start_date=2024-01-01&end_date=2024-12-31&name_search=run&sort_by=distance&sort_order=asc',
-      expect.objectContaining({ signal: undefined }),
-    )
-    expect(apiFetch).toHaveBeenNthCalledWith(
-      2,
-      '/activities/number?type=1&start_date=2024-01-01&end_date=2024-12-31&name_search=run',
+    // One request, not two: the total now travels with the page, so the filters
+    // cannot drift between a list call and a separate count call.
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities?type=1&start_date=2024-01-01&end_date=2024-12-31&name=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.total).toBe(42)
@@ -399,8 +477,14 @@ describe('fetchUserActivitiesPage', () => {
     expect(result.records[0]?.id).toBe(5)
   })
 
-  it('omits empty filters and the count query when no filters are active', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+  it('omits empty filters from the list URL', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 10,
+      next: null,
+    })
 
     const result = await fetchUserActivitiesPage({
       userId: 3,
@@ -411,21 +495,22 @@ describe('fetchUserActivitiesPage', () => {
       sortOrder: 'desc',
     })
 
-    expect(apiFetch).toHaveBeenNthCalledWith(
-      1,
-      '/activities/user/3/page_number/1/num_records/10?sort_by=start_time&sort_order=desc',
-      expect.objectContaining({ signal: undefined }),
-    )
-    expect(apiFetch).toHaveBeenNthCalledWith(
-      2,
-      '/activities/number',
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities?sort_by=start_time&sort_order=desc&page_number=1&num_records=10',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [], total: 0 })
   })
 
   it('treats the "all types" sentinel (0) as no type filter', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([]).mockResolvedValueOnce(0)
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
 
     await fetchUserActivitiesPage({
       userId: 1,
@@ -438,7 +523,7 @@ describe('fetchUserActivitiesPage', () => {
 
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
-      '/activities/user/1/page_number/1/num_records/25?sort_by=name&sort_order=asc',
+      '/activities?sort_by=name&sort_order=asc&page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -484,5 +569,100 @@ describe('fetchUserActivityTypeMap', () => {
   it('returns an empty map when the body is null', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     await expect(fetchUserActivityTypeMap()).resolves.toEqual(new Map())
+  })
+})
+
+describe('local-calendar period anchoring', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sends the viewer local date so the backend resolves the right week/month', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({})
+    await fetchActivityStats(7, 'week')
+
+    const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+    const sentDate = new URLSearchParams(url.split('?')[1]).get('date')
+    const now = new Date()
+    const localToday = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+
+    expect(sentDate).toBe(localToday)
+  })
+
+  it('derives the week range from the local calendar, not UTC', async () => {
+    // 2026-01-05T13:30:00Z is Monday the 5th in UTC but already Tuesday the 6th
+    // for a viewer at UTC+13 — either way the range must start on a Monday and
+    // span exactly seven days in the viewer's own calendar.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-01-05T13:30:00Z'))
+      vi.mocked(apiFetch).mockResolvedValueOnce([])
+      await fetchUserWeekActivities(7, 0)
+
+      const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+      const params = new URLSearchParams(url.split('?')[1])
+      const start = params.get('start_date') as string
+      const end = params.get('end_date') as string
+
+      const [sy, sm, sd] = start.split('-').map(Number)
+      const startLocal = new Date(sy as number, (sm as number) - 1, sd as number)
+      expect(startLocal.getDay()).toBe(1) // Monday in the viewer's calendar
+
+      const [ey, em, ed] = end.split('-').map(Number)
+      const endLocal = new Date(ey as number, (em as number) - 1, ed as number)
+      expect((endLocal.getTime() - startLocal.getTime()) / 86_400_000).toBe(6)
+
+      // The anchor day itself must fall inside the returned week.
+      const now = new Date()
+      const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      expect(todayLocal.getTime()).toBeGreaterThanOrEqual(startLocal.getTime())
+      expect(todayLocal.getTime()).toBeLessThanOrEqual(endLocal.getTime())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('conditional activity writes', () => {
+  it('editActivity sends If-Match built from the version the form was loaded at', async () => {
+    // Without this header the save is last-writer-wins: the edit form posts
+    // every field it holds, so a copy loaded before someone else's change
+    // silently reverts that change.
+    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
+
+    await editActivity(
+      5,
+      {
+        name: 'Evening run',
+        activityType: 1,
+        description: '',
+        privateNotes: '',
+        visibility: 0,
+        isHidden: false,
+        hideStartTime: false,
+        hideLocation: false,
+        hideMap: false,
+        hideHr: false,
+        hidePower: false,
+        hideCadence: false,
+        hideElevation: false,
+        hideSpeed: false,
+        hidePace: false,
+        hideLaps: false,
+        hideWorkoutSetsSteps: false,
+        hideGear: false,
+      },
+      7,
+    )
+
+    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({ 'If-Match': '"7"' })
+  })
+
+  it('maps the version off the wire so it can be echoed back', async () => {
+    expect(mapActivity({ ...activityDto, version: 9 }).version).toBe(9)
   })
 })

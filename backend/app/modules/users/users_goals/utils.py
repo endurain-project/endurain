@@ -1,0 +1,266 @@
+"""User goals utility functions for progress calculation."""
+
+from datetime import datetime, timedelta
+
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+
+import core.calendar as core_calendar
+import core.logger as core_logger
+import modules.activities.activity.integration_service as activities_integration
+import modules.users.users.utils as users_utils
+import modules.users.users_goals.crud as user_goals_crud
+import modules.users.users_goals.schema as user_goals_schema
+from modules.activities.activity.constants import ACTIVITY_TYPES_BY_SPORT
+
+logger = core_logger.get_logger(__name__)
+
+# Which activity types each goal counts. The sport groupings are owned by the
+# activities module; a goal states which sports it spans, so a new running or
+# cycling type starts counting towards goals the day it is added rather than
+# whenever someone remembers this list exists.
+_ACTIVITY_TYPE_MAP: dict[str, list[int]] = {
+    user_goals_schema.ActivityType.RUN.value: [*ACTIVITY_TYPES_BY_SPORT["run"]],
+    user_goals_schema.ActivityType.BIKE.value: [*ACTIVITY_TYPES_BY_SPORT["bike"]],
+    user_goals_schema.ActivityType.SWIM.value: [*ACTIVITY_TYPES_BY_SPORT["swim"]],
+    # Deliberately wider than the walk sport: a walking goal also counts hiking
+    # and snowshoeing, which the stats view reports as their own sports.
+    user_goals_schema.ActivityType.WALK.value: [
+        *ACTIVITY_TYPES_BY_SPORT["walk"],
+        *ACTIVITY_TYPES_BY_SPORT["hike"],
+        *ACTIVITY_TYPES_BY_SPORT["snowshoeing"],
+    ],
+    # Crossfit, cardio training, HIIT and jump rope have no sport grouping of
+    # their own: they are goal-only, so the ids are stated here.
+    user_goals_schema.ActivityType.CARDIO.value: [20, 41, 46, 47],
+}
+
+_DEFAULT_ACTIVITY_TYPES: list[int] = [10, 19]
+
+
+def calculate_user_goals(
+    user_id: int,
+    date: str | None,
+    db: Session,
+    first_day_of_week: core_calendar.WeekdayValue,
+) -> list[user_goals_schema.UsersGoalProgress] | None:
+    """
+    Calculate progress for all user goals on a specified date.
+
+    Args:
+        user_id: The ID of the user.
+        date: Date in YYYY-MM-DD format. If None, uses
+            current date.
+        db: SQLAlchemy database session.
+        first_day_of_week: User's configured first weekday.
+
+    Returns:
+        List of UsersGoalProgress objects, or None if no
+            goals found.
+
+    Raises:
+        HTTPException: If database error occurs.
+    """
+    if not date:
+        # The athlete's own calendar day, not the server's. Anchoring on
+        # ``datetime.now(UTC)`` rolled daily goals over at UTC midnight and
+        # flipped weekly/monthly/yearly windows up to a day early or late, so
+        # progress bars visibly reset at the wrong time for anyone off UTC.
+        date = users_utils.user_local_today(user_id, db).strftime("%Y-%m-%d")
+    try:
+        goals: list[user_goals_schema.UsersGoalRead] = user_goals_crud.get_user_goals_by_user_id(user_id, db)
+
+        if not goals:
+            return None
+
+        return [
+            calculate_goal_progress_by_activity_type(
+                goal,
+                date,
+                db,
+                first_day_of_week,
+            )
+            for goal in goals
+        ]
+    except HTTPException as http_err:
+        raise http_err
+    except (ValueError, TypeError) as err:
+        # Log the exception
+        logger.error(f"Error in calculate_user_goals: {err}", exc_info=err)
+        # Raise an HTTPException with a 400 status code
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid data provided",
+        ) from err
+    except Exception as err:
+        # Log unexpected exceptions
+        logger.error(f"Unexpected error in calculate_user_goals: {err}", exc_info=err)
+        # Raise an HTTPException with a 500 status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def calculate_goal_progress_by_activity_type(
+    goal: user_goals_schema.UsersGoalRead,
+    date: str,
+    db: Session,
+    first_day_of_week: core_calendar.WeekdayValue,
+) -> user_goals_schema.UsersGoalProgress:
+    """
+    Calculate goal progress for a specific activity type.
+
+    Args:
+        goal: User goal object with goal details.
+        date: Reference date in YYYY-MM-DD format.
+        db: SQLAlchemy database session.
+        first_day_of_week: User's configured first weekday.
+
+    Returns:
+        UsersGoalProgress object with progress details.
+
+    Raises:
+        HTTPException: If database error occurs.
+    """
+    try:
+        start_date, end_date = get_start_end_date_by_interval(
+            goal.interval,
+            date,
+            first_day_of_week,
+        )
+
+        # Get activity types based on goal.activity_type
+        activity_types = _ACTIVITY_TYPE_MAP.get(goal.activity_type, _DEFAULT_ACTIVITY_TYPES)
+
+        # Fetch all activities in a single query (exclude hidden to avoid
+        # counting duplicate imports from multiple sources)
+        activities = activities_integration.list_user_activities_in_timeframe_by_types(
+            goal.user_id,
+            activity_types,
+            start_date,
+            end_date,
+            db,
+            exclude_hidden=True,
+        )
+
+        # Calculate totals based on goal type
+        percentage_completed: float = 0
+        total_calories = 0
+        total_activities_number = 0
+        total_distance = 0
+        total_elevation = 0
+        total_duration: float = 0
+
+        if activities:
+            if goal.goal_type == user_goals_schema.GoalType.CALORIES:
+                total_calories = sum(activity.calories or 0 for activity in activities)
+                if goal.goal_calories and goal.goal_calories > 0:
+                    percentage_completed = (total_calories / goal.goal_calories) * 100
+            elif goal.goal_type == user_goals_schema.GoalType.DISTANCE:
+                total_distance = sum(activity.distance or 0 for activity in activities)
+                if goal.goal_distance and goal.goal_distance > 0:
+                    percentage_completed = (total_distance / goal.goal_distance) * 100
+            elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
+                total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
+                if goal.goal_elevation and goal.goal_elevation > 0:
+                    percentage_completed = (total_elevation / goal.goal_elevation) * 100
+            elif goal.goal_type == user_goals_schema.GoalType.DURATION:
+                total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
+                if goal.goal_duration and goal.goal_duration > 0:
+                    percentage_completed = (total_duration / goal.goal_duration) * 100
+            elif goal.goal_type == user_goals_schema.GoalType.ACTIVITIES:
+                total_activities_number = len(activities)
+                if goal.goal_activities_number and goal.goal_activities_number > 0:
+                    percentage_completed = (total_activities_number / goal.goal_activities_number) * 100
+
+        if percentage_completed > 100:
+            percentage_completed = 100
+
+        # Create and return the progress object
+        return user_goals_schema.UsersGoalProgress(
+            goal_id=goal.id,
+            interval=goal.interval,
+            activity_type=goal.activity_type,
+            goal_type=goal.goal_type,
+            start_date=start_date.strftime("%Y-%m-%d"),
+            end_date=end_date.strftime("%Y-%m-%d"),
+            percentage_completed=round(percentage_completed),
+            total_calories=total_calories,
+            total_activities_number=total_activities_number,
+            total_distance=round(total_distance),
+            total_elevation=round(total_elevation),
+            total_duration=round(total_duration),
+            goal_calories=goal.goal_calories,
+            goal_activities_number=goal.goal_activities_number,
+            goal_distance=goal.goal_distance,
+            goal_elevation=goal.goal_elevation,
+            goal_duration=goal.goal_duration,
+        )
+    except HTTPException as http_err:
+        raise http_err
+    except (ValueError, TypeError) as err:
+        # Log the exception
+        logger.error(f"Error in calculate_goal_progress_by_activity_type: {err}", exc_info=err)
+        # Raise an HTTPException with a 400 status code
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid data provided",
+        ) from err
+    except Exception as err:
+        # Log unexpected exceptions
+        logger.error(f"Unexpected error in calculate_goal_progress_by_activity_type: {err}", exc_info=err)
+        # Raise an HTTPException with a 500 status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_start_end_date_by_interval(
+    interval: str,
+    date: str,
+    first_day_of_week: core_calendar.WeekdayValue,
+) -> tuple[datetime, datetime]:
+    """
+    Get start and end datetimes for interval containing date.
+
+    Args:
+        interval: One of yearly, monthly, weekly, or daily.
+        date: Date string in YYYY-MM-DD format.
+        first_day_of_week: User's configured first weekday.
+
+    Returns:
+        Tuple of (start_date, end_date) datetimes.
+
+    Raises:
+        HTTPException: If invalid interval specified.
+    """
+    date_obj = datetime.strptime(date, "%Y-%m-%d")
+    if interval == "yearly":
+        start_date = date_obj.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Calculate the last second of December 31st of the same year
+        end_date = datetime(date_obj.year, 12, 31, 23, 59, 59)
+    elif interval == "weekly":
+        start_date = core_calendar.get_week_start(date_obj, first_day_of_week)
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = start_date + timedelta(days=6, hours=23, minutes=59, seconds=59)  # Sunday
+    elif interval == "monthly":
+        start_date = date_obj.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Get the first day of next month
+        if date_obj.month == 12:
+            next_month = start_date.replace(year=date_obj.year + 1, month=1)
+        else:
+            next_month = start_date.replace(month=date_obj.month + 1)
+        # Subtract one second to get the last second of the current month
+        end_date = next_month - timedelta(seconds=1)
+    elif interval == "daily":
+        start_date = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = date_obj.replace(hour=23, minute=59, second=59, microsecond=0)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid interval specified",
+        )
+
+    return start_date, end_date

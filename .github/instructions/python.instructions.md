@@ -99,6 +99,25 @@ class MyClass:
     """
 ```
 
+# Logging by layer
+
+Use `core.logger.get_logger(__name__)` and pass structured fields through
+`core.logger.context(...)` — never f-string the values into the message.
+
+Each layer logs one kind of thing, so a reader knows where to look and the same
+event is never reported twice:
+
+| Layer | Logs |
+| --- | --- |
+| `router` / `public_router` | **Nothing.** It knows nothing the service does not, and the request itself is already correlated by the request-id middleware. The one exception is a rejected capability token on an unauthenticated blob route: that is an authentication failure with no service beneath it to report it. |
+| `service` | The decision layer. **INFO** when a state change completed (created / updated / deleted / queued). **WARNING** when a request was refused (permission, precondition, invalid input). **DEBUG** for the inputs to a non-obvious decision — a resolved anchor date, a page window, why a read came back empty. |
+| `crud` | **Only what it swallows.** ERROR for a failure it cannot complete; WARNING for an anomaly it absorbs (a caught `IntegrityError`, a row that vanished mid-operation) — the caller sees a normal return and would otherwise never learn of it. Never DEBUG/INFO narrating successful work: the service already said what happened, and repeating it here does so at query volume. |
+| `subscribers` | **DEBUG** when skipping (why it did nothing) and **ERROR** when failing. They run detached from any request, so silence is indistinguishable from never having run. |
+| `query`, `serializers`, `signing`, `models`, `schema`, pure utils | **Nothing.** They make no decisions and own no failures. |
+
+`console=True` in `context(...)` mirrors a record to the container log; reserve it
+for operator-facing events (startup, migrations, bulk import progress).
+
 # Testing Standards (pytest)
 - **Location:** `backend/tests/` mirroring `backend/app/` 
   structure

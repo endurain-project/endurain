@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Slėpti treniruotės serijas ir žingsnius",
     "hideGear": "Slėpti įrangą",
     "success": "Veikla atnaujinta",
-    "error": "Nepavyko atnaujinti veiklos"
+    "error": "Nepavyko atnaujinti veiklos",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ši veikla paslėpta. Tik jūs galite ją matyti.",

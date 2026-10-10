@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "保存您的备用码",
       "description": "当您无法访问认证应用时，使用备用码登录。",
-      "warning": "这些备用码只显示一次。请妥善保存——每个备用码只能使用一次。",
+      "warning": "这些备用码只显示一次。请妥善保存，每个备用码只能使用一次。",
       "copy": "复制",
       "copied": "备用码已复制",
       "copyError": "无法复制备用码。",
@@ -898,7 +898,7 @@
       "export": "导出数据",
       "import": "导入数据",
       "invalidType": "请选择 .zip 压缩文件。",
-      "exportSuccess": "导出完成——您的下载将很快开始",
+      "exportSuccess": "导出完成，您的下载将很快开始",
       "exportError": "无法导出您的数据，请重试。",
       "importSuccess": "数据已导入",
       "importError": "无法导入压缩文件，请检查文件后重试。"

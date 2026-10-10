@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-import health.health_sleep.schema as health_sleep_schema
+import modules.health.health_sleep.schema as health_sleep_schema
 
 
 class TestHealthSleepSchema:

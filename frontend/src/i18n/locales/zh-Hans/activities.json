@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "隐藏训练组数和步骤",
     "hideGear": "隐藏装备",
     "success": "活动已更新",
-    "error": "无法更新活动"
+    "error": "无法更新活动",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "此活动已隐藏，只有您可以看到。",

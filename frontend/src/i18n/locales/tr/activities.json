@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Antrenman setlerini ve adımlarını gizle",
     "hideGear": "Ekipmanı gizle",
     "success": "Etkinlik güncellendi",
-    "error": "Etkinlik güncellenemedi"
+    "error": "Etkinlik güncellenemedi",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Bu etkinlik gizli. Yalnızca siz görebilirsiniz.",

@@ -1,6 +1,6 @@
 from datetime import date as datetime_date
 
-import health.health_weight.models as health_weight_models
+import modules.health.health_weight.models as health_weight_models
 
 
 class TestHealthWeightModel:

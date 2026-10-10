@@ -18,6 +18,8 @@ import ActivityMetricsGrid from '@/features/activities/components/ActivityMetric
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useActivityOwnerQuery } from '@/features/activities/composables/useActivityDetail'
+import { isAwaitingThumbnail } from '@/features/upload/composables/usePendingThumbnails'
+import { formatZonedDateTime } from '@/utils/datetime'
 import {
   activityTypeIsVirtual,
   presentActivityType,
@@ -79,19 +81,13 @@ const canSeeLocation = computed(() =>
   canViewField(props.activity, 'hideLocation', props.currentUserId),
 )
 
-const dateTimeLabel = computed(() => {
-  if (!props.activity.startTime) {
-    return null
-  }
-  const date = new Date(props.activity.startTime)
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: canSeeStartTime.value ? 'short' : undefined,
-  }).format(date)
-})
+const dateTimeLabel = computed(
+  () =>
+    formatZonedDateTime(props.activity.startTime, props.activity.timezone, locale.value, {
+      dateStyle: 'medium',
+      timeStyle: canSeeStartTime.value ? 'short' : undefined,
+    }) || null,
+)
 
 const locationLabel = computed(() => {
   if (!canSeeLocation.value) {
@@ -115,20 +111,31 @@ const garminUrl = computed(() =>
 const metricVisibility = computed(() => buildMetricVisibility(props.activity, props.currentUserId))
 
 /**
- * The static map thumbnail URL, or `null` when there is no thumbnail or the
- * viewer may not see the map. The backend stores an absolute filesystem path;
- * the file is served from `/activity_thumbnails/<file>`, so strip everything
- * before that segment (mirrors `resolveActivityMediaUrl`).
+ * The map thumbnail URL, or `null` when there is no thumbnail or the viewer may
+ * not see the map. The backend returns a ready-to-use URL: a same-origin signed
+ * path (`/api/v1/activities/42/thumbnail?t=…`) for local storage, or an absolute
+ * (presigned) URL for remote object storage; `getBackendAssetUrl` handles both.
  */
 const thumbnailUrl = computed(() => {
   const path = props.activity.mapThumbnailPath
   if (!path || !canViewField(props.activity, 'hideMap', props.currentUserId)) {
     return null
   }
-  const marker = 'activity_thumbnails/'
-  const index = path.lastIndexOf(marker)
-  return getBackendAssetUrl(index >= 0 ? path.slice(index) : path)
+  return getBackendAssetUrl(path)
 })
+
+/**
+ * Whether to hold the map slot with a placeholder: the activity was just
+ * uploaded and its thumbnail is still being rendered by a background job. Only
+ * ever true for activities this session uploaded, so the many activities that
+ * legitimately have no map (no GPS track) never show a placeholder.
+ */
+const thumbnailPending = computed(
+  () =>
+    thumbnailUrl.value === null &&
+    canViewField(props.activity, 'hideMap', props.currentUserId) &&
+    isAwaitingThumbnail(props.activity.id),
+)
 
 const activityRoute = computed(() => ({ name: 'activity', params: { id: props.activity.id } }))
 
@@ -223,6 +230,7 @@ const ownerRoute = computed(() =>
       :points="[]"
       :thumbnail-url="thumbnailUrl"
       :thumbnail-to="activityRoute"
+      :thumbnail-pending="thumbnailPending"
       :activity-id="activity.id"
       :is-owner="isOwner"
       height-class="h-65"

@@ -54,7 +54,7 @@ describe('fetchActivitySummary', () => {
     const result = await fetchActivitySummary('week', { date: '2024-06-10', typeName: 'Run' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_summaries/week?date=2024-06-10&type=Run',
+      '/activities/summaries?period=week&date=2024-06-10&type=Run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.totals).toEqual({
@@ -78,7 +78,7 @@ describe('fetchActivitySummary', () => {
     const result = await fetchActivitySummary('month', { date: '2024-06-01' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_summaries/month?date=2024-06-01',
+      '/activities/summaries?period=month&date=2024-06-01',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.breakdown[0]?.bucket).toBe(23)
@@ -95,7 +95,7 @@ describe('fetchActivitySummary', () => {
     const result = await fetchActivitySummary('year', { year: 2024 })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_summaries/year?year=2024',
+      '/activities/summaries?period=year&year=2024',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.breakdown[0]?.bucket).toBe(12)
@@ -111,7 +111,7 @@ describe('fetchActivitySummary', () => {
     const result = await fetchActivitySummary('lifetime')
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_summaries/lifetime',
+      '/activities/summaries?period=lifetime',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.breakdown[0]?.bucket).toBe(2023)
@@ -123,7 +123,7 @@ describe('fetchActivitySummary', () => {
     await fetchActivitySummary('week', { typeName: '  ' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities_summaries/week',
+      '/activities/summaries?period=week',
       expect.objectContaining({ signal: undefined }),
     )
   })

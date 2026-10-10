@@ -212,8 +212,25 @@ export interface Activity {
   isHidden: boolean
   gearId: number | null
 
-  /** Start time with the activity's timezone already applied (ISO string). */
+  /**
+   * Row version behind the `ETag`. Sent back as `If-Match` on save so an edit
+   * built from a stale copy is refused instead of overwriting whoever saved in
+   * between. `null` when the activity came from a response that omits it.
+   */
+  version: number | null
+
+  /**
+   * Activity start as a UTC instant (ISO 8601 with offset), or `null` when the
+   * owner hid it. Always render it through `formatZonedDateTime` with
+   * {@link Activity.timezone} — never with the viewer's local zone — so the
+   * activity reads in the timezone it was recorded in.
+   */
   startTime: string | null
+  /**
+   * IANA timezone the activity was recorded in, resolved from its GPS track at
+   * import time (or the server default for GPS-less indoor activities).
+   */
+  timezone: string | null
   city: string | null
   town: string | null
   country: string | null
@@ -266,13 +283,12 @@ export interface ActivitiesPage {
 }
 
 /**
- * A photo attached to an activity. `url` is the resolved, servable image URL;
- * the backend stores an absolute filesystem path in `mediaPath`.
+ * A photo attached to an activity. `url` is the servable image URL the backend
+ * resolved from its storage key; the key itself is not addressable.
  */
 export interface ActivityMedia {
   id: number
   activityId: number
-  mediaPath: string
   url: string
 }
 
@@ -304,4 +320,15 @@ export interface ActivityEditInput {
   hideLaps: boolean
   hideWorkoutSetsSteps: boolean
   hideGear: boolean
+}
+
+/**
+ * One keyset slice of the following feed.
+ *
+ * @property items - The slice's activities, newest first.
+ * @property nextCursor - Cursor for the next slice, or `null` at the end.
+ */
+export interface ActivityFeedSlice {
+  items: Activity[]
+  nextCursor: string | null
 }

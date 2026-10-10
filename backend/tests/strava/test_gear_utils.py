@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-import strava.gear_utils as gear_utils
+import modules.strava.gear_utils as gear_utils
 
 
 def test_shoe_csv_uses_strava_import_directory(monkeypatch, tmp_path):
@@ -107,7 +107,7 @@ def test_shoe_transform_trailing_plus_encoded(monkeypatch):
     """Shoe name trailing whitespace is stripped."""
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
     monkeypatch.setattr(gear_utils.gears_crud, "get_gear_user_by_nickname", lambda uid, name, db: None)
-    monkeypatch.setattr(gear_utils.core_logger, "print_to_log_and_console", Mock())
+    monkeypatch.setattr(gear_utils, "logger", Mock())
 
     shoes_list = [
         {"Shoe Name": "Pegasus+ ", "Shoe Brand": "Nike", "Shoe Model": "Pegasus"},
@@ -122,7 +122,7 @@ def test_shoe_transform_blank_name(monkeypatch):
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
     monkeypatch.setattr(gear_utils.gears_crud, "get_gear_user_by_nickname", lambda uid, name, db: None)
     logger = Mock()
-    monkeypatch.setattr(gear_utils.core_logger, "print_to_log_and_console", logger)
+    monkeypatch.setattr(gear_utils, "logger", logger)
 
     shoes_list = [
         {"Shoe Name": None, "Shoe Brand": "Nike", "Shoe Model": "Pegasus"},
@@ -132,7 +132,7 @@ def test_shoe_transform_blank_name(monkeypatch):
     assert gears[0].nickname == "Unnamed Shoe 1"
     assert gears[0].brand == "Nike"
     assert gears[0].model == "Pegasus"
-    logger.assert_called_once()
+    assert len(logger.method_calls) == 1
 
 
 def test_shoe_transform_multiple_shoes():
@@ -153,7 +153,7 @@ def test_shoe_transform_empty_string_name(monkeypatch):
     """Empty string shoe name gets renamed."""
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
     monkeypatch.setattr(gear_utils.gears_crud, "get_gear_user_by_nickname", lambda uid, name, db: None)
-    monkeypatch.setattr(gear_utils.core_logger, "print_to_log_and_console", Mock())
+    monkeypatch.setattr(gear_utils, "logger", Mock())
 
     shoes_list = [
         {"Shoe Name": "", "Shoe Brand": "Adidas", "Shoe Model": "Adios"},

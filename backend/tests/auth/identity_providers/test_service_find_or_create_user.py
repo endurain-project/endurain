@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from auth.identity_providers.service import IdentityProviderService
+from modules.auth.identity_providers.service import IdentityProviderService
 
 
 def _make_idp() -> MagicMock:
@@ -66,15 +66,15 @@ class TestFindOrCreateUserEmailLinking:
 
         with (
             patch(
-                "auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
+                "modules.auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
             patch(
-                "auth.identity_providers.service.users_crud.get_user_by_email",
+                "modules.auth.identity_providers.service.users_crud.get_user_by_email",
                 return_value=existing_user,
             ),
             patch(
-                "auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
+                "modules.auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
             ) as mock_link,
             pytest.raises(HTTPException) as exc_info,
         ):
@@ -99,15 +99,15 @@ class TestFindOrCreateUserEmailLinking:
 
         with (
             patch(
-                "auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
+                "modules.auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
             patch(
-                "auth.identity_providers.service.users_crud.get_user_by_email",
+                "modules.auth.identity_providers.service.users_crud.get_user_by_email",
                 return_value=existing_user,
             ),
             patch(
-                "auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
+                "modules.auth.identity_providers.service.auth_identity_links_crud.create_user_identity_provider",
             ) as mock_link,
         ):
             result = await service._find_or_create_user(idp, "subject-123", userinfo, password_hasher, mock_db)
@@ -128,11 +128,11 @@ class TestFindOrCreateUserEmailLinking:
 
         with (
             patch(
-                "auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
+                "modules.auth.identity_providers.service.auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
             patch(
-                "auth.identity_providers.service.users_crud.get_user_by_email",
+                "modules.auth.identity_providers.service.users_crud.get_user_by_email",
                 return_value=None,
             ),
             patch.object(

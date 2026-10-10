@@ -6,8 +6,10 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 
 
 class TestHandleDbErrors:
@@ -38,14 +40,14 @@ class TestHandleDbErrors:
             raise SQLAlchemyError(msg)
 
         with (
-            patch("core.decorators.core_logger.print_to_log") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            patch("core.decorators.logger") as mock_log,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func(session)
 
         assert exc_info.value.status_code == 500
         session.rollback.assert_called_once()
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
 
     def test_sqlalchemy_error_with_session_in_kwargs(self):
         session = MagicMock(spec=Session)
@@ -55,14 +57,14 @@ class TestHandleDbErrors:
             raise SQLAlchemyError("DB down")
 
         with (
-            patch("core.decorators.core_logger.print_to_log") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            patch("core.decorators.logger") as mock_log,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func(some_session=session)
 
         assert exc_info.value.status_code == 500
         session.rollback.assert_called_once()
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
 
     def test_sqlalchemy_error_without_session(self):
         @core_decorators.handle_db_errors
@@ -70,13 +72,13 @@ class TestHandleDbErrors:
             raise SQLAlchemyError("DB down")
 
         with (
-            patch("core.decorators.core_logger.print_to_log") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            patch("core.decorators.logger") as mock_log,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func()
 
         assert exc_info.value.status_code == 500
-        mock_log.assert_called_once()
+        assert len(mock_log.method_calls) == 1
 
     def test_integrity_error_with_session(self):
         session = MagicMock(spec=Session)
@@ -85,10 +87,22 @@ class TestHandleDbErrors:
         def my_func(session):
             raise IntegrityError("stmt", {}, Exception("constraint violation"))
 
-        with patch("core.decorators.core_logger.print_to_log"), pytest.raises(IntegrityError):
+        with patch("core.decorators.logger"), pytest.raises(IntegrityError):
             my_func(session)
 
         session.rollback.assert_called_once()
+
+    def test_stale_data_error_is_left_for_the_decision_layer(self):
+        session = MagicMock(spec=Session)
+
+        @core_decorators.handle_db_errors
+        def my_func(session):
+            raise StaleDataError("row changed")
+
+        with pytest.raises(StaleDataError):
+            my_func(session)
+
+        session.rollback.assert_not_called()
 
     def test_rollback_failure(self):
         session = MagicMock(spec=Session)
@@ -99,11 +113,11 @@ class TestHandleDbErrors:
             raise SQLAlchemyError("DB down")
 
         with (
-            patch("core.decorators.core_logger.print_to_log") as mock_log,
-            pytest.raises(HTTPException) as exc_info,
+            patch("core.decorators.logger") as mock_log,
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
         ):
             my_func(session)
 
         assert exc_info.value.status_code == 500
-        assert mock_log.call_count == 2
+        assert len(mock_log.method_calls) == 2
         session.rollback.assert_called_once()

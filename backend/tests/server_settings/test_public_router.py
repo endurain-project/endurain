@@ -9,14 +9,14 @@ from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, status
 
-import server_settings.models as server_settings_models
-import server_settings.schema as server_settings_schema
+import modules.server_settings.models as server_settings_models
+import modules.server_settings.schema as server_settings_schema
 
 
 class TestReadPublicServerSettings:
     """Test suite for read_public_server_settings endpoint."""
 
-    @patch("server_settings.public_router.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.server_settings.public_router.server_settings_utils.get_server_settings_or_404")
     def test_read_public_server_settings_success(self, mock_get_settings, fast_api_client_public, fast_api_app):
         """Test successful retrieval of public server settings."""
         # Arrange
@@ -54,7 +54,7 @@ class TestReadPublicServerSettings:
         assert "signup_require_admin_approval" not in data
         assert "signup_require_email_verification" not in data
 
-    @patch("server_settings.public_router.server_settings_utils.get_server_settings_or_404")
+    @patch("modules.server_settings.public_router.server_settings_utils.get_server_settings_or_404")
     def test_read_public_server_settings_not_found(self, mock_get_settings, fast_api_client_public, fast_api_app):
         """Test retrieval when settings not found."""
         # Arrange
@@ -73,7 +73,7 @@ class TestReadPublicServerSettings:
 class TestListTileMapsTemplatesPublic:
     """Test suite for list_tile_maps_templates public endpoint."""
 
-    @patch("server_settings.public_router.server_settings_utils.get_tile_maps_templates")
+    @patch("modules.server_settings.public_router.server_settings_utils.get_tile_maps_templates")
     def test_list_tile_maps_templates_public_success(self, mock_get_templates, fast_api_client_public, fast_api_app):
         """Test successful retrieval of tile map templates (public)."""
         # Arrange
@@ -109,7 +109,7 @@ class TestListTileMapsTemplatesPublic:
         assert data[0]["template_id"] == "openstreetmap"
         assert data[1]["template_id"] == "alidade_smooth"
 
-    @patch("server_settings.public_router.server_settings_utils.get_tile_maps_templates")
+    @patch("modules.server_settings.public_router.server_settings_utils.get_tile_maps_templates")
     def test_list_tile_maps_templates_public_empty(self, mock_get_templates, fast_api_client_public, fast_api_app):
         """Test retrieval when no templates available."""
         # Arrange

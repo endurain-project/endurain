@@ -35,7 +35,7 @@ export type UserAccessType = Schemas['UserAccessType']
  * @property birthdate - Birthdate (ISO string), or `null`.
  * @property height - Height in centimetres, or `null`.
  * @property maxHeartRate - Max heart rate in bpm, or `null`.
- * @property photoPath - Raw backend photo path (round-tripped on edit), or `null`.
+ * @property photoPath - Backend-issued photo URL, or `null` when unset.
  * @property avatarUrl - Servable avatar URL derived from `photoPath`, or `null`.
  */
 export interface ManagedUser {

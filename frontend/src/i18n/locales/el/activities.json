@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Απόκρυψη σετ & βημάτων προπόνησης",
     "hideGear": "Απόκρυψη εξοπλισμού",
     "success": "Η δραστηριότητα ενημερώθηκε",
-    "error": "Δεν ήταν δυνατή η ενημέρωση της δραστηριότητας"
+    "error": "Δεν ήταν δυνατή η ενημέρωση της δραστηριότητας",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Αυτή η δραστηριότητα είναι κρυφή. Μόνο εσείς μπορείτε να τη δείτε.",

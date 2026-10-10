@@ -2,18 +2,19 @@
 
 from sqlalchemy.orm import Session
 
-import activities.activity.crud as activity_crud
-import activities.activity.schema as activity_schema
-import activities.activity_streams.crud as activity_streams_crud
-import activities.activity_streams.schema as activity_streams_schema
-import activities.activity_streams.utils as activity_streams_utils
 import core.logger as core_logger
 import migrations.crud as migrations_crud
-import users.users.crud as users_crud
-import users.users.schema as users_schema
+import modules.activities.activity.migration_service as activity_crud
+import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_streams.migration_service as activity_streams_migration
+import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.users.users.crud as users_crud
+import modules.users.users.schema as users_schema
+
+logger = core_logger.get_logger(__name__)
 
 
-async def process_migration_7(db: Session) -> None:
+def process_migration_7(db: Session) -> None:
     """
     Backfill zone_percentages for existing HR streams.
 
@@ -23,7 +24,7 @@ async def process_migration_7(db: Session) -> None:
     Returns:
         None.
     """
-    core_logger.print_to_log_and_console("Started migration 7")
+    logger.info("Started migration 7", extra=core_logger.context(console=True))
 
     streams_processed_with_no_errors: bool = True
     last_id: int = 0
@@ -31,7 +32,7 @@ async def process_migration_7(db: Session) -> None:
     while True:
         try:
             batch_streams: list[activity_streams_schema.ActivityStreamsRead] = (
-                activity_streams_crud.get_hr_streams_without_zone_percentages(db=db, after_id=last_id)
+                activity_streams_migration.get_hr_streams_without_zone_percentages(db=db, after_id=last_id)
             )
             if not batch_streams:
                 break
@@ -62,32 +63,32 @@ async def process_migration_7(db: Session) -> None:
                     user_cache[activity.user_id] = user
 
                 try:
-                    zone_percentages = await activity_streams_utils.build_zone_percentages(
-                        user,
-                        activity,
-                        stream.stream_waypoints,
-                    )
+                    max_heart_rate = activity_streams_migration.resolve_max_heart_rate(user)
+                    if max_heart_rate:
+                        hr_block = activity_streams_migration.compute_hr_zone_breakdown_sync(
+                            stream.stream_waypoints,
+                            max_heart_rate,
+                            activity.total_timer_time,
+                        )
+                        if hr_block is not None:
+                            zone_percentages = {"hr": hr_block}
                 except Exception as err:
-                    core_logger.print_to_log(
-                        f"Zone % computation failed for stream (activity {stream.activity_id}): {err}",
-                        "error",
-                        exc=err,
+                    logger.error(
+                        f"Zone % computation failed for stream (activity {stream.activity_id}): {err}", exc_info=err
                     )
 
                 if zone_percentages:
                     computed_streams.append({"stream_id": stream.id, "zone_percentages": zone_percentages})
 
             if computed_streams:
-                activity_streams_crud.backfill_zone_percentages_for_missing_hr_streams(computed_streams, db)
+                activity_streams_migration.backfill_zone_percentages_for_missing_hr_streams(computed_streams, db)
 
             last_id = batch_streams[-1].id
 
         except Exception as err:
             streams_processed_with_no_errors = False
-            core_logger.print_to_log_and_console(
-                f"Migration 7 - Error fetching streams: {err}",
-                "error",
-                exc=err,
+            logger.error(
+                f"Migration 7 - Error fetching streams: {err}", exc_info=err, extra=core_logger.context(console=True)
             )
             return
 
@@ -95,16 +96,15 @@ async def process_migration_7(db: Session) -> None:
         try:
             migrations_crud.set_migration_as_executed(7, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
+            logger.error(
                 f"Migration 7 - Failed to set migration as executed: {err}",
-                "error",
-                exc=err,
+                exc_info=err,
+                extra=core_logger.context(console=True),
             )
             return
     else:
-        core_logger.print_to_log_and_console(
-            "Migration 7 failed to process all streams. Will try again later.",
-            "error",
+        logger.error(
+            "Migration 7 failed to process all streams. Will try again later.", extra=core_logger.context(console=True)
         )
 
-    core_logger.print_to_log_and_console("Finished migration 7")
+    logger.info("Finished migration 7", extra=core_logger.context(console=True))

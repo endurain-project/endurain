@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Skryť série a kroky tréningu",
     "hideGear": "Skryť vybavenie",
     "success": "Aktivita aktualizovaná",
-    "error": "Aktivitu sa nepodarilo aktualizovať"
+    "error": "Aktivitu sa nepodarilo aktualizovať",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Táto aktivita je skrytá. Vidíte ju iba vy.",

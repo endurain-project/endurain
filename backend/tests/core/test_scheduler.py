@@ -1,6 +1,6 @@
 """Tests for core.scheduler — APScheduler setup and lifecycle."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestSchedulerJobId:
@@ -38,7 +38,62 @@ class TestStartScheduler:
             start_scheduler()
             mock_scheduler.start.assert_not_called()
 
-    def test_adds_all_recurring_jobs(self):
+    def test_registers_every_job_it_is_handed(self):
+        with (
+            patch("core.scheduler.scheduler") as mock_scheduler,
+            patch("core.scheduler.add_scheduler_job") as mock_add_job,
+        ):
+            mock_scheduler.running = False
+            from core.scheduler import ScheduledJob, start_scheduler
+
+            def dummy():
+                pass
+
+            start_scheduler([ScheduledJob(dummy, 5, "a"), ScheduledJob(dummy, 10, "b")])
+            assert mock_add_job.call_count == 2
+
+    def test_registers_locked_sync_job_through_sync_adapter(self):
+        with (
+            patch("core.scheduler.scheduler") as mock_scheduler,
+            patch("core.scheduler.add_scheduler_job") as mock_add_job,
+        ):
+            mock_scheduler.running = True
+            from core.scheduler import ScheduledJob, _run_locked_job, start_scheduler
+
+            operation = MagicMock()
+            start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_sync")])
+
+            mock_add_job.assert_called_once_with(
+                _run_locked_job,
+                "interval",
+                5,
+                ("provider_sync", operation, 1),
+                "locked",
+            )
+
+    def test_registers_locked_async_job_through_async_adapter(self):
+        with (
+            patch("core.scheduler.scheduler") as mock_scheduler,
+            patch("core.scheduler.add_scheduler_job") as mock_add_job,
+        ):
+            mock_scheduler.running = True
+            from core.scheduler import ScheduledJob, _run_locked_async_job, start_scheduler
+
+            async def operation(value):
+                return value
+
+            start_scheduler([ScheduledJob(operation, 5, "locked", [1], "provider_async")])
+
+            mock_add_job.assert_called_once_with(
+                _run_locked_async_job,
+                "interval",
+                5,
+                ("provider_async", operation, 1),
+                "locked",
+            )
+
+    def test_registers_nothing_when_handed_nothing(self):
+        """The scheduler owns no domain job list of its own."""
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
             patch("core.scheduler.add_scheduler_job") as mock_add_job,
@@ -47,29 +102,17 @@ class TestStartScheduler:
             from core.scheduler import start_scheduler
 
             start_scheduler()
-            assert mock_add_job.call_count == 13
+            mock_add_job.assert_not_called()
 
-    def test_idp_link_token_cleanup_job_registered(self):
-        """IdP link token cleanup must be registered with a 5-minute interval."""
-        import auth.identity_providers.link_tokens.utils as idp_link_tokens_utils
+    def test_queues_the_one_shot_retention_prune(self):
+        with patch("core.scheduler.scheduler") as mock_scheduler:
+            mock_scheduler.running = True
+            import jasil.retention as platform_retention
 
-        with (
-            patch("core.scheduler.scheduler") as mock_scheduler,
-            patch("core.scheduler.add_scheduler_job") as mock_add_job,
-        ):
-            mock_scheduler.running = False
             from core.scheduler import start_scheduler
 
             start_scheduler()
-
-        calls = [(call.args[0], call.args[1], call.args[2], call.args[4]) for call in mock_add_job.call_args_list]
-        assert any(
-            func is idp_link_tokens_utils.delete_idp_link_expired_tokens_from_db
-            and trigger == "interval"
-            and minutes == 5
-            and "idp link token" in description.lower()
-            for func, trigger, minutes, description in calls
-        ), "IdP link token cleanup job not found or mis-configured"
+            assert mock_scheduler.add_job.call_args.args[0] is platform_retention.prune_expired_records
 
 
 class TestAddSchedulerJob:
@@ -78,7 +121,7 @@ class TestAddSchedulerJob:
     def test_adds_job_successfully(self):
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
-            patch("core.scheduler.core_logger.print_to_log") as mock_log,
+            patch("core.scheduler.logger") as mock_log,
         ):
             from core.scheduler import add_scheduler_job
 
@@ -94,12 +137,12 @@ class TestAddSchedulerJob:
                 id="endurain_test_job_every_60_minutes",
                 replace_existing=True,
             )
-            mock_log.assert_called_once()
+            assert len(mock_log.method_calls) == 1
 
     def test_logs_error_when_add_job_fails(self):
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
-            patch("core.scheduler.core_logger.print_to_log") as mock_log,
+            patch("core.scheduler.logger") as mock_log,
         ):
             mock_scheduler.add_job.side_effect = ValueError("something went wrong")
             from core.scheduler import add_scheduler_job
@@ -108,11 +151,53 @@ class TestAddSchedulerJob:
                 pass
 
             add_scheduler_job(dummy, "interval", 60, [], "failing job")
-            mock_log.assert_any_call(
-                "Failed to add scheduler job to failing job: ValueError",
-                "error",
-                exc=mock_scheduler.add_job.side_effect,
+            mock_log.error.assert_any_call(
+                "Failed to add scheduler job to failing job: ValueError", exc_info=mock_scheduler.add_job.side_effect
             )
+
+
+class TestLockedSchedulerJobs:
+    """Tests for cross-replica execution guards."""
+
+    @patch("core.scheduler.platform_runtime")
+    def test_sync_job_runs_when_lock_is_acquired(self, mock_runtime):
+        from core.scheduler import _run_locked_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
+        operation = MagicMock(return_value="done")
+
+        assert _run_locked_job("provider_sync", operation, 1) == "done"
+        operation.assert_called_once_with(1)
+
+    @patch("core.scheduler.platform_runtime")
+    def test_sync_job_skips_when_lock_is_held(self, mock_runtime):
+        from core.scheduler import _run_locked_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
+        operation = MagicMock()
+
+        assert _run_locked_job("provider_sync", operation, 1) is None
+        operation.assert_not_called()
+
+    @patch("core.scheduler.platform_runtime")
+    async def test_async_job_runs_when_lock_is_acquired(self, mock_runtime):
+        from core.scheduler import _run_locked_async_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = True
+        operation = AsyncMock(return_value="done")
+
+        assert await _run_locked_async_job("provider_async", operation, 1) == "done"
+        operation.assert_awaited_once_with(1)
+
+    @patch("core.scheduler.platform_runtime")
+    async def test_async_job_skips_when_lock_is_held(self, mock_runtime):
+        from core.scheduler import _run_locked_async_job
+
+        mock_runtime.get_active_platform.return_value.lock.try_acquire.return_value.__enter__.return_value = False
+        operation = AsyncMock()
+
+        assert await _run_locked_async_job("provider_async", operation, 1) is None
+        operation.assert_not_awaited()
 
 
 class TestStopScheduler:

@@ -1,6 +1,6 @@
 # API Reference
 
-::: backend.app.websocket
+::: backend.app.modules.websocket
     handler: python
     options:
       docstring_style: google
