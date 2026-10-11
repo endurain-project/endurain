@@ -147,20 +147,18 @@ class TestGetActivitiesLaps:
 
 class TestGetPublicActivityLaps:
     @patch("activities.activity_laps.crud._to_read_schema")
-    @patch("activities.activity_laps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
-    def test_success(self, mock_get_act, mock_settings, mock_to_read, mock_db):
+    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id_if_is_public")
+    def test_success(self, mock_get_act, mock_to_read, mock_db):
         import activities.activity_laps.crud as crud
         import activities.activity_laps.models as m
 
-        mock_get_act.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
+        mock_get_act.return_value = MagicMock(hide_laps=False, timezone="UTC")
         mock_to_read.return_value = MagicMock()
         mock_db.scalars.return_value.all.return_value = [MagicMock(spec=m.ActivityLaps, id=1, activity_id=1)]
         r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
         assert len(r) == 1
 
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id_if_is_public")
     def test_not_found(self, mock_get_act, mock_db):
         import activities.activity_laps.crud as crud
 
@@ -168,7 +166,7 @@ class TestGetPublicActivityLaps:
         r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
         assert r is None
 
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
+    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id_if_is_public")
     def test_hidden(self, mock_get_act, mock_db):
         import activities.activity_laps.crud as crud
 
@@ -176,44 +174,20 @@ class TestGetPublicActivityLaps:
         r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
         assert r is None
 
-    @patch("activities.activity_laps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
-    def test_no_public_links(self, mock_get_act, mock_settings, mock_db):
+    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id_if_is_public")
+    def test_no_laps(self, mock_get_act, mock_db):
         import activities.activity_laps.crud as crud
 
-        mock_get_act.return_value = MagicMock(hide_laps=False)
-        mock_settings.return_value = MagicMock(public_shareable_links=False)
-        r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_laps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
-    def test_not_public(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_laps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_laps=False, visibility=2)
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
-        r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
-        assert r is None
-
-    @patch("activities.activity_laps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
-    def test_no_laps(self, mock_get_act, mock_settings, mock_db):
-        import activities.activity_laps.crud as crud
-
-        mock_get_act.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
+        mock_get_act.return_value = MagicMock(hide_laps=False, timezone="UTC")
         mock_db.scalars.return_value.all.return_value = []
         r = crud.get_public_activity_laps(activity_id=1, db=mock_db)
         assert r is None
 
-    @patch("activities.activity_laps.crud.server_settings_utils.get_server_settings_or_404")
-    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id")
-    def test_db_error(self, mock_get_act, mock_settings, mock_db):
+    @patch("activities.activity_laps.crud.activity_crud.get_activity_by_id_if_is_public")
+    def test_db_error(self, mock_get_act, mock_db):
         import activities.activity_laps.crud as crud
 
-        mock_get_act.return_value = MagicMock(hide_laps=False, visibility=0, timezone="UTC")
-        mock_settings.return_value = MagicMock(public_shareable_links=True)
+        mock_get_act.return_value = MagicMock(hide_laps=False, timezone="UTC")
         mock_db.scalars.side_effect = SQLAlchemyError("err")
         with pytest.raises(HTTPException) as e:
             crud.get_public_activity_laps(activity_id=1, db=mock_db)

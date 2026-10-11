@@ -1033,6 +1033,71 @@ class TestGetActivityByIdIfIsPublic:
         mock_settings.return_value.public_shareable_links = True
         assert crud.get_activity_by_id_if_is_public(activity_id=999, db=sqlite_session) is None
 
+    @patch("activities.activity.crud.server_settings_utils.get_server_settings_or_404")
+    @patch("activities.activity.crud.activities_utils.serialize_activity")
+    def test_excludes_strava_activities(self, mock_ser, mock_settings, sqlite_session):
+        """A public activity synced from Strava is not served."""
+        import activities.activity.crud as crud
+
+        mock_settings.return_value.public_shareable_links = True
+        sqlite_session.add(_public_activity(id=1, strava_activity_id=123))
+        sqlite_session.commit()
+
+        assert crud.get_activity_by_id_if_is_public(activity_id=1, db=sqlite_session) is None
+        mock_ser.assert_not_called()
+
+
+class TestStravaActivityVisibility:
+    """Activities synced from Strava are shown only to their owner.
+
+    The filter lives in the SQL ``WHERE`` clause, so it is exercised against a
+    real in-memory SQLite database. User 2 follows user 1, who owns activity 1
+    and the Strava-synced activity 2.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _seed(self, sqlite_session):
+        import followers.models as followers_models
+
+        sqlite_session.add(followers_models.Follower(follower_id=2, following_id=1, is_accepted=True))
+        sqlite_session.add(_public_activity(id=1, user_id=1))
+        sqlite_session.add(_public_activity(id=2, user_id=1, strava_activity_id=123))
+        sqlite_session.commit()
+
+    @patch("activities.activity.crud.activities_utils.serialize_activity")
+    @patch("activities.activity.crud.activities_utils.apply_visibility_mask")
+    def test_owner_sees_own_strava_activity(self, mock_mask, mock_ser, sqlite_session):
+        """The owner can still open their own Strava-synced activity."""
+        import activities.activity.crud as crud
+
+        result = crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=2, user_id=1, db=sqlite_session)
+        assert result is not None
+
+    @patch("activities.activity.crud.activities_utils.serialize_activity")
+    def test_follower_cannot_open_strava_activity(self, mock_ser, sqlite_session):
+        """A follower cannot open a Strava-synced activity."""
+        import activities.activity.crud as crud
+
+        result = crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=2, user_id=2, db=sqlite_session)
+        assert result is None
+
+    @patch("activities.activity.crud.activities_utils.serialize_activity")
+    @patch("activities.activity.crud.activities_utils.apply_visibility_mask")
+    def test_follower_profile_list_excludes_strava_activity(self, mock_mask, mock_ser, sqlite_session):
+        """The profile list a follower sees leaves out the Strava-synced activity."""
+        import activities.activity.crud as crud
+
+        crud.get_user_activities(user_id=1, db=sqlite_session, user_is_owner=False, requester_user_id=2)
+        assert [c.args[0].id for c in mock_ser.call_args_list] == [1]
+
+    @patch("activities.activity.crud.activities_utils.serialize_activity")
+    def test_follower_feed_excludes_strava_activity(self, mock_ser, sqlite_session):
+        """The follower feed keeps the regular activity and leaves out the Strava-synced one."""
+        import activities.activity.crud as crud
+
+        crud.get_user_following_activities(user_id=2, db=sqlite_session)
+        assert [c.args[0].id for c in mock_ser.call_args_list] == [1]
+
 
 class TestGetActivityByStartTime:
     @patch("activities.activity.crud.activities_utils.serialize_activity")

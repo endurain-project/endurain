@@ -67,7 +67,7 @@ def _visible_to_requester_condition(requester_user_id: int | None):
 
     Returns:
         SQLAlchemy condition limiting rows to public or accepted
-        follower-visible activities.
+        follower-visible activities that were not synced from Strava.
     """
     visibility_conditions = [activities_models.Activity.visibility == 0]
     if requester_user_id is not None:
@@ -78,6 +78,7 @@ def _visible_to_requester_condition(requester_user_id: int | None):
                 followers_models.Follower.following_id == activities_models.Activity.user_id,
                 followers_models.Follower.is_accepted.is_(True),
             )
+            .correlate(activities_models.Activity)
             .exists()
         )
         visibility_conditions.append(
@@ -89,6 +90,8 @@ def _visible_to_requester_condition(requester_user_id: int | None):
 
     return and_(
         activities_models.Activity.is_hidden.is_(False),
+        # Strava's API terms only allow showing Strava data to its owner.
+        activities_models.Activity.strava_activity_id.is_(None),
         or_(*visibility_conditions),
     )
 
@@ -667,9 +670,7 @@ def get_user_following_activities_per_timeframe(
                     followers_models.Follower.follower_id == user_id,
                     followers_models.Follower.is_accepted,
                 ),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
+                _visible_to_requester_condition(user_id),
                 func.date(activities_models.Activity.start_time) >= start.date(),
                 func.date(activities_models.Activity.start_time) <= end.date(),
             )
@@ -712,9 +713,7 @@ def get_user_following_activities_with_pagination(
                     followers_models.Follower.follower_id == user_id,
                     followers_models.Follower.is_accepted,
                 ),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
+                _visible_to_requester_condition(user_id),
             )
             .order_by(desc(activities_models.Activity.start_time))
             .offset((page_number - 1) * num_records)
@@ -753,9 +752,7 @@ def get_user_following_activities(user_id: int, db: Session) -> list[activities_
                     followers_models.Follower.follower_id == user_id,
                     followers_models.Follower.is_accepted,
                 ),
-                activities_models.Activity.visibility.in_([0, 1]),
-                activities_models.Activity.is_hidden.is_(False),
-                activities_models.Activity.strava_activity_id.is_(None),
+                _visible_to_requester_condition(user_id),
             )
         )
         activities = db.execute(stmt).scalars().all()
@@ -935,8 +932,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activities
             return None
 
         stmt = select(activities_models.Activity).where(
-            activities_models.Activity.visibility == 0,
-            activities_models.Activity.is_hidden.is_(False),
+            _visible_to_requester_condition(None),
             activities_models.Activity.id == activity_id,
         )
         activity = db.execute(stmt).scalar_one_or_none()
