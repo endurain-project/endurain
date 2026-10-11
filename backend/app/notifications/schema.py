@@ -11,6 +11,8 @@ from pydantic import (
     field_serializer,
 )
 
+import core.timezone as core_timezone
+
 
 class NotificationBase(BaseModel):
     """
@@ -81,14 +83,18 @@ class NotificationRead(NotificationBase):
     @field_serializer("created_at")
     def serialize_created_at(self, value: datetime | None) -> str | None:
         """
-        Serialize created_at as date string.
+        Serialize created_at as a UTC ISO 8601 timestamp.
+
+        A date-only string is parsed by JavaScript's ``new Date()``
+        as midnight UTC, which made the frontend show fresh
+        notifications as hours old (issue #775).
 
         Args:
             value: The datetime value to serialize.
 
         Returns:
-            Date string in YYYY-MM-DD format or None.
+            ISO 8601 timestamp string with UTC offset or None.
         """
         if value is None:
             return None
-        return value.strftime("%Y-%m-%d")
+        return core_timezone.to_utc_aware(value).isoformat()
