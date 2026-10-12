@@ -107,12 +107,19 @@ def create_activity_objects(
                         session_record["lat_lon_waypoints"][0]["lon"],
                         timezone,
                     )
-                else:
-                    if session_record["time_offset"]:
-                        timezone = find_timezone_name(
-                            session_record["time_offset"],
-                            session_record["session"]["first_waypoint_time"],
-                        )
+                elif session_record.get("activity_time_offset"):
+                    # Canonical FIT timezone signal (activity.local_timestamp - timestamp).
+                    # Preferred over device_settings.time_offset since it is always present
+                    # in a well-formed FIT, including no-GPS/indoor workouts.
+                    timezone = find_timezone_name(
+                        session_record["activity_time_offset"],
+                        session_record["session"]["first_waypoint_time"],
+                    )
+                elif session_record["time_offset"]:
+                    timezone = find_timezone_name(
+                        session_record["time_offset"],
+                        session_record["session"]["first_waypoint_time"],
+                    )
 
             avg_power = session_record["session"]["avg_power"]
             max_power = session_record["session"]["max_power"]
@@ -338,6 +345,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
         parsed_session = {
             "session": session,
             "time_offset": parsed_data["time_offset"],
+            "activity_time_offset": parsed_data.get("activity_time_offset"),
             "activity_name": parsed_data["activity_name"],
             "lat_lon_waypoints": [],
             "is_lat_lon_set": False,
@@ -467,6 +475,7 @@ class FitParseState:
 
     activity_name: str = "Workout"
     time_offset: int = 0
+    activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
     resting_heart_rate: dict | None = None
     sessions: list[dict] = field(default_factory=list)
@@ -509,6 +518,7 @@ class FitParseState:
         return {
             "sessions": self.sessions,
             "time_offset": self.time_offset,
+            "activity_time_offset": self.activity_time_offset,
             "activity_name": self.activity_name,
             "is_elevation_set": self.is_elevation_set,
             "ele_waypoints": self.ele_waypoints,
@@ -741,6 +751,8 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
         _handle_record_frame(frame, state)
     elif name == "device_settings":
         state.time_offset = interpret_time_offset(parse_frame_device_settings(frame))
+    elif name == "activity":
+        state.activity_time_offset = parse_frame_activity(frame)
     elif name == "length":
         state.lengths.append(parse_frame_length(frame))
     elif name == "file_id":
@@ -1074,6 +1086,20 @@ def parse_frame_exercise_title(frame):
 
 def parse_frame_device_settings(frame):
     return get_value_from_frame(frame, "time_offset")
+
+
+def parse_frame_activity(frame):
+    # The FIT `activity` message carries both `timestamp` (UTC) and `local_timestamp`
+    # (the same instant expressed as local wall-clock), each as seconds since the FIT
+    # epoch. Their difference is the recording device's UTC offset in seconds — the
+    # canonical FIT way to recover the timezone when a file has no GPS fix (e.g. indoor
+    # workouts). Raw values are used so the subtraction stays a plain integer op,
+    # independent of how fitdecode tags the datetimes' tzinfo.
+    utc_raw = get_raw_value_from_frame(frame, "timestamp")
+    local_raw = get_raw_value_from_frame(frame, "local_timestamp")
+    if utc_raw is None or local_raw is None:
+        return None
+    return local_raw - utc_raw
 
 
 def parse_frame_length(frame):
