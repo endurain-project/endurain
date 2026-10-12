@@ -555,6 +555,50 @@ class TestParseGpxFile:
         assert result["activity"].average_hr is None
         assert result["activity"].max_hr is None
 
+    def test_parse_gpx_file_flat_track_stores_zero_elevation_gain(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a flat track stores 0 m elevation gain/loss, not None (issue #161).
+        """
+        _patch_parser_side_effects(monkeypatch)
+        start = datetime(2025, 1, 1, 0, 0, 0)
+        trkpts = "\n".join(
+            f'<trkpt lat="{40.0 + i * 0.001}" lon="-3.0">'
+            f"<ele>100.0</ele>"
+            f"<time>{(start + timedelta(seconds=10 * i)).strftime('%Y-%m-%dT%H:%M:%SZ')}</time>"
+            f"</trkpt>"
+            for i in range(15)
+        )
+        gpx_path = _write_gpx(
+            tmp_path,
+            f"""
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Flat ride</name>
+                <trkseg>
+                {trkpts}
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        assert result["activity"].elevation_gain == 0
+        assert result["activity"].elevation_loss == 0
+        assert result["laps"]
+        assert all(lap["total_ascent"] == 0 for lap in result["laps"])
+        assert all(lap["total_descent"] == 0 for lap in result["laps"])
+
 
 class TestExtractExtensionData:
     """Test suite for GPX trackpoint extension extraction."""

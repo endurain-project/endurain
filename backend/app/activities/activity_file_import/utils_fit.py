@@ -33,6 +33,58 @@ SPORT_ALONE_OVERRIDES = {
 }
 
 
+def _fill_missing_lap_elevation(laps: list[dict], ele_waypoints: list[dict]) -> None:
+    """Fill lap ascent/descent missing from the FIT lap frames.
+
+    Some exporters (e.g. Health Sync) omit total_ascent/total_descent from
+    lap frames. Compute them from the once-smoothed altitude record stream,
+    mirroring the GPX/TCX importers (issue #161). Device-reported values
+    (including a genuine 0) are never overridden.
+
+    Args:
+        laps: Lap dicts from parse_frame_lap; updated in place.
+        ele_waypoints: Altitude record stream dicts with time/ele keys.
+
+    Returns:
+        None.
+    """
+    if not ele_waypoints:
+        return
+
+    laps_to_fill = [
+        lap
+        for lap in laps
+        if (lap.get("total_ascent") is None or lap.get("total_descent") is None)
+        and lap.get("start_time") is not None
+        and lap.get("total_elapsed_time") is not None
+    ]
+    if not laps_to_fill:
+        return
+
+    smoothed = activities_utils.smooth_elevation_waypoints(ele_waypoints)
+    if not smoothed:
+        return
+
+    for lap in laps_to_fill:
+        start = lap["start_time"]
+        if start.tzinfo is not None:
+            # Record waypoint times are naive UTC strings; normalize.
+            start = start.astimezone(UTC).replace(tzinfo=None)
+        end = start + timedelta(seconds=lap["total_elapsed_time"])
+        lap_ele = activity_file_import_utils.filter_waypoints_by_time_range(
+            smoothed,
+            start.strftime("%Y-%m-%dT%H:%M:%S"),
+            end.strftime("%Y-%m-%dT%H:%M:%S"),
+        )
+        if not lap_ele:
+            continue
+        ele_gain, ele_loss = activities_utils.sum_elevation_deltas(lap_ele)
+        if lap.get("total_ascent") is None:
+            lap["total_ascent"] = round(ele_gain)
+        if lap.get("total_descent") is None:
+            lap["total_descent"] = round(ele_loss)
+
+
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
@@ -185,9 +237,11 @@ def create_activity_objects(
                 computed_gain, computed_loss = activities_utils.compute_elevation_gain_and_loss(
                     elevations=session_record["ele_waypoints"],
                 )
-                if ele_gain is None and computed_gain:
+                # `is not None`: a computed 0 m on a flat ride is a real
+                # value and must not be discarded (issue #161).
+                if ele_gain is None and computed_gain is not None:
                     ele_gain = round(computed_gain)
-                if ele_loss is None and computed_loss:
+                if ele_loss is None and computed_loss is not None:
                     ele_loss = round(computed_loss)
 
             activity = activities_schema.Activity(
@@ -231,6 +285,12 @@ def create_activity_objects(
                 tracker_model=(str(model) if (model := session_record["file_id"].get("product")) is not None else None),
                 **privacy_kwargs,
                 total_cycles=session_record["session"]["total_cycles"],
+            )
+
+            # Fill lap elevation missing from the lap frames (issue #161).
+            _fill_missing_lap_elevation(
+                session_record["laps"],
+                session_record["ele_waypoints"],
             )
 
             waypoints = {

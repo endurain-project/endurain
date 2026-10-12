@@ -378,3 +378,210 @@ class TestUtilsTcx:
             )
 
         assert result["activity"].distance == 5000
+
+
+def _make_lap(start, end, trackpoints, **overrides):
+    """
+    Build a fake tcxreader lap object.
+
+    Args:
+        start: Lap start datetime.
+        end: Lap end datetime.
+        trackpoints: Fake trackpoint namespaces.
+        **overrides: Attribute overrides.
+
+    Returns:
+        SimpleNamespace mimicking a tcxreader lap.
+    """
+    defaults = dict(
+        start_time=start,
+        end_time=end,
+        trackpoints=trackpoints,
+        tpx_ext_stats={},
+        distance=1000.0,
+        calories=None,
+        hr_avg=None,
+        hr_max=None,
+        cadence_avg=None,
+        cadence_max=None,
+        ascent=None,
+        descent=None,
+        avg_speed=None,
+    )
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+class TestParseLapsElevation:
+    """Lap elevation gain/loss from the smoothed stream (issue #161)."""
+
+    @staticmethod
+    def _trackpoint(dt):
+        return SimpleNamespace(latitude=40.0, longitude=-3.0, time=dt)
+
+    def test_ignores_tcxreader_raw_ascent(self):
+        """Lap ascent comes from the smoothed stream, not tcxreader's raw sum."""
+        import activities.activity.utils as activities_utils
+
+        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        end = start + timedelta(seconds=300)
+        # Sawtooth: raw positive-delta sum is huge, smoothed gain is ~30 m.
+        ele_waypoints = [
+            {
+                "time": (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"),
+                "ele": 100 + i * 1.0 + (5.0 if i % 2 else -5.0),
+            }
+            for i in range(31)
+        ]
+        smoothed = activities_utils.smooth_elevation_waypoints(ele_waypoints)
+        lap = _make_lap(start, end, [self._trackpoint(start), self._trackpoint(end)], ascent=400.0, descent=380.0)
+        tcx_file = SimpleNamespace(laps=[lap])
+
+        laps = utils_tcx._parse_laps(tcx_file, smoothed)
+
+        assert len(laps) == 1
+        assert laps[0]["total_ascent"] is not None
+        assert laps[0]["total_ascent"] < 100
+        assert laps[0]["total_descent"] is not None
+        assert laps[0]["total_descent"] < 100
+
+    def test_flat_altitude_stores_zero(self):
+        """A flat lap stores 0 m ascent/descent, not None."""
+        import activities.activity.utils as activities_utils
+
+        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        end = start + timedelta(seconds=300)
+        ele_waypoints = [
+            {
+                "time": (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"),
+                "ele": 100.0,
+            }
+            for i in range(31)
+        ]
+        smoothed = activities_utils.smooth_elevation_waypoints(ele_waypoints)
+        lap = _make_lap(start, end, [self._trackpoint(start), self._trackpoint(end)])
+        tcx_file = SimpleNamespace(laps=[lap])
+
+        laps = utils_tcx._parse_laps(tcx_file, smoothed)
+
+        assert laps[0]["total_ascent"] == 0
+        assert laps[0]["total_descent"] == 0
+
+    def test_no_altitude_keeps_none(self):
+        """Without altitude data lap ascent/descent stay None."""
+        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        end = start + timedelta(seconds=300)
+        lap = _make_lap(start, end, [self._trackpoint(start), self._trackpoint(end)])
+        tcx_file = SimpleNamespace(laps=[lap])
+
+        laps = utils_tcx._parse_laps(tcx_file, [])
+
+        assert laps[0]["total_ascent"] is None
+        assert laps[0]["total_descent"] is None
+
+
+class TestParseTcxFileElevation:
+    """Activity-level elevation from the smoothed stream (issue #161)."""
+
+    @staticmethod
+    def _run_parse(mock_tcx, fake_waypoints):
+        with (
+            patch("tcxreader.TCXReader") as mock_reader_class,
+            patch(
+                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                return_value=fake_waypoints,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx"
+                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
+                return_value=None,
+            ),
+        ):
+            mock_reader_class.return_value.read.return_value = mock_tcx
+            return utils_tcx.parse_tcx_file(
+                file="dummy.tcx",
+                user_id=1,
+                user_privacy_settings=_privacy_settings(),
+                db=MagicMock(),
+            )
+
+    @staticmethod
+    def _mock_tcx(**overrides):
+        defaults = dict(
+            activity_type="Biking",
+            distance=5000.0,
+            start_time=datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC),
+            end_time=datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC),
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+            laps=[],
+            trackpoints=[],
+        )
+        defaults.update(overrides)
+        mock_tcx = SimpleNamespace(**defaults)
+        mock_tcx.trackpoints_to_dict = lambda: []
+        return mock_tcx
+
+    @staticmethod
+    def _fake_waypoints(ele_waypoints):
+        return {
+            "lat_lon_waypoints": [],
+            "hr_waypoints": [],
+            "cad_waypoints": [],
+            "ele_waypoints": ele_waypoints,
+            "power_waypoints": [],
+            "vel_waypoints": [],
+            "pace_waypoints": [],
+        }
+
+    def test_activity_elevation_from_smoothed_stream(self):
+        """Activity gain uses the smoothed stream, ignoring tcx_file.ascent."""
+        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        ele_waypoints = [
+            {
+                "time": (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"),
+                "ele": 100.0 + i,
+            }
+            for i in range(31)
+        ]
+        mock_tcx = self._mock_tcx(ascent=429.0, descent=441.0)
+
+        result = self._run_parse(mock_tcx, self._fake_waypoints(ele_waypoints))
+
+        activity = result["activity"]
+        assert activity.elevation_gain is not None
+        assert 20 <= activity.elevation_gain <= 30
+        assert activity.elevation_loss == 0
+
+    def test_no_altitude_keeps_elevation_none(self):
+        """Without altitude data elevation gain/loss stay None."""
+        mock_tcx = self._mock_tcx()
+
+        result = self._run_parse(mock_tcx, self._fake_waypoints([]))
+
+        activity = result["activity"]
+        assert activity.elevation_gain is None
+        assert activity.elevation_loss is None
+
+    def test_flat_altitude_stores_zero(self):
+        """A flat altitude stream stores 0 m gain/loss, not None."""
+        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        ele_waypoints = [
+            {
+                "time": (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"),
+                "ele": 100.0,
+            }
+            for i in range(31)
+        ]
+        mock_tcx = self._mock_tcx()
+
+        result = self._run_parse(mock_tcx, self._fake_waypoints(ele_waypoints))
+
+        activity = result["activity"]
+        assert activity.elevation_gain == 0
+        assert activity.elevation_loss == 0
