@@ -143,6 +143,105 @@ class TestParseGpxFile:
         assert result["activity"].max_speed < 20
         assert all(lap["total_distance"] < 1000 for lap in result["laps"])
 
+    def test_parse_gpx_file_excludes_pause_gap_from_timer_time(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a gap between segments longer than the pause threshold is
+        excluded from total_timer_time (and thus from pace) while
+        total_elapsed_time still spans the whole activity.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Paused run</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                </trkseg>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.002">
+                    <time>2025-01-01T00:10:10Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.003">
+                    <time>2025-01-01T00:10:20Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 620.0
+        assert activity.total_timer_time == 20.0
+
+    def test_parse_gpx_file_folds_short_gap_into_timer_time(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test a short inter-segment gap (at/under the pause threshold) is
+        folded back into total_timer_time instead of being excluded.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Brief reacquisition</name>
+                <type>Run</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                  </trkpt>
+                </trkseg>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.002">
+                    <time>2025-01-01T00:00:15Z</time>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.003">
+                    <time>2025-01-01T00:00:25Z</time>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = utils_gpx.parse_gpx_file(
+            gpx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 25.0
+        assert activity.total_timer_time == 25.0
+
     def test_parse_gpx_file_sums_distance_over_multiple_points_in_one_segment(
         self,
         tmp_path,

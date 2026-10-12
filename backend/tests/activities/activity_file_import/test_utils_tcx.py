@@ -4,6 +4,8 @@ from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from geopy.distance import geodesic
+
 import activities.activity_file_import.utils_tcx as utils_tcx
 
 
@@ -29,6 +31,22 @@ def _privacy_settings() -> SimpleNamespace:
         hide_activity_workout_sets_steps=False,
         hide_activity_gear=False,
     )
+
+
+def _write_tcx(tmp_path, body: str) -> str:
+    """
+    Write TCX test content to a temporary file.
+
+    Args:
+        tmp_path: Pytest temporary path fixture.
+        body: TCX XML content.
+
+    Returns:
+        Path to the written TCX file as a string.
+    """
+    path = tmp_path / "activity.tcx"
+    path.write_text(body, encoding="utf-8")
+    return str(path)
 
 
 class TestUtilsTcx:
@@ -378,3 +396,203 @@ class TestUtilsTcx:
             )
 
         assert result["activity"].distance == 5000
+
+
+class TestParseTcxFileMovingTime:
+    """Test suite for real (unmocked) TCX parsing of moving time from Track gaps."""
+
+    def _tcx_body(self, second_track_start: str, second_track_end: str) -> str:
+        return f"""
+            <TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+              <Activities>
+                <Activity Sport="Running">
+                  <Id>2025-01-01T00:00:00Z</Id>
+                  <Lap StartTime="2025-01-01T00:00:00Z">
+                    <TotalTimeSeconds>20</TotalTimeSeconds>
+                    <DistanceMeters>100</DistanceMeters>
+                    <Track>
+                      <Trackpoint>
+                        <Time>2025-01-01T00:00:00Z</Time>
+                        <Position><LatitudeDegrees>0.0</LatitudeDegrees><LongitudeDegrees>0.0</LongitudeDegrees></Position>
+                      </Trackpoint>
+                      <Trackpoint>
+                        <Time>2025-01-01T00:00:10Z</Time>
+                        <Position><LatitudeDegrees>0.0</LatitudeDegrees><LongitudeDegrees>0.001</LongitudeDegrees></Position>
+                      </Trackpoint>
+                    </Track>
+                    <Track>
+                      <Trackpoint>
+                        <Time>{second_track_start}</Time>
+                        <Position><LatitudeDegrees>0.0</LatitudeDegrees><LongitudeDegrees>0.002</LongitudeDegrees></Position>
+                      </Trackpoint>
+                      <Trackpoint>
+                        <Time>{second_track_end}</Time>
+                        <Position><LatitudeDegrees>0.0</LatitudeDegrees><LongitudeDegrees>0.003</LongitudeDegrees></Position>
+                      </Trackpoint>
+                    </Track>
+                  </Lap>
+                </Activity>
+              </Activities>
+            </TrainingCenterDatabase>
+        """.strip()
+
+    def test_excludes_pause_gap_from_timer_time(self, tmp_path, monkeypatch):
+        """
+        Test a gap between <Track> elements longer than the pause threshold
+        is excluded from total_timer_time while total_elapsed_time still
+        spans the whole activity.
+        """
+        monkeypatch.setattr(
+            utils_tcx.user_default_gear_utils,
+            "get_user_default_gear_by_activity_type",
+            lambda _user_id, _activity_type, _db: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_location",
+            lambda _lat, _lon: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_timezone_from_lat_lon",
+            lambda _lat, _lon, fallback: fallback,
+        )
+
+        tcx_path = _write_tcx(tmp_path, self._tcx_body("2025-01-01T00:10:10Z", "2025-01-01T00:10:20Z"))
+
+        result = utils_tcx.parse_tcx_file(
+            file=tcx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 620.0
+        assert activity.total_timer_time == 20.0
+        assert result["laps"][0]["total_elapsed_time"] == 620.0
+        assert result["laps"][0]["total_timer_time"] == 20.0
+
+    def test_folds_short_gap_into_timer_time(self, tmp_path, monkeypatch):
+        """
+        Test a short gap between <Track> elements (at/under the pause
+        threshold) is folded back into total_timer_time.
+        """
+        monkeypatch.setattr(
+            utils_tcx.user_default_gear_utils,
+            "get_user_default_gear_by_activity_type",
+            lambda _user_id, _activity_type, _db: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_location",
+            lambda _lat, _lon: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_timezone_from_lat_lon",
+            lambda _lat, _lon, fallback: fallback,
+        )
+
+        tcx_path = _write_tcx(tmp_path, self._tcx_body("2025-01-01T00:00:15Z", "2025-01-01T00:00:25Z"))
+
+        result = utils_tcx.parse_tcx_file(
+            file=tcx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 25.0
+        assert activity.total_timer_time == 25.0
+
+    def test_ignores_course_tracks_when_computing_timer_time(self, tmp_path, monkeypatch):
+        """Test unrelated course tracks do not contribute to activity time."""
+        monkeypatch.setattr(
+            utils_tcx.user_default_gear_utils,
+            "get_user_default_gear_by_activity_type",
+            lambda _user_id, _activity_type, _db: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_location",
+            lambda _lat, _lon: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_timezone_from_lat_lon",
+            lambda _lat, _lon, fallback: fallback,
+        )
+
+        course = """
+          <Courses>
+            <Course>
+              <Name>Unrelated course</Name>
+              <Track>
+                <Trackpoint>
+                  <Time>2025-01-01T01:00:00Z</Time>
+                  <Position><LatitudeDegrees>1</LatitudeDegrees><LongitudeDegrees>1</LongitudeDegrees></Position>
+                </Trackpoint>
+                <Trackpoint>
+                  <Time>2025-01-01T02:00:00Z</Time>
+                  <Position><LatitudeDegrees>1</LatitudeDegrees><LongitudeDegrees>1.001</LongitudeDegrees></Position>
+                </Trackpoint>
+              </Track>
+            </Course>
+          </Courses>
+        """
+        tcx_body = self._tcx_body("2025-01-01T00:10:10Z", "2025-01-01T00:10:20Z")
+        tcx_path = _write_tcx(
+            tmp_path,
+            tcx_body.replace("</TrainingCenterDatabase>", f"{course}</TrainingCenterDatabase>"),
+        )
+
+        result = utils_tcx.parse_tcx_file(
+            file=tcx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        assert result["activity"].total_timer_time == 20.0
+
+    def test_distance_fallback_does_not_bridge_tracks(self, tmp_path, monkeypatch):
+        """Test geodesic distance is summed independently for each track."""
+        monkeypatch.setattr(
+            utils_tcx.user_default_gear_utils,
+            "get_user_default_gear_by_activity_type",
+            lambda _user_id, _activity_type, _db: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_location",
+            lambda _lat, _lon: None,
+        )
+        monkeypatch.setattr(
+            utils_tcx.activity_file_import_utils,
+            "resolve_timezone_from_lat_lon",
+            lambda _lat, _lon, fallback: fallback,
+        )
+
+        tcx_body = self._tcx_body("2025-01-01T00:10:10Z", "2025-01-01T00:10:20Z")
+        tcx_path = _write_tcx(
+            tmp_path,
+            tcx_body.replace("<DistanceMeters>100</DistanceMeters>", ""),
+        )
+
+        result = utils_tcx.parse_tcx_file(
+            file=tcx_path,
+            user_id=1,
+            user_privacy_settings=_privacy_settings(),
+            db=MagicMock(),
+        )
+
+        expected_distance = (
+            geodesic((0.0, 0.0), (0.0, 0.001)).meters
+            + geodesic(
+                (0.0, 0.002),
+                (0.0, 0.003),
+            ).meters
+        )
+        assert result["activity"].distance == round(expected_distance)

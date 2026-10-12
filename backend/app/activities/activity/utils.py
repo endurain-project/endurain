@@ -1506,6 +1506,7 @@ def calculate_pace(
     distance: float,
     first_waypoint_time,
     last_waypoint_time,
+    total_timer_time_seconds: float | None = None,
 ) -> float:
     """Compute average pace (seconds per meter).
 
@@ -1513,6 +1514,10 @@ def calculate_pace(
         distance: Total distance in meters.
         first_waypoint_time: Datetime of the first waypoint.
         last_waypoint_time: Datetime of the last waypoint.
+        total_timer_time_seconds: Precomputed moving time in seconds. When
+            provided, this is used instead of the elapsed span between
+            ``first_waypoint_time`` and ``last_waypoint_time``, so pace
+            reflects moving pace rather than elapsed pace.
 
     Returns:
         Pace in s/m, or 0 when ``distance`` is 0.
@@ -1521,12 +1526,15 @@ def calculate_pace(
     if distance == 0:
         return 0
 
-    # Convert the time strings to datetime objects
-    start_datetime = datetime.fromisoformat(first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
-    end_datetime = datetime.fromisoformat(last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
+    if total_timer_time_seconds is not None:
+        total_time_in_seconds = total_timer_time_seconds
+    else:
+        # Convert the time strings to datetime objects
+        start_datetime = datetime.fromisoformat(first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
+        end_datetime = datetime.fromisoformat(last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
 
-    # Calculate the time difference in seconds
-    total_time_in_seconds = (end_datetime - start_datetime).total_seconds()
+        # Calculate the time difference in seconds
+        total_time_in_seconds = (end_datetime - start_datetime).total_seconds()
 
     # Calculate pace in seconds per meter
     pace_seconds_per_meter = total_time_in_seconds / distance
