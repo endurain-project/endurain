@@ -93,7 +93,11 @@
     "elevation": "Elevation",
     "speed": "Speed",
     "pace": "Pace",
-    "temperature": "Temperature"
+    "temperature": "Temperature",
+    "xAxis": {
+      "distance": "Distance",
+      "time": "Time"
+    }
   },
   "hrZones": {
     "title": "Heart rate zones",
