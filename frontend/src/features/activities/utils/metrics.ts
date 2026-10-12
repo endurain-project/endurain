@@ -68,14 +68,16 @@ export function buildActivityMetrics(
   const type = activity.activityType
   const tiles: MetricTile[] = []
 
-  // v1 uses elapsed time for the summary "Time" stat (falls back to moving time).
+  // Summary "Time" uses moving (timer) time to match the source app (e.g.
+  // Garmin) and the activity list; falls back to elapsed time when the device
+  // did not record a separate timer time.
   const pushTime = (): void => {
-    const elapsed = activity.totalElapsedTime ?? activity.totalTimerTime
-    if (has(elapsed)) {
+    const duration = activity.totalTimerTime ?? activity.totalElapsedTime
+    if (has(duration)) {
       tiles.push({
         key: 'time',
         labelKey: 'activities.metrics.time',
-        value: formatHmsDuration(elapsed),
+        value: formatHmsDuration(duration),
         unit: '',
         accent: 'ink',
       })
