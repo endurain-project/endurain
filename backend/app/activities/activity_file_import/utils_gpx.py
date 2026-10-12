@@ -486,6 +486,20 @@ def _compute_derived_metrics(
             "cad",
         )
 
+        # GPX running cadence is usually a single-leg rate (rpm); convert
+        # avg/max and the per-point stream to steps per minute (spm). Decide
+        # once per activity from the avg so already-spm sources are left alone.
+        # GPX carries no fractional cadence, so the conversion is a plain x2.
+        if activities_utils.is_running_cadence_type(
+            state.activity_type
+        ) and activities_utils.running_cadence_is_per_leg(state.avg_cadence):
+            state.avg_cadence *= 2
+            if state.max_cadence:
+                state.max_cadence *= 2
+            state.cad_waypoints = [
+                {**wp, "cad": round(wp["cad"] * 2)} for wp in state.cad_waypoints if wp.get("cad") is not None
+            ]
+
     if state.vel_waypoints:
         state.avg_speed, state.max_speed = activities_utils.calculate_avg_and_max(
             state.vel_waypoints,

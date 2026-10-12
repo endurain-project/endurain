@@ -245,6 +245,44 @@ ACTIVITY_NAME_TO_ID.update(
     }
 )
 
+# Running/foot-based activity types whose cadence *may* be reported as a
+# single-leg rate (revolutions per minute) rather than steps per minute (spm).
+# Mirrors the frontend RUNNING_TYPES set (frontend activityType.ts).
+RUNNING_CADENCE_TYPE_IDS = frozenset({1, 2, 3, 34, 40})
+
+# A running cadence below this reads as a single-leg rate (rpm) and must be
+# doubled to spm; at or above it the source already reports spm (e.g. some
+# treadmill/footpod sources store full spm). Human running rpm tops out ~110
+# and running spm starts ~130+, so the split is unambiguous. The same threshold
+# heals legacy rows in the cadence-normalization Alembic migration.
+RUNNING_CADENCE_RPM_MAX = 120
+
+
+def is_running_cadence_type(activity_type_id: int | None) -> bool:
+    """Whether cadence for this activity type may be per-leg (rpm)."""
+    return activity_type_id in RUNNING_CADENCE_TYPE_IDS
+
+
+def running_cadence_is_per_leg(cadence) -> bool:
+    """Whether a running cadence reads as a single-leg rate (rpm) needing x2.
+
+    Decided once per activity from a representative (average) cadence so the
+    same choice is applied uniformly to avg/max/stream/laps — avoiding a
+    per-point split that would mis-handle walk breaks inside an spm stream.
+    """
+    return cadence is not None and float(cadence) < RUNNING_CADENCE_RPM_MAX
+
+
+def double_running_cadence(cadence, fractional=0.0):
+    """Single-leg rpm → spm: (cadence + fractional_cadence) * 2, rounded.
+
+    None-safe. Callers gate this on running_cadence_is_per_leg() so already-spm
+    sources are left untouched.
+    """
+    if cadence is None:
+        return None
+    return round((float(cadence) + float(fractional or 0.0)) * 2)
+
 
 def transform_schema_activity_to_model_activity(
     activity: activities_schema.Activity,

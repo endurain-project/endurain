@@ -421,6 +421,25 @@ def parse_tcx_file(
             user_privacy_settings=user_privacy_settings,
         )
 
+        # Normalize running cadence to steps per minute (spm). TCX stores
+        # running <Cadence> as a single-leg rate (rpm); spm = rpm x2. Some
+        # sources (e.g. the RunCadence extension, or treadmill apps) already
+        # report spm, so decide once per activity from the representative avg
+        # and leave already-spm data untouched. TCX has no fractional cadence.
+        if activities_utils.is_running_cadence_type(activity_type) and activities_utils.running_cadence_is_per_leg(
+            activity.average_cad
+        ):
+            activity.average_cad = activities_utils.double_running_cadence(activity.average_cad)
+            activity.max_cad = activities_utils.double_running_cadence(activity.max_cad)
+            waypoints["cad_waypoints"] = [
+                {**wp, "cad": round(wp["cad"] * 2)}
+                for wp in waypoints.get("cad_waypoints", [])
+                if wp.get("cad") is not None
+            ]
+            for lap in laps:
+                lap["avg_cadence"] = activities_utils.double_running_cadence(lap.get("avg_cadence"))
+                lap["max_cadence"] = activities_utils.double_running_cadence(lap.get("max_cadence"))
+
         waypoints_combined = {
             **waypoints,
             "power_waypoints": power_wp,

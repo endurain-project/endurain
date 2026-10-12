@@ -163,8 +163,14 @@ def create_activity_objects(
                 if max_speed is None and vel_max:
                     max_speed = vel_max
 
-            # Fall back to cadence from the per-record stream when the
-            # session omitted avg/max cadence but cadence was recorded.
+            # Normalize cadence for running activities. FIT stores running
+            # cadence as a single-leg rate (rpm) plus a fractional_cadence;
+            # steps per minute (spm) = (cadence + fractional) * 2. Some
+            # treadmill/footpod sources instead store full spm — decide once per
+            # activity from the representative avg so already-spm data is left
+            # alone. Cycling and other sports keep their native rpm. Fall back
+            # to the per-record stream (read here before it is doubled below)
+            # when the session omitted avg/max cadence but cadence was recorded.
             avg_cadence = session_record["session"]["avg_cadence"]
             max_cadence = session_record["session"]["max_cadence"]
             if (avg_cadence is None or max_cadence is None) and session_record["cad_waypoints"]:
@@ -173,9 +179,22 @@ def create_activity_objects(
                     "cad",
                 )
                 if avg_cadence is None and cad_avg:
-                    avg_cadence = round(cad_avg)
+                    avg_cadence = cad_avg
                 if max_cadence is None and cad_max:
-                    max_cadence = round(cad_max)
+                    max_cadence = cad_max
+            double_cadence = activities_utils.is_running_cadence_type(
+                activity_type
+            ) and activities_utils.running_cadence_is_per_leg(avg_cadence)
+            if double_cadence:
+                avg_cadence = activities_utils.double_running_cadence(
+                    avg_cadence, session_record["session"].get("avg_fractional_cadence")
+                )
+                max_cadence = activities_utils.double_running_cadence(
+                    max_cadence, session_record["session"].get("max_fractional_cadence")
+                )
+            elif avg_cadence is not None:
+                avg_cadence = round(avg_cadence)
+                max_cadence = round(max_cadence) if max_cadence is not None else None
 
             # Fall back to elevation gain/loss computed from the elevation
             # stream when the session omitted them but elevation exists.
@@ -232,6 +251,24 @@ def create_activity_objects(
                 **privacy_kwargs,
                 total_cycles=session_record["session"]["total_cycles"],
             )
+
+            # Double the per-record cadence stream and per-lap cadence to spm
+            # when the activity was identified as per-leg above, keeping them
+            # consistent with the normalized avg/max.
+            if double_cadence:
+                if session_record["cad_waypoints"]:
+                    session_record["cad_waypoints"] = [
+                        {**wp, "cad": round(wp["cad"] * 2)}
+                        for wp in session_record["cad_waypoints"]
+                        if wp.get("cad") is not None
+                    ]
+                for lap in session_record["laps"]:
+                    lap["avg_cadence"] = activities_utils.double_running_cadence(
+                        lap.get("avg_cadence"), lap.get("avg_fractional_cadence")
+                    )
+                    lap["max_cadence"] = activities_utils.double_running_cadence(
+                        lap.get("max_cadence"), lap.get("max_fractional_cadence")
+                    )
 
             waypoints = {
                 "ele_waypoints": session_record["ele_waypoints"],
@@ -573,6 +610,8 @@ def _handle_session_frame(frame, state: FitParseState) -> None:
         max_hr,
         avg_cadence,
         max_cadence,
+        avg_fractional_cadence,
+        max_fractional_cadence,
         avg_power,
         max_power,
         ele_gain,
@@ -611,6 +650,8 @@ def _handle_session_frame(frame, state: FitParseState) -> None:
             "max_hr": max_hr,
             "avg_cadence": avg_cadence,
             "max_cadence": max_cadence,
+            "avg_fractional_cadence": avg_fractional_cadence,
+            "max_fractional_cadence": max_fractional_cadence,
             "avg_power": avg_power,
             "max_power": max_power,
             "ele_gain": ele_gain,
@@ -817,6 +858,8 @@ def parse_frame_session(frame):
         get_value_from_frame(frame, "max_heart_rate"),
         get_value_from_frame(frame, "avg_cadence"),
         get_value_from_frame(frame, "max_cadence"),
+        get_value_from_frame(frame, "avg_fractional_cadence"),
+        get_value_from_frame(frame, "max_fractional_cadence"),
         get_value_from_frame(frame, "avg_power"),
         get_value_from_frame(frame, "max_power"),
         get_value_from_frame(frame, "total_ascent"),

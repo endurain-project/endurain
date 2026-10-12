@@ -195,6 +195,34 @@ class TestActivityIdToName:
         assert 999 not in ACTIVITY_ID_TO_NAME
 
 
+class TestRunningCadenceNormalization:
+    def test_is_running_cadence_type(self):
+        from activities.activity.utils import is_running_cadence_type
+
+        for type_id in (1, 2, 3, 34, 40):
+            assert is_running_cadence_type(type_id) is True
+        for type_id in (4, 8, 11, 13, None):
+            assert is_running_cadence_type(type_id) is False
+
+    def test_running_cadence_is_per_leg_threshold(self):
+        from activities.activity.utils import running_cadence_is_per_leg
+
+        assert running_cadence_is_per_leg(85) is True
+        assert running_cadence_is_per_leg(119) is True
+        assert running_cadence_is_per_leg(120) is False
+        assert running_cadence_is_per_leg(159) is False
+        assert running_cadence_is_per_leg(None) is False
+
+    def test_double_running_cadence_folds_fractional(self):
+        from activities.activity.utils import double_running_cadence
+
+        # (85 + 0.328125) * 2 = 170.66 -> 171.
+        assert double_running_cadence(85, 0.328125) == 171
+        assert double_running_cadence(93, 0.0) == 186
+        assert double_running_cadence(90) == 180
+        assert double_running_cadence(None) is None
+
+
 class TestAppendIfNotNone:
     def test_appends_when_value_not_none(self):
         from activities.activity.utils import append_if_not_none
