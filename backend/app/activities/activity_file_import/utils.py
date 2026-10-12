@@ -15,6 +15,14 @@ import users.users_privacy_settings.utils as users_privacy_settings_utils
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
 
+# Maximum gap in seconds between two consecutive trackpoints that still counts
+# as active recording. GPS devices record every 1-5 s (smart recording modes
+# occasionally stretch further), so 15 s tolerates dropped fixes while real
+# pauses (issue #571) are typically well above it. Gaps strictly greater than
+# this are treated as pauses: excluded from timer time and from the distance
+# accumulated across the gap.
+PAUSE_DETECTION_THRESHOLD_SECONDS: float = 15.0
+
 # Canonical keys present in every activity file payload's waypoint streams.
 # Used as documentation and for IDE hint support.
 STREAM_KEYS: tuple[str, ...] = (
@@ -514,3 +522,25 @@ def compute_distance_from_waypoints(lat_lon_waypoints: list[dict]) -> float:
             (current_point["lat"], current_point["lon"]),
         ).meters
     return total
+
+
+def compute_moving_time_from_times(times: list[datetime]) -> float:
+    """Compute moving time in seconds from ordered trackpoint timestamps.
+
+    Sums the delta between consecutive timestamps, skipping pause gaps
+    (deltas above ``PAUSE_DETECTION_THRESHOLD_SECONDS``) and non-positive
+    deltas from duplicate or out-of-order timestamps (issue #571).
+
+    Args:
+        times: Trackpoint timestamps in recording order, without ``None``
+            entries.
+
+    Returns:
+        Moving time in seconds. ``0.0`` if fewer than two timestamps.
+    """
+    moving_time = 0.0
+    for i in range(1, len(times)):
+        delta = (times[i] - times[i - 1]).total_seconds()
+        if 0 < delta <= PAUSE_DETECTION_THRESHOLD_SECONDS:
+            moving_time += delta
+    return moving_time

@@ -309,6 +309,260 @@ class TestUtilsTcx:
         assert 1000 < result["activity"].distance < 1200
         assert result["activity"].pace > 0
 
+    def test_extract_waypoints_computes_moving_time_and_splits_segments_on_pause(self):
+        """A pause gap splits the GPS track and is excluded from moving time."""
+        t0 = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+
+        trackpoints = [
+            {"time": t0, "latitude": 40.0, "longitude": -3.0},
+            {"time": t0 + timedelta(seconds=10), "latitude": 40.001, "longitude": -3.0},
+            # 300 s pause.
+            {"time": t0 + timedelta(seconds=310), "latitude": 40.01, "longitude": -3.0},
+            {"time": t0 + timedelta(seconds=320), "latitude": 40.011, "longitude": -3.0},
+        ]
+        tcx_file = SimpleNamespace(trackpoints=[])
+
+        waypoints = utils_tcx._extract_waypoints(trackpoints, tcx_file)
+
+        assert waypoints["moving_time"] == 20.0
+        assert len(waypoints["lat_lon_segments"]) == 2
+        assert all(len(segment) == 2 for segment in waypoints["lat_lon_segments"])
+        assert len(waypoints["lat_lon_waypoints"]) == 4
+        # First point after the pause has no previous cursor -> speed 0.
+        assert waypoints["vel_waypoints"][2]["vel"] == 0
+
+    def test_parse_tcx_file_uses_moving_time_for_timer_and_pace(self):
+        """total_timer_time and pace come from moving time; elapsed stays wall-clock."""
+        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC)
+
+        mock_tcx = SimpleNamespace(
+            activity_type="Running",
+            distance=5000.0,
+            start_time=dt_start,
+            end_time=dt_end,
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+            laps=[],
+            trackpoints=[],
+        )
+        trackpoints = [
+            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
+            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
+        ]
+        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+
+        fake_waypoints = {
+            "lat_lon_waypoints": [
+                {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
+                {"time": "2026-06-20T09:00:00", "lat": 40.01, "lon": -3.0},
+            ],
+            "lat_lon_segments": [
+                [
+                    {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
+                    {"time": "2026-06-20T09:00:00", "lat": 40.01, "lon": -3.0},
+                ]
+            ],
+            "moving_time": 1200.0,
+            "hr_waypoints": [],
+            "cad_waypoints": [],
+            "ele_waypoints": [],
+            "power_waypoints": [],
+            "vel_waypoints": [],
+            "pace_waypoints": [],
+        }
+
+        with (
+            patch("tcxreader.TCXReader") as mock_reader_class,
+            patch(
+                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                return_value=fake_waypoints,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx"
+                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+                return_value="UTC",
+            ),
+        ):
+            mock_reader_class.return_value.read.return_value = mock_tcx
+
+            result = utils_tcx.parse_tcx_file(
+                file="dummy.tcx",
+                user_id=1,
+                user_privacy_settings=_privacy_settings(),
+                db=MagicMock(),
+            )
+
+        activity = result["activity"]
+        assert activity.total_elapsed_time == 3600
+        assert activity.total_timer_time == 1200
+        assert activity.pace == 1200 / 5000
+
+    def test_parse_tcx_file_distance_fallback_skips_pause_gap(self):
+        """The geodesic distance fallback sums pause-split segments only."""
+        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        dt_end = datetime(2026, 6, 20, 8, 10, 0, tzinfo=UTC)
+
+        mock_tcx = SimpleNamespace(
+            activity_type="Running",
+            distance=None,
+            start_time=dt_start,
+            end_time=dt_end,
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+            laps=[],
+            trackpoints=[],
+        )
+        trackpoints = [
+            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
+            {"time": dt_end, "latitude": 40.02, "longitude": -3.0},
+        ]
+        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+
+        fake_waypoints = {
+            # Flat stream contains the far post-pause point (~2.2 km away)…
+            "lat_lon_waypoints": [
+                {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
+                {"time": "2026-06-20T08:00:10", "lat": 40.01, "lon": -3.0},
+                {"time": "2026-06-20T08:10:00", "lat": 40.02, "lon": -3.0},
+            ],
+            # …but pause-splitting isolated it, so only the first hop counts.
+            "lat_lon_segments": [
+                [
+                    {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
+                    {"time": "2026-06-20T08:00:10", "lat": 40.01, "lon": -3.0},
+                ]
+            ],
+            "moving_time": 10.0,
+            "hr_waypoints": [],
+            "cad_waypoints": [],
+            "ele_waypoints": [],
+            "power_waypoints": [],
+            "vel_waypoints": [],
+            "pace_waypoints": [],
+        }
+
+        with (
+            patch("tcxreader.TCXReader") as mock_reader_class,
+            patch(
+                "activities.activity_file_import.utils_tcx._extract_waypoints",
+                return_value=fake_waypoints,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx"
+                ".user_default_gear_utils.get_user_default_gear_by_activity_type",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_location",
+                return_value=None,
+            ),
+            patch(
+                "activities.activity_file_import.utils_tcx.activity_file_import_utils.resolve_timezone_from_lat_lon",
+                return_value="UTC",
+            ),
+        ):
+            mock_reader_class.return_value.read.return_value = mock_tcx
+
+            result = utils_tcx.parse_tcx_file(
+                file="dummy.tcx",
+                user_id=1,
+                user_privacy_settings=_privacy_settings(),
+                db=MagicMock(),
+            )
+
+        # ~0.01 deg of latitude ≈ 1.1 km; the ~1.1 km pause hop is excluded.
+        assert 1000 < result["activity"].distance < 1200
+
+    def test_parse_laps_timer_time_excludes_pause(self):
+        """Lap timer time sums moving deltas only; elapsed stays wall-clock."""
+        t0 = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+
+        def _tp(seconds: int) -> SimpleNamespace:
+            return SimpleNamespace(
+                time=t0 + timedelta(seconds=seconds),
+                latitude=40.0,
+                longitude=-3.0,
+                tpx_ext={},
+            )
+
+        lap = SimpleNamespace(
+            start_time=t0,
+            end_time=t0 + timedelta(seconds=320),
+            trackpoints=[_tp(0), _tp(10), _tp(310), _tp(320)],
+            tpx_ext_stats={},
+            distance=None,
+            calories=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            ascent=None,
+            descent=None,
+            avg_speed=None,
+        )
+        tcx_file = SimpleNamespace(laps=[lap])
+
+        laps = utils_tcx._parse_laps(tcx_file)
+
+        assert laps[0]["total_elapsed_time"] == 320
+        assert laps[0]["total_timer_time"] == 20
+
+    def test_build_activity_falls_back_to_elapsed_without_timer(self):
+        """Without a derived timer time, total_timer_time falls back to elapsed."""
+        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        end = datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC)
+        tcx_file = SimpleNamespace(
+            start_time=start,
+            end_time=end,
+            ascent=None,
+            descent=None,
+            hr_avg=None,
+            hr_max=None,
+            cadence_avg=None,
+            cadence_max=None,
+            calories=None,
+        )
+
+        activity = utils_tcx._build_activity(
+            tcx_file=tcx_file,
+            user_id=1,
+            activity_name="Ride",
+            activity_type=1,
+            distance=0,
+            timezone="UTC",
+            pace=None,
+            city=None,
+            town=None,
+            country=None,
+            avg_power=None,
+            max_power=None,
+            norm_power=None,
+            gear_id=None,
+            user_privacy_settings=_privacy_settings(),
+        )
+
+        assert activity.total_elapsed_time == 3600
+        assert activity.total_timer_time == 3600
+
     def test_parse_tcx_file_keeps_reported_distance_when_present(self):
         """A real tcx_file.distance is used as-is, ignoring the GPS fallback."""
         dt_start = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
