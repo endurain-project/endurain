@@ -299,7 +299,7 @@ async def import_activities_and_media_from_strava_export(
         )
 
         # Queue files for processing.
-        if users_existing_gear_nickname_to_id:
+        if users_existing_gear_nickname_to_id is not None:
             loop = asyncio.get_event_loop()
             loop.run_in_executor(
                 executor,

@@ -174,12 +174,13 @@ def test_gear_dictionary_no_user(monkeypatch):
     assert result is None
 
 
-def test_gear_dictionary_no_gear(monkeypatch):
-    """Returns None when user has no gear."""
+@pytest.mark.parametrize("user_gear_list", [None, []])
+def test_gear_dictionary_no_gear(monkeypatch, user_gear_list):
+    """Returns an empty dictionary when user has no gear."""
     mock_user = Mock(id=42)
     monkeypatch.setattr(bulk_import_utils.users_crud, "get_user_by_id", lambda uid, db: mock_user)
-    monkeypatch.setattr(bulk_import_utils.gears_crud, "get_gear_user", lambda uid, db: None)
+    monkeypatch.setattr(bulk_import_utils.gears_crud, "get_gear_user", lambda uid, db: user_gear_list)
 
     result = bulk_import_utils.create_gear_dictionary_for_bulk_import(42, Mock())
 
-    assert result is None
+    assert result == {}

@@ -109,17 +109,14 @@ def create_gear_dictionary_for_bulk_import(
 
     The dictionary includes both base Endurain gear nickname and the gear name smoosh ("{brand} {model} {name}") that Strava uses for its shoe gear listing in activities.csv
 
-    Returns: Dictionary that uses the gear name as a key to look up the gear ID.
+    Returns: Dictionary that uses the gear name as a key to look up the gear ID (empty if the user has no gear), or None if the user is not found.
     """
     user = users_crud.get_user_by_id(token_user_id, db)
     if user is not None:
         user_gear_list = gears_crud.get_gear_user(user.id, db)
-        if user_gear_list is None:
-            # User has no gear.
-            users_existing_gear_nickname_to_id = None
-        else:
-            # User has gear - build dictionary to facilitate gear to ID work during import.
-            users_existing_gear_nickname_to_id = {}
+        # Build dictionary to facilitate gear to ID work during import. A user with no gear gets an empty dictionary.
+        users_existing_gear_nickname_to_id = {}
+        if user_gear_list:
             for item in user_gear_list:
                 users_existing_gear_nickname_to_id[item.nickname] = [item.id]
                 # Strava apparently exports shoe names as a smoosh of "{brand} {model} {name}", so adding that as a second key for each gear item
