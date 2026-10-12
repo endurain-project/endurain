@@ -44,6 +44,7 @@ import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
+import garmin.bulk_import_utils as garmin_bulk_import_utils
 import server_settings.crud as server_settings_crud
 import strava.bulk_import_utils as strava_bulk_import_utils
 import users.users.crud as users_crud
@@ -471,12 +472,40 @@ def handle_gzipped_file(
         ) from err
 
 
+def _apply_garmin_summary_name(
+    activity_payload: dict,
+    garmin_summaries: dict | None,
+    activity_metadata_dict: dict,
+) -> dict:
+    """Inject the Garmin export activity name into import metadata.
+
+    Matches the parsed activity's start time against the index built
+    from Garmin ``summarizedActivities.json`` files so bulk-imported
+    activities get the same names Garmin Connect sync would produce
+    (issue #492). Existing names (e.g. from a Strava activities.csv)
+    take precedence.
+
+    Returns a new metadata dict on a match; the original otherwise.
+    """
+    if not garmin_summaries or activity_metadata_dict.get("name"):
+        return activity_metadata_dict
+
+    summary = garmin_bulk_import_utils.find_summary_for_start_time(
+        garmin_summaries,
+        activity_payload["activity"].start_time,
+    )
+    if summary is None:
+        return activity_metadata_dict
+    return {**activity_metadata_dict, "name": summary["name"]}
+
+
 def _prepare_bulk_import_activity(
     activity: activities_models.Activity,
     is_bulk_import: bool,
     created_activities_objects: list,
     strava_activities: dict | None,
     activity_metadata_dict: dict,
+    garmin_summaries: dict | None = None,
 ) -> activities_models.Activity | None:
     """Process a single activity for bulk import.
 
@@ -509,6 +538,9 @@ def _prepare_bulk_import_activity(
         )
         return None
 
+    # Fall back to a Garmin export activity name when no Strava name exists.
+    activity_metadata_dict = _apply_garmin_summary_name(activity, garmin_summaries, activity_metadata_dict)
+
     # Add import metadata and Strava activities.csv metadata
     activity = strava_bulk_import_utils.append_bulk_import_metadata_to_activity(activity, activity_metadata_dict)
     return activity
@@ -526,6 +558,7 @@ async def parse_and_store_activity_from_file(
     import_initiated_time: str | None = None,
     users_existing_gear_nickname_to_id: dict | None = None,
     activity_name: str | None = None,
+    garmin_summaries: dict | None = None,
 ):
     """
     Parse an activity file and persist the result to the database.
@@ -550,6 +583,9 @@ async def parse_and_store_activity_from_file(
         users_existing_gear_nickname_to_id: Mapping of gear nickname to
             internal gear ID, used during Strava bulk imports.
         activity_name: Optional override for the activity name.
+        garmin_summaries: Activity metadata indexed by start epoch from
+            Garmin export summarizedActivities.json files, used to name
+            bulk-imported activities (issue #492).
 
     Returns:
         List of created activity schema objects, or None if the file could not
@@ -664,6 +700,11 @@ async def parse_and_store_activity_from_file(
                 ):
                     # Add import metadata and Strava activities.csv metadata to parsed_info
                     if is_bulk_import:
+                        # Fall back to a Garmin export activity name when no
+                        # Strava name exists.
+                        activity_metadata_dict = _apply_garmin_summary_name(
+                            parsed_info, garmin_summaries, activity_metadata_dict
+                        )
                         parsed_info = strava_bulk_import_utils.append_bulk_import_metadata_to_activity(
                             parsed_info, activity_metadata_dict
                         )
@@ -703,6 +744,7 @@ async def parse_and_store_activity_from_file(
                             created_activities_objects,
                             strava_activities,
                             activity_metadata_dict,
+                            garmin_summaries=garmin_summaries,
                         )
                         if activity is None:
                             continue
@@ -1640,6 +1682,7 @@ def process_all_files_sync(
     file_paths: list[str],
     websocket_manager: websocket_manager.WebSocketManager,
     import_initiated_time: str,
+    garmin_summaries: dict | None = None,
 ):
     """
     Process all files sequentially in single thread.
@@ -1648,6 +1691,10 @@ def process_all_files_sync(
         user_id: User ID.
         file_paths: List of file paths to process.
         websocket_manager: WebSocket manager instance.
+        import_initiated_time: ISO timestamp of when the bulk import
+            was initiated.
+        garmin_summaries: Activity metadata indexed by start epoch from
+            Garmin export summarizedActivities.json files (issue #492).
     """
     db = next(core_database.get_db())
     try:
@@ -1662,6 +1709,7 @@ def process_all_files_sync(
                     db,
                     is_bulk_import=True,
                     import_initiated_time=import_initiated_time,
+                    garmin_summaries=garmin_summaries,
                 )
             )
             # Small delay between files
