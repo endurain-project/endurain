@@ -318,3 +318,59 @@ class TestMoveFile:
         move_file(new_dir="/dest", new_filename="test.fit", file_path="/src/test.fit")
 
         mock_move_within.assert_called_once_with("/src/test.fit", "/dest", filename="test.fit")
+
+
+class TestProcessAllFilesSync:
+    @patch("activities.activity.utils.time.sleep")
+    @patch("activities.activity.utils.core_database.get_db")
+    def test_continues_after_file_error(self, mock_get_db, _mock_sleep):
+        """A file that raises must not abort the rest of the batch (issue #775)."""
+        from unittest.mock import AsyncMock
+
+        from activities.activity.utils import process_all_files_sync
+
+        mock_get_db.return_value = iter([MagicMock()])
+
+        with patch(
+            "activities.activity.utils.parse_and_store_activity_from_file",
+            new_callable=AsyncMock,
+            side_effect=[RuntimeError("boom"), None],
+        ) as mock_parse:
+            process_all_files_sync(
+                user_id=1,
+                file_paths=["a.tcx", "b.tcx"],
+                websocket_manager=MagicMock(),
+                import_initiated_time="2026-07-16T00:00:00",
+            )
+
+        assert mock_parse.call_count == 2
+
+
+class TestBulkImportErrorFileMove:
+    @patch("activities.activity.utils.os.makedirs")
+    @patch("activities.activity.utils.move_file")
+    def test_error_move_httpexception_is_swallowed(self, mock_move_file, _mock_makedirs):
+        """HTTPException while moving a failed file to the errors dir must not escape (issue #775)."""
+        import asyncio
+
+        from fastapi import HTTPException
+
+        from activities.activity.utils import parse_and_store_activity_from_file
+
+        # Destination-exists collisions raise HTTPException (not OSError).
+        mock_move_file.side_effect = HTTPException(status_code=400, detail="Destination file already exists")
+
+        # Unsupported extension drives execution into the bulk-import error
+        # handler without touching the filesystem.
+        result = asyncio.run(
+            parse_and_store_activity_from_file(
+                1,
+                "activity.xyz",
+                MagicMock(),
+                MagicMock(),
+                is_bulk_import=True,
+            )
+        )
+
+        assert result is None
+        mock_move_file.assert_called_once()

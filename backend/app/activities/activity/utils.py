@@ -784,7 +784,11 @@ async def parse_and_store_activity_from_file(
                     f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}",
                     "error",
                 )
-            except OSError:
+            except (HTTPException, OSError):
+                # move_within raises HTTPException on containment violations
+                # and destination collisions (e.g. the same bad file already
+                # sits in the errors dir from a previous run) — swallowing it
+                # keeps the rest of the batch alive (issue #775).
                 core_logger.print_to_log_and_console(
                     f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.",
                     "error",
@@ -1654,16 +1658,27 @@ def process_all_files_sync(
         total_files = len(file_paths)
         for idx, file_path in enumerate(file_paths, 1):
             core_logger.print_to_log_and_console(f"Processing file {idx}/{total_files}: {file_path}")
-            asyncio.run(
-                parse_and_store_activity_from_file(
-                    user_id,
-                    file_path,
-                    websocket_manager,
-                    db,
-                    is_bulk_import=True,
-                    import_initiated_time=import_initiated_time,
+            try:
+                asyncio.run(
+                    parse_and_store_activity_from_file(
+                        user_id,
+                        file_path,
+                        websocket_manager,
+                        db,
+                        is_bulk_import=True,
+                        import_initiated_time=import_initiated_time,
+                    )
                 )
-            )
+            except Exception as err:
+                # One broken file must never abort the rest of the batch —
+                # the HTTP response went out long ago, so an escaping
+                # exception would silently skip every remaining file
+                # (issue #775).
+                core_logger.print_to_log_and_console(
+                    f"Bulk file import: unhandled error processing file {file_path} - {err}",
+                    "error",
+                    exc=err,
+                )
             # Small delay between files
             time.sleep(0.1)
 
