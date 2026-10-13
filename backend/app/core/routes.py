@@ -11,6 +11,7 @@ import activities.activity_laps.router as activity_laps_router
 import activities.activity_media.router as activity_media_router
 import activities.activity_sets.public_router as activity_sets_public_router
 import activities.activity_sets.router as activity_sets_router
+import activities.activity_streaks.router as activity_streaks_router
 import activities.activity_streams.router as activity_streams_router
 import activities.activity_summaries.router as activity_summaries_router
 import auth.api_keys.router as auth_api_keys_router
@@ -44,6 +45,7 @@ import users.users_default_gear.router as user_default_gear_router
 import users.users_goals.router as user_goals_router
 import users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import users.users_profile.router as profile_router
+import users.users_streak_settings.router as user_streak_settings_router
 import websocket.router as websocket_router
 from activities.activity_exercise_titles import (
     public_router as activity_exercise_titles_public_router,
@@ -113,6 +115,12 @@ router.include_router(
     activity_workout_steps_router.router,
     prefix=core_config.ROOT_PATH + "/activities_workout_steps",
     tags=["activity_workout_steps"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    activity_streaks_router.router,
+    prefix=core_config.ROOT_PATH + "/activities_streaks",
+    tags=["streaks"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
@@ -270,6 +278,15 @@ router.include_router(
 router.include_router(
     user_goals_router.router,
     prefix=core_config.ROOT_PATH + "/profile/goals",
+    tags=["profile"],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Security(auth_dependencies.check_scopes, scopes=["profile"]),
+    ],
+)
+router.include_router(
+    user_streak_settings_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/streak_settings",
     tags=["profile"],
     dependencies=[
         Depends(auth_dependencies.validate_access_token),

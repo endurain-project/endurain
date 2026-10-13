@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from users.users_goals.models import UsersGoal
     from users.users_integrations.models import UsersIntegrations
     from users.users_privacy_settings.models import UsersPrivacySettings
+    from users.users_streak_settings.models import UsersStreakSettings
 
 
 class Users(Base):
@@ -239,6 +240,10 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     goals: Mapped[list["UsersGoal"]] = relationship(
+        back_populates="users",
+        cascade="all, delete-orphan",
+    )
+    users_streak_settings: Mapped[list["UsersStreakSettings"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
     )
