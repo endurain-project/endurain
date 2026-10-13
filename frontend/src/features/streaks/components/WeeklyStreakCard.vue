@@ -101,6 +101,7 @@ const longestText = computed(() => {
   })
 })
 
+/** Whether a running streak equals or beats the longest one ever recorded. */
 const isPersonalBest = computed(
   () =>
     !!props.streak &&

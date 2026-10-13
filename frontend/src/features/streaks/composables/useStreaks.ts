@@ -39,6 +39,7 @@ export function useMyWeeklyStreakQuery(enabled: MaybeRefOrGetter<boolean> = true
  */
 export function useUserWeeklyStreakQuery(userId: MaybeRefOrGetter<number | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  /** The owner id as a positive number, or `0` while unavailable (disables the query). */
   const id = computed(() => {
     const value = toValue(userId)
     return value !== null && Number.isFinite(value) && value > 0 ? value : 0

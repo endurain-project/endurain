@@ -28,6 +28,7 @@ def sqlite_session():
 
 
 def _activity(start: datetime, **overrides):
+    """Build insert values for an activity row, overriding any column via kwargs."""
     values = {
         "user_id": 1,
         "distance": 1000,
@@ -58,11 +59,13 @@ def _activity(start: datetime, **overrides):
 
 
 def _settings(**kwargs) -> streak_settings_schema.UsersStreakSettingsBase:
+    """Build streak settings with the given overrides."""
     return streak_settings_schema.UsersStreakSettingsBase(**kwargs)
 
 
 class TestGetWeeklyStreak:
     def test_counts_weeks_and_filters(self, sqlite_session):
+        """Counts local-date weeks, skips hidden/other-user rows and applies type and target filters."""
         rows = [
             # Current week (Mon 12 Oct)
             _activity(datetime(2026, 10, 13, 7, tzinfo=UTC)),
@@ -113,6 +116,7 @@ class TestGetWeeklyStreak:
         assert two_per_week.min_activities_per_week == 2
 
     def test_no_activities(self, sqlite_session):
+        """Returns an empty streak with a full history strip when there are no activities."""
         result = streak_crud.get_weekly_streak(
             db=sqlite_session,
             user_id=1,
@@ -126,6 +130,7 @@ class TestGetWeeklyStreak:
         assert len(result.recent_weeks) == 12
 
     def test_db_error(self, mock_db):
+        """Propagates database failures instead of returning a bogus streak."""
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(Exception):  # noqa: B017
             streak_crud.get_weekly_streak(

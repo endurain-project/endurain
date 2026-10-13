@@ -20,6 +20,7 @@ def sqlite_session():
 
 class TestStreakSettingsCrud:
     def test_defaults_when_missing(self, sqlite_session):
+        """Returns defaults without creating a row when nothing is stored."""
         settings = streak_settings_crud.get_streak_settings_by_user_id(1, sqlite_session)
         assert settings.user_id == 1
         assert settings.min_activities_per_week == 1
@@ -27,6 +28,7 @@ class TestStreakSettingsCrud:
         assert settings.show_on_profile is False
 
     def test_upsert_creates_then_updates(self, sqlite_session):
+        """Creates the row on first save and replaces it on the next."""
         created = streak_settings_crud.upsert_streak_settings(
             1,
             streak_settings_schema.UsersStreakSettingsUpdate(

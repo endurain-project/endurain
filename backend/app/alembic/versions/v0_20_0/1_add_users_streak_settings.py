@@ -20,6 +20,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """Create the users_streak_settings table and its unique user_id index."""
     op.create_table(
         "users_streak_settings",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -61,5 +62,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Drop the users_streak_settings table and its index."""
     op.drop_index(op.f("ix_users_streak_settings_user_id"), table_name="users_streak_settings")
     op.drop_table("users_streak_settings")

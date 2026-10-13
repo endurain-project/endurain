@@ -41,6 +41,12 @@ function makeStreak(overrides: Partial<WeeklyStreak> = {}): WeeklyStreak {
   return { ...mapWeeklyStreak(streakDto), ...overrides }
 }
 
+/**
+ * Mounts the streak card with the app's i18n plugin.
+ *
+ * @param props - Card props for the case under test.
+ * @returns The mounted wrapper.
+ */
 function mountCard(props: InstanceType<typeof WeeklyStreakCard>['$props']) {
   return mount(WeeklyStreakCard, { props, global: { plugins: [i18n] } })
 }
