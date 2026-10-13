@@ -69,7 +69,7 @@ class TestGetTileMapsTemplates:
         openstreetmap = next((t for t in result if t.template_id == "openstreetmap"), None)
         assert openstreetmap is not None
         assert openstreetmap.name == "OpenStreetMap"
-        assert openstreetmap.url_template == "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        assert openstreetmap.url_template == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         assert openstreetmap.requires_api_key_frontend is False
         assert openstreetmap.requires_api_key_backend is False
 

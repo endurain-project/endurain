@@ -12,7 +12,7 @@ import server_settings.schema as server_settings_schema
 TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
     "openstreetmap": {
         "name": "OpenStreetMap",
-        "url_template": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "url_template": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         "map_background_color": "#e8e8e8",
         "requires_api_key_frontend": False,

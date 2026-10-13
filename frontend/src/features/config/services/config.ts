@@ -17,7 +17,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     appName: 'Endurain',
   },
   map: {
-    tileUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },

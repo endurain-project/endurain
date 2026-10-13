@@ -14,8 +14,7 @@ import core.config as core_config
 import core.logger as core_logger
 
 # Fallback tile URL used when server settings are unavailable.
-# Uses a fixed subdomain; staticmap does not support {s} rotation.
-_DEFAULT_TILE_URL = "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+_DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 _DEFAULT_BG_COLOR = "#dddddd"
 
 # Visual constants matching the Leaflet map renderer
