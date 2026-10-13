@@ -35,7 +35,7 @@ export interface LeafletMapProviderConfig {
 }
 
 /** OpenStreetMap defaults, matching the backend's self-hosted server settings. */
-const DEFAULT_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 const DEFAULT_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 const DEFAULT_MAX_ZOOM = 19
