@@ -13,7 +13,9 @@ import type {
 
 import GoalFormDialog from '@/features/goals/components/GoalFormDialog.vue'
 import GoalListItem from '@/features/goals/components/GoalListItem.vue'
+import StreakSettingsCard from '@/features/streaks/components/StreakSettingsCard.vue'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CountBadge } from '@/components/ui/count-badge'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -33,12 +35,16 @@ import {
   INTERVAL_LABEL_KEYS,
 } from '@/features/goals/utils/goalFormat'
 import { useDeleteGoalMutation, useGoalsQuery } from '@/features/goals/composables/useGoals'
+import { useStreakSettingsQuery } from '@/features/streaks/composables/useStreaks'
 
 const { t } = useI18n()
 const toasts = useToasts()
 
 const { data: currentUser } = useCurrentUser()
 const units = computed(() => currentUser.value?.units ?? 'metric')
+
+/** Weekly streak settings; the card mounts once they have loaded. */
+const streakSettingsQuery = useStreakSettingsQuery()
 
 // Server-side filters (mirrors v1: changing a filter refetches with query params).
 const selectedInterval = ref<GoalInterval | ''>('')
@@ -242,6 +248,19 @@ function confirmDelete(): void {
         </li>
       </ul>
     </ListPanel>
+
+    <StreakSettingsCard
+      v-if="streakSettingsQuery.data.value"
+      :settings="streakSettingsQuery.data.value"
+    />
+    <Card v-else-if="streakSettingsQuery.isError.value">
+      <p class="text-hint">{{ t('settings.goals.streak.loadError') }}</p>
+    </Card>
+    <Card v-else class="flex flex-col gap-3" aria-busy="true">
+      <Skeleton class="h-5 w-40" />
+      <Skeleton class="h-4 w-full" />
+      <Skeleton class="h-9 w-full sm:max-w-xs" />
+    </Card>
 
     <GoalFormDialog
       v-model:open="isFormOpen"
