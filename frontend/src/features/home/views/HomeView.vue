@@ -20,7 +20,7 @@ import { useToasts } from '@/composables/useToasts'
 import { useInfiniteScroll } from '@/composables/useInfiniteScroll'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
-import { ACTIVITY_FILE_EXTENSIONS } from '@/features/upload/types'
+import { ACTIVITY_FILE_ACCEPT } from '@/features/upload/types'
 import { useUploadActivityFileMutation } from '@/features/upload/composables/useUpload'
 import {
   useActivityStatsQuery,
@@ -124,7 +124,7 @@ useInfiniteScroll(sentinel, () => fetchNextPage(), {
 // --- Add activity (file upload) ---
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploadMutation = useUploadActivityFileMutation()
-const acceptedFileTypes = ACTIVITY_FILE_EXTENSIONS.map((ext) => `.${ext}`).join(',')
+const acceptedFileTypes = ACTIVITY_FILE_ACCEPT
 
 /**
  * Whether to show a placeholder card at the top of the viewer's own feed while

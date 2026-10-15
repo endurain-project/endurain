@@ -23,6 +23,38 @@ export const ACTIVITY_FILE_EXTENSIONS = ['gpx', 'tcx', 'fit', 'gz'] as const
 export type ActivityFileExtension = (typeof ACTIVITY_FILE_EXTENSIONS)[number]
 
 /**
+ * MIME types accepted by the activity file picker, alongside
+ * {@link ACTIVITY_FILE_EXTENSIONS}.
+ *
+ * iOS Safari / Files resolves the `<input accept>` filter by MIME/UTI, not by
+ * bare extension. `.fit` has no registered UTI on iOS, so an extension-only
+ * filter (`.gpx,.tcx,.fit,.gz`) matches nothing and every file renders
+ * greyed-out/unselectable — while macOS, which knows these extensions,
+ * works fine. `application/octet-stream` matters most: it is how iOS
+ * typically reports `.fit` files (generic binary).
+ */
+export const ACTIVITY_FILE_MIME_TYPES = [
+  'application/gpx+xml',
+  'application/vnd.garmin.tcx+xml',
+  'application/vnd.ant.fit',
+  'application/gzip',
+  'application/x-gzip',
+  'application/octet-stream',
+  'text/xml',
+  'application/xml',
+] as const
+
+/**
+ * Value for the upload `<input accept>` attribute: extensions (desktop
+ * filtering) plus MIME types (iOS matching). Picker hint only — validation
+ * stays in `assertValidActivityFile` client-side and safeuploads server-side.
+ */
+export const ACTIVITY_FILE_ACCEPT = [
+  ...ACTIVITY_FILE_EXTENSIONS.map((ext) => `.${ext}`),
+  ...ACTIVITY_FILE_MIME_TYPES,
+].join(',')
+
+/**
  * Maximum activity-file size accepted client-side, mirroring the backend
  * `_MAX_ACTIVITY_BYTES` ceiling (200 MiB). Rejecting oversized files before
  * upload avoids a doomed multi-hundred-MiB round-trip; the backend enforces the
