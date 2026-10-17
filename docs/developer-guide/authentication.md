@@ -1217,13 +1217,19 @@ The following environment variables control authentication behavior:
 | `ALLOWED_REDIRECT_SCHEMES` | Comma-separated custom URI schemes allowed as SSO redirect targets (e.g., `endurain,gadgetbridge`). Defaults to `endurain` when unset. If set, the provided list is used as-is (it does not merge with the default). External `http`/`https` redirects are always rejected. | `endurain` | No |
 | `SSRF_ALLOWED_HOSTS` | SSRF allowlist for admin-configured outbound calls (currently OIDC discovery and JWKS fetch only). Comma-separated list of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges. Supports self-hosted identity providers on private networks. Examples: `auth.internal.example.com` or `auth.internal.example.com,10.10.0.0/24,fd00::/64`. Wildcards are rejected. IPv4 prefix must be ≥ /8, IPv6 ≥ /32. Every allowlisted outbound call is logged at INFO level for audit. | `` | No |
 
-#### Rate Limiting and Auth Security Storage
+#### Rate Limiting and Shared State
+
+Rate-limit counters and all auth-security state (login/step-up lockout, pending
+MFA login state, MFA setup secrets, Garmin MFA codes, websocket tickets) share
+one backend selected by `DEPLOYMENT_PROFILE`.
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
 | `RATE_LIMIT_ENABLED` | Enable or disable API rate limiting. Set to `false` to disable for development or testing. | `true` | No |
-| `RATE_LIMIT_STORAGE_URI` | Storage backend URI for rate limit counters. Use `memory://` for single-worker deployments or `redis://redis:6379/0` for multi-worker setups so all workers share counters. | `memory://` | No |
-| `AUTH_SECURITY_STORAGE_URI` | Storage backend URI for auth security state: login lockout counters, step-up lockout counters, pending MFA login state, and temporary MFA setup secrets. Defaults to `RATE_LIMIT_STORAGE_URI` when unset. Use Redis for multi-worker deployments so protections are shared across all workers. | *(uses `RATE_LIMIT_STORAGE_URI`)* | No |
+| `DEPLOYMENT_PROFILE` | Deployment shape selecting the backend for all shared state. `local` (default) uses in-process memory; `distributed` requires Redis. A `distributed` or multi-worker deployment wired to memory is rejected at startup. | `local` | No |
+| `WEB_WORKERS` | Number of web-server worker processes. When `> 1`, shared state (Redis) is required even under the `local` profile. | `1` | No |
+| `STATE_URI` | Explicit override for the shared ephemeral-state backend. Takes precedence over `REDIS_URL`. `memory://` or `redis://…`. | *(profile default)* | No |
+| `REDIS_URL` | Shared Redis DSN backing every Redis capability with no explicit URI (including `STATE_URI`). Required for `distributed` or `WEB_WORKERS > 1`. | *(unset)* | No |
 | `ALLOW_API_KEY_QUERY_PARAM` | Allow API keys via the `?api_key=` query parameter. Disabled by default because query-string credentials appear in server access logs, reverse-proxy logs, and browser history. Enable only for integrations that cannot set custom request headers. The `X-API-Key` header is always preferred. | `false` | No |
 
 ### Cookie Configuration

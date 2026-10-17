@@ -1,14 +1,14 @@
-import pathlib
+import os
 from collections.abc import Sequence
-from importlib import import_module
 from typing import Any
 from unittest.mock import MagicMock
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-_APP_DIR = pathlib.Path(__file__).resolve().parents[2] / "app"
+import model_registry as orm_model_registry
 
 
 def setup_mock_execute(
@@ -37,6 +37,7 @@ def setup_mock_execute(
     mock_db.execute.return_value = execute_mock
     # Support db.scalars(stmt) pattern (used by some sub-module CRUDs)
     scalars_direct_mock = MagicMock()
+    scalars_direct_mock.first.return_value = return_one_or_none
     if return_scalars_all is not None:
         scalars_direct_mock.all.return_value = return_scalars_all
     elif return_all is not None:
@@ -70,15 +71,8 @@ def setup_mock_query(
 
 
 def _import_all_models() -> None:
-    """Import every ``models.py`` so the SQLAlchemy mapper registry is complete.
-
-    A real ORM query triggers ``configure_mappers()`` for the whole registry.
-    Relationships use string targets, so every related model must be imported
-    or configuration fails. ``import_module`` is cached, so repeat calls are
-    cheap.
-    """
-    for path in sorted(_APP_DIR.glob("**/models.py")):
-        import_module(".".join(path.relative_to(_APP_DIR).with_suffix("").parts))
+    """Import model contributions through the application composition root."""
+    orm_model_registry.import_all_models()
 
 
 def create_sqlite_session() -> Session:
@@ -99,3 +93,99 @@ def create_sqlite_session() -> Session:
     )
     Base.metadata.create_all(engine)
     return Session(engine)
+
+
+def create_sqlite_session_factory() -> sessionmaker[Session]:
+    """Create a sessionmaker over one shared in-memory SQLite engine.
+
+    Unlike ``create_sqlite_session``, sessions produced by this factory share a
+    single engine/connection (``StaticPool``), so many short-lived sessions see
+    the same data. Use it to test code that opens a fresh session per operation
+    (e.g. the durable job runner). Dispose the engine in teardown via
+    ``factory.kw["bind"].dispose()`` to avoid a ``ResourceWarning``.
+    """
+    from core.database import Base
+
+    _import_all_models()
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine)
+
+
+#: Environment variable naming a *disposable* PostgreSQL database for the tests
+#: marked ``postgres``. Unset, those tests are skipped.
+POSTGRES_TEST_URL_ENV = "TEST_DATABASE_URL"
+
+
+def postgres_test_url() -> str | None:
+    """Return the configured PostgreSQL test database URL, or ``None``."""
+    return os.environ.get(POSTGRES_TEST_URL_ENV) or None
+
+
+def create_postgres_session_factory() -> sessionmaker[Session]:
+    """Create a sessionmaker over a real PostgreSQL test database.
+
+    Unlike the SQLite helpers, sessions here get their own pooled connection, so
+    one session's uncommitted work is invisible to another and a failed flush
+    leaves the session unusable until it is rolled back, exactly as in
+    production. The schema is dropped and recreated, so the database named by
+    ``TEST_DATABASE_URL`` must be disposable: anything whose name does not
+    contain ``test`` is refused. Dispose in teardown with
+    :func:`drop_postgres_schema`.
+
+    Raises:
+        RuntimeError: If the database name does not contain ``test``.
+    """
+    from core.database import Base
+
+    url = postgres_test_url()
+    if url is None:
+        raise RuntimeError(f"{POSTGRES_TEST_URL_ENV} is not set")
+    database = make_url(url).database or ""
+    if "test" not in database:
+        raise RuntimeError(
+            f"Refusing to recreate the schema of '{database}': {POSTGRES_TEST_URL_ENV} must name a "
+            "disposable database whose name contains 'test'."
+        )
+
+    _import_all_models()
+    engine = create_engine(url)
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine)
+
+
+def drop_postgres_schema(factory: sessionmaker[Session]) -> None:
+    """Drop everything the factory created and release its connections."""
+    from core.database import Base
+
+    engine = factory.kw["bind"]
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+def ensure_user(factory: sessionmaker[Session], user_id: int) -> None:
+    """Insert a minimal user row if it is missing.
+
+    PostgreSQL enforces the ``users.id`` foreign keys that SQLite leaves
+    unchecked, so a row that references a user needs the user to exist.
+    """
+    import modules.users.users.models as users_models
+
+    with factory() as db:
+        if db.get(users_models.Users, user_id) is None:
+            db.add(
+                users_models.Users(
+                    id=user_id,
+                    name=f"User {user_id}",
+                    username=f"user{user_id}",
+                    email=f"user{user_id}@example.com",
+                    preferred_language="us",
+                    access_type="regular",
+                )
+            )
+            db.commit()

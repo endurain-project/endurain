@@ -1,6 +1,6 @@
 """Tests for user goals database models."""
 
-import users.users_goals.models as user_goals_models
+import modules.users.users_goals.models as user_goals_models
 
 
 class TestUserGoalModel:

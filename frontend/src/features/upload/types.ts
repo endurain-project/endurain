@@ -6,7 +6,35 @@ import type { Schemas } from '@/types'
  * contract change surfaces here as a TypeScript error rather than a silent
  * runtime mismatch.
  */
-export type Activity = Schemas['Activity']
+export type Activity = Schemas['ActivityRead']
+
+/**
+ * A queued activity-file import. The upload endpoint answers `202` with this
+ * handle rather than the parsed activities, because parsing runs on a
+ * background worker; the client polls until it reaches a terminal state.
+ */
+export type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
+
+/** Lifecycle state of an {@link ActivityIngestionJob}. */
+export type IngestionJobStatus = ActivityIngestionJob['status']
+
+/** Sanitized reason a background import failed. */
+export type IngestionJobErrorCode = NonNullable<ActivityIngestionJob['error_code']>
+
+/**
+ * Statuses that will not change again, so polling can stop.
+ */
+export const TERMINAL_INGESTION_STATUSES = ['completed', 'failed'] as const
+
+/**
+ * Whether an upload job has reached a state it will not leave.
+ *
+ * @param job - The job to inspect.
+ * @returns `true` when the job is finished, successfully or not.
+ */
+export function isTerminalIngestionJob(job: ActivityIngestionJob): boolean {
+  return (TERMINAL_INGESTION_STATUSES as readonly string[]).includes(job.status)
+}
 
 /**
  * Accepted activity-file extensions, mirroring the backend's `ACTIVITY` and

@@ -5,10 +5,10 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
     import core.dependencies as core_deps
-    import health.health_poop.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.health.health_poop.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/health_poop")
@@ -27,10 +27,10 @@ def _build_app(mock_db):
 
 
 class TestReadHealthPoopAllPagination:
-    @patch("health.health_poop.router.health_poop_crud.get_health_poop_number_by_user_id")
-    @patch("health.health_poop.router.health_poop_crud.get_health_poop_by_user_id")
+    @patch("modules.health.health_poop.router.health_poop_crud.get_health_poop_number_by_user_id")
+    @patch("modules.health.health_poop.router.health_poop_crud.get_health_poop_by_user_id")
     def test_list_success(self, mock_get, mock_get_number, mock_db):
-        from health.health_poop.schema import HealthPoopRead
+        from modules.health.health_poop.schema import HealthPoopRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [HealthPoopRead(id=1, user_id=1)]
@@ -41,8 +41,8 @@ class TestReadHealthPoopAllPagination:
         data = response.json()
         assert data["total"] == 1
 
-    @patch("health.health_poop.router.health_poop_crud.get_health_poop_number_by_user_id")
-    @patch("health.health_poop.router.health_poop_crud.get_health_poop_by_user_id")
+    @patch("modules.health.health_poop.router.health_poop_crud.get_health_poop_number_by_user_id")
+    @patch("modules.health.health_poop.router.health_poop_crud.get_health_poop_by_user_id")
     def test_list_empty(self, mock_get, mock_get_number, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -56,9 +56,9 @@ class TestReadHealthPoopAllPagination:
 
 
 class TestReadHealthPoopById:
-    @patch("health.health_poop.router.health_poop_crud.get_health_poop_by_id_and_user_id")
+    @patch("modules.health.health_poop.router.health_poop_crud.get_health_poop_by_id_and_user_id")
     def test_success(self, mock_get, mock_db):
-        from health.health_poop.schema import HealthPoopRead
+        from modules.health.health_poop.schema import HealthPoopRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = HealthPoopRead(id=1, user_id=1)
@@ -66,7 +66,7 @@ class TestReadHealthPoopById:
         response = client.get("/health_poop/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("health.health_poop.router.health_poop_crud.get_health_poop_by_id_and_user_id")
+    @patch("modules.health.health_poop.router.health_poop_crud.get_health_poop_by_id_and_user_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -76,9 +76,9 @@ class TestReadHealthPoopById:
 
 
 class TestCreateHealthPoop:
-    @patch("health.health_poop.router.health_poop_crud.create_health_poop")
+    @patch("modules.health.health_poop.router.health_poop_crud.create_health_poop")
     def test_create_success(self, mock_create, mock_db):
-        from health.health_poop.schema import HealthPoopRead
+        from modules.health.health_poop.schema import HealthPoopRead
 
         client = TestClient(_build_app(mock_db))
         mock_create.return_value = HealthPoopRead(id=1, user_id=1)
@@ -92,9 +92,9 @@ class TestCreateHealthPoop:
 
 
 class TestEditHealthPoop:
-    @patch("health.health_poop.router.health_poop_crud.edit_health_poop")
+    @patch("modules.health.health_poop.router.health_poop_crud.edit_health_poop")
     def test_edit_success(self, mock_edit, mock_db):
-        from health.health_poop.schema import HealthPoopRead
+        from modules.health.health_poop.schema import HealthPoopRead
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = HealthPoopRead(id=1, user_id=1)
@@ -108,7 +108,7 @@ class TestEditHealthPoop:
 
 
 class TestDeleteHealthPoop:
-    @patch("health.health_poop.router.health_poop_crud.delete_health_poop")
+    @patch("modules.health.health_poop.router.health_poop_crud.delete_health_poop")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
 

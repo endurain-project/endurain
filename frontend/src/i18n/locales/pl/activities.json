@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Ukryj serie i etapy treningu",
     "hideGear": "Ukryj sprzęt",
     "success": "Zaktualizowano aktywność",
-    "error": "Nie udało się zaktualizować aktywności"
+    "error": "Nie udało się zaktualizować aktywności",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ta aktywność jest ukryta. Tylko Ty możesz ją zobaczyć.",

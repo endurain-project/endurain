@@ -1,6 +1,6 @@
 """Tests for shared activity file import utilities."""
 
-import activities.activity_file_import.utils as afi_utils
+import modules.activities.activity_file_import.utils as afi_utils
 
 
 class TestComputeDistanceFromWaypoints:
@@ -30,3 +30,16 @@ class TestComputeDistanceFromWaypoints:
         ]
         # Both segments touch the None point, so nothing is accumulated.
         assert afi_utils.compute_distance_from_waypoints(points) == 0.0
+
+
+class TestTimezoneFinderCache:
+    """The TimezoneFinder is built once and reused (perf on the ingestion path)."""
+
+    def test_returns_same_cached_instance(self):
+        import core.timezone as core_timezone
+
+        assert core_timezone._timezone_finder() is core_timezone._timezone_finder()
+
+    def test_resolve_timezone_uses_cached_finder(self):
+        # A known land coordinate resolves to its IANA zone through the cached finder.
+        assert afi_utils.resolve_timezone_from_lat_lon(38.7, -9.1, "UTC") == "Europe/Lisbon"

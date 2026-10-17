@@ -5,9 +5,10 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-import health.health_sleep.crud as health_sleep_crud
-import health.health_sleep.models as health_sleep_models
-import health.health_sleep.schema as health_sleep_schema
+import core.exceptions as core_exceptions
+import modules.health.health_sleep.crud as health_sleep_crud
+import modules.health.health_sleep.models as health_sleep_models
+import modules.health.health_sleep.schema as health_sleep_schema
 
 
 class TestGetHealthSleepNumber:
@@ -54,7 +55,7 @@ class TestGetHealthSleepNumber:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_sleep_crud.get_health_sleep_number_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -112,7 +113,7 @@ class TestGetHealthSleepWithPagination:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_sleep_crud.get_health_sleep_by_user_id(user_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -166,7 +167,7 @@ class TestGetHealthSleepByDate:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, test_date, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -243,8 +244,14 @@ class TestCreateHealthSleep:
 
             # Assert
             assert result.id == 1
-            # Schema validator should have set today's date
-            assert health_sleep.date == datetime_date.today()
+            # The schema validator fills in "today" in the *server's configured*
+            # timezone, not the container's. Asserting against ``date.today()``
+            # made this test fail whenever the two disagreed — for UTC+1 that is
+            # the hour after local midnight.
+            import core.config as core_config
+            import core.timezone as core_timezone
+
+            assert health_sleep.date == core_timezone.today_in(core_config.settings.TZ)
 
     def test_create_health_sleep_duplicate_entry(self, mock_db):
         """
@@ -282,7 +289,7 @@ class TestCreateHealthSleep:
         mock_db.add.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_sleep_crud.create_health_sleep(user_id, health_sleep, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -359,7 +366,7 @@ class TestEditHealthSleep:
         mock_db.commit.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_sleep_crud.edit_health_sleep(user_id, health_sleep, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -423,7 +430,7 @@ class TestDeleteHealthSleep:
         mock_db.delete.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             health_sleep_crud.delete_health_sleep(user_id, health_sleep_id, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -21,6 +21,12 @@ DATA_FOLDER="${DATA_DIR:-$BACKEND_FOLDER/data}"
 LOGS_FOLDER="${LOGS_DIR:-$BACKEND_FOLDER/logs}"
 FRONTEND_FOLDER="${FRONTEND_DIR:-/app/frontend/dist}"
 
+# Pre-created so a fresh data volume has the full layout visible from boot.
+# Most of these are also asserted by config.check_required_dirs(); the
+# exception is upload_staging, which is the local StorageProvider's area for
+# uploads awaiting import. The provider creates it on demand, and an S3
+# deployment has no such directory at all, so it is deliberately not a config
+# constant — it is listed here only so operators see it alongside the rest.
 REQUIRED_DIRS="
 $DATA_FOLDER
 $DATA_FOLDER/user_images
@@ -31,6 +37,8 @@ $DATA_FOLDER/activity_files
 $DATA_FOLDER/activity_files/processed
 $DATA_FOLDER/activity_files/bulk_import
 $DATA_FOLDER/activity_files/bulk_import/import_errors
+$DATA_FOLDER/activity_files/upload_incoming
+$DATA_FOLDER/activity_files/upload_staging
 $DATA_FOLDER/activity_files/strava_import
 $DATA_FOLDER/activity_files/strava_import/activities
 $DATA_FOLDER/activity_files/strava_import/media
@@ -132,6 +140,10 @@ esac
 
 echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY, LOG_LEVEL=$LOG_LEVEL"
 
+# Select the process role: "api" (default) serves HTTP; "worker" drains the
+# durable-job queue (requires JOBS_ENABLED=true). One image, two shapes.
+APP_ROLE="${APP_ROLE:-api}"
+
 # uvicorn only honours --proxy-headers for peers listed in FORWARDED_ALLOW_IPS
 # (default 127.0.0.1), so without it a proxy on any other address is ignored.
 # Derive that list from TRUSTED_PROXIES, which operators already set for the
@@ -181,10 +193,10 @@ build_forwarded_allow_ips() {
         # an IP/CIDR into an inert literal that never matches a peer, so entries
         # that are not pure IP syntax must go through hostname resolution.
         case "$entry" in
-            *[!0-9A-Fa-f:./]*) entry_is_ip=0 ;;  # non-hex character -> hostname
-            *:*) entry_is_ip=1 ;;                # IPv6 literal or CIDR
-            *[!0-9./]*) entry_is_ip=0 ;;         # hex letters, no colon -> hostname
-            *) entry_is_ip=1 ;;                  # IPv4 literal or CIDR
+            *[!0-9A-Fa-f:./]*) entry_is_ip=0 ;;
+            *:*) entry_is_ip=1 ;;
+            *[!0-9./]*) entry_is_ip=0 ;;
+            *) entry_is_ip=1 ;;
         esac
 
         if [ "$entry_is_ip" = "1" ]; then
@@ -203,22 +215,43 @@ build_forwarded_allow_ips() {
     done
 }
 
-CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
-if [ "$BEHIND_PROXY" = "true" ]; then
-    CMD="$CMD --proxy-headers"
-    if [ -n "$FORWARDED_ALLOW_IPS" ]; then
-        echo_info_log "Honouring forwarded headers from FORWARDED_ALLOW_IPS override: $FORWARDED_ALLOW_IPS"
-    else
-        build_forwarded_allow_ips
-        if [ -n "$FORWARDED_ALLOW_IPS_LIST" ]; then
-            # Exported rather than passed as --forwarded-allow-ips so it also
-            # applies to a uvicorn/gunicorn started by an overridden command.
-            export FORWARDED_ALLOW_IPS="$FORWARDED_ALLOW_IPS_LIST"
-            echo_info_log "Honouring forwarded headers from: $FORWARDED_ALLOW_IPS_LIST"
-        else
-            echo_error_log "BEHIND_PROXY=true but no usable TRUSTED_PROXIES entry was found; uvicorn will only honour forwarded headers from 127.0.0.1. Set TRUSTED_PROXIES to your reverse proxy address, CIDR, or hostname."
+case "$APP_ROLE" in
+    api)
+        CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
+        if [ "$BEHIND_PROXY" = "true" ]; then
+            CMD="$CMD --proxy-headers"
+            if [ -n "$FORWARDED_ALLOW_IPS" ]; then
+                echo_info_log "Honouring forwarded headers from FORWARDED_ALLOW_IPS override: $FORWARDED_ALLOW_IPS"
+            else
+                build_forwarded_allow_ips
+                if [ -n "$FORWARDED_ALLOW_IPS_LIST" ]; then
+                    # Exported rather than passed as --forwarded-allow-ips so it
+                    # also applies to an overridden Uvicorn/Gunicorn command.
+                    export FORWARDED_ALLOW_IPS="$FORWARDED_ALLOW_IPS_LIST"
+                    echo_info_log "Honouring forwarded headers from: $FORWARDED_ALLOW_IPS_LIST"
+                else
+                    echo_error_log "BEHIND_PROXY=true but no usable TRUSTED_PROXIES entry was found; uvicorn will only honour forwarded headers from 127.0.0.1. Set TRUSTED_PROXIES to your reverse proxy address, CIDR, or hostname."
+                fi
+            fi
         fi
-    fi
-fi
-
-exec $CMD
+        # Run multiple Uvicorn workers when WEB_WORKERS > 1. The backend's
+        # deployment fail-fast (Settings._enforce_deployment_topology) requires
+        # shared state (Redis) and a shared coordination lock whenever
+        # WEB_WORKERS > 1, so a multi-worker start that is not correctly
+        # configured aborts at boot rather than silently diverging.
+        WEB_WORKERS="${WEB_WORKERS:-1}"
+        if [ "$WEB_WORKERS" -gt 1 ] 2>/dev/null; then
+            CMD="$CMD --workers $WEB_WORKERS"
+            echo_info_log "Starting Uvicorn with $WEB_WORKERS workers"
+        fi
+        exec $CMD
+        ;;
+    worker)
+        echo_info_log "Starting durable-job worker (APP_ROLE=worker)"
+        exec python worker.py
+        ;;
+    *)
+        echo_error_log "Invalid APP_ROLE '$APP_ROLE'. Supported roles: api, worker."
+        exit 1
+        ;;
+esac

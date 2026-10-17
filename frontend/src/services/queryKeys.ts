@@ -401,6 +401,19 @@ export const queryKeys = {
   },
 
   /**
+   * Bulk imports. A running import is one ingestion job polled until it is
+   * terminal; it creates activities rather than caching any, so it has no
+   * invalidation role of its own.
+   */
+  bulkImport: {
+    /**
+     * @param jobId - The ingestion job returned when the import was accepted.
+     * @returns A query key for that job's progress.
+     */
+    job: (jobId: string) => ['bulk-import', 'job', jobId] as const,
+  },
+
+  /**
    * Identity providers domain (admin SSO config). `all()` is the broad prefix
    * the create/update/delete mutations invalidate on settle so the list (and
    * any derived view) refetches the server-authoritative state.

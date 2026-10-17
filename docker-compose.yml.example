@@ -25,7 +25,7 @@ services:
 
    # postgres logic
   postgres:
-    image: docker.io/postgres:18@sha256:8ff36f3c66371cba71d20ceedccfc3de9669a68737607888c4ef0af93abe8e39
+    image: docker.io/postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     container_name: endurain-postgres
     env_file:
       - .env

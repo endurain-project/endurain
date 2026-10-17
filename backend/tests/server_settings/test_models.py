@@ -7,7 +7,7 @@ including field defaults and constraints.
 
 from sqlalchemy import inspect
 
-import server_settings.models as server_settings_models
+import modules.server_settings.models as server_settings_models
 
 
 class TestServerSettingsModel:

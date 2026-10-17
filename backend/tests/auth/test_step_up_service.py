@@ -7,8 +7,8 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import auth.security_stores as security_stores
-import auth.services.step_up_service as step_up_service
+import modules.auth._internal.security_stores as security_stores
+import modules.auth._internal.services.step_up_service as step_up_service
 
 
 class FakeStepUpStore:
@@ -98,19 +98,19 @@ class TestVerifyStepUpCredentials:
 
         with (
             patch(
-                "auth.services.step_up_service.users_utils.get_user_by_id_or_404",
+                "modules.auth._internal.services.step_up_service.users_utils.get_user_by_id_or_404",
                 return_value=mock_user,
             ),
             patch(
-                "auth.services.step_up_service.auth_credentials_crud.get_credential",
+                "modules.auth._internal.services.step_up_service.auth_credentials_crud.get_credential",
                 return_value=credential,
             ),
             patch(
-                "auth.services.step_up_service.mfa_service.is_mfa_enabled_for_user",
+                "modules.auth._internal.services.step_up_service.mfa_service.is_mfa_enabled_for_user",
                 return_value=mfa_enabled,
             ),
             patch(
-                "auth.services.step_up_service.mfa_service.verify_user_mfa",
+                "modules.auth._internal.services.step_up_service.mfa_service.verify_user_mfa",
                 return_value=mfa_valid,
             ),
         ):
@@ -505,7 +505,8 @@ class TestVerifyStepUpCredentials:
         store = security_stores.StepUpAttempts()
         key = "user:1"
         # Pre-load 3 failures (below threshold)
-        store._lockout._attempts[key] = (3, None)
+        for _ in range(3):
+            store.record_failed_attempt(key)
 
         self._call(
             user_id=1,
@@ -516,4 +517,5 @@ class TestVerifyStepUpCredentials:
         )
 
         assert not store.is_locked_out(key)
-        assert key not in store._lockout._attempts
+        # The counter was reset: the next failure starts again at 1.
+        assert store.record_failed_attempt(key) == 1

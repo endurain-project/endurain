@@ -63,3 +63,9 @@ devscripts/
 
 # local data
 endurain_data/
+
+# activity files
+*.gpx
+*.fit
+*.tcx
+*.gz

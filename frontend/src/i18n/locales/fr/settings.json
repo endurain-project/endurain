@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Sauvegardez vos codes de secours",
       "description": "Utilisez un code de secours pour vous connecter si vous perdez l'accès à votre application d'authentification.",
-      "warning": "Ces codes ne sont affichés qu'une seule fois. Conservez-les en lieu sûr — chaque code ne fonctionne qu'une seule fois.",
+      "warning": "Ces codes ne sont affichés qu'une seule fois. Conservez-les en lieu sûr, chaque code ne fonctionne qu'une seule fois.",
       "copy": "Copier",
       "copied": "Codes de secours copiés",
       "copyError": "Impossible de copier les codes.",
@@ -898,7 +898,7 @@
       "export": "Exporter les données",
       "import": "Importer les données",
       "invalidType": "Veuillez choisir une archive .zip.",
-      "exportSuccess": "Exportation prête — votre téléchargement devrait commencer sous peu",
+      "exportSuccess": "Exportation prête, votre téléchargement devrait commencer sous peu",
       "exportError": "Impossible d'exporter vos données. Veuillez réessayer.",
       "importSuccess": "Données importées",
       "importError": "Impossible d'importer l'archive. Vérifiez le fichier et réessayez."

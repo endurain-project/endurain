@@ -5,6 +5,8 @@ All file uploads in the backend MUST go through this module:
 - :func:`validate_upload` — content-type-aware validation (no write).
 - :func:`save_validated_upload` — validate + persist to disk
   (optionally streamed for large files).
+- :func:`save_validated_upload_sync` / :func:`validate_local_file_sync` —
+  synchronous variants for sync FastAPI routes and threadpool workers.
 - :data:`file_validator` — single shared :class:`FileValidator` instance.
 
 The unified pipeline gives every upload the same defenses:
@@ -20,18 +22,22 @@ The unified pipeline gives every upload the same defenses:
 import asyncio
 import contextlib
 import glob
+import gzip
+import hashlib
 import io
 import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine, Iterable
+from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Any
 
 import aiofiles
 import aiofiles.os
-from fastapi import HTTPException, UploadFile, status
+from fastapi import UploadFile
 from safeuploads import (
     FileSecurityConfig,
     FileValidator,
@@ -42,7 +48,6 @@ from safeuploads.exceptions import (
     CompressionSecurityError,
     ExtensionSecurityError,
     FilenameSecurityError,
-    FileProcessingError,
     FileSecurityError,
     FileSignatureError,
     FileSizeError,
@@ -53,7 +58,10 @@ from safeuploads.exceptions import (
     ZipBombError,
 )
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level configuration and shared validator
@@ -155,22 +163,23 @@ def _max_bytes_for(kind: UploadKind) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _to_http_exception(err: FileSecurityError) -> HTTPException:
-    """Translate a safeuploads exception into an HTTPException.
+def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
+    """Translate a safeuploads exception into a domain error.
 
-    The error code from :mod:`safeuploads.exceptions` is preserved in
-    the ``detail`` payload so clients can react programmatically.
+    The safeuploads error code is not part of the response: the validators'
+    own taxonomy is an implementation detail of this module, and the
+    exception is logged with its type by the caller.
 
     Args:
         err: Safeuploads exception raised during validation.
 
     Returns:
-        HTTPException with the appropriate status code and a
-        machine-readable detail body.
+        ``PayloadTooLargeError`` for a size violation, ``InvalidInputError``
+        for content the validators reject, ``ProcessingError`` otherwise.
     """
     if isinstance(err, FileSizeError):
-        status_code = status.HTTP_413_CONTENT_TOO_LARGE
-    elif isinstance(
+        return core_exceptions.PayloadTooLargeError(str(err))
+    if isinstance(
         err,
         (
             MimeTypeError,
@@ -184,17 +193,8 @@ def _to_http_exception(err: FileSecurityError) -> HTTPException:
             FileValidationError,
         ),
     ):
-        status_code = status.HTTP_400_BAD_REQUEST
-    elif isinstance(err, FileProcessingError):
-        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    else:
-        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-
-    detail: dict[str, str] = {"message": str(err)}
-    error_code = getattr(err, "error_code", None)
-    if error_code is not None:
-        detail["code"] = str(error_code)
-    return HTTPException(status_code=status_code, detail=detail)
+        return core_exceptions.InvalidInputError(str(err))
+    return core_exceptions.ProcessingError(str(err))
 
 
 # ---------------------------------------------------------------------------
@@ -214,19 +214,15 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
         kind: Logical content type to validate against.
 
     Raises:
-        HTTPException: 400/413/500 mapped from the underlying
-            safeuploads exception (see :func:`_to_http_exception`).
+        DomainError: 400/413/500 mapped from the underlying
+            safeuploads exception (see :func:`_to_domain_error`).
     """
     validator = _validator_for(kind)
     try:
         await validator(file)
     except FileSecurityError as err:
-        core_logger.print_to_log(
-            f"Upload validation failed: kind={kind.value} type={type(err).__name__}",
-            "warning",
-            exc=err,
-        )
-        raise _to_http_exception(err) from err
+        logger.warning(f"Upload validation failed: kind={kind.value} type={type(err).__name__}", exc_info=err)
+        raise _to_domain_error(err) from err
 
 
 async def validate_local_file(
@@ -248,7 +244,7 @@ async def validate_local_file(
             extension checks. Defaults to ``os.path.basename(path)``.
 
     Raises:
-        HTTPException: As :func:`validate_upload`.
+        DomainError: As :func:`validate_upload`.
     """
     actual_filename = filename or os.path.basename(os.fspath(path))
     # Open in binary mode; UploadFile accepts any binary file object.
@@ -258,6 +254,61 @@ async def validate_local_file(
             await validate_upload(wrapped, kind=kind)
         finally:
             await wrapped.close()
+
+
+# ---------------------------------------------------------------------------
+# Synchronous entry points (for sync FastAPI routes + threadpool workers)
+# ---------------------------------------------------------------------------
+
+
+def _run_validator_sync(coro: Coroutine[Any, Any, None]) -> None:
+    """Drive an async validator coroutine to completion synchronously.
+
+    The safeuploads validators are async, but sync callers — a synchronous
+    FastAPI route (Starlette runs it on a threadpool worker) or the bulk-import
+    ``ThreadPoolExecutor`` — have no running event loop. A private loop is created
+    for the duration of validation via :func:`asyncio.run`.
+
+    Must **not** be called from the main async thread (``asyncio.run`` refuses to
+    run inside an already-running loop); use the ``async`` entry points there.
+
+    Args:
+        coro: The validator coroutine to run (e.g. ``validate_upload(...)``).
+
+    Returns:
+        None.
+
+    Raises:
+        DomainError: Whatever the wrapped validator raises.
+    """
+    asyncio.run(coro)
+
+
+def validate_local_file_sync(
+    path: str | os.PathLike,
+    *,
+    kind: UploadKind,
+    filename: str | None = None,
+) -> None:
+    """Synchronous counterpart of :func:`validate_local_file`.
+
+    Validates a file already on disk (e.g. the inner payload after decompressing a
+    ``.gz`` activity) from a synchronous context. Runs the shared safeuploads
+    validator to completion on a private event loop.
+
+    Args:
+        path: Filesystem path of the file to validate.
+        kind: Logical content type to validate against.
+        filename: Optional logical filename used for filename and extension
+            checks. Defaults to ``os.path.basename(path)``.
+
+    Raises:
+        DomainError: As :func:`validate_upload`.
+    """
+    actual_filename = filename or os.path.basename(os.fspath(path))
+    with open(path, "rb") as fh:
+        wrapped = UploadFile(file=fh, filename=actual_filename)
+        _run_validator_sync(validate_upload(wrapped, kind=kind))
 
 
 # ---------------------------------------------------------------------------
@@ -277,35 +328,23 @@ def _resolve_upload_path(upload_dir: str, filename: str) -> Path:
         Resolved path inside the upload directory.
 
     Raises:
-        HTTPException: If the filename is empty or unsafe.
+        DomainError: If the filename is empty or unsafe.
     """
     candidate_name = Path(filename)
     if not filename or candidate_name.is_absolute():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename",
-        )
+        raise core_exceptions.InvalidInputError("Invalid filename")
     if candidate_name.name != filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename",
-        )
+        raise core_exceptions.InvalidInputError("Invalid filename")
 
     if "\x00" in filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename",
-        )
+        raise core_exceptions.InvalidInputError("Invalid filename")
 
     upload_root = Path(upload_dir).resolve()
     file_path = (upload_root / filename).resolve()
     try:
         file_path.relative_to(upload_root)
     except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid filename",
-        ) from err
+        raise core_exceptions.InvalidInputError("Invalid filename") from err
     return file_path
 
 
@@ -320,7 +359,7 @@ def resolve_storage_path(upload_dir: str, filename: str) -> Path:
         Resolved path inside ``upload_dir``.
 
     Raises:
-        HTTPException: If the filename is empty or unsafe.
+        DomainError: If the filename is empty or unsafe.
     """
     return _resolve_upload_path(upload_dir, filename)
 
@@ -347,7 +386,7 @@ async def save_file(
         Full filesystem path where the file was saved.
 
     Raises:
-        HTTPException: 400 for unsafe names, 500 for write failures.
+        DomainError: 400 for unsafe names, 500 for write failures.
     """
     file_path: Path | None = None
     try:
@@ -368,30 +407,20 @@ async def save_file(
         async with aiofiles.open(file_path, "wb") as save_file:
             await save_file.write(content)
 
-        core_logger.print_to_log(
-            f"File saved successfully: {file_path}",
-            "debug",
-        )
+        logger.debug(f"File saved successfully: {file_path}")
 
         return str(file_path)
-    except HTTPException:
+    except core_exceptions.DomainError:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_file: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error in save_file: {type(err).__name__}", exc_info=err)
 
         # Remove the file if it was created
         if file_path and await aiofiles.os.path.exists(file_path):
             await aiofiles.os.remove(file_path)
 
-        # Raise an HTTPException with a 500 Internal Server Error
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save file",
-        ) from err
+        # Raise a ProcessingError (500) with a caller-safe message
+        raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
 # ---------------------------------------------------------------------------
@@ -414,7 +443,7 @@ def _stream_to_path_sync(file: UploadFile, destination: Path, max_bytes: int) ->
         max_bytes: Hard cap on total bytes accepted.
 
     Raises:
-        HTTPException: 413 when the upload exceeds ``max_bytes``.
+        DomainError: 413 when the upload exceeds ``max_bytes``.
         OSError: Re-raised after best-effort cleanup of ``.part``.
     """
     part = destination.with_suffix(destination.suffix + ".part")
@@ -430,13 +459,7 @@ def _stream_to_path_sync(file: UploadFile, destination: Path, max_bytes: int) ->
                     break
                 bytes_written += len(chunk)
                 if bytes_written > max_bytes:
-                    raise HTTPException(
-                        status_code=(status.HTTP_413_CONTENT_TOO_LARGE),
-                        detail={
-                            "message": ("Uploaded file exceeds maximum allowed size"),
-                            "code": "FILE_SIZE_EXCEEDED",
-                        },
-                    )
+                    raise core_exceptions.PayloadTooLargeError("Uploaded file exceeds maximum allowed size")
                 out.write(chunk)
         os.replace(part, destination)
     except BaseException:
@@ -469,17 +492,11 @@ def _bytes_to_path_sync(data: bytes, destination: Path, max_bytes: int) -> None:
         None.
 
     Raises:
-        HTTPException: 413 when ``data`` exceeds ``max_bytes``.
+        DomainError: 413 when ``data`` exceeds ``max_bytes``.
         OSError: Re-raised after best-effort cleanup of ``.part``.
     """
     if len(data) > max_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail={
-                "message": "Uploaded file exceeds maximum allowed size",
-                "code": "FILE_SIZE_EXCEEDED",
-            },
-        )
+        raise core_exceptions.PayloadTooLargeError("Uploaded file exceeds maximum allowed size")
 
     part = destination.with_suffix(destination.suffix + ".part")
     try:
@@ -507,7 +524,7 @@ async def _bytes_to_path(data: bytes, destination: Path, max_bytes: int) -> None
         None.
 
     Raises:
-        HTTPException: As :func:`_bytes_to_path_sync`.
+        DomainError: As :func:`_bytes_to_path_sync`.
         OSError: As :func:`_bytes_to_path_sync`.
     """
     await asyncio.to_thread(_bytes_to_path_sync, data, destination, max_bytes)
@@ -546,7 +563,7 @@ async def save_validated_upload(
         Absolute filesystem path of the saved file.
 
     Raises:
-        HTTPException: 400/413/500 depending on the failure mode.
+        DomainError: 400/413/500 depending on the failure mode.
     """
     # Validate first; safeuploads rewinds the stream on success.
     await validate_upload(file, kind=kind)
@@ -562,21 +579,125 @@ async def save_validated_upload(
             saved_path = await save_file(file, upload_dir, filename)
 
         return saved_path
-    except HTTPException:
+    except core_exceptions.DomainError:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error in save_validated_upload: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "message": "Failed to save file",
-                "code": "FILE_SAVE_FAILED",
-            },
-        ) from err
+        logger.error(f"Error in save_validated_upload: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.ProcessingError("Failed to save file") from err
+
+
+async def read_validated_upload(file: UploadFile, *, kind: UploadKind) -> bytes:
+    """Validate an upload and return its bytes, without touching the filesystem.
+
+    The async counterpart of :func:`read_validated_upload_sync`, for callers that
+    hand the bytes to the platform ``StorageProvider`` rather than writing them
+    to a local directory.
+
+    Args:
+        file: Incoming FastAPI UploadFile.
+        kind: Logical content type, drives validator + size cap.
+
+    Returns:
+        The validated file contents.
+
+    Raises:
+        DomainError: 400/413/500 depending on the failure mode.
+    """
+    await validate_upload(file, kind=kind)
+    # The read is blocking on a spooled file that may have hit disk.
+    return await asyncio.to_thread(_read_capped_sync, file, _max_bytes_for(kind))
+
+
+def _read_capped_sync(file: UploadFile, max_bytes: int) -> bytes:
+    """Read an already-validated upload into memory, enforcing the size cap."""
+    chunks: list[bytes] = []
+    total = 0
+    # The validators leave file.file at offset 0; rewind defensively.
+    with contextlib.suppress(Exception):
+        file.file.seek(0)
+    while True:
+        chunk = file.file.read(_STREAM_CHUNK_BYTES)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise core_exceptions.PayloadTooLargeError("Uploaded file exceeds maximum allowed size")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def save_validated_upload_sync(
+    file: UploadFile,
+    *,
+    kind: UploadKind,
+    upload_dir: str,
+    filename: str,
+) -> str:
+    """Synchronous counterpart of :func:`save_validated_upload`.
+
+    For synchronous FastAPI routes (Starlette runs them on a threadpool worker)
+    and other sync contexts. Validates the upload with the shared safeuploads
+    validator, then streams it to ``upload_dir/filename`` with the synchronous
+    streaming writer (``.part``-then-rename, size-capped) — the same defenses as
+    the async path, without touching the event loop.
+
+    Content validation runs on a private event loop (:func:`_run_validator_sync`),
+    so this must be called from a thread with **no** running loop. Use
+    :func:`save_validated_upload` from async code.
+
+    Args:
+        file: Incoming FastAPI UploadFile.
+        kind: Logical content type, drives validator + size cap.
+        upload_dir: Trusted destination directory.
+        filename: **Server-generated** filename within ``upload_dir``. Must not
+            contain path separators; verified by :func:`_resolve_upload_path`.
+
+    Returns:
+        Absolute filesystem path of the saved file.
+
+    Raises:
+        DomainError: 400/413/500 depending on the failure mode.
+    """
+    # Validate first; safeuploads rewinds the stream on success.
+    _run_validator_sync(validate_upload(file, kind=kind))
+
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+        destination = _resolve_upload_path(upload_dir, filename)
+        _stream_to_path_sync(file, destination, _max_bytes_for(kind))
+        return str(destination)
+    except core_exceptions.DomainError:
+        raise
+    except Exception as err:
+        logger.error(f"Error in save_validated_upload_sync: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.ProcessingError("Failed to save file") from err
+
+
+def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
+    """Validate an upload and return its bytes, without touching the filesystem.
+
+    The read counterpart of :func:`save_validated_upload_sync`, for callers that
+    hand the bytes to the platform ``StorageProvider`` (which may be object
+    storage) rather than writing them to a local directory. The same safeuploads
+    validator and size cap apply, so the only thing that differs is the
+    destination.
+
+    Content validation runs on a private event loop (:func:`_run_validator_sync`),
+    so this must be called from a thread with **no** running loop.
+
+    Args:
+        file: Incoming FastAPI UploadFile.
+        kind: Logical content type, drives validator + size cap.
+
+    Returns:
+        The validated file contents.
+
+    Raises:
+        DomainError: 400/413/500 depending on the failure mode.
+    """
+    _run_validator_sync(validate_upload(file, kind=kind))
+
+    return _read_capped_sync(file, _max_bytes_for(kind))
 
 
 # ---------------------------------------------------------------------------
@@ -614,19 +735,11 @@ async def delete_files_by_pattern(directory: str, pattern: str) -> None:
                 if await aiofiles.os.path.exists(file_path):
                     await aiofiles.os.remove(file_path)
 
-                core_logger.print_to_log(f"File deleted successfully: {file_path}", "debug")
+                logger.debug(f"File deleted successfully: {file_path}")
             except OSError as err:
-                core_logger.print_to_log(
-                    f"Failed to delete file {file_path}: {err}",
-                    "warning",
-                    exc=err,
-                )
+                logger.warning(f"Failed to delete file {file_path}: {err}", exc_info=err)
     except Exception as err:
-        core_logger.print_to_log(
-            f"Error deleting files matching pattern {pattern}: {err}",
-            "error",
-            exc=err,
-        )
+        logger.error(f"Error deleting files matching pattern {pattern}: {err}", exc_info=err)
 
 
 # ---------------------------------------------------------------------------
@@ -652,7 +765,7 @@ async def validate_bytes(
             checks. Server-generated names only.
 
     Raises:
-        HTTPException: 400/413/500 mapped from safeuploads.
+        DomainError: 400/413/500 mapped from safeuploads.
     """
     wrapped = UploadFile(file=io.BytesIO(data), filename=filename)
     try:
@@ -684,7 +797,7 @@ async def save_validated_bytes(
         Absolute filesystem path of the saved file.
 
     Raises:
-        HTTPException: 400/413/500 depending on failure mode.
+        DomainError: 400/413/500 depending on failure mode.
     """
     await validate_bytes(data, kind=kind, filename=filename)
     try:
@@ -692,21 +805,40 @@ async def save_validated_bytes(
         destination = _resolve_upload_path(upload_dir, filename)
         await _bytes_to_path(data, destination, _max_bytes_for(kind))
         return str(destination)
-    except HTTPException:
+    except core_exceptions.DomainError:
         raise
     except Exception as err:
-        core_logger.print_to_log(
-            f"save_validated_bytes failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "message": "Failed to save file",
-                "code": "FILE_SAVE_FAILED",
-            },
-        ) from err
+        logger.error(f"save_validated_bytes failed: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.ProcessingError("Failed to save file") from err
+
+
+def save_validated_bytes_sync(
+    data: bytes,
+    *,
+    kind: UploadKind,
+    upload_dir: str,
+    filename: str,
+) -> str:
+    """Synchronous counterpart of :func:`save_validated_bytes`.
+
+    For a worker thread with no running event loop (a durable job, the ingestion
+    pool): it drives the async validator on a private loop, as
+    :func:`validate_local_file_sync` does. Must not be called from the main
+    async thread.
+
+    Args:
+        data: Raw byte payload.
+        kind: Logical content type.
+        upload_dir: Trusted destination directory.
+        filename: **Server-generated** filename within ``upload_dir``.
+
+    Returns:
+        Absolute filesystem path of the saved file.
+
+    Raises:
+        DomainError: As :func:`save_validated_bytes`.
+    """
+    return asyncio.run(save_validated_bytes(data, kind=kind, upload_dir=upload_dir, filename=filename))
 
 
 # ---------------------------------------------------------------------------
@@ -769,18 +901,13 @@ def _extract_validated_zip_sync(
     staging_dir: Path | None = None
     total_bytes = 0
     dest_resolved = dest_dir.resolve()
-    request_too_large = status.HTTP_413_CONTENT_TOO_LARGE
 
     try:
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             members = zip_ref.infolist()
             if max_entries is not None and len(members) > max_entries:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "message": (f"Archive contains {len(members)} entries; maximum allowed is {max_entries}"),
-                        "code": "ZIP_ENTRY_COUNT_EXCEEDED",
-                    },
+                raise core_exceptions.InvalidInputError(
+                    f"Archive contains {len(members)} entries; maximum allowed is {max_entries}"
                 )
 
             staging_dir = Path(
@@ -799,60 +926,24 @@ def _extract_validated_zip_sync(
                 # the file mode on Unix; 0xA000 = symlink).
                 mode = (member.external_attr >> 16) & 0xFFFF
                 if mode and (mode & 0o170000) == 0o120000:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "message": (f"Archive contains symlink entry: {member.filename!r}"),
-                            "code": "ZIP_SYMLINK_REJECTED",
-                        },
-                    )
+                    raise core_exceptions.InvalidInputError(f"Archive contains symlink entry: {member.filename!r}")
 
                 target = _is_safe_extraction_target(member.filename, dest_resolved)
                 if target is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "message": (f"Archive entry escapes destination: {member.filename!r}"),
-                            "code": "ZIP_SLIP_REJECTED",
-                        },
-                    )
+                    raise core_exceptions.InvalidInputError(f"Archive entry escapes destination: {member.filename!r}")
 
                 if target in seen_targets:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "message": (f"Archive contains duplicate target: {member.filename!r}"),
-                            "code": "ZIP_DUPLICATE_TARGET",
-                        },
-                    )
+                    raise core_exceptions.InvalidInputError(f"Archive contains duplicate target: {member.filename!r}")
                 if target.exists():
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "message": (f"Archive target already exists: {member.filename!r}"),
-                            "code": "ZIP_TARGET_EXISTS",
-                        },
-                    )
+                    raise core_exceptions.InvalidInputError(f"Archive target already exists: {member.filename!r}")
                 seen_targets.add(target)
 
                 # Per-entry uncompressed size guard (declared size).
                 if member.file_size > _MAX_EXTRACTED_ENTRY_BYTES:
-                    raise HTTPException(
-                        status_code=request_too_large,
-                        detail={
-                            "message": ("Archive entry exceeds maximum entry size"),
-                            "code": "ZIP_ENTRY_SIZE_EXCEEDED",
-                        },
-                    )
+                    raise core_exceptions.PayloadTooLargeError("Archive entry exceeds maximum entry size")
                 total_bytes += member.file_size
                 if total_bytes > _MAX_TOTAL_EXTRACTED_BYTES:
-                    raise HTTPException(
-                        status_code=request_too_large,
-                        detail={
-                            "message": ("Archive total uncompressed size exceeds maximum"),
-                            "code": "ZIP_TOTAL_SIZE_EXCEEDED",
-                        },
-                    )
+                    raise core_exceptions.PayloadTooLargeError("Archive total uncompressed size exceeds maximum")
 
                 staged_target = staging_dir / target.relative_to(dest_resolved)
                 staged_target.parent.mkdir(parents=True, exist_ok=True)
@@ -868,13 +959,7 @@ def _extract_validated_zip_sync(
                                 break
                             written += len(chunk)
                             if written > _MAX_EXTRACTED_ENTRY_BYTES:
-                                raise HTTPException(
-                                    status_code=request_too_large,
-                                    detail={
-                                        "message": ("Archive entry exceeds maximum entry size"),
-                                        "code": ("ZIP_ENTRY_SIZE_EXCEEDED"),
-                                    },
-                                )
+                                raise core_exceptions.PayloadTooLargeError("Archive entry exceeds maximum entry size")
                             dst.write(chunk)
                 except BaseException:
                     with contextlib.suppress(OSError):
@@ -905,7 +990,7 @@ def _promote_extracted_files_sync(
         Final paths promoted into ``dest_dir``.
 
     Raises:
-        HTTPException: 400 when a final target is unsafe or exists.
+        DomainError: 400 when a final target is unsafe or exists.
         OSError: Re-raised for filesystem failures.
     """
     final_paths: list[Path] = []
@@ -917,13 +1002,7 @@ def _promote_extracted_files_sync(
             try:
                 parent_resolved.relative_to(dest_dir)
             except ValueError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "message": "Archive entry escapes destination",
-                        "code": "ZIP_SLIP_REJECTED",
-                    },
-                ) from err
+                raise core_exceptions.InvalidInputError("Archive entry escapes destination") from err
 
             # Track every directory level we create, not just the
             # leaf, so rollback removes intermediate dirs too
@@ -941,22 +1020,10 @@ def _promote_extracted_files_sync(
             try:
                 final_resolved.relative_to(dest_dir)
             except ValueError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "message": "Archive entry escapes destination",
-                        "code": "ZIP_SLIP_REJECTED",
-                    },
-                ) from err
+                raise core_exceptions.InvalidInputError("Archive entry escapes destination") from err
 
             if final_resolved.exists():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "message": "Archive target already exists",
-                        "code": "ZIP_TARGET_EXISTS",
-                    },
-                )
+                raise core_exceptions.InvalidInputError("Archive target already exists")
 
             try:
                 # ``os.link`` is atomic but requires the staging dir
@@ -967,13 +1034,7 @@ def _promote_extracted_files_sync(
                 # the staging dir without revisiting this contract.
                 os.link(staged_path, final_resolved)
             except FileExistsError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={
-                        "message": "Archive target already exists",
-                        "code": "ZIP_TARGET_EXISTS",
-                    },
-                ) from err
+                raise core_exceptions.InvalidInputError("Archive target already exists") from err
             staged_path.unlink()
             final_paths.append(final_resolved)
     except BaseException:
@@ -1019,7 +1080,7 @@ async def extract_validated_zip(
         List of extracted file paths under ``dest_dir``.
 
     Raises:
-        HTTPException: 400 for zip-slip / symlink / unsafe entries,
+        DomainError: 400 for zip-slip / symlink / unsafe entries,
             413 for size-cap violations, 500 for I/O failures.
     """
     if max_entries is None:
@@ -1035,21 +1096,11 @@ async def extract_validated_zip(
             dest_path,
             max_entries,
         )
-    except HTTPException:
+    except core_exceptions.DomainError:
         raise
     except (zipfile.BadZipFile, OSError) as err:
-        core_logger.print_to_log(
-            f"extract_validated_zip failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "Failed to extract archive",
-                "code": "ZIP_EXTRACTION_FAILED",
-            },
-        ) from err
+        logger.error(f"extract_validated_zip failed: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.InvalidInputError("Failed to extract archive") from err
 
     try:
         if per_entry_kind is not None:
@@ -1061,13 +1112,10 @@ async def extract_validated_zip(
                         kind=per_entry_kind,
                         filename=final_entry.name,
                     )
-                except HTTPException:
+                except core_exceptions.DomainError:
                     with contextlib.suppress(OSError):
                         staged_entry.unlink(missing_ok=True)
-                    core_logger.print_to_log(
-                        f"extract_validated_zip dropped invalid entry: {final_entry.name}",
-                        "warning",
-                    )
+                    logger.warning(f"extract_validated_zip dropped invalid entry: {final_entry.name}")
                     continue
                 kept.append((staged_entry, final_entry))
             extracted = kept
@@ -1078,21 +1126,11 @@ async def extract_validated_zip(
                 extracted,
                 dest_path.resolve(),
             )
-        except HTTPException:
+        except core_exceptions.DomainError:
             raise
         except OSError as err:
-            core_logger.print_to_log(
-                f"extract_validated_zip promotion failed: {type(err).__name__}",
-                "error",
-                exc=err,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail={
-                    "message": "Failed to promote extracted files",
-                    "code": "ZIP_PROMOTION_FAILED",
-                },
-            ) from err
+            logger.error(f"extract_validated_zip promotion failed: {type(err).__name__}", exc_info=err)
+            raise core_exceptions.ProcessingError("Failed to promote extracted files") from err
     finally:
         if staging_dir is not None:
             await asyncio.to_thread(shutil.rmtree, staging_dir, ignore_errors=True)
@@ -1117,20 +1155,34 @@ def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
         Resolved :class:`Path`.
 
     Raises:
-        HTTPException: 400 when the resolved path escapes ``base_dir``.
+        DomainError: 400 when the resolved path escapes ``base_dir``.
     """
     resolved = Path(os.fspath(path)).resolve()
     try:
         resolved.relative_to(base_dir)
     except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "message": "Path escapes the allowed directory",
-                "code": "PATH_OUTSIDE_BASE_DIR",
-            },
-        ) from err
+        raise core_exceptions.InvalidInputError("Path escapes the allowed directory") from err
     return resolved
+
+
+def ensure_within(path: str | os.PathLike, base_dir: str | os.PathLike) -> Path:
+    """Resolve ``path`` and verify it is contained under ``base_dir``.
+
+    Public containment guard for callers that receive a filesystem path from
+    an untrusted or replayable source (e.g. a durable-job payload) and must
+    confirm it has not escaped a trusted base directory before using it.
+
+    Args:
+        path: Filesystem path to verify.
+        base_dir: Trusted base directory.
+
+    Returns:
+        The resolved path, guaranteed to be inside ``base_dir``.
+
+    Raises:
+        DomainError: 400 when the resolved path escapes ``base_dir``.
+    """
+    return _resolve_within(path, Path(os.fspath(base_dir)).resolve())
 
 
 def move_within(
@@ -1165,7 +1217,7 @@ def move_within(
         Resolved destination :class:`Path`.
 
     Raises:
-        HTTPException: 400 for unsafe filename / containment
+        DomainError: 400 for unsafe filename / containment
             violations or pre-existing destination, 500 for I/O
             failures.
     """
@@ -1174,33 +1226,17 @@ def move_within(
         os.makedirs(dest_dir_str, exist_ok=True)
         destination = _resolve_upload_path(dest_dir_str, filename)
         if not overwrite and destination.exists():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "message": "Destination file already exists",
-                    "code": "FILE_DESTINATION_EXISTS",
-                },
-            )
+            raise core_exceptions.InvalidInputError("Destination file already exists")
         source = Path(os.fspath(src)).resolve()
         if src_base_dir is not None:
             source = _resolve_within(source, Path(os.fspath(src_base_dir)).resolve())
         shutil.move(source, destination)
         return destination
-    except HTTPException:
+    except core_exceptions.DomainError:
         raise
     except (OSError, shutil.Error) as err:
-        core_logger.print_to_log(
-            f"move_within failed: {type(err).__name__}",
-            "error",
-            exc=err,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "message": "Failed to move file",
-                "code": "FILE_MOVE_FAILED",
-            },
-        ) from err
+        logger.error(f"move_within failed: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.ProcessingError("Failed to move file") from err
 
 
 def safe_remove_within(
@@ -1222,7 +1258,7 @@ def safe_remove_within(
         exist.
 
     Raises:
-        HTTPException: 400 when ``path`` escapes ``base_dir``.
+        DomainError: 400 when ``path`` escapes ``base_dir``.
     """
     base_resolved = Path(os.fspath(base_dir)).resolve()
     target = _resolve_within(path, base_resolved)
@@ -1234,9 +1270,296 @@ def safe_remove_within(
     except FileNotFoundError:
         return False
     except OSError as err:
-        core_logger.print_to_log(
-            f"safe_remove_within failed for {target.name}: {type(err).__name__}",
-            "warning",
-            exc=err,
-        )
+        logger.warning(f"safe_remove_within failed for {target.name}: {type(err).__name__}", exc_info=err)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Generic on-disk file helpers
+# ---------------------------------------------------------------------------
+
+
+def sha256_file(file_path: str | os.PathLike) -> str:
+    """Return the hex SHA-256 of a file's contents, streamed in chunks.
+
+    Streaming (rather than reading the whole file) keeps memory bounded for the
+    large payloads this codebase handles. Callers use the digest as a stable
+    content fingerprint — e.g. to make re-importing an identical file a no-op.
+
+    Args:
+        file_path: File to hash.
+
+    Returns:
+        The lowercase hex digest.
+    """
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(_STREAM_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def remove_files(file_paths: Iterable[str | os.PathLike]) -> None:
+    """Best-effort removal of files, logging (not raising) on failure.
+
+    Used to clean up artifacts left behind by a failed multi-step operation, where
+    a cleanup failure must not mask the original error.
+
+    Args:
+        file_paths: Files to remove if they still exist.
+
+    Returns:
+        None.
+    """
+    for file_path in file_paths:
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except OSError as err:
+            logger.warning(f"Failed to clean up file {os.fspath(file_path)}: {err}", exc_info=err)
+
+
+def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
+    """Decompress a ``.gz`` file to a temp file with a bounded output size.
+
+    The output is capped at the same limit a direct activity upload gets, so a
+    decompression bomb cannot fill the disk (defense in depth: the wrapping
+    ``.gz`` upload is already size-checked before it reaches here). The source
+    ``.gz`` is left in place: the caller removes it once the payload has been
+    imported, so a failed import still has the user's original to hand back.
+    The returned temp file is the caller's to remove.
+
+    Args:
+        file_path: Path to the gzipped file.
+
+    Returns:
+        A ``(temp_file_path, inner_extension)`` tuple, where the extension is
+        derived from the filename inside the ``.gz`` (e.g. ``".fit"``).
+
+    Raises:
+        DomainError: 400 for invalid gzip content, 413 when the decompressed
+            content exceeds the allowed size.
+    """
+    path = Path(os.fspath(file_path))
+
+    inner_filename = path.stem  # eg "activity_1234567890.fit"
+    inner_file_extension = Path(inner_filename).suffix
+    temp_file_path: str | None = None
+    bytes_written = 0
+
+    try:
+        with (
+            gzip.open(path, "rb") as gzipped_file,
+            tempfile.NamedTemporaryFile(suffix=inner_file_extension, delete=False) as temp_file,
+        ):
+            temp_file_path = temp_file.name
+            while True:
+                chunk = gzipped_file.read(_STREAM_CHUNK_BYTES)
+                if not chunk:
+                    break
+                bytes_written += len(chunk)
+                if bytes_written > _MAX_ACTIVITY_BYTES:
+                    temp_file.close()
+                    with contextlib.suppress(OSError):
+                        os.remove(temp_file_path)
+                    raise core_exceptions.PayloadTooLargeError("Decompressed file exceeds maximum allowed size")
+                temp_file.write(chunk)
+            temp_file.flush()
+
+        logger.info(
+            f"Decompressed {path} with inner type {inner_file_extension} to {temp_file_path}",
+            extra=core_logger.context(console=True),
+        )
+
+        return temp_file_path, inner_file_extension
+    except core_exceptions.DomainError:
+        raise
+    except (OSError, EOFError, gzip.BadGzipFile) as err:
+        if temp_file_path is not None:
+            with contextlib.suppress(OSError):
+                os.remove(temp_file_path)
+        raise core_exceptions.InvalidInputError("Invalid gzip file") from err
+
+
+def extract_validated_zip_sync(
+    zip_path: str | os.PathLike,
+    *,
+    dest_dir: str | os.PathLike,
+    per_entry_kind: UploadKind | None = None,
+    max_entries: int | None = None,
+) -> list[Path]:
+    """Synchronous counterpart of :func:`extract_validated_zip`.
+
+    For a worker thread with no running event loop. Must not be called from the
+    main async thread.
+
+    Args:
+        zip_path: Path of the ZIP archive to extract.
+        dest_dir: Destination directory; created if missing.
+        per_entry_kind: When provided, every entry is re-validated against it.
+        max_entries: Hard cap on number of entries.
+
+    Returns:
+        List of extracted file paths under ``dest_dir``.
+
+    Raises:
+        DomainError: As :func:`extract_validated_zip`.
+    """
+    return asyncio.run(
+        extract_validated_zip(zip_path, dest_dir=dest_dir, per_entry_kind=per_entry_kind, max_entries=max_entries)
+    )
+
+
+#: Caps for a bulk-import archive, which is read member by member and never
+#: extracted to disk wholesale, so they are looser than the extraction caps: a
+#: Strava export holds thousands of activity files.
+MAX_ARCHIVE_MEMBERS = 20_000
+
+#: Largest archive member read into memory (a manifest or a photo); activity files
+#: are streamed to disk instead.
+MAX_READ_MEMBER_BYTES = 50 * 1024 * 1024
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class ZipMember:
+    """One regular file inside an archive.
+
+    Attributes:
+        name: The member's path inside the archive, with ``/`` separators.
+        size: Its uncompressed size in bytes.
+    """
+
+    name: str
+    size: int
+
+
+def save_text_upload_sync(file: UploadFile, *, upload_dir: str, filename: str, max_bytes: int) -> str:
+    """Stream a small text upload (a CSV) to a server-named file, capped on bytes.
+
+    No signature validator covers plain text, so the protection is the cap and a
+    server-generated name; the caller parses the content with a bounded reader.
+
+    Args:
+        file: The incoming upload.
+        upload_dir: Trusted destination directory.
+        filename: **Server-generated** filename within ``upload_dir``.
+        max_bytes: Hard cap on bytes accepted.
+
+    Returns:
+        Absolute filesystem path of the saved file.
+
+    Raises:
+        PayloadTooLargeError: When the upload exceeds ``max_bytes``.
+    """
+    os.makedirs(upload_dir, exist_ok=True)
+    destination = _resolve_upload_path(upload_dir, filename)
+    _stream_to_path_sync(file, destination, max_bytes)
+    return str(destination)
+
+
+def list_zip_members(zip_path: str | os.PathLike, *, max_entries: int | None = None) -> list[ZipMember]:
+    """List an archive's regular files after checking it is safe to read by name.
+
+    Rejects what extraction would reject (traversal and absolute names, symlinks,
+    duplicates, too many entries, an entry or total beyond the size caps) without
+    reading any member's bytes, so a caller can refuse an archive up front and then
+    read members one at a time with :func:`copy_zip_member`.
+
+    Args:
+        zip_path: Path of the ZIP archive.
+        max_entries: Hard cap on entries; defaults to :data:`MAX_ARCHIVE_MEMBERS`.
+
+    Returns:
+        The archive's regular files, in archive order.
+
+    Raises:
+        InvalidInputError: When the archive is malformed or unsafe.
+        PayloadTooLargeError: When a size cap is exceeded.
+    """
+    limit = MAX_ARCHIVE_MEMBERS if max_entries is None else max_entries
+    members: list[ZipMember] = []
+    seen: set[str] = set()
+    total = 0
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            infos = zip_ref.infolist()
+            if len(infos) > limit:
+                raise core_exceptions.InvalidInputError(
+                    f"Archive contains {len(infos)} entries; maximum allowed is {limit}"
+                )
+            for info in infos:
+                if info.is_dir():
+                    continue
+                mode = (info.external_attr >> 16) & 0xFFFF
+                if mode and (mode & 0o170000) == 0o120000:
+                    raise core_exceptions.InvalidInputError("Archive contains a symlink entry")
+                name = info.filename.replace("\\", "/")
+                if (
+                    not name
+                    or name.startswith("/")
+                    or "\x00" in name
+                    or ".." in PurePosixPath(name).parts
+                    or PureWindowsPath(name).drive
+                ):
+                    raise core_exceptions.InvalidInputError("Archive contains an unsafe entry name")
+                if name in seen:
+                    raise core_exceptions.InvalidInputError("Archive contains a duplicate entry")
+                seen.add(name)
+                if info.file_size > _MAX_EXTRACTED_ENTRY_BYTES:
+                    raise core_exceptions.PayloadTooLargeError("Archive entry exceeds the allowed size")
+                total += info.file_size
+                if total > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+                    raise core_exceptions.PayloadTooLargeError("Archive contents exceed the allowed size")
+                members.append(ZipMember(name=name, size=info.file_size))
+    except zipfile.BadZipFile as err:
+        raise core_exceptions.InvalidInputError("Invalid ZIP archive") from err
+    return members
+
+
+def copy_zip_member(
+    zip_ref: zipfile.ZipFile,
+    member_name: str,
+    destination: str | os.PathLike,
+    *,
+    max_bytes: int | None = None,
+) -> int:
+    """Stream one archive member to a path the caller chose.
+
+    The destination is never derived from the member name, so a hostile name
+    cannot place the file anywhere. The copy is capped on bytes actually written,
+    not on the size the archive header claims.
+
+    Args:
+        zip_ref: An open archive.
+        member_name: The member to read, as listed by :func:`list_zip_members`.
+        destination: Where to write it.
+        max_bytes: Cap on bytes written; defaults to the activity-file cap.
+
+    Returns:
+        The number of bytes written.
+
+    Raises:
+        InvalidInputError: When the member does not exist.
+        PayloadTooLargeError: When the member inflates beyond the cap; the partial
+            file is removed.
+    """
+    cap = _MAX_ACTIVITY_BYTES if max_bytes is None else max_bytes
+    try:
+        source = zip_ref.open(member_name, "r")
+    except KeyError as err:
+        raise core_exceptions.InvalidInputError("Archive entry not found") from err
+
+    written = 0
+    try:
+        with source, open(destination, "wb") as out:
+            while chunk := source.read(_STREAM_CHUNK_BYTES):
+                written += len(chunk)
+                if written > cap:
+                    raise core_exceptions.PayloadTooLargeError("Archive entry exceeds the allowed size")
+                out.write(chunk)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(destination)
+        raise
+    return written

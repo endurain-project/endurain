@@ -10,12 +10,13 @@ import cycle.
 import hashlib
 
 
-def sha256_hex(value: str) -> str:
+def sha256_hex(value: str | bytes) -> str:
     """Return the SHA-256 hex digest of ``value``.
 
     Args:
-        value: The string to hash. Callers that need a canonical form
-            (case-folding, normalization) must apply it before calling.
+        value: The string or byte payload to hash. Callers that need a
+            canonical form (case-folding, normalization) must apply it
+            before calling. Strings are encoded as UTF-8.
 
     Returns:
         Lowercase hex-encoded SHA-256 digest (64 chars).
@@ -23,4 +24,4 @@ def sha256_hex(value: str) -> str:
     Raises:
         None.
     """
-    return hashlib.sha256(value.encode()).hexdigest()
+    return hashlib.sha256(value.encode() if isinstance(value, str) else value).hexdigest()

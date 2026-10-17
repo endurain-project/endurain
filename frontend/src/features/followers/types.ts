@@ -1,7 +1,10 @@
 import type { Schemas } from '@/types'
 
-/** Raw `Follower` relationship payload as returned by the backend. */
-export type FollowerDto = Schemas['Follower']
+/** Raw follow-relationship payload as returned by the backend. */
+export type FollowerDto = Schemas['FollowRelationshipRead']
+
+/** The authenticated viewer's relationship with another user, both directions. */
+export type RelationshipDto = Schemas['RelationshipRead']
 
 /**
  * The viewer's follow relationship to another user, backing the follow button.

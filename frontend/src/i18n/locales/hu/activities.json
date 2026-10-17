@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Edzéssorozatok és -lépések elrejtése",
     "hideGear": "Felszerelés elrejtése",
     "success": "Tevékenység frissítve",
-    "error": "Nem sikerült frissíteni a tevékenységet"
+    "error": "Nem sikerült frissíteni a tevékenységet",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ez a tevékenység rejtett. Csak te láthatod.",

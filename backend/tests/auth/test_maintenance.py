@@ -1,9 +1,9 @@
 """Tests for auth.maintenance.
 
-``auth.maintenance`` is the single surface ``core.scheduler`` uses to run
+``modules.auth.maintenance`` is the single surface ``core.scheduler`` uses to run
 recurring auth cleanup jobs. It re-exports lower-level ``*.utils`` callables
 unchanged and defines one thin wrapper, ``cleanup_expired_pending_mfa_logins``,
-which delegates to ``auth.security_stores``.
+which delegates to ``modules.auth._internal.security_stores``.
 
 These tests verify the delegation wrapper and that the public maintenance
 contract (the re-exported names and ``__all__``) stays intact, since the whole
@@ -13,15 +13,15 @@ low-level auth utils modules.
 
 from unittest.mock import patch
 
-import auth.maintenance as auth_maintenance
+import modules.auth.maintenance as auth_maintenance
 
 
 class TestCleanupExpiredPendingMfaLogins:
-    """The wrapper delegates to auth.security_stores."""
+    """The wrapper delegates to auth._internal.security_stores."""
 
     def test_delegates_to_security_stores_and_returns_result(self):
         with patch(
-            "auth.maintenance.auth_security_stores.cleanup_expired_pending_mfa_logins",
+            "modules.auth.maintenance.auth_security_stores.cleanup_expired_pending_mfa_logins",
             return_value=5,
         ) as mock_cleanup:
             result = auth_maintenance.cleanup_expired_pending_mfa_logins()
@@ -31,7 +31,7 @@ class TestCleanupExpiredPendingMfaLogins:
 
     def test_passes_through_none_result(self):
         with patch(
-            "auth.maintenance.auth_security_stores.cleanup_expired_pending_mfa_logins",
+            "modules.auth.maintenance.auth_security_stores.cleanup_expired_pending_mfa_logins",
             return_value=None,
         ) as mock_cleanup:
             result = auth_maintenance.cleanup_expired_pending_mfa_logins()
@@ -50,14 +50,14 @@ class TestMaintenanceContract:
 
     def test_reexports_point_to_underlying_callables(self):
         """Re-exported names must be the same objects as their source utils."""
-        from auth.identity_providers.link_tokens.utils import delete_idp_link_expired_tokens_from_db
-        from auth.oauth_state.utils import delete_expired_oauth_states_from_db
-        from auth.password_reset_tokens.utils import (
+        from modules.auth.identity_providers.link_tokens.utils import delete_idp_link_expired_tokens_from_db
+        from modules.auth.oauth_state.utils import delete_expired_oauth_states_from_db
+        from modules.auth.password_reset_tokens.utils import (
             delete_invalid_tokens_from_db as src_delete_password_reset,
         )
-        from auth.sessions.rotated_refresh_tokens.utils import cleanup_expired_rotated_tokens
-        from auth.sessions.utils import cleanup_idle_sessions
-        from auth.sign_up_tokens.utils import (
+        from modules.auth.sessions.rotated_refresh_tokens.utils import cleanup_expired_rotated_tokens
+        from modules.auth.sessions.utils import cleanup_idle_sessions
+        from modules.auth.sign_up_tokens.utils import (
             delete_invalid_tokens_from_db as src_delete_sign_up,
         )
 

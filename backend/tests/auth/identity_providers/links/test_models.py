@@ -2,7 +2,7 @@
 
 from sqlalchemy import inspect
 
-from auth.identity_providers.links.models import IdentityLink
+from modules.auth.identity_providers.links.models import IdentityLink
 
 
 class TestUserIdentityProviderModel:

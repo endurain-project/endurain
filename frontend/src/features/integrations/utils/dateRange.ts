@@ -1,8 +1,19 @@
 import type { DateRange } from '@/features/integrations/types'
 
-/** Formats a `Date` as a `YYYY-MM-DD` string (UTC, matching the v1 behaviour). */
+import { todayIsoDate } from '@/utils/datetime'
+
+/**
+ * Formats a `Date` as a `YYYY-MM-DD` string using its **local** calendar fields.
+ *
+ * Reading UTC fields here mixed frames with the local `setDate()` arithmetic
+ * below, and made the window exclude today for viewers east of UTC (and include
+ * a day that has not happened for those far west).
+ */
 function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 /**
@@ -16,5 +27,5 @@ export function daysAgoRange(days: number): DateRange {
   const end = new Date()
   const start = new Date()
   start.setDate(end.getDate() - days)
-  return { startDate: toIsoDate(start), endDate: toIsoDate(end) }
+  return { startDate: toIsoDate(start), endDate: todayIsoDate() }
 }

@@ -20,7 +20,7 @@ import re
 
 import pytest
 
-import auth.token_hashing as token_hashing
+import modules.auth.token_hashing as token_hashing
 
 _HEX_RE = r"^[0-9a-f]{64}$"
 
@@ -47,6 +47,9 @@ class TestSha256Hex:
     def test_empty_string_hashes(self):
         expected = hashlib.sha256(b"").hexdigest()
         assert token_hashing.sha256_hex("") == expected
+
+    def test_accepts_bytes_and_agrees_with_the_utf8_string(self):
+        assert token_hashing.sha256_hex(b"payload") == token_hashing.sha256_hex("payload")
 
 
 class TestHmacSha256:
