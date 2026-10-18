@@ -424,7 +424,7 @@ def process_activity(
     run inline without touching the request path.
 
     Args:
-        activity: The Strava summary activity.
+        activity (stravalib.model.SummaryActivity): The Strava summary activity.
         user_id: The user the activity belongs to.
         user_privacy_settings: The user's privacy defaults.
         strava_client: A client authenticated as the user.

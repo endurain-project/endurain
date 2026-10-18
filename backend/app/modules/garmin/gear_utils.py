@@ -92,9 +92,6 @@ def resolve_synced_gear_id(user_id: int, garminconnect_gear: list | None, db: Se
     Returns:
         The local gear ID, or None when gear sync is off, the account's token is
         invalid, the activity has no gear, or no local gear matches.
-
-    Raises:
-        None.
     """
     if not garminconnect_gear:
         return None

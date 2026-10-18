@@ -118,15 +118,19 @@ nav:
     - Events and subscribers: developer-guide/events-and-subscribers.md
     - Auth boundary: developer-guide/auth-boundary.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
+    - Writing the documentation: developer-guide/writing-docs.md
   - Backend reference:
     - Activities: reference/activities.md
     - Authentication: reference/authentication.md
+    - Followers: reference/followers.md
+    - Garmin Connect: reference/garmin.md
     - Gears: reference/gears.md
     - Health: reference/health.md
     - Users: reference/users.md
     - Migrations: reference/migrations.md
     - Notifications: reference/notifications.md
     - Server settings: reference/server-settings.md
+    - Strava: reference/strava.md
     - WebSocket: reference/websocket.md
   - Blog: blog/index.md
   - Privacy policy: privacy/mobile-app-privacy-policy.md
