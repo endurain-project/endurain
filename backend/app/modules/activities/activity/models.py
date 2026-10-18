@@ -181,9 +181,13 @@ class Activity(Base):
     )
 
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
-    # WHERE clause, raising StaleDataError when the row moved underneath. That
-    # closes the window an If-Match check alone leaves open, between reading the
-    # version and writing the row.
+    # WHERE clause, raising StaleDataError when the row moved underneath. The
+    # If-Match check runs on the row the edit loaded, so this guard covers the
+    # rest of the window, between that load and the write.
+    #
+    # ``version`` changes only for user and provider edits. Derived values written
+    # in the background (thumbnail key, resolved location, retry deferrals) use
+    # Core UPDATEs that leave it alone, so they never fail a user's If-Match.
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
     elevation_gain: Mapped[int | None] = mapped_column(
         nullable=True,

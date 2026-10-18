@@ -257,7 +257,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
         # fail-fast validates, so it must not block startup of a valid deployment.
         logger.warning(
             "JOBS_ENABLED is false while the event bus is Redis Streams "
-            "(distributed / multi-worker): derived work is delivered best-effort, "
+            "(multi-worker): derived work is delivered best-effort, "
             "with no per-subscriber retry and no recovery of a crashed consumer's "
             "in-flight events. Enable JOBS_ENABLED for durable, retryable delivery, "
             "or ensure every event subscriber has a reconciliation net (e.g. the "

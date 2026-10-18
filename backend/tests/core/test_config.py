@@ -60,6 +60,7 @@ class TestDeploymentProfileEnforcement:
             _env_file=None,
             ENVIRONMENT="production",
             DEPLOYMENT_PROFILE="distributed",
+            JOBS_ENABLED=True,
             REDIS_URL="redis://shared:6379/0",
             STORAGE_URI="s3://bucket/thumbs",
         )
@@ -93,6 +94,7 @@ class TestDeploymentProfileEnforcement:
             _env_file=None,
             ENVIRONMENT="production",
             DEPLOYMENT_PROFILE="distributed",
+            JOBS_ENABLED=True,
             REDIS_URL="redis://localhost:6379/0",
             STORAGE_URI="s3://bucket/thumbs",
         )
@@ -117,6 +119,7 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="production",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
                 STATE_URI="memory://",
             )
         assert "process-local memory" in str(exc_info.value)
@@ -127,6 +130,7 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="production",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
             )
 
     def test_multi_worker_memory_state_fails_fast(self):
@@ -144,6 +148,7 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="production",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
                 STATE_URI="postgres://x",
             )
         assert "unrecognized storage scheme" in str(exc_info.value)
@@ -153,6 +158,7 @@ class TestDeploymentProfileEnforcement:
             _env_file=None,
             ENVIRONMENT="production",
             DEPLOYMENT_PROFILE="distributed",
+            JOBS_ENABLED=True,
             REDIS_URL="redis://localhost:6379/0",
             STORAGE_URI="s3://bucket/thumbs",
         )
@@ -169,6 +175,7 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="production",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
                 STATE_URI="redis://localhost:6379/0",
                 STORAGE_URI="s3://bucket/thumbs",
             )
@@ -183,10 +190,24 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="production",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
                 REDIS_URL="redis://localhost:6379/0",
             )
         assert "STORAGE_URI" in str(exc_info.value)
         assert "local filesystem" in str(exc_info.value)
+
+    def test_distributed_without_durable_jobs_fails_fast(self):
+        # The Redis bus is best-effort: a crashed consumer's in-flight events are
+        # never recovered, so a distributed deployment must use the outbox.
+        with pytest.raises(ValidationError) as exc_info:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="production",
+                DEPLOYMENT_PROFILE="distributed",
+                REDIS_URL="redis://localhost:6379/0",
+                STORAGE_URI="s3://bucket/thumbs",
+            )
+        assert "JOBS_ENABLED" in str(exc_info.value)
 
     def test_multi_worker_local_storage_stays_local(self):
         # Multiple workers on one host share the disk, so local storage is fine;
@@ -209,6 +230,7 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="production",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
                 REDIS_URL="redis://localhost:6379/0",
                 STORAGE_URI="s3://bucket/thumbs",
                 LOCK_URI="noop://",
@@ -242,6 +264,7 @@ class TestDeploymentProfileEnforcement:
             _env_file=None,
             ENVIRONMENT="development",
             DEPLOYMENT_PROFILE="distributed",
+            JOBS_ENABLED=True,
             STATE_URI="memory://",
         )
         assert settings.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.DISTRIBUTED
@@ -258,6 +281,7 @@ class TestDeploymentProfileEnforcement:
                 _env_file=None,
                 ENVIRONMENT="development",
                 DEPLOYMENT_PROFILE="distributed",
+                JOBS_ENABLED=True,
             )
 
         assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)

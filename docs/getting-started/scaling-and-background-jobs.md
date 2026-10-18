@@ -74,7 +74,7 @@ Replicas share no local state: rate limits, login lockout and pending MFA live i
 | --- | --- | --- |
 | Single process (default) | Home server, one container | Nothing extra |
 | Several web workers | One host, more request capacity | `WEB_WORKERS>1` and `REDIS_URL` |
-| Distributed | Several hosts or containers behind a load balancer | `DEPLOYMENT_PROFILE=distributed`, Redis, S3-compatible storage, a shared lock |
+| Distributed | Several hosts or containers behind a load balancer | `DEPLOYMENT_PROFILE=distributed`, `JOBS_ENABLED=true`, Redis, S3-compatible storage, a shared lock |
 | Dedicated worker | Keep job processing off the API | `JOBS_ENABLED=true`, `JOBS_RUN_IN_PROCESS_WORKER=false`, `REDIS_URL`, a second container with `APP_ROLE=worker` |
 
 !!! warning "Check your image first"
@@ -110,6 +110,7 @@ Endurain refuses to start on an inconsistent topology and names the variable at 
 
 - `distributed` or `WEB_WORKERS>1` with state or events resolving to `memory://`;
 - `distributed` with `STORAGE_URI` unset or `local://`, because replicas do not share a disk;
+- `distributed` with `JOBS_ENABLED=false`, because the Redis event bus has no retry and does not recover a crashed consumer's in-flight events; only the durable outbox cannot silently drop them;
 - more than one process with `LOCK_URI=noop://`;
 - dedicated workers (`JOBS_RUN_IN_PROCESS_WORKER=false` with `JOBS_ENABLED=true`) with state or events resolving to `memory://`, because the API and the workers are separate processes. Every rule above applies to them, even on the `local` profile with one web worker;
 - a non-`local` profile that leaves a capability unset.
@@ -165,7 +166,7 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 
 ## What to watch
 
-- If the event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
+- On a multi-worker `local` deployment whose event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
 - With `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`, jobs accumulate unless a worker is running.
 - A worker killed mid-job is not noticed instantly: its job is requeued once the lease expires and the reaper (which runs every minute) sees it, so expect it to finish a few minutes late rather than be lost.
 - A single job is abandoned after 30 minutes of running, even while its worker is healthy; it is handed back to the reaper like a job whose worker died.

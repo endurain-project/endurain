@@ -76,6 +76,27 @@ class TestGenerateAndStoreThumbnail:
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
     @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
+    def test_deletes_the_blob_when_the_activity_was_deleted_mid_render(
+        self, mock_render, mock_signing, mock_activities
+    ):
+        from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
+
+        mock_render.render_activity_thumbnail.return_value = b"data"
+        mock_signing.thumbnail_key.return_value = "1.webp"
+        mock_signing.THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
+        mock_activities.set_thumbnail_key.return_value = False
+        storage = MagicMock()
+
+        result = generate_and_store_thumbnail(
+            1, [{"lat": 1.0, "lon": 2.0}], storage, MagicMock(), tile_url="u", background_color="#fff", api_key=None
+        )
+
+        assert result is None
+        storage.delete.assert_called_once_with("activity_thumbnails", "1.webp")
+
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
+    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_render")
     def test_saves_and_records_key(self, mock_render, mock_signing, mock_activities):
         from modules.activities.activity_thumbnail.service import generate_and_store_thumbnail
 

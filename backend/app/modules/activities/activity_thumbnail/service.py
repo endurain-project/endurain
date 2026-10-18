@@ -180,7 +180,11 @@ def generate_and_store_thumbnail(
         data,
         activity_thumbnail_render.THUMBNAIL_CONTENT_TYPE,
     )
-    activity_integration.set_thumbnail_key(activity_id, key, db)
+    if not activity_integration.set_thumbnail_key(activity_id, key, db):
+        # The activity was deleted while the tiles rendered, and its cleanup event
+        # may already have run, so nothing else names this blob.
+        storage.delete(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key)
+        return None
     db.commit()
     logger.info("Thumbnail stored", extra=core_logger.context(activity_id=activity_id))
     return key

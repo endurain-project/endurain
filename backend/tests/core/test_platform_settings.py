@@ -16,6 +16,7 @@ def _distributed(**overrides):
         DEPLOYMENT_PROFILE="distributed",
         REDIS_URL="redis://shared:6379/0",
         STORAGE_URI="s3://bucket/thumbs",
+        JOBS_ENABLED=True,
         **overrides,
     )
 
@@ -255,7 +256,12 @@ class TestHostCheckIsStrictlyStronger:
             pytest.param({"WEB_WORKERS": 4, "REDIS_URL": "redis://s:6379/0"}, id="local-multi-worker"),
             pytest.param({"LOCK_URI": "postgres-advisory://"}, id="local-explicit-lock"),
             pytest.param(
-                {"DEPLOYMENT_PROFILE": "distributed", "REDIS_URL": "redis://s:6379/0", "STORAGE_URI": "s3://b"},
+                {
+                    "DEPLOYMENT_PROFILE": "distributed",
+                    "REDIS_URL": "redis://s:6379/0",
+                    "STORAGE_URI": "s3://b",
+                    "JOBS_ENABLED": True,
+                },
                 id="distributed-via-redis-url",
             ),
             pytest.param(
@@ -265,6 +271,7 @@ class TestHostCheckIsStrictlyStronger:
                     "EVENTS_URI": "redis://e:6379/1",
                     "STORAGE_URI": "s3://b",
                     "LOCK_URI": "postgres-advisory://",
+                    "JOBS_ENABLED": True,
                 },
                 id="distributed-fully-explicit",
             ),

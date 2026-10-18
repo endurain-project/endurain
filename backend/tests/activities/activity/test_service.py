@@ -252,8 +252,23 @@ class TestEditPublishesUpdated:
         db = MagicMock()
         service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db)
 
-        mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db)
+        mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, if_match=None)
         mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, db, changed_fields=["name"])
+
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activity_crud")
+    def test_stale_flush_on_a_deleted_activity_is_a_404_not_a_412(self, mock_crud, _publishers):
+        from sqlalchemy.orm.exc import StaleDataError
+
+        import modules.activities.activity.schema as activity_schema
+        from core import exceptions as core_exceptions
+        from modules.activities.activity import service
+
+        mock_crud.edit_activity.side_effect = StaleDataError()
+        mock_crud.get_activity_by_id_from_user_id.return_value = None
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), MagicMock())
 
     @patch("modules.activities.activity.service.activities_contributor_registry")
     @patch("modules.activities.activity.service.activity_event_publishers")

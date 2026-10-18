@@ -317,6 +317,22 @@ class TestEditActivity:
         r = crud.edit_activity(user_id=1, activity_id=1, activity_attributes=A(), db=mock_db)
         assert r is not None
 
+    def test_stale_if_match_is_refused_before_anything_is_written(self, mock_db):
+        from pydantic import BaseModel
+
+        import modules.activities.activity.crud as crud
+
+        db_act = MagicMock()
+        db_act.version = 5
+        setup_mock_execute(mock_db, return_one_or_none=db_act)
+
+        class A(BaseModel):
+            name: str = "U"
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.edit_activity(user_id=1, activity_id=1, activity_attributes=A(), db=mock_db, if_match='"4"')
+        mock_db.flush.assert_not_called()
+
     def test_not_found(self, mock_db):
         from pydantic import BaseModel
 
@@ -1225,20 +1241,19 @@ class TestGetActivityByIdFromUserId:
 class TestSetActivityThumbnailPath:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=1)
-        setup_mock_execute(mock_db, return_one_or_none=a)
-        crud.set_activity_thumbnail_key(activity_id=1, thumbnail_path="/path/to/thumb.png", db=mock_db)
-        assert a.map_thumbnail_path == "/path/to/thumb.png"
+        mock_db.execute.return_value.rowcount = 1
+        assert crud.set_activity_thumbnail_key(activity_id=1, thumbnail_path="/path/to/thumb.png", db=mock_db) is True
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_not_found(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        crud.set_activity_thumbnail_key(activity_id=999, thumbnail_path="/path/to/thumb.png", db=mock_db)
+        mock_db.execute.return_value.rowcount = 0
+        assert (
+            crud.set_activity_thumbnail_key(activity_id=999, thumbnail_path="/path/to/thumb.png", db=mock_db) is False
+        )
         mock_db.commit.assert_not_called()
 
 

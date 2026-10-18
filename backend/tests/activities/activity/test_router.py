@@ -456,9 +456,7 @@ class TestActivityConcurrency:
 
     def test_patch_with_a_stale_if_match_is_refused(self, mock_db):
         with patch("modules.activities.activity.service.activity_crud") as crud:
-            current = _valid_activity()
-            current.version = 5
-            crud.get_activity_by_id_from_user_id.return_value = current
+            crud.edit_activity.side_effect = core_exceptions.PreconditionFailedError("stale")
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
                 json={"name": "x"},
@@ -466,7 +464,7 @@ class TestActivityConcurrency:
             )
 
         assert resp.status_code == 412
-        crud.edit_activity.assert_not_called()
+        assert crud.edit_activity.call_args.kwargs["if_match"] == '"4"'
 
     def test_patch_with_a_current_if_match_succeeds(self, mock_db):
         with patch("modules.activities.activity.service.activity_crud") as crud:

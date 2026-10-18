@@ -703,7 +703,9 @@ class Settings(BaseSettings):
         ``development`` is never fatal, and the ``custom`` profile is exempt from
         the consistency rules (it promises no defaults, so nothing can contradict
         one) though not from naming its capabilities. Multi-worker ``local``
-        keeps local storage (shared host disk) but still needs a shared lock.
+        keeps local storage (shared host disk) but still needs a shared lock. The
+        ``distributed`` profile also requires ``JOBS_ENABLED``: best-effort Redis
+        delivery can lose events when a consumer crashes.
         """
         if self.ENVIRONMENT == "development":
             if self.WEB_WORKERS > 1 or self.DEPLOYMENT_PROFILE is not platform_profile.DeploymentProfile.LOCAL:
@@ -735,6 +737,12 @@ class Settings(BaseSettings):
             lock_uri=self.resolved_lock_uri,
             lock_label="LOCK_URI",
         )
+        if self.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.DISTRIBUTED and not self.JOBS_ENABLED:
+            issues.append(
+                "JOBS_ENABLED must be true for the 'distributed' deployment profile; the Redis event bus has no "
+                "retry and no recovery of a crashed consumer's in-flight events, so durable jobs (the transactional "
+                "outbox) are the only delivery that cannot silently drop derived work"
+            )
         if issues:
             raise ValueError("Inconsistent deployment configuration:\n" + "\n".join(f"  - {issue}" for issue in issues))
         return self

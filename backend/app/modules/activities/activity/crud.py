@@ -24,6 +24,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -1125,6 +1126,9 @@ def create_activity(
     if normalized_start_time is None:
         raise core_exceptions.InvalidInputError("Activity start_time is required and must be a valid datetime")
 
+    # Best-effort: this check and the insert below are not atomic, so two concurrent
+    # imports with the same start time can both stay visible. Idempotency does not
+    # rest on it; ``dedup_key`` and its unique index do.
     activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
 
     new_activity = activity_serializers.to_orm(activity)
@@ -1159,24 +1163,37 @@ def set_activity_thumbnail_key(
     activity_id: int,
     thumbnail_path: str | None,
     db: Session,
-) -> None:
+) -> bool:
     """Stage the map thumbnail path for an activity.
+
+    A derived value, so it is written with a Core ``UPDATE`` that leaves ``version``
+    alone: a background render must not invalidate the ETag of a user who is
+    mid-edit.
 
     Args:
         activity_id: Target activity ID.
         thumbnail_path: Absolute path to the thumbnail file.
         db: Database session.
+
+    Returns:
+        True when the activity exists and was updated, False when it is gone.
     """
-    stmt = select(activity_models.Activity).where(activity_models.Activity.id == activity_id)
-    db_activity = db.execute(stmt).scalar_one_or_none()
-    if db_activity is None:
+    result = cast(
+        "CursorResult[Any]",
+        db.execute(
+            sa_update(activity_models.Activity)
+            .where(activity_models.Activity.id == activity_id)
+            .values(map_thumbnail_path=thumbnail_path)
+        ),
+    )
+    db.flush()
+    if result.rowcount == 0:
         logger.warning(
             "Activity not found when setting the thumbnail path",
             extra=core_logger.context(activity_id=activity_id),
         )
-        return
-    db_activity.map_thumbnail_path = thumbnail_path
-    db.flush()
+        return False
+    return True
 
 
 def update_activity_location(
@@ -1429,6 +1446,8 @@ def edit_activity(
     activity_id: int,
     activity_attributes: activity_schema.ActivityEdit | activity_schema.ActivityRead,
     db: Session,
+    *,
+    if_match: str | None = None,
 ) -> activity_schema.ActivityRead:
     """Stage partial updates to a user's activity.
 
@@ -1438,12 +1457,16 @@ def edit_activity(
         activity_attributes: Pydantic model carrying the fields to update;
             only the fields explicitly set are applied.
         db: Database session.
+        if_match: The ``If-Match`` precondition, or None. Checked against the very
+            row this function edits, so the version it compares is the version the
+            flush's ``version_id_col`` guard then holds the write to.
 
     Returns:
         The updated activity as a serialized schema.
 
     Raises:
         NotFoundError: When the activity is missing.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     stmt = select(activity_models.Activity).where(
         activity_models.Activity.user_id == user_id,
@@ -1452,6 +1475,7 @@ def edit_activity(
     db_activity = db.execute(stmt).scalar_one_or_none()
     if db_activity is None:
         raise core_exceptions.NotFoundError("Activity not found")
+    core_etag.require_if_match(if_match, db_activity.version)
 
     for key, value in activity_serializers.to_update_values(activity_attributes).items():
         setattr(db_activity, key, value)

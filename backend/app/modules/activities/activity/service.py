@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.calendar as core_calendar
-import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -652,17 +651,16 @@ def edit_activity(
         "Editing an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
     )
-    if if_match is not None:
-        current = activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db)
-        core_etag.require_if_match(if_match, current.version if current else None)
     # Only the fields the client actually sent; the CRUD applies the same set.
     changed_fields = [field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id"]
     try:
-        updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db)
+        updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
     except StaleDataError as err:
-        # The row changed between the precondition check and the flush, so the
-        # check alone would have let this write through.
+        # The row changed between the crud's load (where the precondition was
+        # checked) and the flush.
         db.rollback()
+        if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
+            raise core_exceptions.NotFoundError(f"Activity {activity_id} not found") from err
         logger.warning(
             "Rejected a stale activity edit",
             extra=core_logger.context(activity_id=activity_id, user_id=user_id),
