@@ -1,28 +1,27 @@
 name: Test Backend (distributed)
 
 # Runs the tests marked ``distributed``: real API and worker processes against
-# PostgreSQL, Redis and an S3-compatible store. They take a few minutes (they wait
-# out a job lease), so they do not run with every backend change. They run weekly,
-# on demand, and on changes to the code they exercise.
+# PostgreSQL, Redis and an S3-compatible store. Two of them wait out a real job
+# lease, so each test group runs as its own job, in parallel, with services of its
+# own: the run takes as long as the slowest test rather than the sum.
 on:
-  schedule:
-    - cron: "0 4 * * 1"
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - backend/**
+      - .github/workflows/test-backend-distributed.yml
   pull_request:
     branches:
       - master
     paths:
-      - backend/app/worker.py
-      - backend/app/core/config.py
-      - backend/app/core/platform_settings.py
-      - backend/app/core/migrations.py
-      - backend/app/modules/activities/activity_ingestion/**
-      - backend/app/modules/activities/activity_thumbnail/**
-      - backend/app/modules/activities/activity/event_publishers.py
-      - backend/tests/distributed/**
-      - backend/pyproject.toml
-      - backend/uv.lock
+      - backend/**
       - .github/workflows/test-backend-distributed.yml
+  schedule:
+    # Also catches a service image or dependency that changed underneath us.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,9 +33,20 @@ permissions:
 jobs:
 
   test-distributed:
-    name: Backend (distributed processes)
+    name: Backend (distributed, ${{ matrix.name }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      # One group failing says nothing about the others.
+      fail-fast: false
+      matrix:
+        include:
+          - name: uploads
+            tests: tests/distributed/test_uploads_across_processes.py
+          - name: worker crash
+            tests: tests/distributed/test_worker_recovery.py::test_a_job_whose_worker_is_killed_is_finished_by_another_worker
+          - name: lease heartbeat
+            tests: tests/distributed/test_worker_recovery.py::test_a_handler_that_outlives_its_lease_is_not_taken_over
     # Disposable infrastructure shared by every process the tests start. The
     # tests create and drop a database of their own, flush this Redis database
     # and empty the bucket.
@@ -98,4 +108,4 @@ jobs:
           TEST_REDIS_URL: redis://localhost:6379/0
           TEST_S3_ENDPOINT_URL: http://localhost:9090
         # The coverage gate belongs to the main job; these tests only run the app in child processes.
-        run: uv run --no-sync pytest -m distributed --no-cov
+        run: uv run --no-sync pytest -m distributed --no-cov ${{ matrix.tests }}
