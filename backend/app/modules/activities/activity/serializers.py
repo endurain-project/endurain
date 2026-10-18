@@ -83,6 +83,24 @@ def apply_visibility_mask(
         # activity_streams.service). The service derives the thumbnail URL from this
         # key, so clearing it here means a non-owner never receives one.
         schema.map_thumbnail_path = None
+    if schema.hide_hr:
+        schema.average_hr = None
+        schema.max_hr = None
+    if schema.hide_power:
+        schema.average_power = None
+        schema.max_power = None
+        schema.normalized_power = None
+    if schema.hide_cadence:
+        schema.average_cad = None
+        schema.max_cad = None
+    if schema.hide_speed:
+        schema.average_speed = None
+        schema.max_speed = None
+    if schema.hide_pace:
+        schema.pace = None
+    if schema.hide_elevation:
+        schema.elevation_gain = None
+        schema.elevation_loss = None
     return schema
 
 

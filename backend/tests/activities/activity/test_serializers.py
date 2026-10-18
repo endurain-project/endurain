@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 def _activity_orm_stub():
     """An ORM-shaped object carrying only the attributes the serializer reads.
@@ -191,6 +193,42 @@ class TestApplyVisibilityMask:
 
         assert schema.start_time is None
         assert schema.end_time is None
+
+    @pytest.mark.parametrize(
+        ("flag", "fields"),
+        [
+            ("hide_hr", ["average_hr", "max_hr"]),
+            ("hide_power", ["average_power", "max_power", "normalized_power"]),
+            ("hide_cadence", ["average_cad", "max_cad"]),
+            ("hide_speed", ["average_speed", "max_speed"]),
+            ("hide_pace", ["pace"]),
+            ("hide_elevation", ["elevation_gain", "elevation_loss"]),
+        ],
+    )
+    def test_metric_flags_mask_their_fields_for_non_owner(self, flag, fields):
+        from modules.activities.activity.schema import ActivityRead
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        values = dict.fromkeys(fields, 10)
+        schema = ActivityRead(id=1, distance=1000, name="Ride", activity_type=5, **values, **{flag: True})
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert all(getattr(schema, field) is None for field in fields)
+
+    def test_metric_fields_kept_when_flag_unset_or_owner(self):
+        from modules.activities.activity.schema import ActivityRead
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        non_owner = ActivityRead(id=1, distance=1000, name="Ride", activity_type=5, average_hr=150, average_power=200)
+        owner = ActivityRead(id=1, distance=1000, name="Ride", activity_type=5, average_hr=150, hide_hr=True)
+
+        apply_visibility_mask(non_owner, is_owner=False)
+        apply_visibility_mask(owner, is_owner=True)
+
+        assert non_owner.average_hr == 150
+        assert non_owner.average_power == 200
+        assert owner.average_hr == 150
 
     def test_owner_keeps_everything(self):
         from modules.activities.activity.schema import ActivityRead
