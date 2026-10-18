@@ -18,7 +18,7 @@ import {
   fetchIngestionJob,
   uploadActivityFile,
 } from '@/features/upload/services/upload'
-import { type ActivityIngestionJob, UploadValidationError } from '@/features/upload/types'
+import { ACTIVITY_FILE_ACCEPT, type ActivityIngestionJob, UploadValidationError } from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
 
 import { makeActivity } from './fixtures/activity'
@@ -108,6 +108,19 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('ACTIVITY_FILE_ACCEPT', () => {
+  it('includes extensions for desktop filtering and MIME types for iOS matching', () => {
+    // Regression test: an extension-only accept filter matches nothing on
+    // iOS (`.fit` has no registered UTI), greying out every file.
+    for (const ext of ['.gpx', '.tcx', '.fit', '.gz']) {
+      expect(ACTIVITY_FILE_ACCEPT).toContain(ext)
+    }
+    expect(ACTIVITY_FILE_ACCEPT).toContain('application/octet-stream')
+    expect(ACTIVITY_FILE_ACCEPT).toContain('application/vnd.ant.fit')
+    expect(ACTIVITY_FILE_ACCEPT).toContain('application/gzip')
+  })
 })
 
 describe('assertValidActivityFile', () => {

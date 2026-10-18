@@ -803,6 +803,59 @@ class TestGetActivityByIdIfIsPublic:
 
         assert crud.get_activity_by_id_if_is_public(activity_id=999, db=sqlite_session) is None
 
+    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
+    def test_excludes_strava_activities(self, mock_ser, sqlite_session):
+        """A public activity synced from Strava is not served."""
+        import modules.activities.activity.crud as crud
+
+        sqlite_session.add(_public_activity(id=1, strava_activity_id=123))
+        sqlite_session.commit()
+
+        assert crud.get_activity_by_id_if_is_public(activity_id=1, db=sqlite_session) is None
+        mock_ser.assert_not_called()
+
+
+class TestStravaActivityVisibility:
+    """Activities synced from Strava are shown only to their owner.
+
+    The filter lives in the SQL ``WHERE`` clause, so it is exercised against a
+    real in-memory SQLite database. User 2 follows user 1 (passed as
+    ``followee_ids``), who owns activity 1 and the Strava-synced activity 2.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _seed(self, sqlite_session):
+        sqlite_session.add(_public_activity(id=1, user_id=1))
+        sqlite_session.add(_public_activity(id=2, user_id=1, strava_activity_id=123))
+        sqlite_session.commit()
+
+    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
+    def test_owner_sees_own_strava_activity(self, mock_ser, sqlite_session):
+        """The owner can still open their own Strava-synced activity."""
+        import modules.activities.activity.crud as crud
+
+        result = crud.get_activity_by_id_from_user_id_or_has_visibility(activity_id=2, user_id=1, db=sqlite_session)
+        assert result is not None
+
+    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
+    def test_follower_cannot_open_strava_activity(self, mock_ser, sqlite_session):
+        """A follower cannot open a Strava-synced activity."""
+        import modules.activities.activity.crud as crud
+
+        result = crud.get_activity_by_id_from_user_id_or_has_visibility(
+            activity_id=2, user_id=2, db=sqlite_session, followee_ids=[1]
+        )
+        assert result is None
+
+    @patch("modules.activities.activity.crud.activity_serializers.apply_visibility_mask")
+    @patch("modules.activities.activity.crud.activity_serializers.to_read_schema")
+    def test_follower_profile_list_excludes_strava_activity(self, mock_ser, mock_mask, sqlite_session):
+        """The profile list a follower sees leaves out the Strava-synced activity."""
+        import modules.activities.activity.crud as crud
+
+        crud.get_user_activities(user_id=1, db=sqlite_session, user_is_owner=False, followee_ids=[2])
+        assert [c.args[0].id for c in mock_ser.call_args_list] == [1]
+
 
 class TestGetPublicActivityForChildRead:
     """The single public gate for activity sub-resources (laps / sets / workout steps).
