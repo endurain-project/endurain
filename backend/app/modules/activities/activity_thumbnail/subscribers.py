@@ -109,7 +109,7 @@ def _schedule_thumbnail_regeneration() -> None:
     # The job runner renews the lease while this runs and the backfill lock keeps
     # a requeued copy from repeating the delete phase; a pass past
     # ``jobs.max_runtime_seconds`` stops at its next ``lease_lost()`` check.
-    logger.info("Thumbnail regeneration: no scheduler in this process; running it inline")
+    logger.debug("Thumbnail regeneration: no scheduler in this process; running it inline")
     activity_thumbnail_scheduled_jobs.regenerate_all_thumbnails()
 
 

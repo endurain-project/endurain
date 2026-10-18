@@ -77,7 +77,7 @@ _ROOT = pathlib.Path("app/modules")
 
 def _log_calls(path: pathlib.Path) -> list[str]:
     """Return the log levels used in a module."""
-    return re.findall(r"logger\.(debug|info|warning|error|exception|critical)\(", path.read_text())
+    return re.findall(r"logger\.(debug|info|warning|error|exception|critical|log)\(", path.read_text())
 
 
 def _modules_named(stem: str) -> list[pathlib.Path]:
@@ -152,6 +152,16 @@ class TestLoggingRule:
             f"{p}: {sorted(set(_log_calls(p)) - _ALLOWED['crud'])}"
             for p in _modules_named("crud")
             if set(_log_calls(p)) - _ALLOWED["crud"]
+        ]
+
+        assert offenders == []
+
+    def test_subscribers_only_skip_or_fail(self):
+        """A subscriber says why it skipped (DEBUG) or that it failed; success narration is noise."""
+        offenders = [
+            f"{p}: {sorted(set(_log_calls(p)) - _ALLOWED['subscribers'])}"
+            for p in _modules_named("subscribers")
+            if set(_log_calls(p)) - _ALLOWED["subscribers"]
         ]
 
         assert offenders == []

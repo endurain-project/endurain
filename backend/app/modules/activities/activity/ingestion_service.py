@@ -114,7 +114,7 @@ def store_parsed_activity(
         if dedup_key is not None and parsed.activity.user_id is not None:
             existing = activity_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
             if existing is not None:
-                logger.info(
+                logger.debug(
                     "Skipping re-import: dedup key already ingested",
                     extra=core_logger.context(
                         dedup_key=dedup_key,
@@ -182,7 +182,7 @@ def store_parsed_activity(
         db.rollback()
         if dedup_key is None or parsed.activity.user_id is None:
             logger.error(
-                "Error in store_parsed_activity",
+                "Integrity error in store_parsed_activity: no dedup key to resolve the conflict",
                 exc_info=err,
                 extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
             )
@@ -192,13 +192,13 @@ def store_parsed_activity(
         if winner is None:
             # The integrity error was not the dedup race (some other constraint).
             logger.error(
-                "Error in store_parsed_activity",
+                "Integrity error in store_parsed_activity: not a dedup-key race",
                 exc_info=err,
                 extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
             )
             raise core_exceptions.ProcessingError("Error creating activity") from err
 
-        logger.info(
+        logger.debug(
             "Lost the insert race for dedup key; treating re-import as a no-op",
             extra=core_logger.context(
                 dedup_key=dedup_key,

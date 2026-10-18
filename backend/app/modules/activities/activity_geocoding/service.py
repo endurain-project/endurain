@@ -14,7 +14,6 @@ subscriber (not part of parsing) keeps the parse path free of network I/O and
 lets the work run durably/async when durable jobs are enabled.
 """
 
-import logging
 from datetime import timedelta
 
 from jasil.providers import ClockProvider, GeocodedPlace, GeocodingProvider
@@ -96,12 +95,7 @@ def geocode_and_store_activity_location(activity_id: int, geocoding: GeocodingPr
         db,
     ):
         db.commit()
-    logger.debug(
-        "Stored the resolved activity location",
-        extra=core_logger.context(
-            activity_id=activity_id, city=location.city, town=location.town, country=location.country
-        ),
-    )
+        logger.debug("Stored the resolved activity location", extra=core_logger.context(activity_id=activity_id))
     return True
 
 
@@ -183,11 +177,9 @@ def backfill_missing_activity_locations(
             db.commit()
             deferred += len(unresolved)
 
-    # Level varies so an idle scheduler pass stays at debug instead of emitting
-    # an INFO line every tick.
-    logger.log(
-        logging.INFO if stored else logging.DEBUG,
-        "Geocoding scheduler pass complete",
-        extra=core_logger.context(stored=stored, lookups=lookups, deferred=deferred),
-    )
+    extra = core_logger.context(stored=stored, lookups=lookups, deferred=deferred)
+    if stored:
+        logger.info("Geocoding scheduler pass complete", extra=extra)
+    else:
+        logger.debug("Geocoding scheduler pass complete", extra=extra)
     return stored

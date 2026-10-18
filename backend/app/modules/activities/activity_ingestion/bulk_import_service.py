@@ -495,7 +495,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
     with core_database.SessionLocal() as db:
         state = activity_ingestion_crud.get_bulk_import_state(job_id, db)
         if state is None or state.finished:
-            logger.info("Skipping a bulk import that is unknown or finished", extra=core_logger.context(job_id=job_id))
+            logger.debug("Skipping a bulk import that is unknown or finished", extra=core_logger.context(job_id=job_id))
             return
         if state.staged_key is None:
             # The folder is still being packed; the continuation is queued once it is.
@@ -503,7 +503,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
         if not activity_ingestion_crud.mark_processing(
             job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
-            logger.info(
+            logger.debug(
                 "Skipping a bulk import batch that is claimed elsewhere", extra=core_logger.context(job_id=job_id)
             )
             return

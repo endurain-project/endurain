@@ -324,12 +324,12 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
     with core_database.SessionLocal() as db:
         scope = activity_ingestion_crud.get_refresh_scope(job_id, db)
         if scope is None:
-            logger.info("Skipping an unknown refresh job", extra=core_logger.context(job_id=job_id))
+            logger.debug("Skipping an unknown refresh job", extra=core_logger.context(job_id=job_id))
             return
         if not activity_ingestion_crud.mark_processing(
             job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
-            logger.info(
+            logger.debug(
                 "Skipping a refresh job that already finished or is claimed elsewhere",
                 extra=core_logger.context(job_id=job_id),
             )
@@ -472,7 +472,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
         if work_item is None:
             # Already consumed — a retry after the import succeeded, or a job
             # whose row was pruned. Nothing to do, and re-running would be wrong.
-            logger.info(
+            logger.debug(
                 "Skipping an upload job with no staged upload",
                 extra=core_logger.context(job_id=job_id),
             )
@@ -481,7 +481,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
         if not activity_ingestion_crud.mark_processing(
             job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
-            logger.info(
+            logger.debug(
                 "Skipping an upload job that already finished or is claimed elsewhere",
                 extra=core_logger.context(job_id=job_id),
             )
@@ -773,7 +773,7 @@ def sweep_stale_staged_blobs(
                         removed += 1
 
     if removed:
-        logger.warning("Removed stale staged ingestion blobs", extra=core_logger.context(removed=removed))
+        logger.info("Removed stale staged ingestion blobs", extra=core_logger.context(removed=removed))
     else:
         logger.debug("Staged blob sweep: nothing stale")
     return removed

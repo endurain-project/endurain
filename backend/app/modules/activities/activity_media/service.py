@@ -194,7 +194,7 @@ def _persist_media_bytes(
     content_hash = core_hashing.sha256_hex(data)
     existing = activity_media_crud.get_activity_media_by_content_hash(activity_id, content_hash, db)
     if existing is not None:
-        logger.info(
+        logger.debug(
             "Skipping re-store: identical media already stored for this activity",
             extra=core_logger.context(activity_id=activity_id, media_id=existing.id),
         )

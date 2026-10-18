@@ -7,14 +7,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
-import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.followers.constants as followers_constants
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
 import modules.followers.serializers as followers_serializers
-
-logger = core_logger.get_logger(__name__)
 
 # Key under which a request's resolved followee lists are memoized on the
 # session. ``Session.info`` is per-session storage and a session is per-request,
@@ -302,11 +299,6 @@ def create_follower(
         # claim that a relationship already exists. Rolling the session back is the
         # transaction owner's job (``service`` / ``core.database.get_db``), not
         # persistence's.
-        logger.warning(
-            "Integrity error in create_follower",
-            exc_info=err,
-            extra=core_logger.context(error=type(err).__name__),
-        )
         if _is_duplicate_pair(err):
             raise core_exceptions.ConflictError("Follow relationship already exists") from err
         raise core_exceptions.NotFoundError("User not found") from err

@@ -70,7 +70,7 @@ def submit(run: Callable[..., Any], *args: Any) -> Future:
     Returns:
         The scheduled future (failures are logged via a done-callback).
     """
-    logger.info("Queued an ingestion job on the background pool", extra=core_logger.context(job=run.__name__))
+    logger.debug("Queued an ingestion job on the background pool", extra=core_logger.context(job=run.__name__))
     # Run under the caller's context so the request id reaches the job's logs.
     future = _get_executor().submit(contextvars.copy_context().run, run, *args)
     future.add_done_callback(_log_failure)

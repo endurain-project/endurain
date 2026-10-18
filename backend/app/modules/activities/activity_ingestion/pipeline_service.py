@@ -72,7 +72,9 @@ def parse_file(
         if filename.lower() == "bulk_import/__init__.py":
             return None
 
-        logger.info("Parsing activity file", extra=core_logger.context(file=Path(filename).name, user_id=token_user_id))
+        logger.debug(
+            "Parsing activity file", extra=core_logger.context(file=Path(filename).name, user_id=token_user_id)
+        )
         # Dispatch to the parser registered for this extension. The parsers
         # are pure (no db / privacy / gear / provider coupling); the
         # pipeline re-attaches that domain context afterwards — including
@@ -326,10 +328,9 @@ def _finish_bulk_import_file(
         db: Database session.
     """
     ids_to_filename = "_".join(str(activity.id) for activity in created_activities)
-    logger.info(
+    logger.debug(
         "Bulk file import: file processed and stored",
         extra=core_logger.context(
-            console=True,
             file=file_base_name,
             activity_ids=ids_to_filename,
             activity_count=len(created_activities),
@@ -340,11 +341,6 @@ def _finish_bulk_import_file(
     # export's photos today). The source decides what that means — the pipeline
     # stays format- and provider-agnostic.
     source.import_side_artifacts(created_activities, file_base_name, db)
-
-    logger.info(
-        "Bulk file import: import work complete for file",
-        extra=core_logger.context(console=True, file=file_base_name),
-    )
 
 
 def validate_prepare_and_store_file(
