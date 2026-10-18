@@ -6,9 +6,9 @@ router, named tier constants for different endpoint
 classes, and a JSON-aware 429 error handler.
 
 The limiter key function hashes the Bearer token when
-present (each session gets its own bucket) and falls
-back to the proxy-aware client IP for unauthenticated
-callers.
+its signature verifies (each session gets its own
+bucket) and falls back to the proxy-aware client IP for
+unauthenticated callers and unverifiable tokens.
 
 Architecture
 ------------
@@ -22,9 +22,14 @@ Architecture
    and document it in this module.
 """
 
+import functools
 import hashlib
+import os
 
 from fastapi import Request
+from joserfc import jwt
+from joserfc.errors import JoseError
+from joserfc.jwk import OctKey
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import Response
@@ -60,15 +65,36 @@ UPLOAD: str = "20/minute"
 PROVIDER_SYNC: str = "6/minute"
 
 
+@functools.cache
+def _jwt_verification_key() -> OctKey | None:
+    """Return the key used to check Bearer token signatures, or None if unset."""
+    secret = core_config.read_secret("SECRET_KEY")
+    return OctKey.import_key(secret) if secret else None
+
+
+def _has_valid_signature(token: str) -> bool:
+    """Return whether ``token`` is a JWT signed with the server secret."""
+    key = _jwt_verification_key()
+    if key is None:
+        return False
+    try:
+        jwt.decode(token, key, algorithms=[os.environ.get("ALGORITHM", "HS256")])
+    except (JoseError, ValueError):
+        return False
+    return True
+
+
 def _get_rate_limit_key(request: Request) -> str:
     """
     Derive a per-caller rate-limit bucket key.
 
     Authenticated callers are identified by a truncated
     SHA-256 of their Bearer token so users behind the
-    same NAT are rate-limited independently.  Falls back
-    to the proxy-aware client IP for unauthenticated
-    callers.
+    same NAT are rate-limited independently.  The token
+    must carry a valid signature, otherwise a client could
+    mint a fresh bucket per request with a random value.
+    Falls back to the proxy-aware client IP for
+    unauthenticated callers and unverifiable tokens.
 
     Args:
         request: Incoming Starlette/FastAPI request.
@@ -77,7 +103,7 @@ def _get_rate_limit_key(request: Request) -> str:
         String key used as the rate-limit bucket.
     """
     auth = request.headers.get("authorization", "")
-    if auth.startswith("Bearer ") and len(auth) > 7:
+    if auth.startswith("Bearer ") and len(auth) > 7 and _has_valid_signature(auth[7:]):
         token_hash = hashlib.sha256(auth[7:].encode()).hexdigest()[:16]
         return f"user:{token_hash}"
     return core_network.get_ip_address(request)
