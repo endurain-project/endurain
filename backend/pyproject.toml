@@ -140,6 +140,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "--tb=short --strict-markers --cov --cov-report=term-missing"
 markers = [
     "postgres: needs a disposable PostgreSQL database (TEST_DATABASE_URL); skipped when it is unset",
+    "distributed: runs real API and worker processes against disposable PostgreSQL, Redis and S3 (TEST_DATABASE_URL, TEST_REDIS_URL, TEST_S3_ENDPOINT_URL); skipped unless all are set",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:slowapi.*",
