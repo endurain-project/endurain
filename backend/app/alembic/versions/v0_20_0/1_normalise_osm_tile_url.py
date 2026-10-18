@@ -40,9 +40,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Restore the previous ``{s}`` default."""
-    op.execute(
-        sa.text("UPDATE server_settings SET tileserver_url = :old WHERE tileserver_url = :new").bindparams(
-            new=_NEW_URL, old=_LEGACY_URLS[0]
-        )
-    )
+    """Leave tileserver_url unchanged.
+
+    The single-host URL works on older versions too, and reverting it would
+    also rewrite installs that had set it themselves before this migration.
+    """
