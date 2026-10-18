@@ -89,12 +89,14 @@ nav:
     - Quick start: getting-started/quick-start.md
     - Reverse proxy: getting-started/reverse-proxy.md
     - Updates and backups: getting-started/operations.md
+    - Troubleshooting: getting-started/troubleshooting.md
     - Advanced setup: getting-started/advanced-setup.md
     - Scaling and background jobs: getting-started/scaling-and-background-jobs.md
     - Bare-metal installation: getting-started/bare-metal.md
     - Proxmox community script: https://community-scripts.github.io/ProxmoxVE/scripts?id=endurain&category=Gaming+%26+Leisure
   - User guide:
     - Importing data: features/importing.md
+    - Exporting and importing your data: features/export-import.md
     - Single Sign-On (SSO): features/single-sign-on.md
     - Sleep scoring: features/sleep-scoring.md
     - Integrations: features/integrations.md
