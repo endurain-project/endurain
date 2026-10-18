@@ -1,6 +1,15 @@
-# 3rd party services
+# Integrations
 
-## Garmin Connect Integration
+## Apps
+
+### RunnerUp Integration
+
+[RunnerUp](https://github.com/jonasoreland/runnerup) an app for tracking your sport activities with your Android phone, can automatically sync your activities recorded with it to your Endurain instance.
+
+RunnerUp currently **does not** support login with MFA.
+## Services
+
+### Garmin Connect Integration
 
 To enable Garmin Connect integration, Endurain will ask for your Garmin Connect credentials. These credentials are not stored, but the authentication tokens (access and refresh tokens) are stored in the DB, similar to the Strava integration. The credentials are sent from the frontend to the backend in plain text, so the use of HTTPS is highly recommended.
 
@@ -8,7 +17,7 @@ Once the integration with Garmin Connect is configured, on startup, every one an
 
 For Garmin Connect integration [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) Python module is used.
 
-## Strava Integration
+### Strava Integration
 
 > ⚠️ **Warning**  
 > Due to recent Strava API changes, expect changes in the Strava integration in a following release.

@@ -90,6 +90,7 @@ dev = [
 docs = [
     "mkdocs-material>=9.6.0",
     "mkdocstrings[python]>=0.29.0",
+    "mkdocs-redirects>=1.2.1",
 ]
 
 [tool.uv]

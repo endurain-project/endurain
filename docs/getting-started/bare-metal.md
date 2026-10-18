@@ -66,7 +66,7 @@ nano /path/to/endurain/.env
 ```
 
 Adjust the environment variables and set keys. You definitely have to adjust `FRONTEND_DIR`, `BACKEND_DIR` and `DB_HOST`.  
-Environment variables are explained in the [Environment Variables Guide](advanced-started.md).
+Environment variables are explained in the [Environment Variables Guide](advanced-setup.md).
 
 ```env
 DB_HOST=localhost
