@@ -281,7 +281,7 @@ async def handle_callback(
         oauth_state = oauth_state_crud.get_oauth_state_by_id_and_not_used(state, db)
 
         if not oauth_state:
-            logger.warning(f"OAuth state not found in database: {state[:8]}...")
+            logger.warning(f"OAuth state not found in database: {core_hashing.log_fingerprint(state)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state",
@@ -298,7 +298,7 @@ async def handle_callback(
         # deployments where two IdP entries share an authorization server.
         if oauth_state.idp_id is not None and oauth_state.idp_id != idp.id:
             logger.warning(
-                f"OAuth state IdP mismatch for state {state[:8]}...: "
+                f"OAuth state IdP mismatch for state {core_hashing.log_fingerprint(state)}: "
                 f"state.idp_id={oauth_state.idp_id}, callback idp.id={idp.id}"
             )
             raise HTTPException(
@@ -313,13 +313,15 @@ async def handle_callback(
         # races (replays, double-submits) abort here with a generic 400 so we
         # do not leak whether the state existed but was already consumed.
         if not oauth_state_crud.mark_oauth_state_used(state, db):
-            logger.warning(f"OAuth state replay/race rejected: {state[:8]}...")
+            logger.warning(f"OAuth state replay/race rejected: {core_hashing.log_fingerprint(state)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OAuth state",
             )
 
-        logger.debug(f"OAuth callback received for state {state[:8]}... (client_type={oauth_state.client_type})")
+        logger.debug(
+            f"OAuth callback received for state {core_hashing.log_fingerprint(state)} (client_type={oauth_state.client_type})"
+        )
 
         # Process the OAuth callback (service will handle both DB and cookie state)
         result = await idp_service.idp_service.handle_callback(
@@ -388,7 +390,7 @@ async def handle_callback(
         # fingerprint is logged: enough to correlate with other entries, useless to replay.
         logger.info(
             f"SSO login successful for user {user.username} via {idp.name} "
-            f"(session={core_hashing.sha256_hex(session_id)[:8]})"
+            f"(session={core_hashing.log_fingerprint(session_id)})"
         )
 
         return RedirectResponse(
@@ -472,7 +474,7 @@ async def exchange_tokens_for_session(
         session_with_state = auth_sessions_crud.get_session_with_oauth_state(session_id, db)
 
         if not session_with_state:
-            logger.warning(f"Token exchange failed: session {session_id[:8]}... not found")
+            logger.warning(f"Token exchange failed: session {core_hashing.log_fingerprint(session_id)} not found")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not found or not eligible for token exchange",
@@ -482,7 +484,9 @@ async def exchange_tokens_for_session(
 
         # Verify session is linked to an OAuth state (mobile flow)
         if not oauth_state:
-            logger.warning(f"Token exchange failed: session {session_id[:8]}... has no OAuth state")
+            logger.warning(
+                f"Token exchange failed: session {core_hashing.log_fingerprint(session_id)} has no OAuth state"
+            )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Session not eligible for PKCE token exchange",
@@ -494,7 +498,7 @@ async def exchange_tokens_for_session(
         # closes a TOCTOU race that two concurrent exchanges with the
         # same code_verifier would otherwise win.
         if session_obj.tokens_exchanged:
-            logger.warning(f"Token exchange replay attempt for session {session_id[:8]}...")
+            logger.warning(f"Token exchange replay attempt for session {core_hashing.log_fingerprint(session_id)}")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Tokens already exchanged for this session",
@@ -502,7 +506,9 @@ async def exchange_tokens_for_session(
 
         # Verify PKCE code_verifier matches code_challenge
         if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
-            logger.error(f"Token exchange failed: OAuth state {oauth_state.id[:8]}... missing PKCE data")
+            logger.error(
+                f"Token exchange failed: OAuth state {core_hashing.log_fingerprint(oauth_state.id)} missing PKCE data"
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="OAuth state missing PKCE data",
@@ -553,7 +559,7 @@ async def exchange_tokens_for_session(
             if header_client_type is not None and header_client_type != stored_client_type:
                 logger.warning(
                     "Token exchange client_type mismatch for session "
-                    f"{session_id[:8]}...: stored={stored_client_type}, "
+                    f"{core_hashing.log_fingerprint(session_id)}: stored={stored_client_type}, "
                     f"header={header_client_type}"
                 )
                 raise HTTPException(
@@ -604,7 +610,7 @@ async def exchange_tokens_for_session(
             db,
         )
         if not claimed:
-            logger.warning(f"Token exchange lost race for session {session_id[:8]}...")
+            logger.warning(f"Token exchange lost race for session {core_hashing.log_fingerprint(session_id)}")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Tokens already exchanged for this session",
@@ -626,7 +632,7 @@ async def exchange_tokens_for_session(
         # state row for cleanup.
 
         logger.info(
-            f"Token exchange successful for session {session_id[:8]}... (user={user.username}, client_type={client_type})"
+            f"Token exchange successful for session {core_hashing.log_fingerprint(session_id)} (user={user.username}, client_type={client_type})"
         )
 
         # Return response based on client type (matches complete_login behavior)
@@ -654,7 +660,9 @@ async def exchange_tokens_for_session(
     except HTTPException:
         raise
     except Exception as err:
-        logger.error(f"Error in token exchange for session {session_id[:8]}...: {err}", exc_info=err)
+        logger.error(
+            f"Error in token exchange for session {core_hashing.log_fingerprint(session_id)}: {err}", exc_info=err
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to exchange tokens",

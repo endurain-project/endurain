@@ -9,6 +9,7 @@ from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.oauth_state.models as oauth_state_models
 import modules.auth.sessions.models as auth_sessions_models
@@ -39,7 +40,7 @@ def get_oauth_state_by_id_and_not_used(state_id: str, db: Session) -> oauth_stat
     oauth_state = db.execute(stmt).scalar_one_or_none()
 
     if not oauth_state:
-        logger.warning(f"OAuth state invalid or expired: {state_id[:8]}...")
+        logger.warning(f"OAuth state invalid or expired: {core_hashing.log_fingerprint(state_id)}")
 
     return oauth_state
 
@@ -84,7 +85,7 @@ def get_oauth_state_by_id_not_expired(state_id: str, db: Session) -> oauth_state
     oauth_state = db.execute(stmt).scalar_one_or_none()
 
     if not oauth_state:
-        logger.warning(f"OAuth state invalid or expired: {state_id[:8]}...")
+        logger.warning(f"OAuth state invalid or expired: {core_hashing.log_fingerprint(state_id)}")
 
     return oauth_state
 
@@ -168,7 +169,9 @@ def create_oauth_state(
     db.commit()
     db.refresh(oauth_state)
 
-    logger.debug(f"OAuth state created: {state_id[:8]}... for IdP {idp_id}, client_type={client_type}")
+    logger.debug(
+        f"OAuth state created: {core_hashing.log_fingerprint(state_id)} for IdP {idp_id}, client_type={client_type}"
+    )
 
     return oauth_state
 
@@ -205,9 +208,11 @@ def mark_oauth_state_used(state_id: str, db: Session) -> bool:
 
     claimed = result.rowcount == 1
     if claimed:
-        logger.debug(f"OAuth state marked as used: {state_id[:8]}...")
+        logger.debug(f"OAuth state marked as used: {core_hashing.log_fingerprint(state_id)}")
     else:
-        logger.warning(f"Cannot mark OAuth state used (missing/expired/replay): {state_id[:8]}...")
+        logger.warning(
+            f"Cannot mark OAuth state used (missing/expired/replay): {core_hashing.log_fingerprint(state_id)}"
+        )
     return claimed
 
 

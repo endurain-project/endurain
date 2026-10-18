@@ -3,6 +3,8 @@
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestSafeResolve:
     """Tests for _safe_resolve path-safety guard."""
@@ -34,6 +36,28 @@ class TestSafeResolve:
 
         result = _safe_resolve(str(tmp_path), "../etc/passwd")
         assert result is None
+
+    @pytest.mark.parametrize("untrusted", ["file.txt\x00.png", "\x00", "sub/\x00/file.txt"])
+    def test_embedded_nul_byte_returns_none_instead_of_raising(self, tmp_path, untrusted):
+        from core.utils import _safe_resolve
+
+        (tmp_path / "file.txt").write_text("content")
+
+        assert _safe_resolve(str(tmp_path), untrusted) is None
+
+    def test_symlink_escaping_the_base_returns_none(self, tmp_path):
+        from core.utils import _safe_resolve
+
+        outside = tmp_path / "outside"
+        base = tmp_path / "base"
+        outside.mkdir()
+        base.mkdir()
+        (outside / "secret.txt").write_text("secret")
+        (base / "link.txt").symlink_to(outside / "secret.txt")
+        (base / "linkdir").symlink_to(outside, target_is_directory=True)
+
+        assert _safe_resolve(str(base), "link.txt") is None
+        assert _safe_resolve(str(base), "linkdir/secret.txt") is None
 
     def test_nonexistent_file_returns_none(self, tmp_path):
         from core.utils import _safe_resolve

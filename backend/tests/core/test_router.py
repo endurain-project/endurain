@@ -55,6 +55,14 @@ class TestServerImages(_FileResponseTestMixin):
             assert response.status_code == 404
             assert response.json()["detail"] == "Server image not found"
 
+    def test_a_nul_byte_in_the_name_is_a_404_not_a_server_error(self, tmp_path):
+        """``%00`` reaches the handler as a real NUL; the route is unauthenticated."""
+        (tmp_path / "logo.png").write_text("image")
+        with patch("core.utils.core_config.SERVER_IMAGES_DIR", str(tmp_path)):
+            response = client.get("/server_images/logo.png%00.jpg")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Server image not found"
+
 
 class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
     """Activity media and thumbnails must not be reachable by filename.

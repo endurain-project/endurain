@@ -9,6 +9,7 @@ from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
+import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
@@ -242,12 +243,14 @@ def mark_tokens_exchanged(session_id: str, db: Session) -> None:
     if oauth_state_id_to_delete:
         try:
             oauth_state_crud.delete_oauth_state(oauth_state_id_to_delete, db)
-            logger.debug(f"Deleted OAuth state {oauth_state_id_to_delete[:8]}... after token exchange")
+            logger.debug(
+                f"Deleted OAuth state {core_hashing.log_fingerprint(oauth_state_id_to_delete)} after token exchange"
+            )
         except Exception as err:
             # Log but don't fail - cleanup job handles orphaned
             # states
             logger.warning(
-                f"Failed to delete OAuth state {oauth_state_id_to_delete[:8]}... after token exchange: {err}",
+                f"Failed to delete OAuth state {core_hashing.log_fingerprint(oauth_state_id_to_delete)} after token exchange: {err}",
                 exc_info=err,
             )
 
@@ -302,7 +305,9 @@ def claim_session_for_token_exchange(
 
     claimed = result.rowcount == 1
     if not claimed:
-        logger.warning(f"Token exchange claim lost race for session {session_id[:8]}... (missing or already exchanged)")
+        logger.warning(
+            f"Token exchange claim lost race for session {core_hashing.log_fingerprint(session_id)} (missing or already exchanged)"
+        )
         return False
 
     # Best-effort OAuth state cleanup mirrors mark_tokens_exchanged.
@@ -315,7 +320,7 @@ def claim_session_for_token_exchange(
             oauth_state_crud.delete_oauth_state(oauth_state_id_to_delete, db)
         except Exception as err:
             logger.warning(
-                f"Failed to delete OAuth state {oauth_state_id_to_delete[:8]}... after token exchange: {err}",
+                f"Failed to delete OAuth state {core_hashing.log_fingerprint(oauth_state_id_to_delete)} after token exchange: {err}",
                 exc_info=err,
             )
 

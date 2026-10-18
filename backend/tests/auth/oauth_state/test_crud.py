@@ -8,6 +8,7 @@ from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
 import modules.auth.sessions.models as users_session_models
@@ -74,6 +75,21 @@ class TestGetOAuthStateById:
 
         # Assert
         assert result is None
+
+
+class TestLogsDoNotExposeTheStateId:
+    """The state ID is a credential: no part of it may reach the log, only a fingerprint."""
+
+    def test_a_rejected_state_logs_a_fingerprint_not_a_prefix(self, mock_db):
+        state_id = "secretstate" + "x" * 32
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+        with patch.object(oauth_state_crud, "logger") as mock_logger:
+            oauth_state_crud.get_oauth_state_by_id_and_not_used(state_id, mock_db)
+
+        logged = str(mock_logger.warning.call_args)
+        assert core_hashing.log_fingerprint(state_id) in logged
+        assert state_id[:8] not in logged
 
 
 class TestGetOAuthStateBySessionId:

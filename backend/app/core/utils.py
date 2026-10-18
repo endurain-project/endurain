@@ -43,7 +43,12 @@ def _safe_resolve(base_dir: str, untrusted_path: str) -> str | None:
         return None
 
     base_real = os.path.realpath(base_dir)
-    candidate = os.path.realpath(os.path.join(base_real, untrusted_path))
+    try:
+        candidate = os.path.realpath(os.path.join(base_real, untrusted_path))
+    except ValueError:
+        # An embedded NUL byte (``%00`` in a URL path) cannot name a file; answer
+        # it like any other missing one instead of failing the request.
+        return None
 
     # ``commonpath`` raises on mixed drives (Windows) or
     # when one path is empty; treat any failure as unsafe.
