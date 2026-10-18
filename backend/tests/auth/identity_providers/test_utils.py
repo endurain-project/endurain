@@ -688,6 +688,21 @@ class TestValidateRedirectUrl:
             validate_redirect_url("/path\\to\\file")
         assert exc_info.value.status_code == 400
 
+    @pytest.mark.parametrize(
+        "redirect",
+        ["/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/ok\x00", "/ok\x7f", "/a\tb", "\t/dashboard", "/dashboard\n"],
+    )
+    def test_control_characters_are_rejected(self, redirect):
+        """A browser drops tab, CR and LF inside a URL, so "/<tab>/host" becomes "//host".
+
+        Asserts:
+            - HTTPException 400 for control characters anywhere in the value, including
+              leading and trailing ones that ``strip()`` would otherwise hide
+        """
+        with pytest.raises(HTTPException) as exc_info:
+            validate_redirect_url(redirect)
+        assert exc_info.value.status_code == 400
+
     def test_double_slash_protocol_relative_is_rejected(self):
         """Protocol-relative URLs (//) must be rejected.
 

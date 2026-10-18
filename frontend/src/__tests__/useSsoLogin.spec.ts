@@ -30,7 +30,10 @@ vi.mock('@/composables/useSafeRedirect', () => ({
     Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : '',
   useSafeRedirect: () => ({
     getSafeRedirect: (value: unknown) =>
-      typeof value === 'string' && value.startsWith('/') ? value : '/',
+      typeof value === 'string' && (value.startsWith('/') || value.startsWith('endurain://'))
+        ? value
+        : '/',
+    isCustomSchemeRedirect: (value: string) => value.startsWith('endurain://'),
     getSsoRedirect: () => '',
     navigateAfterLogin: mocks.navigateAfterLogin,
   }),
@@ -198,16 +201,35 @@ describe('processSsoCallback', () => {
         sso: 'success',
         session_id: 'sso-session',
         external_redirect: 'true',
-        redirect: '/native-callback',
+        redirect: 'endurain://native-callback',
       }
 
       const { processSsoCallback } = useSsoLogin()
       const result = await processSsoCallback()
 
       expect(result).toEqual({ status: 'completed' })
-      expect(window.location.href).toBe('/native-callback?session_id=sso-session')
+      expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
       expect(mocks.routerReplace).not.toHaveBeenCalled()
+    })
+
+    it('never navigates the browser to an internal path just because the URL says external_redirect', async () => {
+      // The flag is attacker-controllable; with no matching deep link and no stored
+      // PKCE verifier the callback must fail rather than navigate anywhere.
+      mocks.route.query = {
+        sso: 'success',
+        session_id: 'sso-session',
+        external_redirect: 'true',
+        redirect: '/\\evil.example',
+      }
+      const hrefBefore = window.location.href
+
+      const { processSsoCallback } = useSsoLogin()
+      const result = await processSsoCallback()
+
+      expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
+      expect(window.location.href).toBe(hrefBefore)
+      expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
     })
 
     it('falls back to the dashboard when the browser already has an authenticated session', async () => {
@@ -216,14 +238,14 @@ describe('processSsoCallback', () => {
         sso: 'success',
         session_id: 'sso-session',
         external_redirect: 'true',
-        redirect: '/native-callback',
+        redirect: 'endurain://native-callback',
       }
 
       const { processSsoCallback } = useSsoLogin()
       const result = await processSsoCallback()
 
       expect(result).toEqual({ status: 'completed' })
-      expect(window.location.href).toBe('/native-callback?session_id=sso-session')
+      expect(window.location.href).toBe('endurain://native-callback?session_id=sso-session')
       expect(mocks.routerReplace).toHaveBeenCalledWith({ name: 'home' })
     })
   })

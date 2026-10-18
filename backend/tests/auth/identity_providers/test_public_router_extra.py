@@ -460,6 +460,58 @@ class TestHandleCallbackRedirects:
         assert "redirect=/dashboard" in location
         assert "external_redirect=true" not in location
 
+    @patch("modules.auth.identity_providers.public_router.logger")
+    @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
+    @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
+    @patch("modules.auth.identity_providers.public_router.users_utils.check_user_is_active")
+    @patch("modules.auth.identity_providers.public_router.idp_service.idp_service.handle_callback")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.mark_oauth_state_used")
+    @patch("modules.auth.identity_providers.public_router.oauth_state_crud.get_oauth_state_by_id_and_not_used")
+    @patch("modules.auth.identity_providers.public_router.idp_crud.get_identity_provider_by_slug")
+    def test_login_mode_encodes_the_redirect_and_does_not_log_the_session_id(
+        self,
+        mock_get_idp,
+        mock_get_state,
+        mock_mark_used,
+        mock_handle_callback,
+        mock_check_active,
+        mock_model_validate,
+        mock_create_session,
+        mock_logger,
+        mock_db,
+    ):
+        from urllib.parse import parse_qs, urlsplit
+
+        client = _build_app(mock_db)
+        mock_get_idp.return_value = self._enabled_idp()
+        oauth_state = self._valid_state()
+        oauth_state.user_id = None
+        mock_get_state.return_value = oauth_state
+        mock_mark_used.return_value = True
+        user = MagicMock()
+        user.username = "alice"
+        mock_handle_callback.return_value = {
+            "user": user,
+            "mode": "login",
+            "redirect_path": "/settings?tab=security&session_id=attacker#top",
+        }
+
+        response = client.get(
+            "/api/v1/public/idp/callback/google?code=abc&state=xyz",
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 307
+        query = parse_qs(urlsplit(response.headers["location"]).query)
+        # The path's own "&" and "#" must not become parameters of the login URL.
+        assert query["redirect"] == ["/settings?tab=security&session_id=attacker#top"]
+        assert len(query["session_id"]) == 1
+        session_id = query["session_id"][0]
+        assert session_id != "attacker"
+        logged = " ".join(str(call) for call in mock_logger.info.call_args_list)
+        assert "SSO login successful" in logged
+        assert session_id not in logged
+
     @patch("modules.auth.identity_providers.public_router.auth_sessions_utils.create_session")
     @patch("modules.auth.identity_providers.public_router.users_schema.UsersRead.model_validate")
     @patch("modules.auth.identity_providers.public_router.users_utils.check_user_is_active")

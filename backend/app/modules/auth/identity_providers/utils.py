@@ -32,10 +32,20 @@ def validate_redirect_url(redirect: str | None) -> None:
     Raises:
         HTTPException: 400 Bad Request if the redirect URL is
             invalid, uses a disallowed scheme, is an external
-            HTTP/HTTPS URL, or contains path traversal sequences.
+            HTTP/HTTPS URL, or contains control characters or path
+            traversal sequences.
     """
     if not redirect or not redirect.strip():
         return
+
+    # Checked on the raw value, before stripping: the caller stores what it passed
+    # in, and a browser's URL parser drops tab, CR and LF anywhere in a URL, so
+    # "/<tab>/host" would be read as the protocol-relative "//host".
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in redirect):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Redirect contains control characters.",
+        )
 
     value = redirect.strip()
 

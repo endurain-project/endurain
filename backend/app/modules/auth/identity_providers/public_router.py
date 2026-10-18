@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from typing import Annotated
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
+import core.hashing as core_hashing
 import core.logger as core_logger
 import core.network as core_network
 import core.rate_limit as core_rate_limit
@@ -373,7 +374,9 @@ async def handle_callback(
 
         redirect_path = result.get("redirect_path")
         if redirect_path:
-            redirect_url += f"&redirect={redirect_path}"
+            # Encoded so a "&" or "#" in the path cannot start another query parameter;
+            # "/" and ":" stay readable and the frontend decodes the value back.
+            redirect_url += f"&redirect={quote(redirect_path, safe='/:')}"
             # Signal the frontend that this is a custom-scheme redirect.
             # The frontend will skip its own token exchange and instead
             # pass the session_id to the mobile app via the custom scheme.
@@ -381,7 +384,12 @@ async def handle_callback(
             if is_custom_scheme:
                 redirect_url += "&external_redirect=true"
 
-        logger.info(f"SSO login successful for user {user.username} via {idp.name} (session_id={session_id})")
+        # The session ID is the handle exchanged for tokens, so only a one-way
+        # fingerprint is logged: enough to correlate with other entries, useless to replay.
+        logger.info(
+            f"SSO login successful for user {user.username} via {idp.name} "
+            f"(session={core_hashing.sha256_hex(session_id)[:8]})"
+        )
 
         return RedirectResponse(
             url=redirect_url,
