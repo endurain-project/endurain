@@ -48,6 +48,18 @@ class TestReceiveUpload:
         # verified without paying for the storage write.
         assert received.fingerprint == "deadbeef"
 
+    def test_a_failed_fingerprint_removes_the_incoming_file(self):
+        """The caller never gets the path on failure, so nothing else would clean it up."""
+        save = MagicMock(return_value="/incoming/x.gpx")
+        with (
+            patch.object(upload_entry_service.core_file_uploads, "sha256_file", side_effect=OSError("disk")),
+            patch.object(upload_entry_service.core_file_uploads, "remove_files") as remove_files,
+            pytest.raises(OSError),
+        ):
+            upload_entry_service.receive_upload("ride.gpx", save, fingerprint=True)
+
+        remove_files.assert_called_once_with(["/incoming/x.gpx"])
+
     def test_skips_the_hash_when_no_idempotency_key_was_sent(self):
         """Nothing reads the fingerprint without a key, so it is not worth a pass over the file."""
         with patch.object(upload_entry_service.core_file_uploads, "sha256_file") as hash_bytes:

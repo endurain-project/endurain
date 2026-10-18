@@ -125,6 +125,24 @@ def get_activities_media(
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
 
+def get_existing_media_paths(media_paths: list[str], db: Session) -> set[str]:
+    """Return which of the given storage keys a media record still names.
+
+    Args:
+        media_paths: Storage keys to look up.
+        db: Database session.
+
+    Returns:
+        The subset of ``media_paths`` held by a record.
+    """
+    if not media_paths:
+        return set()
+    stmt = select(activity_media_models.ActivityMedia.media_path).where(
+        activity_media_models.ActivityMedia.media_path.in_(media_paths)
+    )
+    return set(db.scalars(stmt).all())
+
+
 def get_activity_media_by_content_hash(
     activity_id: int,
     content_hash: str,

@@ -619,11 +619,12 @@ def _activity_id_of_media_key(key: str) -> int | None:
 
 
 def sweep_orphaned_media(storage: platform_providers.StorageProvider, db: Session) -> int:
-    """Delete media blobs whose activity no longer exists.
+    """Delete media blobs that no longer belong to anything.
 
-    The storage-side net for the cleanup subscriber: the media rows cascade with
-    the activity, so a dropped ``activity.deleted`` event leaves a blob no row
-    names, and only a scan of the area can find it.
+    The storage-side net for the cleanup paths. A blob is swept when its activity
+    is gone (a dropped ``activity.deleted`` event, since the media rows cascade
+    with the activity) or when no media row names it (a failed best-effort delete
+    after the row was removed). Only a scan of the area finds either.
 
     Args:
         storage: The blob-storage provider.
@@ -632,9 +633,14 @@ def sweep_orphaned_media(storage: platform_providers.StorageProvider, db: Sessio
     Returns:
         The number of blobs deleted.
     """
-    return activities_orphan_sweep.sweep_orphaned_blobs(
+    removed = activities_orphan_sweep.sweep_orphaned_blobs(
         storage,
         activity_media_signing.MEDIA_STORAGE_AREA,
         lambda ids: activity_integration.filter_existing_activity_ids(ids, db),
         _activity_id_of_media_key,
+    )
+    return removed + activities_orphan_sweep.sweep_unreferenced_blobs(
+        storage,
+        activity_media_signing.MEDIA_STORAGE_AREA,
+        lambda keys: activity_media_crud.get_existing_media_paths(keys, db),
     )

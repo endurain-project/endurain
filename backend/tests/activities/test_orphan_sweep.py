@@ -71,3 +71,13 @@ class TestKeyParsers:
     def test_media_key(self):
         assert media_service._activity_id_of_media_key("7_abc.jpg") == 7
         assert media_service._activity_id_of_media_key("abc.jpg") is None
+
+
+class TestSweepUnreferencedBlobs:
+    def test_deletes_only_old_blobs_no_row_names(self):
+        storage = _storage([("1_a.jpg", _OLD), ("1_b.jpg", _OLD), ("1_c.jpg", time())])
+
+        removed = orphan_sweep.sweep_unreferenced_blobs(storage, "area", lambda keys: {"1_a.jpg"})
+
+        assert removed == 1
+        storage.delete.assert_called_once_with("area", "1_b.jpg")

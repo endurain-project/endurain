@@ -5,6 +5,9 @@ dropped ``activity.deleted`` event leaves nothing that names the blob: no row
 remains to backfill from. This walks the storage area instead and deletes keys
 whose owning activity is gone.
 
+A second sweep covers blobs whose own row is gone while the activity lives on
+(a failed best-effort delete after the row was removed).
+
 Dependency-free on purpose: the caller supplies the key parser and the
 existence lookup, so the helper imports no module.
 """
@@ -99,3 +102,33 @@ def _delete_orphans(
     for key in orphans:
         storage.delete(area, key)
     return len(orphans)
+
+
+def sweep_unreferenced_blobs(
+    storage: platform_providers.StorageProvider,
+    area: str,
+    referenced_keys: Callable[[list[str]], set[str]],
+    *,
+    min_age_seconds: int = MIN_AGE_SECONDS,
+) -> int:
+    """Delete blobs in ``area`` that no row names.
+
+    Args:
+        storage: The blob-storage provider.
+        area: The storage area to scan.
+        referenced_keys: Returns which of the given keys a row still names.
+        min_age_seconds: Skip blobs modified more recently than this.
+
+    Returns:
+        The number of blobs deleted.
+    """
+    cutoff = time() - min_age_seconds
+    old_keys = (key for key, modified in storage.iter_objects(area, "") if modified <= cutoff)
+    removed = 0
+    for batch in batched(old_keys, _BATCH_SIZE, strict=False):
+        named = referenced_keys(list(batch))
+        for key in batch:
+            if key not in named:
+                storage.delete(area, key)
+                removed += 1
+    return removed

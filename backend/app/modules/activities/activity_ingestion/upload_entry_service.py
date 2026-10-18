@@ -156,12 +156,14 @@ def receive_upload(filename: str | None, save_upload: UploadSaver, *, fingerprin
         upload_dir=core_config.FILES_UPLOAD_INCOMING_DIR,
         filename=storage_key,
     )
-    return ReceivedUpload(
-        incoming_path=incoming_path,
-        storage_key=storage_key,
+    try:
         # Streamed from disk: the file can be up to 200 MiB.
-        fingerprint=core_file_uploads.sha256_file(incoming_path) if fingerprint else None,
-    )
+        digest = core_file_uploads.sha256_file(incoming_path) if fingerprint else None
+    except Exception:
+        # The caller never receives the path, so nothing else would remove it.
+        core_file_uploads.remove_files([incoming_path])
+        raise
+    return ReceivedUpload(incoming_path=incoming_path, storage_key=storage_key, fingerprint=digest)
 
 
 def store_received_upload(received: ReceivedUpload, storage: platform_providers.StorageProvider) -> str:
