@@ -25,6 +25,8 @@ Choose "Import" in the settings menu, then either upload a ZIP of activity files
 
 - Folder: `data/activity_files/bulk_import/<your user id>/`
 
+The folder is chosen by the account that starts the import, so each user only ever imports the files in their own folder. Files placed in another user's folder are never read.
+
 Files with the extensions .fit, .tcx, .gpx and .gz are imported; other files are ignored and left alone. Folders inside the ZIP or the import folder are fine.
 
 ### Notes on the generic bulk import

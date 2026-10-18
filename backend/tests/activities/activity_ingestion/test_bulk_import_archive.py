@@ -410,6 +410,23 @@ class TestFromFolder:
         assert (row.status, row.error_code) == ("failed", "processing_failed")
         assert (folder / "a.fit").exists()
 
+    def test_another_users_folder_is_neither_imported_nor_consumed(self, tmp_path, factory, storage, pipeline):
+        mine = self._folder(tmp_path, {"mine.fit": b"1"})
+        other = tmp_path / "drop" / str(_USER + 1)
+        other.mkdir(parents=True)
+        (other / "theirs.fit").write_bytes(b"2")
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(bulk.activity_ingestion_dispatch_service.activity_ingestion_background, "submit") as submit,
+        ):
+            bulk.start_from_directory(_USER, "generic", storage, factory())
+            run, *args = submit.call_args.args
+            run(*args)
+
+        assert pipeline == ["mine.fit"]
+        assert not (mine / "mine.fit").exists()
+        assert (other / "theirs.fit").exists()
+
     def test_a_symlink_in_the_folder_is_not_packed(self, tmp_path, factory, storage, pipeline):
         secret = tmp_path / "secret.fit"
         secret.write_bytes(b"outside")

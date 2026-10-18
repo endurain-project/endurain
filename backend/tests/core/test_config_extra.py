@@ -8,6 +8,8 @@ from unittest.mock import patch
 import pytest
 from cryptography.fernet import Fernet
 
+import core.config as core_config
+
 
 class TestLookLikeIp:
     """_looks_like_ip: best-effort IP literal detection."""
@@ -917,3 +919,20 @@ class TestCheckDeprecatedEnvVars:
 
         for retired in ("RATE_LIMIT_STORAGE_URI", "AUTH_SECURITY_STORAGE_URI"):
             assert "REDIS_URL" in DEPRECATED_ENV_VARS[retired]
+
+
+class TestBulkImportDirectoriesArePerUser:
+    def test_each_user_gets_their_own_directory_under_the_base(self):
+        with (
+            patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"),
+            patch("core.config.STRAVA_BULK_IMPORT_DIR", "/data/strava_import"),
+        ):
+            assert core_config.bulk_import_dir_for(1) == "/data/bulk_import/1"
+            assert core_config.bulk_import_dir_for(2) == "/data/bulk_import/2"
+            assert core_config.strava_bulk_import_dir_for(2) == "/data/strava_import/2"
+
+    def test_the_id_can_only_be_a_single_path_segment(self):
+        with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
+            assert core_config.bulk_import_dir_for("7") == "/data/bulk_import/7"
+            with pytest.raises(ValueError):
+                core_config.bulk_import_dir_for("../2")
