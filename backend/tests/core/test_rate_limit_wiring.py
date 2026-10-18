@@ -24,6 +24,8 @@ from collections.abc import Iterator
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from joserfc import jwt
+from joserfc.jwk import OctKey
 from limits import parse as parse_limit
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -270,9 +272,16 @@ def test_the_refusal_is_a_problem_document_with_retry_after(enabled_limiter):
     assert "Retry-After" in refused.headers
 
 
-def test_buckets_are_per_caller_not_global(enabled_limiter):
-    """One user exhausting a tier must not lock everyone else out."""
+def test_buckets_are_per_caller_not_global(enabled_limiter, monkeypatch):
+    """One user exhausting a tier must not lock everyone else out.
+
+    The limiter only buckets by token when the signature verifies, so the callers
+    carry real tokens signed with a key the limiter is pointed at.
+    """
+    key = OctKey.import_key("rate-limit-test-secret-key-min-32-chars")
+    monkeypatch.setattr(core_rate_limit, "_jwt_verification_key", lambda: key)
+    noisy, quiet = (jwt.encode({"alg": "HS256"}, {"sub": sub}, key) for sub in ("noisy", "quiet"))
     client = TestClient(_app_with(core_rate_limit.PROVIDER_SYNC, "probe_per_caller"))
 
-    assert _burst(client, "noisy-caller", 7)[-1] == 429
-    assert _burst(client, "quiet-caller", 1) == [200]
+    assert _burst(client, noisy, 7)[-1] == 429
+    assert _burst(client, quiet, 1) == [200]
