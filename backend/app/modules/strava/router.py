@@ -41,6 +41,18 @@ _GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
 async def strava_link(
     state: str,
     code: str,
+    _validate_access_token: Annotated[
+        Callable,
+        Depends(auth_dependencies.validate_access_token),
+    ],
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_dependencies.check_scopes, scopes=["profile"]),
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_sub_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -49,8 +61,8 @@ async def strava_link(
     # Get the user integrations by the state
     user_integrations = user_integrations_crud.get_user_integrations_by_strava_state(state, db)
 
-    # Check if user integrations is None
-    if user_integrations is None:
+    # The state must belong to the authenticated user
+    if user_integrations is None or user_integrations.user_id != token_user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User integrations not found",
