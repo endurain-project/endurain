@@ -12,6 +12,13 @@ Each can be started two ways:
 
 Both start a background import and show its progress on the page (files imported, files failed, total). You can leave the page; the import continues. Only one bulk import runs per user at a time.
 
+## Duplicate detection
+
+Endurain checks every imported activity, whatever the source (upload, bulk import, Garmin Connect or Strava), so importing the same data twice is safe.
+
+- **Same activity again:** an activity you already have is skipped and nothing new is created. It is recognised by its Strava or Garmin Connect activity id, or, for plain files, by the file's content plus the activity's start time. Re-running a bulk import, or uploading the same file twice, does not create duplicates. A multi-activity `.fit` file is handled per activity.
+- **Same activity from another source:** a file that has no provider id cannot be matched to an activity that came from Garmin Connect or Strava. If its start time matches an existing activity, it is still stored but hidden, and you get a notification about the duplicate.
+
 ## Generic bulk import
 
 Choose "Import" in the settings menu, then either upload a ZIP of activity files, or place them in your folder first:
@@ -25,8 +32,6 @@ Files with the extensions .fit, .tcx, .gpx and .gz are imported; other files are
 .fit files are preferred. Strava and Garmin Connect's conversion of .fit to .gpx introduces additional data into the file, leading to minor variances such as extra meters of distance and elevation gain.
 
 **There is currently no mechanism to undo or revert an import.** Back up your database before importing if you have any doubts about the process or whether duplicates exist.
-
-An import of the same file twice is recognised by the file's content and start time, so re-running an import does not create duplicates. Activities already present from another source (for example Garmin Connect) are imported again, and are hidden with a notification if their start time matches an existing activity.
 
 A file that could not be imported does not stop the others: it is counted as failed, and its bytes are kept in the `bulk_import_errors` storage area under `<user id>/<import id>/<file name>`. A finished import with failed files still shows as completed, with the failure count.
 

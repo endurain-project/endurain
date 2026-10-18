@@ -69,60 +69,9 @@ Endurain uses OAuth-style scopes to control API access. Each scope controls acce
 ### Scope Usage
 Scopes are automatically assigned based on user permissions and are embedded in JWT tokens. API endpoints validate required scopes before processing requests.
 
-## Common Error Responses
+## Error responses
 
-### HTTP Status Codes
-
-| Status Code | Description | Common Causes |
-| ----------- | ----------- | ------------- |
-| `400 Bad Request` | Invalid request format | Missing required fields, invalid JSON, no pending MFA login |
-| `401 Unauthorized` | Authentication failed | Invalid credentials, expired token, invalid MFA code |
-| `403 Forbidden` | Access denied | Invalid client type, insufficient permissions, missing required scope |
-| `404 Not Found` | Resource not found | Invalid session ID, user not found, endpoint doesn't exist |
-| `429 Too Many Requests` | Rate limit exceeded | Too many login attempts, OAuth requests exceeded limit |
-| `500 Internal Server Error` | Server error | Database connection issues, configuration errors |
-
-### Example Error Responses
-
-**Invalid Client Type:**
-
-```json
-{
-  "detail": "Invalid client type"
-}
-```
-
-**Expired Token:**
-
-```json
-{
-  "detail": "Token is expired."
-}
-```
-
-**Invalid Credentials:**
-
-```json
-{
-  "detail": "Unable to authenticate with provided credentials"
-}
-```
-
-**Rate Limit Exceeded:**
-
-```json
-{
-  "detail": "Too many requests. Please try again later."
-}
-```
-
-**Missing Required Scope:**
-
-```json
-{
-  "detail": "Unauthorized Access - Missing permissions: {'activities:write'}"
-}
-```
+All errors, including authentication and authorization failures, use one problem-document shape. See [Errors, concurrency and rate limits](errors-and-limits.md).
 
 ## Best Practices
 

@@ -106,6 +106,7 @@ nav:
     - API keys: integrate/api-keys.md
     - OAuth/SSO and PKCE: integrate/oauth-sso-pkce.md
     - Configuration, scopes and best practices: integrate/auth-reference.md
+    - Errors, concurrency and rate limits: integrate/errors-and-limits.md
     - Supported types: integrate/supported-types.md
   - Contributing:
     - Setup a development environment: developer-guide/setup-dev-env.md
