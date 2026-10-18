@@ -5,6 +5,8 @@ the version a second session sees after the first has committed, which only sepa
 connections can.
 """
 
+import threading
+
 import pytest
 
 import core.exceptions as core_exceptions
@@ -66,3 +68,27 @@ def test_a_background_thumbnail_write_does_not_change_the_version(pg_factory):
 def test_setting_a_thumbnail_key_on_a_deleted_activity_reports_it(pg_factory):
     with pg_factory() as db:
         assert activity_crud.set_activity_thumbnail_key(424242, "424242.webp", db) is False
+
+
+def test_delete_all_waits_for_a_bulk_edit_that_holds_the_rows(pg_factory):
+    """Both take the row locks in id order first, so overlapping bulk writes queue instead of deadlocking."""
+    activity_id = _add_activity(pg_factory)
+    finished = threading.Event()
+    deleted: list[int] = []
+
+    def delete_all() -> None:
+        with pg_factory() as db:
+            deleted.extend(activity_crud.delete_all_activities_for_user(1, db))
+            db.commit()
+        finished.set()
+
+    with pg_factory() as editor:
+        activity_crud.edit_user_activities_visibility(1, 2, editor)
+        worker = threading.Thread(target=delete_all)
+        worker.start()
+        assert not finished.wait(timeout=1)
+        editor.commit()
+
+    worker.join(timeout=10)
+    assert finished.is_set()
+    assert deleted == [activity_id]

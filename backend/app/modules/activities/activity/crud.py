@@ -1614,6 +1614,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session) -> list[int
         The IDs of the deleted activities, so the caller can publish the cleanup
         events that reclaim each activity's thumbnail and stored source file.
     """
+    _lock_user_activities(user_id, db)
     stmt = (
         sa_delete(activity_models.Activity)
         .where(
@@ -1640,6 +1641,7 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> list[int]:
     Returns:
         The IDs of the deleted activities.
     """
+    _lock_user_activities(user_id, db)
     stmt = (
         sa_delete(activity_models.Activity)
         .where(activity_models.Activity.user_id == user_id)
