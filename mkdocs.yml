@@ -30,7 +30,11 @@ theme:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.snippets:
       base_path: ["docs"]
 hooks:
@@ -106,6 +110,7 @@ nav:
   - Contributing:
     - Setup a development environment: developer-guide/setup-dev-env.md
     - Module structure: developer-guide/module-structure.md
+    - Activity ingestion: developer-guide/activity-ingestion.md
     - Auth boundary: developer-guide/auth-boundary.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
   - Backend reference:

@@ -17,6 +17,57 @@ Without a Redis event bus, subscribers run on a small in-process thread pool (tw
 
 Every derived-work subscriber also has a scheduled backfill, so a lost event is repaired in either mode. Durable mode makes recovery faster and visible; it is not required for correctness.
 
+## How events are delivered
+
+When an activity is stored, Endurain publishes an event such as `activity.created`. Subscribers (thumbnails, geocoding, notifications) react to it. Where the event goes depends on your settings.
+
+### Default: one process
+
+```mermaid
+flowchart LR
+    API[API request] --> DB[(PostgreSQL)]
+    API -- after commit --> BUS[In-process event bus]
+    BUS --> POOL[Thread pool, 2 threads]
+    POOL --> W[Thumbnail, geocoding, notifications]
+    W --> FS[(Local disk)]
+    SCHED[Scheduled backfills] -. repair missed work .-> W
+```
+
+A failure is logged and swallowed. The backfill repairs anything that was lost, for example after a restart.
+
+### Durable jobs with a dedicated worker
+
+```mermaid
+flowchart LR
+    API[API container] -- same transaction --> DB[(PostgreSQL outbox)]
+    DB --> RELAY[Relay]
+    RELAY --> JOBS[(Per-subscriber jobs)]
+    WK[Worker container] -- claims with a lease --> JOBS
+    WK -- retry with backoff, then dead-letter --> JOBS
+    API <-- shared state --> R[(Redis)]
+    WK <-- shared state --> R
+```
+
+The event is written in the same transaction as the activity, so it cannot be lost. A worker claims jobs with a lease and renews it while it runs. If it dies, the reaper requeues its jobs.
+
+### Distributed
+
+```mermaid
+flowchart TB
+    LB[Load balancer] --> A1[API replica 1]
+    LB --> A2[API replica 2]
+    A1 & A2 --> PG[(PostgreSQL)]
+    A1 & A2 --> RD[(Redis: state and events)]
+    A1 & A2 --> S3[(S3-compatible storage)]
+    PG --> W1[Worker 1]
+    PG --> W2[Worker 2]
+    W1 & W2 --> RD
+    W1 & W2 --> S3
+    W1 & W2 -. advisory lock .-> PG
+```
+
+Replicas share no local state: rate limits, login lockout and pending MFA live in Redis, files live in the bucket, and a PostgreSQL advisory lock makes sure a scheduled job runs on one replica at a time.
+
 ## Choosing a deployment shape
 
 | Shape | Use when | Needed |
