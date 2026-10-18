@@ -192,12 +192,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 Require JWT authentication with the standard `X-Client-Type` requirement; state-changing web requests must include `X-CSRF-Token`. API keys cannot manage other API keys.
 
-| Method | Url | Description |
-| ------ | --- | ----------- |
-| `GET` | `/profile/api_keys` | List all API keys for the authenticated user |
-| `POST` | `/profile/api_keys` | Create a new API key |
-| `PATCH` | `/profile/api_keys/{id}/revoke` | Revoke (deactivate) a key |
-| `DELETE` | `/profile/api_keys/{id}` | Permanently delete a key |
+<!-- generated:api-key-endpoints -->
 
 ### Example Resource Endpoints
 

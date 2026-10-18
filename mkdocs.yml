@@ -33,6 +33,8 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.snippets:
       base_path: ["docs"]
+hooks:
+  - mkdocs_hooks/auth_docs.py
 extra_css:
   - stylesheets/extra.css
 extra_javascript:

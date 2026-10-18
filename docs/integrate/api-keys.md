@@ -25,9 +25,7 @@ API keys are granted one or more API-key scopes at creation time. Currently only
 
 The key-management API rejects any requested scope outside the API-key allow-list. This keeps long-lived API keys limited to the endpoint that currently supports API-key authentication.
 
-| Scope | Description |
-| ----- | ----------- |
-| `activities:upload` | Upload activity files (.gpx, .tcx, .fit, .gz) |
+<!-- generated:api-key-scopes -->
 
 ## How to Authenticate with an API Key
 
