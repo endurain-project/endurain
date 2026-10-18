@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated
@@ -194,7 +195,9 @@ async def login_for_access_token(
 
     # Authenticate user
     try:
-        user = auth_utils.authenticate_user(form_data.username, form_data.password, password_hasher, db)
+        user = await asyncio.to_thread(
+            auth_utils.authenticate_user, form_data.username, form_data.password, password_hasher, db
+        )
     except HTTPException as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
@@ -359,7 +362,7 @@ async def verify_mfa_and_login(
         # wrong code" branch (where backup-code verification performs
         # an Argon2 verify). Without this, an attacker could enumerate
         # which usernames are mid-login by measuring response time.
-        password_hasher.dummy_verify()
+        await asyncio.to_thread(password_hasher.dummy_verify)
         logger.warning(f"No pending MFA login found for {username_log_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -635,7 +638,7 @@ async def refresh_token(
             replay_csrf_token,
         )
 
-    is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
+    is_valid = await asyncio.to_thread(password_hasher.verify_password, refresh_token_value, session.refresh_token)
 
     if not is_valid:
         raise HTTPException(
@@ -775,7 +778,7 @@ async def logout(
             )
 
         # Verify the refresh token
-        is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
+        is_valid = await asyncio.to_thread(password_hasher.verify_password, refresh_token_value, session.refresh_token)
 
         # If the refresh token is not valid, raise an exception
         if not is_valid:
