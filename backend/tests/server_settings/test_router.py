@@ -34,7 +34,7 @@ class TestReadServerSettings:
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
-            tileserver_url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
             tileserver_attribution="&copy; OpenStreetMap",
             map_background_color="#dddddd",
             password_type="strict",
@@ -88,7 +88,7 @@ class TestListTileMapsTemplates:
             server_settings_schema.TileMapsTemplate(
                 template_id="openstreetmap",
                 name="OpenStreetMap",
-                url_template="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 attribution="&copy; OpenStreetMap",
                 map_background_color="#e8e8e8",
                 requires_api_key_frontend=False,

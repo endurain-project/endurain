@@ -32,7 +32,7 @@ class TestReadPublicServerSettings:
         mock_settings.sso_enabled = False
         mock_settings.local_login_enabled = True
         mock_settings.sso_auto_redirect = False
-        mock_settings.tileserver_url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        mock_settings.tileserver_url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         mock_settings.tileserver_attribution = "&copy; OpenStreetMap"
         mock_settings.map_background_color = "#dddddd"
         mock_settings.password_type = "strict"
@@ -81,7 +81,7 @@ class TestListTileMapsTemplatesPublic:
             server_settings_schema.TileMapsTemplate(
                 template_id="openstreetmap",
                 name="OpenStreetMap",
-                url_template="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 attribution="&copy; OpenStreetMap",
                 map_background_color="#e8e8e8",
                 requires_api_key_frontend=False,

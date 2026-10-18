@@ -170,6 +170,17 @@ class TestExtractDomainFromTileUrl:
         # Assert
         assert result == "https://*.openstreetmap.org"
 
+    def test_extract_domain_without_subdomain(self):
+        """Test the default single-host OSM URL maps to a wildcard covering its host."""
+        # Arrange
+        url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+        # Act
+        result = server_settings_utils.extract_domain_from_tile_url(url)
+
+        # Assert
+        assert result == "https://*.openstreetmap.org"
+
     def test_extract_domain_with_s_placeholder(self):
         """Test domain extraction handles {s} placeholder."""
         # Arrange

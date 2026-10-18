@@ -24,7 +24,7 @@ export type LatLngTuple = [number, number]
 
 /** Tile-server configuration for the Leaflet provider. */
 export interface LeafletMapProviderConfig {
-  /** Tile URL template (supports Leaflet's `{s}`, `{z}`, `{x}`, `{y}`). */
+  /** Tile URL template with `{z}`, `{x}`, `{y}`; Leaflet's `{s}` subdomain placeholder also works for custom providers. */
   tileUrl?: string
   /** Attribution HTML shown in the map corner. */
   attribution?: string

@@ -46,7 +46,8 @@ def _normalise_tile_url(url: str) -> str:
     Returns:
         Tile URL safe for use with staticmap.
     """
-    # Replace {s} with a fixed subdomain
+    # The OSM default no longer uses {s}, but custom providers and older
+    # stored URLs may; staticmap can't rotate subdomains, so pin it to 'a'.
     url = re.sub(r"\{s\}", "a", url)
     # Remove {r} retina placeholder (e.g. Stadia Maps)
     url = re.sub(r"\{r\}", "", url)
