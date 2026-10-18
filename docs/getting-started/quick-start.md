@@ -1,18 +1,18 @@
-# Getting started
+# Quick start
 
-Welcome to the guide for getting started on hosting your own production instance of Endurain. Like many other services, Endurain is easiest to get up and running trough Docker compose. It is possible to get Endurain up and running without a domain and reverse proxy, but this guide assumes you want to use a reverse proxy and your domain. Endurain can run on any computer that support OCI containers, but in this guide we are using Debian 13 (should also work with 12).
+This guide covers hosting your own production instance of Endurain with Docker Compose. You can run Endurain without a domain and reverse proxy, but this guide assumes you will add both afterwards (see [Reverse proxy](reverse-proxy.md)). Endurain runs on any machine that supports OCI containers. The examples use Debian 13 (Debian 12 should also work).
 
 ## Prerequisites
-* Domain name pointed to your external IP address.
-* Open FW rules to your server on port 443 and 80. (trough NAT if you are running ipv4)
-* A computer/server with enough disk space for your activity files.
-* A Linux distro that has `docker compose` cli, and `caddy` in the repositories.
 
+* A domain name pointing to your external IP address.
+* Firewall rules (and NAT, if you are on IPv4) that allow ports 80 and 443 to your server.
+* A server with enough disk space for your activity files.
+* A Linux distribution that provides the `docker compose` CLI.
 
-## Installing Docker and Caddy reverse proxy
+## Installing Docker
 
-Note:
-If you have a old-ish distro (Ubuntu 22.04 and older) you need to add the repo for Docker. Read how to do it on [Docker](https://docs.docker.com/compose/install/linux/) documentation. For newer distroes (Debian 13 and Ubuntu 24.04 it is not expected for you to have to do this step).
+!!! note
+    On older distributions (Ubuntu 22.04 and older) you need to add Docker's repository first, as described in the [Docker documentation](https://docs.docker.com/compose/install/linux/). This is not needed on Debian 13 or Ubuntu 24.04.
 
 Install Docker:
 
@@ -28,20 +28,6 @@ id
 ```
 
 The container runs as a non-root user. The default container UID is 1000, matching the most common host user. If your host user has a different UID, use `user: '<UID>:<GID>'` in `docker-compose.yml` and ensure your bind-mounted directories are writable by that user.
-
-## Installing Caddy reverse proxy
-
-Note:
-If you have a old-ish distro (Ubuntu 22.04 and older) you need to add the repo for Caddy. Read how to do it on [Caddy](https://caddyserver.com/docs/install#debian-ubuntu-raspbian) documentation. For newer distroes (Debian 13 and Ubuntu 24.04 it is not expected for you to have to do this step).
-
-```bash
-sudo apt update -y
-sudo apt install caddy -y
-```
-
-## Installing Nginx Proxy Manager reverse proxy
-
-Nginx Proxy Manager comes as a pre-built Docker image. Please refer to the [docs](https://nginxproxymanager.com/guide/) for details on how to install it.
 
 ## Create directory structure
 
@@ -154,154 +140,19 @@ sudo docker compose up -d
 
 ### Visit the site
 
-* Visit the site insecurly on `http://<IP-OF-YOUR-SERVER>:8080`
-* We still can not login to the site, because the `ENDURAIN_HOST` doesn't match our local URL.
+* Open `http://<IP-OF-YOUR-SERVER>:8080` (unencrypted).
+* You cannot log in yet, because `ENDURAIN_HOST` does not match this URL. Set up a [reverse proxy](reverse-proxy.md) next.
 
-## Configure a reverse proxy
+## Default credentials
 
-* Before we configure a reverse proxy you need to set your DNS provider to point your domain to your external IP.
-* You also need to open your firewall on port 443 and 80 to the server.
+After setup, log in with the credentials below and change the password right away.
 
-###  Configure Caddy as reverse proxy and get SSL cert from letsencrypt
-
-We use Caddy outside docker. This way Debian handles the updates (you just need to run `sudo apt update -y` and `sudo apt upgrade -y`)
-
-Caddy is configured in the file `/etc/caddy/Caddyfile`
-
-Open the file in your favourite editor, delete the default text, and paste in this:
-
-```conf
-endurain.yourdomain.com {
-        reverse_proxy localhost:8080
-}
-```
-
-Restart Caddy
-
-```bash
-sudo systemctl restart caddy
-```
-
-Check the ouput of Caddy with:
-
-```bash
-sudo journalctl -u caddy
-```
-
-###  Configure Nginx Proxy Manager as reverse proxy and get SSL cert from letsencrypt
-
-Below is an example config file for Endurain. This is the content of the **Advanced**
-tab of the proxy host in Nginx Proxy Manager. The section labels shown in the NPM UI
-(`Let's Encrypt SSL`, `Asset Caching`, etc.) are comments and **must** be prefixed with
-`#`, otherwise Nginx will fail to start with an `unknown directive` error.
-
-```conf
-# ------------------------------------------------------------
-# endurain.yourdomain.com
-# ------------------------------------------------------------
-
-map $scheme $hsts_header {
-    https "max-age=63072000; preload";
-}
-
-server {
-    set $forward_scheme http;
-    set $server "your_server_ip";
-    set $port 8884;
-
-    listen 80;
-    listen [::]:80;
-
-    listen 443 ssl;
-    listen [::]:443 ssl;
-
-    server_name endurain.yourdomain.com;
-
-    http2 on;
-    # Let's Encrypt SSL
-
-    include conf.d/include/letsencrypt-acme-challenge.conf;
-    include conf.d/include/ssl-cache.conf;
-    include conf.d/include/ssl-ciphers.conf;
-    ssl_certificate /etc/letsencrypt/live/npm-21/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/npm-21/privkey.pem;
-    # Asset Caching
-
-    include conf.d/include/assets.conf;
-    # Block Exploits
-
-    include conf.d/include/block-exploits.conf;
-    # HSTS (ngx_http_headers_module is required) (63072000 seconds = 2 years)
-
-    add_header Strict-Transport-Security $hsts_header always;
-    # Force SSL
-
-    include conf.d/include/force-ssl.conf;
-
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $http_connection;
-    proxy_http_version 1.1;
-
-    access_log /data/logs/proxy-host-18_access.log proxy;
-    error_log /data/logs/proxy-host-18_error.log warn;
-
-    location / {
-        # HSTS (ngx_http_headers_module is required) (63072000 seconds = 2 years)
-
-        add_header Strict-Transport-Security $hsts_header always;
-
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $http_connection;
-        proxy_http_version 1.1;
-        # Proxy!
-
-        include conf.d/include/proxy.conf;
-    }
-    # Custom
-
-    include /data/nginx/custom/server_proxy.conf;
-}
-```
-
-## Access your Endurain instance
-
-You should now be able to access your site on endurain.yourdomain.com
-
-**Log in with username: admin password: admin, and remember to change the password**
-
-🎉 **Weee** 🎉 You now have your own instance of Endurain up and running!
-
-## How to update
-
-* Take a backup of your files and db.
-* Check for new releases of the container image [here](https://github.com/endurain-project/endurain). Read release notes carefully for breaking changes.
-* Log on your server and run:
-* In docker-compose.yml, update the image tag. If you are running the `:latest` tag, no changes are needed.
-
-
-```bash
-cd /var/opt/endurain
-sudo docker compose pull
-sudo docker compose up -d
-```
-
-The same is the case for Postgres. Check for breaking changes in release notes on [Postgres Website](https://www.postgresql.org/docs/release/).
-
-** It is generally pretty safe to upgrade postgres minor version f.eks 17.4 to 17.5, but major is often breaking change (example 17.2 to 18.1 )
-
-
-## Things to think about
-
-You should implement backup strategy for the following directories:
-
-```bash
-/var/opt/endurain/backend/data
-/var/opt/endurain/backend/logs
-```
-
-You also need to backup your postgres database. It is not good practice to just backup the volume `/var/opt/endurain/postgres` — this might be corrupted if the database is in the middle of a write when it goes down.
-
-## Default Credentials
-
-- **Username:** admin  
+- **Username:** admin
 - **Password:** admin
+
+## Next steps
+
+* [Reverse proxy](reverse-proxy.md): Caddy or Nginx Proxy Manager with a Let's Encrypt certificate.
+* [Updates and backups](operations.md)
+* [Advanced setup](advanced-setup.md): all environment variables.
+* [Scaling and background jobs](scaling-and-background-jobs.md)

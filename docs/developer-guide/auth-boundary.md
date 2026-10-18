@@ -150,4 +150,4 @@ enabled, but an SSO-only user with no MFA configured receives no step-up challen
 
 The correct fix is to require a fresh IdP re-authentication for SSO-only accounts
 on the same sensitive-endpoint set. This is not yet implemented.
-TODO(issue): create and link a tracker issue for fresh IdP re-auth on SSO-only step-up.
+Tracked in [issue 657](https://github.com/endurain-project/endurain/issues/657).

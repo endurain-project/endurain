@@ -81,6 +81,8 @@ nav:
   - Home: index.md
   - Getting started:
     - Quick start: getting-started/quick-start.md
+    - Reverse proxy: getting-started/reverse-proxy.md
+    - Updates and backups: getting-started/operations.md
     - Advanced setup: getting-started/advanced-setup.md
     - Scaling and background jobs: getting-started/scaling-and-background-jobs.md
     - Bare-metal installation: getting-started/bare-metal.md
@@ -114,6 +116,5 @@ nav:
     - Notifications: reference/notifications.md
     - Server settings: reference/server-settings.md
     - WebSocket: reference/websocket.md
-  - Blog:
-    - blog/index.md
+  - Blog: blog/index.md
   - Privacy policy: privacy/mobile-app-privacy-policy.md

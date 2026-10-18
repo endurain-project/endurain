@@ -79,7 +79,7 @@ Endurain currently supports:
 - Define and track goals
 - MFA TOTP support
 - Password reset through email link. Uses Apprise for email notifications
-- Sign-up with configurable email verification and admin approva
+- Sign-up with configurable email verification and admin approval
 - SSO support (OIDC/SAML)
 
 ## Planned features

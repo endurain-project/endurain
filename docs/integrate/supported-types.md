@@ -1,7 +1,7 @@
 # Supported types within Endurain
 
 ## Supported activity types
-The table bellow details the activity types supported by Endurain.
+The table below details the activity types supported by Endurain.
 
 | Name | Value |
 | ---- | --- |
@@ -55,7 +55,7 @@ The table bellow details the activity types supported by Endurain.
 
 
 ## Supported gear types
-The table bellow details the gear types supported by Endurain.
+The table below details the gear types supported by Endurain.
 
 | Name               | Value | Notes                                   |
 |--------------------|-------|-----------------------------------------|
@@ -70,7 +70,7 @@ The table bellow details the gear types supported by Endurain.
 
 
 ## Supported bike component gear types
-The table bellow details the bike gear component types supported by Endurain:
+The table below details the bike gear component types supported by Endurain:
 
 | Value                       |
 |-----------------------------|
@@ -121,7 +121,7 @@ The table bellow details the bike gear component types supported by Endurain:
 
 
 ## Supported shoes component gear types
-The table bellow details the shoes component gear types supported by Endurain:
+The table below details the shoes component gear types supported by Endurain:
 
 | Value                       |
 |-----------------------------|
@@ -131,7 +131,7 @@ The table bellow details the shoes component gear types supported by Endurain:
 
 
 ## Supported racquet component gear types
-The table bellow details the racquet component gear types supported by Endurain:
+The table below details the racquet component gear types supported by Endurain:
 
 | Value                       |
 |-----------------------------|
@@ -143,7 +143,7 @@ The table bellow details the racquet component gear types supported by Endurain:
 
 
 ## Supported windsurf component gear types
-The table bellow details the windsurf component gear types supported by Endurain:
+The table below details the windsurf component gear types supported by Endurain:
 
 | Value                       |
 |-----------------------------|
