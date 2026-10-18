@@ -338,14 +338,14 @@ class TestGetComponentsActivityStats:
             2: activity_contracts.ActivityUsageTotals(distance=5000.0, time=1800.0),
         }
 
-        r = crud.get_components_activity_stats(gear_id=1, db=mock_db)
+        r = crud.get_components_activity_stats(gear_id=1, user_id=1, db=mock_db)
 
         assert r == {
             1: {"distance": 10000.0, "time": 3600.0},
             2: {"distance": 5000.0, "time": 1800.0},
         }
         # Each component becomes one window; the activities module owns the join.
-        windows = mock_activities.get_gear_usage_totals_by_window.call_args.args[1]
+        windows = mock_activities.get_gear_usage_totals_by_window.call_args.args[2]
         assert [w.key for w in windows] == [1, 2]
         assert windows[0].end_date is None
         assert windows[1].end_date == date(2024, 9, 1)
@@ -356,7 +356,7 @@ class TestGetComponentsActivityStats:
 
         mock_db.execute.return_value.all.return_value = []
         mock_activities.get_gear_usage_totals_by_window.return_value = {}
-        r = crud.get_components_activity_stats(gear_id=1, db=mock_db)
+        r = crud.get_components_activity_stats(gear_id=1, user_id=1, db=mock_db)
         assert r == {}
 
     def test_db_error(self, mock_db):
@@ -364,7 +364,7 @@ class TestGetComponentsActivityStats:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_components_activity_stats(gear_id=1, db=mock_db)
+            crud.get_components_activity_stats(gear_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
@@ -393,8 +393,8 @@ class TestComponentWindowIsLocal:
         ]
         mock_activities.get_gear_usage_totals_by_window.return_value = {}
 
-        crud.get_components_activity_stats(gear_id=1, db=db)
+        crud.get_components_activity_stats(gear_id=1, user_id=1, db=db)
 
-        window = mock_activities.get_gear_usage_totals_by_window.call_args.args[1][0]
+        window = mock_activities.get_gear_usage_totals_by_window.call_args.args[2][0]
         assert window.start_date == date(2024, 3, 4)
         assert window.end_date == date(2024, 5, 6)

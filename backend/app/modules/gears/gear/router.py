@@ -163,6 +163,7 @@ async def read_gear_id(
 
     activity_stats = gears_crud.get_gear_activity_stats(
         gear_id,
+        token_user_id,
         db,
     )
     components_cost = gears_crud.get_gear_components_total_cost(

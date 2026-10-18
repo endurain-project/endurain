@@ -134,6 +134,7 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema
 @core_decorators.handle_db_errors
 def get_gear_activity_stats(
     gear_id: int,
+    user_id: int,
     db: Session,
 ) -> dict[str, float]:
     """
@@ -144,6 +145,7 @@ def get_gear_activity_stats(
 
     Args:
         gear_id: Gear ID to aggregate.
+        user_id: Owner user ID; only their activities count.
         db: Database session.
 
     Returns:
@@ -153,7 +155,7 @@ def get_gear_activity_stats(
     Raises:
         HTTPException: On database error.
     """
-    totals = activity_integration.get_gear_usage_totals(gear_id, db)
+    totals = activity_integration.get_gear_usage_totals(gear_id, user_id, db)
     return {
         "total_distance": totals.distance,
         "total_time": totals.time,

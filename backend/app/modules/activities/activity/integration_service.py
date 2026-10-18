@@ -113,21 +113,23 @@ def bulk_set_activities_gear(
     )
 
 
-def get_gear_usage_totals(gear_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
-    """Return the total distance and moving time recorded against a gear.
+def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
+    """Return the total distance and moving time a user recorded against a gear.
 
     Args:
         gear_id: The gear to accumulate usage for.
+        user_id: The gear's owner; only their activities count.
         db: Database session.
 
     Returns:
         The gear's totals; zeroes when it has no activities.
     """
-    return activity_crud.sum_gear_usage(gear_id, db)
+    return activity_crud.sum_gear_usage(gear_id, user_id, db)
 
 
 def get_gear_usage_totals_by_window(
     gear_id: int,
+    user_id: int,
     windows: Sequence[activity_contracts.GearUsageWindow],
     db: Session,
 ) -> dict[int, activity_contracts.ActivityUsageTotals]:
@@ -140,6 +142,7 @@ def get_gear_usage_totals_by_window(
 
     Args:
         gear_id: The gear whose activities to accumulate.
+        user_id: The gear's owner; only their activities count.
         windows: The date windows to accumulate over, keyed by the caller.
         db: Database session.
 
@@ -147,7 +150,7 @@ def get_gear_usage_totals_by_window(
         Totals per window key; every requested key is present, zeroed when the
         window matched nothing.
     """
-    return activity_crud.sum_gear_usage_by_window(gear_id, windows, db)
+    return activity_crud.sum_gear_usage_by_window(gear_id, user_id, windows, db)
 
 
 def list_user_activities_page(

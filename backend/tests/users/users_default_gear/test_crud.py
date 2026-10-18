@@ -138,8 +138,9 @@ class TestCreateUserDefaultGear:
 class TestEditUserDefaultGear:
     """Test suite for edit_user_default_gear function."""
 
+    @patch("modules.users.users_default_gear.crud.gears_dependencies")
     @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
-    def test_edit_user_default_gear_success(self, mock_get_gear, mock_db):
+    def test_edit_user_default_gear_success(self, mock_get_gear, _mock_gears, mock_db):
         """Test successful update of user default gear."""
         # Arrange
         user_id = 1
@@ -161,8 +162,24 @@ class TestEditUserDefaultGear:
         assert result == mock_db_gear
         mock_db.commit.assert_called_once()
 
+    @patch("modules.users.users_default_gear.crud.gears_dependencies")
     @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
-    def test_edit_user_default_gear_not_found(self, mock_get_gear, mock_db):
+    def test_edit_user_default_gear_rejects_a_gear_the_user_does_not_own(self, mock_get_gear, mock_gears, mock_db):
+        """A foreign gear id is refused and nothing is written."""
+        gear_update = user_default_gear_schema.UsersDefaultGearUpdate(id=1, user_id=1, run_gear_id=10)
+        mock_db_gear = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
+        mock_get_gear.return_value = mock_db_gear
+        mock_gears.require_owned_gears.side_effect = core_exceptions.NotFoundError("Gear not found")
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            user_default_gear_crud.edit_user_default_gear(gear_update, 1, mock_db)
+
+        assert list(mock_gears.require_owned_gears.call_args.args[1]) == [10]
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.users.users_default_gear.crud.gears_dependencies")
+    @patch("modules.users.users_default_gear.crud._get_user_default_gear_model_by_user_id_or_404")
+    def test_edit_user_default_gear_not_found(self, mock_get_gear, _mock_gears, mock_db):
         """Test update fails when gear settings not found."""
         # Arrange
         user_id = 1

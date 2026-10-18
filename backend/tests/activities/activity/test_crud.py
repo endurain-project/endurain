@@ -1521,12 +1521,17 @@ class TestSumGearUsageByWindow:
         db.get_bind.return_value.dialect.name = "postgresql"
         db.execute.return_value.one.return_value = [0] * (2 * len(windows))
 
-        crud.sum_gear_usage_by_window(1, windows, db)
+        crud.sum_gear_usage_by_window(1, 1, windows, db)
 
         from sqlalchemy.dialects import postgresql
 
         statement = db.execute.call_args.args[0]
         return str(statement.compile(dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    def test_only_the_gear_owners_activities_count(self):
+        sql = self._emitted_sql([self._window()])
+
+        assert "activities.user_id = 1" in sql
 
     def _window(self, **overrides):
         import modules.activities.activity.contracts as contracts
@@ -1559,7 +1564,7 @@ class TestSumGearUsageByWindow:
         import modules.activities.activity.crud as crud
 
         db = MagicMock()
-        assert crud.sum_gear_usage_by_window(1, [], db) == {}
+        assert crud.sum_gear_usage_by_window(1, 1, [], db) == {}
         db.execute.assert_not_called()
 
     def test_every_requested_key_is_returned(self):
@@ -1569,7 +1574,7 @@ class TestSumGearUsageByWindow:
         db.get_bind.return_value.dialect.name = "sqlite"
         db.execute.return_value.one.return_value = [10.0, 60.0, 0, 0]
 
-        result = crud.sum_gear_usage_by_window(1, [self._window(key=1), self._window(key=2)], db)
+        result = crud.sum_gear_usage_by_window(1, 1, [self._window(key=1), self._window(key=2)], db)
 
         assert result[1].distance == 10.0
         assert result[1].time == 60.0

@@ -255,6 +255,25 @@ class TestEditPublishesUpdated:
         mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, if_match=None)
         mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, db, changed_fields=["name"])
 
+    @patch("modules.activities.activity.service.gears_dependencies")
+    @patch("modules.activities.activity.service.activity_event_publishers")
+    @patch("modules.activities.activity.service.activity_crud")
+    def test_a_gear_the_caller_does_not_own_is_refused_before_anything_is_written(
+        self, mock_crud, mock_publishers, mock_gears
+    ):
+        import modules.activities.activity.schema as activity_schema
+        from modules.activities.activity import service
+
+        mock_gears.require_owned_gears.side_effect = core_exceptions.NotFoundError("Gear not found")
+        db = MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.edit_activity(5, 1, activity_schema.ActivityEdit(gear_id=9), db)
+
+        mock_gears.require_owned_gears.assert_called_once_with(1, [9], db)
+        mock_crud.edit_activity.assert_not_called()
+        mock_publishers.publish_activity_updated.assert_not_called()
+
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
     def test_stale_flush_on_a_deleted_activity_is_a_404_not_a_412(self, mock_crud, _publishers):

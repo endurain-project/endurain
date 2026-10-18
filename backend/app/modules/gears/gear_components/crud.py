@@ -271,6 +271,7 @@ def delete_gear_component(
 @core_decorators.handle_db_errors
 def get_components_activity_stats(
     gear_id: int,
+    user_id: int,
     db: Session,
 ) -> dict[int, dict[str, float]]:
     """
@@ -289,6 +290,7 @@ def get_components_activity_stats(
 
     Args:
         gear_id: Gear ID to query.
+        user_id: Owner user ID; only their activities count.
         db: Database session.
 
     Returns:
@@ -314,7 +316,7 @@ def get_components_activity_stats(
         for row in db.execute(comp_stmt).all()
     ]
 
-    totals = activity_integration.get_gear_usage_totals_by_window(gear_id, windows, db)
+    totals = activity_integration.get_gear_usage_totals_by_window(gear_id, user_id, windows, db)
     return {
         key: {
             "distance": usage.distance,

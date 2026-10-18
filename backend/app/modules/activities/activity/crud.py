@@ -714,14 +714,16 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
     )
 
 
-def sum_gear_usage(gear_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
-    """Total distance and moving time recorded against a gear.
+def sum_gear_usage(gear_id: int, user_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
+    """Total distance and moving time a user recorded against a gear.
 
     Lives here rather than in the gears module so the activities table is only
-    ever queried by its owner.
+    ever queried by its owner. Only the gear owner's own activities count, so an
+    activity another user linked to this gear never inflates its totals.
 
     Args:
         gear_id: The gear to accumulate usage for.
+        user_id: The gear's owner.
         db: Database session.
 
     Returns:
@@ -730,13 +732,14 @@ def sum_gear_usage(gear_id: int, db: Session) -> activity_contracts.ActivityUsag
     stmt = select(
         func.coalesce(func.sum(activity_models.Activity.distance), 0),
         func.coalesce(func.sum(activity_models.Activity.total_timer_time), 0),
-    ).where(activity_models.Activity.gear_id == gear_id)
+    ).where(activity_models.Activity.gear_id == gear_id, activity_models.Activity.user_id == user_id)
     distance, moving_time = db.execute(stmt).one()
     return activity_contracts.ActivityUsageTotals(distance=float(distance), time=float(moving_time))
 
 
 def sum_gear_usage_by_window(
     gear_id: int,
+    user_id: int,
     windows: Sequence[activity_contracts.GearUsageWindow],
     db: Session,
 ) -> dict[int, activity_contracts.ActivityUsageTotals]:
@@ -748,8 +751,11 @@ def sum_gear_usage_by_window(
     another round trip. Windows are matched against each activity's **local** date
     (see :class:`~modules.activities.activity.contracts.GearUsageWindow`).
 
+    Only the gear owner's own activities count, as in :func:`sum_gear_usage`.
+
     Args:
         gear_id: The gear whose activities to accumulate.
+        user_id: The gear's owner.
         windows: The date windows to accumulate over, keyed by the caller.
         db: Database session.
 
@@ -772,7 +778,9 @@ def sum_gear_usage_by_window(
             func.coalesce(func.sum(case((in_window, activity_models.Activity.total_timer_time), else_=0)), 0)
         )
 
-    stmt = select(*columns).where(activity_models.Activity.gear_id == gear_id)
+    stmt = select(*columns).where(
+        activity_models.Activity.gear_id == gear_id, activity_models.Activity.user_id == user_id
+    )
     row = db.execute(stmt).one()
 
     return {

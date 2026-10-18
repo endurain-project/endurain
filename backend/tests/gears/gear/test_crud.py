@@ -41,14 +41,14 @@ class TestGetGearActivityStats:
         import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.one.return_value = (50000.0, 7200.0)
-        r = crud.get_gear_activity_stats(gear_id=1, db=mock_db)
+        r = crud.get_gear_activity_stats(gear_id=1, user_id=1, db=mock_db)
         assert r == {"total_distance": 50000.0, "total_time": 7200.0}
 
     def test_zero_values(self, mock_db):
         import modules.gears.gear.crud as crud
 
         mock_db.execute.return_value.one.return_value = (0.0, 0.0)
-        r = crud.get_gear_activity_stats(gear_id=1, db=mock_db)
+        r = crud.get_gear_activity_stats(gear_id=1, user_id=1, db=mock_db)
         assert r == {"total_distance": 0.0, "total_time": 0.0}
 
     def test_db_error(self, mock_db):
@@ -56,7 +56,7 @@ class TestGetGearActivityStats:
 
         mock_db.execute.side_effect = SQLAlchemyError("err")
         with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_activity_stats(gear_id=1, db=mock_db)
+            crud.get_gear_activity_stats(gear_id=1, user_id=1, db=mock_db)
         assert e.value.status_code == 500
 
 
