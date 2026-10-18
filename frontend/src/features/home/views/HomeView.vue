@@ -7,6 +7,7 @@ import type { LucideIcon } from '@lucide/vue'
 import HomeProfileCard from '@/features/home/components/HomeProfileCard.vue'
 import UserDistanceStats from '@/features/home/components/UserDistanceStats.vue'
 import UserGoalResults from '@/features/home/components/UserGoalResults.vue'
+import WeeklyStreakCard from '@/features/streaks/components/WeeklyStreakCard.vue'
 import HomeActivityCard from '@/features/home/components/HomeActivityCard.vue'
 import HomeActivityCardSkeleton from '@/features/home/components/HomeActivityCardSkeleton.vue'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ import {
   useRefreshActivitiesMutation,
   useUserActivitiesFeed,
 } from '@/features/home/composables/useHome'
+import { useMyWeeklyStreakQuery } from '@/features/streaks/composables/useStreaks'
 
 const { t } = useI18n()
 const toasts = useToasts()
@@ -45,6 +47,9 @@ const canRefresh = computed(
 // --- Distance stats (left) ---
 const weekStats = useActivityStatsQuery(currentUserId, 'week')
 const monthStats = useActivityStatsQuery(currentUserId, 'month')
+
+// --- Weekly streak (left) ---
+const weeklyStreak = useMyWeeklyStreakQuery()
 
 // --- Goal results (right) ---
 const goalResults = useGoalResultsQuery()
@@ -213,6 +218,12 @@ function onRefresh(): void {
           @change="onFileChange"
         />
       </Card>
+
+      <!-- Weekly streak — shown on every screen size. -->
+      <WeeklyStreakCard
+        :streak="weeklyStreak.data.value"
+        :is-loading="weeklyStreak.isLoading.value"
+      />
 
       <!-- Distance stats — hidden on small screens. -->
       <div class="hidden lg:block">

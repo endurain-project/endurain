@@ -524,6 +524,22 @@
       "createSuccess": "Ziel hinzugefügt",
       "updateSuccess": "Ziel aktualisiert",
       "saveError": "Ziel konnte nicht gespeichert werden. Bitte versuche es erneut."
+    },
+    "streak": {
+      "title": "Wochen-Serie",
+      "subtitle": "Halte deine Serie am Leben, indem du jede Woche eine Mindestanzahl an Aktivitäten erreichst. Wochen beginnen mit deinem eingestellten ersten Wochentag.",
+      "minActivities": "Aktivitäten pro Woche",
+      "minActivitiesHint": "Wie viele Aktivitäten eine Woche braucht, um für deine Serie zu zählen.",
+      "minActivitiesInvalid": "Gib eine ganze Zahl zwischen 1 und {max} ein.",
+      "allTypes": "Alle Aktivitätstypen zählen",
+      "typesLegend": "Gezählte Aktivitätstypen ({count} ausgewählt)",
+      "typesRequired": "Wähle mindestens einen Aktivitätstyp oder zähle alle Typen.",
+      "showOnProfile": "Serie auf meinem Profil anzeigen",
+      "save": "Serien-Einstellungen speichern",
+      "saving": "Speichern…",
+      "saveSuccess": "Serien-Einstellungen gespeichert",
+      "saveError": "Serien-Einstellungen konnten nicht gespeichert werden",
+      "loadError": "Serien-Einstellungen konnten nicht geladen werden"
     }
   },
   "security": {

@@ -9,6 +9,8 @@ import FollowButton from '@/features/followers/components/FollowButton.vue'
 import FollowerListItem from '@/features/followers/components/FollowerListItem.vue'
 import UserDistanceStats from '@/features/home/components/UserDistanceStats.vue'
 import UserGoalResults from '@/features/home/components/UserGoalResults.vue'
+import WeeklyStreakCard from '@/features/streaks/components/WeeklyStreakCard.vue'
+import { useUserWeeklyStreakQuery } from '@/features/streaks/composables/useStreaks'
 import HomeActivityCard from '@/features/home/components/HomeActivityCard.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -61,6 +63,8 @@ const user = computed(() => userQuery.data.value ?? null)
 const weekStats = useActivityStatsQuery(profileId, 'week')
 const monthStats = useActivityStatsQuery(profileId, 'month')
 const monthCount = useUserMonthlyActivityCountQuery(profileId)
+/** The owner's weekly streak; `null` when they keep it private. */
+const profileStreak = useUserWeeklyStreakQuery(profileId)
 const followersCount = useFollowersCountQuery(profileId)
 const followingCount = useFollowingCountQuery(profileId)
 
@@ -216,6 +220,13 @@ function refetchFollowers(): void {
           </button>
         </div>
       </Card>
+
+      <WeeklyStreakCard
+        v-if="profileStreak.isLoading.value || profileStreak.data.value"
+        :streak="profileStreak.data.value"
+        :is-loading="profileStreak.isLoading.value"
+        :is-other-user="!isSelf"
+      />
 
       <UserDistanceStats
         :week-stats="weekStats.data.value"
