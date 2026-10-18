@@ -24,7 +24,7 @@ Every derived-work subscriber also has a scheduled backfill, so a lost event is 
 | Single process (default) | Home server, one container | Nothing extra |
 | Several web workers | One host, more request capacity | `WEB_WORKERS>1` and `REDIS_URL` |
 | Distributed | Several hosts or containers behind a load balancer | `DEPLOYMENT_PROFILE=distributed`, Redis, S3-compatible storage, a shared lock |
-| Dedicated worker | Keep job processing off the API | `JOBS_ENABLED=true`, `JOBS_RUN_IN_PROCESS_WORKER=false`, a second container with `APP_ROLE=worker` |
+| Dedicated worker | Keep job processing off the API | `JOBS_ENABLED=true`, `JOBS_RUN_IN_PROCESS_WORKER=false`, `REDIS_URL`, a second container with `APP_ROLE=worker` |
 
 !!! warning "Check your image first"
     The Redis and S3 client libraries ship in the `distributed` extra, which is **not** installed in an image built without it. If you use `REDIS_URL`, `EVENTS_URI=redis://…` or `STORAGE_URI=s3://…`, make sure your image was built with `--build-arg PYTHON_EXTRAS=distributed`.
@@ -41,11 +41,11 @@ Every derived-work subscriber also has a scheduled backfill, so a lost event is 
 | `STORAGE_URI` | `local://` | Where blobs go (thumbnails, media, images, retained files). `local://` uses `DATA_DIR`; `s3://bucket/prefix` uses S3-compatible storage. |
 | `LOCK_URI` | profile default | `noop://` (single process) or `postgres-advisory://` (coordinates scheduled jobs across replicas). Defaults to `postgres-advisory://` when more than one process runs. |
 | `JOBS_ENABLED` | `false` | Turns on the durable job queue. |
-| `JOBS_RUN_IN_PROCESS_WORKER` | `true` | Whether the API process also drains jobs. Set `false` when running dedicated workers. |
+| `JOBS_RUN_IN_PROCESS_WORKER` | `true` | Whether the API process also drains jobs. Set `false` when running dedicated workers, and set it on the API and every worker container: a dedicated worker is a separate process, so the deployment then needs shared state (see [Startup validation](#startup-validation)). |
 | `JOBS_MAX_ATTEMPTS` | `5` | Attempts before a job is dead-lettered. |
 | `JOBS_BACKOFF_BASE_SECONDS` | `5` | First retry delay; doubles each attempt. |
 | `JOBS_BACKOFF_MAX_SECONDS` | `3600` | Retry delay ceiling. |
-| `JOBS_LEASE_SECONDS` | `300` | How long a claimed job is held before it is requeued. |
+| `JOBS_LEASE_SECONDS` | `300` | How long a worker may go silent before its jobs are requeued. A running worker renews the lease every 15 seconds, so this is not a limit on how long a job may run. Must be at least 45. |
 | `JOBS_BATCH_SIZE` | `10` | Jobs claimed (and outbox rows relayed) per pass. |
 | `JOBS_POLL_INTERVAL_SECONDS` | `2.0` | Idle wait between empty polls. |
 | `JOBS_RETENTION_DAYS` | `90` | Pruning age for completed job bookkeeping. Dead-lettered and in-flight rows are kept. `0` disables pruning. |
@@ -60,9 +60,12 @@ Endurain refuses to start on an inconsistent topology and names the variable at 
 - `distributed` or `WEB_WORKERS>1` with state or events resolving to `memory://`;
 - `distributed` with `STORAGE_URI` unset or `local://`, because replicas do not share a disk;
 - more than one process with `LOCK_URI=noop://`;
+- dedicated workers (`JOBS_RUN_IN_PROCESS_WORKER=false` with `JOBS_ENABLED=true`) with state or events resolving to `memory://`, because the API and the workers are separate processes. Every rule above applies to them, even on the `local` profile with one web worker;
 - a non-`local` profile that leaves a capability unset.
 
 With `ENVIRONMENT=development` these become warnings instead.
+
+A job worker, in-process or dedicated, also refuses to start when `JOBS_LEASE_SECONDS` is below 45.
 
 ## Recipes
 
@@ -83,7 +86,7 @@ JOBS_RUN_IN_PROCESS_WORKER=false
 REDIS_URL=redis://redis:6379/0
 ```
 
-Add a second service from the same image:
+Set `JOBS_RUN_IN_PROCESS_WORKER=false` for the API and for the worker alike. `REDIS_URL` is required: the API and the worker are separate processes and share state through it. Add a second service from the same image:
 
 ```yaml
   endurain-worker:
@@ -113,6 +116,8 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 
 - If the event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
 - With `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`, jobs accumulate unless a worker is running.
+- A worker killed mid-job is not noticed instantly: its job is requeued once the lease expires and the reaper (which runs every minute) sees it, so expect it to finish a few minutes late rather than be lost.
+- A single job is abandoned after 30 minutes of running, even while its worker is healthy; it is handed back to the reaper like a job whose worker died.
 - Dead-lettered jobs are kept for review and are never pruned automatically.
 
 ## Sizing
@@ -121,7 +126,7 @@ Each web process keeps its own database pool of up to 60 connections (20 plus 40
 
 - Total connections are `60 × (web workers + replicas + dedicated workers)`. Keep that below PostgreSQL's `max_connections` (100 by default), or put PgBouncer in front of the database.
 - Each coordination lock held through `postgres-advisory://` keeps one more connection open for as long as the job runs.
-- A long job lease matters: the job runner does not renew a lease while a handler runs, so a job that outlives `JOBS_LEASE_SECONDS` is requeued and may run twice. Handlers are written to be repeatable, but keep the lease above your slowest job.
+- A slow job does not need a long lease: the worker renews it while the handler runs, so only a worker that stops responding (a crash, a lost network) loses its jobs. Keep `JOBS_LEASE_SECONDS` comfortably above 45 so a brief stall is not mistaken for a crash.
 - S3 requests use the client's default connect and read timeouts (60 seconds) and retry up to three times, so an unreachable bucket can hold a thread for minutes. Prefer a bucket in the same region as the application.
 - Leftover work is cleaned up on a schedule: ingestion jobs that stop progressing are failed after 24 hours, and staged uploads and bulk-import archives that no job references are removed after 2 days.
 

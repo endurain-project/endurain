@@ -734,8 +734,6 @@ the conformance test's allowlist.
 - **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which
   grows with the follow count. A peer-published, read-only query fragment (a followee subquery)
   would avoid the list but needs its own allowed-import entry and test, so it is undecided.
-- **Lease heartbeat.** A running job does not renew its lease (a `jasil` change), so a job that
-  outlives `JOBS_LEASE_SECONDS` can be claimed a second time.
 
 ### Pilot status and what the next conversion owns
 
