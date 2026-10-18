@@ -294,6 +294,9 @@ def store_activities_from_file(
 
         parsed.source = import_source
         created_activities.append(activity_integration.store_parsed_activity(parsed, db))
+        # One commit per activity: the row, its components and the event land
+        # together, and a later file failing does not undo this one.
+        db.commit()
 
     _retain_source_file(
         file_path,

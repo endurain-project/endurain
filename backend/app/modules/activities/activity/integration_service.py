@@ -95,6 +95,8 @@ def bulk_set_activities_gear(
 ) -> int:
     """Assign gear to many of a user's activities at once.
 
+    Stages the change and its events; the caller commits.
+
     Args:
         user_id: The owning user id (ownership is enforced by the update).
         gear_assignments: Map of activity id -> gear id (or ``None`` to clear).
@@ -249,7 +251,10 @@ def store_parsed_activity(
     parsed: activity_contracts.ParsedActivity,
     db: Session,
 ) -> activity_schema.ActivityRead:
-    """Persist a canonical parsed activity through the atomic ingestion seam.
+    """Stage a canonical parsed activity through the ingestion seam.
+
+    The activity, its components and the ``activity.created`` event are staged
+    together; the caller commits.
 
     Args:
         parsed: Parsed root and child data to store.
@@ -452,7 +457,8 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
     """Delete all of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity so the thumbnail and
-    source-file cleanup subscribers reclaim the blobs each one owned.
+    source-file cleanup subscribers reclaim the blobs each one owned. The caller
+    commits.
 
     Args:
         user_id: The owning user id.
@@ -469,7 +475,7 @@ def delete_all_activities_for_user(user_id: int, db: Session) -> int:
 
     The account-deletion path. Deleting the user row alone would let the database
     FK cascade remove the activities silently, orphaning every thumbnail and
-    stored source file the user ever produced.
+    stored source file the user ever produced. The caller commits.
 
     Args:
         user_id: The owning user id.

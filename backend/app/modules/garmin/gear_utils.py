@@ -133,6 +133,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     # Persist via CRUD (single UPDATE per distinct gear_id)
     if gear_assignments:
         activity_integration.bulk_set_activities_gear(user_id, gear_assignments, db)
+        db.commit()
 
     return len(gear_assignments)
 

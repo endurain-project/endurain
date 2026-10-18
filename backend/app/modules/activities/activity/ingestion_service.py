@@ -69,7 +69,10 @@ def store_parsed_activity(
     parsed: activity_contracts.ParsedActivity,
     db: Session,
 ) -> activity_schema.ActivityRead:
-    """Persist a parsed activity and its children, then publish ``activity.created``.
+    """Stage a parsed activity, its children and ``activity.created``.
+
+    Nothing is committed: the caller commits, and the event follows that commit.
+    A re-import of an already stored activity stages nothing.
 
     Args:
         parsed: The canonical parsed activity to store.
@@ -154,19 +157,17 @@ def store_parsed_activity(
             ),
         )
 
-        # Publish the domain fact and commit the unit of work atomically. Derived
-        # work reacts by subscribing to ``activity.created``; this service has no
-        # knowledge of what consumes it. ``publish_activity_created`` owns the
-        # commit ordering (via ``commit=db.commit``): when durable jobs are enabled
-        # the outbox row joins this transaction and commits with the domain rows;
-        # otherwise the domain commits first and the event dispatches on the bus
-        # post-commit (best-effort — the stored activity is the source of truth).
+        # Stage the domain fact with the rows. Derived work reacts by subscribing to
+        # ``activity.created``; this service has no knowledge of what consumes it.
+        # When durable jobs are enabled the outbox row joins the caller's
+        # transaction and commits with the domain rows; otherwise the event
+        # dispatches on the bus after the caller's commit (best-effort — the stored
+        # activity is the source of truth).
         activity_event_publishers.publish_activity_created(
             created_activity.id,
             created_activity.user_id,
             duplicate_start_time=created_activity.is_hidden,
             db=db,
-            commit=db.commit,
             source=f"ingest:{parsed.source.kind}",
         )
 

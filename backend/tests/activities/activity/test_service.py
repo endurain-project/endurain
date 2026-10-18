@@ -253,22 +253,20 @@ class TestEditPublishesUpdated:
         service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db)
 
         mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db)
-        mock_publishers.publish_activity_updated.assert_called_once_with(
-            5, 1, db, commit=db.commit, changed_fields=["name"]
-        )
+        mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, db, changed_fields=["name"])
 
     @patch("modules.activities.activity.service.activities_contributor_registry")
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
-    def test_single_edit_lets_the_publisher_own_the_commit(self, mock_crud, mock_publishers, _registry):
-        """Staged, not committed, so the outbox row joins the same transaction."""
+    def test_single_edit_commits_once_after_staging_the_event(self, mock_crud, mock_publishers, _registry):
+        """The event is staged, then one commit makes it durable with the change."""
         import modules.activities.activity.schema as activity_schema
         from modules.activities.activity import service
 
         db = MagicMock()
         service.edit_activity(5, 1, activity_schema.ActivityEdit(name="Run"), db)
 
-        db.commit.assert_not_called()
+        db.commit.assert_called_once_with()
 
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
@@ -283,7 +281,7 @@ class TestEditPublishesUpdated:
 
         assert updated == 3
         mock_publishers.publish_activities_updated.assert_called_once_with(
-            [4, 5, 6], 1, db, commit=db.commit, changed_fields=["visibility"], source="api:bulk_edit_activities"
+            [4, 5, 6], 1, db, changed_fields=["visibility"], source="api:bulk_edit_activities"
         )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -322,10 +320,11 @@ class TestCrossModuleWrites:
         updated = service.bulk_set_activities_gear(3, {7: 10, 8: 10}, db, source="api:test")
 
         assert updated == 2
-        # Only staged, so the updates and their events are atomic.
+        db.commit.assert_not_called()
+        # Only staged: the caller commits the updates and their events together.
         mock_crud.bulk_set_activities_gear_id.assert_called_once_with(3, {7: 10, 8: 10}, db)
         mock_publishers.publish_activities_updated.assert_called_once_with(
-            [7, 8], 3, db, commit=db.commit, changed_fields=["gear_id"], source="api:test"
+            [7, 8], 3, db, changed_fields=["gear_id"], source="api:test"
         )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -339,9 +338,10 @@ class TestCrossModuleWrites:
         deleted = service.delete_all_strava_activities(3, db, source="api:test")
 
         assert deleted == 5
+        db.commit.assert_not_called()
         mock_crud.delete_all_strava_activities_for_user.assert_called_once_with(3, db)
         mock_publishers.publish_activities_deleted.assert_called_once_with(
-            [11, 12, 13, 14, 15], 3, db, commit=db.commit, source="api:test"
+            [11, 12, 13, 14, 15], 3, db, source="api:test"
         )
 
     @patch("modules.activities.activity.service.activity_event_publishers")
@@ -356,10 +356,9 @@ class TestCrossModuleWrites:
         deleted = service.delete_all_activities_for_user(7, db, source="api:test")
 
         assert deleted == 2
+        db.commit.assert_not_called()
         mock_crud.delete_all_activities_for_user.assert_called_once_with(7, db)
-        mock_publishers.publish_activities_deleted.assert_called_once_with(
-            [1, 2], 7, db, commit=db.commit, source="api:test"
-        )
+        mock_publishers.publish_activities_deleted.assert_called_once_with([1, 2], 7, db, source="api:test")
 
 
 class TestScrollFollowingFeed:

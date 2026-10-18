@@ -122,12 +122,12 @@ class TestStoreParsedActivity:
         parsed = _parsed(components={"streams": component_data})
         ingestion_service.store_parsed_activity(parsed, db)
 
-        # Activity + components are only staged, so they land in ONE transaction;
-        # the publish seam owns the single commit (commit=db.commit).
+        # Activity, components and the event are only staged; the caller's single
+        # commit makes them durable together.
         assert "commit" not in mock_crud.create_activity.call_args.kwargs
         assert "commit" not in contributor.persist.call_args.kwargs
         db.commit.assert_not_called()
-        assert mock_pub.publish_activity_created.call_args.kwargs["commit"] is db.commit
+        assert "commit" not in mock_pub.publish_activity_created.call_args.kwargs
 
     @patch("modules.activities.activity.ingestion_service.activity_event_publishers")
     @patch("modules.activities.activity.ingestion_service.activities_contributor_registry")

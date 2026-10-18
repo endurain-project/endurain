@@ -414,12 +414,12 @@ class TestDelete:
             # requester through instead of pre-fetching (no read-then-delete gap).
             assert mock_del.call_args.args[0] == 1
             assert mock_del.call_args.args[1] == mock_pub.publish_activity_deleted.call_args.args[1]
-            # The delete is only staged and the publish owns the single commit,
-            # so the row delete + activity.deleted outbox row are atomic.
+            # The delete and the event are staged, then committed once, so the row
+            # delete and the activity.deleted outbox row are atomic.
             assert "commit" not in mock_del.call_args.kwargs
             mock_pub.publish_activity_deleted.assert_called_once()
             assert mock_pub.publish_activity_deleted.call_args.args[0] == 1
-            assert mock_pub.publish_activity_deleted.call_args.kwargs.get("commit") is not None
+            assert "commit" not in mock_pub.publish_activity_deleted.call_args.kwargs
 
     def test_not_found(self, mock_db):
         """A missing activity — or one owned by someone else — 404s from the CRUD."""

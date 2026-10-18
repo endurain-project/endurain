@@ -404,7 +404,9 @@ def save_activity_streams_laps(
 
     # Persist + publish ``activity.created`` via the canonical seam. The seam marks
     # duplicate start times hidden and forwards that to the notification subscriber.
-    return activity_integration.store_parsed_activity(parsed, db)
+    stored = activity_integration.store_parsed_activity(parsed, db)
+    db.commit()
+    return stored
 
 
 def process_activity(

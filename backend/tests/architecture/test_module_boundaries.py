@@ -360,25 +360,11 @@ def _excepted(importer: str, imported: str) -> bool:
 #: someone else's operation is how an invariant breaks. The rule is that a
 #: surface write **stages** and its caller commits; what is listed here is
 #: deliberately a self-contained unit of work, with the reason it has to be.
-#:
-#: TODO(jasil): the four publishing entries below exist only because the platform
-#: publisher must own the commit (best-effort dispatch has to follow it). They go
-#: away once ``jasil.publisher`` gains an after-commit publish; see the TODO in
-#: ``modules/activities/activity/event_publishers.py``.
 _SURFACE_UNITS_OF_WORK: dict[str, str] = {
     "activity.integration_service.store_parsed_activity": (
-        "Stores the activity and its components and publishes activity.created in one commit, so "
-        "the row and the outbox event are atomic (the publisher takes the commit callable)."
-    ),
-    "activity.integration_service.bulk_set_activities_gear": (
-        "Stages the rows and publishes the update events in one commit; the publisher must own the "
-        "commit ordering for the outbox row to be atomic with the change."
-    ),
-    "activity.integration_service.delete_all_strava_activities": (
-        "Deletes the rows and publishes one deleted event per row in a single commit."
-    ),
-    "activity.integration_service.delete_all_activities_for_user": (
-        "Deletes the rows and publishes one deleted event per row in a single commit."
+        "Stages the activity, its components and activity.created, and the caller commits. It rolls back "
+        "only on failure: a lost race on the dedup key leaves the session unusable until it is rolled "
+        "back, and it has to look up the winner before returning it."
     ),
     "activity_ingestion.integration_service.ingest_activity_file": (
         "The background ingestion entry for provider syncs: it commits each activity and rolls back "

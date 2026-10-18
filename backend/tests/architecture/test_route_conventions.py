@@ -149,11 +149,12 @@ class TestSignatureConventions:
 
         assert offenders == [], "db must be the last required positional parameter:\n  " + "\n  ".join(offenders)
 
-    def test_publishers_take_db_then_a_required_keyword_only_commit(self):
-        """``publish_<fact>(<ids>, db, *, commit, <extras>)``: extras follow ``commit`` by keyword.
+    def test_publishers_take_db_and_any_commit_as_a_required_keyword(self):
+        """``publish_<fact>(<ids>, db, [*, commit,] <extras>)``: ``commit``, when taken, is required by keyword.
 
-        An optional ``commit`` would let a caller publish outside the transaction, which is what
-        ``publish_committing`` exists to prevent.
+        A publisher that stages (``publish_on_commit``) takes only ``db`` and leaves the commit to
+        its caller. One that owns the commit ordering (``publish_committing``) takes it required: an
+        optional ``commit`` would let a caller publish outside the transaction.
         """
         offenders: list[str] = []
         for path in files_with_role(_CONVERTED, "event_publishers"):
@@ -165,7 +166,9 @@ class TestSignatureConventions:
                     argument.arg: default
                     for argument, default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=True)
                 }
-                if positional[-1:] != ["db"] or "commit" not in keyword_only or keyword_only["commit"] is not None:
+                if positional[-1:] != ["db"] or ("commit" in keyword_only and keyword_only["commit"] is not None):
                     offenders.append(f"{path.relative_to(_ROOT).as_posix()}::{node.name}")
 
-        assert offenders == [], "Publishers must be (<ids>, db, *, commit, <extras>):\n  " + "\n  ".join(offenders)
+        assert offenders == [], (
+            "Publishers must be (<ids>, db, [*, commit,] <extras>), with commit required:\n  " + "\n  ".join(offenders)
+        )

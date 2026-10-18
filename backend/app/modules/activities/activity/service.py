@@ -633,9 +633,9 @@ def edit_activity(
 ) -> activity_schema.ActivityRead:
     """Apply partial updates to one of the user's activities.
 
-    The update is staged and the publisher owns the single
-    commit, so when durable jobs are enabled the ``activity.updated`` outbox row
-    is written in the *same* transaction as the change — a consumer can never see
+    The update and the event are staged and committed together, so when durable
+    jobs are enabled the ``activity.updated`` outbox row is written in the *same*
+    transaction as the change — a consumer can never see
     a row that changed without the fact that it did.
 
     Args:
@@ -670,13 +670,8 @@ def edit_activity(
         raise core_exceptions.PreconditionFailedError(
             "The activity was modified by someone else; re-read it and retry"
         ) from err
-    activity_event_publishers.publish_activity_updated(
-        activity_id,
-        user_id,
-        db,
-        commit=db.commit,
-        changed_fields=changed_fields,
-    )
+    activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
+    db.commit()
     logger.info(
         "Edited an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id, changed_fields=sorted(changed_fields)),
@@ -715,10 +710,10 @@ def bulk_edit_activities(
         updated_ids,
         user_id,
         db,
-        commit=db.commit,
         changed_fields=["visibility"],
         source="api:bulk_edit_activities",
     )
+    db.commit()
     logger.info(
         "Bulk-edited activity visibility",
         extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=len(updated_ids)),
@@ -729,12 +724,12 @@ def bulk_edit_activities(
 def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 
-    The delete is staged and the publisher owns the single
-    commit, so when durable jobs are enabled the outbox row is written in the
-    *same* transaction as the delete. A crash cannot leave the row deleted but
-    the cleanup event unpublished, which would orphan the thumbnail and
-    source-file blobs. On the best-effort path the commit runs first and a
-    bus-dispatch failure is swallowed.
+    The delete and the event are staged and committed together, so when durable
+    jobs are enabled the outbox row is written in the *same* transaction as the
+    delete. A crash cannot leave the row deleted but the cleanup event
+    unpublished, which would orphan the thumbnail and source-file blobs. On the
+    best-effort path the event dispatches after the commit and a bus-dispatch
+    failure is swallowed.
 
     Ownership lives in the delete's ``WHERE`` clause (404 when the activity is
     missing *or* owned by someone else), so there is no read-then-delete gap and
@@ -746,7 +741,8 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
         db: Database session.
     """
     activity_crud.delete_activity(activity_id, user_id, db)
-    activity_event_publishers.publish_activity_deleted(activity_id, user_id, db, commit=db.commit)
+    activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
+    db.commit()
     logger.info(
         "Deleted an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
@@ -762,9 +758,10 @@ def bulk_set_activities_gear(
 ) -> int:
     """Assign gear to many of a user's activities at once.
 
-    Publishes one ``activity.updated`` per changed row, atomically with the
-    updates. A provider re-syncing gear mutates activities from outside the
-    activities module, so the event is what lets a consumer see the change.
+    Publishes one ``activity.updated`` per changed row, staged with the updates.
+    A provider re-syncing gear mutates activities from outside the activities
+    module, so the event is what lets a consumer see the change. The caller
+    commits.
 
     Args:
         user_id: The owning user id (ownership is enforced by the update).
@@ -780,7 +777,6 @@ def bulk_set_activities_gear(
         updated_ids,
         user_id,
         db,
-        commit=db.commit,
         changed_fields=["gear_id"],
         source=source,
     )
@@ -794,9 +790,9 @@ def bulk_set_activities_gear(
 def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> int:
     """Delete all of a user's Strava-sourced activities.
 
-    Emits one ``activity.deleted`` per removed activity, atomically with the
-    deletes, so the thumbnail and source-file cleanup subscribers reclaim the
-    blobs each activity owned.
+    Emits one ``activity.deleted`` per removed activity, staged with the deletes,
+    so the thumbnail and source-file cleanup subscribers reclaim the blobs each
+    activity owned. The caller commits.
 
     Args:
         user_id: The owning user id.
@@ -807,7 +803,7 @@ def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> i
         The number of activities deleted.
     """
     deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db)
-    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, commit=db.commit, source=source)
+    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
     # Irreversible and triggered from another module, so the count is recorded
     # here rather than left to the caller.
     logger.info(
@@ -824,7 +820,7 @@ def delete_all_activities_for_user(user_id: int, db: Session, *, source: str) ->
     FK cascade remove the activities silently, orphaning every thumbnail and
     stored source file the user ever produced — an incomplete erasure. Removing
     them explicitly first yields the ids needed to publish ``activity.deleted``,
-    so the cleanup subscribers delete the blobs too.
+    so the cleanup subscribers delete the blobs too. The caller commits.
 
     Args:
         user_id: The owning user id.
@@ -835,7 +831,7 @@ def delete_all_activities_for_user(user_id: int, db: Session, *, source: str) ->
         The number of activities deleted.
     """
     deleted_ids = activity_crud.delete_all_activities_for_user(user_id, db)
-    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, commit=db.commit, source=source)
+    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
     logger.info(
         "Deleted all activities for user",
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
