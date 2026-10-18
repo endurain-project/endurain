@@ -13,6 +13,7 @@ import functools
 from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 
+import jasil.jobs as platform_jobs
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
@@ -37,6 +38,10 @@ _MIN_WAYPOINTS = 2
 #: How long an activity that ended a backfill pass without a thumbnail waits
 #: before the next pass tries it again.
 THUMBNAIL_RETRY_DELAY = timedelta(hours=6)
+
+#: Lock shared by the backfill and the full regeneration, so only one of them
+#: touches the thumbnails at a time across replicas.
+_BACKFILL_LOCK_NAME = "thumbnail_backfill"
 
 type _ActivityPageFetcher = Callable[..., list[activity_contracts.ActivityThumbnailRef]]
 
@@ -299,11 +304,39 @@ def delete_and_regenerate_all_activity_thumbnails(
         lock: The coordination lock provider.
         clock: The platform clock.
         db: Database session.
+
+    Raises:
+        ConflictError: When another replica holds the backfill lock.
+    """
+    with lock.try_acquire(_BACKFILL_LOCK_NAME) as acquired:
+        if not acquired:
+            # Dropping the request would leave the old tiles in every thumbnail,
+            # so the caller is told; a durable job retries with backoff.
+            logger.warning("Thumbnail regeneration: another replica holds the backfill lock")
+            raise core_exceptions.ConflictError("Thumbnail generation is already running")
+        if not _delete_all_thumbnails(storage, db):
+            return
+        _run_missing_thumbnail_generation(storage, clock.now(), db)
+
+
+def _delete_all_thumbnails(storage: platform_providers.StorageProvider, db: Session) -> bool:
+    """Delete every stored thumbnail blob, then clear the keys that named them.
+
+    Args:
+        storage: The blob-storage provider.
+        db: Database session.
+
+    Returns:
+        ``False`` when the durable job lost its lease part-way, so the caller must
+        not carry on: the keys are left set and the next pass reconciles them.
     """
     logger.info("Thumbnail regeneration: deleting all existing thumbnails")
 
     deleted = 0
     for activity in _iter_activities_with_thumbnail(db):
+        if platform_jobs.lease_lost():
+            logger.warning("Thumbnail regeneration: lease lost; stopping before the keys are cleared")
+            return False
         key = activity.map_thumbnail_path
         if key is None:
             continue
@@ -316,14 +349,12 @@ def delete_and_regenerate_all_activity_thumbnails(
                 exc_info=err,
                 extra=core_logger.context(activity_id=activity.id),
             )
-    # Clear DB references so generate_missing picks them all up.
+    # Clear DB references so the generation pass picks them all up.
     activity_integration.clear_all_thumbnail_keys(db)
     db.commit()
 
     logger.info("Thumbnail regeneration: deleted thumbnails", extra=core_logger.context(deleted=deleted))
-
-    # Regenerate all thumbnails
-    generate_missing_activity_thumbnails(storage, lock, clock, db)
+    return True
 
 
 def generate_missing_activity_thumbnails(
@@ -346,7 +377,7 @@ def generate_missing_activity_thumbnails(
         clock: The platform clock, for the due time and the retry time.
         db: Database session.
     """
-    with lock.try_acquire("thumbnail_backfill") as acquired:
+    with lock.try_acquire(_BACKFILL_LOCK_NAME) as acquired:
         if not acquired:
             logger.debug("Thumbnail scheduler: another replica holds the backfill lock; skipping")
             return
@@ -417,6 +448,9 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
 
         unrendered: list[int] = []
         for activity in page:
+            if platform_jobs.lease_lost():
+                logger.warning("Thumbnail scheduler: lease lost; stopping the pass")
+                return
             waypoints = waypoints_by_activity_id.get(activity.id)
 
             if not waypoints:

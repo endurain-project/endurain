@@ -40,6 +40,7 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
         events_uri=settings.substrate_events_uri,
         lock_uri=settings.substrate_lock_uri,
         jobs=_build_job_settings(settings),
+        job_worker_mode=settings.job_worker_mode,
         event_log=jasil_settings.EventLogSettings(
             enabled=settings.EVENT_LOG_ENABLED,
             retention_days=settings.EVENT_LOG_RETENTION_DAYS,

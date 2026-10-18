@@ -64,11 +64,10 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # directly - and a string-target relationship on one that it does touch
     # (Users -> PasswordResetToken) fails to resolve on the first claim.
     orm_model_registry.import_all_models()
-    # Importing the worker pulls in JASIL's ProcessingJob model. The app's
-    # Base is mapped by the model imports above, so it must happen afterwards.
-    from jasil.jobs.worker import run_worker
-
-    substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
+    # This process is a dedicated consumer whatever the API's flag says, so the
+    # substrate must see the standalone topology it is part of.
+    worker_settings = core_config.settings.model_copy(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
+    substrate_settings = core_platform_settings.build_jasil_settings(worker_settings)
     jasil_settings.configure(substrate_settings)
     platform = platform_container.build_platform(substrate_settings)
     platform_runtime.set_active_platform(platform)
@@ -86,9 +85,8 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     garmin_provider_registry.register_activity_provider()
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
-    runner = jobs_service.build_runner()
     try:
-        run_worker(runner, poll_interval_seconds=core_config.settings.JOBS_POLL_INTERVAL_SECONDS, stop=stop)
+        jobs_service.run_job_worker(role="worker", stop=stop)
     finally:
         # This process built a platform of its own, so it owns releasing it —
         # under the distributed profile that is a Redis consumer thread and a

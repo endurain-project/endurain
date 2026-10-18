@@ -16,7 +16,7 @@ class TestDeploymentProfileEnforcement:
         settings = core_config.Settings(_env_file=None)
         assert settings.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.LOCAL
         assert settings.WEB_WORKERS == 1
-        assert settings.resolved_deployment_topology.requires_shared_state is False
+        assert settings.resolved_deployment_topology.multi_process is False
         assert settings.resolved_state_uri == "memory://"
 
     def test_storage_uri_defaults_to_local(self):
@@ -156,7 +156,7 @@ class TestDeploymentProfileEnforcement:
             REDIS_URL="redis://localhost:6379/0",
             STORAGE_URI="s3://bucket/thumbs",
         )
-        assert settings.resolved_deployment_topology.requires_shared_state is True
+        assert settings.resolved_deployment_topology.multi_process is True
         assert settings.resolved_state_uri == "redis://localhost:6379/0"
         assert settings.resolved_events_uri == "redis://localhost:6379/0"
         assert settings.resolved_storage_uri == "s3://bucket/thumbs"

@@ -26,7 +26,6 @@ class TestRunWorkerProcess:
             patch("worker.runtime_module_registry") as module_registry,
             patch("worker.jobs_registry") as jobs_registry,
             patch("worker.jobs_service") as service,
-            patch("jasil.jobs.worker.run_worker") as run_worker_mock,
             patch("worker.jasil_lifecycle") as lifecycle,
             patch("worker._install_signal_handlers") as install_signals,
         ):
@@ -49,10 +48,12 @@ class TestRunWorkerProcess:
             call.configure_activity_contributors(),
             call.register_durable_handlers(jobs_registry.registry),
         ]
-        service.build_runner.assert_called_once()
         install_signals.assert_called_once_with(stop)
-        run_worker_mock.assert_called_once()
-        assert run_worker_mock.call_args.kwargs["stop"] is stop
+        service.run_job_worker.assert_called_once_with(role="worker", stop=stop)
+        # Whatever the API's flag says, this process must present the standalone
+        # topology, or ``run_job_worker`` refuses to start.
+        cfg.settings.model_copy.assert_called_once_with(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
+        platform_settings.build_jasil_settings.assert_called_once_with(cfg.settings.model_copy.return_value)
         # This process built its own platform, so draining is not the end of it:
         # the bus consumer thread and Redis clients have to be released too.
         lifecycle.shutdown.assert_called_once_with()
@@ -66,13 +67,12 @@ class TestRunWorkerProcess:
             patch("worker.platform_runtime"),
             patch("worker.runtime_module_registry"),
             patch("worker.jobs_registry"),
-            patch("worker.jobs_service"),
-            patch("jasil.jobs.worker.run_worker", side_effect=RuntimeError("boom")),
+            patch("worker.jobs_service") as service,
             patch("worker.jasil_lifecycle") as lifecycle,
             patch("worker._install_signal_handlers"),
         ):
+            service.run_job_worker.side_effect = RuntimeError("boom")
             cfg.settings.JOBS_ENABLED = True
-            cfg.settings.JOBS_POLL_INTERVAL_SECONDS = 2.0
             with pytest.raises(RuntimeError):
                 worker.run_worker_process(stop=threading.Event())
 

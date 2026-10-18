@@ -3,6 +3,8 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import core.exceptions as core_exceptions
 
 _NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
@@ -150,7 +152,7 @@ class TestDeleteActivityThumbnail:
 class TestDeleteAndRegenerateThumbnails:
     """delete_and_regenerate_all_activity_thumbnails: storage-backed deletion."""
 
-    @patch("modules.activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
+    @patch("modules.activities.activity_thumbnail.service._run_missing_thumbnail_generation")
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.logger")
     def test_deletes_blobs_and_clears_db(self, mock_logger, mock_activities, mock_gen):
@@ -174,7 +176,7 @@ class TestDeleteAndRegenerateThumbnails:
         mock_db.commit.assert_called()
         mock_gen.assert_called_once()
 
-    @patch("modules.activities.activity_thumbnail.service.generate_missing_activity_thumbnails")
+    @patch("modules.activities.activity_thumbnail.service._run_missing_thumbnail_generation")
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.logger")
     def test_logs_when_delete_fails(self, mock_logger, mock_activities, mock_gen):
@@ -199,6 +201,38 @@ class TestDeleteAndRegenerateThumbnails:
         assert str(warning.kwargs["exc_info"]) == "boom"
         mock_activities.clear_all_thumbnail_keys.assert_called_once()
         mock_gen.assert_called_once()
+
+    @patch("modules.activities.activity_thumbnail.service._run_missing_thumbnail_generation")
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    def test_refuses_when_another_replica_holds_the_lock(self, mock_activities, mock_gen):
+        from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
+
+        platform = MagicMock()
+        platform.lock.try_acquire.return_value.__enter__.return_value = False
+
+        with pytest.raises(core_exceptions.ConflictError):
+            delete_and_regenerate_all_activity_thumbnails(platform.storage, platform.lock, platform.clock, MagicMock())
+
+        platform.storage.delete.assert_not_called()
+        mock_activities.clear_all_thumbnail_keys.assert_not_called()
+        mock_gen.assert_not_called()
+
+    @patch("modules.activities.activity_thumbnail.service._run_missing_thumbnail_generation")
+    @patch("modules.activities.activity_thumbnail.service.platform_jobs.lease_lost", return_value=True)
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    def test_stops_before_clearing_keys_when_the_lease_is_lost(self, mock_activities, _lost, mock_gen):
+        from modules.activities.activity_thumbnail.service import delete_and_regenerate_all_activity_thumbnails
+
+        platform = MagicMock()
+        mock_activities.list_activities_with_thumbnail.side_effect = _pages(
+            [MagicMock(id=1, map_thumbnail_path="1.webp")]
+        )
+
+        delete_and_regenerate_all_activity_thumbnails(platform.storage, platform.lock, platform.clock, MagicMock())
+
+        platform.storage.delete.assert_not_called()
+        mock_activities.clear_all_thumbnail_keys.assert_not_called()
+        mock_gen.assert_not_called()
 
 
 class TestGenerateMissingThumbnails:

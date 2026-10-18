@@ -47,6 +47,23 @@ class TestBootstrapAgainstSqlite:
 
         assert jasil_migrations.db_revision(sqlite_engine) == jasil_migrations.head_revision()
 
+    def test_adopts_a_legacy_schema_one_revision_behind_and_upgrades_it(self, sqlite_engine):
+        # What Endurain's own history leaves behind: the baseline tables, no
+        # version table, none of the later revisions' additions.
+        for name in jasil_orm.jasil_table_names():
+            Base.metadata.tables[name].create(sqlite_engine)
+        with sqlite_engine.begin() as connection:
+            connection.execute(sa.text("DROP TABLE job_attempts"))
+            connection.execute(sa.text("DROP TABLE job_workers"))
+            connection.execute(sa.text("DROP INDEX idx_processing_jobs_queue_claim"))
+            connection.execute(sa.text("DROP INDEX idx_processing_jobs_worker_claim"))
+            connection.execute(sa.text("ALTER TABLE processing_jobs DROP COLUMN queue"))
+
+        _bootstrap(sqlite_engine)
+
+        assert jasil_migrations.db_revision(sqlite_engine) == jasil_migrations.head_revision()
+        assert {"job_workers", "job_attempts"} <= set(sa.inspect(sqlite_engine).get_table_names())
+
     def test_is_idempotent_across_restarts(self, sqlite_engine):
         _bootstrap(sqlite_engine)
         recorded = jasil_migrations.db_revision(sqlite_engine)
@@ -64,5 +81,6 @@ class TestMigrationOwnership:
         versions = Path("app/alembic/versions")
         sources = "\n".join(p.read_text() for p in versions.rglob("*.py"))
 
-        for table in jasil_orm.jasil_table_names():
+        # Tables JASIL added after the baseline are created by its own revisions.
+        for table in jasil_orm.jasil_table_names() - {"job_workers", "job_attempts"}:
             assert f'create_table(\n        "{table}"' in sources or f'"{table}"' in sources

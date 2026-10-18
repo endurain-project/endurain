@@ -586,14 +586,28 @@ class Settings(BaseSettings):
         """
         if self.LOCK_URI:
             return self.LOCK_URI
-        if self.resolved_deployment_topology.requires_shared_state:
+        if self.resolved_deployment_topology.multi_process:
             return "postgres-advisory://"
         return "noop://"
 
     @property
+    def job_worker_mode(self) -> platform_profile.JobWorkerMode:
+        """Where durable-job consumers run.
+
+        Standalone when jobs are enabled and the API leaves consuming to dedicated
+        ``APP_ROLE=worker`` processes (``JOBS_RUN_IN_PROCESS_WORKER=false``); the
+        worker processes then count toward the deployment's process count.
+        """
+        if self.JOBS_ENABLED and not self.JOBS_RUN_IN_PROCESS_WORKER:
+            return platform_profile.JobWorkerMode.STANDALONE
+        return platform_profile.JobWorkerMode.IN_PROCESS
+
+    @property
     def resolved_deployment_topology(self) -> platform_profile.DeploymentTopology:
-        """Resolved deployment shape (profile + worker count)."""
-        return platform_profile.resolve_topology(self.DEPLOYMENT_PROFILE, self.WEB_WORKERS)
+        """Resolved deployment shape (profile, web worker count, job worker mode)."""
+        return platform_profile.resolve_topology(
+            profile=self.DEPLOYMENT_PROFILE, web_workers=self.WEB_WORKERS, job_worker_mode=self.job_worker_mode
+        )
 
     # The ``substrate_*_uri`` properties below are what the platform substrate is
     # handed; the ``resolved_*`` ones above fold in the host's fallbacks for the
@@ -641,7 +655,7 @@ class Settings(BaseSettings):
             return self.resolved_lock_uri
         if self.LOCK_URI:
             return self.LOCK_URI
-        return "postgres-advisory://" if self.resolved_deployment_topology.requires_shared_state else None
+        return "postgres-advisory://" if self.resolved_deployment_topology.multi_process else None
 
     def _unconfigured_capability_issues(self) -> list[str]:
         """Return an issue per capability URI a non-``local`` profile leaves unset.
@@ -705,21 +719,19 @@ class Settings(BaseSettings):
         events_label = "EVENTS_URI" if self.EVENTS_URI else "REDIS_URL" if self.REDIS_URL else "EVENTS_URI/REDIS_URL"
         issues = self._unconfigured_capability_issues()
         issues += platform_capabilities.check_state_consistency(
-            profile=self.DEPLOYMENT_PROFILE,
-            web_workers=self.WEB_WORKERS,
+            topology=self.resolved_deployment_topology,
             state_sources=[
                 platform_capabilities.StateSource(state_label, self.resolved_state_uri),
                 platform_capabilities.StateSource(events_label, self.resolved_events_uri),
             ],
         )
         issues += platform_capabilities.check_storage_consistency(
-            profile=self.DEPLOYMENT_PROFILE,
+            topology=self.resolved_deployment_topology,
             storage_uri=self.resolved_storage_uri,
             storage_label="STORAGE_URI",
         )
         issues += platform_capabilities.check_lock_consistency(
-            profile=self.DEPLOYMENT_PROFILE,
-            web_workers=self.WEB_WORKERS,
+            topology=self.resolved_deployment_topology,
             lock_uri=self.resolved_lock_uri,
             lock_label="LOCK_URI",
         )
