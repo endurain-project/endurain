@@ -1186,10 +1186,12 @@ def update_activity_location(
     country: str | None,
     db: Session,
 ) -> bool:
-    """Stage a reverse-geocoded location on an activity.
+    """Stage a reverse-geocoded location on an activity that has none yet.
 
     Written by the geocoding subscriber / backfill once the location for a GPS
-    activity has been resolved.
+    activity has been resolved. The geocoder is a slow network call made after the
+    activity was read, so the write is conditional on the location still being
+    unset: a concurrent replica's lookup or a user's edit is never overwritten.
 
     Args:
         activity_id: Target activity ID.
@@ -1199,22 +1201,24 @@ def update_activity_location(
         db: Database session.
 
     Returns:
-        True when the activity existed and was updated, False when it was not
-        found.
+        True when the location was written, False when the activity was not found
+        or already has a location.
     """
-    stmt = select(activity_models.Activity).where(activity_models.Activity.id == activity_id)
-    db_activity = db.execute(stmt).scalar_one_or_none()
-    if db_activity is None:
-        logger.warning(
-            "Activity not found when updating the location",
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return False
-    db_activity.city = city
-    db_activity.town = town
-    db_activity.country = country
+    result = cast(
+        "CursorResult[Any]",
+        db.execute(
+            sa_update(activity_models.Activity)
+            .where(
+                activity_models.Activity.id == activity_id,
+                activity_models.Activity.city.is_(None),
+                activity_models.Activity.town.is_(None),
+                activity_models.Activity.country.is_(None),
+            )
+            .values(city=city, town=town, country=country)
+        ),
+    )
     db.flush()
-    return True
+    return result.rowcount == 1
 
 
 def get_activities_missing_location(

@@ -1253,20 +1253,19 @@ class TestGetActivitiesWithoutThumbnail:
 class TestUpdateActivityLocation:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
-        import modules.activities.activity.models as am
 
-        a = mock_model(am.Activity, id=1)
-        setup_mock_execute(mock_db, return_one_or_none=a)
+        mock_db.execute.return_value.rowcount = 1
         result = crud.update_activity_location(1, "Lisbon", "Belem", "Portugal", db=mock_db)
         assert result is True
-        assert (a.city, a.town, a.country) == ("Lisbon", "Belem", "Portugal")
+        compiled = str(mock_db.execute.call_args.args[0].compile())
+        assert "activities.city IS NULL" in compiled
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
-    def test_not_found(self, mock_db):
+    def test_not_found_or_already_located(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        setup_mock_execute(mock_db, return_one_or_none=None)
+        mock_db.execute.return_value.rowcount = 0
         result = crud.update_activity_location(999, "Lisbon", None, "Portugal", db=mock_db)
         assert result is False
         mock_db.commit.assert_not_called()

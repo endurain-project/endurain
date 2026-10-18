@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, or_, select, update
+from sqlalchemy import CursorResult, delete, or_, select, update
 from sqlalchemy.orm import Session
 
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -16,6 +16,27 @@ import modules.activities.activity_ingestion.contracts as activity_ingestion_con
 import modules.activities.activity_ingestion.models as activity_ingestion_models
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.serializers as activity_ingestion_serializers
+
+
+def _get_open_job_for_update(job_id: str, db: Session) -> activity_ingestion_models.ActivityIngestionJob | None:
+    """Load a job row under a row lock, unless it is unknown or already terminal.
+
+    The lock serializes concurrent writers of the same job across processes, and
+    the terminal check keeps a late writer (a worker whose lease expired and was
+    reclaimed, or the stale-job reaper) from overwriting the outcome another
+    caller already recorded.
+
+    Args:
+        job_id: The job identifier.
+        db: Database session.
+
+    Returns:
+        The locked, non-terminal job row, or ``None``.
+    """
+    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id, with_for_update=True)
+    if orm_job is None or orm_job.completed_at is not None:
+        return None
+    return orm_job
 
 
 def create_ingestion_job(
@@ -318,8 +339,8 @@ def record_bulk_progress(
         release: Leave the job ``pending`` instead of ``processing``, so the
             continuation queued with this checkpoint can claim it.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
-    if orm_job is None or orm_job.completed_at is not None:
+    orm_job = _get_open_job_for_update(job_id, db)
+    if orm_job is None:
         return
     orm_job.status = (
         activity_ingestion_constants.IngestionJobStatus.PENDING.value
@@ -346,7 +367,7 @@ def mark_bulk_completed(job_id: str, cursor: str | None, files_done: int, files_
         files_failed: Files that could not be imported.
         db: Database session.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
+    orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
         return
     now = datetime.now(UTC)
@@ -429,7 +450,7 @@ def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
         activity_ids: Ids of the activities the import created.
         db: Database session.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
+    orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
         return
     now = datetime.now(UTC)
@@ -467,7 +488,7 @@ def mark_failed(
         error_code: Sanitized failure reason shown to the owner.
         db: Database session.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
+    orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
         return
     _fail(orm_job, error_code, datetime.now(UTC))
@@ -494,6 +515,9 @@ def fail_jobs_idle_since(
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_(None),
         activity_ingestion_models.ActivityIngestionJob.updated_at < cutoff,
     )
+    # Rows a worker is writing right now are skipped: they are not idle, and
+    # failing them would overwrite the outcome the worker is about to commit.
+    stmt = stmt.with_for_update(skip_locked=True)
     now = datetime.now(UTC)
     failed: list[tuple[str, str | None]] = []
     for orm_job in db.scalars(stmt).all():
@@ -531,12 +555,10 @@ def delete_jobs_before(cutoff: datetime, db: Session) -> int:
     Returns:
         Number of rows deleted.
     """
-    stmt = select(activity_ingestion_models.ActivityIngestionJob).where(
+    stmt = delete(activity_ingestion_models.ActivityIngestionJob).where(
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_not(None),
         activity_ingestion_models.ActivityIngestionJob.completed_at < cutoff,
     )
-    stale = list(db.scalars(stmt).all())
-    for orm_job in stale:
-        db.delete(orm_job)
+    result = cast("CursorResult[Any]", db.execute(stmt))
     db.flush()
-    return len(stale)
+    return result.rowcount

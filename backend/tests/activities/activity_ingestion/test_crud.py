@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 from unittest.mock import patch
 
-from tests._helpers.db import setup_mock_execute
 from tests._helpers.models import mock_model
 
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -153,15 +152,32 @@ class TestTerminalTransitions:
 
 class TestDeleteJobsBefore:
     def test_deletes_only_terminal_rows(self, mock_db):
-        setup_mock_execute(mock_db, return_scalars_all=[_row(), _row(id="job-2")])
+        mock_db.execute.return_value.rowcount = 2
         assert ingestion_crud.delete_jobs_before(_NOW, mock_db) == 2
-        assert mock_db.delete.call_count == 2
+        compiled = str(mock_db.execute.call_args.args[0].compile())
+        assert compiled.startswith("DELETE FROM activity_ingestion_jobs")
+        assert "completed_at IS NOT NULL" in compiled
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_returns_zero_when_nothing_is_stale(self, mock_db):
-        setup_mock_execute(mock_db, return_scalars_all=[])
+        mock_db.execute.return_value.rowcount = 0
         assert ingestion_crud.delete_jobs_before(_NOW, mock_db) == 0
+
+
+class TestTerminalJobsAreNotOverwritten:
+    def test_a_late_writer_cannot_overwrite_a_finished_job(self, mock_db):
+        row = _row(completed_at=_NOW)
+        mock_db.get.return_value = row
+        ingestion_crud.mark_completed("job-1", [1], mock_db)
+        ingestion_crud.mark_failed("job-1", activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, mock_db)
+        assert row.completed_at == _NOW
+        mock_db.flush.assert_not_called()
+
+    def test_the_row_is_read_under_a_lock(self, mock_db):
+        mock_db.get.return_value = _row()
+        ingestion_crud.mark_completed("job-1", [1], mock_db)
+        assert mock_db.get.call_args.kwargs["with_for_update"] is True
 
 
 class TestSchemaMapping:
