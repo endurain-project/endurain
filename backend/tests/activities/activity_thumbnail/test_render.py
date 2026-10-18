@@ -63,6 +63,30 @@ class TestRenderActivityThumbnail:
         assert request.headers["Authorization"] == "Stadia-Auth secret-key"
         assert "secret-key" not in request.tile_url
 
+    @pytest.mark.parametrize(
+        "tile_url",
+        [
+            "https://notstadiamaps.com/{z}/{x}/{y}.png",
+            "https://stadiamaps.com.example.net/{z}/{x}/{y}.png",
+            "https://tiles.example.net/stadiamaps.com/{z}/{x}/{y}.png",
+            "https://tiles.example.net/{z}/{x}/{y}.png?provider=stadiamaps.com",
+        ],
+    )
+    @patch("modules.activities.activity_thumbnail.render.core_route_map")
+    def test_a_lookalike_host_is_not_treated_as_stadia(self, mock_route_map, tile_url):
+        """The Stadia authorization scheme goes only to Stadia's own hosts."""
+        from modules.activities.activity_thumbnail.render import render_activity_thumbnail
+
+        mock_route_map.render.return_value = b"webpdata"
+        waypoints = [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
+
+        assert render_activity_thumbnail(1, waypoints, tile_url=tile_url) == b"webpdata", "no key needed"
+
+        render_activity_thumbnail(1, waypoints, tile_url=tile_url, api_key="secret-key")
+        request = mock_route_map.render.call_args.args[0]
+        assert "Authorization" not in request.headers
+        assert "api_key=secret-key" in request.tile_url
+
     @patch("modules.activities.activity_thumbnail.render.core_route_map")
     def test_rejects_url_api_key_over_http(self, mock_route_map):
         from modules.activities.activity_thumbnail.render import render_activity_thumbnail

@@ -46,6 +46,23 @@ _END_COLOR = "#e24b4a"  # --color-hr (red)
 _MARKER_INNER_RADIUS = 13
 
 
+def _is_stadia_url(url: str) -> bool:
+    """Return whether a tile URL points at Stadia Maps.
+
+    Compared on the parsed host, not as a substring: a URL that merely contains
+    ``stadiamaps.com`` in its path or query, or on a look-alike host such as
+    ``notstadiamaps.com``, must not get the Stadia authorization scheme.
+
+    Args:
+        url: The tile URL template.
+
+    Returns:
+        ``True`` when the host is ``stadiamaps.com`` or one of its subdomains.
+    """
+    host = (urlparse(url).hostname or "").lower()
+    return host == "stadiamaps.com" or host.endswith(".stadiamaps.com")
+
+
 def _normalise_tile_url(url: str) -> str:
     """Convert a Leaflet tile URL template to staticmap format.
 
@@ -138,13 +155,13 @@ def render_activity_thumbnail(
         # Build request headers; inject Authorization when an API
         # key is present (e.g. Stadia Maps requires backend auth).
         headers: dict[str, str] = {"User-Agent": user_agent}
-        if not api_key and "stadiamaps.com" in normalised_url:
+        if not api_key and _is_stadia_url(normalised_url):
             logger.warning(
                 "Skipping thumbnail render: Stadia Maps tile URL requires an API key",
                 extra=core_logger.context(activity_id=activity_id),
             )
             return None
-        if api_key and "stadiamaps.com" in normalised_url:
+        if api_key and _is_stadia_url(normalised_url):
             headers["Authorization"] = f"Stadia-Auth {api_key}"
         elif api_key:
             if urlparse(normalised_url).scheme.lower() != "https":

@@ -18,7 +18,11 @@ import {
   fetchIngestionJob,
   uploadActivityFile,
 } from '@/features/upload/services/upload'
-import { ACTIVITY_FILE_ACCEPT, type ActivityIngestionJob, UploadValidationError } from '@/features/upload/types'
+import {
+  ACTIVITY_FILE_ACCEPT,
+  type ActivityIngestionJob,
+  UploadValidationError,
+} from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
 
 import { makeActivity } from './fixtures/activity'
