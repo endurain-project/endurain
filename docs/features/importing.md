@@ -17,7 +17,7 @@ Both start a background import and show its progress on the page (files imported
 Endurain checks every imported activity, whatever the source (upload, bulk import, Garmin Connect or Strava), so importing the same data twice is safe.
 
 - **Same activity again:** an activity you already have is skipped and nothing new is created. It is recognised by its Strava or Garmin Connect activity id, or, for plain files, by the file's content plus the activity's start time. Re-running a bulk import, or uploading the same file twice, does not create duplicates. A multi-activity `.fit` file is handled per activity.
-- **Same activity from another source:** a file that has no provider id cannot be matched to an activity that came from Garmin Connect or Strava. If its start time matches an existing activity, it is still stored but hidden, and you get a notification about the duplicate.
+- **Same activity from another source:** a file that has no provider id cannot be matched to an activity that came from Garmin Connect or Strava. If its start time matches an existing activity, it is still stored but hidden, and you get a notification about the duplicate. You can unhide it from the activity's edit dialog (see [Sharing, privacy and followers](sharing-and-privacy.md)).
 
 ## Generic bulk import
 

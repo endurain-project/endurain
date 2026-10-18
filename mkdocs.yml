@@ -96,6 +96,7 @@ nav:
     - Proxmox community script: https://community-scripts.github.io/ProxmoxVE/scripts?id=endurain&category=Gaming+%26+Leisure
   - User guide:
     - Importing data: features/importing.md
+    - Sharing, privacy and followers: features/sharing-and-privacy.md
     - Exporting and importing your data: features/export-import.md
     - Single Sign-On (SSO): features/single-sign-on.md
     - Sleep scoring: features/sleep-scoring.md
@@ -114,6 +115,7 @@ nav:
     - Setup a development environment: developer-guide/setup-dev-env.md
     - Module structure: developer-guide/module-structure.md
     - Activity ingestion: developer-guide/activity-ingestion.md
+    - Events and subscribers: developer-guide/events-and-subscribers.md
     - Auth boundary: developer-guide/auth-boundary.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
   - Backend reference:
