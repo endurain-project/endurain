@@ -18,10 +18,16 @@ client. Cross-replica fan-out belongs to the websocket module rework; it is
 recorded here because this is now the one place every caller goes through.
 """
 
+import asyncio
+
 import core.logger as core_logger
 import modules.websocket.manager as websocket_manager
 
 logger = core_logger.get_logger(__name__)
+
+# A client that stopped reading fills its socket buffer and ``send_json`` then
+# waits forever; the push is a convenience, so give up rather than park the task.
+_PUSH_TIMEOUT_SECONDS = 5.0
 
 
 async def push_to_user(user_id: int, message: dict) -> bool:
@@ -48,7 +54,7 @@ async def push_to_user(user_id: int, message: dict) -> bool:
         logger.debug("No websocket connection for the user in this process", extra=core_logger.context(user_id=user_id))
         return False
     try:
-        await websocket.send_json(message)
+        await asyncio.wait_for(websocket.send_json(message), timeout=_PUSH_TIMEOUT_SECONDS)
     except Exception as err:
         logger.debug(
             "Websocket push failed; the durable record is unaffected",
