@@ -1163,6 +1163,8 @@ def set_activity_thumbnail_key(
     activity_id: int,
     thumbnail_path: str | None,
     db: Session,
+    *,
+    expected_key: str | None = None,
 ) -> bool:
     """Stage the map thumbnail path for an activity.
 
@@ -1174,18 +1176,17 @@ def set_activity_thumbnail_key(
         activity_id: Target activity ID.
         thumbnail_path: Absolute path to the thumbnail file.
         db: Database session.
+        expected_key: When given, write only if the activity still holds this key, so a
+            reconciliation pass never overwrites a key stored after it read the row.
 
     Returns:
-        True when the activity exists and was updated, False when it is gone.
+        True when the activity exists (and holds ``expected_key`` when given) and was
+        updated, False otherwise.
     """
-    result = cast(
-        "CursorResult[Any]",
-        db.execute(
-            sa_update(activity_models.Activity)
-            .where(activity_models.Activity.id == activity_id)
-            .values(map_thumbnail_path=thumbnail_path)
-        ),
-    )
+    stmt = sa_update(activity_models.Activity).where(activity_models.Activity.id == activity_id)
+    if expected_key is not None:
+        stmt = stmt.where(activity_models.Activity.map_thumbnail_path == expected_key)
+    result = cast("CursorResult[Any]", db.execute(stmt.values(map_thumbnail_path=thumbnail_path)))
     db.flush()
     if result.rowcount == 0:
         logger.warning(

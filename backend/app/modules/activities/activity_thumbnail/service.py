@@ -392,7 +392,8 @@ def _clear_references_to_missing_blobs(storage: platform_providers.StorageProvid
     """Clear thumbnail keys whose stored blob no longer exists.
 
     One listing of the area answers for every activity, instead of an existence
-    check per activity per pass (a HEAD request each on object storage). A key
+    check per activity per pass (a HEAD request each on object storage). Only the
+    activity ids are kept, one integer per stored thumbnail, rather than the keys. A key
     missing from the listing is confirmed individually before it is cleared: the
     listing was taken before the page was read, so a blob a subscriber stored in
     between would otherwise look missing.
@@ -401,19 +402,25 @@ def _clear_references_to_missing_blobs(storage: platform_providers.StorageProvid
         storage: The blob-storage provider.
         db: Database session.
     """
-    existing = {key for key, _modified in storage.iter_objects(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA)}
+    existing = {
+        activity_id
+        for key, _modified in storage.iter_objects(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA)
+        if (activity_id := _activity_id_of_thumbnail_key(key)) is not None
+    }
     for activity in _iter_activities_with_thumbnail(db):
         key = activity.map_thumbnail_path
-        if key is None or key in existing:
+        if key is None or activity.id in existing:
             continue
         if storage.exists(activity_thumbnail_signing.THUMBNAIL_STORAGE_AREA, key):
             continue
-        activity_integration.set_thumbnail_key(activity.id, None, db)
-        db.commit()
-        logger.info(
-            "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
-            extra=core_logger.context(activity_id=activity.id),
-        )
+        # Conditional on the key still being the one read: a subscriber may have stored a
+        # fresh thumbnail since, and that one must survive.
+        if activity_integration.set_thumbnail_key(activity.id, None, db, expected_key=key):
+            logger.info(
+                "Thumbnail scheduler: cleared a thumbnail path whose blob is missing",
+                extra=core_logger.context(activity_id=activity.id),
+            )
+            db.commit()
 
 
 def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvider, now: datetime, db: Session) -> None:

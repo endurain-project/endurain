@@ -92,3 +92,15 @@ def test_delete_all_waits_for_a_bulk_edit_that_holds_the_rows(pg_factory):
     worker.join(timeout=10)
     assert finished.is_set()
     assert deleted == [activity_id]
+
+
+def test_clearing_a_thumbnail_key_leaves_a_key_stored_in_the_meantime(pg_factory):
+    activity_id = _add_activity(pg_factory)
+    with pg_factory() as db:
+        activity_crud.set_activity_thumbnail_key(activity_id, "new.webp", db)
+        db.commit()
+
+    with pg_factory() as db:
+        assert activity_crud.set_activity_thumbnail_key(activity_id, None, db, expected_key="old.webp") is False
+        db.commit()
+        assert activity_crud.set_activity_thumbnail_key(activity_id, None, db, expected_key="new.webp") is True

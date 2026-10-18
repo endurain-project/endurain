@@ -312,7 +312,7 @@ class TestGenerateMissingThumbnails:
         generate_missing_activity_thumbnails(platform.storage, platform.lock, platform.clock, mock_db)
 
         storage.exists.assert_called_once_with("activity_thumbnails", "1.webp")
-        mock_activities.set_thumbnail_key.assert_called_once_with(1, None, mock_db)
+        mock_activities.set_thumbnail_key.assert_called_once_with(1, None, mock_db, expected_key="1.webp")
         mock_db.commit.assert_called()
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")

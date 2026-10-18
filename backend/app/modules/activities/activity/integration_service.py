@@ -318,7 +318,7 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
 # when it is durable, so one call can never end another module's transaction.
 
 
-def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> bool:
+def set_thumbnail_key(activity_id: int, key: str | None, db: Session, *, expected_key: str | None = None) -> bool:
     """Stage recording or clearing an activity's stored thumbnail key.
 
     The caller commits.
@@ -327,11 +327,13 @@ def set_thumbnail_key(activity_id: int, key: str | None, db: Session) -> bool:
         activity_id: ID of the activity.
         key: The new storage key, or None to clear it.
         db: Database session.
+        expected_key: When given, write only if the activity still holds this key.
 
     Returns:
-        True when the activity exists and was updated, False when it is gone.
+        True when the activity exists (and holds ``expected_key`` when given) and was
+        updated, False otherwise.
     """
-    return activity_crud.set_activity_thumbnail_key(activity_id, key, db)
+    return activity_crud.set_activity_thumbnail_key(activity_id, key, db, expected_key=expected_key)
 
 
 def clear_all_thumbnail_keys(db: Session) -> None:

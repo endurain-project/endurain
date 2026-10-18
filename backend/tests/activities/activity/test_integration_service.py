@@ -114,7 +114,7 @@ class TestDerivedArtifactWritesStageOnly:
         db = MagicMock()
         integration_service.set_thumbnail_key(7, "7.png", db)
 
-        mock_crud.set_activity_thumbnail_key.assert_called_once_with(7, "7.png", db)
+        mock_crud.set_activity_thumbnail_key.assert_called_once_with(7, "7.png", db, expected_key=None)
         db.commit.assert_not_called()
         db.rollback.assert_not_called()
 
