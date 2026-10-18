@@ -154,4 +154,4 @@ Convert them to .fit first with the third-party tool [nrc2fit](https://github.co
 uvx --from git+https://github.com/ycanerol/nrc2fit nrc2fit nikeuserdata.zip nrc-fit/
 ```
 
-Then copy the resulting .fit files into the data/activity_files/bulk_import folder and run the generic bulk import as described above. Run names, moving time, heart rate, cadence, treadmill runs, and NRC's mood and perceived effort are carried over.
+Then copy the resulting .fit files into the `${DATA_DIR}/activity_files/bulk_import` folder and run the generic bulk import as described above. When `DATA_DIR` is not set, use `backend/data/activity_files/bulk_import`. Run names, moving time, heart rate, cadence, treadmill runs, and NRC's mood and perceived effort are carried over.
