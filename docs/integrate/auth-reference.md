@@ -74,6 +74,8 @@ Endurain uses OAuth-style scopes to control API access. Each scope controls acce
 | `activities:read` | Read activity data | Read-only |
 | `activities:write` | Create/modify activities | Write |
 | `activities:upload` | Upload activity files (.gpx, .tcx, .fit, .gz) | Write (JWT or API key on upload endpoint) |
+| `followers:read` | Read the follower/following graph | Read-only |
+| `followers:write` | Follow, unfollow, accept and remove followers | Write |
 | `health:read` | Read health metrics (weight, sleep, steps) | Read-only |
 | `health:write` | Record health metrics | Write |
 | `health_targets:read` | Read health targets | Read-only |

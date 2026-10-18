@@ -150,7 +150,7 @@ See [API Key Authentication](api-keys.md) for the complete reference.
 
 ## API Endpoints 
 
-The API is reachable under `/api/v1`. Below are the authentication-related endpoints. Complete API documentation is available on the backend docs (`http://localhost:98/api/v1/docs` or `http://ip_address:98/api/v1/docs` or `https://domain/api/v1/docs`). You will need to change the ENV variable `ENVIRONMENT` to `development` in order for `/docs` endpoint to be served:
+The API is reachable under `/api/v1`. Below are the authentication-related endpoints. The complete interactive API documentation (OpenAPI) is served at `/api/v1/docs` (Swagger UI) and `/api/v1/redoc`, for example `http://localhost:8080/api/v1/docs`. It is only available when the `ENVIRONMENT` variable is set to `development` or `demo`; in `production` it is disabled.
 
 ### Core Authentication Endpoints (Web)
 

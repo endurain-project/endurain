@@ -8,13 +8,13 @@ Certain sensitive account operations require the user to re-prove possession of 
 
 | Operation | Endpoint |
 | --------- | -------- |
-| Change own password | `PATCH /users/{user_id}/password` |
-| Enable MFA | `POST /profile/mfa/enable` |
-| Disable MFA | `DELETE /profile/mfa/disable` |
+| Change own password | `PUT /profile/password` |
+| Enable MFA | `PUT /profile/mfa/enable` |
+| Disable MFA | `PUT /profile/mfa/disable` |
 | Regenerate MFA backup codes | `POST /profile/mfa/backup-codes` |
 | Create API key | `POST /profile/api_keys` |
 | Generate IdP link token | `POST /profile/idp/{idp_id}/link/token` |
-| Remove IdP link | `DELETE /profile/idp/{idp_id}/link` |
+| Remove IdP link | `POST /profile/idp/{idp_id}/unlink` |
 
 ### Step-up Request Body
 
