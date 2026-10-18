@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy.dialects import postgresql
 from tests._helpers.db import create_sqlite_session, setup_mock_execute
 from tests._helpers.models import mock_model
 
@@ -487,6 +488,35 @@ class TestBulkSetGear:
         mock_db.execute.return_value = r
         crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={1: 5}, db=mock_db)
         mock_db.commit.assert_not_called()
+
+
+class TestBulkUpdatesLockInIdOrder:
+    """Overlapping bulk writes must queue on row locks taken in a fixed order, not deadlock."""
+
+    @staticmethod
+    def _first_statement(mock_db) -> str:
+        return str(mock_db.execute.call_args_list[0].args[0].compile(dialect=postgresql.dialect()))
+
+    def test_bulk_gear_update_locks_the_rows_in_id_order_first(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = [(1,)]
+        crud.bulk_set_activities_gear_id(user_id=1, gear_assignments={2: 5, 1: 5}, db=mock_db)
+
+        first = self._first_statement(mock_db)
+        assert first.startswith("SELECT")
+        assert "ORDER BY activities.id" in first
+        assert first.rstrip().endswith("FOR UPDATE")
+
+    def test_visibility_update_locks_the_rows_in_id_order_first(self, mock_db):
+        import modules.activities.activity.crud as crud
+
+        mock_db.execute.return_value.all.return_value = [(1,)]
+        crud.edit_user_activities_visibility(user_id=1, visibility=0, db=mock_db)
+
+        first = self._first_statement(mock_db)
+        assert "ORDER BY activities.id" in first
+        assert first.rstrip().endswith("FOR UPDATE")
 
 
 class TestActivityByStravaGarmin:

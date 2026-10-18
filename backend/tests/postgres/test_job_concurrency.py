@@ -167,7 +167,7 @@ class TestClaiming:
         def claim() -> None:
             barrier.wait()
             with factory() as db:
-                outcomes.append(ingestion_crud.mark_processing(job_id, db, stale_before=datetime.now(UTC) - _LEASE))
+                outcomes.append(ingestion_crud.mark_processing(job_id, db, lease=_LEASE))
                 db.commit()
 
         threads = [threading.Thread(target=claim) for _ in range(6)]
@@ -178,6 +178,27 @@ class TestClaiming:
 
         assert outcomes.count(True) == 1
         assert _state(factory, job_id)[0] == "processing"
+
+    def test_a_claim_expires_against_the_database_clock_not_the_callers(self, factory):
+        """The lease age is read from the row's own timestamps, so a replica's clock cannot revive a claim."""
+        job_id = _add_job(factory)
+        with factory() as db:
+            assert ingestion_crud.mark_processing(job_id, db, lease=_LEASE) is True
+            db.commit()
+        with factory() as db:
+            assert ingestion_crud.mark_processing(job_id, db, lease=_LEASE) is False
+
+        with factory() as db:
+            db.execute(
+                text("UPDATE activity_ingestion_jobs SET updated_at = now() - interval '10 minutes' WHERE id = :id"),
+                {"id": job_id},
+            )
+            db.commit()
+        with factory() as db:
+            assert ingestion_crud.mark_processing(job_id, db, lease=_LEASE) is True
+            db.commit()
+        with factory() as db:
+            assert ingestion_crud.mark_processing(job_id, db, lease=_LEASE) is False
 
     def test_a_second_active_bulk_import_for_one_user_is_refused_by_the_database(self, factory):
         kind = ingestion_constants.IngestionJobKind.BULK_IMPORT

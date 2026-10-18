@@ -1,6 +1,6 @@
 """SQLAlchemy ORM model for follower relationships."""
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 import modules.followers.constants as followers_constants
@@ -18,7 +18,11 @@ class Follower(Base, TimestampMixin):
     """
 
     __tablename__ = "followers"
-    __table_args__ = (UniqueConstraint("follower_id", "followee_id", name="uq_followers_follower_followee"),)
+    __table_args__ = (
+        UniqueConstraint("follower_id", "followee_id", name="uq_followers_follower_followee"),
+        CheckConstraint("follower_id <> followee_id", name="ck_followers_not_self"),
+        CheckConstraint("status IN ('pending', 'accepted')", name="ck_followers_status"),
+    )
 
     id: Mapped[int] = mapped_column(
         primary_key=True,

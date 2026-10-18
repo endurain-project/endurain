@@ -15,7 +15,7 @@ read the setting. The job bodies are identical in both profiles.
 """
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -37,14 +37,16 @@ def worker_retries() -> bool:
     return core_config.settings.JOBS_ENABLED
 
 
-def claim_stale_before() -> datetime:
-    """Return the instant before which a ``processing`` job counts as abandoned.
+def claim_lease() -> timedelta:
+    """Return how long a ``processing`` claim stays valid without being touched.
 
     Returns:
-        ``JOBS_LEASE_SECONDS`` ago: a job claimed longer ago than the lease has
-        been requeued by the runner, so its previous owner is presumed gone.
+        ``JOBS_LEASE_SECONDS``: a job last touched longer ago than the lease has
+        been requeued by the runner, so its previous owner is presumed gone. The
+        age is measured against the database clock (see
+        :func:`activity_ingestion_crud.mark_processing`), never a replica's own.
     """
-    return datetime.now(UTC) - timedelta(seconds=core_config.settings.JOBS_LEASE_SECONDS)
+    return timedelta(seconds=core_config.settings.JOBS_LEASE_SECONDS)
 
 
 def commit_or_publish(db: Session, *, publish: Callable[[Callable[[], None]], None]) -> None:

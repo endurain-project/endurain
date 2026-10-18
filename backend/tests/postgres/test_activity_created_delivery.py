@@ -174,3 +174,39 @@ def test_a_reimport_stages_no_second_event(mode, pg_factory):
         assert _wait_until(lambda: _bus_events_for(dispatched, first.id) == 1)
         time.sleep(0.3)
         assert _bus_events_for(dispatched, first.id) == 1
+
+
+def test_concurrent_imports_of_one_activity_store_it_once_and_publish_once(mode, pg_factory):
+    """The dedup read-then-write races; the unique index picks one winner and the losers return it."""
+    import threading
+
+    delivery, dispatched = mode
+    barrier = threading.Barrier(6)
+    ids: list[int] = []
+    errors: list[BaseException] = []
+
+    def import_it() -> None:
+        try:
+            barrier.wait()
+            with pg_factory() as db:
+                stored = activity_integration.store_parsed_activity(_parsed("raced"), db)
+                db.commit()
+                ids.append(stored.id)
+        except BaseException as err:
+            errors.append(err)
+
+    threads = [threading.Thread(target=import_it) for _ in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=20)
+
+    assert errors == []
+    assert len(set(ids)) == 1
+    assert _committed_activities(pg_factory) == 1
+    if delivery == "durable":
+        assert _committed_outbox_rows(pg_factory, ids[0]) == 1
+    else:
+        assert _wait_until(lambda: _bus_events_for(dispatched, ids[0]) >= 1)
+        time.sleep(0.3)
+        assert _bus_events_for(dispatched, ids[0]) == 1

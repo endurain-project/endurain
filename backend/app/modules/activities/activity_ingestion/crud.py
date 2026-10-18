@@ -5,10 +5,10 @@ so this module never touches the filesystem and never publishes events.
 """
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, or_, select, update
+from sqlalchemy import CursorResult, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -315,7 +315,7 @@ def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Sess
         return
     orm_job.staged_key = staged_key
     orm_job.files_total = files_total
-    orm_job.updated_at = datetime.now(UTC)
+    orm_job.updated_at = func.now()
     db.flush()
 
 
@@ -350,7 +350,7 @@ def record_bulk_progress(
     orm_job.cursor = cursor
     orm_job.files_done = files_done
     orm_job.files_failed = files_failed
-    orm_job.updated_at = datetime.now(UTC)
+    orm_job.updated_at = func.now()
     db.flush()
 
 
@@ -382,25 +382,29 @@ def mark_bulk_completed(job_id: str, cursor: str | None, files_done: int, files_
     db.flush()
 
 
-def mark_processing(job_id: str, db: Session, *, stale_before: datetime) -> bool:
+def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
     """Stage the claim of a job for execution (not committed).
 
     One conditional ``UPDATE``, so of two concurrent deliveries of the same job
     only one claims it. A job is claimable while it is ``pending`` or while its
-    last claim is older than ``stale_before`` (the worker died or its lease
-    expired); a job that reached a terminal state never is.
+    last claim is older than ``lease`` (the worker died or its lease expired); a
+    job that reached a terminal state never is.
+
+    Claim timestamps come from the database clock and the cutoff is derived from
+    it, so replicas with skewed clocks agree on whether a claim has expired.
 
     Args:
         job_id: The job identifier.
         db: Database session.
-        stale_before: A ``processing`` job last touched before this is treated as
-            abandoned and may be claimed again.
+        lease: A ``processing`` job last touched longer ago than this is treated
+            as abandoned and may be claimed again.
 
     Returns:
         ``True`` when this caller now owns the job, ``False`` when it is unknown,
         finished, or being worked on by someone else.
     """
     model = activity_ingestion_models.ActivityIngestionJob
+    stale_before = db.scalar(select(func.now())) - lease
     stmt = (
         update(model)
         .where(
@@ -413,7 +417,7 @@ def mark_processing(job_id: str, db: Session, *, stale_before: datetime) -> bool
         )
         .values(
             status=activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
-            updated_at=datetime.now(UTC),
+            updated_at=func.now(),
         )
     )
     result = cast("CursorResult[Any]", db.execute(stmt))
@@ -436,7 +440,7 @@ def release_job(job_id: str, db: Session) -> None:
             model.completed_at.is_(None),
             model.status == activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
         )
-        .values(status=activity_ingestion_constants.IngestionJobStatus.PENDING.value, updated_at=datetime.now(UTC))
+        .values(status=activity_ingestion_constants.IngestionJobStatus.PENDING.value, updated_at=func.now())
     )
     db.execute(stmt)
     db.flush()

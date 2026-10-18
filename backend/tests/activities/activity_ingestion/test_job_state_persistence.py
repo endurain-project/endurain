@@ -211,7 +211,7 @@ class TestFinishedJobsAreNotReopened:
     def test_a_job_that_is_still_pending_moves_to_processing(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
         with factory() as db:
-            assert ingestion_jobs.activity_ingestion_crud.mark_processing("job-1", db, stale_before=_now()) is True
+            assert ingestion_jobs.activity_ingestion_crud.mark_processing("job-1", db, lease=timedelta(0)) is True
             db.commit()
 
         assert _read_job(factory).status == "processing"
@@ -220,33 +220,33 @@ class TestFinishedJobsAreNotReopened:
         _add_job(factory, kind="refresh", staged_key=None)
         with factory() as db:
             crud = ingestion_jobs.activity_ingestion_crud
-            assert crud.mark_processing("job-1", db, stale_before=_now() - timedelta(minutes=5)) is True
+            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is True
             db.commit()
         with factory() as db:
-            assert crud.mark_processing("job-1", db, stale_before=_now() - timedelta(minutes=5)) is False
+            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is False
 
     def test_an_abandoned_claim_can_be_taken_over(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
         with factory() as db:
             crud = ingestion_jobs.activity_ingestion_crud
-            assert crud.mark_processing("job-1", db, stale_before=_now() - timedelta(minutes=5)) is True
+            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is True
             db.commit()
         with factory() as db:
-            assert crud.mark_processing("job-1", db, stale_before=_now() + timedelta(minutes=5)) is True
+            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=-5)) is True
 
     def test_a_released_job_can_be_claimed_by_the_retry(self, factory):
         _add_job(factory, kind="refresh", staged_key=None)
         crud = ingestion_jobs.activity_ingestion_crud
         with factory() as db:
-            crud.mark_processing("job-1", db, stale_before=_now() - timedelta(minutes=5))
+            crud.mark_processing("job-1", db, lease=timedelta(minutes=5))
             crud.release_job("job-1", db)
             db.commit()
         with factory() as db:
-            assert crud.mark_processing("job-1", db, stale_before=_now() - timedelta(minutes=5)) is True
+            assert crud.mark_processing("job-1", db, lease=timedelta(minutes=5)) is True
 
     def test_an_unknown_job_is_reported_as_not_runnable(self, factory):
         with factory() as db:
-            assert ingestion_jobs.activity_ingestion_crud.mark_processing("missing", db, stale_before=_now()) is False
+            assert ingestion_jobs.activity_ingestion_crud.mark_processing("missing", db, lease=timedelta(0)) is False
 
 
 class TestFailStaleJobs:

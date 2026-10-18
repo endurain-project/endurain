@@ -60,7 +60,8 @@ if _db_sslmode:
 # per worker. With --workers=N the total is 60*N, which
 # must stay below PostgreSQL max_connections (default 100).
 # For >1 worker, lower these values or front the database
-# with PgBouncer.
+# with PgBouncer in session pooling mode: the postgres-advisory:// lock
+# is a session-level advisory lock and breaks under transaction pooling.
 engine = create_engine(
     db_url,
     pool_size=20,

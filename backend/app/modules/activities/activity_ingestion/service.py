@@ -327,7 +327,7 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
             logger.info("Skipping an unknown refresh job", extra=core_logger.context(job_id=job_id))
             return
         if not activity_ingestion_crud.mark_processing(
-            job_id, db, stale_before=activity_ingestion_dispatch_service.claim_stale_before()
+            job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
             logger.info(
                 "Skipping a refresh job that already finished or is claimed elsewhere",
@@ -479,7 +479,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
             return
         user_id, staged_key = work_item
         if not activity_ingestion_crud.mark_processing(
-            job_id, db, stale_before=activity_ingestion_dispatch_service.claim_stale_before()
+            job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
             logger.info(
                 "Skipping an upload job that already finished or is claimed elsewhere",

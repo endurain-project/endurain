@@ -1488,6 +1488,24 @@ def edit_activity(
     return activity_serializers.to_read_schema(db_activity)
 
 
+def _lock_user_activities(user_id: int, db: Session, activity_ids: Sequence[int] | None = None) -> None:
+    """Row-lock a user's activities in id order before a multi-row ``UPDATE``.
+
+    A multi-row ``UPDATE`` locks rows in scan order, so two overlapping bulk
+    writes can each hold a row the other wants and deadlock. Taking every lock in
+    id order first makes the later ``UPDATE``s wait their turn instead.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+        activity_ids: Restrict the lock to these activities, or lock them all.
+    """
+    stmt = select(activity_models.Activity.id).where(activity_models.Activity.user_id == user_id)
+    if activity_ids is not None:
+        stmt = stmt.where(activity_models.Activity.id.in_(activity_ids))
+    db.execute(stmt.order_by(activity_models.Activity.id).with_for_update())
+
+
 def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) -> list[int]:
     """Stage a bulk visibility update for every activity of a user.
 
@@ -1500,6 +1518,7 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session) 
         The IDs of the updated activities, so the caller can publish one event
         per row instead of re-deriving which activities the user owns.
     """
+    _lock_user_activities(user_id, db)
     stmt = (
         sa_update(activity_models.Activity)
         .where(activity_models.Activity.user_id == user_id)
@@ -1536,6 +1555,7 @@ def bulk_set_activities_gear_id(
     """
     if not gear_assignments:
         return []
+    _lock_user_activities(user_id, db, list(gear_assignments))
     by_gear: dict[int | None, list[int]] = defaultdict(list)
     for activity_id, gear_id in gear_assignments.items():
         by_gear[gear_id].append(activity_id)

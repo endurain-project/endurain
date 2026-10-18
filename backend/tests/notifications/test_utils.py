@@ -50,17 +50,30 @@ class TestCreateActivityCreatedNotification:
 
         mock_db = MagicMock()
         with patch(
-            "modules.notifications.utils.notifications_crud.create_notification",
-            return_value=MagicMock(id=1),
+            "modules.notifications.utils.notifications_crud.create_notification_once",
+            return_value=(MagicMock(id=1), True),
         ) as mock_create:
-            notification, ws_message = create_activity_created_notification(42, 7, False, mock_db)
+            notification, ws_message, created = create_activity_created_notification(42, 7, False, "evt-1", mock_db)
 
         assert notification.id == 1
+        assert created is True
         assert ws_message == "NEW_ACTIVITY_NOTIFICATION"
         created = mock_create.call_args.args[0]
         assert created.user_id == 42
         assert created.type == c.NotificationType.NEW_ACTIVITY
         assert created.options == {"activity_id": 7}
+        assert created.source_event_id == "evt-1"
+
+    def test_a_redelivered_event_reports_the_existing_notification(self):
+        from modules.notifications.utils import create_activity_created_notification
+
+        with patch(
+            "modules.notifications.utils.notifications_crud.create_notification_once",
+            return_value=(MagicMock(id=1), False),
+        ):
+            _, _, created = create_activity_created_notification(42, 7, False, "evt-1", MagicMock())
+
+        assert created is False
 
     def test_duplicate_variant(self):
         import modules.notifications.constants as c
@@ -68,10 +81,10 @@ class TestCreateActivityCreatedNotification:
 
         mock_db = MagicMock()
         with patch(
-            "modules.notifications.utils.notifications_crud.create_notification",
-            return_value=MagicMock(id=2),
+            "modules.notifications.utils.notifications_crud.create_notification_once",
+            return_value=(MagicMock(id=2), True),
         ) as mock_create:
-            _, ws_message = create_activity_created_notification(1, 3, True, mock_db)
+            _, ws_message, _ = create_activity_created_notification(1, 3, True, "evt-2", mock_db)
 
         assert ws_message == "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION"
         assert mock_create.call_args.args[0].type == c.NotificationType.DUPLICATE_ACTIVITY

@@ -1,6 +1,6 @@
 """Tests for activity upload job persistence."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from tests._helpers.models import mock_model
@@ -134,14 +134,14 @@ class TestTerminalTransitions:
 
     def test_mark_processing_is_one_conditional_update(self, mock_db):
         mock_db.execute.return_value.rowcount = 1
-        claimed = ingestion_crud.mark_processing("job-1", mock_db, stale_before=datetime.now(UTC))
+        claimed = ingestion_crud.mark_processing("job-1", mock_db, lease=timedelta(0))
         assert claimed is True
         mock_db.execute.assert_called_once()
         mock_db.flush.assert_called_once()
 
     def test_mark_processing_reports_a_lost_claim(self, mock_db):
         mock_db.execute.return_value.rowcount = 0
-        assert ingestion_crud.mark_processing("job-1", mock_db, stale_before=datetime.now(UTC)) is False
+        assert ingestion_crud.mark_processing("job-1", mock_db, lease=timedelta(0)) is False
 
     def test_transitions_on_a_missing_row_are_no_ops(self, mock_db):
         mock_db.get.return_value = None

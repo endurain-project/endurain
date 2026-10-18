@@ -178,6 +178,7 @@ Each web process keeps its own database pool of up to 60 connections (20 plus 40
 
 - Total connections are `60 × (web workers + replicas + dedicated workers)`. Keep that below PostgreSQL's `max_connections` (100 by default), or put PgBouncer in front of the database.
 - Each coordination lock held through `postgres-advisory://` keeps one more connection open for as long as the job runs.
+- `postgres-advisory://` uses session-level advisory locks, which only work on a connection that stays pinned to one PostgreSQL backend. Behind PgBouncer in transaction pooling mode the lock and its release can land on different backends, so two replicas can both believe they hold it. Point `DB_HOST` at PgBouncer in session mode, or at PostgreSQL directly. Either way the lock is lost if its connection drops mid-job, so every coordinated job is idempotent: the lock only avoids duplicated work.
 - A slow job does not need a long lease: the worker renews it while the handler runs, so only a worker that stops responding (a crash, a lost network) loses its jobs. Keep `JOBS_LEASE_SECONDS` comfortably above 45 so a brief stall is not mistaken for a crash.
 - S3 requests use the client's default connect and read timeouts (60 seconds) and retry up to three times, so an unreachable bucket can hold a thread for minutes. Prefer a bucket in the same region as the application.
 - Leftover work is cleaned up on a schedule: ingestion jobs that stop progressing are failed after 24 hours, and staged uploads and bulk-import archives that no job references are removed after 2 days.

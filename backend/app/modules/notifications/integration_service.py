@@ -24,8 +24,9 @@ def create_activity_created_notification(
     user_id: int,
     activity_id: int,
     duplicate_start_time: bool,
+    source_event_id: str,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str]:
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """
     Record the notification for a newly stored activity.
 
@@ -34,19 +35,18 @@ def create_activity_created_notification(
         activity_id: The stored activity.
         duplicate_start_time: Whether the activity duplicates an existing
             activity's start time, which selects the duplicate variant.
+        source_event_id: Stable durable event identifier.
         db: Database session.
 
     Returns:
-        The created notification row and the websocket message type the caller
-        should push.
-
-    Raises:
-        None.
+        The notification row, the websocket message type the caller should push,
+        and whether this call created it (False for a redelivered event).
     """
     return notifications_utils.create_activity_created_notification(
         user_id,
         activity_id,
         duplicate_start_time,
+        source_event_id,
         db,
     )
 

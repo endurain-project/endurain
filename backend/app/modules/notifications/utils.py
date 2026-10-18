@@ -80,8 +80,9 @@ def create_activity_created_notification(
     user_id: int,
     activity_id: int,
     duplicate_start_time: bool,
+    source_event_id: str,
     db: Session,
-) -> tuple[notifications_schema.NotificationRead, str]:
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """Create the notification row for a newly stored activity (synchronous).
 
     For the ``activity.created`` subscriber: it only writes the row (the record) and
@@ -90,15 +91,19 @@ def create_activity_created_notification(
     bridge). No websocket work happens here, so it is safe to run on a durable
     job worker thread or inline on the bus.
 
+    Delivery is at-least-once, so the row is keyed by the source event: a
+    redelivered event finds its notification instead of creating a second one.
+
     Args:
         user_id: The user to notify (the activity owner).
         activity_id: The stored activity's ID.
         duplicate_start_time: Whether the activity was flagged as a duplicate
             start time (raises the duplicate variant instead of the new one).
+        source_event_id: Stable durable event identifier.
         db: Database session used for the row write.
 
     Returns:
-        Tuple of the created notification and the websocket message type string.
+        The notification, websocket message type, and whether it was created.
     """
     if duplicate_start_time:
         notification_type = notifications_constants.NotificationType.DUPLICATE_ACTIVITY
@@ -107,15 +112,16 @@ def create_activity_created_notification(
         notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
         ws_message = "NEW_ACTIVITY_NOTIFICATION"
 
-    notification = notifications_crud.create_notification(
+    notification, created = notifications_crud.create_notification_once(
         notifications_schema.NotificationCreate(
             user_id=user_id,
             type=notification_type,
+            source_event_id=source_event_id,
             options={"activity_id": activity_id},
         ),
         db,
     )
-    return notification, ws_message
+    return notification, ws_message, created
 
 
 def create_new_follower_request_notification(

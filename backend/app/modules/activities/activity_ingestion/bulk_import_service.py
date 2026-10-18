@@ -501,7 +501,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
             # The folder is still being packed; the continuation is queued once it is.
             return
         if not activity_ingestion_crud.mark_processing(
-            job_id, db, stale_before=activity_ingestion_dispatch_service.claim_stale_before()
+            job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
             logger.info(
                 "Skipping a bulk import batch that is claimed elsewhere", extra=core_logger.context(job_id=job_id)

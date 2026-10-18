@@ -25,12 +25,19 @@ def notify_activity_created_for_event(event: Event) -> None:
     """Create the notification for a newly stored activity."""
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
     with core_database.SessionLocal() as db:
-        notification, ws_message = notifications_integration.create_activity_created_notification(
+        notification, ws_message, created = notifications_integration.create_activity_created_notification(
             payload.user_id,
             payload.activity_id,
             payload.duplicate_start_time,
+            event.event_id,
             db,
         )
+    if not created:
+        logger.debug(
+            "Skipped duplicate new-activity notification",
+            extra=core_logger.context(event_id=event.event_id, activity_id=payload.activity_id),
+        )
+        return
     core_async_bridge.dispatch(
         websocket_integration.push_to_user(
             payload.user_id,

@@ -36,11 +36,30 @@ class TestOnActivityCreatedNotify:
         mock_notif.create_activity_created_notification.return_value = (
             MagicMock(id=5),
             "NEW_ACTIVITY_NOTIFICATION",
+            True,
         )
         on_activity_created_notify(_event({"activity_id": 1, "user_id": 2, "duplicate_start_time": False}))
 
         assert mock_notif.create_activity_created_notification.call_args.args[:3] == (2, 1, False)
         mock_bridge.dispatch.assert_called_once()
+
+    @patch("modules.notifications.subscribers.websocket_integration")
+    @patch("modules.notifications.subscribers.core_async_bridge")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_integration")
+    def test_a_redelivered_event_does_not_push_again(self, mock_notif, mock_db, mock_bridge, mock_ws):
+        from modules.notifications.subscribers import on_activity_created_notify
+
+        mock_notif.create_activity_created_notification.return_value = (
+            MagicMock(id=5),
+            "NEW_ACTIVITY_NOTIFICATION",
+            False,
+        )
+        event = _event({"activity_id": 1, "user_id": 2, "duplicate_start_time": False})
+        on_activity_created_notify(event)
+
+        assert mock_notif.create_activity_created_notification.call_args.args[3] == event.event_id
+        mock_bridge.dispatch.assert_not_called()
 
     @patch("modules.notifications.subscribers.websocket_integration")
     @patch("modules.notifications.subscribers.core_async_bridge")
@@ -52,6 +71,7 @@ class TestOnActivityCreatedNotify:
         mock_notif.create_activity_created_notification.return_value = (
             MagicMock(id=6),
             "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION",
+            True,
         )
         on_activity_created_notify(_event({"activity_id": 4, "user_id": 8, "duplicate_start_time": True}))
         assert mock_notif.create_activity_created_notification.call_args.args[:3] == (8, 4, True)
