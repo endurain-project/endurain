@@ -41,6 +41,10 @@ async def push_to_user(user_id: int, message: dict) -> bool:
     """
     websocket = websocket_manager.get_websocket_manager().get_connection(user_id)
     if websocket is None:
+        # TODO(websocket rework): when the user's socket is held by another API replica, or the
+        # caller is a dedicated worker, publish the push on the event bus so the process that owns
+        # the connection delivers it. Until then the live push is dropped here (the notification
+        # row is unaffected).
         logger.debug("No websocket connection for the user in this process", extra=core_logger.context(user_id=user_id))
         return False
     try:
