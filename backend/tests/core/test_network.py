@@ -3,6 +3,8 @@
 import asyncio
 import ipaddress
 import socket
+import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -516,39 +518,65 @@ class TestRejectPrivateUrl:
 class TestRejectPrivateUrlAsync:
     """Tests for bounded asynchronous SSRF validation."""
 
-    @pytest.mark.asyncio
-    async def test_uses_dedicated_executor_and_forwards_context(self):
-        loop = asyncio.get_running_loop()
-        completed = loop.create_future()
-        completed.set_result(None)
-        mock_loop = MagicMock()
-        mock_loop.run_in_executor.return_value = completed
-
+    @pytest.fixture(autouse=True)
+    def _isolated_dns_pool(self):
+        """Give each test its own two-slot pool and one worker, then stop it."""
         with (
-            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
-            patch("core.network.reject_private_url") as mock_reject,
+            patch.object(core_network, "_ssrf_dns_slots", threading.BoundedSemaphore(2)),
+            patch.object(core_network, "_ssrf_dns_executor", None),
+            patch.object(core_network, "_SSRF_DNS_MAX_WORKERS", 1),
         ):
+            yield
+            core_network.shutdown_ssrf_dns_executor()
+
+    @staticmethod
+    def _blocking_guard(release: threading.Event, calls: list[str]):
+        """Return a stand-in guard that records its URL and blocks until released."""
+
+        def guard(url, *, purpose=None):
+            calls.append(url)
+            release.wait(timeout=5)
+
+        return guard
+
+    @staticmethod
+    def _wait_for_free_slot(timeout=2.0):
+        """Wait until a slot can be taken, then give it back."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if core_network._ssrf_dns_slots.acquire(blocking=False):
+                core_network._ssrf_dns_slots.release()
+                return True
+            time.sleep(0.01)
+        return False
+
+    @pytest.mark.asyncio
+    async def test_runs_the_guard_on_the_dedicated_pool_with_context(self):
+        seen = {}
+
+        def guard(url, *, purpose=None):
+            seen["url"] = url
+            seen["purpose"] = purpose
+            seen["thread"] = threading.current_thread().name
+
+        with patch.object(core_network, "reject_private_url", guard):
             await core_network.reject_private_url_async("https://idp.example.com", purpose="oidc_discovery")
 
-        executor, operation = mock_loop.run_in_executor.call_args.args
-        assert executor is core_network._SSRF_DNS_EXECUTOR
-        operation()
-        mock_reject.assert_called_once_with("https://idp.example.com", purpose="oidc_discovery")
+        assert seen == {"url": "https://idp.example.com", "purpose": "oidc_discovery", "thread": seen["thread"]}
+        assert seen["thread"].startswith("ssrf-dns")
 
     @pytest.mark.asyncio
     async def test_timeout_fails_closed_without_exposing_url(self):
-        loop = asyncio.get_running_loop()
-        unresolved = loop.create_future()
-        mock_loop = MagicMock()
-        mock_loop.run_in_executor.return_value = unresolved
+        release = threading.Event()
         secret_url = "https://idp.example.com/discovery?client_secret=secret"
 
         with (
-            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
-            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0),
+            patch.object(core_network, "reject_private_url", self._blocking_guard(release, [])),
+            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0.05),
             pytest.raises(HTTPException) as exc_info,
         ):
             await core_network.reject_private_url_async(secret_url, purpose="oidc_discovery")
+        release.set()
 
         assert exc_info.value.status_code == 504
         assert exc_info.value.detail == "Hostname resolution timed out"
@@ -557,19 +585,91 @@ class TestRejectPrivateUrlAsync:
     @pytest.mark.asyncio
     async def test_guard_http_exception_is_preserved(self):
         blocked = HTTPException(status_code=400, detail="URL resolves to a non-public address")
-        loop = asyncio.get_running_loop()
-        failed = loop.create_future()
-        failed.set_exception(blocked)
-        mock_loop = MagicMock()
-        mock_loop.run_in_executor.return_value = failed
+
+        def guard(url, *, purpose=None):
+            raise blocked
 
         with (
-            patch("core.network.asyncio.get_running_loop", return_value=mock_loop),
+            patch.object(core_network, "reject_private_url", guard),
             pytest.raises(HTTPException) as exc_info,
         ):
             await core_network.reject_private_url_async("https://internal.example.com")
 
         assert exc_info.value is blocked
+
+    @pytest.mark.asyncio
+    async def test_refuses_with_503_when_every_slot_is_taken(self):
+        calls: list[str] = []
+        assert core_network._ssrf_dns_slots.acquire(blocking=False)
+        assert core_network._ssrf_dns_slots.acquire(blocking=False)
+
+        with (
+            patch.object(core_network, "reject_private_url", self._blocking_guard(threading.Event(), calls)),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await core_network.reject_private_url_async("https://idp.example.com")
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.detail == "Hostname resolution is busy"
+        assert calls == []
+
+    @pytest.mark.asyncio
+    async def test_stuck_lookup_keeps_its_slot_until_it_finishes(self):
+        release = threading.Event()
+        calls: list[str] = []
+        with (
+            patch.object(core_network, "reject_private_url", self._blocking_guard(release, calls)),
+            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0.05),
+            patch.object(core_network, "_ssrf_dns_slots", threading.BoundedSemaphore(1)),
+        ):
+            with pytest.raises(HTTPException) as first:
+                await core_network.reject_private_url_async("https://stuck.example.com")
+            assert first.value.status_code == 504
+
+            # The caller gave up, but the lookup is still running: nothing may queue behind it.
+            with pytest.raises(HTTPException) as second:
+                await core_network.reject_private_url_async("https://other.example.com")
+            assert second.value.status_code == 503
+            assert calls == ["https://stuck.example.com"]
+
+            release.set()
+            assert self._wait_for_free_slot()
+            await core_network.reject_private_url_async("https://other.example.com")
+            assert calls == ["https://stuck.example.com", "https://other.example.com"]
+
+    @pytest.mark.asyncio
+    async def test_queued_lookup_is_cancelled_when_its_caller_times_out(self):
+        release = threading.Event()
+        calls: list[str] = []
+        with (
+            patch.object(core_network, "reject_private_url", self._blocking_guard(release, calls)),
+            patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0.05),
+        ):
+            # One worker: the first lookup runs and blocks, the second waits in the queue.
+            for url in ("https://stuck.example.com", "https://queued.example.com"):
+                with pytest.raises(HTTPException) as exc_info:
+                    await core_network.reject_private_url_async(url)
+                assert exc_info.value.status_code == 504
+
+            release.set()
+            assert self._wait_for_free_slot()
+            await asyncio.sleep(0.1)
+
+        assert calls == ["https://stuck.example.com"]
+
+    @pytest.mark.asyncio
+    async def test_shutdown_stops_the_pool_and_the_next_lookup_starts_a_new_one(self):
+        with patch.object(core_network, "reject_private_url", lambda url, *, purpose=None: None):
+            await core_network.reject_private_url_async("https://idp.example.com")
+            first_pool = core_network._ssrf_dns_executor
+            assert first_pool is not None
+
+            core_network.shutdown_ssrf_dns_executor()
+            assert core_network._ssrf_dns_executor is None
+            core_network.shutdown_ssrf_dns_executor()  # already stopped: no-op
+
+            await core_network.reject_private_url_async("https://idp.example.com")
+            assert core_network._ssrf_dns_executor is not first_pool
 
 
 class TestHostRejectionReason:

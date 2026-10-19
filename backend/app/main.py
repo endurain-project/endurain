@@ -319,6 +319,9 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     activity_ingestion_integration.shutdown_background_ingestion()
     runtime_module_registry.shutdown_deferred_subscribers()
 
+    # Stop the SSRF hostname-resolution pool (no-op when no lookup ever ran).
+    core_network.shutdown_ssrf_dns_executor()
+
     core_scheduler.stop_scheduler()
 
     # Clear the captured event loop; nothing may dispatch onto it after shutdown.
