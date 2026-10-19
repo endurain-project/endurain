@@ -13,7 +13,7 @@
   [![Trademark Policy](https://img.shields.io/badge/trademark-Endurain%E2%84%A2-blue)](./TRADEMARK.md)
 
   **A self-hosted fitness tracking service**  
-  Visit Endurain's [Mastodon profile](https://fosstodon.org/@endurain) and [Discord server](https://discord.gg/6VUjUq2uZR).
+  Visit Endurain's [Mastodon profile](https://fosstodon.org/@endurain), [Bluesky profile](https://bsky.app/profile/endurain.bsky.social), [Discord server](https://discord.gg/6VUjUq2uZR) and [LinkedIn page](https://www.linkedin.com/company/endurain).
 
   <img src="screenshot_01.png" alt="Endurain Screenshot">
 </div>

@@ -2,7 +2,9 @@
   "repository": "Repositório",
   "documentation": "Documentação",
   "mastodon": "Conta de Mastodon do Endurain",
+  "bluesky": "Perfil de Bluesky do Endurain",
   "discord": "Servidor de Discord do Endurain",
+  "linkedin": "Página de LinkedIn do Endurain",
   "compatibleStrava": "Compatível com Strava",
   "worksGarmin": "Funciona com Garmin Connect"
 }

@@ -2,7 +2,9 @@
   "repository": "Repozitorijum",
   "documentation": "Dokumentacija",
   "mastodon": "Endurain Mastodon nalog",
+  "bluesky": "Endurain Bluesky profil",
   "discord": "Endurain Discord server",
+  "linkedin": "Endurain LinkedIn stranica",
   "compatibleStrava": "Kompatibilno sa Strava",
   "worksGarmin": "Radi sa Garmin Connect"
 }

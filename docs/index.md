@@ -22,7 +22,7 @@
       Endurain
   </h2>
   <p>
-    A self-hosted fitness tracking service - <a href="https://fosstodon.org/@endurain">Mastodon profile</a> - <a href="https://discord.gg/6VUjUq2uZR">Discord server</a> - <a href="#newsletter">Newsletter</a>
+    A self-hosted fitness tracking service - <a href="https://fosstodon.org/@endurain">Mastodon profile</a> - <a href="https://bsky.app/profile/endurain.bsky.social">Bluesky profile</a> - <a href="https://discord.gg/6VUjUq2uZR">Discord server</a> - <a href="https://www.linkedin.com/company/endurain">LinkedIn page</a> - <a href="#newsletter">Newsletter</a>
   </p>
 </div>
 

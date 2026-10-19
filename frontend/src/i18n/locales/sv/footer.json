@@ -2,7 +2,9 @@
   "repository": "Förråd",
   "documentation": "Dokumentation",
   "mastodon": "Endurains Mastodon-konto",
+  "bluesky": "Endurains Bluesky-profil",
   "discord": "Endurains Discord-server",
+  "linkedin": "Endurains LinkedIn-sida",
   "compatibleStrava": "Kompatibel med Strava",
   "worksGarmin": "Fungerar med Garmin Connect"
 }
