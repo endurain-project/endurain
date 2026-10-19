@@ -11,7 +11,8 @@ The only jobs declared here are core's and the substrate's own.
 """
 
 import inspect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import jasil.retention as platform_retention
@@ -47,6 +48,25 @@ class ScheduledJob:
     lock_name: str | None = None
 
 
+@contextmanager
+def _held_lock(lock_name: str) -> Generator[bool]:
+    """Try to take a distributed lock, logging when another replica holds it.
+
+    Args:
+        lock_name: Stable coordination-lock name.
+
+    Yields:
+        ``True`` when the lock is held for the duration of the block, ``False`` when another replica holds it.
+    """
+    with platform_runtime.get_active_platform().lock.try_acquire(lock_name) as acquired:
+        if not acquired:
+            logger.debug(
+                "Scheduler job skipped because another replica holds its lock",
+                extra=core_logger.context(lock_name=lock_name),
+            )
+        yield acquired
+
+
 def _run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
     """Run a synchronous scheduled job only while holding its distributed lock.
 
@@ -58,14 +78,8 @@ def _run_locked_job(lock_name: str, func: Callable[..., object], *args: object) 
     Returns:
         The operation result, or ``None`` when another replica holds the lock.
     """
-    with platform_runtime.get_active_platform().lock.try_acquire(lock_name) as acquired:
-        if not acquired:
-            logger.debug(
-                "Scheduler job skipped because another replica holds its lock",
-                extra=core_logger.context(lock_name=lock_name),
-            )
-            return None
-        return func(*args)
+    with _held_lock(lock_name) as acquired:
+        return func(*args) if acquired else None
 
 
 async def _run_locked_async_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
@@ -79,12 +93,8 @@ async def _run_locked_async_job(lock_name: str, func: Callable[..., object], *ar
     Returns:
         The awaited result, or ``None`` when another replica holds the lock.
     """
-    with platform_runtime.get_active_platform().lock.try_acquire(lock_name) as acquired:
+    with _held_lock(lock_name) as acquired:
         if not acquired:
-            logger.debug(
-                "Scheduler job skipped because another replica holds its lock",
-                extra=core_logger.context(lock_name=lock_name),
-            )
             return None
         result = func(*args)
         if inspect.isawaitable(result):
