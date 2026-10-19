@@ -62,6 +62,7 @@ class TestSortParameters:
         import modules.activities.activity.constants as activity_constants
 
         client = _client()
+        assert set(activity_constants.ACTIVITY_SORT_FIELDS) == set(activity_constants.ActivitySortField)
         for key in activity_constants.ACTIVITY_SORT_FIELDS:
             assert client.get("/list", params={"sort_by": key}).status_code == 200
 

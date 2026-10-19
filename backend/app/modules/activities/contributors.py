@@ -169,10 +169,10 @@ class ProfileGlobalContributor:
     restore: RestoreGlobalRecords
 
 
-class StoreChildRecords(Protocol):
-    """Stage rows for one activity through the child package's CRUD."""
+class StoreChildRecords[R](Protocol):
+    """Stage rows of type ``R`` for one activity through the child package's CRUD."""
 
-    def __call__(self, records: Any, activity_id: int, db: Session) -> None:
+    def __call__(self, records: R, activity_id: int, db: Session, /) -> None:
         """Stage the rows for the activity.
 
         Args:
@@ -182,10 +182,10 @@ class StoreChildRecords(Protocol):
         """
 
 
-class ParseChildRecord(Protocol):
-    """Turn one archived profile record into the value the store takes."""
+class ParseChildRecord[R](Protocol):
+    """Turn one archived profile record into a row of type ``R``."""
 
-    def __call__(self, record: dict[str, Any], activity_id: int) -> Any:
+    def __call__(self, record: dict[str, Any], activity_id: int, /) -> R:
         """Validate one archived record for a restored activity.
 
         Args:
@@ -200,7 +200,7 @@ class ParseChildRecord(Protocol):
 def child_ingestion_contributor(
     *,
     key: str,
-    store: StoreChildRecords,
+    store: StoreChildRecords[Any],
 ) -> ActivityIngestionContributor:
     """Build the ingestion contribution for a plain child collection.
 
@@ -218,15 +218,15 @@ def child_ingestion_contributor(
     return ActivityIngestionContributor(key=key, persist=persist)
 
 
-def child_profile_contributor(
+def child_profile_contributor[R](
     *,
     key: str,
     archive_path: str,
     count_key: str,
     split: bool,
     export: ExportActivityRecords,
-    store: StoreChildRecords,
-    parse_record: ParseChildRecord,
+    store: StoreChildRecords[list[R]],
+    parse_record: ParseChildRecord[R],
 ) -> ProfileActivityContributor:
     """Build the profile contribution for a plain child collection.
 
@@ -253,7 +253,7 @@ def child_profile_contributor(
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
-        restored = []
+        restored: list[R] = []
         for record in records:
             if record.get("activity_id") != original_activity_id:
                 continue

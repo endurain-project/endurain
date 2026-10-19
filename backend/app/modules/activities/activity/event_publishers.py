@@ -23,7 +23,7 @@ import modules.activities.activity.events as activity_events
 
 def publish_activity_created(
     activity_id: int,
-    user_id: int | None,
+    user_id: int,
     db: Session,
     *,
     source: str,

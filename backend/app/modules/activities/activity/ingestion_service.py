@@ -133,6 +133,13 @@ def store_parsed_activity(
             )
             raise core_exceptions.ProcessingError("Error creating activity")
 
+        if created_activity.user_id is None:
+            logger.error(
+                "store_parsed_activity: created activity has no owner",
+                extra=core_logger.context(activity_id=created_activity.id, dedup_key=dedup_key),
+            )
+            raise core_exceptions.ProcessingError("Error creating activity")
+
         source_kind = source.kind if source is not None else "unknown"
         logger.debug(
             "Created activity from parsed file",
@@ -168,7 +175,7 @@ def store_parsed_activity(
             created_activity.user_id,
             duplicate_start_time=created_activity.is_hidden,
             db=db,
-            source=f"ingest:{parsed.source.kind}",
+            source=f"ingest:{source_kind}",
         )
 
         return created_activity

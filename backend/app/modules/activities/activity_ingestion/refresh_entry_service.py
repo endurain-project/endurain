@@ -57,6 +57,7 @@ def sync_linked_providers(
     end = window_end or datetime.now(UTC)
     start = window_start or end - _REFRESH_WINDOW
 
+    providers: tuple[activity_ingestion_provider_registry.ActivityProvider, ...]
     if provider is not None:
         selected = activity_ingestion_provider_registry.get(provider)
         if selected is None:

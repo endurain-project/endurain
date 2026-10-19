@@ -404,7 +404,7 @@ def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
         finished, or being worked on by someone else.
     """
     model = activity_ingestion_models.ActivityIngestionJob
-    stale_before = db.scalar(select(func.now())) - lease
+    stale_before = func.now() - lease
     stmt = (
         update(model)
         .where(
@@ -546,7 +546,7 @@ def get_referenced_staged_keys(staged_keys: Sequence[str], db: Session) -> set[s
     stmt = select(activity_ingestion_models.ActivityIngestionJob.staged_key).where(
         activity_ingestion_models.ActivityIngestionJob.staged_key.in_(staged_keys)
     )
-    return set(db.scalars(stmt).all())
+    return {key for key in db.scalars(stmt).all() if key is not None}
 
 
 def delete_jobs_before(cutoff: datetime, db: Session) -> int:

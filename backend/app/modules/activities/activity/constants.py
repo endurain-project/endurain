@@ -161,32 +161,46 @@ ACTIVITY_TYPES_BY_SPORT: dict[str, tuple[int, ...]] = {
     "inline_skating": (45,),
 }
 
-#: Sort keys the activity list endpoints accept, in the order they appear in the
-#: UI, mapped to the activity columns each one orders by (highest precedence
-#: first). One declaration feeds both the transport validator and the query's
-#: ``SORT_MAP``, so a key the endpoint accepts always has an ordering.
+
+class ActivitySortField(StrEnum):
+    """Sort keys the activity list endpoints accept, in the order they appear in the UI.
+
+    A real enum so FastAPI validates the query parameter and publishes the accepted values.
+    """
+
+    type = "type"
+    name = "name"
+    location = "location"
+    start_time = "start_time"
+    duration = "duration"
+    distance = "distance"
+    pace = "pace"
+    calories = "calories"
+    elevation = "elevation"
+    average_hr = "average_hr"
+
+
+#: The activity columns each sort key orders by (highest precedence first). One declaration
+#: feeds both the transport validator and the query's ``SORT_MAP``, so a key the endpoint
+#: accepts always has an ordering.
 #:
 #: Column *names* rather than ORM attributes: a contract-layer constant must not
 #: import the persistence layer. ``crud`` resolves them against the model.
-ACTIVITY_SORT_FIELDS: dict[str, tuple[str, ...]] = {
-    "type": ("activity_type",),
-    "name": ("name",),
-    "location": ("country", "city", "town"),
-    "start_time": ("start_time",),
-    "duration": ("total_timer_time",),
-    "distance": ("distance",),
-    "pace": ("pace",),
-    "calories": ("calories",),
-    "elevation": ("elevation_gain",),
-    "average_hr": ("average_hr",),
+ACTIVITY_SORT_FIELDS: dict[ActivitySortField, tuple[str, ...]] = {
+    ActivitySortField.type: ("activity_type",),
+    ActivitySortField.name: ("name",),
+    ActivitySortField.location: ("country", "city", "town"),
+    ActivitySortField.start_time: ("start_time",),
+    ActivitySortField.duration: ("total_timer_time",),
+    ActivitySortField.distance: ("distance",),
+    ActivitySortField.pace: ("pace",),
+    ActivitySortField.calories: ("calories",),
+    ActivitySortField.elevation: ("elevation_gain",),
+    ActivitySortField.average_hr: ("average_hr",),
 }
 
 #: The sort key applied when a request names none.
-DEFAULT_ACTIVITY_SORT_FIELD = "start_time"
-
-#: The sort keys a request may name, as an enum so FastAPI validates the query parameter and
-#: publishes the accepted values. Built from :data:`ACTIVITY_SORT_FIELDS`, which stays the one list.
-ActivitySortField = StrEnum("ActivitySortField", {key: key for key in ACTIVITY_SORT_FIELDS})
+DEFAULT_ACTIVITY_SORT_FIELD = ActivitySortField.start_time
 
 
 class ActivitySortOrder(StrEnum):

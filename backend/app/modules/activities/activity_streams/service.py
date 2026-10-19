@@ -151,6 +151,8 @@ def _with_zones(
     """
     if not any(stream.stream_type == activity_streams_constants.STREAM_TYPE_HR for stream in streams):
         return streams
+    if activity.user_id is None:
+        return streams
     max_heart_rate = _max_heart_rate_of(activity.user_id, db)
     if not max_heart_rate:
         return streams

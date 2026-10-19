@@ -140,7 +140,7 @@ def get_existing_media_paths(media_paths: list[str], db: Session) -> set[str]:
     stmt = select(activity_media_models.ActivityMedia.media_path).where(
         activity_media_models.ActivityMedia.media_path.in_(media_paths)
     )
-    return set(db.scalars(stmt).all())
+    return {path for path in db.scalars(stmt).all() if path is not None}
 
 
 def get_activity_media_by_content_hash(
