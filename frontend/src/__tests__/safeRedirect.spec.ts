@@ -121,6 +121,16 @@ describe('setAllowedRedirectSchemes', () => {
     expect(isCustomSchemeRedirect('endurain://callback')).toBe(false)
   })
 
+  it.each(['http', 'https', 'javascript', 'DATA', 'vbscript', 'file'])(
+    'never allows the unsafe scheme %s even when configured',
+    (scheme) => {
+      setAllowedRedirectSchemes([scheme, 'good'])
+      expect(isCustomSchemeRedirect(`${scheme}://x`)).toBe(false)
+      expect(getSafeRedirect(`${scheme}://x`)).toBe('/')
+      expect(isCustomSchemeRedirect('good://x')).toBe(true)
+    },
+  )
+
   it('ignores malformed entries', () => {
     setAllowedRedirectSchemes(['', 'not a scheme', '1abc', 'good'])
     expect(isCustomSchemeRedirect('good://x')).toBe(true)

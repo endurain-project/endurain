@@ -15,11 +15,19 @@ const DEFAULT_CUSTOM_SCHEMES = ['endurain']
 let allowedCustomSchemes = new Set(DEFAULT_CUSTOM_SCHEMES)
 
 /**
+ * Schemes that never become redirect targets, whatever the server configures:
+ * `http(s)` would be an external redirect and the rest execute or embed content
+ * when assigned to `window.location.href`.
+ */
+const UNSAFE_REDIRECT_SCHEMES = new Set(['http', 'https', 'javascript', 'data', 'vbscript', 'file'])
+
+/**
  * Replaces the allowed custom redirect schemes with the server's configured
  * list, so the frontend accepts exactly what the backend accepts.
  *
- * Entries that are not well-formed URI schemes are ignored. An empty result
- * leaves no custom scheme allowed.
+ * Entries that are not well-formed URI schemes, or that are in
+ * {@link UNSAFE_REDIRECT_SCHEMES}, are ignored. An empty result leaves no custom
+ * scheme allowed.
  *
  * @param schemes - Scheme names from the public server settings (without `:`).
  */
@@ -27,7 +35,9 @@ export function setAllowedRedirectSchemes(schemes: readonly string[]): void {
   allowedCustomSchemes = new Set(
     schemes
       .map((scheme) => scheme.toLowerCase())
-      .filter((scheme) => /^[a-z][a-z0-9+.-]*$/.test(scheme)),
+      .filter(
+        (scheme) => /^[a-z][a-z0-9+.-]*$/.test(scheme) && !UNSAFE_REDIRECT_SCHEMES.has(scheme),
+      ),
   )
 }
 
