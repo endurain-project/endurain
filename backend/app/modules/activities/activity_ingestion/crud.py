@@ -404,7 +404,7 @@ def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
         finished, or being worked on by someone else.
     """
     model = activity_ingestion_models.ActivityIngestionJob
-    stale_before = func.now() - lease
+    stale_before = db.scalars(select(func.now())).one() - lease
     stmt = (
         update(model)
         .where(
