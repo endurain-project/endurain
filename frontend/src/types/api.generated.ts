@@ -5494,6 +5494,9 @@ export interface components {
         };
         /**
          * ActivitySortField
+         * @description Sort keys the activity list endpoints accept, in the order they appear in the UI.
+         *
+         *     A real enum so FastAPI validates the query parameter and publishes the accepted values.
          * @enum {string}
          */
         ActivitySortField: "type" | "name" | "location" | "start_time" | "duration" | "distance" | "pace" | "calories" | "elevation" | "average_hr";
