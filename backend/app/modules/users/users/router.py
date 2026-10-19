@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Query, Security, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-import core.apprise as core_apprise
 import core.database as core_database
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
@@ -361,10 +360,6 @@ async def approve_user(
     user_id: int,
     _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["users:write"])],
-    email_service: Annotated[
-        core_apprise.AppriseService,
-        Depends(core_apprise.get_email_service),
-    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -377,7 +372,6 @@ async def approve_user(
         user_id: ID of user to approve.
         _validate_id: User ID validation dependency.
         _check_scopes: Authorization check.
-        email_service: Email service dependency.
         db: Database session dependency.
 
     Returns:
@@ -387,7 +381,7 @@ async def approve_user(
     await run_in_threadpool(users_crud.approve_user, user_id, db)
 
     # Send approval email
-    await sign_up_tokens_utils.send_sign_up_approval_email(user_id, email_service, db)
+    await run_in_threadpool(sign_up_tokens_utils.request_sign_up_approved_email, user_id, db)
 
     # Return success message
     return {"message": f"User ID {user_id} approved successfully."}

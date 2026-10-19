@@ -586,9 +586,6 @@
       "edit": "Modifier le jeûne",
       "delete": "Supprimer le jeûne"
     },
-    "list": {
-      "notesLabel": "Notes"
-    },
     "form": {
       "addTitle": "Démarrer un jeûne",
       "editTitle": "Modifier la session de jeûne",
@@ -596,7 +593,6 @@
       "type": "Protocole de jeûne",
       "customDuration": "Durée personnalisée",
       "customDurationHint": "Durée du jeûne, en heures (1–72).",
-      "hours": "heures",
       "startTime": "Heure de démarrage",
       "startTimeRequired": "Veuillez choisir une heure de démarrage.",
       "endTime": "Heure de fin",

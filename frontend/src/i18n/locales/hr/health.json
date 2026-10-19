@@ -586,9 +586,6 @@
       "edit": "Uredi post",
       "delete": "Izbriši post"
     },
-    "list": {
-      "notesLabel": "Bilješke"
-    },
     "form": {
       "addTitle": "Započni post",
       "editTitle": "Uredi sesiju posta",
@@ -596,7 +593,6 @@
       "type": "Protokol posta",
       "customDuration": "Prilagođeno trajanje",
       "customDurationHint": "Duljina posta, u satima (1–72).",
-      "hours": "sati",
       "startTime": "Vrijeme početka",
       "startTimeRequired": "Odaberite vrijeme početka.",
       "endTime": "Vrijeme završetka",

@@ -48,7 +48,6 @@
       "title": "Brak użytkowników",
       "description": "Dodaj pierwsze konto na tej instancji",
       "searchTitle": "Nie znaleziono użytkowników",
-      "searchDescription": "Żaden użytkownik nie pasuje do tej nazwy",
       "filteredTitle": "Żaden użytkownik nie pasuje do wybranych filtrów"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym",
       "passwordHintLength": "Co najmniej {min} znaków",
       "passwordRequired": "Hasło jest wymagane",
-      "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków",
       "passwordInvalid": "To hasło nie spełnia wymagań",
       "confirmPassword": "Potwierdź hasło",
       "confirmPasswordRequired": "Potwierdź hasło",
@@ -135,6 +133,8 @@
         "pound": "Funt"
       },
       "firstDayOfWeek": "Pierwszy dzień tygodnia",
+      "timezone": "Strefa czasowa",
+      "timezoneHint": "Używana dla aktywności zarejestrowanych bez GPS, takich jak bieganie na bieżni i jazda na rowerze w pomieszczeniu.",
       "weekdays": {
         "sunday": "Niedziela",
         "monday": "Poniedziałek",
@@ -354,6 +354,19 @@
       "deleteError": "Nie udało się usunąć zdjęcia logowania. Spróbuj ponownie.",
       "cancel": "Anuluj",
       "close": "Zamknij"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain wysyła e-maile z resetowaniem hasła i rejestracją przez serwer SMTP skonfigurowany w środowisku.",
+      "statusLoadError": "Nie udało się sprawdzić konfiguracji e-maila.",
+      "configured": "E-mail jest skonfigurowany.",
+      "notConfigured": "E-mail nie jest skonfigurowany:",
+      "send": "Wyślij wiadomość testową",
+      "sending": "Wysyłanie…",
+      "sendHint": "Wiadomość testowa jest wysyłana na Twój własny adres.",
+      "sent": "Wiadomość testowa wysłana",
+      "failed": "Nie udało się wysłać wiadomości testowej",
+      "failedUnknown": "Szczegóły znajdziesz w logach serwera."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Import zbiorczy",
       "subtitle": "Importuj pliki aktywności umieszczone w folderze importu zbiorczego serwera",
-      "button": "Importuj aktywności",
+      "uploadButton": "Prześlij ZIP",
+      "folderButton": "Importuj z folderu",
       "started": "Importowanie aktywności w tle…",
+      "alreadyRunning": "Import zbiorczy jest już w toku. Poczekaj, aż się zakończy.",
       "error": "Nie udało się rozpocząć importu. Spróbuj ponownie."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Zaimportowano rowery ze Strava",
       "bikesError": "Nie udało się zaimportować rowerów ze Strava. Spróbuj ponownie.",
       "shoesSuccess": "Zaimportowano buty ze Strava",
-      "shoesError": "Nie udało się zaimportować butów ze Strava. Spróbuj ponownie."
+      "shoesError": "Nie udało się zaimportować butów ze Strava. Spróbuj ponownie.",
+      "activitiesUpload": "Importuj aktywności (prześlij ZIP)",
+      "activitiesFolder": "Importuj aktywności (folder na serwerze)"
+    },
+    "job": {
+      "preparing": "Przygotowywanie importu…",
+      "progress": "Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
+      "finished": "Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
+      "failed": "Nie udało się ukończyć importu."
     }
   },
   "profile": {

@@ -7,8 +7,6 @@
   "password": "Slaptažodis",
   "confirmPassword": "Patvirtinti slaptažodį",
   "passwordMismatch": "Slaptažodžiai nesutampa",
-  "showPassword": "Rodyti slaptažodį",
-  "hidePassword": "Slėpti slaptažodį",
   "showOptionalFields": "Rodyti pasirenkamus laukus",
   "hideOptionalFields": "Slėpti pasirenkamus laukus",
   "preferredLanguage": "Pageidaujama kalba",

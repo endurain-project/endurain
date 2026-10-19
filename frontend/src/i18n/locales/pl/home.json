@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Przesyłanie…",
     "success": "Pomyślnie przesłano aktywność",
-    "error": "Nie udało się przesłać pliku aktywności"
+    "error": "Nie udało się przesłać pliku aktywności",
+    "timeout": "Twój plik jest nadal importowany. Pojawi się po zakończeniu.",
+    "failed": {
+      "unsupported_format": "Ten typ pliku nie jest obsługiwany",
+      "invalid_file": "Nie udało się odczytać tego pliku",
+      "no_activities_found": "W tym pliku nie znaleziono żadnej aktywności",
+      "processing_failed": "Nie udało się zaimportować pliku aktywności"
+    }
   },
   "refresh": {
     "label": "Odśwież",

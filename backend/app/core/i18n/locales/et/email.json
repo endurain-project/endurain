@@ -38,5 +38,12 @@
   "signup_approved.intro": "Häid uudiseid! Sinu konto on heaks kiidetud ja nüüd aktiivne.",
   "signup_approved.username_label": "Kasutajanimi:",
   "signup_approved.login_intro": "Nüüd saad sisse logida ja Enduraini kasutama hakata:",
-  "signup_approved.cta": "Logi Enduraini sisse"
+  "signup_approved.cta": "Logi Enduraini sisse",
+
+  "test_email.subject": "Endurain - Test-e-kiri",
+  "test_email.heading": "E-post töötab",
+  "test_email.greeting": "Tere {name},",
+  "test_email.intro": "See on Enduraini serveriseadetest saadetud test-e-kiri. Kui sa seda loed, saab Endurain saata e-kirju sinu SMTP-serveri kaudu.",
+  "test_email.detail_label": "SMTP-server:",
+  "test_email.ignore": "Midagi ei ole vaja teha."
 }

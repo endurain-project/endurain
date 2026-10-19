@@ -48,7 +48,6 @@
       "title": "Zatím žádní uživatelé",
       "description": "Přidejte první účet pro tuto instanci",
       "searchTitle": "Žádní uživatelé nenalezeni",
-      "searchDescription": "Tomuto uživatelskému jménu neodpovídají žádní uživatelé",
       "filteredTitle": "Vybraným filtrům neodpovídají žádní uživatelé"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Alespoň {min} znaků, s velkým písmenem, malým písmenem, číslicí a speciálním znakem",
       "passwordHintLength": "Alespoň {min} znaků",
       "passwordRequired": "Heslo je povinné",
-      "passwordTooShort": "Heslo musí mít alespoň 8 znaků",
       "passwordInvalid": "Toto heslo nesplňuje požadavky",
       "confirmPassword": "Potvrďte heslo",
       "confirmPasswordRequired": "Potvrďte heslo",
@@ -135,6 +133,8 @@
         "pound": "Libra"
       },
       "firstDayOfWeek": "První den v týdnu",
+      "timezone": "Časové pásmo",
+      "timezoneHint": "Používá se pro aktivity zaznamenané bez GPS, například běh na pásu nebo jízdu na trenažéru.",
       "weekdays": {
         "sunday": "Neděle",
         "monday": "Pondělí",
@@ -354,6 +354,19 @@
       "deleteError": "Nepodařilo se odebrat fotografii přihlášení. Zkuste to prosím znovu.",
       "cancel": "Zrušit",
       "close": "Zavřít"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain odesílá e-maily pro obnovení hesla a registraci přes SMTP server nakonfigurovaný v prostředí.",
+      "statusLoadError": "Nepodařilo se zkontrolovat konfiguraci e-mailu.",
+      "configured": "E-mail je nakonfigurován.",
+      "notConfigured": "E-mail není nakonfigurován:",
+      "send": "Odeslat testovací e-mail",
+      "sending": "Odesílání…",
+      "sendHint": "Testovací e-mail se odešle na vaši vlastní adresu.",
+      "sent": "Testovací e-mail odeslán",
+      "failed": "Testovací e-mail se nepodařilo odeslat",
+      "failedUnknown": "Podrobnosti najdete v logech serveru."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Hromadný import",
       "subtitle": "Importujte soubory aktivit umístěné ve složce serveru pro hromadný import",
-      "button": "Importovat aktivity",
+      "uploadButton": "Nahrát ZIP",
+      "folderButton": "Importovat ze složky",
       "started": "Importování aktivit na pozadí…",
+      "alreadyRunning": "Hromadný import již probíhá. Počkejte, až skončí.",
       "error": "Nepodařilo se zahájit import. Zkuste to prosím znovu."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Kola ze služby Strava importována",
       "bikesError": "Nepodařilo se importovat kola ze služby Strava. Zkuste to prosím znovu.",
       "shoesSuccess": "Boty ze služby Strava importovány",
-      "shoesError": "Nepodařilo se importovat boty ze služby Strava. Zkuste to prosím znovu."
+      "shoesError": "Nepodařilo se importovat boty ze služby Strava. Zkuste to prosím znovu.",
+      "activitiesUpload": "Importovat aktivity (nahrát ZIP)",
+      "activitiesFolder": "Importovat aktivity (složka na serveru)"
+    },
+    "job": {
+      "preparing": "Příprava importu…",
+      "progress": "Importováno {done} z {total} souborů ({failed} se nezdařilo)…",
+      "finished": "Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo.",
+      "failed": "Import se nepodařilo dokončit."
     }
   },
   "profile": {

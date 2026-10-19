@@ -3,7 +3,6 @@
 import html
 from urllib.parse import quote as url_quote
 
-import core.apprise as core_apprise
 import core.email_templates as core_email_templates
 import core.i18n as core_i18n
 
@@ -11,7 +10,7 @@ import core.i18n as core_i18n
 def get_password_reset_email(
     user_name: str,
     reset_link: str,
-    email_service: core_apprise.AppriseService,
+    frontend_host: str,
     locale: str | None = None,
 ) -> tuple[str, str, str]:
     """
@@ -20,7 +19,7 @@ def get_password_reset_email(
     Args:
         user_name: The recipient's display name.
         reset_link: The URL for resetting the password.
-        email_service: AppriseService for footer metadata.
+        frontend_host: Base URL of the frontend, used in the footer.
         locale: Preferred locale code for the recipient. Falls back
             to ``"en"`` if unsupported or ``None``.
 
@@ -76,7 +75,7 @@ def get_password_reset_email(
         subject=subject,
         heading=heading,
         body_inner=body_inner,
-        frontend_host=email_service.frontend_host,
+        frontend_host=frontend_host,
         link_color=color,
     )
 

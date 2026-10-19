@@ -48,7 +48,6 @@
       "title": "Încă niciun utilizator",
       "description": "Adaugă primul cont pentru această instanță",
       "searchTitle": "Niciun utilizator găsit",
-      "searchDescription": "Niciun utilizator nu corespunde acelui nume de utilizator",
       "filteredTitle": "Niciun utilizator nu corespunde filtrelor selectate"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special",
       "passwordHintLength": "Cel puțin {min} caractere",
       "passwordRequired": "Parola este obligatorie",
-      "passwordTooShort": "Parola trebuie să aibă cel puțin 8 caractere",
       "passwordInvalid": "Acea parolă nu îndeplinește cerințele",
       "confirmPassword": "Confirmă parola",
       "confirmPasswordRequired": "Confirmă parola",
@@ -135,6 +133,8 @@
         "pound": "Liră"
       },
       "firstDayOfWeek": "Prima zi a săptămânii",
+      "timezone": "Fus orar",
+      "timezoneHint": "Folosit pentru activitățile înregistrate fără GPS, precum alergarea pe bandă și ciclismul în interior.",
       "weekdays": {
         "sunday": "Duminică",
         "monday": "Luni",
@@ -354,6 +354,19 @@
       "deleteError": "Nu am putut elimina fotografia de autentificare. Te rugăm să încerci din nou.",
       "cancel": "Anulează",
       "close": "Închide"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain trimite e-mailurile de resetare a parolei și de înregistrare prin serverul SMTP configurat în mediu.",
+      "statusLoadError": "Configurarea e-mailului nu a putut fi verificată.",
+      "configured": "E-mailul este configurat.",
+      "notConfigured": "E-mailul nu este configurat:",
+      "send": "Trimite e-mail de test",
+      "sending": "Se trimite…",
+      "sendHint": "E-mailul de test este trimis la propria ta adresă.",
+      "sent": "E-mail de test trimis",
+      "failed": "E-mailul de test nu a putut fi trimis",
+      "failedUnknown": "Consultă jurnalele serverului pentru detalii."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Import în masă",
       "subtitle": "Importă fișiere de activitate plasate în folderul de import în masă al serverului",
-      "button": "Importă activitățile",
+      "uploadButton": "Încarcă ZIP",
+      "folderButton": "Importă din folder",
       "started": "Se importă activitățile în fundal…",
+      "alreadyRunning": "Un import în masă rulează deja. Așteaptă să se termine.",
       "error": "Nu am putut începe importul. Te rugăm să încerci din nou."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Biciclete Strava importate",
       "bikesError": "Nu am putut importa bicicletele Strava. Te rugăm să încerci din nou.",
       "shoesSuccess": "Încălțăminte Strava importată",
-      "shoesError": "Nu am putut importa încălțămintea Strava. Te rugăm să încerci din nou."
+      "shoesError": "Nu am putut importa încălțămintea Strava. Te rugăm să încerci din nou.",
+      "activitiesUpload": "Importă activități (încarcă ZIP)",
+      "activitiesFolder": "Importă activități (folder de pe server)"
+    },
+    "job": {
+      "preparing": "Se pregătește importul…",
+      "progress": "Importate {done} din {total} fișiere ({failed} eșuate)…",
+      "finished": "Import finalizat: {done} din {total} fișiere importate, {failed} eșuate.",
+      "failed": "Importul nu a putut fi finalizat."
     }
   },
   "profile": {

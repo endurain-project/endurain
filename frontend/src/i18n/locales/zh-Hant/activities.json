@@ -39,7 +39,6 @@
       "distance": "距離",
       "duration": "時長",
       "pace": "配速",
-      "speed": "速度",
       "paceSpeed": "配速 / 速度",
       "elevation": "海拔",
       "calories": "卡路里",
@@ -66,11 +65,9 @@
     "recenter": "重新置中地圖"
   },
   "metrics": {
-    "title": "指標",
     "time": "時間",
     "distance": "距離",
     "movingTime": "移動時間",
-    "elapsedTime": "經過時間",
     "avgPace": "平均配速",
     "avgSpeed": "平均速度",
     "maxSpeed": "最高速度",
@@ -109,7 +106,12 @@
     "elevation": "海拔",
     "strokeRate": "划頻",
     "cycles": "循環數",
-    "hr": "心率"
+    "strokes": "划水次數",
+    "revolutions": "轉數",
+    "strides": "步數",
+    "jumps": "跳躍",
+    "hr": "心率",
+    "activeSummary": "活動總計"
   },
   "workout": {
     "title": "訓練",
@@ -157,7 +159,6 @@
     "deleteError": "無法刪除活動"
   },
   "media": {
-    "title": "照片",
     "alt": "活動照片",
     "addMedia": "新增照片",
     "uploadSuccess": "照片已上傳",
@@ -170,7 +171,8 @@
     "close": "關閉",
     "deleteSuccess": "照片已刪除",
     "deleteError": "無法刪除照片",
-    "expand": "檢視原始大小"
+    "expand": "檢視原始大小",
+    "thumbnailPending": "正在產生地圖預覽…"
   },
   "gallery": {
     "previous": "上一張",

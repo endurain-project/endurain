@@ -38,5 +38,12 @@
   "signup_approved.intro": "Dobrá správa! Váš účet bol schválený a je teraz aktívny.",
   "signup_approved.username_label": "Používateľské meno:",
   "signup_approved.login_intro": "Teraz sa môžete prihlásiť a začať používať Endurain:",
-  "signup_approved.cta": "Prihlásiť sa do Endurain"
+  "signup_approved.cta": "Prihlásiť sa do Endurain",
+
+  "test_email.subject": "Endurain - Testovací e-mail",
+  "test_email.heading": "E-mail funguje",
+  "test_email.greeting": "Ahoj {name},",
+  "test_email.intro": "Toto je testovací e-mail odoslaný z nastavení servera Endurain. Ak ho čítate, Endurain vie odosielať e-maily cez váš SMTP server.",
+  "test_email.detail_label": "SMTP server:",
+  "test_email.ignore": "Nie je potrebná žiadna akcia."
 }

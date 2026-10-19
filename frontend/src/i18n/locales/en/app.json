@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logo",
-  "title": "Design system foundation is live",
-  "subtitle": "Tailwind v4, shadcn-vue, strict TypeScript and the Endurain token palette are wired up",
-  "primaryAction": "Primary action",
   "notFound": {
     "title": "Page not found",
     "message": "The page you are looking for does not exist or has moved",

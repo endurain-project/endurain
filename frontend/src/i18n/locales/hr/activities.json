@@ -39,7 +39,6 @@
       "distance": "Udaljenost",
       "duration": "Trajanje",
       "pace": "Tempo",
-      "speed": "Brzina",
       "paceSpeed": "Tempo / Brzina",
       "elevation": "Visinska razlika",
       "calories": "Kalorije",
@@ -66,11 +65,9 @@
     "recenter": "Ponovno centriraj kartu"
   },
   "metrics": {
-    "title": "Metrike",
     "time": "Vrijeme",
     "distance": "Udaljenost",
     "movingTime": "Vrijeme kretanja",
-    "elapsedTime": "Proteklo vrijeme",
     "avgPace": "Prosj. tempo",
     "avgSpeed": "Prosj. brzina",
     "maxSpeed": "Maks. brzina",
@@ -109,7 +106,12 @@
     "elevation": "Visinska razlika",
     "strokeRate": "Frekvencija zaveslaja",
     "cycles": "Ciklusi",
-    "hr": "Broj otkucaja srca"
+    "strokes": "Zaveslaji",
+    "revolutions": "Okretaji",
+    "strides": "Koraci",
+    "jumps": "Skokovi",
+    "hr": "Broj otkucaja srca",
+    "activeSummary": "Ukupno aktivno"
   },
   "workout": {
     "title": "Trening",
@@ -157,7 +159,6 @@
     "deleteError": "Nije moguće izbrisati aktivnost"
   },
   "media": {
-    "title": "Fotografije",
     "alt": "Fotografija aktivnosti",
     "addMedia": "Dodaj fotografiju",
     "uploadSuccess": "Fotografija je učitana",
@@ -170,7 +171,8 @@
     "close": "Zatvori",
     "deleteSuccess": "Fotografija je izbrisana",
     "deleteError": "Nije moguće izbrisati fotografiju",
-    "expand": "Pogledaj punu veličinu"
+    "expand": "Pogledaj punu veličinu",
+    "thumbnailPending": "Izrada pregleda karte…"
   },
   "gallery": {
     "previous": "Prethodno",

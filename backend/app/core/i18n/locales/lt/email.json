@@ -38,5 +38,12 @@
   "signup_approved.intro": "Geros naujienos! Jūsų paskyra patvirtinta ir dabar aktyvi.",
   "signup_approved.username_label": "Naudotojo vardas:",
   "signup_approved.login_intro": "Dabar galite prisijungti ir pradėti naudotis Endurain:",
-  "signup_approved.cta": "Prisijungti prie Endurain"
+  "signup_approved.cta": "Prisijungti prie Endurain",
+
+  "test_email.subject": "Endurain - Bandomasis laiškas",
+  "test_email.heading": "El. paštas veikia",
+  "test_email.greeting": "Sveiki, {name},",
+  "test_email.intro": "Tai bandomasis laiškas, išsiųstas iš Endurain serverio nustatymų. Jei jį skaitote, Endurain gali siųsti el. laiškus per jūsų SMTP serverį.",
+  "test_email.detail_label": "SMTP serveris:",
+  "test_email.ignore": "Jokių veiksmų atlikti nereikia."
 }

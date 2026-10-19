@@ -38,5 +38,12 @@
   "signup_approved.intro": "Добра новина! Вашият акаунт беше одобрен и вече е активен.",
   "signup_approved.username_label": "Потребителско име:",
   "signup_approved.login_intro": "Вече можете да влезете и да започнете да използвате Endurain:",
-  "signup_approved.cta": "Влез в Endurain"
+  "signup_approved.cta": "Влез в Endurain",
+
+  "test_email.subject": "Endurain - Тестов имейл",
+  "test_email.heading": "Имейлът работи",
+  "test_email.greeting": "Здравейте, {name},",
+  "test_email.intro": "Това е тестов имейл, изпратен от настройките на сървъра на Endurain. Ако го четете, Endurain може да изпраща имейли през вашия SMTP сървър.",
+  "test_email.detail_label": "SMTP сървър:",
+  "test_email.ignore": "Не са необходими действия."
 }

@@ -346,3 +346,15 @@ class TileMapsTemplate(BaseModel):
         from_attributes=True,
         extra="forbid",
     )
+
+
+class EmailStatus(BaseModel):
+    """Whether outgoing email is usable, and why not when it is not.
+
+    Attributes:
+        configured: True when the SMTP settings are valid and email can be sent.
+        problems: Reasons email is disabled. Names settings, never their values.
+    """
+
+    configured: bool
+    problems: list[str]

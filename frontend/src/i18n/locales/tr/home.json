@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Yükleniyor…",
     "success": "Etkinlik başarıyla yüklendi",
-    "error": "Etkinlik dosyası yüklenemedi"
+    "error": "Etkinlik dosyası yüklenemedi",
+    "timeout": "Dosyanız hâlâ içe aktarılıyor. Tamamlandığında görünecek.",
+    "failed": {
+      "unsupported_format": "Bu dosya türü desteklenmiyor",
+      "invalid_file": "Bu dosya okunamadı",
+      "no_activities_found": "Bu dosyada hiç etkinlik bulunamadı",
+      "processing_failed": "Etkinlik dosyası içe aktarılamadı"
+    }
   },
   "refresh": {
     "label": "Yenile",

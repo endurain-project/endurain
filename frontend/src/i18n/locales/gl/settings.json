@@ -48,7 +48,6 @@
       "title": "Aínda non hai usuarios",
       "description": "Engade a primeira conta para esta instancia",
       "searchTitle": "Non se atoparon usuarios",
-      "searchDescription": "Ningún usuario coincide con ese nome de usuario",
       "filteredTitle": "Ningún usuario coincide cos filtros seleccionados"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial",
       "passwordHintLength": "Polo menos {min} caracteres",
       "passwordRequired": "O contrasinal é obrigatorio",
-      "passwordTooShort": "O contrasinal debe ter polo menos 8 caracteres",
       "passwordInvalid": "Ese contrasinal non cumpre os requisitos",
       "confirmPassword": "Confirmar contrasinal",
       "confirmPasswordRequired": "Confirmar contrasinal",
@@ -135,6 +133,8 @@
         "pound": "Libra"
       },
       "firstDayOfWeek": "Primeiro día da semana",
+      "timezone": "Fuso horario",
+      "timezoneHint": "Utilízase para actividades rexistradas sen GPS, como carreiras na cinta ou ciclismo en interior.",
       "weekdays": {
         "sunday": "Domingo",
         "monday": "Luns",
@@ -354,6 +354,19 @@
       "deleteError": "Non se puido eliminar a foto de inicio de sesión. Por favor, téntao de novo.",
       "cancel": "Cancelar",
       "close": "Pechar"
+    },
+    "email": {
+      "title": "Correo electrónico",
+      "description": "Endurain envía os correos de restablecemento de contrasinal e de rexistro a través do servidor SMTP configurado no contorno.",
+      "statusLoadError": "Non se puido comprobar a configuración do correo electrónico.",
+      "configured": "O correo electrónico está configurado.",
+      "notConfigured": "O correo electrónico non está configurado:",
+      "send": "Enviar correo de proba",
+      "sending": "Enviando…",
+      "sendHint": "O correo de proba envíase ao teu propio enderezo.",
+      "sent": "Correo de proba enviado",
+      "failed": "Non se puido enviar o correo de proba",
+      "failedUnknown": "Consulta os rexistros do servidor para ver máis detalles."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Importación masiva",
       "subtitle": "Importa ficheiros de actividade colocados na carpeta de importación masiva do servidor",
-      "button": "Importar actividades",
+      "uploadButton": "Subir ZIP",
+      "folderButton": "Importar desde un cartafol",
       "started": "Importando actividades en segundo plano…",
+      "alreadyRunning": "Xa hai unha importación masiva en curso. Agarda a que remate.",
       "error": "Non se puido iniciar a importación. Por favor, téntao de novo."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Bicicletas de Strava importadas",
       "bikesError": "Non se puideron importar as bicicletas de Strava. Por favor, téntao de novo.",
       "shoesSuccess": "Zapatillas de Strava importadas",
-      "shoesError": "Non se puideron importar as zapatillas de Strava. Por favor, téntao de novo."
+      "shoesError": "Non se puideron importar as zapatillas de Strava. Por favor, téntao de novo.",
+      "activitiesUpload": "Importar actividades (subir ZIP)",
+      "activitiesFolder": "Importar actividades (cartafol do servidor)"
+    },
+    "job": {
+      "preparing": "Preparando a importación…",
+      "progress": "Importados {done} de {total} ficheiros ({failed} con erro)…",
+      "finished": "Importación rematada: {done} de {total} ficheiros importados, {failed} con erro.",
+      "failed": "Non se puido completar a importación."
     }
   },
   "profile": {

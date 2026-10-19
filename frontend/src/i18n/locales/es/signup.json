@@ -7,8 +7,6 @@
   "password": "Contraseña",
   "confirmPassword": "Confirmar contraseña",
   "passwordMismatch": "Las contraseñas no coinciden",
-  "showPassword": "Mostrar contraseña",
-  "hidePassword": "Ocultar contraseña",
   "showOptionalFields": "Mostrar campos opcionales",
   "hideOptionalFields": "Ocultar campos opcionales",
   "preferredLanguage": "Idioma preferido",

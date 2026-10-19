@@ -38,7 +38,6 @@
     "title": "Tevékenységek ebben az időszakban"
   },
   "empty": {
-    "title": "Nincs tevékenység ebben az időszakban",
     "description": "Nincs a kiválasztott időszaknak és típusnak megfelelő tevékenység."
   },
   "error": {

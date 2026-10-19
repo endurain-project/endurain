@@ -1,6 +1,6 @@
 """Integration tests for password_reset_tokens API endpoints."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, status
 
@@ -14,17 +14,13 @@ class TestRequestPasswordReset:
     returns a 422 on malformed input.
     """
 
-    @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.password_reset_tokens.router.password_reset_tokens_utils.request_password_reset_email")
     def test_request_password_reset_success(
         self,
-        mock_send: AsyncMock,
+        mock_send: MagicMock,
         fast_api_client,
     ) -> None:
-        """Returns 200 with a generic message when email is sent."""
-        mock_send.return_value = True
+        """Returns 200 with a generic message once the email is queued."""
 
         response = fast_api_client.post(
             "/password-reset/request",
@@ -35,25 +31,6 @@ class TestRequestPasswordReset:
         body = response.json()
         assert "message" in body
         assert "password reset link" in body["message"]
-
-    @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
-        new_callable=AsyncMock,
-    )
-    def test_request_password_reset_send_fails(
-        self,
-        mock_send: AsyncMock,
-        fast_api_client,
-    ) -> None:
-        """Returns 500 when the underlying email send fails."""
-        mock_send.return_value = False
-
-        response = fast_api_client.post(
-            "/password-reset/request",
-            json={"email": "user@example.com"},
-        )
-
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     def test_request_password_reset_invalid_email_format(
         self,
@@ -79,17 +56,14 @@ class TestRequestPasswordReset:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.password_reset_tokens.router.password_reset_tokens_utils.request_password_reset_email")
     def test_request_propagates_503_when_email_not_configured(
         self,
-        mock_send: AsyncMock,
+        mock_send: MagicMock,
         fast_api_client,
     ) -> None:
         """
-        Returns 503 when send_password_reset_email raises
+        Returns 503 when request_password_reset_email raises
         HTTPException 503 because email service is not configured.
         """
         mock_send.side_effect = HTTPException(
@@ -104,26 +78,20 @@ class TestRequestPasswordReset:
 
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-    @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.send_password_reset_email",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.password_reset_tokens.router.password_reset_tokens_utils.request_password_reset_email")
     def test_request_returns_same_200_for_unknown_email(
         self,
-        mock_send: AsyncMock,
+        mock_send: MagicMock,
         fast_api_client,
     ) -> None:
         """
         Returns 200 with the same generic message for an unknown
         email address, preventing user enumeration.
 
-        The send_password_reset_email utility returns True for
-        unknown emails without sending anything; the router must
+        The request_password_reset_email utility returns quietly for
+        unknown emails without queueing anything; the router must
         not reveal whether the address is registered.
         """
-        # Simulate the anti-enumeration behaviour from utils:
-        # returns True even when user is not found.
-        mock_send.return_value = True
 
         response = fast_api_client.post(
             "/password-reset/request",

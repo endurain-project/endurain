@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Callable
 from typing import Annotated
 
+import jasil.providers as platform_providers
 from fastapi import (
     APIRouter,
     Depends,
@@ -14,13 +15,17 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
+import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 import modules.server_settings.utils as server_settings_utils
+import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -192,3 +197,71 @@ async def delete_login_photo(
     await core_file_uploads.delete_files_by_pattern(core_config.SERVER_IMAGES_DIR, "login.png")
 
     await asyncio.to_thread(server_settings_crud.update_server_settings_login_photo_set, False, db)
+
+
+@router.get(
+    "/email",
+    response_model=server_settings_schema.EmailStatus,
+    status_code=status.HTTP_200_OK,
+)
+def read_email_status(
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_dependencies.check_scopes, scopes=["server_settings:read"]),
+    ],
+) -> server_settings_schema.EmailStatus:
+    """
+    Get whether outgoing email is usable.
+
+    Requires admin authentication with server_settings:read scope.
+
+    Returns:
+        Whether email is configured and, when not, the reasons (setting names only).
+    """
+    return server_settings_service.get_email_status()
+
+
+@router.post(
+    "/email/test",
+    response_model=dict[str, str],
+    status_code=status.HTTP_200_OK,
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def send_test_email(
+    request: Request,
+    _check_scopes: Annotated[
+        Callable,
+        Security(auth_dependencies.check_scopes, scopes=["server_settings:write"]),
+    ],
+    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
+    mail: Annotated[
+        platform_providers.MailProvider,
+        Depends(core_dependencies.get_mail),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> dict[str, str]:
+    """
+    Send a test email to the requesting admin.
+
+    Requires admin authentication with server_settings:write scope. The recipient
+    is always the caller's own email address.
+
+    Args:
+        request: The HTTP request object.
+        mail: The platform mail provider.
+
+    Returns:
+        A confirmation message naming the recipient address.
+
+    Raises:
+        ServiceUnavailableError: 503 if email is not configured.
+        UpstreamError: 502 if the mail server did not accept the message.
+    """
+    admin = users_integration.get_user(token_user_id, db)
+    if admin is None:
+        raise core_exceptions.NotFoundError("User not found")
+    server_settings_service.send_test_email(admin, mail)
+    return {"message": f"Test email sent to {admin.email}."}

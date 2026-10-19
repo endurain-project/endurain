@@ -38,7 +38,6 @@
     "title": "Activiteiten in deze periode"
   },
   "empty": {
-    "title": "Geen activiteit in deze periode",
     "description": "Geen activiteiten komen overeen met de geselecteerde periode en het type."
   },
   "error": {

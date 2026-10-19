@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logotip",
-  "title": "Temelj dizajnerskog sustava je u funkciji",
-  "subtitle": "Tailwind v4, shadcn-vue, strogi TypeScript i Endurain paleta tokena su povezani",
-  "primaryAction": "Glavna radnja",
   "notFound": {
     "title": "Stranica nije pronađena",
     "message": "Stranica koju tražite ne postoji ili je premještena",

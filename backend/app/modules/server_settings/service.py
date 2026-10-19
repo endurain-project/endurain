@@ -1,13 +1,19 @@
 """Application logic for editing server settings."""
 
+import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.config as core_config
 import core.exceptions as core_exceptions
+import core.i18n as core_i18n
 import core.logger as core_logger
+import core.mail as core_mail
 import core.network as core_network
 import modules.server_settings.crud as server_settings_crud
+import modules.server_settings.email_messages as server_settings_email_messages
 import modules.server_settings.event_publishers as server_settings_publishers
 import modules.server_settings.schema as server_settings_schema
+import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -76,3 +82,53 @@ def edit_server_settings(
     else:
         db.commit()
     return updated
+
+
+def get_email_status() -> server_settings_schema.EmailStatus:
+    """Report whether outgoing email is usable and, if not, why.
+
+    Returns:
+        The email status. When ``SMTP_HOST`` is unset the only problem is that it is missing.
+    """
+    settings = core_config.settings
+    problems = settings.mail_problems
+    if not settings.SMTP_HOST:
+        problems = ["SMTP_HOST is not set"]
+    return server_settings_schema.EmailStatus(configured=core_mail.is_mail_configured(), problems=problems)
+
+
+def send_test_email(admin: users_schema.UsersRead, mail: platform_providers.MailProvider) -> None:
+    """Send a test email to the admin who asked for it, synchronously.
+
+    The send is not queued: the admin wants to know now whether the SMTP settings
+    work, so the mail provider's result is returned. Its errors carry only a
+    failure category and SMTP status code, so they are safe to show to an admin.
+
+    Args:
+        admin: The admin who requested the test; the only recipient.
+        mail: The platform mail provider.
+
+    Returns:
+        None.
+
+    Raises:
+        ServiceUnavailableError: When email is not configured, with the reasons.
+        UpstreamError: When the mail server could not be reached or refused the message.
+    """
+    email_status = get_email_status()
+    if not email_status.configured:
+        raise core_exceptions.ServiceUnavailableError("Email is not configured: " + "; ".join(email_status.problems))
+
+    settings = core_config.settings
+    subject, html_content, text_content = server_settings_email_messages.get_test_email(
+        admin.name,
+        f"{settings.SMTP_HOST}:{settings.SMTP_PORT}",
+        settings.ENDURAIN_HOST,
+        core_i18n.normalize_locale(admin.preferred_language),
+    )
+    message = platform_providers.MailMessage(to=[admin.email], subject=subject, text=text_content, html=html_content)
+    try:
+        mail.send(message)
+    except platform_providers.MailError as err:
+        logger.warning(f"Test email failed: {err}")
+        raise core_exceptions.UpstreamError(f"The mail server did not accept the test email: {err}") from err

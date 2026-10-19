@@ -38,7 +38,6 @@
     "title": "此週期的活動"
   },
   "empty": {
-    "title": "此週期無活動",
     "description": "沒有符合所選週期和類型的活動。"
   },
   "error": {

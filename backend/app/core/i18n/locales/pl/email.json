@@ -38,5 +38,12 @@
   "signup_approved.intro": "Dobra wiadomość! Twoje konto zostało zatwierdzone i jest już aktywne.",
   "signup_approved.username_label": "Nazwa użytkownika:",
   "signup_approved.login_intro": "Możesz teraz zalogować się i zacząć korzystać z Endurain:",
-  "signup_approved.cta": "Zaloguj się do Endurain"
+  "signup_approved.cta": "Zaloguj się do Endurain",
+
+  "test_email.subject": "Endurain - Wiadomość testowa",
+  "test_email.heading": "E-mail działa",
+  "test_email.greeting": "Cześć {name},",
+  "test_email.intro": "To jest wiadomość testowa wysłana z ustawień serwera Endurain. Jeśli ją czytasz, Endurain może wysyłać e-maile przez Twój serwer SMTP.",
+  "test_email.detail_label": "Serwer SMTP:",
+  "test_email.ignore": "Nie są wymagane żadne działania."
 }

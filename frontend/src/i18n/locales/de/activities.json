@@ -39,7 +39,6 @@
       "distance": "Distanz",
       "duration": "Dauer",
       "pace": "Pace",
-      "speed": "Tempo",
       "paceSpeed": "Pace / Tempo",
       "elevation": "Höhenmeter",
       "calories": "Kalorien",
@@ -66,11 +65,9 @@
     "recenter": "Karte zentrieren"
   },
   "metrics": {
-    "title": "Kennzahlen",
     "time": "Zeit",
     "distance": "Distanz",
     "movingTime": "Bewegungszeit",
-    "elapsedTime": "Verstrichene Zeit",
     "avgPace": "Ø Pace",
     "avgSpeed": "Ø Tempo",
     "maxSpeed": "Max. Tempo",
@@ -109,7 +106,12 @@
     "elevation": "Höhe",
     "strokeRate": "Zugfrequenz",
     "cycles": "Zyklen",
-    "hr": "Herzfrequenz"
+    "strokes": "Züge",
+    "revolutions": "Umdrehungen",
+    "strides": "Schritte",
+    "jumps": "Sprünge",
+    "hr": "Herzfrequenz",
+    "activeSummary": "Aktiv gesamt"
   },
   "workout": {
     "title": "Training",
@@ -157,7 +159,6 @@
     "deleteError": "Aktivität konnte nicht gelöscht werden"
   },
   "media": {
-    "title": "Fotos",
     "alt": "Aktivitätsfoto",
     "addMedia": "Foto hinzufügen",
     "uploadSuccess": "Foto hochgeladen",
@@ -170,7 +171,8 @@
     "close": "Schließen",
     "deleteSuccess": "Foto gelöscht",
     "deleteError": "Foto konnte nicht gelöscht werden",
-    "expand": "In voller Größe anzeigen"
+    "expand": "In voller Größe anzeigen",
+    "thumbnailPending": "Kartenvorschau wird erstellt…"
   },
   "gallery": {
     "previous": "Vorherige",

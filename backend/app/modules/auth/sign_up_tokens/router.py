@@ -9,10 +9,11 @@ from fastapi import (
     Request,
     status,
 )
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-import core.apprise as core_apprise
 import core.database as core_database
+import core.mail as core_mail
 import core.rate_limit as core_rate_limit
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
@@ -37,10 +38,6 @@ router = APIRouter()
 async def signup(
     request: Request,
     user: users_schema.UsersSignup,
-    email_service: Annotated[
-        core_apprise.AppriseService,
-        Depends(core_apprise.get_email_service),
-    ],
     identity_service: Annotated[
         auth_identity_service.IdentityService,
         Depends(auth_identity_service.get_identity_service),
@@ -56,7 +53,6 @@ async def signup(
     Args:
         request: Incoming HTTP request.
         user: Sign-up payload with user info.
-        email_service: Injected email service.
         identity_service: Injected identity service.
         db: Database session.
 
@@ -89,11 +85,8 @@ async def signup(
 
     if server_settings.signup_require_email_verification:
         # Send the sign-up email
-        success = await sign_up_tokens_utils.send_sign_up_email(created_user, email_service, db)
-        if success:
-            message += " Email sent with verification instructions."
-        else:
-            message += " Failed to send verification email. Please contact support."
+        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_verification_email, created_user.id, db)
+        message += " Email sent with verification instructions."
         email_verification_required = True
     if server_settings.signup_require_admin_approval:
         message += " Account is pending admin approval."
@@ -115,10 +108,6 @@ async def signup(
 async def verify_email(
     request: Request,
     confirm_data: sign_up_tokens_schema.SignUpConfirm,
-    email_service: Annotated[
-        core_apprise.AppriseService,
-        Depends(core_apprise.get_email_service),
-    ],
     websocket_manager: Annotated[
         websocket_manager.WebSocketManager,
         Depends(websocket_manager.get_websocket_manager),
@@ -134,7 +123,6 @@ async def verify_email(
     Args:
         request: Incoming HTTP request.
         confirm_data: Token confirmation payload.
-        email_service: Injected email service.
         websocket_manager: WebSocket notification manager.
         db: Database session.
 
@@ -156,14 +144,14 @@ async def verify_email(
     user_id = sign_up_tokens_utils.use_sign_up_token(confirm_data.token, db)
     users_crud.verify_user_email(user_id, server_settings, db)
 
-    if email_service.is_configured():
+    if core_mail.is_mail_configured():
         user: users_schema.UsersRead | None = users_crud.get_user_by_id(user_id, db)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
-        await sign_up_tokens_utils.send_sign_up_admin_approval_email(user, email_service, db)
+        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_admin_approval_emails, user.id, db)
         notif_coro = notifications_utils.create_admin_new_sign_up_approval_request_notification(
             user, websocket_manager, db
         )

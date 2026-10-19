@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logotips",
-  "title": "Dizaina sistēmas pamats ir aktīvs",
-  "subtitle": "Tailwind v4, shadcn-vue, stingrs TypeScript un Endurain marķieru palete ir savienoti",
-  "primaryAction": "Primārā darbība",
   "notFound": {
     "title": "Lapa nav atrasta",
     "message": "Meklētā lapa neeksistē vai ir pārvietota",

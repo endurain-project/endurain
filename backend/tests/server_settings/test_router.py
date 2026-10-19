@@ -8,7 +8,10 @@ including read, update, and file upload operations.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException, status
+from fastapi.testclient import TestClient
 
+import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 import modules.server_settings.models as server_settings_models
 import modules.server_settings.schema as server_settings_schema
 
@@ -257,3 +260,61 @@ class TestDeleteLoginPhoto:
 
         # Assert
         assert response.status_code == 204
+
+
+class TestEmail:
+    """Test suite for the email status and test-send endpoints."""
+
+    @patch("modules.server_settings.router.server_settings_service.get_email_status")
+    def test_read_email_status(self, mock_status, fast_api_client):
+        mock_status.return_value = server_settings_schema.EmailStatus(
+            configured=False, problems=["SMTP_HOST is not set"]
+        )
+
+        response = fast_api_client.get("/server_settings/email", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert response.json() == {"configured": False, "problems": ["SMTP_HOST is not set"]}
+
+    @patch("modules.server_settings.router.server_settings_service.send_test_email")
+    @patch("modules.server_settings.router.users_integration.get_user")
+    def test_send_test_email_sends_to_the_caller(self, mock_get_user, mock_send, fast_api_client, fast_api_app):
+        mock_get_user.return_value = MagicMock(email="admin@example.com")
+        mail = MagicMock()
+        fast_api_app.dependency_overrides[core_dependencies.get_mail] = lambda: mail
+
+        response = fast_api_client.post("/server_settings/email/test", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert response.json() == {"message": "Test email sent to admin@example.com."}
+        mock_send.assert_called_once_with(mock_get_user.return_value, mail)
+
+    @patch("modules.server_settings.router.server_settings_service.send_test_email")
+    @patch("modules.server_settings.router.users_integration.get_user")
+    def test_send_test_email_maps_unconfigured_to_503(self, mock_get_user, mock_send, fast_api_app):
+        mock_get_user.return_value = MagicMock(email="admin@example.com")
+        mock_send.side_effect = core_exceptions.ServiceUnavailableError("Email is not configured: SMTP_HOST is not set")
+
+        core_exceptions.register_exception_handlers(fast_api_app)
+        client = TestClient(fast_api_app)
+
+        response = client.post("/server_settings/email/test", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 503
+        assert "SMTP_HOST is not set" in response.text
+
+    @patch("modules.server_settings.router.server_settings_service.send_test_email")
+    @patch("modules.server_settings.router.users_integration.get_user")
+    def test_send_test_email_maps_delivery_failure_to_502(self, mock_get_user, mock_send, fast_api_app):
+        mock_get_user.return_value = MagicMock(email="admin@example.com")
+        mock_send.side_effect = core_exceptions.UpstreamError(
+            "The mail server did not accept the test email: status 535"
+        )
+
+        core_exceptions.register_exception_handlers(fast_api_app)
+        client = TestClient(fast_api_app)
+
+        response = client.post("/server_settings/email/test", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 502
+        assert "status 535" in response.text

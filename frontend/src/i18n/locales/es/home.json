@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Subiendo\u2026",
     "success": "Actividad subida correctamente",
-    "error": "No se pudo subir el archivo de actividad"
+    "error": "No se pudo subir el archivo de actividad",
+    "timeout": "Tu archivo aún se está importando. Aparecerá cuando termine.",
+    "failed": {
+      "unsupported_format": "Este tipo de archivo no es compatible",
+      "invalid_file": "No se pudo leer este archivo",
+      "no_activities_found": "No se encontró ninguna actividad en este archivo",
+      "processing_failed": "No se pudo importar el archivo de actividad"
+    }
   },
   "refresh": {
     "label": "Actualizar",

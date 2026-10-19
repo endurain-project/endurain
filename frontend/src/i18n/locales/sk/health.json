@@ -586,9 +586,6 @@
       "edit": "Upraviť pôst",
       "delete": "Odstrániť pôst"
     },
-    "list": {
-      "notesLabel": "Poznámky"
-    },
     "form": {
       "addTitle": "Začať pôst",
       "editTitle": "Upraviť pôstovú reláciu",
@@ -596,7 +593,6 @@
       "type": "Protokol pôstu",
       "customDuration": "Vlastné trvanie",
       "customDurationHint": "Dĺžka pôstu v hodinách (1–72).",
-      "hours": "hodiny",
       "startTime": "Čas začiatku",
       "startTimeRequired": "Vyberte čas začiatku.",
       "endTime": "Čas konca",

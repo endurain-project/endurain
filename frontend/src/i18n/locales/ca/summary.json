@@ -38,7 +38,6 @@
     "title": "Activitats en aquest període"
   },
   "empty": {
-    "title": "Sense activitat en aquest període",
     "description": "Cap activitat coincideix amb el període i tipus seleccionats."
   },
   "error": {

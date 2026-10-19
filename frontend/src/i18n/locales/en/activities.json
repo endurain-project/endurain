@@ -39,7 +39,6 @@
       "distance": "Distance",
       "duration": "Duration",
       "pace": "Pace",
-      "speed": "Speed",
       "paceSpeed": "Pace / Speed",
       "elevation": "Elevation",
       "calories": "Calories",
@@ -66,11 +65,9 @@
     "recenter": "Recenter map"
   },
   "metrics": {
-    "title": "Metrics",
     "time": "Time",
     "distance": "Distance",
     "movingTime": "Moving time",
-    "elapsedTime": "Elapsed time",
     "avgPace": "Avg pace",
     "avgSpeed": "Avg speed",
     "maxSpeed": "Max speed",
@@ -162,7 +159,6 @@
     "deleteError": "Couldn't delete the activity"
   },
   "media": {
-    "title": "Photos",
     "alt": "Activity photo",
     "addMedia": "Add photo",
     "uploadSuccess": "Photo uploaded",

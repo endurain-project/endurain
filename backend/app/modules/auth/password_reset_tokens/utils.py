@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import jasil.providers as platform_providers
 from fastapi import (
     HTTPException,
     status,
@@ -10,13 +11,15 @@ from fastapi import (
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-import core.apprise as core_apprise
+import core.config as core_config
 import core.i18n as core_i18n
 import core.logger as core_logger
+import core.mail as core_mail
 import modules.auth._internal.security_stores as auth_security_stores
 import modules.auth.credentials.crud as auth_credentials_crud
 import modules.auth.password_policy as auth_password_policy
 import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
+import modules.auth.password_reset_tokens.event_publishers as password_reset_tokens_event_publishers
 import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
 import modules.auth.sessions.crud as auth_sessions_crud
 import modules.auth.token_hashing as token_hashing
@@ -37,6 +40,9 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     """
     Create and persist a password reset token for a user.
 
+    Earlier unused tokens of the user are invalidated in the same commit, so only the
+    newest reset link works.
+
     Args:
         user_id: ID of the user requesting the reset.
         db: Active SQLAlchemy session.
@@ -46,7 +52,7 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
         Only the token hash is stored in the database.
     """
     # Generate token and hash
-    token, token_hash = core_apprise.generate_token_and_hash()
+    token, token_hash = token_hashing.generate_token_and_hash()
 
     # Create token object
     reset_token = password_reset_tokens_schema.PasswordResetToken(
@@ -58,31 +64,33 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
         used=False,
     )
 
-    # Save to database
+    # Invalidate earlier tokens, then save the new one (the create commits both)
+    password_reset_tokens_crud.mark_user_password_reset_tokens_used(user_id, db)
     password_reset_tokens_crud.create_password_reset_token(reset_token, db)
 
     # Return the plain token (not the hash)
     return token
 
 
-async def send_password_reset_email(email: str, email_service: core_apprise.AppriseService, db: Session) -> bool:
+def request_password_reset_email(email: str, db: Session) -> None:
     """
-    Send a password reset email to the given address.
+    Queue a password reset email for the given address.
+
+    Unknown and inactive accounts are silently ignored so the response never reveals
+    whether an email exists.
 
     Args:
         email: Recipient email address.
-        email_service: Configured AppriseService instance.
         db: Active SQLAlchemy session.
 
     Returns:
-        True if the operation is considered successful,
-        False if the email service failed to send.
+        None
 
     Raises:
         HTTPException: 503 if the email service is not configured.
     """
     # Check if email service is configured
-    if not email_service.is_configured():
+    if not core_mail.is_mail_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email service is not configured",
@@ -90,34 +98,46 @@ async def send_password_reset_email(email: str, email_service: core_apprise.Appr
 
     # Find user by email
     user = users_crud.get_user_by_email(email, db)
-    if not user:
-        # Don't reveal if email exists or not for security
-        return True
+    if not user or not user.active:
+        # Don't reveal if the email exists or the user is inactive
+        return
 
-    # Check if user is active
-    if not user.active:
-        # Don't reveal if user is inactive for security
-        return True
+    password_reset_tokens_event_publishers.publish_password_reset_requested(user.id, db)
 
-    # Generate password reset token
+
+def send_password_reset_email_to_user(user_id: int, mail: platform_providers.MailProvider, db: Session) -> bool:
+    """
+    Create a reset token and email the reset link to a user.
+
+    The token is committed before sending, so the link in the email always works.
+
+    Args:
+        user_id: ID of the user to email.
+        mail: The platform mail provider.
+        db: Active SQLAlchemy session.
+
+    Returns:
+        True if the email was handed to the mail server, False if it was skipped.
+
+    Raises:
+        MailError: On a transient delivery failure.
+    """
+    user = users_crud.get_user_by_id(user_id, db)
+    if not user or not user.active:
+        logger.debug(
+            "Skipped password reset email: user missing or inactive", extra=core_logger.context(user_id=user_id)
+        )
+        return False
+
     token = create_password_reset_token(user.id, db)
-
-    # Generate reset link
-    reset_link = f"{email_service.frontend_host}/reset-password?token={token}"
+    reset_link = f"{core_config.settings.ENDURAIN_HOST}/reset-password?token={token}"
 
     # Build localized email using the user's preferred language
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = password_reset_tokens_email_messages.get_password_reset_email(
-        user.name, reset_link, email_service, locale
+        user.name, reset_link, core_config.settings.ENDURAIN_HOST, locale
     )
-
-    # Send email
-    return await email_service.send_email(
-        to_emails=[email],
-        subject=subject,
-        html_content=html_content,
-        text_content=text_content,
-    )
+    return core_mail.send_email(mail, user.email, subject, html_content, text_content)
 
 
 def use_password_reset_token(

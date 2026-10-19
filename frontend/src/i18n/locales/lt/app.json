@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logotipas",
-  "title": "Dizaino sistemos pagrindas veikia",
-  "subtitle": "Tailwind v4, shadcn-vue, griežtas TypeScript ir Endurain spalvų paletė yra sujungti",
-  "primaryAction": "Pagrindinis veiksmas",
   "notFound": {
     "title": "Puslapis nerastas",
     "message": "Ieškomo puslapio nėra arba jis buvo perkeltas",

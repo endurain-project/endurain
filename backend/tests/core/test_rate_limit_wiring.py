@@ -40,6 +40,7 @@ import modules.auth.router as auth_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
+import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users_profile.router as users_profile_router
 
@@ -83,6 +84,7 @@ _TIERED_ENDPOINTS = [
         core_rate_limit.SENSITIVE,
         id="password-reset-confirm",
     ),
+    pytest.param(server_settings_router.send_test_email, core_rate_limit.SENSITIVE, id="server-settings-test-email"),
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),
     pytest.param(idp_public_router.handle_callback, core_rate_limit.SENSITIVE, id="oidc-callback"),
     pytest.param(

@@ -39,7 +39,6 @@
       "distance": "Udaljenost",
       "duration": "Trajanje",
       "pace": "Tempo",
-      "speed": "Brzina",
       "paceSpeed": "Tempo / Brzina",
       "elevation": "Visinska razlika",
       "calories": "Kalorije",
@@ -66,11 +65,9 @@
     "recenter": "Ponovo centriraj mapu"
   },
   "metrics": {
-    "title": "Metrike",
     "time": "Vreme",
     "distance": "Udaljenost",
     "movingTime": "Vreme kretanja",
-    "elapsedTime": "Proteklo vreme",
     "avgPace": "Prosečan tempo",
     "avgSpeed": "Prosečna brzina",
     "maxSpeed": "Maksimalna brzina",
@@ -109,7 +106,12 @@
     "elevation": "Visinska razlika",
     "strokeRate": "Frekvencija zaveslaja",
     "cycles": "Ciklusi",
-    "hr": "Puls"
+    "strokes": "Zaveslaji",
+    "revolutions": "Okretaji",
+    "strides": "Koraci",
+    "jumps": "Skokovi",
+    "hr": "Puls",
+    "activeSummary": "Ukupno aktivno"
   },
   "workout": {
     "title": "Trening",
@@ -157,7 +159,6 @@
     "deleteError": "Nije moguće obrisati aktivnost"
   },
   "media": {
-    "title": "Fotografije",
     "alt": "Fotografija aktivnosti",
     "addMedia": "Dodaj fotografiju",
     "uploadSuccess": "Fotografija je otpremljena",
@@ -170,7 +171,8 @@
     "close": "Zatvori",
     "deleteSuccess": "Fotografija je obrisana",
     "deleteError": "Nije moguće obrisati fotografiju",
-    "expand": "Prikaži punu veličinu"
+    "expand": "Prikaži punu veličinu",
+    "thumbnailPending": "Izrada pregleda mape…"
   },
   "gallery": {
     "previous": "Prethodna",
@@ -267,6 +269,7 @@
     "sailing": "Jedrenje",
     "snowShoeing": "Hodanje na krpljama",
     "inlineSkating": "Rolanje",
-    "hiit": "HIIT"
+    "hiit": "HIIT",
+    "jumpRope": "Preskakanje vijače"
   }
 }

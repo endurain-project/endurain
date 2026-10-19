@@ -39,7 +39,6 @@
       "distance": "Vzdálenost",
       "duration": "Doba trvání",
       "pace": "Tempo",
-      "speed": "Rychlost",
       "paceSpeed": "Tempo / Rychlost",
       "elevation": "Převýšení",
       "calories": "Kalorie",
@@ -66,11 +65,9 @@
     "recenter": "Vystředit mapu"
   },
   "metrics": {
-    "title": "Metriky",
     "time": "Čas",
     "distance": "Vzdálenost",
     "movingTime": "Čas pohybu",
-    "elapsedTime": "Uplynulý čas",
     "avgPace": "Průměrné tempo",
     "avgSpeed": "Průměrná rychlost",
     "maxSpeed": "Maximální rychlost",
@@ -109,7 +106,12 @@
     "elevation": "Převýšení",
     "strokeRate": "Frekvence záběrů",
     "cycles": "Cykly",
-    "hr": "Tepová frekvence"
+    "strokes": "Záběry",
+    "revolutions": "Otáčky",
+    "strides": "Kroky",
+    "jumps": "Skoky",
+    "hr": "Tepová frekvence",
+    "activeSummary": "Aktivní celkem"
   },
   "workout": {
     "title": "Trénink",
@@ -157,7 +159,6 @@
     "deleteError": "Nepodařilo se smazat aktivitu"
   },
   "media": {
-    "title": "Fotografie",
     "alt": "Fotografie aktivity",
     "addMedia": "Přidat fotografii",
     "uploadSuccess": "Fotografie nahrána",
@@ -170,7 +171,8 @@
     "close": "Zavřít",
     "deleteSuccess": "Fotografie smazána",
     "deleteError": "Nepodařilo se smazat fotografii",
-    "expand": "Zobrazit v plné velikosti"
+    "expand": "Zobrazit v plné velikosti",
+    "thumbnailPending": "Generuje se náhled mapy…"
   },
   "gallery": {
     "previous": "Předchozí",

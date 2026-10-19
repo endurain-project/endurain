@@ -39,7 +39,6 @@
       "distance": "Distanță",
       "duration": "Durată",
       "pace": "Ritm",
-      "speed": "Viteză",
       "paceSpeed": "Ritm / Viteză",
       "elevation": "Diferență de nivel",
       "calories": "Calorii",
@@ -66,11 +65,9 @@
     "recenter": "Recentrează harta"
   },
   "metrics": {
-    "title": "Indicatori",
     "time": "Timp",
     "distance": "Distanță",
     "movingTime": "Timp în mișcare",
-    "elapsedTime": "Timp total",
     "avgPace": "Ritm mediu",
     "avgSpeed": "Viteză medie",
     "maxSpeed": "Viteză maximă",
@@ -109,7 +106,12 @@
     "elevation": "Diferență de nivel",
     "strokeRate": "Frecvența brațelor",
     "cycles": "Cicluri",
-    "hr": "Puls"
+    "strokes": "Mișcări",
+    "revolutions": "Rotații",
+    "strides": "Pași",
+    "jumps": "Sărituri",
+    "hr": "Puls",
+    "activeSummary": "Total activ"
   },
   "workout": {
     "title": "Antrenament",
@@ -157,7 +159,6 @@
     "deleteError": "Nu am putut șterge activitatea"
   },
   "media": {
-    "title": "Fotografii",
     "alt": "Fotografie a activității",
     "addMedia": "Adaugă fotografie",
     "uploadSuccess": "Fotografie încărcată",
@@ -170,7 +171,8 @@
     "close": "Închide",
     "deleteSuccess": "Fotografie ștearsă",
     "deleteError": "Nu am putut șterge fotografia",
-    "expand": "Vezi la dimensiune completă"
+    "expand": "Vezi la dimensiune completă",
+    "thumbnailPending": "Se generează previzualizarea hărții…"
   },
   "gallery": {
     "previous": "Anterioară",

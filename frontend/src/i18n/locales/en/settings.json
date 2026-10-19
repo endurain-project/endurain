@@ -48,7 +48,6 @@
       "title": "No users yet",
       "description": "Add the first account for this instance",
       "searchTitle": "No users found",
-      "searchDescription": "No users match that username",
       "filteredTitle": "No users match the selected filters"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character",
       "passwordHintLength": "At least {min} characters",
       "passwordRequired": "Password is required",
-      "passwordTooShort": "Password must be at least 8 characters",
       "passwordInvalid": "That password doesn't meet the requirements",
       "confirmPassword": "Confirm password",
       "confirmPasswordRequired": "Confirm the password",
@@ -356,6 +354,19 @@
       "deleteError": "Couldn't remove the login photo. Please try again.",
       "cancel": "Cancel",
       "close": "Close"
+    },
+    "email": {
+      "title": "Email",
+      "description": "Endurain sends password reset and sign-up emails through the SMTP server configured in the environment.",
+      "statusLoadError": "Couldn't check the email configuration.",
+      "configured": "Email is configured.",
+      "notConfigured": "Email is not configured:",
+      "send": "Send test email",
+      "sending": "Sending…",
+      "sendHint": "The test email is sent to your own address.",
+      "sent": "Test email sent",
+      "failed": "The test email could not be sent",
+      "failedUnknown": "Check the server logs for details."
     }
   },
   "idp": {

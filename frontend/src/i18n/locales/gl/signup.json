@@ -7,8 +7,6 @@
   "password": "Contrasinal",
   "confirmPassword": "Confirmar contrasinal",
   "passwordMismatch": "Os contrasinais non coinciden",
-  "showPassword": "Mostrar contrasinal",
-  "hidePassword": "Ocultar contrasinal",
   "showOptionalFields": "Mostrar campos opcionais",
   "hideOptionalFields": "Ocultar campos opcionais",
   "preferredLanguage": "Idioma preferido",

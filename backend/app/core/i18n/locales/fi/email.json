@@ -38,5 +38,12 @@
   "signup_approved.intro": "Hyviä uutisia! Tilisi on hyväksytty ja on nyt aktiivinen.",
   "signup_approved.username_label": "Käyttäjätunnus:",
   "signup_approved.login_intro": "Voit nyt kirjautua sisään ja aloittaa Endurainin käytön:",
-  "signup_approved.cta": "Kirjaudu Endurainiin"
+  "signup_approved.cta": "Kirjaudu Endurainiin",
+
+  "test_email.subject": "Endurain - Testisähköposti",
+  "test_email.heading": "Sähköposti toimii",
+  "test_email.greeting": "Hei {name},",
+  "test_email.intro": "Tämä on Endurainin palvelinasetuksista lähetetty testisähköposti. Jos luet tämän, Endurain voi lähettää sähköpostia SMTP-palvelimesi kautta.",
+  "test_email.detail_label": "SMTP-palvelin:",
+  "test_email.ignore": "Toimenpiteitä ei tarvita."
 }

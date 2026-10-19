@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Logo Endurain",
-  "title": "Základ návrhového systému je v provozu",
-  "subtitle": "Tailwind v4, shadcn-vue, striktní TypeScript a paleta tokenů Endurain jsou propojeny",
-  "primaryAction": "Hlavní akce",
   "notFound": {
     "title": "Stránka nenalezena",
     "message": "Stránka, kterou hledáte, neexistuje nebo byla přesunuta",

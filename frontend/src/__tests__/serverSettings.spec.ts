@@ -5,10 +5,12 @@ import type { ServerSettingsDto, TileMapsTemplateDto } from '@/features/serverSe
 import { apiFetch } from '@/services/http'
 import {
   deleteLoginPhoto,
+  fetchEmailStatus,
   fetchServerSettings,
   fetchTileMapsTemplates,
   mapServerSettings,
   mapTileMapsTemplate,
+  sendTestEmail,
   toServerSettingsWire,
   updateServerSettings,
   uploadLoginPhoto,
@@ -179,5 +181,23 @@ describe('server settings service requests', () => {
       method: 'DELETE',
       responseType: 'void',
     })
+  })
+
+  it('fetchEmailStatus reads the email status endpoint', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ configured: false, problems: ['SMTP_HOST is not set'] })
+
+    const status = await fetchEmailStatus()
+
+    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email', { signal: undefined })
+    expect(status).toEqual({ configured: false, problems: ['SMTP_HOST is not set'] })
+  })
+
+  it('sendTestEmail POSTs to the test endpoint and returns the confirmation message', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ message: 'Test email sent to admin@example.com.' })
+
+    const message = await sendTestEmail()
+
+    expect(apiFetch).toHaveBeenCalledWith('/server_settings/email/test', { method: 'POST' })
+    expect(message).toBe('Test email sent to admin@example.com.')
   })
 })

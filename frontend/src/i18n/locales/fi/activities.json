@@ -39,7 +39,6 @@
       "distance": "Matka",
       "duration": "Kesto",
       "pace": "Tahti",
-      "speed": "Nopeus",
       "paceSpeed": "Tahti / Nopeus",
       "elevation": "Nousu",
       "calories": "Kalorit",
@@ -66,11 +65,9 @@
     "recenter": "Keskitä kartta uudelleen"
   },
   "metrics": {
-    "title": "Mittarit",
     "time": "Aika",
     "distance": "Matka",
     "movingTime": "Liikkumisaika",
-    "elapsedTime": "Kokonaisaika",
     "avgPace": "Keskitahti",
     "avgSpeed": "Keskinopeus",
     "maxSpeed": "Maksiminopeus",
@@ -109,7 +106,12 @@
     "elevation": "Nousu",
     "strokeRate": "Vetotiheys",
     "cycles": "Syklit",
-    "hr": "Syke"
+    "strokes": "Vedot",
+    "revolutions": "Kierrokset",
+    "strides": "Askeleet",
+    "jumps": "Hypyt",
+    "hr": "Syke",
+    "activeSummary": "Aktiivinen yhteensä"
   },
   "workout": {
     "title": "Harjoitus",
@@ -157,7 +159,6 @@
     "deleteError": "Aktiviteettia ei voitu poistaa"
   },
   "media": {
-    "title": "Valokuvat",
     "alt": "Aktiviteetin valokuva",
     "addMedia": "Lisää valokuva",
     "uploadSuccess": "Valokuva ladattu",
@@ -170,7 +171,8 @@
     "close": "Sulje",
     "deleteSuccess": "Valokuva poistettu",
     "deleteError": "Valokuvaa ei voitu poistaa",
-    "expand": "Näytä täysikokoisena"
+    "expand": "Näytä täysikokoisena",
+    "thumbnailPending": "Luodaan karttaesikatselua…"
   },
   "gallery": {
     "previous": "Edellinen",

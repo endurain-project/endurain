@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Feltöltés…",
     "success": "A tevékenység sikeresen feltöltve",
-    "error": "Nem sikerült feltölteni a tevékenységfájlt"
+    "error": "Nem sikerült feltölteni a tevékenységfájlt",
+    "timeout": "A fájlod importálása még folyamatban van. Megjelenik, amint elkészül.",
+    "failed": {
+      "unsupported_format": "Ez a fájltípus nem támogatott",
+      "invalid_file": "Ez a fájl nem olvasható",
+      "no_activities_found": "Ebben a fájlban nem található tevékenység",
+      "processing_failed": "A tevékenységfájlt nem sikerült importálni"
+    }
   },
   "refresh": {
     "label": "Frissítés",

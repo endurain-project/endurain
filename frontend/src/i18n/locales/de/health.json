@@ -586,9 +586,6 @@
       "edit": "Fasten bearbeiten",
       "delete": "Fasten löschen"
     },
-    "list": {
-      "notesLabel": "Notizen"
-    },
     "form": {
       "addTitle": "Fasten starten",
       "editTitle": "Fastensitzung bearbeiten",
@@ -596,7 +593,6 @@
       "type": "Fastenprotokoll",
       "customDuration": "Benutzerdefinierte Dauer",
       "customDurationHint": "Länge des Fastens in Stunden (1–72).",
-      "hours": "Stunden",
       "startTime": "Startzeit",
       "startTimeRequired": "Bitte wähle eine Startzeit.",
       "endTime": "Endzeit",

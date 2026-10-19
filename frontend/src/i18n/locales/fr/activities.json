@@ -39,7 +39,6 @@
       "distance": "Distance",
       "duration": "Durée",
       "pace": "Allure",
-      "speed": "Vitesse",
       "paceSpeed": "Allure / Vitesse",
       "elevation": "Dénivelé",
       "calories": "Calories",
@@ -66,11 +65,9 @@
     "recenter": "Recentrer la carte"
   },
   "metrics": {
-    "title": "Métriques",
     "time": "Temps",
     "distance": "Distance",
     "movingTime": "Temps en mouvement",
-    "elapsedTime": "Temps écoulé",
     "avgPace": "Allure moy.",
     "avgSpeed": "Vitesse moy.",
     "maxSpeed": "Vitesse max.",
@@ -109,7 +106,12 @@
     "elevation": "Dénivelé",
     "strokeRate": "Cadence de nage",
     "cycles": "Cycles",
-    "hr": "Fréquence cardiaque"
+    "strokes": "Mouvements",
+    "revolutions": "Révolutions",
+    "strides": "Foulées",
+    "jumps": "Sauts",
+    "hr": "Fréquence cardiaque",
+    "activeSummary": "Total actif"
   },
   "workout": {
     "title": "Séance",
@@ -157,7 +159,6 @@
     "deleteError": "Impossible de supprimer l'activité"
   },
   "media": {
-    "title": "Photos",
     "alt": "Photo de l'activité",
     "addMedia": "Ajouter une photo",
     "uploadSuccess": "Photo téléversée",
@@ -170,7 +171,8 @@
     "close": "Fermer",
     "deleteSuccess": "Photo supprimée",
     "deleteError": "Impossible de supprimer la photo",
-    "expand": "Voir en plein écran"
+    "expand": "Voir en plein écran",
+    "thumbnailPending": "Génération de l'aperçu de la carte…"
   },
   "gallery": {
     "previous": "Précédent",
@@ -267,6 +269,7 @@
     "sailing": "Voile",
     "snowShoeing": "Raquettes",
     "inlineSkating": "Roller",
-    "hiit": "HIIT"
+    "hiit": "HIIT",
+    "jumpRope": "Saut à la corde"
   }
 }

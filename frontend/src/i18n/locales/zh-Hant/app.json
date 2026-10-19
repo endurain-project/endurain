@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain 標誌",
-  "title": "設計系統基礎已上線",
-  "subtitle": "Tailwind v4、shadcn-vue、嚴格的 TypeScript 以及 Endurain 色彩調色盤已整合完成",
-  "primaryAction": "主要操作",
   "notFound": {
     "title": "找不到頁面",
     "message": "您所尋找的頁面不存在或已移動",

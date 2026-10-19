@@ -1,15 +1,11 @@
 """Tests for sign-up email message builders."""
 
-from unittest.mock import MagicMock
-
 import modules.auth.sign_up_tokens.email_messages as email_messages
 
 
-def _make_service(frontend_host: str = "https://endurain.example.com"):
-    """Build a minimal AppriseService mock."""
-    svc = MagicMock()
-    svc.frontend_host = frontend_host
-    return svc
+def _make_service(frontend_host: str = "https://endurain.example.com") -> str:
+    """Return the frontend host the message builders take."""
+    return frontend_host
 
 
 class TestGetSignupConfirmationEmail:

@@ -19,9 +19,21 @@ equality lookups.
 
 import hashlib
 import hmac
+import secrets
 
 import core.hashing as core_hashing
 import modules.auth.constants as auth_constants
+
+
+def generate_token_and_hash() -> tuple[str, str]:
+    """Generate a URL-safe random token and its SHA-256 hash.
+
+    Returns:
+        ``(token, token_hash)``. Store the hash in the database and hand the raw
+        token to the user through the outbound channel (email link).
+    """
+    token = secrets.token_urlsafe(32)
+    return token, sha256_hex(token)
 
 
 def sha256_hex(value: str) -> str:

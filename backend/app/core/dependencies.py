@@ -24,6 +24,19 @@ def get_storage() -> platform_providers.StorageProvider:
     return platform_runtime.get_active_platform().storage
 
 
+def get_mail() -> platform_providers.MailProvider:
+    """
+    Return the active platform's outbound-mail provider.
+
+    Routers declare it with ``Depends`` so the provider reaches services as an
+    argument and a test can override it without patching the runtime.
+
+    Returns:
+        The mail provider.
+    """
+    return platform_runtime.get_active_platform().mail
+
+
 def validate_id(identifier: int, min_value: int, message: str) -> None:
     """
     Validate that an integer identifier is above a minimum.

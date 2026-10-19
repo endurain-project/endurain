@@ -7,8 +7,6 @@
   "password": "Adgangskode",
   "confirmPassword": "Bekræft adgangskode",
   "passwordMismatch": "Adgangskoderne stemmer ikke overens",
-  "showPassword": "Vis adgangskode",
-  "hidePassword": "Skjul adgangskode",
   "showOptionalFields": "Vis valgfrie felter",
   "hideOptionalFields": "Skjul valgfrie felter",
   "preferredLanguage": "Foretrukket sprog",

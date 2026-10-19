@@ -7,8 +7,6 @@
   "password": "Lozinka",
   "confirmPassword": "Potvrdi lozinku",
   "passwordMismatch": "Lozinke se ne podudaraju",
-  "showPassword": "Prikaži lozinku",
-  "hidePassword": "Sakrij lozinku",
   "showOptionalFields": "Prikaži opciona polja",
   "hideOptionalFields": "Sakrij opciona polja",
   "preferredLanguage": "Željeni jezik",

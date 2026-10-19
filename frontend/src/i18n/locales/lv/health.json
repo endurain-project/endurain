@@ -586,9 +586,6 @@
       "edit": "Rediģēt badošanos",
       "delete": "Dzēst badošanos"
     },
-    "list": {
-      "notesLabel": "Piezīmes"
-    },
     "form": {
       "addTitle": "Sākt badošanos",
       "editTitle": "Rediģēt badošanās sesiju",
@@ -596,7 +593,6 @@
       "type": "Badošanās protokols",
       "customDuration": "Pielāgots ilgums",
       "customDurationHint": "Badošanās ilgums stundās (1–72).",
-      "hours": "stundas",
       "startTime": "Sākuma laiks",
       "startTimeRequired": "Lūdzu, izvēlieties sākuma laiku.",
       "endTime": "Beigu laiks",

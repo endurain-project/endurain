@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
 import LoginPhotoCard from '@/features/serverSettings/components/LoginPhotoCard.vue'
 import ServerSettingsForm from '@/features/serverSettings/components/ServerSettingsForm.vue'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,7 @@ const templates = computed(() => templatesQuery.data.value ?? [])
     <template v-else-if="settings">
       <ServerSettingsForm :settings="settings" :templates="templates" />
       <LoginPhotoCard :login-photo-set="settings.loginPhotoSet" />
+      <EmailCard />
     </template>
   </div>
 </template>

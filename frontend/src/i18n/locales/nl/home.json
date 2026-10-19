@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Uploaden…",
     "success": "Activiteit succesvol geüpload",
-    "error": "Het activiteitsbestand kon niet worden geüpload"
+    "error": "Het activiteitsbestand kon niet worden geüpload",
+    "timeout": "Je bestand wordt nog geïmporteerd. Het verschijnt zodra het klaar is.",
+    "failed": {
+      "unsupported_format": "Dit bestandstype wordt niet ondersteund",
+      "invalid_file": "Dit bestand kon niet worden gelezen",
+      "no_activities_found": "In dit bestand is geen activiteit gevonden",
+      "processing_failed": "Het activiteitenbestand kon niet worden geïmporteerd"
+    }
   },
   "refresh": {
     "label": "Vernieuwen",

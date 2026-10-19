@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Логотип Endurain",
-  "title": "Основа дизайн-системи запущена",
-  "subtitle": "Tailwind v4, shadcn-vue, строгий TypeScript і палітра токенів Endurain налаштовані",
-  "primaryAction": "Основна дія",
   "notFound": {
     "title": "Сторінку не знайдено",
     "message": "Сторінка, яку ви шукаєте, не існує або була переміщена",

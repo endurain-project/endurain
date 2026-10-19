@@ -48,7 +48,6 @@
       "title": "Noch keine Benutzer",
       "description": "Füge das erste Konto für diese Instanz hinzu",
       "searchTitle": "Keine Benutzer gefunden",
-      "searchDescription": "Kein Benutzer entspricht diesem Benutzernamen",
       "filteredTitle": "Kein Benutzer entspricht den ausgewählten Filtern"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen",
       "passwordHintLength": "Mindestens {min} Zeichen",
       "passwordRequired": "Passwort ist erforderlich",
-      "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
       "passwordInvalid": "Dieses Passwort erfüllt die Anforderungen nicht",
       "confirmPassword": "Passwort bestätigen",
       "confirmPasswordRequired": "Passwort bestätigen",
@@ -135,6 +133,8 @@
         "pound": "Pfund"
       },
       "firstDayOfWeek": "Erster Tag der Woche",
+      "timezone": "Zeitzone",
+      "timezoneHint": "Wird für Aktivitäten ohne GPS verwendet, z. B. Laufband- oder Indoor-Radeinheiten.",
       "weekdays": {
         "sunday": "Sonntag",
         "monday": "Montag",
@@ -354,6 +354,19 @@
       "deleteError": "Das Anmeldefoto konnte nicht entfernt werden. Bitte versuche es erneut.",
       "cancel": "Abbrechen",
       "close": "Schließen"
+    },
+    "email": {
+      "title": "E-Mail",
+      "description": "Endurain versendet E-Mails zum Zurücksetzen des Passworts und zur Registrierung über den in der Umgebung konfigurierten SMTP-Server.",
+      "statusLoadError": "Die E-Mail-Konfiguration konnte nicht geprüft werden.",
+      "configured": "E-Mail ist konfiguriert.",
+      "notConfigured": "E-Mail ist nicht konfiguriert:",
+      "send": "Test-E-Mail senden",
+      "sending": "Wird gesendet…",
+      "sendHint": "Die Test-E-Mail wird an deine eigene Adresse gesendet.",
+      "sent": "Test-E-Mail gesendet",
+      "failed": "Die Test-E-Mail konnte nicht gesendet werden",
+      "failedUnknown": "Details findest du in den Serverlogs."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Massenimport",
       "subtitle": "Importiere Aktivitätsdateien aus dem Bulk-Import-Ordner des Servers",
-      "button": "Aktivitäten importieren",
+      "uploadButton": "ZIP hochladen",
+      "folderButton": "Aus Ordner importieren",
       "started": "Aktivitäten werden im Hintergrund importiert…",
+      "alreadyRunning": "Ein Massenimport läuft bereits. Warte, bis er abgeschlossen ist.",
       "error": "Import konnte nicht gestartet werden. Bitte versuche es erneut."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava-Fahrräder importiert",
       "bikesError": "Strava-Fahrräder konnten nicht importiert werden. Bitte versuche es erneut.",
       "shoesSuccess": "Strava-Schuhe importiert",
-      "shoesError": "Strava-Schuhe konnten nicht importiert werden. Bitte versuche es erneut."
+      "shoesError": "Strava-Schuhe konnten nicht importiert werden. Bitte versuche es erneut.",
+      "activitiesUpload": "Aktivitäten importieren (ZIP hochladen)",
+      "activitiesFolder": "Aktivitäten importieren (Serverordner)"
+    },
+    "job": {
+      "preparing": "Import wird vorbereitet…",
+      "progress": "{done} von {total} Dateien importiert ({failed} fehlgeschlagen)…",
+      "finished": "Import abgeschlossen: {done} von {total} Dateien importiert, {failed} fehlgeschlagen.",
+      "failed": "Der Import konnte nicht abgeschlossen werden."
     }
   },
   "profile": {

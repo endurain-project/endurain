@@ -39,7 +39,6 @@
       "distance": "Dystans",
       "duration": "Czas trwania",
       "pace": "Tempo",
-      "speed": "Prędkość",
       "paceSpeed": "Tempo / Prędkość",
       "elevation": "Przewyższenie",
       "calories": "Kalorie",
@@ -66,11 +65,9 @@
     "recenter": "Wyśrodkuj mapę"
   },
   "metrics": {
-    "title": "Wskaźniki",
     "time": "Czas",
     "distance": "Dystans",
     "movingTime": "Czas w ruchu",
-    "elapsedTime": "Czas całkowity",
     "avgPace": "Śr. tempo",
     "avgSpeed": "Śr. prędkość",
     "maxSpeed": "Maks. prędkość",
@@ -109,7 +106,12 @@
     "elevation": "Przewyższenie",
     "strokeRate": "Częstotliwość ruchów",
     "cycles": "Cykle",
-    "hr": "Tętno"
+    "strokes": "Pociągnięcia",
+    "revolutions": "Obroty",
+    "strides": "Kroki",
+    "jumps": "Skoki",
+    "hr": "Tętno",
+    "activeSummary": "Łącznie aktywnie"
   },
   "workout": {
     "title": "Trening",
@@ -157,7 +159,6 @@
     "deleteError": "Nie udało się usunąć aktywności"
   },
   "media": {
-    "title": "Zdjęcia",
     "alt": "Zdjęcie aktywności",
     "addMedia": "Dodaj zdjęcie",
     "uploadSuccess": "Przesłano zdjęcie",
@@ -170,7 +171,8 @@
     "close": "Zamknij",
     "deleteSuccess": "Usunięto zdjęcie",
     "deleteError": "Nie udało się usunąć zdjęcia",
-    "expand": "Wyświetl pełny rozmiar"
+    "expand": "Wyświetl pełny rozmiar",
+    "thumbnailPending": "Generowanie podglądu mapy…"
   },
   "gallery": {
     "previous": "Poprzednie",

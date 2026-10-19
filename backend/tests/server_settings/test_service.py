@@ -7,9 +7,11 @@ lookup on the read path of the whole app.
 
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 
 
@@ -77,3 +79,86 @@ class TestTileServerUrlIsCheckedOnWrite:
             )
 
         write.assert_not_called()
+
+
+class TestEmailStatus:
+    """Test suite for get_email_status."""
+
+    @patch("modules.server_settings.service.core_mail.is_mail_configured", return_value=True)
+    def test_configured(self, _configured):
+        result = server_settings_service.get_email_status()
+
+        assert result.configured is True
+
+    @patch("modules.server_settings.service.core_config.settings")
+    @patch("modules.server_settings.service.core_mail.is_mail_configured", return_value=False)
+    def test_unset_host_reports_missing_host(self, _configured, mock_settings):
+        mock_settings.SMTP_HOST = None
+        mock_settings.mail_problems = []
+
+        result = server_settings_service.get_email_status()
+
+        assert result.configured is False
+        assert result.problems == ["SMTP_HOST is not set"]
+
+    @patch("modules.server_settings.service.core_config.settings")
+    @patch("modules.server_settings.service.core_mail.is_mail_configured", return_value=False)
+    def test_invalid_settings_report_problems(self, _configured, mock_settings):
+        mock_settings.SMTP_HOST = "mail.example.com"
+        mock_settings.mail_problems = ["SMTP_USERNAME and SMTP_PASSWORD must be set together"]
+
+        result = server_settings_service.get_email_status()
+
+        assert result.problems == ["SMTP_USERNAME and SMTP_PASSWORD must be set together"]
+
+
+class TestSendTestEmail:
+    """Test suite for send_test_email."""
+
+    @staticmethod
+    def _admin():
+        return MagicMock(email="admin@example.com", preferred_language="en", **{"name": "Admin"})
+
+    @patch("modules.server_settings.service.get_email_status")
+    def test_not_configured_raises_503_with_reasons(self, mock_status):
+        mock_status.return_value = server_settings_schema.EmailStatus(
+            configured=False, problems=["SMTP_HOST is not set"]
+        )
+        mail = MagicMock()
+
+        with pytest.raises(core_exceptions.ServiceUnavailableError) as exc_info:
+            server_settings_service.send_test_email(self._admin(), mail)
+
+        assert "SMTP_HOST is not set" in exc_info.value.detail
+        mail.send.assert_not_called()
+
+    @patch("modules.server_settings.service.core_config.settings")
+    @patch("modules.server_settings.service.get_email_status")
+    def test_sends_to_the_admin_only(self, mock_status, mock_settings):
+        mock_status.return_value = server_settings_schema.EmailStatus(configured=True, problems=[])
+        mock_settings.SMTP_HOST = "mail.example.com"
+        mock_settings.SMTP_PORT = 587
+        mock_settings.ENDURAIN_HOST = "https://endurain.example.com"
+        mail = MagicMock()
+
+        server_settings_service.send_test_email(self._admin(), mail)
+
+        message = mail.send.call_args.args[0]
+        assert message.to == ["admin@example.com"]
+        assert "mail.example.com:587" in message.text
+        assert message.html and message.text
+
+    @patch("modules.server_settings.service.core_config.settings")
+    @patch("modules.server_settings.service.get_email_status")
+    def test_mail_error_becomes_502_with_status_code(self, mock_status, mock_settings):
+        mock_status.return_value = server_settings_schema.EmailStatus(configured=True, problems=[])
+        mock_settings.SMTP_HOST = "mail.example.com"
+        mock_settings.SMTP_PORT = 587
+        mock_settings.ENDURAIN_HOST = "https://endurain.example.com"
+        mail = MagicMock()
+        mail.send.side_effect = platform_providers.MailError("SMTP authentication failed (status 535)", status=535)
+
+        with pytest.raises(core_exceptions.UpstreamError) as exc_info:
+            server_settings_service.send_test_email(self._admin(), mail)
+
+        assert "status 535" in exc_info.value.detail

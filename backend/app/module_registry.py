@@ -30,6 +30,8 @@ import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnai
 import modules.activities.activity_thumbnail.subscriber_registry as activity_thumbnail_subscriber_registry
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
+import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
 
 logger = core_logger.get_logger(__name__)
@@ -188,6 +190,18 @@ MODULES: tuple[RuntimeModule, ...] = (
                 activity_ingestion_scheduled_jobs.schedule_provider_refresh,
             ),
         ),
+    ),
+    RuntimeModule(
+        name="password_reset_tokens",
+        register_bus=password_reset_tokens_subscriber_registry.register_bus_subscribers,
+        register_durable=password_reset_tokens_subscriber_registry.register_durable_handlers,
+        nets=password_reset_tokens_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+    ),
+    RuntimeModule(
+        name="sign_up_tokens",
+        register_bus=sign_up_tokens_subscriber_registry.register_bus_subscribers,
+        register_durable=sign_up_tokens_subscriber_registry.register_durable_handlers,
+        nets=sign_up_tokens_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
     ),
     RuntimeModule(
         name="notifications",

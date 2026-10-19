@@ -340,3 +340,100 @@ class TestHostCheckIsStrictlyStronger:
         assert result.resolved_storage_uri == "local://"
         assert result.resolved_events_uri == "memory://"
         assert result.resolved_lock_uri == "postgres-advisory://"
+
+
+class TestMailSettings:
+    @staticmethod
+    def _settings(monkeypatch, **overrides):
+        monkeypatch.delenv("SMTP_PASSWORD", raising=False)
+        monkeypatch.delenv("SMTP_PASSWORD_FILE", raising=False)
+        return core_config.Settings(_env_file=None, **overrides)
+
+    def test_unset_host_disables_mail(self, monkeypatch):
+        result = build_jasil_settings(self._settings(monkeypatch))
+
+        assert result.mail.uri is None
+
+    def test_starttls_maps_to_smtp_uri_with_credentials(self, monkeypatch):
+        monkeypatch.setenv("SMTP_PASSWORD", "secret")
+        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com", SMTP_USERNAME="me@example.com")
+        monkeypatch.setenv("SMTP_PASSWORD", "secret")
+
+        mail = build_jasil_settings(settings).mail
+
+        assert mail.uri == "smtp://mail.example.com:587"
+        assert mail.from_address == "Endurain <me@example.com>"
+        assert mail.username == "me@example.com"
+        assert mail.password == "secret"
+        assert mail.secure is True
+
+    def test_ssl_maps_to_smtps_uri(self, monkeypatch):
+        settings = self._settings(
+            monkeypatch, SMTP_HOST="mail.example.com", SMTP_FROM="a@example.com", SMTP_SECURE_TYPE="ssl", SMTP_PORT=465
+        )
+
+        assert build_jasil_settings(settings).mail.uri == "smtps://mail.example.com:465"
+
+    def test_smtp_from_wins_and_display_name_is_kept(self, monkeypatch):
+        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com", SMTP_FROM="Team <team@example.com>")
+
+        assert build_jasil_settings(settings).mail.from_address == "Team <team@example.com>"
+
+    def test_missing_sender_disables_mail_with_reason(self, monkeypatch):
+        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com")
+
+        assert settings.mail_configured is False
+        assert any("sender" in problem for problem in settings.mail_problems)
+        assert build_jasil_settings(settings).mail.uri is None
+
+    def test_username_without_password_disables_mail(self, monkeypatch):
+        settings = self._settings(monkeypatch, SMTP_HOST="mail.example.com", SMTP_USERNAME="me@example.com")
+
+        assert settings.mail_configured is False
+        assert any("SMTP_PASSWORD" in problem for problem in settings.mail_problems)
+
+    def test_cleartext_with_credentials_disables_mail(self, monkeypatch):
+        monkeypatch.setenv("SMTP_PASSWORD", "secret")
+        settings = core_config.Settings(
+            _env_file=None, SMTP_HOST="127.0.0.1", SMTP_USERNAME="me@example.com", SMTP_SECURE=False
+        )
+
+        assert settings.mail_configured is False
+
+    def test_cleartext_to_public_host_disables_mail(self, monkeypatch):
+        monkeypatch.setattr("core.config._is_private_host", lambda host: False)
+        settings = self._settings(
+            monkeypatch, SMTP_HOST="mail.example.com", SMTP_FROM="a@example.com", SMTP_SECURE=False
+        )
+
+        assert settings.mail_configured is False
+        assert any("private or loopback" in problem for problem in settings.mail_problems)
+
+    def test_cleartext_to_loopback_is_allowed(self, monkeypatch):
+        settings = self._settings(monkeypatch, SMTP_HOST="127.0.0.1", SMTP_FROM="a@example.com", SMTP_SECURE=False)
+
+        assert settings.mail_configured is True
+        assert build_jasil_settings(settings).mail.secure is False
+
+    def test_problems_never_contain_setting_values(self, monkeypatch):
+        monkeypatch.setenv("SMTP_PASSWORD", "super-secret-value")
+        settings = core_config.Settings(_env_file=None, SMTP_HOST="mail.example.com", SMTP_FROM="bad address")
+
+        assert all(
+            "super-secret-value" not in problem and "bad address" not in problem for problem in settings.mail_problems
+        )
+
+    @pytest.mark.parametrize(
+        "host", ["mail.example.com/path", "mail example.com", "mail.example.com:25", "a@b.com", "-bad.example.com"]
+    )
+    def test_invalid_host_disables_mail(self, monkeypatch, host):
+        settings = self._settings(monkeypatch, SMTP_HOST=host, SMTP_FROM="a@example.com")
+
+        assert settings.mail_configured is False
+        assert any("SMTP_HOST" in problem for problem in settings.mail_problems)
+        assert settings.smtp_uri is None
+
+    def test_ipv6_literal_is_bracketed_in_uri(self, monkeypatch):
+        settings = self._settings(monkeypatch, SMTP_HOST="::1", SMTP_FROM="a@example.com", SMTP_SECURE=False)
+
+        assert settings.smtp_uri == "smtp://[::1]:587"

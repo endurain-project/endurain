@@ -586,9 +586,6 @@
       "edit": "Böjt szerkesztése",
       "delete": "Böjt törlése"
     },
-    "list": {
-      "notesLabel": "Jegyzetek"
-    },
     "form": {
       "addTitle": "Böjt indítása",
       "editTitle": "Böjtidőszak szerkesztése",
@@ -596,7 +593,6 @@
       "type": "Böjtprotokoll",
       "customDuration": "Egyéni időtartam",
       "customDurationHint": "A böjt hossza órában (1–72).",
-      "hours": "óra",
       "startTime": "Kezdési idő",
       "startTimeRequired": "Kérjük, válassz kezdési időt.",
       "endTime": "Befejezési idő",

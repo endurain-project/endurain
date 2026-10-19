@@ -586,9 +586,6 @@
       "edit": "Editar xaxún",
       "delete": "Eliminar xaxún"
     },
-    "list": {
-      "notesLabel": "Notas"
-    },
     "form": {
       "addTitle": "Iniciar xaxún",
       "editTitle": "Editar sesión de xaxún",
@@ -596,7 +593,6 @@
       "type": "Protocolo de xaxún",
       "customDuration": "Duración personalizada",
       "customDurationHint": "Duración do xaxún, en horas (1–72).",
-      "hours": "horas",
       "startTime": "Hora de inicio",
       "startTimeRequired": "Por favor, escolle unha hora de inicio.",
       "endTime": "Hora de fin",

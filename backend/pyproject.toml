@@ -1,46 +1,45 @@
 [project]
 name = "endurain"
-version = "0.20.0-beta1"
+version = "0.20.0-beta2"
 description = "Endurain API for the Endurain app"
 authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI
 requires-python = ">=3.13,<4.0"
 dependencies = [
     "fastapi>=0.141.1",
-    "uvicorn>=0.44.0",
-    "python-dotenv>=1.2.2",
-    "sqlalchemy>=2.0.51",
-    "apscheduler>=3.11.2",
-    "requests>=2.33.1",
-    "stravalib>=2.4",
-    "python-multipart>=0.0.26",
+    "uvicorn>=0.53.0",
+    "python-dotenv>=1.2.3",
+    "sqlalchemy>=2.0.54",
+    "apscheduler>=3.11.3",
+    "requests>=2.34.2",
+    "stravalib>=2.6.0",
+    "python-multipart>=0.0.32",
     "gpxpy>=1.6.2",
     "tcxreader>=0.4.11",
-    "alembic>=1.19.0",
-    "joserfc>=1.6.4",
+    "alembic>=1.20.0",
+    "joserfc>=1.7.5",
     "fitdecode>=0.11.0",
-    "numpy>=2.4.4",
-    "geopy>=2.4.1",
-    "pydantic-core>=2.46.2",
-    "pydantic-settings>=2.6.0",
-    "garminconnect>=0.3.2",
-    "websockets>=16.0",
-    "timezonefinder>=8.2.2",
-    "psycopg[binary,pool]>=3.3.4",
+    "numpy>=2.5.3",
+    "geopy>=2.5.0",
+    "pydantic-core>=2.46.5",
+    "pydantic-settings>=2.15.0",
+    "garminconnect>=0.3.16",
+    "websockets>=17.1",
+    "timezonefinder>=9.0.0",
+    "psycopg[binary,pool]>=3.3.6",
     "user-agents>=2.2.0",
-    "pydantic[email]>=2.13.4",
-    "apprise>=1.9.9",
-    "pyotp>=2.9.0",
+    "pydantic[email]>=2.13.5",
+    "pyotp>=2.10.0",
     "qrcode[pil]>=8.2",
     "psutil>=7.2.2",
     "python-magic>=0.4.27",
-    "pwdlib[argon2,bcrypt]>=0.3.0",
-    "authlib>=1.6.11",
-    "httpx2>=2.12.0",
+    "pwdlib[argon2,bcrypt]>=0.3.1",
+    "authlib>=1.8.0",
+    "httpx2>=2.13.0",
     "itsdangerous>=2.2.0",
-    "slowapi>=0.1.9",
-    "safeuploads[fastapi]>=1.0.0",
-    "nh3>=0.3.1",
+    "slowapi>=0.1.10",
+    "safeuploads[fastapi]>=1.1.1",
+    "nh3>=0.3.7",
     "aiofiles>=25.1.0",
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
@@ -53,14 +52,14 @@ dependencies = [
 # shared state / event bus and S3-compatible object storage. The default image
 # (`uv export --no-dev`) ships neither, so `local` deployments stay lean.
 distributed = [
-    "boto3>=1.35",
-    "redis>=7.4.0",
+    "boto3>=1.43.98",
+    "redis>=8.1.0",
     "jasil[redis,s3]>=0.6.1,<0.7.0",
 ]
 
 [dependency-groups]
 typecheck = [
-    "mypy>=1.20.2",
+    "mypy>=2.3.1",
     "types-requests",
     "types-psutil",
     "types-qrcode",
@@ -68,34 +67,34 @@ typecheck = [
     "types-Authlib",
 ]
 lint = [
-    "ruff>=0.15.12",
+    "ruff>=0.16.8",
 ]
 test = [
-    "httpx2>=2.12.0",
-    "faker>=40.15.0",
-    "hypothesis>=6.150.0",
-    "import-linter>=2.1",
-    "pytest>=9.0.3",
-    "pytest-asyncio>=1.3.0",
+    "httpx2>=2.13.0",
+    "faker>=40.39.0",
+    "hypothesis>=6.168.0",
+    "import-linter>=2.15",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "boto3>=1.35",
-    "redis>=7.4.0",
+    "boto3>=1.43.98",
+    "redis>=8.1.0",
 ]
 dev = [
-    "hatch>=1.16.5",
+    "hatch>=1.18.1",
     {include-group = "lint"},
     {include-group = "test"},
     {include-group = "typecheck"},
 ]
 docs = [
-    "mkdocs-material>=9.6.0",
-    "mkdocstrings[python]>=0.29.0",
-    "mkdocs-redirects>=1.2.1",
-    "mkdocs-swagger-ui-tag>=0.7.2",
+    "mkdocs-material>=9.7.7",
+    "mkdocstrings[python]>=1.0.6",
+    "mkdocs-redirects>=1.2.3",
+    "mkdocs-swagger-ui-tag>=0.8.1",
 ]
 
 [tool.uv]
-required-version = "0.12.23"
+required-version = "0.12.24"
 exclude-newer = "30 days"
 # jasil is first-party (endurain-project) and published through PyPI Trusted
 # Publishing with PEP 740 attestations, so it is exempt from the quarantine the

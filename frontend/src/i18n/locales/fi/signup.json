@@ -7,8 +7,6 @@
   "password": "Salasana",
   "confirmPassword": "Vahvista salasana",
   "passwordMismatch": "Salasanat eivät täsmää",
-  "showPassword": "Näytä salasana",
-  "hidePassword": "Piilota salasana",
   "showOptionalFields": "Näytä valinnaiset kentät",
   "hideOptionalFields": "Piilota valinnaiset kentät",
   "preferredLanguage": "Ensisijainen kieli",

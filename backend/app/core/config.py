@@ -14,9 +14,13 @@ mocks (``mock.patch("...core_config.ATTR")``) keep
 working unchanged.
 """
 
+import functools
 import ipaddress
 import os
+import re
+import socket
 import stat
+from email.utils import parseaddr
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
@@ -33,7 +37,7 @@ import core.network as core_network
 logger = core_logger.get_logger(__name__)
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.20.0-beta1"
+API_VERSION = "v0.20.0-beta2"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
@@ -53,6 +57,38 @@ SUPPORTED_FILE_FORMATS = [
 
 
 # Settings — every value driven by an environment variable.
+# RFC 1123 hostname: dot-separated labels of letters, digits and inner hyphens.
+_HOSTNAME_PATTERN = re.compile(
+    r"(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*"
+)
+
+
+def _is_plain_address(value: str) -> bool:
+    """Whether ``value`` is a single ``addr`` or ``Name <addr>`` email address."""
+    _, address = parseaddr(value)
+    return bool(address) and "@" in address and not any(c in value for c in "\r\n,;")
+
+
+def _is_valid_smtp_host(host: str) -> bool:
+    """Whether ``host`` is a hostname or an IP literal safe to place in a ``scheme://host:port`` URI."""
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return bool(_HOSTNAME_PATTERN.fullmatch(host))
+    return True
+
+
+@functools.cache
+def _is_private_host(host: str) -> bool:
+    """Whether ``host`` resolves only to private, loopback or link-local addresses."""
+    try:
+        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    except OSError:
+        return False
+    addresses = [ipaddress.ip_address(info[4][0].split("%")[0]) for info in infos]
+    return bool(addresses) and all(a.is_private or a.is_loopback or a.is_link_local for a in addresses)
+
+
 class Settings(BaseSettings):
     """Environment-driven configuration values.
 
@@ -249,11 +285,10 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USERNAME: str | None = None
     # SMTP_FROM sets the "From" address on outgoing email.
-    # When unset, Apprise auto-detects it from the URL
-    # (typically SMTP_USERNAME). Providers that enforce a
-    # verified sender (e.g. Brevo) require this to match an
-    # approved sender address, which may differ from the
-    # SMTP auth username.
+    # When unset, SMTP_USERNAME is used. Providers that
+    # enforce a verified sender (e.g. Brevo) require this to
+    # match an approved sender address, which may differ from
+    # the SMTP auth username.
     SMTP_FROM: str | None = None
     SMTP_SECURE: bool = True
     SMTP_SECURE_TYPE: str = "starttls"
@@ -296,9 +331,9 @@ class Settings(BaseSettings):
     @classmethod
     def _smtp_secure_type_lower(cls, v):
         """Normalise to lower-case and validate against the
-        small allow-list Apprise understands (``starttls``,
-        ``ssl``). Falls back to ``starttls`` on garbage input
-        with a warning instead of failing startup.
+        allowed connection types (``starttls``, ``ssl``). Falls
+        back to ``starttls`` on garbage input with a warning
+        instead of failing startup.
         """
         if v is None or v == "":
             return "starttls"
@@ -589,6 +624,64 @@ class Settings(BaseSettings):
         if self.resolved_deployment_topology.multi_process:
             return "postgres-advisory://"
         return "noop://"
+
+    @property
+    def smtp_sender(self) -> str | None:
+        """Sender address: ``SMTP_FROM``, falling back to ``SMTP_USERNAME``."""
+        return self.SMTP_FROM or self.SMTP_USERNAME or None
+
+    @property
+    def mail_problems(self) -> list[str]:
+        """Reasons the SMTP settings cannot be used, empty when mail is usable or unset.
+
+        Mirrors what the mail backend rejects at platform build time, so an invalid
+        setting disables email with a warning instead of stopping the application.
+        Messages name the setting, never its value.
+        """
+        if not self.SMTP_HOST:
+            return []
+        problems: list[str] = []
+        if not _is_valid_smtp_host(self.SMTP_HOST):
+            problems.append("SMTP_HOST is not a valid hostname or IP address")
+        sender = self.smtp_sender
+        if not sender:
+            problems.append("neither SMTP_FROM nor SMTP_USERNAME is set, so there is no sender address")
+        elif not _is_plain_address(sender):
+            problems.append("the sender address (SMTP_FROM or SMTP_USERNAME) is not a valid email address")
+        password = read_secret("SMTP_PASSWORD")
+        if bool(self.SMTP_USERNAME) != bool(password):
+            problems.append("SMTP_USERNAME and SMTP_PASSWORD must be set together")
+        if not ((self.SMTP_USERNAME or "").isascii() and (password or "").isascii()):
+            problems.append("SMTP_USERNAME and SMTP_PASSWORD must contain only ASCII characters")
+        if not 0 < self.SMTP_PORT < 65536:
+            problems.append("SMTP_PORT must be between 1 and 65535")
+        if not self.SMTP_SECURE:
+            if self.SMTP_USERNAME or password:
+                problems.append(
+                    "SMTP_SECURE=false cannot be used with SMTP_USERNAME/SMTP_PASSWORD (credentials are never sent without TLS)"
+                )
+            elif _is_valid_smtp_host(self.SMTP_HOST) and not _is_private_host(self.SMTP_HOST):
+                problems.append("SMTP_SECURE=false is only allowed for a private or loopback SMTP_HOST")
+        return problems
+
+    @property
+    def mail_configured(self) -> bool:
+        """Whether outgoing email is configured and usable."""
+        return bool(self.SMTP_HOST) and not self.mail_problems
+
+    @property
+    def smtp_uri(self) -> str | None:
+        """Mail backend URI, or ``None`` when mail is not configured or unusable.
+
+        ``smtps://`` is implicit TLS; ``smtp://`` is STARTTLS (or cleartext when
+        ``SMTP_SECURE`` is false).
+        """
+        if not self.mail_configured:
+            return None
+        scheme = "smtps" if self.SMTP_SECURE and self.SMTP_SECURE_TYPE == "ssl" else "smtp"
+        # An IPv6 literal needs brackets inside a URI authority.
+        host = f"[{self.SMTP_HOST}]" if ":" in self.SMTP_HOST else self.SMTP_HOST
+        return f"{scheme}://{host}:{self.SMTP_PORT}"
 
     @property
     def job_worker_mode(self) -> platform_profile.JobWorkerMode:
@@ -998,15 +1091,18 @@ def check_required_env_vars():
         "ENDURAIN_HOST",
     ]
 
-    # Email is optional but warn if not configured
-    email_vars = ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD"]
-    for var in email_vars:
-        value = read_secret(var) if var == "SMTP_PASSWORD" else os.getenv(var)
-        if not value:
-            logger.info(
-                f"Email not configured (missing: {var}). Password reset feature will not work.",
+    # Email is optional; say clearly whether it is on, off or disabled by a bad setting.
+    if not settings.SMTP_HOST:
+        logger.info("Email not configured (SMTP_HOST is not set). Password reset and sign-up emails will not be sent.")
+    elif settings.mail_problems:
+        for problem in settings.mail_problems:
+            logger.warning(
+                f"Email disabled: {problem}. Password reset and sign-up emails will not be sent until "
+                "the SMTP settings are fixed.",
                 extra=core_logger.context(console=True),
             )
+    else:
+        logger.info(f"Email enabled via {settings.smtp_uri}")
 
     # Check secret variables. Direct env var or _FILE must be present.
     for var in secret_vars:

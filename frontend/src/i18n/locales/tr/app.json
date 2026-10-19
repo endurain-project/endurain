@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logosu",
-  "title": "Tasarım sistemi temeli yayında",
-  "subtitle": "Tailwind v4, shadcn-vue, katı TypeScript ve Endurain token paleti birbirine bağlandı",
-  "primaryAction": "Birincil eylem",
   "notFound": {
     "title": "Sayfa bulunamadı",
     "message": "Aradığınız sayfa mevcut değil veya taşınmış",

@@ -2717,14 +2717,12 @@ export interface paths {
          *     Args:
          *         request: The HTTP request object.
          *         request_data: Pydantic model with the email address.
-         *         email_service: Dependency-injected email service.
          *         db: Dependency-injected database session.
          *
          *     Returns:
          *         Generic success message to avoid user enumeration.
          *
          *     Raises:
-         *         HTTPException: 500 if sending the reset email fails.
          *         HTTPException: 503 if email service is not configured.
          */
         post: operations["request_password_reset_api_v1_password_reset_request_post"];
@@ -4197,6 +4195,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/server_settings/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Email Status
+         * @description Get whether outgoing email is usable.
+         *
+         *     Requires admin authentication with server_settings:read scope.
+         *
+         *     Returns:
+         *         Whether email is configured and, when not, the reasons (setting names only).
+         */
+        get: operations["read_email_status_api_v1_server_settings_email_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server_settings/email/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Test Email
+         * @description Send a test email to the requesting admin.
+         *
+         *     Requires admin authentication with server_settings:write scope. The recipient
+         *     is always the caller's own email address.
+         *
+         *     Args:
+         *         request: The HTTP request object.
+         *         mail: The platform mail provider.
+         *
+         *     Returns:
+         *         A confirmation message naming the recipient address.
+         *
+         *     Raises:
+         *         ServiceUnavailableError: 503 if email is not configured.
+         *         UpstreamError: 502 if the mail server did not accept the message.
+         */
+        post: operations["send_test_email_api_v1_server_settings_email_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/server_settings/tile_maps_templates": {
         parameters: {
             query?: never;
@@ -4361,7 +4418,6 @@ export interface paths {
          *     Args:
          *         request: Incoming HTTP request.
          *         confirm_data: Token confirmation payload.
-         *         email_service: Injected email service.
          *         websocket_manager: WebSocket notification manager.
          *         db: Database session.
          *
@@ -4394,7 +4450,6 @@ export interface paths {
          *     Args:
          *         request: Incoming HTTP request.
          *         user: Sign-up payload with user info.
-         *         email_service: Injected email service.
          *         identity_service: Injected identity service.
          *         db: Database session.
          *
@@ -4780,7 +4835,6 @@ export interface paths {
          *         user_id: ID of user to approve.
          *         _validate_id: User ID validation dependency.
          *         _check_scopes: Authorization check.
-         *         email_service: Email service dependency.
          *         db: Database session dependency.
          *
          *     Returns:
@@ -5828,6 +5882,20 @@ export interface components {
              * @default 0
              */
             total_elevation_gain: number;
+        };
+        /**
+         * EmailStatus
+         * @description Whether outgoing email is usable, and why not when it is not.
+         *
+         *     Attributes:
+         *         configured: True when the SMTP settings are valid and email can be sent.
+         *         problems: Reasons email is disabled. Names settings, never their values.
+         */
+        EmailStatus: {
+            /** Configured */
+            configured: boolean;
+            /** Problems */
+            problems: string[];
         };
         /**
          * FastingStatus
@@ -17875,6 +17943,66 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_email_status_api_v1_server_settings_email_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    send_test_email_api_v1_server_settings_email_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Unexpected error */

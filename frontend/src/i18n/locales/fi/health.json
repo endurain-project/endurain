@@ -586,9 +586,6 @@
       "edit": "Muokkaa paastoa",
       "delete": "Poista paasto"
     },
-    "list": {
-      "notesLabel": "Muistiinpanot"
-    },
     "form": {
       "addTitle": "Aloita paasto",
       "editTitle": "Muokkaa paastojaksoa",
@@ -596,7 +593,6 @@
       "type": "Paastoprotokolla",
       "customDuration": "Mukautettu kesto",
       "customDurationHint": "Paaston pituus tunteina (1–72).",
-      "hours": "tuntia",
       "startTime": "Aloitusaika",
       "startTimeRequired": "Valitse aloitusaika.",
       "endTime": "Lopetusaika",

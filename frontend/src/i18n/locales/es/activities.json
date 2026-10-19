@@ -39,7 +39,6 @@
       "distance": "Distancia",
       "duration": "Duración",
       "pace": "Ritmo",
-      "speed": "Velocidad",
       "paceSpeed": "Ritmo / Velocidad",
       "elevation": "Desnivel",
       "calories": "Calorías",
@@ -66,11 +65,9 @@
     "recenter": "Centrar mapa"
   },
   "metrics": {
-    "title": "Métricas",
     "time": "Tiempo",
     "distance": "Distancia",
     "movingTime": "Tiempo en movimiento",
-    "elapsedTime": "Tiempo transcurrido",
     "avgPace": "Ritmo medio",
     "avgSpeed": "Velocidad media",
     "maxSpeed": "Velocidad máxima",
@@ -109,7 +106,12 @@
     "elevation": "Desnivel",
     "strokeRate": "Cadencia de brazada",
     "cycles": "Ciclos",
-    "hr": "Frecuencia cardíaca"
+    "strokes": "Brazadas",
+    "revolutions": "Revoluciones",
+    "strides": "Zancadas",
+    "jumps": "Saltos",
+    "hr": "Frecuencia cardíaca",
+    "activeSummary": "Total activo"
   },
   "workout": {
     "title": "Entrenamiento",
@@ -157,7 +159,6 @@
     "deleteError": "No se pudo eliminar la actividad"
   },
   "media": {
-    "title": "Fotos",
     "alt": "Foto de la actividad",
     "addMedia": "Añadir foto",
     "uploadSuccess": "Foto subida",
@@ -170,7 +171,8 @@
     "close": "Cerrar",
     "deleteSuccess": "Foto eliminada",
     "deleteError": "No se pudo eliminar la foto",
-    "expand": "Ver a tamaño completo"
+    "expand": "Ver a tamaño completo",
+    "thumbnailPending": "Generando la vista previa del mapa…"
   },
   "gallery": {
     "previous": "Anterior",

@@ -38,5 +38,12 @@
   "signup_approved.intro": "Vești bune! Contul tău a fost aprobat și este acum activ.",
   "signup_approved.username_label": "Nume de utilizator:",
   "signup_approved.login_intro": "Acum te poți autentifica și poți începe să folosești Endurain:",
-  "signup_approved.cta": "Autentifică-te în Endurain"
+  "signup_approved.cta": "Autentifică-te în Endurain",
+
+  "test_email.subject": "Endurain - E-mail de test",
+  "test_email.heading": "E-mailul funcționează",
+  "test_email.greeting": "Bună, {name},",
+  "test_email.intro": "Acesta este un e-mail de test trimis din setările serverului Endurain. Dacă îl citești, Endurain poate trimite e-mailuri prin serverul tău SMTP.",
+  "test_email.detail_label": "Server SMTP:",
+  "test_email.ignore": "Nu este necesară nicio acțiune."
 }

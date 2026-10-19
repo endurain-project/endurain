@@ -1,239 +1,169 @@
 """Tests for sign-up token utility functions."""
 
 import hashlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from fastapi import HTTPException, status
 
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 
 
-def _make_email_service(configured: bool = True) -> MagicMock:
-    """Build a minimal AppriseService mock."""
-    svc = MagicMock()
-    svc.is_configured.return_value = configured
-    svc.frontend_host = "https://endurain.example.com"
-    svc.send_email = AsyncMock(return_value=True)
-    return svc
+def _user(**overrides) -> MagicMock:
+    """Build a minimal user mock."""
+    user = MagicMock()
+    user.id = overrides.get("id", 1)
+    user.name = overrides.get("name", "Test User")
+    user.username = overrides.get("username", "testuser")
+    user.email = overrides.get("email", "user@example.com")
+    user.preferred_language = "en"
+    return user
 
 
 class TestCreateSignUpTokenUtils:
-    """Test suite for create_sign_up_token utility function."""
+    """Tests for create_sign_up_token."""
 
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.create_sign_up_token")
-    @patch("modules.auth.sign_up_tokens.utils.core_apprise.generate_token_and_hash")
-    def test_create_sign_up_token_returns_plain_token(
-        self,
-        mock_generate,
-        mock_crud_create,
-        mock_db,
-    ):
-        """Returns the plaintext token, not the hash."""
-        # Arrange
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_user_sign_up_tokens_used")
+    @patch("modules.auth.sign_up_tokens.utils.token_hashing.generate_token_and_hash")
+    def test_returns_plain_token_and_stores_only_hash(self, mock_generate, mock_invalidate, mock_create, mock_db):
+        """The plain token is returned; the stored schema holds only its hash."""
         mock_generate.return_value = ("plain-token", "hashed-token")
 
-        # Act
-        result = sign_up_tokens_utils.create_sign_up_token(42, mock_db)
+        result = sign_up_tokens_utils.create_sign_up_token(7, mock_db)
 
-        # Assert
         assert result == "plain-token"
-        mock_generate.assert_called_once()
+        stored = mock_create.call_args.args[0]
+        assert stored.user_id == 7
+        assert stored.token_hash == "hashed-token"
+        assert stored.used is False
 
     @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.create_sign_up_token")
-    @patch("modules.auth.sign_up_tokens.utils.core_apprise.generate_token_and_hash")
-    def test_create_sign_up_token_persists_to_db(
-        self,
-        mock_generate,
-        mock_crud_create,
-        mock_db,
-    ):
-        """CRUD create is called once with the token schema."""
-        # Arrange
-        mock_generate.return_value = ("plain-token", "hashed-token")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_crud.mark_user_sign_up_tokens_used")
+    def test_invalidates_earlier_tokens_before_creating(self, mock_invalidate, mock_create, mock_db):
+        """Earlier unused tokens are invalidated before the new one is committed."""
+        manager = MagicMock()
+        manager.attach_mock(mock_invalidate, "invalidate")
+        manager.attach_mock(mock_create, "create")
 
-        # Act
         sign_up_tokens_utils.create_sign_up_token(7, mock_db)
 
-        # Assert
-        mock_crud_create.assert_called_once()
-        _, call_db = mock_crud_create.call_args.args
-        assert call_db is mock_db
+        assert [c[0] for c in manager.mock_calls] == ["invalidate", "create"]
+        mock_invalidate.assert_called_once_with(7, mock_db)
 
 
-class TestSendSignUpEmail:
-    """Test suite for send_sign_up_email function."""
+class TestRequestEmails:
+    """Tests for the request_* functions that publish email events."""
 
-    async def test_send_sign_up_email_not_configured_raises_503(self, mock_db):
-        """503 raised when email service is not configured."""
-        # Arrange
-        email_service = _make_email_service(configured=False)
-        user = MagicMock()
+    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=False)
+    def test_not_configured_raises_503(self, _configured, mock_db):
+        """Every request function raises 503 when mail is not configured."""
+        for call in (
+            lambda: sign_up_tokens_utils.request_sign_up_verification_email(1, mock_db),
+            lambda: sign_up_tokens_utils.request_sign_up_admin_approval_emails(1, mock_db),
+            lambda: sign_up_tokens_utils.request_sign_up_approved_email(1, mock_db),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                call()
+            assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            await sign_up_tokens_utils.send_sign_up_email(user, email_service, mock_db)
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_event_publishers.publish_sign_up_verification_requested")
+    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    def test_verification_publishes_event(self, _configured, mock_publish, mock_db):
+        sign_up_tokens_utils.request_sign_up_verification_email(5, mock_db)
 
-        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        mock_publish.assert_called_once_with(5, mock_db)
 
-    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_signup_confirmation_email")
-    @patch("modules.auth.sign_up_tokens.utils.core_i18n.normalize_locale")
-    @patch("modules.auth.sign_up_tokens.utils.create_sign_up_token")
-    async def test_send_sign_up_email_success_sends_email(
-        self,
-        mock_create_token,
-        mock_normalize,
-        mock_get_email,
-        mock_db,
-    ):
-        """Email is sent with localized content on success."""
-        # Arrange
-        email_service = _make_email_service(configured=True)
-        user = MagicMock()
-        user.preferred_language = "en"
-        user.name = "Alice"
-        user.email = "alice@example.com"
-        mock_create_token.return_value = "plain-token"
-        mock_normalize.return_value = "us"
-        mock_get_email.return_value = ("Subject", "<html>", "text")
-
-        # Act
-        result = await sign_up_tokens_utils.send_sign_up_email(user, email_service, mock_db)
-
-        # Assert
-        assert result is True
-        email_service.send_email.assert_awaited_once()
-        mock_create_token.assert_called_once_with(user.id, mock_db)
-
-
-class TestSendSignUpAdminApprovalEmail:
-    """Test suite for send_sign_up_admin_approval_email."""
-
-    async def test_send_sign_up_admin_approval_not_configured_503(self, mock_db):
-        """503 raised when email service is not configured."""
-        # Arrange
-        email_service = _make_email_service(configured=False)
-        user = MagicMock()
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            await sign_up_tokens_utils.send_sign_up_admin_approval_email(user, email_service, mock_db)
-
-        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-
-    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_admin_signup_notification_email")
-    @patch("modules.auth.sign_up_tokens.utils.core_i18n.normalize_locale")
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_event_publishers.publish_sign_up_approval_requested")
     @patch("modules.auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
-    async def test_send_sign_up_admin_approval_sends_to_all_admins(
-        self,
-        mock_get_admins,
-        mock_normalize,
-        mock_get_email,
-        mock_db,
-    ):
-        """Email is sent once for each admin user."""
-        # Arrange
-        email_service = _make_email_service(configured=True)
-        user = MagicMock()
-        user.name = "NewUser"
-        user.username = "newuser"
-        admin1 = MagicMock()
-        admin1.preferred_language = "en"
-        admin1.email = "admin1@example.com"
-        admin2 = MagicMock()
-        admin2.preferred_language = "pt-PT"
-        admin2.email = "admin2@example.com"
-        mock_get_admins.return_value = [admin1, admin2]
-        mock_normalize.return_value = "en"
-        mock_get_email.return_value = ("Subject", "<html>", "text")
+    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    def test_admin_approval_publishes_one_event_per_admin(self, _configured, mock_admins, mock_publish, mock_db):
+        mock_admins.return_value = [MagicMock(id=10), MagicMock(id=11)]
 
-        # Act
-        await sign_up_tokens_utils.send_sign_up_admin_approval_email(user, email_service, mock_db)
+        sign_up_tokens_utils.request_sign_up_admin_approval_emails(5, mock_db)
 
-        # Assert
-        assert email_service.send_email.await_count == 2
+        assert [c.args for c in mock_publish.call_args_list] == [(5, 10, mock_db), (5, 11, mock_db)]
 
     @patch("modules.auth.sign_up_tokens.utils.users_utils.get_admin_users_or_404")
-    async def test_send_sign_up_admin_approval_no_admins_raises_404(
-        self,
-        mock_get_admins,
-        mock_db,
-    ):
-        """404 propagated when no admin users exist."""
-        # Arrange
-        email_service = _make_email_service(configured=True)
-        user = MagicMock()
-        mock_get_admins.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No admin users found",
-        )
+    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    def test_admin_approval_no_admins_raises_404(self, _configured, mock_admins, mock_db):
+        mock_admins.side_effect = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No admin users found")
 
-        # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            await sign_up_tokens_utils.send_sign_up_admin_approval_email(user, email_service, mock_db)
+            sign_up_tokens_utils.request_sign_up_admin_approval_emails(5, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
 
+    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_event_publishers.publish_sign_up_approved")
+    @patch("modules.auth.sign_up_tokens.utils.core_mail.is_mail_configured", return_value=True)
+    def test_approved_publishes_event(self, _configured, mock_publish, mock_db):
+        sign_up_tokens_utils.request_sign_up_approved_email(5, mock_db)
 
-class TestSendSignUpApprovalEmail:
-    """Test suite for send_sign_up_approval_email function."""
+        mock_publish.assert_called_once_with(5, mock_db)
 
-    async def test_send_sign_up_approval_not_configured_raises_503(self, mock_db):
-        """503 raised when email service is not configured."""
-        # Arrange
-        email_service = _make_email_service(configured=False)
 
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            await sign_up_tokens_utils.send_sign_up_approval_email(1, email_service, mock_db)
+class TestSendEmailsToUser:
+    """Tests for the handler-side send functions."""
 
-        assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id", return_value=None)
+    def test_missing_user_is_skipped(self, _get_user, mock_db):
+        mail = MagicMock()
+
+        assert sign_up_tokens_utils.send_sign_up_verification_email_to_user(1, mail, mock_db) is False
+        assert sign_up_tokens_utils.send_sign_up_approved_email_to_user(1, mail, mock_db) is False
+        assert sign_up_tokens_utils.send_sign_up_approval_request_email_to_admin(1, 2, mail, mock_db) is False
+        mail.send.assert_not_called()
+
+    @patch("modules.auth.sign_up_tokens.utils.create_sign_up_token", return_value="plain-token")
+    @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
+    def test_verification_sends_link_with_token(self, mock_get_user, _create_token, mock_db):
+        mock_get_user.return_value = _user(email="new@example.com")
+        mail = MagicMock()
+
+        assert sign_up_tokens_utils.send_sign_up_verification_email_to_user(1, mail, mock_db) is True
+
+        message = mail.send.call_args.args[0]
+        assert message.to == ["new@example.com"]
+        assert "verify-email?token=plain-token" in message.text
 
     @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
-    async def test_send_sign_up_approval_user_not_found_raises_404(
-        self,
-        mock_get_user,
-        mock_db,
-    ):
-        """404 raised when user_id does not match a user."""
-        # Arrange
-        email_service = _make_email_service(configured=True)
-        mock_get_user.return_value = None
+    def test_approval_request_goes_to_admin(self, mock_get_user, mock_db):
+        users = {1: _user(id=1, username="newbie"), 2: _user(id=2, email="admin@example.com")}
+        mock_get_user.side_effect = lambda user_id, _db: users[user_id]
+        mail = MagicMock()
 
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            await sign_up_tokens_utils.send_sign_up_approval_email(99, email_service, mock_db)
+        assert sign_up_tokens_utils.send_sign_up_approval_request_email_to_admin(1, 2, mail, mock_db) is True
 
-        assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+        message = mail.send.call_args.args[0]
+        assert message.to == ["admin@example.com"]
+        assert "newbie" in message.text
 
-    @patch("modules.auth.sign_up_tokens.utils.sign_up_tokens_email_messages.get_user_signup_approved_email")
-    @patch("modules.auth.sign_up_tokens.utils.core_i18n.normalize_locale")
     @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
-    async def test_send_sign_up_approval_success_sends_email(
-        self,
-        mock_get_user,
-        mock_normalize,
-        mock_get_email,
-        mock_db,
-    ):
-        """Approval email sent to user on success."""
-        # Arrange
-        email_service = _make_email_service(configured=True)
-        user = MagicMock()
-        user.preferred_language = "en"
-        user.name = "Alice"
-        user.username = "alice"
-        user.email = "alice@example.com"
-        mock_get_user.return_value = user
-        mock_normalize.return_value = "us"
-        mock_get_email.return_value = ("Subject", "<html>", "text")
+    def test_approved_goes_to_user(self, mock_get_user, mock_db):
+        mock_get_user.return_value = _user(email="ok@example.com")
+        mail = MagicMock()
 
-        # Act
-        result = await sign_up_tokens_utils.send_sign_up_approval_email(1, email_service, mock_db)
+        assert sign_up_tokens_utils.send_sign_up_approved_email_to_user(1, mail, mock_db) is True
 
-        # Assert
-        assert result is True
-        email_service.send_email.assert_awaited_once()
+        assert mail.send.call_args.args[0].to == ["ok@example.com"]
+
+    @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
+    def test_permanent_failure_is_not_retried(self, mock_get_user, mock_db):
+        mock_get_user.return_value = _user()
+        mail = MagicMock()
+        mail.send.side_effect = platform_providers.MailError("refused", status=550)
+
+        assert sign_up_tokens_utils.send_sign_up_approved_email_to_user(1, mail, mock_db) is False
+
+    @patch("modules.auth.sign_up_tokens.utils.users_crud.get_user_by_id")
+    def test_transient_failure_propagates_for_retry(self, mock_get_user, mock_db):
+        mock_get_user.return_value = _user()
+        mail = MagicMock()
+        mail.send.side_effect = platform_providers.MailError("unreachable")
+
+        with pytest.raises(platform_providers.MailError):
+            sign_up_tokens_utils.send_sign_up_approved_email_to_user(1, mail, mock_db)
 
 
 class TestUseSignUpToken:
