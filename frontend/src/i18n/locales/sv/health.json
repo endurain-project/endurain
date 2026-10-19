@@ -586,9 +586,6 @@
       "edit": "Redigera fasta",
       "delete": "Ta bort fasta"
     },
-    "list": {
-      "notesLabel": "Anteckningar"
-    },
     "form": {
       "addTitle": "Starta fasta",
       "editTitle": "Redigera fastsession",
@@ -596,7 +593,6 @@
       "type": "Fasteprotokoll",
       "customDuration": "Anpassad varaktighet",
       "customDurationHint": "Fastans längd i timmar (1–72).",
-      "hours": "timmar",
       "startTime": "Starttid",
       "startTimeRequired": "Välj en starttid.",
       "endTime": "Sluttid",

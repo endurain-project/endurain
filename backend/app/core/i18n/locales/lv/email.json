@@ -38,5 +38,12 @@
   "signup_approved.intro": "Labas ziņas! Jūsu konts ir apstiprināts un tagad ir aktīvs.",
   "signup_approved.username_label": "Lietotājvārds:",
   "signup_approved.login_intro": "Tagad varat pieteikties un sākt izmantot Endurain:",
-  "signup_approved.cta": "Pieteikties Endurain"
+  "signup_approved.cta": "Pieteikties Endurain",
+
+  "test_email.subject": "Endurain - Testa e-pasts",
+  "test_email.heading": "E-pasts darbojas",
+  "test_email.greeting": "Sveiki, {name}!",
+  "test_email.intro": "Šis ir testa e-pasts, kas nosūtīts no Endurain servera iestatījumiem. Ja jūs to lasāt, Endurain var sūtīt e-pastus, izmantojot jūsu SMTP serveri.",
+  "test_email.detail_label": "SMTP serveris:",
+  "test_email.ignore": "Nekādas darbības nav nepieciešamas."
 }

@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logó",
-  "title": "A dizájnrendszer alapja elérhető",
-  "subtitle": "A Tailwind v4, a shadcn-vue, a szigorú TypeScript és az Endurain tokenpaletta be van kötve",
-  "primaryAction": "Elsődleges művelet",
   "notFound": {
     "title": "Az oldal nem található",
     "message": "A keresett oldal nem létezik vagy áthelyezték",

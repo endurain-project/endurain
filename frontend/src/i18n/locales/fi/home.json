@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Ladataan…",
     "success": "Aktiviteetti ladattiin onnistuneesti",
-    "error": "Aktiviteettitiedostoa ei voitu ladata"
+    "error": "Aktiviteettitiedostoa ei voitu ladata",
+    "timeout": "Tiedostoasi tuodaan vielä. Se näkyy, kun tuonti on valmis.",
+    "failed": {
+      "unsupported_format": "Tätä tiedostotyyppiä ei tueta",
+      "invalid_file": "Tiedostoa ei voitu lukea",
+      "no_activities_found": "Tiedostosta ei löytynyt yhtään aktiviteettia",
+      "processing_failed": "Aktiviteettitiedostoa ei voitu tuoda"
+    }
   },
   "refresh": {
     "label": "Päivitä",

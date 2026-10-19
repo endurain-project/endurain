@@ -38,7 +38,6 @@
     "title": "Actividades en este período"
   },
   "empty": {
-    "title": "Sin actividad en este período",
     "description": "Ninguna actividad coincide con el período y tipo seleccionados."
   },
   "error": {

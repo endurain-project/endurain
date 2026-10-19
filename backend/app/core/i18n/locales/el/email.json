@@ -38,5 +38,12 @@
   "signup_approved.intro": "Καλά νέα! Ο λογαριασμός σας εγκρίθηκε και είναι πλέον ενεργός.",
   "signup_approved.username_label": "Όνομα χρήστη:",
   "signup_approved.login_intro": "Μπορείτε τώρα να συνδεθείτε και να αρχίσετε να χρησιμοποιείτε το Endurain:",
-  "signup_approved.cta": "Σύνδεση στο Endurain"
+  "signup_approved.cta": "Σύνδεση στο Endurain",
+
+  "test_email.subject": "Endurain - Δοκιμαστικό email",
+  "test_email.heading": "Το email λειτουργεί",
+  "test_email.greeting": "Γεια σου {name},",
+  "test_email.intro": "Αυτό είναι ένα δοκιμαστικό email που στάλθηκε από τις ρυθμίσεις διακομιστή του Endurain. Αν το διαβάζετε, το Endurain μπορεί να στείλει email μέσω του διακομιστή SMTP σας.",
+  "test_email.detail_label": "Διακομιστής SMTP:",
+  "test_email.ignore": "Δεν απαιτείται καμία ενέργεια."
 }

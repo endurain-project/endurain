@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain logo",
-  "title": "Disainisüsteemi alus on töös",
-  "subtitle": "Tailwind v4, shadcn-vue, range TypeScript ja Enduraini märgipalett on ühendatud",
-  "primaryAction": "Põhitoiming",
   "notFound": {
     "title": "Lehte ei leitud",
     "message": "Otsitavat lehte ei ole olemas või see on teisaldatud",

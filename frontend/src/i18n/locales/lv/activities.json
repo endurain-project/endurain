@@ -39,7 +39,6 @@
       "distance": "Distance",
       "duration": "Ilgums",
       "pace": "Temps",
-      "speed": "Ātrums",
       "paceSpeed": "Temps / Ātrums",
       "elevation": "Augstuma ieguvums",
       "calories": "Kalorijas",
@@ -66,11 +65,9 @@
     "recenter": "Centrēt karti"
   },
   "metrics": {
-    "title": "Rādītāji",
     "time": "Laiks",
     "distance": "Distance",
     "movingTime": "Kustības laiks",
-    "elapsedTime": "Pagājušais laiks",
     "avgPace": "Vid. temps",
     "avgSpeed": "Vid. ātrums",
     "maxSpeed": "Maks. ātrums",
@@ -109,7 +106,12 @@
     "elevation": "Augstuma ieguvums",
     "strokeRate": "Vēzienu biežums",
     "cycles": "Cikli",
-    "hr": "Sirdsdarbība"
+    "strokes": "Vilcieni",
+    "revolutions": "Apgriezieni",
+    "strides": "Soļi",
+    "jumps": "Lēcieni",
+    "hr": "Sirdsdarbība",
+    "activeSummary": "Kopā aktīvs"
   },
   "workout": {
     "title": "Treniņš",
@@ -157,7 +159,6 @@
     "deleteError": "Neizdevās dzēst aktivitāti"
   },
   "media": {
-    "title": "Fotoattēli",
     "alt": "Aktivitātes fotoattēls",
     "addMedia": "Pievienot fotoattēlu",
     "uploadSuccess": "Fotoattēls augšupielādēts",
@@ -170,7 +171,8 @@
     "close": "Aizvērt",
     "deleteSuccess": "Fotoattēls dzēsts",
     "deleteError": "Neizdevās dzēst fotoattēlu",
-    "expand": "Skatīt pilnā izmērā"
+    "expand": "Skatīt pilnā izmērā",
+    "thumbnailPending": "Tiek veidots kartes priekšskatījums…"
   },
   "gallery": {
     "previous": "Iepriekšējais",

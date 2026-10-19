@@ -586,9 +586,6 @@
       "edit": "Orucu düzenle",
       "delete": "Orucu sil"
     },
-    "list": {
-      "notesLabel": "Notlar"
-    },
     "form": {
       "addTitle": "Oruca başla",
       "editTitle": "Oruç oturumunu düzenle",
@@ -596,7 +593,6 @@
       "type": "Oruç protokolü",
       "customDuration": "Özel süre",
       "customDurationHint": "Orucun saat cinsinden uzunluğu (1–72).",
-      "hours": "saat",
       "startTime": "Başlangıç saati",
       "startTimeRequired": "Lütfen bir başlangıç saati seçin.",
       "endTime": "Bitiş saati",

@@ -586,9 +586,6 @@
       "edit": "Editar ayuno",
       "delete": "Eliminar ayuno"
     },
-    "list": {
-      "notesLabel": "Notas"
-    },
     "form": {
       "addTitle": "Iniciar ayuno",
       "editTitle": "Editar sesión de ayuno",
@@ -596,7 +593,6 @@
       "type": "Protocolo de ayuno",
       "customDuration": "Duración personalizada",
       "customDurationHint": "Duración del ayuno en horas (1–72).",
-      "hours": "horas",
       "startTime": "Hora de inicio",
       "startTimeRequired": "Elige una hora de inicio.",
       "endTime": "Hora de fin",

@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain-logo",
-  "title": "Designsystemets fundament er live",
-  "subtitle": "Tailwind v4, shadcn-vue, streng TypeScript og Endurains token-palet er sat op",
-  "primaryAction": "Primær handling",
   "notFound": {
     "title": "Siden blev ikke fundet",
     "message": "Den side, du leder efter, findes ikke eller er blevet flyttet",

@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Λογότυπο Endurain",
-  "title": "Το θεμέλιο του συστήματος σχεδίασης είναι ενεργό",
-  "subtitle": "Τα Tailwind v4, shadcn-vue, αυστηρό TypeScript και η παλέτα tokens του Endurain είναι έτοιμα",
-  "primaryAction": "Κύρια ενέργεια",
   "notFound": {
     "title": "Η σελίδα δεν βρέθηκε",
     "message": "Η σελίδα που αναζητάτε δεν υπάρχει ή έχει μετακινηθεί",

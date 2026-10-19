@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Nalaganje…",
     "success": "Aktivnost je bila uspešno naložena",
-    "error": "Datoteke aktivnosti ni bilo mogoče naložiti"
+    "error": "Datoteke aktivnosti ni bilo mogoče naložiti",
+    "timeout": "Tvoja datoteka se še uvaža. Prikazala se bo, ko bo končano.",
+    "failed": {
+      "unsupported_format": "Ta vrsta datoteke ni podprta",
+      "invalid_file": "Te datoteke ni bilo mogoče prebrati",
+      "no_activities_found": "V tej datoteki ni bilo najdene nobene aktivnosti",
+      "processing_failed": "Datoteke z aktivnostjo ni bilo mogoče uvoziti"
+    }
   },
   "refresh": {
     "label": "Osveži",

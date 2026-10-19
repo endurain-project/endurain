@@ -38,7 +38,6 @@
     "title": "Activités sur cette période"
   },
   "empty": {
-    "title": "Aucune activité sur cette période",
     "description": "Aucune activité ne correspond à la période et au type sélectionnés."
   },
   "error": {

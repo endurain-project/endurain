@@ -7,8 +7,6 @@
   "password": "Geslo",
   "confirmPassword": "Potrdi geslo",
   "passwordMismatch": "Gesli se ne ujemata",
-  "showPassword": "Pokaži geslo",
-  "hidePassword": "Skrij geslo",
   "showOptionalFields": "Pokaži neobvezna polja",
   "hideOptionalFields": "Skrij neobvezna polja",
   "preferredLanguage": "Želeni jezik",

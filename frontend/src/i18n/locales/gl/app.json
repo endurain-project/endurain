@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Logotipo de Endurain",
-  "title": "A base do sistema de deseño está activa",
-  "subtitle": "Tailwind v4, shadcn-vue, TypeScript estrito e a paleta de tokens de Endurain están configurados",
-  "primaryAction": "Acción principal",
   "notFound": {
     "title": "Páxina non atopada",
     "message": "A páxina que buscas non existe ou foi movida",

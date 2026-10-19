@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Endurain-logo",
-  "title": "Suunnittelujärjestelmän perusta on käytössä",
-  "subtitle": "Tailwind v4, shadcn-vue, tiukka TypeScript ja Endurainin tunnistepaletti on kytketty käyttöön",
-  "primaryAction": "Ensisijainen toiminto",
   "notFound": {
     "title": "Sivua ei löytynyt",
     "message": "Etsimääsi sivua ei ole olemassa tai se on siirretty",

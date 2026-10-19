@@ -38,5 +38,12 @@
   "signup_approved.intro": "Jó hír! A fiókodat jóváhagyták, és mostantól aktív.",
   "signup_approved.username_label": "Felhasználónév:",
   "signup_approved.login_intro": "Mostantól bejelentkezhetsz, és elkezdheted használni az Enduraint:",
-  "signup_approved.cta": "Bejelentkezés az Endurainbe"
+  "signup_approved.cta": "Bejelentkezés az Endurainbe",
+
+  "test_email.subject": "Endurain - Teszt e-mail",
+  "test_email.heading": "Az e-mail működik",
+  "test_email.greeting": "Szia {name}!",
+  "test_email.intro": "Ez egy teszt e-mail, amelyet az Endurain szerverbeállításaiból küldtünk. Ha ezt olvasod, az Endurain tud e-mailt küldeni az SMTP-szervereden keresztül.",
+  "test_email.detail_label": "SMTP-szerver:",
+  "test_email.ignore": "Nincs szükség teendőre."
 }

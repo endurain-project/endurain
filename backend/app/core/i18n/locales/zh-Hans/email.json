@@ -38,5 +38,12 @@
   "signup_approved.intro": "好消息！您的账户已获批准，现已激活。",
   "signup_approved.username_label": "用户名：",
   "signup_approved.login_intro": "您现在可以登录并开始使用 Endurain：",
-  "signup_approved.cta": "登录 Endurain"
+  "signup_approved.cta": "登录 Endurain",
+
+  "test_email.subject": "Endurain - 测试邮件",
+  "test_email.heading": "邮件功能正常",
+  "test_email.greeting": "您好 {name}，",
+  "test_email.intro": "这是一封从 Endurain 服务器设置发送的测试邮件。如果您看到了这封邮件，说明 Endurain 可以通过您的 SMTP 服务器发送邮件。",
+  "test_email.detail_label": "SMTP 服务器：",
+  "test_email.ignore": "无需任何操作。"
 }

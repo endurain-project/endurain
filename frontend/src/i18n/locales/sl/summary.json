@@ -38,7 +38,6 @@
     "title": "Aktivnosti v tem obdobju"
   },
   "empty": {
-    "title": "Ni aktivnosti v tem obdobju",
     "description": "Nobena aktivnost ne ustreza izbranemu obdobju in vrsti."
   },
   "error": {

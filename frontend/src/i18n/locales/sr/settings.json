@@ -48,7 +48,6 @@
       "title": "Još nema korisnika",
       "description": "Dodajte prvi nalog za ovu instancu",
       "searchTitle": "Nema pronađenih korisnika",
-      "searchDescription": "Nijedan korisnik ne odgovara tom korisničkom imenu",
       "filteredTitle": "Nijedan korisnik ne odgovara izabranim filterima"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Najmanje {min} znakova, sa velikim slovom, malim slovom, brojem i specijalnim znakom",
       "passwordHintLength": "Najmanje {min} znakova",
       "passwordRequired": "Lozinka je obavezna",
-      "passwordTooShort": "Lozinka mora imati najmanje 8 znakova",
       "passwordInvalid": "Ta lozinka ne ispunjava uslove",
       "confirmPassword": "Potvrdi lozinku",
       "confirmPasswordRequired": "Potvrdi lozinku",
@@ -135,6 +133,8 @@
         "pound": "Funta"
       },
       "firstDayOfWeek": "Prvi dan u nedelji",
+      "timezone": "Vremenska zona",
+      "timezoneHint": "Koristi se za aktivnosti snimljene bez GPS-a, kao što su trčanje na traci i vožnja bicikla u zatvorenom.",
       "weekdays": {
         "sunday": "Nedelja",
         "monday": "Ponedeljak",
@@ -354,6 +354,19 @@
       "deleteError": "Nije moguće ukloniti fotografiju za prijavu. Pokušajte ponovo.",
       "cancel": "Otkaži",
       "close": "Zatvori"
+    },
+    "email": {
+      "title": "E-pošta",
+      "description": "Endurain šalje e-poruke za resetovanje lozinke i registraciju preko SMTP servera podešenog u okruženju.",
+      "statusLoadError": "Podešavanje e-pošte nije moglo da se proveri.",
+      "configured": "E-pošta je podešena.",
+      "notConfigured": "E-pošta nije podešena:",
+      "send": "Pošalji probnu e-poruku",
+      "sending": "Slanje…",
+      "sendHint": "Probna e-poruka se šalje na vašu sopstvenu adresu.",
+      "sent": "Probna e-poruka poslata",
+      "failed": "Probna e-poruka nije mogla da se pošalje",
+      "failedUnknown": "Detalje potražite u evidenciji servera."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Grupni uvoz",
       "subtitle": "Uvezite datoteke aktivnosti smeštene u serverski folder za grupni uvoz",
-      "button": "Uvezi aktivnosti",
+      "uploadButton": "Otpremi ZIP",
+      "folderButton": "Uvezi iz foldera",
       "started": "Uvoz aktivnosti u pozadini…",
+      "alreadyRunning": "Grupni uvoz je već u toku. Sačekajte da se završi.",
       "error": "Nije moguće započeti uvoz. Pokušajte ponovo."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava bicikli su uvezeni",
       "bikesError": "Nije moguće uvesti Strava bicikle. Pokušajte ponovo.",
       "shoesSuccess": "Strava patike su uvezene",
-      "shoesError": "Nije moguće uvesti Strava patike. Pokušajte ponovo."
+      "shoesError": "Nije moguće uvesti Strava patike. Pokušajte ponovo.",
+      "activitiesUpload": "Uvezi aktivnosti (otpremi ZIP)",
+      "activitiesFolder": "Uvezi aktivnosti (serverski folder)"
+    },
+    "job": {
+      "preparing": "Priprema uvoza…",
+      "progress": "Uvezeno {done} od {total} datoteka ({failed} neuspešno)…",
+      "finished": "Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspešno.",
+      "failed": "Uvoz nije mogao da se završi."
     }
   },
   "profile": {

@@ -39,7 +39,6 @@
       "distance": "Afstand",
       "duration": "Duur",
       "pace": "Tempo",
-      "speed": "Snelheid",
       "paceSpeed": "Tempo / Snelheid",
       "elevation": "Hoogte",
       "calories": "Calorieën",
@@ -66,11 +65,9 @@
     "recenter": "Kaart centreren"
   },
   "metrics": {
-    "title": "Statistieken",
     "time": "Tijd",
     "distance": "Afstand",
     "movingTime": "Bewegingstijd",
-    "elapsedTime": "Verstreken tijd",
     "avgPace": "Gem. tempo",
     "avgSpeed": "Gem. snelheid",
     "maxSpeed": "Max. snelheid",
@@ -109,7 +106,12 @@
     "elevation": "Hoogte",
     "strokeRate": "Slagfrequentie",
     "cycles": "Cycli",
-    "hr": "Hartslag"
+    "strokes": "Slagen",
+    "revolutions": "Omwentelingen",
+    "strides": "Passen",
+    "jumps": "Sprongen",
+    "hr": "Hartslag",
+    "activeSummary": "Totaal actief"
   },
   "workout": {
     "title": "Training",
@@ -157,7 +159,6 @@
     "deleteError": "Activiteit kon niet worden verwijderd"
   },
   "media": {
-    "title": "Foto's",
     "alt": "Activiteitsfoto",
     "addMedia": "Foto toevoegen",
     "uploadSuccess": "Foto geüpload",
@@ -170,7 +171,8 @@
     "close": "Sluiten",
     "deleteSuccess": "Foto verwijderd",
     "deleteError": "Foto kon niet worden verwijderd",
-    "expand": "Op volledige grootte bekijken"
+    "expand": "Op volledige grootte bekijken",
+    "thumbnailPending": "Kaartvoorbeeld wordt gemaakt…"
   },
   "gallery": {
     "previous": "Vorige",

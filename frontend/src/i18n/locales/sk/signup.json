@@ -7,8 +7,6 @@
   "password": "Heslo",
   "confirmPassword": "Potvrďte heslo",
   "passwordMismatch": "Heslá sa nezhodujú",
-  "showPassword": "Zobraziť heslo",
-  "hidePassword": "Skryť heslo",
   "showOptionalFields": "Zobraziť volitené polia",
   "hideOptionalFields": "Skryť volitené polia",
   "preferredLanguage": "Preferovaný jazyk",

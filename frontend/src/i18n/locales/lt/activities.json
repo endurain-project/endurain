@@ -39,7 +39,6 @@
       "distance": "Atstumas",
       "duration": "Trukmė",
       "pace": "Tempas",
-      "speed": "Greitis",
       "paceSpeed": "Tempas / greitis",
       "elevation": "Aukščio pokytis",
       "calories": "Kalorijos",
@@ -66,11 +65,9 @@
     "recenter": "Centruoti žemėlapį iš naujo"
   },
   "metrics": {
-    "title": "Rodikliai",
     "time": "Laikas",
     "distance": "Atstumas",
     "movingTime": "Judėjimo laikas",
-    "elapsedTime": "Praėjęs laikas",
     "avgPace": "Vid. tempas",
     "avgSpeed": "Vid. greitis",
     "maxSpeed": "Maks. greitis",
@@ -109,7 +106,12 @@
     "elevation": "Aukščio pokytis",
     "strokeRate": "Mostų dažnis",
     "cycles": "Ciklai",
-    "hr": "Pulsas"
+    "strokes": "Mostai",
+    "revolutions": "Apsisukimai",
+    "strides": "Žingsniai",
+    "jumps": "Šuoliai",
+    "hr": "Pulsas",
+    "activeSummary": "Iš viso aktyvu"
   },
   "workout": {
     "title": "Treniruotė",
@@ -157,7 +159,6 @@
     "deleteError": "Nepavyko ištrinti veiklos"
   },
   "media": {
-    "title": "Nuotraukos",
     "alt": "Veiklos nuotrauka",
     "addMedia": "Pridėti nuotrauką",
     "uploadSuccess": "Nuotrauka įkelta",
@@ -170,7 +171,8 @@
     "close": "Uždaryti",
     "deleteSuccess": "Nuotrauka ištrinta",
     "deleteError": "Nepavyko ištrinti nuotraukos",
-    "expand": "Žiūrėti viso dydžio"
+    "expand": "Žiūrėti viso dydžio",
+    "thumbnailPending": "Kuriama žemėlapio peržiūra…"
   },
   "gallery": {
     "previous": "Ankstesnė",

@@ -38,5 +38,12 @@
   "signup_approved.intro": "好消息！您的帳戶已獲核准，現已啟用。",
   "signup_approved.username_label": "使用者名稱：",
   "signup_approved.login_intro": "您現在可以登入並開始使用 Endurain：",
-  "signup_approved.cta": "登入 Endurain"
+  "signup_approved.cta": "登入 Endurain",
+
+  "test_email.subject": "Endurain - 測試郵件",
+  "test_email.heading": "電子郵件運作正常",
+  "test_email.greeting": "您好 {name}，",
+  "test_email.intro": "這是一封從 Endurain 伺服器設定寄出的測試郵件。如果您看到了這封郵件，表示 Endurain 可以透過您的 SMTP 伺服器寄送郵件。",
+  "test_email.detail_label": "SMTP 伺服器：",
+  "test_email.ignore": "無需任何操作。"
 }

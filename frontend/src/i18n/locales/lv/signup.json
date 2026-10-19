@@ -7,8 +7,6 @@
   "password": "Parole",
   "confirmPassword": "Apstiprināt paroli",
   "passwordMismatch": "Paroles nesakrīt",
-  "showPassword": "Rādīt paroli",
-  "hidePassword": "Slēpt paroli",
   "showOptionalFields": "Rādīt neobligātos laukus",
   "hideOptionalFields": "Slēpt neobligātos laukus",
   "preferredLanguage": "Vēlamā valoda",

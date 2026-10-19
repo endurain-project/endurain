@@ -7,8 +7,6 @@
   "password": "Wachtwoord",
   "confirmPassword": "Wachtwoord bevestigen",
   "passwordMismatch": "Wachtwoorden komen niet overeen",
-  "showPassword": "Wachtwoord tonen",
-  "hidePassword": "Wachtwoord verbergen",
   "showOptionalFields": "Optionele velden tonen",
   "hideOptionalFields": "Optionele velden verbergen",
   "preferredLanguage": "Voorkeurstaal",

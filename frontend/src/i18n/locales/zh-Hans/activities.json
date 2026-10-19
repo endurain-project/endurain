@@ -39,7 +39,6 @@
       "distance": "距离",
       "duration": "时长",
       "pace": "配速",
-      "speed": "速度",
       "paceSpeed": "配速 / 速度",
       "elevation": "海拔",
       "calories": "卡路里",
@@ -66,11 +65,9 @@
     "recenter": "重新居中地图"
   },
   "metrics": {
-    "title": "指标",
     "time": "时间",
     "distance": "距离",
     "movingTime": "运动时间",
-    "elapsedTime": "总用时",
     "avgPace": "平均配速",
     "avgSpeed": "平均速度",
     "maxSpeed": "最高速度",
@@ -109,7 +106,12 @@
     "elevation": "海拔",
     "strokeRate": "划频",
     "cycles": "循环数",
-    "hr": "心率"
+    "strokes": "划水次数",
+    "revolutions": "转数",
+    "strides": "步数",
+    "jumps": "跳跃",
+    "hr": "心率",
+    "activeSummary": "活动总计"
   },
   "workout": {
     "title": "训练",
@@ -157,7 +159,6 @@
     "deleteError": "无法删除活动"
   },
   "media": {
-    "title": "照片",
     "alt": "活动照片",
     "addMedia": "添加照片",
     "uploadSuccess": "照片已上传",
@@ -170,7 +171,8 @@
     "close": "关闭",
     "deleteSuccess": "照片已删除",
     "deleteError": "无法删除照片",
-    "expand": "查看原图"
+    "expand": "查看原图",
+    "thumbnailPending": "正在生成地图预览…"
   },
   "gallery": {
     "previous": "上一张",

@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Logo Endurain",
-  "title": "Fundația sistemului de design este activă",
-  "subtitle": "Tailwind v4, shadcn-vue, TypeScript strict și paleta de tokenuri Endurain sunt configurate",
-  "primaryAction": "Acțiune principală",
   "notFound": {
     "title": "Pagina nu a fost găsită",
     "message": "Pagina pe care o cauți nu există sau a fost mutată",

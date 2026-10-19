@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Otpremanje…",
     "success": "Aktivnost je uspešno otpremljena",
-    "error": "Nije moguće otpremiti datoteku aktivnosti"
+    "error": "Nije moguće otpremiti datoteku aktivnosti",
+    "timeout": "Vaša datoteka se još uvozi. Pojaviće se kada se završi.",
+    "failed": {
+      "unsupported_format": "Ova vrsta datoteke nije podržana",
+      "invalid_file": "Ova datoteka nije mogla da se pročita",
+      "no_activities_found": "U ovoj datoteci nije pronađena nijedna aktivnost",
+      "processing_failed": "Datoteka aktivnosti nije mogla da se uveze"
+    }
   },
   "refresh": {
     "label": "Osveži",

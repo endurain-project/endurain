@@ -586,9 +586,6 @@
       "edit": "編輯斷食記錄",
       "delete": "刪除斷食記錄"
     },
-    "list": {
-      "notesLabel": "備註"
-    },
     "form": {
       "addTitle": "開始斷食",
       "editTitle": "編輯斷食記錄",
@@ -596,7 +593,6 @@
       "type": "斷食方案",
       "customDuration": "自訂時長",
       "customDurationHint": "斷食時長，以小時計（1–72）。",
-      "hours": "小時",
       "startTime": "開始時間",
       "startTimeRequired": "請選擇開始時間。",
       "endTime": "結束時間",

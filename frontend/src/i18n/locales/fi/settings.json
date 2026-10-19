@@ -48,7 +48,6 @@
       "title": "Ei vielä käyttäjiä",
       "description": "Lisää tämän instanssin ensimmäinen tili",
       "searchTitle": "Käyttäjiä ei löytynyt",
-      "searchDescription": "Mikään käyttäjä ei vastaa tätä käyttäjänimeä",
       "filteredTitle": "Mikään käyttäjä ei vastaa valittuja suodattimia"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Vähintään {min} merkkiä, sisältäen ison kirjaimen, pienen kirjaimen, numeron ja erikoismerkin",
       "passwordHintLength": "Vähintään {min} merkkiä",
       "passwordRequired": "Salasana on pakollinen",
-      "passwordTooShort": "Salasanan on oltava vähintään 8 merkkiä",
       "passwordInvalid": "Tämä salasana ei täytä vaatimuksia",
       "confirmPassword": "Vahvista salasana",
       "confirmPasswordRequired": "Vahvista salasana",
@@ -135,6 +133,8 @@
         "pound": "Punta"
       },
       "firstDayOfWeek": "Viikon ensimmäinen päivä",
+      "timezone": "Aikavyöhyke",
+      "timezoneHint": "Käytetään aktiviteeteille, jotka on tallennettu ilman GPS:ää, kuten juoksumattoharjoituksille ja sisäpyöräilylle.",
       "weekdays": {
         "sunday": "Sunnuntai",
         "monday": "Maanantai",
@@ -354,6 +354,19 @@
       "deleteError": "Kirjautumiskuvaa ei voitu poistaa. Yritä uudelleen.",
       "cancel": "Peruuta",
       "close": "Sulje"
+    },
+    "email": {
+      "title": "Sähköposti",
+      "description": "Endurain lähettää salasanan palautus- ja rekisteröitymisviestit ympäristössä määritetyn SMTP-palvelimen kautta.",
+      "statusLoadError": "Sähköpostin määrityksiä ei voitu tarkistaa.",
+      "configured": "Sähköposti on määritetty.",
+      "notConfigured": "Sähköpostia ei ole määritetty:",
+      "send": "Lähetä testisähköposti",
+      "sending": "Lähetetään…",
+      "sendHint": "Testisähköposti lähetetään omaan osoitteeseesi.",
+      "sent": "Testisähköposti lähetetty",
+      "failed": "Testisähköpostia ei voitu lähettää",
+      "failedUnknown": "Katso lisätiedot palvelimen lokeista."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Joukkotuonti",
       "subtitle": "Tuo palvelimen joukkotuonti-kansioon sijoitetut aktiviteettitiedostot",
-      "button": "Tuo aktiviteetit",
+      "uploadButton": "Lähetä ZIP",
+      "folderButton": "Tuo kansiosta",
       "started": "Tuodaan aktiviteetteja taustalla…",
+      "alreadyRunning": "Massatuonti on jo käynnissä. Odota, että se päättyy.",
       "error": "Tuontia ei voitu aloittaa. Yritä uudelleen."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava-pyörät tuotu",
       "bikesError": "Strava-pyöriä ei voitu tuoda. Yritä uudelleen.",
       "shoesSuccess": "Strava-kengät tuotu",
-      "shoesError": "Strava-kenkiä ei voitu tuoda. Yritä uudelleen."
+      "shoesError": "Strava-kenkiä ei voitu tuoda. Yritä uudelleen.",
+      "activitiesUpload": "Tuo aktiviteetit (lähetä ZIP)",
+      "activitiesFolder": "Tuo aktiviteetit (palvelimen kansio)"
+    },
+    "job": {
+      "preparing": "Valmistellaan tuontia…",
+      "progress": "Tuotu {done} / {total} tiedostoa ({failed} epäonnistui)…",
+      "finished": "Tuonti valmis: {done} / {total} tiedostoa tuotu, {failed} epäonnistui.",
+      "failed": "Tuontia ei voitu suorittaa loppuun."
     }
   },
   "profile": {

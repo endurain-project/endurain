@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Notiek augšupielāde…",
     "success": "Aktivitāte veiksmīgi augšupielādēta",
-    "error": "Neizdevās augšupielādēt aktivitātes failu"
+    "error": "Neizdevās augšupielādēt aktivitātes failu",
+    "timeout": "Jūsu fails vēl tiek importēts. Tas parādīsies, kad imports būs pabeigts.",
+    "failed": {
+      "unsupported_format": "Šis faila veids netiek atbalstīts",
+      "invalid_file": "Šo failu nevarēja nolasīt",
+      "no_activities_found": "Šajā failā nav atrasta neviena aktivitāte",
+      "processing_failed": "Aktivitātes failu nevarēja importēt"
+    }
   },
   "refresh": {
     "label": "Atsvaidzināt",

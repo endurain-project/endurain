@@ -39,7 +39,6 @@
       "distance": "Distans",
       "duration": "Varaktighet",
       "pace": "Tempo",
-      "speed": "Hastighet",
       "paceSpeed": "Tempo / Hastighet",
       "elevation": "Höjdmeter",
       "calories": "Kalorier",
@@ -66,11 +65,9 @@
     "recenter": "Centrera kartan"
   },
   "metrics": {
-    "title": "Mätvärden",
     "time": "Tid",
     "distance": "Distans",
     "movingTime": "Rörlig tid",
-    "elapsedTime": "Förfluten tid",
     "avgPace": "Genomsnittligt tempo",
     "avgSpeed": "Genomsnittlig hastighet",
     "maxSpeed": "Maxhastighet",
@@ -109,7 +106,12 @@
     "elevation": "Höjdmeter",
     "strokeRate": "Tagtfrekvens",
     "cycles": "Cykler",
-    "hr": "Hjärtfrekvens"
+    "strokes": "Tag",
+    "revolutions": "Varv",
+    "strides": "Steg",
+    "jumps": "Hopp",
+    "hr": "Hjärtfrekvens",
+    "activeSummary": "Aktiv totalt"
   },
   "workout": {
     "title": "Träningspass",
@@ -157,7 +159,6 @@
     "deleteError": "Kunde inte ta bort aktiviteten"
   },
   "media": {
-    "title": "Foton",
     "alt": "Aktivitetsfoto",
     "addMedia": "Lägg till foto",
     "uploadSuccess": "Foto uppladdat",
@@ -170,7 +171,8 @@
     "close": "Stäng",
     "deleteSuccess": "Foto borttaget",
     "deleteError": "Kunde inte ta bort fotot",
-    "expand": "Visa i fullstorlek"
+    "expand": "Visa i fullstorlek",
+    "thumbnailPending": "Skapar kartförhandsvisning…"
   },
   "gallery": {
     "previous": "Föregående",

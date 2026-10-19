@@ -39,7 +39,6 @@
       "distance": "Distanse",
       "duration": "Varighet",
       "pace": "Tempo",
-      "speed": "Fart",
       "paceSpeed": "Tempo / Fart",
       "elevation": "Stigning",
       "calories": "Kalorier",
@@ -66,11 +65,9 @@
     "recenter": "Sentrer kartet på nytt"
   },
   "metrics": {
-    "title": "Måltall",
     "time": "Tid",
     "distance": "Distanse",
     "movingTime": "Bevegelsestid",
-    "elapsedTime": "Forløpt tid",
     "avgPace": "Gj.snittlig tempo",
     "avgSpeed": "Gj.snittlig fart",
     "maxSpeed": "Maks fart",
@@ -109,7 +106,12 @@
     "elevation": "Stigning",
     "strokeRate": "Taktfrekvens",
     "cycles": "Sykluser",
-    "hr": "Puls"
+    "strokes": "Tak",
+    "revolutions": "Omdreininger",
+    "strides": "Skritt",
+    "jumps": "Hopp",
+    "hr": "Puls",
+    "activeSummary": "Aktiv totalt"
   },
   "workout": {
     "title": "Treningsøkt",
@@ -157,7 +159,6 @@
     "deleteError": "Kunne ikke slette aktiviteten"
   },
   "media": {
-    "title": "Bilder",
     "alt": "Aktivitetsbilde",
     "addMedia": "Legg til bilde",
     "uploadSuccess": "Bilde lastet opp",
@@ -170,7 +171,8 @@
     "close": "Lukk",
     "deleteSuccess": "Bilde slettet",
     "deleteError": "Kunne ikke slette bildet",
-    "expand": "Vis i full størrelse"
+    "expand": "Vis i full størrelse",
+    "thumbnailPending": "Lager kartforhåndsvisning…"
   },
   "gallery": {
     "previous": "Forrige",
@@ -267,6 +269,7 @@
     "sailing": "Seiling",
     "snowShoeing": "Truging",
     "inlineSkating": "Rulleskøyter",
-    "hiit": "HIIT"
+    "hiit": "HIIT",
+    "jumpRope": "Hoppetau"
   }
 }

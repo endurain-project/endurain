@@ -38,7 +38,6 @@
     "title": "Aktiviteter i denne perioden"
   },
   "empty": {
-    "title": "Ingen aktivitet i denne perioden",
     "description": "Ingen aktiviteter samsvarer med valgt periode og type."
   },
   "error": {

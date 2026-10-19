@@ -586,9 +586,6 @@
       "edit": "编辑断食",
       "delete": "删除断食"
     },
-    "list": {
-      "notesLabel": "备注"
-    },
     "form": {
       "addTitle": "开始断食",
       "editTitle": "编辑断食记录",
@@ -596,7 +593,6 @@
       "type": "断食方案",
       "customDuration": "自定义时长",
       "customDurationHint": "断食时长（1–72 小时）。",
-      "hours": "小时",
       "startTime": "开始时间",
       "startTimeRequired": "请选择开始时间。",
       "endTime": "结束时间",

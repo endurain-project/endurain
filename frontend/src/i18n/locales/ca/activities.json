@@ -39,7 +39,6 @@
       "distance": "Distància",
       "duration": "Durada",
       "pace": "Ritme",
-      "speed": "Velocitat",
       "paceSpeed": "Ritme / Velocitat",
       "elevation": "Elevació",
       "calories": "Calories",
@@ -66,11 +65,9 @@
     "recenter": "Centra el mapa"
   },
   "metrics": {
-    "title": "Mètriques",
     "time": "Temps",
     "distance": "Distància",
     "movingTime": "Temps en moviment",
-    "elapsedTime": "Temps total",
     "avgPace": "Ritme mitjà",
     "avgSpeed": "Velocitat mitjana",
     "maxSpeed": "Velocitat màxima",
@@ -109,7 +106,12 @@
     "elevation": "Elevació",
     "strokeRate": "Freqüència de braçada",
     "cycles": "Cicles",
-    "hr": "Freqüència cardíaca"
+    "strokes": "Braçades",
+    "revolutions": "Revolucions",
+    "strides": "Gambades",
+    "jumps": "Salts",
+    "hr": "Freqüència cardíaca",
+    "activeSummary": "Total actiu"
   },
   "workout": {
     "title": "Entrenament",
@@ -157,7 +159,6 @@
     "deleteError": "No s'ha pogut eliminar l'activitat"
   },
   "media": {
-    "title": "Fotos",
     "alt": "Foto de l'activitat",
     "addMedia": "Afegeix foto",
     "uploadSuccess": "Foto pujada",
@@ -170,7 +171,8 @@
     "close": "Tanca",
     "deleteSuccess": "Foto eliminada",
     "deleteError": "No s'ha pogut eliminar la foto",
-    "expand": "Veure a mida completa"
+    "expand": "Veure a mida completa",
+    "thumbnailPending": "Generant la vista prèvia del mapa…"
   },
   "gallery": {
     "previous": "Anterior",

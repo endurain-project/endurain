@@ -39,7 +39,6 @@
       "distance": "Razdalja",
       "duration": "Trajanje",
       "pace": "Tempo",
-      "speed": "Hitrost",
       "paceSpeed": "Tempo / Hitrost",
       "elevation": "Višinska razlika",
       "calories": "Kalorije",
@@ -66,11 +65,9 @@
     "recenter": "Pocentri zemljevid"
   },
   "metrics": {
-    "title": "Meritve",
     "time": "Čas",
     "distance": "Razdalja",
     "movingTime": "Čas gibanja",
-    "elapsedTime": "Pretekli čas",
     "avgPace": "Povp. tempo",
     "avgSpeed": "Povp. hitrost",
     "maxSpeed": "Maks. hitrost",
@@ -109,7 +106,12 @@
     "elevation": "Višinska razlika",
     "strokeRate": "Hitrost zamahov",
     "cycles": "Cikli",
-    "hr": "Srčni utrip"
+    "strokes": "Zaveslaji",
+    "revolutions": "Obrati",
+    "strides": "Koraki",
+    "jumps": "Skoki",
+    "hr": "Srčni utrip",
+    "activeSummary": "Skupaj aktivno"
   },
   "workout": {
     "title": "Vadba",
@@ -157,7 +159,6 @@
     "deleteError": "Aktivnosti ni bilo mogoče izbrisati"
   },
   "media": {
-    "title": "Fotografije",
     "alt": "Fotografija aktivnosti",
     "addMedia": "Dodaj fotografijo",
     "uploadSuccess": "Fotografija naložena",
@@ -170,7 +171,8 @@
     "close": "Zapri",
     "deleteSuccess": "Fotografija izbrisana",
     "deleteError": "Fotografije ni bilo mogoče izbrisati",
-    "expand": "Prikaži v polni velikosti"
+    "expand": "Prikaži v polni velikosti",
+    "thumbnailPending": "Ustvarjanje predogleda zemljevida …"
   },
   "gallery": {
     "previous": "Prejšnja",
@@ -267,6 +269,7 @@
     "sailing": "Jadranje",
     "snowShoeing": "Pohod s krpljami",
     "inlineSkating": "Rolkanje",
-    "hiit": "HIIT"
+    "hiit": "HIIT",
+    "jumpRope": "Skakanje s kolebnico"
   }
 }

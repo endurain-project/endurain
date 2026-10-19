@@ -7,8 +7,6 @@
   "password": "密碼",
   "confirmPassword": "確認密碼",
   "passwordMismatch": "兩次輸入的密碼不符",
-  "showPassword": "顯示密碼",
-  "hidePassword": "隱藏密碼",
   "showOptionalFields": "顯示選填欄位",
   "hideOptionalFields": "隱藏選填欄位",
   "preferredLanguage": "偏好語言",

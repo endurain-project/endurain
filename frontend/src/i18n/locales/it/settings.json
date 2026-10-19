@@ -48,7 +48,6 @@
       "title": "Ancora nessun utente",
       "description": "Aggiungi il primo account per questa istanza",
       "searchTitle": "Nessun utente trovato",
-      "searchDescription": "Nessun utente corrisponde a quel nome utente",
       "filteredTitle": "Nessun utente corrisponde ai filtri selezionati"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Almeno {min} caratteri, con maiuscole, minuscole, un numero e un carattere speciale",
       "passwordHintLength": "Almeno {min} caratteri",
       "passwordRequired": "La password è obbligatoria",
-      "passwordTooShort": "La password deve avere almeno 8 caratteri",
       "passwordInvalid": "La password non soddisfa i requisiti",
       "confirmPassword": "Conferma password",
       "confirmPasswordRequired": "Conferma password",
@@ -135,6 +133,8 @@
         "pound": "Sterlina"
       },
       "firstDayOfWeek": "Primo giorno della settimana",
+      "timezone": "Fuso orario",
+      "timezoneHint": "Usato per le attività registrate senza GPS, come la corsa sul tapis roulant e il ciclismo indoor.",
       "weekdays": {
         "sunday": "Domenica",
         "monday": "Lunedì",
@@ -354,6 +354,19 @@
       "deleteError": "Impossibile rimuovere la foto di accesso. Riprova.",
       "cancel": "Annulla",
       "close": "Chiudi"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain invia le e-mail di reimpostazione della password e di registrazione tramite il server SMTP configurato nell'ambiente.",
+      "statusLoadError": "Impossibile verificare la configurazione dell'e-mail.",
+      "configured": "L'e-mail è configurata.",
+      "notConfigured": "L'e-mail non è configurata:",
+      "send": "Invia e-mail di prova",
+      "sending": "Invio in corso…",
+      "sendHint": "L'e-mail di prova viene inviata al tuo indirizzo.",
+      "sent": "E-mail di prova inviata",
+      "failed": "Impossibile inviare l'e-mail di prova",
+      "failedUnknown": "Controlla i log del server per i dettagli."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Importazione massiva",
       "subtitle": "Importa file di attività dalla cartella di importazione massiva del server",
-      "button": "Importa attività",
+      "uploadButton": "Carica ZIP",
+      "folderButton": "Importa da cartella",
       "started": "Importazione attività in background…",
+      "alreadyRunning": "Un'importazione di massa è già in corso. Attendi che termini.",
       "error": "Impossibile avviare l'importazione. Riprova."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Bici Strava importate",
       "bikesError": "Impossibile importare le bici Strava. Riprova.",
       "shoesSuccess": "Scarpe Strava importate",
-      "shoesError": "Impossibile importare le scarpe Strava. Riprova."
+      "shoesError": "Impossibile importare le scarpe Strava. Riprova.",
+      "activitiesUpload": "Importa attività (carica ZIP)",
+      "activitiesFolder": "Importa attività (cartella del server)"
+    },
+    "job": {
+      "preparing": "Preparazione dell'importazione…",
+      "progress": "Importati {done} file su {total} ({failed} non riusciti)…",
+      "finished": "Importazione terminata: {done} file su {total} importati, {failed} non riusciti.",
+      "failed": "Impossibile completare l'importazione."
     }
   },
   "profile": {

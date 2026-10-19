@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Wird hochgeladen…",
     "success": "Aktivität erfolgreich hochgeladen",
-    "error": "Die Aktivitätsdatei konnte nicht hochgeladen werden"
+    "error": "Die Aktivitätsdatei konnte nicht hochgeladen werden",
+    "timeout": "Deine Datei wird noch importiert. Sie erscheint, sobald der Import abgeschlossen ist.",
+    "failed": {
+      "unsupported_format": "Dieser Dateityp wird nicht unterstützt",
+      "invalid_file": "Diese Datei konnte nicht gelesen werden",
+      "no_activities_found": "In dieser Datei wurde keine Aktivität gefunden",
+      "processing_failed": "Die Aktivitätsdatei konnte nicht importiert werden"
+    }
   },
   "refresh": {
     "label": "Aktualisieren",

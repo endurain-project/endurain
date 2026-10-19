@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Nahrávanie…",
     "success": "Aktivita bola úspešne nahraná",
-    "error": "Súbor aktivity sa nepodarilo nahrať"
+    "error": "Súbor aktivity sa nepodarilo nahrať",
+    "timeout": "Váš súbor sa ešte importuje. Zobrazí sa, keď sa dokončí.",
+    "failed": {
+      "unsupported_format": "Tento typ súboru nie je podporovaný",
+      "invalid_file": "Tento súbor sa nepodarilo prečítať",
+      "no_activities_found": "V tomto súbore sa nenašla žiadna aktivita",
+      "processing_failed": "Súbor s aktivitou sa nepodarilo importovať"
+    }
   },
   "refresh": {
     "label": "Obnoviť",

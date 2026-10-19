@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Įkeliama…",
     "success": "Veikla sėkmingai įkelta",
-    "error": "Nepavyko įkelti veiklos failo"
+    "error": "Nepavyko įkelti veiklos failo",
+    "timeout": "Jūsų failas dar importuojamas. Jis atsiras, kai importavimas baigsis.",
+    "failed": {
+      "unsupported_format": "Šio tipo failas nepalaikomas",
+      "invalid_file": "Šio failo nepavyko perskaityti",
+      "no_activities_found": "Šiame faile veiklos nerasta",
+      "processing_failed": "Veiklos failo nepavyko importuoti"
+    }
   },
   "refresh": {
     "label": "Atnaujinti",

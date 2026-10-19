@@ -7,8 +7,6 @@
   "password": "Пароль",
   "confirmPassword": "Підтвердьте пароль",
   "passwordMismatch": "Паролі не збігаються",
-  "showPassword": "Показати пароль",
-  "hidePassword": "Сховати пароль",
   "showOptionalFields": "Показати необов'язкові поля",
   "hideOptionalFields": "Сховати необов'язкові поля",
   "preferredLanguage": "Бажана мова",

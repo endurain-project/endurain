@@ -1,9 +1,5 @@
 {
-  "badge": "Endurain v2",
   "logoAlt": "Logo Endurain",
-  "title": "Podstawa systemu projektowego jest aktywna",
-  "subtitle": "Tailwind v4, shadcn-vue, ścisły TypeScript i paleta tokenów Endurain są gotowe",
-  "primaryAction": "Akcja główna",
   "notFound": {
     "title": "Nie znaleziono strony",
     "message": "Strona, której szukasz, nie istnieje lub została przeniesiona",

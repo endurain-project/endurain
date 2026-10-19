@@ -48,7 +48,6 @@
       "title": "Encara no hi ha usuaris",
       "description": "Afegeix el primer compte per a aquesta instància",
       "searchTitle": "Sense usuaris trobats",
-      "searchDescription": "Cap usuari coincideix amb aquest nom d'usuari",
       "filteredTitle": "Cap usuari coincideix amb els filtres seleccionats"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Almenys {min} caràcters, amb majúscules, minúscules, un número i un caràcter especial",
       "passwordHintLength": "Almenys {min} caràcters",
       "passwordRequired": "La contrasenya és obligatòria",
-      "passwordTooShort": "La contrasenya ha de tenir almenys 8 caràcters",
       "passwordInvalid": "Aquesta contrasenya no compleix els requisits",
       "confirmPassword": "Confirma la contrasenya",
       "confirmPasswordRequired": "Confirma la contrasenya",
@@ -135,6 +133,8 @@
         "pound": "Lliura"
       },
       "firstDayOfWeek": "Primer dia de la setmana",
+      "timezone": "Fus horari",
+      "timezoneHint": "S'utilitza per a activitats enregistrades sense GPS, com les curses a la cinta o el ciclisme en interior.",
       "weekdays": {
         "sunday": "Diumenge",
         "monday": "Dilluns",
@@ -354,6 +354,19 @@
       "deleteError": "No s'ha pogut eliminar la foto d'inici de sessió. Torna-ho a intentar.",
       "cancel": "Cancel·la",
       "close": "Tanca"
+    },
+    "email": {
+      "title": "Correu electrònic",
+      "description": "Endurain envia els correus de restabliment de contrasenya i de registre mitjançant el servidor SMTP configurat a l'entorn.",
+      "statusLoadError": "No s'ha pogut comprovar la configuració del correu electrònic.",
+      "configured": "El correu electrònic està configurat.",
+      "notConfigured": "El correu electrònic no està configurat:",
+      "send": "Envia un correu de prova",
+      "sending": "Enviant…",
+      "sendHint": "El correu de prova s'envia a la teva pròpia adreça.",
+      "sent": "Correu de prova enviat",
+      "failed": "No s'ha pogut enviar el correu de prova",
+      "failedUnknown": "Consulta els registres del servidor per a més detalls."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Importació massiva",
       "subtitle": "Importa fitxers d'activitat col·locats a la carpeta d'importació massiva del servidor",
-      "button": "Importa activitats",
+      "uploadButton": "Puja un ZIP",
+      "folderButton": "Importa des d'una carpeta",
       "started": "Important activitats en segon pla…",
+      "alreadyRunning": "Ja hi ha una importació massiva en curs. Espera que acabi.",
       "error": "No s'ha pogut iniciar la importació. Torna-ho a intentar."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Bicicletes de Strava importades",
       "bikesError": "No s'han pogut importar les bicicletes de Strava. Torna-ho a intentar.",
       "shoesSuccess": "Sabatilles de Strava importades",
-      "shoesError": "No s'han pogut importar les sabatilles de Strava. Torna-ho a intentar."
+      "shoesError": "No s'han pogut importar les sabatilles de Strava. Torna-ho a intentar.",
+      "activitiesUpload": "Importa activitats (puja un ZIP)",
+      "activitiesFolder": "Importa activitats (carpeta del servidor)"
+    },
+    "job": {
+      "preparing": "Preparant la importació…",
+      "progress": "S'han importat {done} de {total} fitxers ({failed} amb error)…",
+      "finished": "Importació acabada: {done} de {total} fitxers importats, {failed} amb error.",
+      "failed": "No s'ha pogut completar la importació."
     }
   },
   "profile": {

@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Téléversement…",
     "success": "Activité téléversée avec succès",
-    "error": "Impossible de téléverser le fichier d'activité"
+    "error": "Impossible de téléverser le fichier d'activité",
+    "timeout": "Votre fichier est encore en cours d'import. Il apparaîtra une fois terminé.",
+    "failed": {
+      "unsupported_format": "Ce type de fichier n'est pas pris en charge",
+      "invalid_file": "Ce fichier n'a pas pu être lu",
+      "no_activities_found": "Aucune activité n'a été trouvée dans ce fichier",
+      "processing_failed": "Le fichier d'activité n'a pas pu être importé"
+    }
   },
   "refresh": {
     "label": "Actualiser",

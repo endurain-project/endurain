@@ -586,9 +586,6 @@
       "edit": "Editează postul",
       "delete": "Șterge postul"
     },
-    "list": {
-      "notesLabel": "Note"
-    },
     "form": {
       "addTitle": "Începe postul",
       "editTitle": "Editează sesiunea de post",
@@ -596,7 +593,6 @@
       "type": "Protocol de post",
       "customDuration": "Durată personalizată",
       "customDurationHint": "Durata postului, în ore (1–72).",
-      "hours": "ore",
       "startTime": "Ora de început",
       "startTimeRequired": "Te rugăm să alegi o oră de început.",
       "endTime": "Ora de sfârșit",

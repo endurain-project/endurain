@@ -39,7 +39,6 @@
       "distance": "Mesafe",
       "duration": "Süre",
       "pace": "Tempo",
-      "speed": "Hız",
       "paceSpeed": "Tempo / Hız",
       "elevation": "Yükseklik",
       "calories": "Kalori",
@@ -66,11 +65,9 @@
     "recenter": "Haritayı yeniden ortala"
   },
   "metrics": {
-    "title": "Metrikler",
     "time": "Süre",
     "distance": "Mesafe",
     "movingTime": "Hareket süresi",
-    "elapsedTime": "Geçen süre",
     "avgPace": "Ort. tempo",
     "avgSpeed": "Ort. hız",
     "maxSpeed": "Maks. hız",
@@ -109,7 +106,12 @@
     "elevation": "Yükseklik",
     "strokeRate": "Kulaç oranı",
     "cycles": "Döngüler",
-    "hr": "Kalp atış hızı"
+    "strokes": "Kulaçlar",
+    "revolutions": "Devirler",
+    "strides": "Adımlar",
+    "jumps": "Atlamalar",
+    "hr": "Kalp atış hızı",
+    "activeSummary": "Toplam aktif"
   },
   "workout": {
     "title": "Antrenman",
@@ -157,7 +159,6 @@
     "deleteError": "Etkinlik silinemedi"
   },
   "media": {
-    "title": "Fotoğraflar",
     "alt": "Etkinlik fotoğrafı",
     "addMedia": "Fotoğraf ekle",
     "uploadSuccess": "Fotoğraf yüklendi",
@@ -170,7 +171,8 @@
     "close": "Kapat",
     "deleteSuccess": "Fotoğraf silindi",
     "deleteError": "Fotoğraf silinemedi",
-    "expand": "Tam boyutta görüntüle"
+    "expand": "Tam boyutta görüntüle",
+    "thumbnailPending": "Harita önizlemesi oluşturuluyor…"
   },
   "gallery": {
     "previous": "Önceki",

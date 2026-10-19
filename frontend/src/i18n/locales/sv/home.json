@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Laddar upp…",
     "success": "Aktivitet uppladdad",
-    "error": "Kunde inte ladda upp aktivitetsfilen"
+    "error": "Kunde inte ladda upp aktivitetsfilen",
+    "timeout": "Din fil importeras fortfarande. Den visas när den är klar.",
+    "failed": {
+      "unsupported_format": "Den här filtypen stöds inte",
+      "invalid_file": "Filen kunde inte läsas",
+      "no_activities_found": "Ingen aktivitet hittades i filen",
+      "processing_failed": "Aktivitetsfilen kunde inte importeras"
+    }
   },
   "refresh": {
     "label": "Uppdatera",

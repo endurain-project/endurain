@@ -38,5 +38,12 @@
   "signup_approved.intro": "Гарні новини! Ваш обліковий запис схвалено, і тепер він активний.",
   "signup_approved.username_label": "Ім'я користувача:",
   "signup_approved.login_intro": "Тепер ви можете увійти та почати користуватися Endurain:",
-  "signup_approved.cta": "Увійти до Endurain"
+  "signup_approved.cta": "Увійти до Endurain",
+
+  "test_email.subject": "Endurain - Тестовий лист",
+  "test_email.heading": "Електронна пошта працює",
+  "test_email.greeting": "Привіт, {name},",
+  "test_email.intro": "Це тестовий лист, надісланий із налаштувань сервера Endurain. Якщо ви його читаєте, Endurain може надсилати листи через ваш SMTP-сервер.",
+  "test_email.detail_label": "SMTP-сервер:",
+  "test_email.ignore": "Жодних дій не потрібно."
 }

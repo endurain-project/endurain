@@ -7,8 +7,6 @@
   "password": "Κωδικός πρόσβασης",
   "confirmPassword": "Επιβεβαίωση κωδικού πρόσβασης",
   "passwordMismatch": "Οι κωδικοί δεν ταιριάζουν",
-  "showPassword": "Εμφάνιση κωδικού",
-  "hidePassword": "Απόκρυψη κωδικού",
   "showOptionalFields": "Εμφάνιση προαιρετικών πεδίων",
   "hideOptionalFields": "Απόκρυψη προαιρετικών πεδίων",
   "preferredLanguage": "Προτιμώμενη γλώσσα",

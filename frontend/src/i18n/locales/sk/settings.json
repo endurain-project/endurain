@@ -48,7 +48,6 @@
       "title": "Zatiaľ žiadni používatelia",
       "description": "Pridajte prvý účet pre túto inštanciu",
       "searchTitle": "Nenašli sa žiadni používatelia",
-      "searchDescription": "Žiadni používatelia nezodpovedajú tomuto používateľskému menu",
       "filteredTitle": "Žiadni používatelia nezodpovedajú vybraným filtrom"
     },
     "form": {
@@ -73,7 +72,6 @@
       "passwordHintStrict": "Aspoň {min} znakov, s veľkým písmenom, malým písmenom, číslom a špeciálnym znakom",
       "passwordHintLength": "Aspoň {min} znakov",
       "passwordRequired": "Heslo je povinné",
-      "passwordTooShort": "Heslo musí mať aspoň 8 znakov",
       "passwordInvalid": "Toto heslo nespĺňa požiadavky",
       "confirmPassword": "Potvrďte heslo",
       "confirmPasswordRequired": "Potvrďte heslo",
@@ -135,6 +133,8 @@
         "pound": "Libra"
       },
       "firstDayOfWeek": "Prvý deň týždňa",
+      "timezone": "Časové pásmo",
+      "timezoneHint": "Používa sa pre aktivity zaznamenané bez GPS, napríklad beh na páse a jazdu na trenažéri.",
       "weekdays": {
         "sunday": "Nedeľa",
         "monday": "Pondelok",
@@ -354,6 +354,19 @@
       "deleteError": "Prihlasovaciu fotku sa nepodarilo odstrániť. Skúste to znova.",
       "cancel": "Zrušiť",
       "close": "Zavrieť"
+    },
+    "email": {
+      "title": "E-mail",
+      "description": "Endurain odosiela e-maily na obnovenie hesla a registráciu cez SMTP server nakonfigurovaný v prostredí.",
+      "statusLoadError": "Konfiguráciu e-mailu sa nepodarilo skontrolovať.",
+      "configured": "E-mail je nakonfigurovaný.",
+      "notConfigured": "E-mail nie je nakonfigurovaný:",
+      "send": "Odoslať testovací e-mail",
+      "sending": "Odosiela sa…",
+      "sendHint": "Testovací e-mail sa odošle na vašu vlastnú adresu.",
+      "sent": "Testovací e-mail odoslaný",
+      "failed": "Testovací e-mail sa nepodarilo odoslať",
+      "failedUnknown": "Podrobnosti nájdete v logoch servera."
     }
   },
   "idp": {
@@ -770,8 +783,10 @@
     "bulk": {
       "title": "Hromadný import",
       "subtitle": "Importujte súbory aktivít umiestnené v priečinku hromadného importu servera",
-      "button": "Importovať aktivity",
+      "uploadButton": "Nahrať ZIP",
+      "folderButton": "Importovať z priečinka",
       "started": "Importovanie aktivít na pozadí…",
+      "alreadyRunning": "Hromadný import už prebieha. Počkajte, kým skončí.",
       "error": "Import sa nepodarilo spustiť. Skúste to znova."
     },
     "strava": {
@@ -786,7 +801,15 @@
       "bikesSuccess": "Strava bicykle importované",
       "bikesError": "Strava bicykle sa nepodarilo importovať. Skúste to znova.",
       "shoesSuccess": "Strava topánky importované",
-      "shoesError": "Strava topánky sa nepodarilo importovať. Skúste to znova."
+      "shoesError": "Strava topánky sa nepodarilo importovať. Skúste to znova.",
+      "activitiesUpload": "Importovať aktivity (nahrať ZIP)",
+      "activitiesFolder": "Importovať aktivity (priečinok na serveri)"
+    },
+    "job": {
+      "preparing": "Pripravuje sa import…",
+      "progress": "Importovaných {done} z {total} súborov ({failed} zlyhalo)…",
+      "finished": "Import dokončený: importovaných {done} z {total} súborov, {failed} zlyhalo.",
+      "failed": "Import sa nepodarilo dokončiť."
     }
   },
   "profile": {

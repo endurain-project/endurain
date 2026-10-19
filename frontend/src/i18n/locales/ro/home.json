@@ -3,7 +3,14 @@
   "upload": {
     "uploading": "Se încarcă…",
     "success": "Activitatea a fost încărcată cu succes",
-    "error": "Nu am putut încărca fișierul activității"
+    "error": "Nu am putut încărca fișierul activității",
+    "timeout": "Fișierul tău este încă în curs de import. Va apărea când se termină.",
+    "failed": {
+      "unsupported_format": "Acest tip de fișier nu este acceptat",
+      "invalid_file": "Acest fișier nu a putut fi citit",
+      "no_activities_found": "Nu a fost găsită nicio activitate în acest fișier",
+      "processing_failed": "Fișierul de activitate nu a putut fi importat"
+    }
   },
   "refresh": {
     "label": "Reîmprospătează",

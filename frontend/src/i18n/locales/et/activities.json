@@ -39,7 +39,6 @@
       "distance": "Vahemaa",
       "duration": "Kestus",
       "pace": "Tempo",
-      "speed": "Kiirus",
       "paceSpeed": "Tempo / kiirus",
       "elevation": "Tõus",
       "calories": "Kalorid",
@@ -66,11 +65,9 @@
     "recenter": "Tsentreeri kaart uuesti"
   },
   "metrics": {
-    "title": "Näitajad",
     "time": "Aeg",
     "distance": "Vahemaa",
     "movingTime": "Liikumisaeg",
-    "elapsedTime": "Möödunud aeg",
     "avgPace": "Keskmine tempo",
     "avgSpeed": "Keskmine kiirus",
     "maxSpeed": "Maksimaalne kiirus",
@@ -109,7 +106,12 @@
     "elevation": "Tõus",
     "strokeRate": "Tõmbesagedus",
     "cycles": "Tsüklid",
-    "hr": "Pulss"
+    "strokes": "Tõmbed",
+    "revolutions": "Pöörded",
+    "strides": "Sammud",
+    "jumps": "Hüpped",
+    "hr": "Pulss",
+    "activeSummary": "Aktiivne kokku"
   },
   "workout": {
     "title": "Treening",
@@ -157,7 +159,6 @@
     "deleteError": "Tegevust ei õnnestunud kustutada"
   },
   "media": {
-    "title": "Fotod",
     "alt": "Tegevuse foto",
     "addMedia": "Lisa foto",
     "uploadSuccess": "Foto üles laaditud",
@@ -170,7 +171,8 @@
     "close": "Sulge",
     "deleteSuccess": "Foto kustutatud",
     "deleteError": "Fotot ei õnnestunud kustutada",
-    "expand": "Vaata täissuuruses"
+    "expand": "Vaata täissuuruses",
+    "thumbnailPending": "Kaardi eelvaate loomine…"
   },
   "gallery": {
     "previous": "Eelmine",

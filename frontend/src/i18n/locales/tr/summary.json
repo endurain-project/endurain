@@ -38,7 +38,6 @@
     "title": "Bu dönemdeki etkinlikler"
   },
   "empty": {
-    "title": "Bu dönemde etkinlik yok",
     "description": "Seçilen dönem ve türle eşleşen etkinlik yok."
   },
   "error": {

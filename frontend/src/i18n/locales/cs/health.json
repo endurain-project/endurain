@@ -586,9 +586,6 @@
       "edit": "Upravit půst",
       "delete": "Smazat půst"
     },
-    "list": {
-      "notesLabel": "Poznámky"
-    },
     "form": {
       "addTitle": "Začít půst",
       "editTitle": "Upravit relaci půstu",
@@ -596,7 +593,6 @@
       "type": "Protokol půstu",
       "customDuration": "Vlastní délka",
       "customDurationHint": "Délka půstu v hodinách (1–72).",
-      "hours": "hodin",
       "startTime": "Čas začátku",
       "startTimeRequired": "Vyberte prosím čas začátku.",
       "endTime": "Čas konce",
