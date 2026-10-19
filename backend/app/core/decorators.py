@@ -5,11 +5,15 @@ from collections.abc import Callable, Coroutine
 from functools import wraps
 from typing import Any, NoReturn, overload
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
+
+logger = core_logger.get_logger(__name__)
 
 
 def _find_db_session(*args, **kwargs) -> Session | None:
@@ -44,18 +48,14 @@ def _rollback_session(func_name: str, db_session: Session | None) -> None:
         try:
             db_session.rollback()
         except Exception as rollback_err:
-            core_logger.print_to_log(
-                f"Rollback failed in {func_name}: {type(rollback_err).__name__}",
-                "error",
-                exc=rollback_err,
-            )
+            logger.error(f"Rollback failed in {func_name}: {type(rollback_err).__name__}", exc_info=rollback_err)
 
 
 def _handle_db_error(db_err: SQLAlchemyError, func_name: str, db_session: Session | None) -> NoReturn:
     """
     Handle database errors consistently.
 
-    Performs rollback, logs the error securely, and raises HTTPException.
+    Performs rollback, logs the error securely, and raises ``ProcessingError``.
 
     Args:
         db_err: The database error that occurred.
@@ -63,23 +63,20 @@ def _handle_db_error(db_err: SQLAlchemyError, func_name: str, db_session: Sessio
         db_session: Database session to rollback, if any.
 
     Raises:
-        HTTPException: Always raises 500 after logging and rollback.
+        ProcessingError: Always, after logging and rollback. The API boundary
+            renders it as the same 500 the previous ``HTTPException`` produced,
+            but the persistence layer no longer decides that — which is what lets
+            the durable-job worker, which serves no HTTP, handle a database
+            failure without importing a web framework.
     """
     _rollback_session(func_name, db_session)
 
     # Log only the exception class name — SQLAlchemy error strings
     # frequently embed the offending SQL statement and parameter values,
     # which can leak PII / credentials into logs (OWASP A09).
-    core_logger.print_to_log(
-        f"Database error in {func_name}: {type(db_err).__name__}",
-        "error",
-        exc=db_err,
-    )
+    logger.error(f"Database error in {func_name}: {type(db_err).__name__}", exc_info=db_err)
 
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="Database error occurred",
-    ) from db_err
+    raise core_exceptions.ProcessingError("Database error occurred") from db_err
 
 
 @overload
@@ -95,8 +92,11 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     Decorator to handle SQLAlchemy database errors consistently.
 
     Catches SQLAlchemyError exceptions, logs them, and converts to
-    HTTPException with 500 status. Allows HTTPException and
-    IntegrityError to pass through for caller-specific handling.
+    ``core.exceptions.ProcessingError`` (a transport-agnostic domain error, not
+    an HTTP response). Allows ``DomainError``, ``HTTPException`` (transitional —
+    see ``sync_wrapper``) and ``IntegrityError`` to pass through for
+    caller-specific handling. Optimistic-lock ``StaleDataError`` also passes
+    through so the decision layer can translate it into a precondition failure.
 
     Automatically calls rollback on the database session if found
     in function parameters.
@@ -115,10 +115,15 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             try:
                 return await func(*args, **kwargs)
+            except core_exceptions.DomainError:
+                raise
             except HTTPException:
+                # TRANSITIONAL: see sync_wrapper.
                 raise
             except IntegrityError:
                 _rollback_session(func.__name__, _find_db_session(*args, **kwargs))
+                raise
+            except StaleDataError:
                 raise
             except SQLAlchemyError as db_err:
                 db_session = _find_db_session(*args, **kwargs)
@@ -130,10 +135,16 @@ def handle_db_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
+        except core_exceptions.DomainError:
+            raise
         except HTTPException:
+            # TRANSITIONAL: modules not yet converted still raise HTTPException
+            # from their CRUD. Drop this arm once none do.
             raise
         except IntegrityError:
             _rollback_session(func.__name__, _find_db_session(*args, **kwargs))
+            raise
+        except StaleDataError:
             raise
         except SQLAlchemyError as db_err:
             db_session = _find_db_session(*args, **kwargs)

@@ -5,10 +5,10 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
     import core.dependencies as core_deps
-    import health.health_fasting.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.health.health_fasting.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/health_fasting")
@@ -27,10 +27,10 @@ def _build_app(mock_db):
 
 
 class TestReadHealthFastingAllPagination:
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_user_id")
     def test_list_success(self, mock_get, mock_get_number, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [HealthFastingRead(id=1, user_id=1)]
@@ -41,8 +41,8 @@ class TestReadHealthFastingAllPagination:
         data = response.json()
         assert data["total"] == 1
 
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_user_id")
     def test_list_empty(self, mock_get, mock_get_number, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -56,9 +56,9 @@ class TestReadHealthFastingAllPagination:
 
 
 class TestReadActiveFasting:
-    @patch("health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
     def test_active_success(self, mock_get, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = HealthFastingRead(id=1, user_id=1)
@@ -66,7 +66,7 @@ class TestReadActiveFasting:
         response = client.get("/health_fasting/active", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
     def test_active_none(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -77,11 +77,11 @@ class TestReadActiveFasting:
 
 
 class TestReadFastingStats:
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("health.health_fasting.router.health_fasting_crud.get_avg_fasting_duration")
-    @patch("health.health_fasting.router.health_fasting_crud.get_total_fasting_seconds")
-    @patch("health.health_fasting.router.health_fasting_crud.get_completed_fasting_count")
-    @patch("health.health_fasting.router.health_fasting_utils.calculate_streaks")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_avg_fasting_duration")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_total_fasting_seconds")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_completed_fasting_count")
+    @patch("modules.health.health_fasting.router.health_fasting_utils.calculate_streaks")
     def test_stats_success(
         self, mock_streaks, mock_completed_count, mock_total_seconds, mock_avg_dur, mock_started, mock_db
     ):
@@ -100,11 +100,11 @@ class TestReadFastingStats:
         assert data["longest_streak"] == 10
         assert data["completion_rate"] == 83.3
 
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
-    @patch("health.health_fasting.router.health_fasting_crud.get_avg_fasting_duration")
-    @patch("health.health_fasting.router.health_fasting_crud.get_total_fasting_seconds")
-    @patch("health.health_fasting.router.health_fasting_crud.get_completed_fasting_count")
-    @patch("health.health_fasting.router.health_fasting_utils.calculate_streaks")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_number_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_avg_fasting_duration")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_total_fasting_seconds")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_completed_fasting_count")
+    @patch("modules.health.health_fasting.router.health_fasting_utils.calculate_streaks")
     def test_stats_zero_started(
         self, mock_streaks, mock_completed_count, mock_total_seconds, mock_avg_dur, mock_started, mock_db
     ):
@@ -121,9 +121,9 @@ class TestReadFastingStats:
 
 
 class TestReadFastingById:
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_by_id_and_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_id_and_user_id")
     def test_success(self, mock_get, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = HealthFastingRead(id=1, user_id=1)
@@ -131,7 +131,7 @@ class TestReadFastingById:
         response = client.get("/health_fasting/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
-    @patch("health.health_fasting.router.health_fasting_crud.get_health_fasting_by_id_and_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_health_fasting_by_id_and_user_id")
     def test_not_found(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = None
@@ -141,10 +141,10 @@ class TestReadFastingById:
 
 
 class TestCreateHealthFasting:
-    @patch("health.health_fasting.router.health_fasting_crud.create_health_fasting")
-    @patch("health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.create_health_fasting")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
     def test_create_success(self, mock_active, mock_create, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_active.return_value = None
@@ -157,9 +157,9 @@ class TestCreateHealthFasting:
         )
         assert response.status_code == 201
 
-    @patch("health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.get_active_fasting_by_user_id")
     def test_create_already_active(self, mock_active, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_active.return_value = HealthFastingRead(id=1, user_id=1)
@@ -173,9 +173,9 @@ class TestCreateHealthFasting:
 
 
 class TestEditHealthFasting:
-    @patch("health.health_fasting.router.health_fasting_crud.edit_health_fasting")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.edit_health_fasting")
     def test_edit_success(self, mock_edit, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = HealthFastingRead(id=1, user_id=1)
@@ -189,9 +189,9 @@ class TestEditHealthFasting:
 
 
 class TestCompleteHealthFasting:
-    @patch("health.health_fasting.router.health_fasting_crud.complete_health_fasting")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.complete_health_fasting")
     def test_complete_success(self, mock_complete, mock_db):
-        from health.health_fasting.schema import HealthFastingRead
+        from modules.health.health_fasting.schema import HealthFastingRead
 
         client = TestClient(_build_app(mock_db))
         mock_complete.return_value = HealthFastingRead(id=1, user_id=1)
@@ -205,7 +205,7 @@ class TestCompleteHealthFasting:
 
 
 class TestDeleteHealthFasting:
-    @patch("health.health_fasting.router.health_fasting_crud.delete_health_fasting")
+    @patch("modules.health.health_fasting.router.health_fasting_crud.delete_health_fasting")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
 

@@ -17,6 +17,7 @@ import {
   presentActivityType,
 } from '@/features/activities/utils/activityType'
 import { canViewField, isActivityOwner } from '@/features/activities/utils/privacy'
+import { formatZonedDateTime } from '@/utils/datetime'
 
 const props = defineProps<{
   activity: Activity
@@ -50,19 +51,13 @@ const canSeeLocation = computed(() =>
   canViewField(props.activity, 'hideLocation', props.currentUserId),
 )
 
-const dateTimeLabel = computed(() => {
-  if (!props.activity.startTime) {
-    return null
-  }
-  const date = new Date(props.activity.startTime)
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-  return new Intl.DateTimeFormat(locale.value, {
-    dateStyle: 'medium',
-    timeStyle: canSeeStartTime.value ? 'short' : undefined,
-  }).format(date)
-})
+const dateTimeLabel = computed(
+  () =>
+    formatZonedDateTime(props.activity.startTime, props.activity.timezone, locale.value, {
+      dateStyle: 'medium',
+      timeStyle: canSeeStartTime.value ? 'short' : undefined,
+    }) || null,
+)
 
 const locationLabel = computed(() => {
   if (!canSeeLocation.value) {

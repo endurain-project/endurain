@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Išsaugokite savo atsarginius kodus",
       "description": "Naudokite atsarginį kodą prisijungti, jei prarasite prieigą prie autentifikatoriaus programėlės.",
-      "warning": "Šie kodai rodomi tik vieną kartą. Saugokite juos saugioje vietoje — kiekvienas kodas veikia tik vieną kartą.",
+      "warning": "Šie kodai rodomi tik vieną kartą. Saugokite juos saugioje vietoje, kiekvienas kodas veikia tik vieną kartą.",
       "copy": "Kopijuoti",
       "copied": "Atsarginiai kodai nukopijuoti",
       "copyError": "Nepavyko nukopijuoti kodų.",
@@ -898,7 +898,7 @@
       "export": "Eksportuoti duomenis",
       "import": "Importuoti duomenis",
       "invalidType": "Pasirinkite .zip archyvą.",
-      "exportSuccess": "Eksportas paruoštas — atsisiuntimas netrukus prasidės",
+      "exportSuccess": "Eksportas paruoštas, atsisiuntimas netrukus prasidės",
       "exportError": "Nepavyko eksportuoti jūsų duomenų. Bandykite dar kartą.",
       "importSuccess": "Duomenys importuoti",
       "importError": "Nepavyko importuoti archyvo. Patikrinkite failą ir bandykite dar kartą."

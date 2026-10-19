@@ -13,6 +13,11 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import {
+  dateTimeLocalToIso,
+  nowDateTimeLocalInput,
+  toDateTimeLocalInput,
+} from '@/features/health/utils/healthFormat'
 import { toNumberOrNull } from '@/utils/number'
 import { required } from '@/utils/validators'
 import {
@@ -81,36 +86,12 @@ interface FastingFormValues {
   notes: string
 }
 
-/** Current local date-time in the `yyyy-mm-ddTHH:mm` shape a datetime-local input expects. */
-function nowLocalInput(): string {
-  const now = new Date()
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-}
-
-/** Converts a stored ISO timestamp to the local `yyyy-mm-ddTHH:mm` input value. */
-function toLocalInput(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-}
-
-/** Converts a local datetime-local value to an unambiguous UTC ISO string. */
-function toIso(local: string): string | null {
-  if (!local) {
-    return null
-  }
-  const ms = new Date(local).getTime()
-  return Number.isNaN(ms) ? null : new Date(ms).toISOString()
-}
-
 /** The pristine values used for "start" and as the reset baseline. */
 function defaultValues(): FastingFormValues {
   return {
     type: '16:8',
     customHours: '',
-    startTime: nowLocalInput(),
+    startTime: nowDateTimeLocalInput(),
     endTime: '',
     status: 'in_progress',
     notes: '',
@@ -137,8 +118,8 @@ const targetSeconds = computed<number | null>(() => {
 
 /** Converts the string-based form values into the clean {@link FastingEntryInput}. */
 function buildInput(formValues: FastingFormValues): FastingEntryInput {
-  const start = toIso(formValues.startTime)
-  const end = isEditing.value ? toIso(formValues.endTime) : null
+  const start = dateTimeLocalToIso(formValues.startTime)
+  const end = isEditing.value ? dateTimeLocalToIso(formValues.endTime) : null
   const notes = formValues.notes.trim()
 
   // When editing a finished fast, derive the actual length from the bounds.
@@ -207,7 +188,7 @@ function populate(): void {
   reset()
   const entry = props.entry
   if (!entry) {
-    values.startTime = nowLocalInput()
+    values.startTime = nowDateTimeLocalInput()
     return
   }
   const type = entry.fastingType ?? '16:8'
@@ -215,8 +196,10 @@ function populate(): void {
   if (type === 'custom' && entry.targetDurationSeconds) {
     values.customHours = String(Math.round((entry.targetDurationSeconds / 3600) * 100) / 100)
   }
-  values.startTime = entry.fastStartTime ? toLocalInput(entry.fastStartTime) : nowLocalInput()
-  values.endTime = entry.fastEndTime ? toLocalInput(entry.fastEndTime) : ''
+  values.startTime = entry.fastStartTime
+    ? toDateTimeLocalInput(entry.fastStartTime)
+    : nowDateTimeLocalInput()
+  values.endTime = entry.fastEndTime ? toDateTimeLocalInput(entry.fastEndTime) : ''
   values.status = entry.status ?? 'in_progress'
   values.notes = entry.notes ?? ''
 }

@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Приховати підходи та кроки тренування",
     "hideGear": "Приховати спорядження",
     "success": "Активність оновлено",
-    "error": "Не вдалося оновити активність"
+    "error": "Не вдалося оновити активність",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Ця активність прихована. Тільки ви можете її бачити.",

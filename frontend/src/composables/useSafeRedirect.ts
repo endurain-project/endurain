@@ -31,6 +31,45 @@ export function isCustomSchemeRedirect(value: string): boolean {
 }
 
 /**
+ * Origin used only to resolve a candidate path the way a browser would. It is never
+ * navigated to; a path that resolves anywhere else escapes the application.
+ */
+const INTERNAL_ORIGIN = 'https://internal.invalid'
+
+/**
+ * Checks for characters a browser's URL parser treats specially inside a path:
+ * ASCII control characters (tab, CR and LF are silently dropped, so `/<tab>/host`
+ * becomes `//host`) and the backslash (read as `/`, so `/\host` becomes `//host`).
+ * A string check on the raw value cannot see either, so they are rejected outright.
+ *
+ * @param value - Redirect candidate.
+ * @returns Whether the value contains such a character.
+ */
+function hasUrlParserSensitiveChar(value: string): boolean {
+  return Array.from(value).some((char) => {
+    const code = char.codePointAt(0) ?? 0
+    return code <= 0x1f || code === 0x7f || char === '\\'
+  })
+}
+
+/**
+ * Checks whether a candidate is a path that stays inside the application.
+ *
+ * @param candidate - Redirect candidate.
+ * @returns Whether the browser would resolve it on the application's own origin.
+ */
+function isInternalPath(candidate: string): boolean {
+  if (!candidate.startsWith('/') || candidate.includes('://')) {
+    return false
+  }
+  try {
+    return new URL(candidate, INTERNAL_ORIGIN).origin === INTERNAL_ORIGIN
+  } catch {
+    return false
+  }
+}
+
+/**
  * Resolves redirect query values while blocking external HTTP redirects, to
  * prevent open-redirect attacks. Only internal paths and custom-scheme deep
  * links are allowed; anything else falls back to the app root.
@@ -40,10 +79,10 @@ export function isCustomSchemeRedirect(value: string): boolean {
  */
 export function getSafeRedirect(value: unknown): string {
   const candidate = getQueryString(value)
-  if (candidate.startsWith('/') && !candidate.startsWith('//') && !candidate.includes('://')) {
-    return candidate
+  if (hasUrlParserSensitiveChar(candidate)) {
+    return '/'
   }
-  if (isCustomSchemeRedirect(candidate)) {
+  if (isInternalPath(candidate) || isCustomSchemeRedirect(candidate)) {
     return candidate
   }
   return '/'

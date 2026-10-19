@@ -3,6 +3,8 @@
 import os
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestSafeResolve:
     """Tests for _safe_resolve path-safety guard."""
@@ -34,6 +36,28 @@ class TestSafeResolve:
 
         result = _safe_resolve(str(tmp_path), "../etc/passwd")
         assert result is None
+
+    @pytest.mark.parametrize("untrusted", ["file.txt\x00.png", "\x00", "sub/\x00/file.txt"])
+    def test_embedded_nul_byte_returns_none_instead_of_raising(self, tmp_path, untrusted):
+        from core.utils import _safe_resolve
+
+        (tmp_path / "file.txt").write_text("content")
+
+        assert _safe_resolve(str(tmp_path), untrusted) is None
+
+    def test_symlink_escaping_the_base_returns_none(self, tmp_path):
+        from core.utils import _safe_resolve
+
+        outside = tmp_path / "outside"
+        base = tmp_path / "base"
+        outside.mkdir()
+        base.mkdir()
+        (outside / "secret.txt").write_text("secret")
+        (base / "link.txt").symlink_to(outside / "secret.txt")
+        (base / "linkdir").symlink_to(outside, target_is_directory=True)
+
+        assert _safe_resolve(str(base), "link.txt") is None
+        assert _safe_resolve(str(base), "linkdir/secret.txt") is None
 
     def test_nonexistent_file_returns_none(self, tmp_path):
         from core.utils import _safe_resolve
@@ -95,27 +119,6 @@ class TestReturnFrontendIndex:
         assert result == "response"
 
 
-class TestReturnUserImgPath:
-    """Tests for return_user_img_path."""
-
-    def test_calls_serve_from_with_user_images_dir(self):
-        from core.utils import return_user_img_path
-
-        mock_core_config = MagicMock()
-        mock_core_config.USER_IMAGES_DIR = "/mock/user_images"
-        mock_serve_from = MagicMock(return_value="response")
-
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_user_img_path("avatar.png")
-
-        mock_serve_from.assert_called_once_with("/mock/user_images", "avatar.png")
-        assert result == "response"
-
-
 class TestReturnServerImgPath:
     """Tests for return_server_img_path."""
 
@@ -137,43 +140,25 @@ class TestReturnServerImgPath:
         assert result == "response"
 
 
-class TestReturnActivityMediaPath:
-    """Tests for return_activity_media_path."""
+class TestNoBlobPathHelpers:
+    """Private blobs must have no filename-addressed serve helper.
 
-    def test_calls_serve_from_with_activity_media_dir(self):
-        from core.utils import return_activity_media_path
+    Activity media, thumbnails and user photos are all served only through their
+    token-gated routes. A ``return_*_path`` helper here is what the removed
+    public routes were built on, so its absence is the regression guard.
+    """
 
-        mock_core_config = MagicMock()
-        mock_core_config.settings.ACTIVITY_MEDIA_DIR = "/mock/activity_media"
-        mock_serve_from = MagicMock(return_value="response")
+    def test_no_activity_media_path_helper(self):
+        import core.utils
 
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_activity_media_path("photo.jpg")
+        assert not hasattr(core.utils, "return_activity_media_path")
 
-        mock_serve_from.assert_called_once_with("/mock/activity_media", "photo.jpg")
-        assert result == "response"
+    def test_no_activity_thumbnail_path_helper(self):
+        import core.utils
 
+        assert not hasattr(core.utils, "return_activity_thumbnail_path")
 
-class TestReturnActivityThumbnailPath:
-    """Tests for return_activity_thumbnail_path."""
+    def test_no_user_image_path_helper(self):
+        import core.utils
 
-    def test_calls_serve_from_with_activity_thumbnails_dir(self):
-        from core.utils import return_activity_thumbnail_path
-
-        mock_core_config = MagicMock()
-        mock_core_config.settings.ACTIVITY_THUMBNAILS_DIR = "/mock/thumbnails"
-        mock_serve_from = MagicMock(return_value="response")
-
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_activity_thumbnail_path("thumb.png")
-
-        mock_serve_from.assert_called_once_with("/mock/thumbnails", "thumb.png")
-        assert result == "response"
+        assert not hasattr(core.utils, "return_user_img_path")

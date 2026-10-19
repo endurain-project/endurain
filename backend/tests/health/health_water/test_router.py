@@ -5,10 +5,10 @@ from fastapi.testclient import TestClient
 
 
 def _build_app(mock_db):
-    import auth.dependencies as auth_deps
     import core.database as core_db
     import core.dependencies as core_deps
-    import health.health_water.router as router
+    import modules.auth.dependencies as auth_deps
+    import modules.health.health_water.router as router
 
     app = FastAPI()
     app.include_router(router.router, prefix="/health_water")
@@ -27,10 +27,10 @@ def _build_app(mock_db):
 
 
 class TestReadHealthWaterAllPagination:
-    @patch("health.health_water.router.health_water_crud.get_health_water_number_by_user_id")
-    @patch("health.health_water.router.health_water_crud.get_health_water_by_user_id")
+    @patch("modules.health.health_water.router.health_water_crud.get_health_water_number_by_user_id")
+    @patch("modules.health.health_water.router.health_water_crud.get_health_water_by_user_id")
     def test_list_success(self, mock_get, mock_get_number, mock_db):
-        from health.health_water.schema import HealthWaterRead
+        from modules.health.health_water.schema import HealthWaterRead
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = [HealthWaterRead(id=1, user_id=1)]
@@ -41,8 +41,8 @@ class TestReadHealthWaterAllPagination:
         data = response.json()
         assert data["total"] == 1
 
-    @patch("health.health_water.router.health_water_crud.get_health_water_number_by_user_id")
-    @patch("health.health_water.router.health_water_crud.get_health_water_by_user_id")
+    @patch("modules.health.health_water.router.health_water_crud.get_health_water_number_by_user_id")
+    @patch("modules.health.health_water.router.health_water_crud.get_health_water_by_user_id")
     def test_list_empty(self, mock_get, mock_get_number, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = []
@@ -56,10 +56,10 @@ class TestReadHealthWaterAllPagination:
 
 
 class TestCreateHealthWater:
-    @patch("health.health_water.router.health_water_crud.create_health_water")
-    @patch("health.health_water.router.health_water_crud.get_health_water_by_date_and_user_id")
+    @patch("modules.health.health_water.router.health_water_crud.create_health_water")
+    @patch("modules.health.health_water.router.health_water_crud.get_health_water_by_date_and_user_id")
     def test_create_new(self, mock_get_by_date, mock_create, mock_db):
-        from health.health_water.schema import HealthWaterRead
+        from modules.health.health_water.schema import HealthWaterRead
 
         client = TestClient(_build_app(mock_db))
         mock_get_by_date.return_value = None
@@ -72,10 +72,10 @@ class TestCreateHealthWater:
         )
         assert response.status_code == 201
 
-    @patch("health.health_water.router.health_water_crud.edit_health_water")
-    @patch("health.health_water.router.health_water_crud.get_health_water_by_date_and_user_id")
+    @patch("modules.health.health_water.router.health_water_crud.edit_health_water")
+    @patch("modules.health.health_water.router.health_water_crud.get_health_water_by_date_and_user_id")
     def test_create_accumulates(self, mock_get_by_date, mock_edit, mock_db):
-        from health.health_water.schema import HealthWaterRead
+        from modules.health.health_water.schema import HealthWaterRead
 
         client = TestClient(_build_app(mock_db))
         existing = HealthWaterRead(id=1, user_id=1, amount_ml=300.0)
@@ -91,9 +91,9 @@ class TestCreateHealthWater:
 
 
 class TestEditHealthWater:
-    @patch("health.health_water.router.health_water_crud.edit_health_water")
+    @patch("modules.health.health_water.router.health_water_crud.edit_health_water")
     def test_edit_success(self, mock_edit, mock_db):
-        from health.health_water.schema import HealthWaterRead
+        from modules.health.health_water.schema import HealthWaterRead
 
         client = TestClient(_build_app(mock_db))
         mock_edit.return_value = HealthWaterRead(id=1, user_id=1, amount_ml=750.0)
@@ -107,7 +107,7 @@ class TestEditHealthWater:
 
 
 class TestDeleteHealthWater:
-    @patch("health.health_water.router.health_water_crud.delete_health_water")
+    @patch("modules.health.health_water.router.health_water_crud.delete_health_water")
     def test_delete_success(self, mock_delete, mock_db):
         client = TestClient(_build_app(mock_db))
 

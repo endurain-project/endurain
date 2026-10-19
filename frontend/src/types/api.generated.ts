@@ -4,64 +4,6 @@
  */
 
 export interface paths {
-    "/activity_media/{media}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Activity Media Return
-         * @description Retrieves the server path for a given activity media file.
-         *
-         *     Args:
-         *         media (str): The name or identifier of the activity media file.
-         *
-         *     Returns:
-         *         str: The server path to the activity media file.
-         *
-         *     Raises:
-         *         HTTPException: If the media file is not found.
-         */
-        get: operations["activity_media_return_activity_media__media__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/activity_thumbnails/{thumbnail}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Activity Thumbnail Return
-         * @description Retrieves the server path for a given activity thumbnail.
-         *
-         *     Args:
-         *         thumbnail (str): The name or identifier of the activity thumbnail.
-         *
-         *     Returns:
-         *         str: The server path to the activity thumbnail.
-         *
-         *     Raises:
-         *         HTTPException: If the thumbnail is not found.
-         */
-        get: operations["activity_thumbnail_return_activity_thumbnails__thumbnail__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/about": {
         parameters: {
             query?: never;
@@ -85,24 +27,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/create/bulkimport": {
+    "/api/v1/activities": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Own Activities
+         * @description List the authenticated user's activities, with the matching total.
+         */
+        get: operations["list_own_activities_api_v1_activities_get"];
         put?: never;
-        /** Create Activity With Bulk Import */
-        post: operations["create_activity_with_bulk_import_api_v1_activities_create_bulkimport_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Activities
+         * @description Apply a bulk edit across all of the authenticated user's activities.
+         *
+         *     A PATCH on the collection with the change in the body, rather than the
+         *     previous ``PUT /visibility/{visibility}``: the value being set is data, not
+         *     an identifier, and PUT implied a full replacement of a resource that does
+         *     not exist at that path. The body shape also leaves room for a second
+         *     bulk-editable field without another endpoint.
+         *
+         *     Rejected as invalid input when the body asks for no change at all.
+         */
+        patch: operations["edit_activities_api_v1_activities_patch"];
         trace?: never;
     };
-    "/api/v1/activities/create/upload": {
+    "/api/v1/activities/bulk-import": {
         parameters: {
             query?: never;
             header?: never;
@@ -112,33 +69,26 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Activity With Uploaded File
-         * @description Upload an activity file (GPX, FIT, TCX, GZ).
+         * Create Bulk Import From Archive
+         * @description Import every activity file in an uploaded ZIP archive.
          *
-         *     Accepts both JWT bearer token and API key
-         *     authentication (X-API-Key header or ?api_key=
-         *     query parameter). Requires the
-         *     ``activities:upload`` scope.
+         *     Returns ``202`` once the archive is stored and queued: nothing inside it is
+         *     read in the request beyond its directory listing. Poll
+         *     ``GET /activities/ingestion-jobs/{job_id}`` for progress (``files_done`` and
+         *     ``files_failed`` against ``files_total``); a finished import with failed files
+         *     still ends ``completed``.
          *
-         *     Args:
-         *         token_user_id: Authenticated user ID.
-         *         file: The activity file to upload.
-         *         _check_scopes: Scope validation dependency.
-         *         ws_manager: WebSocket manager for real-time
-         *             notifications.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         List of created activity objects.
+         *     One bulk import runs per user at a time; a second request while one is running
+         *     is answered ``409``.
          */
-        post: operations["create_activity_with_uploaded_file_api_v1_activities_create_upload_post"];
+        post: operations["create_bulk_import_from_archive_api_v1_activities_bulk_import_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/edit": {
+    "/api/v1/activities/bulk-import/folder": {
         parameters: {
             query?: never;
             header?: never;
@@ -146,33 +96,28 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Edit Activity */
-        put: operations["edit_activity_api_v1_activities_edit_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/gear/{gear_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Gear Activities */
-        get: operations["read_activities_gear_activities_api_v1_activities_gear__gear_id__get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Bulk Import From Folder
+         * @description Import the files in the caller's folder on the server.
+         *
+         *     The folder is per user (`bulk_import/<user_id>` for plain files, or the
+         *     provider export's own per-user folder). Returns ``202`` with a job handle;
+         *     packing and staging the folder happens in the background, and the files are
+         *     removed from the folder only once they are safely staged. Poll
+         *     ``GET /activities/ingestion-jobs/{job_id}`` for progress.
+         *
+         *     One bulk import runs per user at a time; a second request while one is running
+         *     is answered ``409``.
+         */
+        post: operations["create_bulk_import_from_folder_api_v1_activities_bulk_import_folder_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/gear/{gear_id}/list": {
+    "/api/v1/activities/exercise-titles/all": {
         parameters: {
             query?: never;
             header?: never;
@@ -180,24 +125,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Gear Activities List
-         * @description Retrieve paginated gear activities with total
-         *     count.
-         *
-         *     Args:
-         *         gear_id: Gear ID.
-         *         _validate_gear_id: Validates gear ID exists.
-         *         _check_scopes: Validates activities:read.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         page_number: Optional page number.
-         *         num_records: Optional records per page.
-         *
-         *     Returns:
-         *         GearActivitiesListResponse with total count
-         *         and paginated records.
+         * List Activity Exercise Titles
+         * @description Return all activity exercise titles.
          */
-        get: operations["read_gear_activities_list_api_v1_activities_gear__gear_id__list_get"];
+        get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -206,15 +137,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/gear/{gear_id}/number": {
+    "/api/v1/activities/feed": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Gear Activities Number */
-        get: operations["read_activities_gear_activities_number_api_v1_activities_gear__gear_id__number_get"];
+        /**
+         * List Following Feed
+         * @description List a keyset slice of the authenticated user's following feed.
+         */
+        get: operations["list_following_feed_api_v1_activities_feed_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -223,15 +157,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/gear/{gear_id}/page_number/{page_number}/num_records/{num_records}": {
+    "/api/v1/activities/gears/{gear_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Gear Activities With Pagination */
-        get: operations["read_activities_gear_activities_with_pagination_api_v1_activities_gear__gear_id__page_number__page_number__num_records__num_records__get"];
+        /**
+         * List Gear Activities
+         * @description List the authenticated user's activities for a gear, with the matching total.
+         */
+        get: operations["list_gear_activities_api_v1_activities_gears__gear_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -240,32 +177,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/name/contains/{name}": {
+    "/api/v1/activities/ingestion-jobs/{job_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Contain Name */
-        get: operations["read_activities_contain_name_api_v1_activities_name_contains__name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Number */
-        get: operations["read_activities_user_activities_number_api_v1_activities_number_get"];
+        /**
+         * Read Activity Ingestion Job
+         * @description Read the state of one of your ingestion requests.
+         *
+         *     Serves both uploads and provider refreshes: the caller's question is the
+         *     same either way, so there is one route rather than two near-identical ones.
+         *
+         *     Scoped to the caller: a job belonging to another user is reported as not
+         *     found rather than forbidden, so the endpoint does not confirm that an id
+         *     exists.
+         */
+        get: operations["read_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -281,8 +211,37 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Activities User Activities Refresh */
-        get: operations["read_activities_user_activities_refresh_api_v1_activities_refresh_get"];
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Activities
+         * @description Queue a sync of the last 24h from the linked providers (Strava/Garmin).
+         *
+         *     Returns ``202`` with a job handle; poll
+         *     ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
+         *
+         *     The sync runs as a job, so no provider call blocks a request thread or the
+         *     event loop.
+         */
+        post: operations["refresh_activities_api_v1_activities_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/summaries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Summary
+         * @description Return the authenticated user's activity summary for one period.
+         */
+        get: operations["read_activity_summary_api_v1_activities_summaries_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -298,8 +257,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Types */
-        get: operations["read_activities_types_api_v1_activities_types_get"];
+        /**
+         * List Activity Types
+         * @description Return the distinct activity types the user has recorded, keyed by type code.
+         */
+        get: operations["list_activity_types_api_v1_activities_types_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -308,126 +270,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities/user/{user_id}/followed/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Followed User Activities Number */
-        get: operations["read_activities_followed_user_activities_number_api_v1_activities_user__user_id__followed_number_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/followed/page_number/{page_number}/num_records/{num_records}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities Followed User Activities Pagination */
-        get: operations["read_activities_followed_user_activities_pagination_api_v1_activities_user__user_id__followed_page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/page_number/{page_number}/num_records/{num_records}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Pagination */
-        get: operations["read_activities_user_activities_pagination_api_v1_activities_user__user_id__page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/thismonth/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities This Month Number */
-        get: operations["read_activities_user_activities_this_month_number_api_v1_activities_user__user_id__thismonth_number_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/thismonth/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities This Month Stats */
-        get: operations["read_activities_user_activities_this_month_stats_api_v1_activities_user__user_id__thismonth_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/thisweek/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities This Week Stats */
-        get: operations["read_activities_user_activities_this_week_stats_api_v1_activities_user__user_id__thisweek_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/user/{user_id}/week/{week_number}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Activities User Activities Week */
-        get: operations["read_activities_user_activities_week_api_v1_activities_user__user_id__week__week_number__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/visibility/{visibility}": {
+    "/api/v1/activities/upload": {
         parameters: {
             query?: never;
             header?: never;
@@ -435,8 +278,68 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Edit Activity Visibility */
-        put: operations["edit_activity_visibility_api_v1_activities_visibility__visibility__put"];
+        put?: never;
+        /**
+         * Create Activity With Uploaded File
+         * @description Upload an activity file (GPX, FIT, TCX, GZ) for import.
+         *
+         *     Returns ``202`` once the file is stored and queued: parsing is seconds of
+         *     CPU work, and doing it inline held a shared request thread for the duration.
+         *     Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
+         *
+         *     Rejections that can be decided cheaply — unsupported extension, failed
+         *     signature check, oversized body — still come back synchronously as a 4xx, so
+         *     only files that plausibly import get a job.
+         *
+         *     Send an ``Idempotency-Key`` to make a retry safe: a client that never saw
+         *     the 202 has no job id to poll, so replaying the upload is its only recovery,
+         *     and without a key that replay would import the file a second time.
+         *
+         *     Accepts both JWT bearer token and API key
+         *     authentication (X-API-Key header or ?api_key=
+         *     query parameter). Requires the
+         *     ``activities:upload`` scope.
+         */
+        post: operations["create_activity_with_uploaded_file_api_v1_activities_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Activities
+         * @description List another user's visible activities, with the matching total.
+         */
+        get: operations["list_user_activities_api_v1_activities_users__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/users/{user_id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Activity Stats
+         * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
+         */
+        get: operations["read_user_activity_stats_api_v1_activities_users__user_id__stats_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -451,118 +354,45 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Activity From Id */
-        get: operations["read_activities_activity_from_id_api_v1_activities__activity_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/{activity_id}/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Activity */
-        delete: operations["delete_activity_api_v1_activities__activity_id__delete_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_exercise_titles/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
         /**
-         * Read Activities Exercise Titles All
-         * @description Return all activity exercise titles.
-         *
-         *     Args:
-         *         _check_scopes: Scope check dependency for authorization.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ActivityExerciseTitles or None when empty.
-         *
-         *     Raises:
-         *         HTTPException: If a database error occurs.
+         * Read Activity
+         * @description Read a single activity the requester owns or is permitted to see.
          */
-        get: operations["read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get"];
+        get: operations["read_activity_api_v1_activities__activity_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_laps/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
         /**
-         * Read Activities Laps For Activity All
-         * @description Return all laps for the given activity visible to the caller.
+         * Delete Activity
+         * @description Delete one of the authenticated user's activities.
          *
-         *     Args:
-         *         activity_id: Activity primary key.
-         *         validate_id: FastAPI dependency that validates the path id.
-         *         _check_scopes: FastAPI security dependency enforcing scopes.
-         *         token_user_id: Authenticated user id derived from the access
-         *             token.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ``ActivityLapsRead`` or ``None`` if the activity is
-         *         hidden from the caller or has no laps.
+         *     Answers ``204`` with no body: the resource is gone, and the status says so.
          */
-        get: operations["read_activities_laps_for_activity_all_api_v1_activities_laps_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
+        delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities_media/activity_id/{activity_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
         /**
-         * Read Activities Media User
-         * @description Retrieve activity media records for an activity owned by the user.
+         * Edit Activity
+         * @description Apply partial updates to one of the authenticated user's activities.
          *
-         *     Args:
-         *         activity_id: Activity ID to fetch media for.
-         *         _validate_id: Activity ID validation dependency.
-         *         _check_scopes: Scope validation dependency.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ActivityMedia records, or None if there are no media or
-         *         the activity is not accessible to the user.
+         *     Send ``If-Match`` with the ETag from the read to make the write conditional;
+         *     a stale tag is refused with 412 rather than silently overwriting whoever
+         *     saved in between.
          */
-        get: operations["read_activities_media_user_api_v1_activities_media_activity_id__activity_id__get"];
+        patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/laps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Activity Laps
+         * @description Return one page of the given activity's laps, with the matching total.
+         */
+        get: operations["list_activity_laps_api_v1_activities__activity_id__laps_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -571,50 +401,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_media/upload/activity_id/{activity_id}": {
+    "/api/v1/activities/{activity_id}/media": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Activity Media
+         * @description Return one page of the media attached to an activity owned by the user.
+         *
+         *     The page is empty when the activity has no media or is not accessible to the
+         *     caller.
+         */
+        get: operations["list_activity_media_api_v1_activities__activity_id__media_get"];
         put?: never;
         /**
-         * Upload Media
+         * Create Activity Media
          * @description Upload an image file to associate with an activity.
          *
-         *     The file is validated by magic-number (not extension) and size limits
-         *     via the centralized image upload helper, stored under the configured
-         *     ``ACTIVITY_MEDIA_DIR``, and registered in the database.
+         *     The file is validated by magic number (not extension) and size limits via
+         *     the centralized image upload helper before the ownership check, stored through the platform
+         *     ``StorageProvider`` under a server-generated key, and registered in the
+         *     database. The response carries a signed URL; the blob itself has no public
+         *     path.
          *
-         *     Args:
-         *         file: Uploaded image file.
-         *         activity_id: Activity ID the media belongs to.
-         *         _validate_id: Activity ID validation dependency.
-         *         _check_scopes: Scope validation dependency.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
+         *     Rate limited on the ``UPLOAD`` tier: it is an authenticated endpoint that
+         *     writes caller-supplied bytes to storage, so without a cap a single account
+         *     can fill the media volume.
          *
-         *     Returns:
-         *         The newly created ActivityMedia record.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 404 Not Found: If the activity is not owned by the user.
-         *             - 400 Bad Request: If image validation fails.
-         *             - 415 Unsupported Media Type: If the extension is rejected.
-         *             - 409 Conflict: If a media with the same path already exists.
-         *             - 500 Internal Server Error: For unexpected I/O or DB errors.
+         *     Not found when the activity is not the caller's, rejected when the extension
+         *     is unsupported, and a conflict when a media with the same path already exists.
          */
-        post: operations["upload_media_api_v1_activities_media_upload_activity_id__activity_id__post"];
+        post: operations["create_activity_media_api_v1_activities__activity_id__media_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_media/{media_id}": {
+    "/api/v1/activities/{activity_id}/media/{media_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -626,39 +453,33 @@ export interface paths {
         post?: never;
         /**
          * Delete Activity Media
-         * @description Delete an activity media record and remove its file from disk.
+         * @description Delete an activity media record and remove its stored blob.
          *
-         *     Args:
-         *         media_id: Activity media ID to delete.
-         *         _validate_id: Media ID validation dependency.
-         *         _check_scopes: Scope validation dependency.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException:
-         *             - 404 Not Found: If the media or owning activity is missing.
-         *             - 403 Forbidden: If the user does not own the activity.
-         *             - 500 Internal Server Error: For database errors.
+         *     Not found when the media is missing, does not belong to this activity, or its
+         *     activity is not the caller's.
          */
-        delete: operations["delete_activity_media_api_v1_activities_media__media_id__delete"];
+        delete: operations["delete_activity_media_api_v1_activities__activity_id__media__media_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_sets/activity_id/{activity_id}/all": {
+    "/api/v1/activities/{activity_id}/media/{media_id}/file": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Read Activities Sets For Activity All */
-        get: operations["read_activities_sets_for_activity_all_api_v1_activities_sets_activity_id__activity_id__all_get"];
+        /**
+         * Read Activity Media File
+         * @description Serve an activity media blob when the signed token is valid.
+         *
+         *     Answers ``404`` when the token is invalid or forged, the record does not belong
+         *     to the activity, or no blob exists. A ``404`` rather than ``403`` avoids
+         *     confirming the resource to an unauthorized caller.
+         */
+        get: operations["read_activity_media_file_api_v1_activities__activity_id__media__media_id__file_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -667,7 +488,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_streams/activity_id/{activity_id}/all": {
+    "/api/v1/activities/{activity_id}/sets": {
         parameters: {
             query?: never;
             header?: never;
@@ -675,20 +496,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Activities Streams For Activity All
-         * @description Get all streams for an activity.
-         *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_id: Activity ID validator dep.
-         *         _check_scopes: Scope authorization dep.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of activity streams or None.
+         * List Activity Sets
+         * @description Return one page of the activity's sets, with the matching total.
          */
-        get: operations["read_activities_streams_for_activity_all_api_v1_activities_streams_activity_id__activity_id__all_get"];
+        get: operations["list_activity_sets_api_v1_activities__activity_id__sets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -697,7 +508,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_streams/activity_id/{activity_id}/stream_type/{stream_type}": {
+    "/api/v1/activities/{activity_id}/streams": {
         parameters: {
             query?: never;
             header?: never;
@@ -705,22 +516,35 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Activities Streams For Activity Stream Type
+         * List Activity Streams
+         * @description Return one page of the given activity's streams, with the matching total.
+         */
+        get: operations["list_activity_streams_api_v1_activities__activity_id__streams_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/streams/{stream_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Activity Stream
          * @description Get a specific stream type for an activity.
          *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_activity_id: Activity ID dep.
-         *         stream_type: The stream type code.
-         *         validate_activity_stream_type: Type dep.
-         *         _check_scopes: Scope authorization dep.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The activity stream or None.
+         *     Not found when the activity has no such stream or is not visible to the
+         *     caller. A single resource that does not exist is a ``404`` rather than
+         *     ``200 null``, and the two cases are indistinguishable so the endpoint cannot
+         *     be used to probe which activities exist.
          */
-        get: operations["read_activities_streams_for_activity_stream_type_api_v1_activities_streams_activity_id__activity_id__stream_type__stream_type__get"];
+        get: operations["read_activity_stream_api_v1_activities__activity_id__streams__stream_type__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -729,7 +553,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_summaries/{view_type}": {
+    "/api/v1/activities/{activity_id}/thumbnail": {
         parameters: {
             query?: never;
             header?: never;
@@ -737,31 +561,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Activity Summary
-         * @description Read activity summary for a given view type.
+         * Read Activity Thumbnail
+         * @description Serve an activity's map thumbnail when the signed token is valid.
          *
-         *     Args:
-         *         view_type: One of week, month, year,
-         *             lifetime.
-         *         validate_view_type: Dependency that
-         *             validates view_type.
-         *         _check_scopes: Dependency that checks
-         *             required scopes.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         target_date_str: Optional ISO date for
-         *             week/month views.
-         *         target_year: Optional year for year view.
-         *         activity_type: Optional activity type name
-         *             filter.
-         *
-         *     Returns:
-         *         Summary response matching the view type.
-         *
-         *     Raises:
-         *         HTTPException: If date/year is invalid.
+         *     Answers ``404`` when the token is invalid or forged, or no thumbnail exists.
          */
-        get: operations["read_activity_summary_api_v1_activities_summaries__view_type__get"];
+        get: operations["read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -770,7 +575,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/activities_workout_steps/activity_id/{activity_id}/all": {
+    "/api/v1/activities/{activity_id}/workout-steps": {
         parameters: {
             query?: never;
             header?: never;
@@ -778,13 +583,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Activity Workout Steps All
-         * @description Get all workout steps for an activity.
-         *
-         *     Returns:
-         *         List of workout steps or None.
+         * List Activity Workout Steps
+         * @description Return one page of the activity's workout steps, with the matching total.
          */
-        get: operations["read_activity_workout_steps_all_api_v1_activities_workout_steps_activity_id__activity_id__all_get"];
+        get: operations["list_activity_workout_steps_api_v1_activities__activity_id__workout_steps_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -990,19 +792,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/accept/targetUser/{target_user_id}": {
+    "/api/v1/followers/follow-requests": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
         /**
-         * Accept Follow
-         * @description Accept a pending follow request from the target user.
+         * List Follow Requests
+         * @description List the follow requests awaiting the authenticated user's decision.
+         *
+         *     Always scoped to the caller, so there is no user id to supply and no way to
+         *     read anyone else's pending requests.
          */
-        put: operations["accept_follow_api_v1_followers_accept_targetUser__target_user_id__put"];
+        get: operations["list_follow_requests_api_v1_followers_follow_requests_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1010,27 +815,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/create/targetUser/{target_user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Follow
-         * @description Create a new follow request from the authenticated user.
-         */
-        post: operations["create_follow_api_v1_followers_create_targetUser__target_user_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/delete/follower/targetUser/{target_user_id}": {
+    "/api/v1/followers/follow-requests/{follower_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1041,16 +826,62 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete Follower
-         * @description Remove a user the authenticated user is following.
+         * Reject Follow Request
+         * @description Decline the pending follow request from ``follower_id``.
+         *
+         *     Distinct from removing an accepted follower: this refuses access that was
+         *     never granted, which is a different decision even though the row is the same.
+         *     Scoped to pending requests, so removing an accepted follower goes through the
+         *     relationship route rather than arriving here by accident.
          */
-        delete: operations["delete_follower_api_v1_followers_delete_follower_targetUser__target_user_id__delete"];
+        delete: operations["reject_follow_request_api_v1_followers_follow_requests__follower_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Accept Follow Request
+         * @description Accept the pending follow request from ``follower_id``.
+         *
+         *     Accepting is the only transition this route writes; declining is ``DELETE``
+         *     on the same path, because it removes the request rather than moving it to a
+         *     rejected state. The route is named for what it does so a client does not read
+         *     a general "decide" surface into it and send a rejection here.
+         *
+         *     Returns the row as persisted rather than one assembled from the request, so
+         *     the response cannot claim a state the database does not hold.
+         */
+        patch: operations["accept_follow_request_api_v1_followers_follow_requests__follower_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/followers/users/{user_id}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Followers
+         * @description List a user's followers, with the matching total.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them.
+         */
+        get: operations["list_user_followers_api_v1_followers_users__user_id__followers_get"];
+        put?: never;
+        /**
+         * Follow User
+         * @description Add the authenticated user to ``user_id``'s followers.
+         *
+         *     Always created pending: a follow takes effect only once the target accepts
+         *     it, so the returned ``status`` is ``pending`` and the target is notified.
+         */
+        post: operations["follow_user_api_v1_followers_users__user_id__followers_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/delete/following/targetUser/{target_user_id}": {
+    "/api/v1/followers/users/{user_id}/followers/{follower_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1061,16 +892,20 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete Following
-         * @description Remove a follower of the authenticated user.
+         * Delete Follow Relationship
+         * @description Delete the follow relationship where ``follower_id`` follows ``user_id``.
+         *
+         *     Serves both directions. Unfollowing is ``follower_id`` = the caller; removing
+         *     a follower is ``user_id`` = the caller. Either party may delete it, and the
+         *     caller must be one of them.
          */
-        delete: operations["delete_following_api_v1_followers_delete_following_targetUser__target_user_id__delete"];
+        delete: operations["delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/user/{user_id}/followers/all": {
+    "/api/v1/followers/users/{user_id}/following": {
         parameters: {
             query?: never;
             header?: never;
@@ -1078,10 +913,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Follower All
-         * @description Return every follower record where the user is being followed.
+         * List User Following
+         * @description List who a user follows, with the matching total.
+         *
+         *     Privacy-aware: only the user themselves or an accepted follower may list them.
          */
-        get: operations["get_user_follower_all_api_v1_followers_user__user_id__followers_all_get"];
+        get: operations["list_user_following_api_v1_followers_users__user_id__following_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1090,7 +927,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/user/{user_id}/followers/count/accepted": {
+    "/api/v1/followers/users/{user_id}/relationship": {
         parameters: {
             query?: never;
             header?: never;
@@ -1098,110 +935,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get User Follower Count
-         * @description Return the number of accepted followers for a user.
+         * Read User Relationship
+         * @description Return the authenticated user's relationship with ``user_id``, both directions.
+         *
+         *     Reports the requester's outgoing follow of ``user_id`` and ``user_id``'s
+         *     incoming follow of the requester; only relationships the requester is part of
+         *     are ever exposed.
          */
-        get: operations["get_user_follower_count_api_v1_followers_user__user_id__followers_count_accepted_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/followers/count/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Follower Count All
-         * @description Return the total number of followers for a user.
-         */
-        get: operations["get_user_follower_count_all_api_v1_followers_user__user_id__followers_count_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/following/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Following All
-         * @description Return every follow record where the user is the follower.
-         */
-        get: operations["get_user_following_all_api_v1_followers_user__user_id__following_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/following/count/accepted": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Following Count
-         * @description Return the number of accepted follow relationships for a user.
-         */
-        get: operations["get_user_following_count_api_v1_followers_user__user_id__following_count_accepted_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/following/count/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Following Count All
-         * @description Return the total number of users a given user is following.
-         */
-        get: operations["get_user_following_count_all_api_v1_followers_user__user_id__following_count_all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/user/{user_id}/targetUser/{target_user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Followers User Specific User
-         * @description Return the follow relationship between two specific users, if any.
-         */
-        get: operations["read_followers_user_specific_user_api_v1_followers_user__user_id__targetUser__target_user_id__get"];
+        get: operations["read_user_relationship_api_v1_followers_users__user_id__relationship_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1217,7 +958,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Garminconnect Retrieve Activities Days */
+        /**
+         * Garminconnect Retrieve Activities Days
+         * @description Queue a Garmin Connect sync of an explicit date range.
+         *
+         *     Returns ``202`` with a job handle; poll ``GET /activities/ingestion-jobs/{job_id}``
+         *     for the outcome. The range is fetched by a background job, never on this
+         *     request or an API worker thread.
+         */
         get: operations["garminconnect_retrieve_activities_days_api_v1_garminconnect_activities_get"];
         put?: never;
         post?: never;
@@ -3680,7 +3428,7 @@ export interface paths {
          *     6-digit TOTP or an unused ``XXXX-XXXX`` backup code — the
          *     same set of factors accepted at login. Step-up verification
          *     is the single source of truth for the MFA check;
-         *     :func:`auth.mfa.service.disable_user_mfa` only clears state.
+         *     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state.
          *
          *     Args:
          *         request: MFA disable request with current password and
@@ -3723,10 +3471,10 @@ export interface paths {
          *     current password before the binding is committed. The TOTP
          *     code in the request body is the fresh enrolment code from the
          *     user's authenticator app and is verified separately by
-         *     :func:`auth.mfa.service.enable_user_mfa` against the secret
+         *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
          *     issued by ``POST /profile/mfa/setup``. SSO-only accounts may
          *     omit ``current_password`` (see
-         *     :func:`auth.services.step_up_service.verify_step_up_credentials`).
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`).
          *
          *     Args:
          *         request: MFA setup request with TOTP code and (when the
@@ -4014,6 +3762,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/activities/exercise-titles/all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Public Activity Exercise Titles
+         * @description Return all activity exercise titles via the public endpoint.
+         */
+        get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/activities/{activity_id}": {
         parameters: {
             query?: never;
@@ -4022,10 +3790,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Public Activities Activity From Id
-         * @description Return a public activity by ID, or None if not found/not public.
+         * Read Public Activity
+         * @description Return a public activity by ID.
+         *
+         *     Answers 404 when the activity does not exist *or* is not public — the two are
+         *     deliberately indistinguishable so this unauthenticated endpoint cannot be
+         *     used to enumerate which activity ids exist.
          */
-        get: operations["read_public_activities_activity_from_id_api_v1_public_activities__activity_id__get"];
+        get: operations["read_public_activity_api_v1_public_activities__activity_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4034,7 +3806,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities_exercise_titles/all": {
+    "/api/v1/public/activities/{activity_id}/laps": {
         parameters: {
             query?: never;
             header?: never;
@@ -4042,21 +3814,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Public Activities Exercise Titles All
-         * @description Return all activity exercise titles via the public endpoint.
-         *
-         *     Args:
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ActivityExerciseTitles, or None if public sharable
-         *         links are disabled or no entries exist.
-         *
-         *     Raises:
-         *         HTTPException: If server settings are missing or a database
-         *             error occurs.
+         * List Public Activity Laps
+         * @description Return one page of public laps for an activity exposed via shareable link.
          */
-        get: operations["read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get"];
+        get: operations["list_public_activity_laps_api_v1_public_activities__activity_id__laps_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4065,7 +3826,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities_laps/activity_id/{activity_id}/all": {
+    "/api/v1/public/activities/{activity_id}/sets": {
         parameters: {
             query?: never;
             header?: never;
@@ -4073,20 +3834,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Public Activities Laps For Activity All
-         * @description Return public laps for an activity exposed via shareable link.
-         *
-         *     Args:
-         *         activity_id: Activity primary key.
-         *         validate_id: FastAPI dependency that validates the path id.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of ``ActivityLapsRead`` or ``None`` when public sharing
-         *         is disabled, the activity is not public, or the laps are
-         *         hidden.
+         * List Public Activity Sets
+         * @description Return one page of a publicly shared activity's sets.
          */
-        get: operations["read_public_activities_laps_for_activity_all_api_v1_public_activities_laps_activity_id__activity_id__all_get"];
+        get: operations["list_public_activity_sets_api_v1_public_activities__activity_id__sets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4095,24 +3846,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities_sets/activity_id/{activity_id}/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read Public Activities Sets For Activity All */
-        get: operations["read_public_activities_sets_for_activity_all_api_v1_public_activities_sets_activity_id__activity_id__all_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities_streams/activity_id/{activity_id}/all": {
+    "/api/v1/public/activities/{activity_id}/streams": {
         parameters: {
             query?: never;
             header?: never;
@@ -4120,18 +3854,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Public Activities Streams For Activity All
-         * @description Get all public streams for an activity.
-         *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_id: Activity ID validator dep.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of activity streams.
+         * List Public Activity Streams
+         * @description Return one page of a publicly shared activity's streams, with the matching total.
          */
-        get: operations["read_public_activities_streams_for_activity_all_api_v1_public_activities_streams_activity_id__activity_id__all_get"];
+        get: operations["list_public_activity_streams_api_v1_public_activities__activity_id__streams_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4140,7 +3866,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities_streams/activity_id/{activity_id}/stream_type/{stream_type}": {
+    "/api/v1/public/activities/{activity_id}/streams/{stream_type}": {
         parameters: {
             query?: never;
             header?: never;
@@ -4148,20 +3874,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Public Activities Streams For Activity Stream Type
+         * Read Public Activity Stream
          * @description Get a public stream by type for an activity.
          *
-         *     Args:
-         *         activity_id: The activity identifier.
-         *         validate_activity_id: Activity ID dep.
-         *         stream_type: The stream type code.
-         *         validate_activity_stream_type: Type dep.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The activity stream or None.
+         *     Not found when the activity has no such stream, is not public, or public links
+         *     are disabled. The cases are indistinguishable on purpose, since this endpoint
+         *     is unauthenticated.
          */
-        get: operations["read_public_activities_streams_for_activity_stream_type_api_v1_public_activities_streams_activity_id__activity_id__stream_type__stream_type__get"];
+        get: operations["read_public_activity_stream_api_v1_public_activities__activity_id__streams__stream_type__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4170,7 +3890,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/public/activities_workout_steps/activity_id/{activity_id}/all": {
+    "/api/v1/public/activities/{activity_id}/workout-steps": {
         parameters: {
             query?: never;
             header?: never;
@@ -4178,13 +3898,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Public Activity Workout Steps All
-         * @description Get all workout steps for a public activity.
-         *
-         *     Returns:
-         *         List of workout steps or None.
+         * List Public Activity Workout Steps
+         * @description Return one page of a publicly shared activity's workout steps.
          */
-        get: operations["read_public_activity_workout_steps_all_api_v1_public_activities_workout_steps_activity_id__activity_id__all_get"];
+        get: operations["list_public_activity_workout_steps_api_v1_public_activities__activity_id__workout_steps_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4701,7 +4418,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Strava Retrieve Activities Days */
+        /**
+         * Strava Retrieve Activities Days
+         * @description Queue a Strava sync of an explicit date range.
+         *
+         *     Returns ``202`` with a job handle; poll ``GET /activities/ingestion-jobs/{job_id}``
+         *     for the outcome. The range is fetched by a background job, never on this
+         *     request or an API worker thread.
+         */
         get: operations["strava_retrieve_activities_days_api_v1_strava_activities_get"];
         put?: never;
         post?: never;
@@ -4745,23 +4469,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/strava/import/activities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import Activities And Media From Strava Export */
-        post: operations["import_activities_and_media_from_strava_export_api_v1_strava_import_activities_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/strava/import/bikes": {
         parameters: {
             query?: never;
@@ -4771,7 +4478,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Import Bikes From Strava Export */
+        /**
+         * Import Bikes From Strava Export
+         * @description Create the bikes listed in an uploaded Strava ``bikes.csv``.
+         */
         post: operations["import_bikes_from_strava_export_api_v1_strava_import_bikes_post"];
         delete?: never;
         options?: never;
@@ -4788,7 +4498,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Import Shoes From Strava Export */
+        /**
+         * Import Shoes From Strava Export
+         * @description Create the shoes listed in an uploaded Strava ``shoes.csv``.
+         */
         post: operations["import_shoes_from_strava_export_api_v1_strava_import_shoes_post"];
         delete?: never;
         options?: never;
@@ -5207,7 +4920,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read User Photo
+         * @description Serve a user's profile photo when the signed token is valid.
+         *
+         *     Args:
+         *         user_id: The user whose photo to serve.
+         *         token: The signed access token (``?t=``) minted at serialization time.
+         *
+         *     Returns:
+         *         The image bytes.
+         *
+         *     Raises:
+         *         HTTPException: 404 when the token is invalid/forged or no photo exists
+         *             (a 404 — rather than 403 — avoids confirming the user id).
+         */
+        get: operations["read_user_photo_api_v1_users__user_id__photo_get"];
         put?: never;
         post?: never;
         /**
@@ -5290,35 +5018,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/user_images/{user_img}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * User Img Return
-         * @description Retrieves the file path for a user's image.
-         *
-         *     Args:
-         *         user_img (str): The filename or identifier of the user's image.
-         *
-         *     Returns:
-         *         str: The file path to the user's image.
-         *
-         *     Raises:
-         *         HTTPException: If the image path cannot be found.
-         */
-        get: operations["user_img_return_user_images__user_img__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5340,206 +5039,32 @@ export interface components {
             version: string;
         };
         /**
-         * Activity
-         * @description Schema representing a fitness activity.
+         * ActivitiesBulkEdit
+         * @description Schema for a bulk (PATCH) update across the caller's own activities.
+         *
+         *     Every field is optional and only the fields present in the request body are
+         *     applied, so adding a second bulk-editable attribute later does not need a
+         *     new endpoint. Unknown fields are rejected (``extra="forbid"``) rather than
+         *     silently ignored, which is what stops a typo'd field from looking like a
+         *     successful no-op.
          *
          *     Attributes:
-         *         id: Unique activity identifier.
-         *         user_id: ID of the owning user.
-         *         description: Public activity description.
-         *         private_notes: Private notes visible only to owner.
-         *         distance: Total distance in meters.
-         *         name: Activity name.
-         *         activity_type: Numeric code for the sport type.
-         *         start_time: Activity start time (UTC) — may be a
-         *             pre-formatted string after serialization.
-         *         start_time_tz_applied: Start time with timezone applied.
-         *         end_time: Activity end time (UTC) — may be a
-         *             pre-formatted string after serialization.
-         *         end_time_tz_applied: End time with timezone applied.
-         *         timezone: IANA timezone string.
-         *         total_elapsed_time: Total elapsed wall-clock time in
-         *             seconds.
-         *         total_timer_time: Active timer time in seconds.
-         *         city: City where the activity took place.
-         *         town: Town where the activity took place.
-         *         country: Country where the activity took place.
-         *         created_at: Record creation timestamp (UTC) — may be a
-         *             pre-formatted string after serialization.
-         *         created_at_tz_applied: Creation time with timezone
-         *             applied.
-         *         elevation_gain: Total elevation gain in meters.
-         *         elevation_loss: Total elevation loss in meters.
-         *         pace: Average pace in seconds per kilometer.
-         *         average_speed: Average speed in meters per second.
-         *         max_speed: Maximum speed in meters per second.
-         *         average_power: Average power output in watts.
-         *         max_power: Maximum power output in watts.
-         *         normalized_power: Normalized power in watts.
-         *         average_hr: Average heart rate in bpm.
-         *         max_hr: Maximum heart rate in bpm.
-         *         average_cad: Average cadence in rpm/spm.
-         *         max_cad: Maximum cadence in rpm/spm.
-         *         workout_feeling: Subjective feeling rating (0-100).
-         *         workout_rpe: Rate of perceived exertion (10-100).
-         *         calories: Estimated calories burned.
-         *         visibility: Visibility level of the activity
-         *             (0 - public, 1 - followers, 2 - private).
-         *         gear_id: Associated gear identifier.
-         *         strava_gear_id: Strava gear identifier.
-         *         strava_activity_id: Strava activity identifier.
-         *         garminconnect_activity_id: Garmin Connect activity
-         *             identifier.
-         *         garminconnect_gear_id: Garmin Connect gear identifier.
-         *         import_info: Import metadata (imported, import_source,
-         *             import_ISO_time).
-         *         is_hidden: Whether the activity is hidden.
-         *         hide_start_time: Hide the start time from others.
-         *         hide_location: Hide location data from others.
-         *         hide_map: Hide the map from others.
-         *         hide_hr: Hide heart rate data from others.
-         *         hide_power: Hide power data from others.
-         *         hide_cadence: Hide cadence data from others.
-         *         hide_elevation: Hide elevation data from others.
-         *         hide_speed: Hide speed data from others.
-         *         hide_pace: Hide pace data from others.
-         *         hide_laps: Hide lap data from others.
-         *         hide_workout_sets_steps: Hide workout sets and steps.
-         *         hide_gear: Hide gear information from others.
-         *         tracker_manufacturer: Device manufacturer name.
-         *         tracker_model: Device model name.
-         *         map_thumbnail_path: Path to the map thumbnail image.
-         *         total_cycles: Total number of cycles (e.g., pedal strokes) recorded.
+         *         visibility: Visibility to apply to every activity the caller owns.
+         *             0 public, 1 followers, 2 private.
          */
-        Activity: {
-            /** Activity Type */
-            activity_type: number;
-            /** Average Cad */
-            average_cad?: number | null;
-            /** Average Hr */
-            average_hr?: number | null;
-            /** Average Power */
-            average_power?: number | null;
-            /** Average Speed */
-            average_speed?: number | null;
-            /** Calories */
-            calories?: number | null;
-            /** City */
-            city?: string | null;
-            /** Country */
-            country?: string | null;
-            /** Created At */
-            created_at?: string | null;
-            /** Created At Tz Applied */
-            created_at_tz_applied?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Distance */
-            distance: number;
-            /** Elevation Gain */
-            elevation_gain?: number | null;
-            /** Elevation Loss */
-            elevation_loss?: number | null;
-            /** End Time */
-            end_time?: string | null;
-            /** End Time Tz Applied */
-            end_time_tz_applied?: string | null;
-            /** Garminconnect Activity Id */
-            garminconnect_activity_id?: number | null;
-            /** Garminconnect Gear Id */
-            garminconnect_gear_id?: string | null;
-            /** Gear Id */
-            gear_id?: number | null;
-            /** Hide Cadence */
-            hide_cadence?: boolean | null;
-            /** Hide Elevation */
-            hide_elevation?: boolean | null;
-            /** Hide Gear */
-            hide_gear?: boolean | null;
-            /** Hide Hr */
-            hide_hr?: boolean | null;
-            /** Hide Laps */
-            hide_laps?: boolean | null;
-            /** Hide Location */
-            hide_location?: boolean | null;
-            /** Hide Map */
-            hide_map?: boolean | null;
-            /** Hide Pace */
-            hide_pace?: boolean | null;
-            /** Hide Power */
-            hide_power?: boolean | null;
-            /** Hide Speed */
-            hide_speed?: boolean | null;
-            /** Hide Start Time */
-            hide_start_time?: boolean | null;
-            /** Hide Workout Sets Steps */
-            hide_workout_sets_steps?: boolean | null;
-            /** Id */
-            id?: number | null;
-            /** Import Info */
-            import_info?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Is Hidden
-             * @default false
-             */
-            is_hidden: boolean;
-            /** Map Thumbnail Path */
-            map_thumbnail_path?: string | null;
-            /** Max Cad */
-            max_cad?: number | null;
-            /** Max Hr */
-            max_hr?: number | null;
-            /** Max Power */
-            max_power?: number | null;
-            /** Max Speed */
-            max_speed?: number | null;
-            /** Name */
-            name: string;
-            /** Normalized Power */
-            normalized_power?: number | null;
-            /** Pace */
-            pace?: number | null;
-            /** Private Notes */
-            private_notes?: string | null;
-            /** Start Time */
-            start_time?: string | null;
-            /** Start Time Tz Applied */
-            start_time_tz_applied?: string | null;
-            /** Strava Activity Id */
-            strava_activity_id?: number | null;
-            /** Strava Gear Id */
-            strava_gear_id?: string | null;
-            /** Timezone */
-            timezone?: string | null;
-            /** Total Cycles */
-            total_cycles?: number | null;
-            /** Total Elapsed Time */
-            total_elapsed_time?: number | null;
-            /** Total Timer Time */
-            total_timer_time?: number | null;
-            /** Town */
-            town?: string | null;
-            /** Tracker Manufacturer */
-            tracker_manufacturer?: string | null;
-            /** Tracker Model */
-            tracker_model?: string | null;
-            /** User Id */
-            user_id?: number | null;
+        ActivitiesBulkEdit: {
             /** Visibility */
             visibility?: number | null;
-            /** Workout Feeling */
-            workout_feeling?: number | null;
-            /** Workout Rpe */
-            workout_rpe?: number | null;
         };
         /**
          * ActivityEdit
-         * @description Schema for partial updates to an activity.
+         * @description Schema for partial (PATCH) updates to an activity.
+         *
+         *     Every field is optional: only the fields present in the request body are
+         *     applied (``exclude_unset``), and unknown fields are rejected
+         *     (``extra="forbid"``). The activity id comes from the path, not the body.
          *
          *     Attributes:
-         *         id: Activity identifier to update.
          *         description: Public activity description.
          *         private_notes: Private notes (owner only).
          *         name: Activity name.
@@ -5562,7 +5087,7 @@ export interface components {
          */
         ActivityEdit: {
             /** Activity Type */
-            activity_type: number;
+            activity_type?: number | null;
             /** Description */
             description?: string | null;
             /** Gear Id */
@@ -5591,47 +5116,109 @@ export interface components {
             hide_start_time?: boolean | null;
             /** Hide Workout Sets Steps */
             hide_workout_sets_steps?: boolean | null;
-            /** Id */
-            id: number;
             /** Is Hidden */
             is_hidden?: boolean | null;
             /** Name */
-            name: string;
+            name?: string | null;
             /** Private Notes */
             private_notes?: string | null;
             /** Visibility */
             visibility?: number | null;
         };
         /**
-         * ActivityExerciseTitles
-         * @description Schema describing an activity exercise title entry.
+         * ActivityExerciseTitlesRead
+         * @description A stored exercise title, as the API returns it.
          *
          *     Attributes:
-         *         id: Optional database identifier.
-         *         exercise_category: FIT exercise category code.
-         *         exercise_name: FIT exercise name identifier.
-         *         wkt_step_name: Workout step name (may include spaces).
+         *         id: Database identifier.
          */
-        ActivityExerciseTitles: {
+        ActivityExerciseTitlesRead: {
             /** Exercise Category */
             exercise_category: number;
             /** Exercise Name */
             exercise_name: number;
             /** Id */
-            id?: number | null;
+            id: number;
             /** Wkt Step Name */
             wkt_step_name: string;
+        };
+        /**
+         * ActivityIngestionJobRead
+         * @description An accepted ingestion request and the current state of its import.
+         *
+         *     One shape for all kinds, so a client has a single thing to poll: an upload, a
+         *     bulk-import file and a provider refresh differ in how the activities are
+         *     obtained, not in what the caller needs to know about progress.
+         *
+         *     Attributes:
+         *         id: Job identifier, returned by the route that accepted the request.
+         *         kind: Whether this job imports an upload, imports one dropped
+         *             bulk-import file, or syncs from providers.
+         *         filename: Original client filename; only set for uploads and
+         *             bulk-import files.
+         *         import_source: For a bulk import, the archive format it reads.
+         *         files_total: For a bulk import, importable files in its archive.
+         *         files_done: For a bulk import, files imported so far.
+         *         files_failed: For a bulk import, files that could not be imported. A
+         *             finished import with failures still ends ``completed``.
+         *         provider: The one provider a refresh syncs; ``None`` when it syncs every
+         *             linked provider.
+         *         status: Current lifecycle state.
+         *         error_code: Sanitized failure reason when ``status`` is failed.
+         *         activity_ids: Ids created by the import once it completes.
+         *         created_at: When the request was accepted.
+         *         updated_at: When the job last changed state.
+         *         completed_at: When the job reached a terminal state.
+         */
+        ActivityIngestionJobRead: {
+            /**
+             * Activity Ids
+             * @default []
+             */
+            activity_ids: number[];
+            /** Completed At */
+            completed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            error_code?: components["schemas"]["IngestionJobErrorCode"] | null;
+            /** Filename */
+            filename?: string | null;
+            /** Files Done */
+            files_done?: number | null;
+            /** Files Failed */
+            files_failed?: number | null;
+            /** Files Total */
+            files_total?: number | null;
+            /** Id */
+            id: string;
+            /** Import Source */
+            import_source?: string | null;
+            kind: components["schemas"]["IngestionJobKind"];
+            /** Provider */
+            provider?: string | null;
+            status: components["schemas"]["IngestionJobStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * ActivityLapsRead
          * @description Schema for reading activity laps.
          *
+         *     ``start_time`` crosses the API as a timezone-aware UTC instant, matching the
+         *     parent activity. Clients localize it for display using that activity's
+         *     ``timezone``; a pre-formatted wall clock would carry no offset and so could
+         *     not be converted or round-tripped.
+         *
          *     Attributes:
          *         id: Lap primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Lap start time as datetime.
-         *         timezone: Activity timezone for
-         *             serialization (excluded from output).
+         *         start_time: Lap start as a timezone-aware UTC instant.
          */
         ActivityLapsRead: {
             /** Activity Id */
@@ -5690,7 +5277,10 @@ export interface components {
             start_position_lat?: number | null;
             /** Start Position Long */
             start_position_long?: number | null;
-            /** Start Time */
+            /**
+             * Start Time
+             * Format: date-time
+             */
             start_time: string;
             /** Sub Sport */
             sub_sport?: string | null;
@@ -5712,29 +5302,172 @@ export interface components {
             total_work?: number | null;
         };
         /**
-         * ActivityMedia
-         * @description Activity media payload (photo/video attached to an activity).
+         * ActivityMediaRead
+         * @description A photo attached to an activity, as returned to a client.
+         *
+         *     Read-only by construction: every field is populated for a media record that
+         *     exists, so none is optional. The stored ``StorageProvider`` key is
+         *     deliberately absent — it is not an address, and a client has nothing to do
+         *     with it; see :class:`~modules.activities.activity_media.contracts.ActivityMediaRecord`.
          */
-        ActivityMedia: {
+        ActivityMediaRead: {
             /** Activity Id */
             activity_id: number;
             /** Id */
-            id?: number | null;
-            /** Media Path */
-            media_path: string;
+            id: number;
             /** Media Type */
             media_type: number;
+            /** Url */
+            url: string;
+        };
+        /**
+         * ActivityRead
+         * @description Schema representing a stored fitness activity — what the API returns.
+         *
+         *     Extends :class:`ActivityBase` with the fields the **server** owns: they are
+         *     read out of a stored row and are never accepted from an ingestion producer,
+         *     which is exactly why they live here rather than on the shared base.
+         *
+         *     Attributes:
+         *         id: Unique activity identifier, assigned on insert.
+         *         map_thumbnail_path: Storage key of the generated map thumbnail, written
+         *             by the thumbnail subsystem reacting to ``activity.created``. Server-side
+         *             only: it is excluded from serialization, so a client never receives it.
+         *         map_thumbnail_url: The servable, token-gated URL of the thumbnail, set by
+         *             the service layer for a viewer allowed to see the map.
+         */
+        ActivityRead: {
+            /** Activity Type */
+            activity_type: number;
+            /** Average Cad */
+            average_cad?: number | null;
+            /** Average Hr */
+            average_hr?: number | null;
+            /** Average Power */
+            average_power?: number | null;
+            /** Average Speed */
+            average_speed?: number | null;
+            /** Calories */
+            calories?: number | null;
+            /** City */
+            city?: string | null;
+            /** Country */
+            country?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Distance */
+            distance: number;
+            /** Elevation Gain */
+            elevation_gain?: number | null;
+            /** Elevation Loss */
+            elevation_loss?: number | null;
+            /** End Time */
+            end_time?: string | null;
+            /** Garminconnect Activity Id */
+            garminconnect_activity_id?: number | null;
+            /** Garminconnect Gear Id */
+            garminconnect_gear_id?: string | null;
+            /** Gear Id */
+            gear_id?: number | null;
+            /** Hide Cadence */
+            hide_cadence?: boolean | null;
+            /** Hide Elevation */
+            hide_elevation?: boolean | null;
+            /** Hide Gear */
+            hide_gear?: boolean | null;
+            /** Hide Hr */
+            hide_hr?: boolean | null;
+            /** Hide Laps */
+            hide_laps?: boolean | null;
+            /** Hide Location */
+            hide_location?: boolean | null;
+            /** Hide Map */
+            hide_map?: boolean | null;
+            /** Hide Pace */
+            hide_pace?: boolean | null;
+            /** Hide Power */
+            hide_power?: boolean | null;
+            /** Hide Speed */
+            hide_speed?: boolean | null;
+            /** Hide Start Time */
+            hide_start_time?: boolean | null;
+            /** Hide Workout Sets Steps */
+            hide_workout_sets_steps?: boolean | null;
+            /** Id */
+            id: number;
+            /** Import Info */
+            import_info?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Is Hidden
+             * @default false
+             */
+            is_hidden: boolean;
+            /** Map Thumbnail Url */
+            map_thumbnail_url?: string | null;
+            /** Max Cad */
+            max_cad?: number | null;
+            /** Max Hr */
+            max_hr?: number | null;
+            /** Max Power */
+            max_power?: number | null;
+            /** Max Speed */
+            max_speed?: number | null;
+            /** Name */
+            name: string;
+            /** Normalized Power */
+            normalized_power?: number | null;
+            /** Pace */
+            pace?: number | null;
+            /** Private Notes */
+            private_notes?: string | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** Strava Activity Id */
+            strava_activity_id?: number | null;
+            /** Strava Gear Id */
+            strava_gear_id?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Total Cycles */
+            total_cycles?: number | null;
+            /** Total Elapsed Time */
+            total_elapsed_time?: number | null;
+            /** Total Timer Time */
+            total_timer_time?: number | null;
+            /** Town */
+            town?: string | null;
+            /** Tracker Manufacturer */
+            tracker_manufacturer?: string | null;
+            /** Tracker Model */
+            tracker_model?: string | null;
+            /** User Id */
+            user_id?: number | null;
+            /** Version */
+            version?: number | null;
+            /** Visibility */
+            visibility?: number | null;
+            /** Workout Feeling */
+            workout_feeling?: number | null;
+            /** Workout Rpe */
+            workout_rpe?: number | null;
         };
         /**
          * ActivitySetsRead
          * @description Schema for reading activity workout sets.
          *
+         *     ``start_time`` crosses the API as a timezone-aware UTC instant, matching the
+         *     parent activity. Clients localize it for display using that activity's
+         *     ``timezone``; a pre-formatted wall clock would carry no offset and so could
+         *     not be converted or round-tripped.
+         *
          *     Attributes:
          *         id: Activity set primary key.
          *         activity_id: Parent activity ID.
-         *         start_time: Set start time as datetime.
-         *         timezone: Activity timezone for
-         *             serialization (excluded from output).
+         *         start_time: Set start as a timezone-aware UTC instant.
          */
         ActivitySetsRead: {
             /** Activity Id */
@@ -5751,11 +5484,32 @@ export interface components {
             repetitions?: number | null;
             /** Set Type */
             set_type: string;
-            /** Start Time */
+            /**
+             * Start Time
+             * Format: date-time
+             */
             start_time: string;
             /** Weight */
             weight?: number | null;
         };
+        /**
+         * ActivitySortField
+         * @description Sort keys the activity list endpoints accept, in the order they appear in the UI.
+         *
+         *     A real enum so FastAPI validates the query parameter and publishes the accepted values.
+         * @enum {string}
+         */
+        ActivitySortField: "type" | "name" | "location" | "start_time" | "duration" | "distance" | "pace" | "calories" | "elevation" | "average_hr";
+        /**
+         * ActivitySortOrder
+         * @description Accepted sort directions.
+         *
+         *     Attributes:
+         *         ASC: Ascending.
+         *         DESC: Descending.
+         * @enum {string}
+         */
+        ActivitySortOrder: "asc" | "desc";
         /**
          * ActivitySportStats
          * @description Aggregated stats for a single sport over a timeframe.
@@ -5783,7 +5537,7 @@ export interface components {
             time: number;
         };
         /**
-         * ActivityStats
+         * ActivityStatsRead
          * @description Per-sport aggregated stats for a timeframe (week/month).
          *
          *     Attributes:
@@ -5803,7 +5557,7 @@ export interface components {
          *         snowshoeing: Stats for snowshoeing activities.
          *         inline_skating: Stats for inline skating activities.
          */
-        ActivityStats: {
+        ActivityStatsRead: {
             bike?: components["schemas"]["ActivitySportStats"];
             hike?: components["schemas"]["ActivitySportStats"];
             inline_skating?: components["schemas"]["ActivitySportStats"];
@@ -5826,6 +5580,9 @@ export interface components {
          *
          *     Attributes:
          *         id: Unique stream identifier.
+         *         zone_percentages: Zone breakdowns keyed by metric (e.g. 'hr'). Computed
+         *             when the stream is served, from the owner's current thresholds; never
+         *             stored, so it cannot go stale.
          */
         ActivityStreamsRead: {
             /** Activity Id */
@@ -5871,31 +5628,16 @@ export interface components {
          */
         ActivityVisibility: "public" | "followers" | "private";
         /**
-         * ActivityWorkoutSteps
-         * @description Activity workout step schema.
+         * ActivityWorkoutStepsRead
+         * @description A stored workout step, as the API returns it.
          *
          *     Attributes:
          *         id: Primary key.
          *         activity_id: FK to activities table.
-         *         message_index: Workout step message index.
-         *         duration_type: Workout step duration type.
-         *         duration_value: Workout step duration value.
-         *         target_type: Workout step target type.
-         *         target_value: Workout step target value.
-         *         intensity: Workout step intensity type.
-         *         notes: Workout step notes.
-         *         exercise_category: Workout step exercise
-         *             category.
-         *         exercise_name: Exercise name ID.
-         *         exercise_weight: Workout step exercise weight.
-         *         weight_display_unit: Workout step weight
-         *             display unit.
-         *         secondary_target_value: Workout step secondary
-         *             target value.
          */
-        ActivityWorkoutSteps: {
+        ActivityWorkoutStepsRead: {
             /** Activity Id */
-            activity_id?: number | null;
+            activity_id: number;
             /** Duration Type */
             duration_type: string;
             /** Duration Value */
@@ -5907,7 +5649,7 @@ export interface components {
             /** Exercise Weight */
             exercise_weight?: number | null;
             /** Id */
-            id?: number | null;
+            id: number;
             /** Intensity */
             intensity?: string | null;
             /** Message Index */
@@ -5923,13 +5665,33 @@ export interface components {
             /** Weight Display Unit */
             weight_display_unit?: string | null;
         };
-        /** Body_create_activity_with_uploaded_file_api_v1_activities_create_upload_post */
-        Body_create_activity_with_uploaded_file_api_v1_activities_create_upload_post: {
+        /** Body_create_activity_media_api_v1_activities__activity_id__media_post */
+        Body_create_activity_media_api_v1_activities__activity_id__media_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_create_activity_with_uploaded_file_api_v1_activities_upload_post */
+        Body_create_activity_with_uploaded_file_api_v1_activities_upload_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_create_bulk_import_from_archive_api_v1_activities_bulk_import_post */
+        Body_create_bulk_import_from_archive_api_v1_activities_bulk_import_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_import_bikes_from_strava_export_api_v1_strava_import_bikes_post */
+        Body_import_bikes_from_strava_export_api_v1_strava_import_bikes_post: {
             /** File */
             file: string;
         };
         /** Body_import_profile_data_api_v1_profile_import_post */
         Body_import_profile_data_api_v1_profile_import_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_import_shoes_from_strava_export_api_v1_strava_import_shoes_post */
+        Body_import_shoes_from_strava_export_api_v1_strava_import_shoes_post: {
             /** File */
             file: string;
         };
@@ -5959,11 +5721,6 @@ export interface components {
         };
         /** Body_upload_login_photo_api_v1_server_settings_upload_login_post */
         Body_upload_login_photo_api_v1_server_settings_upload_login_post: {
-            /** File */
-            file: string;
-        };
-        /** Body_upload_media_api_v1_activities_media_upload_activity_id__activity_id__post */
-        Body_upload_media_api_v1_activities_media_upload_activity_id__activity_id__post: {
             /** File */
             file: string;
         };
@@ -6019,6 +5776,15 @@ export interface components {
          * @enum {string}
          */
         Currency: "euro" | "dollar" | "pound";
+        /** CursorPage[ActivityRead] */
+        CursorPage_ActivityRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityRead"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Num Records */
+            num_records: number;
+        };
         /**
          * DaySummary
          * @description Daily activity summary within a week.
@@ -6093,17 +5859,49 @@ export interface components {
          */
         FastingType: "16:8" | "18:6" | "20:4" | "OMAD" | "24h" | "36h" | "48h" | "72h" | "custom";
         /**
-         * Follower
-         * @description Serialized representation of a follower relationship.
+         * FollowRelationshipRead
+         * @description Serialized representation of a follow relationship.
+         *
+         *     Attributes:
+         *         follower_id: The user who follows (the requester).
+         *         followee_id: The user being followed.
+         *         status: Whether the request is pending or accepted.
          */
-        Follower: {
+        FollowRelationshipRead: {
+            /** Followee Id */
+            followee_id: number;
             /** Follower Id */
             follower_id: number;
-            /** Following Id */
-            following_id: number;
-            /** Is Accepted */
-            is_accepted: boolean;
+            status: components["schemas"]["FollowStatus"];
         };
+        /**
+         * FollowRequestAccept
+         * @description The body of an accept applied to a pending follow request.
+         *
+         *     Named for the single transition it expresses. ``accepted`` is the only valid
+         *     one: declining deletes the request rather than parking it in a rejected
+         *     state, so a later request from the same user is a fresh decision instead of
+         *     hitting a tombstone. The field is still required so the accept is explicit in
+         *     the payload rather than implied by the route. Unknown fields are rejected
+         *     (``extra="forbid"``) rather than silently ignored, matching every other
+         *     request-body schema in the activities/followers template modules.
+         *
+         *     Attributes:
+         *         status: The target status; only ``accepted`` is valid.
+         */
+        FollowRequestAccept: {
+            status: components["schemas"]["FollowStatus"];
+        };
+        /**
+         * FollowStatus
+         * @description Status of a follow relationship.
+         *
+         *     Attributes:
+         *         PENDING: The follow request has been sent but not yet accepted.
+         *         ACCEPTED: The follow request has been accepted.
+         * @enum {string}
+         */
+        FollowStatus: "pending" | "accepted";
         /** GarminLogin */
         GarminLogin: {
             /**
@@ -6115,38 +5913,6 @@ export interface components {
             password: string;
             /** Username */
             username: string;
-        };
-        /**
-         * GearActivitiesListResponse
-         * @description Response model for paginated gear activities.
-         *
-         *     Attributes:
-         *         total: Total number of activities for gear.
-         *         num_records: Number of records returned.
-         *         page_number: Current page number.
-         *         records: List of activity records.
-         */
-        GearActivitiesListResponse: {
-            /**
-             * Num Records
-             * @description Number of records returned
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of activity records
-             */
-            records?: components["schemas"]["Activity"][];
-            /**
-             * Total
-             * @description Total number of activities for this gear
-             */
-            total: number;
         };
         /**
          * GearComponentCreate
@@ -6728,11 +6494,6 @@ export interface components {
          * @enum {string}
          */
         HRVStatus: "BALANCED" | "UNBALANCED" | "LOW" | "POOR";
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
         /**
          * HealthDashboardResponse
          * @description Consolidated dashboard response with current health metrics.
@@ -6816,7 +6577,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Data source for the record */
-            source?: components["schemas"]["health__health_fasting__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -6935,7 +6696,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Data source for the record */
-            source?: components["schemas"]["health__health_fasting__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7028,7 +6789,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Data source for the record */
-            source?: components["schemas"]["health__health_fasting__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7064,7 +6825,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Source of the data */
-            source?: components["schemas"]["health__health_poop__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
         };
         /**
          * HealthPoopDashboard
@@ -7139,7 +6900,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Source of the data */
-            source?: components["schemas"]["health__health_poop__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7174,7 +6935,7 @@ export interface components {
              */
             notes?: string | null;
             /** @description Source of the data */
-            source?: components["schemas"]["health__health_poop__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7346,7 +7107,7 @@ export interface components {
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
             /** @description Source of the sleep data */
-            source?: components["schemas"]["health__health_sleep__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -7598,7 +7359,7 @@ export interface components {
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
             /** @description Source of the sleep data */
-            source?: components["schemas"]["health__health_sleep__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -7820,7 +7581,7 @@ export interface components {
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
             /** @description Source of the sleep data */
-            source?: components["schemas"]["health__health_sleep__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -7851,7 +7612,7 @@ export interface components {
              */
             date?: string | null;
             /** @description Source of the steps data */
-            source?: components["schemas"]["health__health_steps__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -7929,7 +7690,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the steps data */
-            source?: components["schemas"]["health__health_steps__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -7961,7 +7722,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the steps data */
-            source?: components["schemas"]["health__health_steps__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -8090,7 +7851,7 @@ export interface components {
              */
             date?: string | null;
             /** @description Source of the water intake data */
-            source?: components["schemas"]["health__health_water__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
         };
         /**
          * HealthWaterDashboard
@@ -8161,7 +7922,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the water intake data */
-            source?: components["schemas"]["health__health_water__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8192,7 +7953,7 @@ export interface components {
              */
             id: number;
             /** @description Source of the water intake data */
-            source?: components["schemas"]["health__health_water__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8248,7 +8009,7 @@ export interface components {
              */
             physique_rating?: number | null;
             /** @description Source of the weight data */
-            source?: components["schemas"]["health__health_weight__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * Visceral Fat
              * @description Visceral fat
@@ -8372,7 +8133,7 @@ export interface components {
              */
             physique_rating?: number | null;
             /** @description Source of the weight data */
-            source?: components["schemas"]["health__health_weight__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8444,7 +8205,7 @@ export interface components {
              */
             physique_rating?: number | null;
             /** @description Source of the weight data */
-            source?: components["schemas"]["health__health_weight__schema__Source"] | null;
+            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -8883,6 +8644,29 @@ export interface components {
             token: string;
         };
         /**
+         * IngestionJobErrorCode
+         * @description Stable, sanitized reasons an ingestion job can fail.
+         *
+         *     Deliberately a closed set. The underlying exception text can carry
+         *     filesystem paths, parser internals and provider tokens, so the client is
+         *     given a code it can translate instead of a message the server happened to
+         *     produce.
+         * @enum {string}
+         */
+        IngestionJobErrorCode: "unsupported_format" | "invalid_file" | "no_activities_found" | "processing_failed" | "provider_unavailable";
+        /**
+         * IngestionJobKind
+         * @description What kind of ingestion the job performs.
+         * @enum {string}
+         */
+        IngestionJobKind: "upload" | "refresh" | "bulk_import";
+        /**
+         * IngestionJobStatus
+         * @description Lifecycle states of an ingestion job.
+         * @enum {string}
+         */
+        IngestionJobStatus: "pending" | "processing" | "completed" | "failed";
+        /**
          * Interval
          * @description Recurrence intervals for user goals.
          *
@@ -8950,14 +8734,14 @@ export interface components {
             url: string;
         };
         /**
-         * LifetimeSummaryResponse
+         * LifetimeSummaryRead
          * @description Lifetime summary with yearly breakdowns.
          *
          *     Attributes:
          *         breakdown: List of yearly summaries.
          *         type_breakdown: Optional breakdown by type.
          */
-        LifetimeSummaryResponse: {
+        LifetimeSummaryRead: {
             /**
              * Activity Count
              * @description Number of activities
@@ -9067,7 +8851,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -9140,7 +8924,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -9204,14 +8988,6 @@ export interface components {
              * @description Whether MFA is enabled
              */
             mfa_enabled: boolean;
-        };
-        /**
-         * MessageResponse
-         * @description Generic message response for follower mutation endpoints.
-         */
-        MessageResponse: {
-            /** Detail */
-            detail: string;
         };
         /**
          * MobileSessionResponse
@@ -9281,14 +9057,14 @@ export interface components {
             total_elevation_gain: number;
         };
         /**
-         * MonthlySummaryResponse
+         * MonthlySummaryRead
          * @description Monthly summary with weekly breakdowns.
          *
          *     Attributes:
          *         breakdown: List of weekly summaries.
          *         type_breakdown: Optional breakdown by type.
          */
-        MonthlySummaryResponse: {
+        MonthlySummaryRead: {
             /**
              * Activity Count
              * @description Number of activities
@@ -9375,6 +9151,97 @@ export interface components {
              */
             user_id: number;
         };
+        /** Page[ActivityLapsRead] */
+        Page_ActivityLapsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityLapsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivityMediaRead] */
+        Page_ActivityMediaRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityMediaRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivityRead] */
+        Page_ActivityRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivitySetsRead] */
+        Page_ActivitySetsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivitySetsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivityStreamsRead] */
+        Page_ActivityStreamsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityStreamsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[ActivityWorkoutStepsRead] */
+        Page_ActivityWorkoutStepsRead_: {
+            /** Items */
+            items: components["schemas"]["ActivityWorkoutStepsRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[FollowRelationshipRead] */
+        Page_FollowRelationshipRead_: {
+            /** Items */
+            items: components["schemas"]["FollowRelationshipRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /**
          * PasswordResetConfirm
          * @description Request schema for confirming a password reset.
@@ -9435,6 +9302,60 @@ export interface components {
          */
         PasswordType: "strict" | "length_only";
         /**
+         * ProblemDetail
+         * @description An RFC 9457 problem document, as returned for every API error.
+         *
+         *     Declared as a model so it appears in the generated OpenAPI schema and the
+         *     frontend's typed client, rather than being an undocumented dict shape.
+         *
+         *     Attributes:
+         *         type: Stable URN identifying the error kind; the member a client should
+         *             branch on. ``about:blank`` when the status code says everything.
+         *         title: Short, human-readable summary of the error kind. Does not vary
+         *             between occurrences of the same ``type``.
+         *         status: The HTTP status code, repeated in the body so a document that has
+         *             been logged or forwarded is still self-describing.
+         *         detail: Human-readable explanation specific to this occurrence. Safe to
+         *             show a user; never carries internal diagnostics.
+         *         instance: The request path the error occurred on.
+         *         request_id: The ``X-Request-ID`` for this request, when one was assigned.
+         *             Quoting it in a bug report resolves to the exact server log line.
+         *         errors: Field-level validation failures, present only for a request
+         *             validation error.
+         */
+        ProblemDetail: {
+            /** Detail */
+            detail: string;
+            /**
+             * Errors
+             * @default null
+             */
+            errors: {
+                [key: string]: unknown;
+            }[] | null;
+            /**
+             * Instance
+             * @default null
+             */
+            instance: string | null;
+            /**
+             * Request Id
+             * @default null
+             */
+            request_id: string | null;
+            /** Status */
+            status: number;
+            /** Title */
+            title: string;
+            /**
+             * Type
+             * @default about:blank
+             */
+            type: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ProfileUpdate
          * @description Schema for self-service profile updates.
          *
@@ -9459,8 +9380,13 @@ export interface components {
          *         max_heart_rate: Maximum heart rate in bpm.
          *         first_day_of_week: First day of the week.
          *         currency: Preferred currency.
-         *         photo_path: Server-issued photo path. Validated to
-         *             stay within the user's own photo directory.
+         *         timezone: IANA timezone the athlete lives in.
+         *
+         *     Note:
+         *         ``photo_path`` is deliberately absent. The photo is a
+         *         server-issued storage key written only by the upload and
+         *         delete endpoints, so accepting it here would let a caller
+         *         repoint their avatar at another user's blob.
          */
         ProfileUpdate: {
             /** Birthdate */
@@ -9478,12 +9404,24 @@ export interface components {
             max_heart_rate?: number | null;
             /** Name */
             name?: string | null;
-            /** Photo Path */
-            photo_path?: string | null;
             preferred_language?: components["schemas"]["Language"] | null;
+            /** Timezone */
+            timezone?: string | null;
             units?: components["schemas"]["Units"] | null;
             /** Username */
             username?: string | null;
+        };
+        /**
+         * RelationshipRead
+         * @description The authenticated user's relationship with another user, both directions.
+         *
+         *     Attributes:
+         *         outgoing: The authenticated user's follow of the other user, if any.
+         *         incoming: The other user's follow of the authenticated user, if any.
+         */
+        RelationshipRead: {
+            incoming?: components["schemas"]["FollowRelationshipRead"] | null;
+            outgoing?: components["schemas"]["FollowRelationshipRead"] | null;
         };
         /**
          * ServerSettingsEdit
@@ -9894,7 +9832,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -10211,7 +10149,7 @@ export interface components {
          *
          *     For SSO-only accounts (no local password set), the password
          *     field may be omitted and the password check is skipped — see
-         *     :func:`auth.services.step_up_service.verify_step_up_credentials`
+         *     :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
          *     and ``docs/developer-guide/auth-boundary.md`` for the rationale
          *     and the tracked SSO-only step-up gap.
          *
@@ -10471,7 +10409,7 @@ export interface components {
             pending_admin_approval: boolean;
             /**
              * Photo Path
-             * @description Path to user's photo
+             * @description Servable URL of the user's photo (read-only)
              */
             photo_path?: string | null;
             /**
@@ -10479,6 +10417,11 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
             /**
              * @description User units (metric, imperial)
              * @default metric
@@ -10757,7 +10700,7 @@ export interface components {
             /** @description Type of goal metric being tracked */
             goal_type: components["schemas"]["GoalType"];
             /** @description Goal time interval */
-            interval: components["schemas"]["users__users_goals__schema__Interval"];
+            interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
         };
         /**
          * UsersGoalProgress
@@ -10952,7 +10895,7 @@ export interface components {
              */
             id: number;
             /** @description Goal time interval */
-            interval: components["schemas"]["users__users_goals__schema__Interval"];
+            interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
             /**
              * User Id
              * @description User who owns this goal
@@ -11258,7 +11201,7 @@ export interface components {
             pending_admin_approval: boolean;
             /**
              * Photo Path
-             * @description Path to user's photo
+             * @description Servable URL of the user's photo (read-only)
              */
             photo_path?: string | null;
             /**
@@ -11266,6 +11209,11 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
             /**
              * @description User units (metric, imperial)
              * @default metric
@@ -11456,7 +11404,7 @@ export interface components {
             pending_admin_approval: boolean;
             /**
              * Photo Path
-             * @description Path to user's photo
+             * @description Servable URL of the user's photo (read-only)
              */
             photo_path?: string | null;
             /**
@@ -11464,6 +11412,11 @@ export interface components {
              * @default en
              */
             preferred_language: components["schemas"]["Language"];
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
             /**
              * @description User units (metric, imperial)
              * @default metric
@@ -11607,6 +11560,11 @@ export interface components {
              */
             preferred_language: components["schemas"]["Language"];
             /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
              * @description User units (metric, imperial)
              * @default metric
              */
@@ -11617,18 +11575,19 @@ export interface components {
              */
             username: string;
         };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
+        /**
+         * VisibilityUpdateRead
+         * @description Result of a bulk visibility change across a user's activities.
+         *
+         *     Attributes:
+         *         detail: Human-readable outcome of the operation.
+         *         updated: Number of activities whose visibility changed.
+         */
+        VisibilityUpdateRead: {
+            /** Detail */
+            detail: string;
+            /** Updated */
+            updated: number;
         };
         /**
          * WeekDay
@@ -11690,14 +11649,14 @@ export interface components {
             week_number: number;
         };
         /**
-         * WeeklySummaryResponse
+         * WeeklySummaryRead
          * @description Weekly summary with daily breakdowns.
          *
          *     Attributes:
          *         breakdown: List of daily summaries.
          *         type_breakdown: Optional breakdown by type.
          */
-        WeeklySummaryResponse: {
+        WeeklySummaryRead: {
             /**
              * Activity Count
              * @description Number of activities
@@ -11784,14 +11743,14 @@ export interface components {
             year_number: number;
         };
         /**
-         * YearlySummaryResponse
+         * YearlySummaryRead
          * @description Yearly summary with monthly breakdowns.
          *
          *     Attributes:
          *         breakdown: List of monthly summaries.
          *         type_breakdown: Optional breakdown by type.
          */
-        YearlySummaryResponse: {
+        YearlySummaryRead: {
             /**
              * Activity Count
              * @description Number of activities
@@ -11841,7 +11800,7 @@ export interface components {
          *         mfa_code: The MFA code to verify (6-digit TOTP or
          *             9-char backup code).
          */
-        auth__mfa__schema__MFARequest: {
+        modules__auth__mfa__schema__MFARequest: {
             /**
              * Mfa Code
              * @description MFA code (6-digit TOTP or XXXX-XXXX)
@@ -11849,7 +11808,7 @@ export interface components {
             mfa_code: string;
         };
         /** MFARequest */
-        garmin__schema__MFARequest: {
+        modules__garmin__schema__MFARequest: {
             /** Mfa Code */
             mfa_code: string;
         };
@@ -11865,7 +11824,7 @@ export interface components {
          *         ALL_TIME: All time interval.
          * @enum {string}
          */
-        health__constants__Interval: "last_7_days" | "last_30_days" | "last_90_days" | "last_year" | "all_time";
+        modules__health__constants__Interval: "last_7_days" | "last_30_days" | "last_90_days" | "last_year" | "all_time";
         /**
          * Source
          * @description Enumeration of data sources for fasting records.
@@ -11875,7 +11834,7 @@ export interface components {
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        health__health_fasting__schema__Source: "manual" | "garmin";
+        modules__health__health_fasting__schema__Source: "manual" | "garmin";
         /**
          * Source
          * @description Enumeration of data sources for poop records.
@@ -11884,7 +11843,7 @@ export interface components {
          *         MANUAL: Manually entered data.
          * @enum {string}
          */
-        health__health_poop__schema__Source: "manual";
+        modules__health__health_poop__schema__Source: "manual";
         /**
          * Source
          * @description Enum representing the source of sleep health data.
@@ -11893,7 +11852,7 @@ export interface components {
          *         GARMIN: Sleep data sourced from Garmin devices or services.
          * @enum {string}
          */
-        health__health_sleep__schema__Source: "garmin";
+        modules__health__health_sleep__schema__Source: "garmin";
         /**
          * Source
          * @description An enumeration representing supported sources for the application.
@@ -11902,7 +11861,7 @@ export interface components {
          *         GARMIN: Garmin health data source
          * @enum {string}
          */
-        health__health_steps__schema__Source: "garmin";
+        modules__health__health_steps__schema__Source: "garmin";
         /**
          * Source
          * @description Enumeration of data sources for water intake records.
@@ -11912,7 +11871,7 @@ export interface components {
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        health__health_water__schema__Source: "manual" | "garmin";
+        modules__health__health_water__schema__Source: "manual" | "garmin";
         /**
          * Source
          * @description Enumeration of data sources for health weight records.
@@ -11921,7 +11880,7 @@ export interface components {
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        health__health_weight__schema__Source: "garmin";
+        modules__health__health_weight__schema__Source: "garmin";
         /**
          * Interval
          * @description Recurrence intervals for user goals.
@@ -11933,7 +11892,7 @@ export interface components {
          *         YEARLY: Yearly recurrence interval.
          * @enum {string}
          */
-        users__users_goals__schema__Interval: "daily" | "weekly" | "monthly" | "yearly";
+        modules__users__users_goals__schema__Interval: "daily" | "weekly" | "monthly" | "yearly";
     };
     responses: never;
     parameters: never;
@@ -11943,64 +11902,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    activity_media_return_activity_media__media__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                media: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    activity_thumbnail_return_activity_thumbnails__thumbnail__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                thumbnail: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     about_api_v1_about_get: {
         parameters: {
             query?: never;
@@ -12019,11 +11920,157 @@ export interface operations {
                     "application/json": components["schemas"]["AboutResponse"];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
-    create_activity_with_bulk_import_api_v1_activities_create_bulkimport_post: {
+    list_own_activities_api_v1_activities_get: {
+        parameters: {
+            query?: {
+                type?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                name?: string | null;
+                sort_by?: components["schemas"]["ActivitySortField"] | null;
+                sort_order?: components["schemas"]["ActivitySortOrder"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_activities_api_v1_activities_patch: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivitiesBulkEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisibilityUpdateRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    create_bulk_import_from_archive_api_v1_activities_bulk_import_post: {
+        parameters: {
+            query?: {
+                /** @description The archive layout: `generic` for plain activity files, or a provider export such as `strava`. */
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_bulk_import_from_archive_api_v1_activities_bulk_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    create_bulk_import_from_folder_api_v1_activities_bulk_import_folder_post: {
+        parameters: {
+            query?: {
+                /** @description The folder layout: `generic` for plain activity files, or a provider export such as `strava`. */
+                source?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12036,35 +12083,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
-    create_activity_with_uploaded_file_api_v1_activities_create_upload_post: {
-        parameters: {
-            query?: {
-                api_key?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_create_activity_with_uploaded_file_api_v1_activities_create_upload_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][];
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -12073,51 +12092,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    edit_activity_api_v1_activities_edit_put: {
+    list_activity_exercise_titles_api_v1_activities_exercise_titles_all_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ActivityEdit"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_gear_activities_api_v1_activities_gear__gear_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-            };
             cookie?: never;
         };
         requestBody?: never;
@@ -12128,7 +12121,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
+                    "application/json": components["schemas"]["ActivityExerciseTitlesRead"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_following_feed_api_v1_activities_feed_get: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CursorPage_ActivityRead_"];
                 };
             };
             /** @description Validation Error */
@@ -12137,17 +12162,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_gear_activities_list_api_v1_activities_gear__gear_id__list_get: {
+    list_gear_activities_api_v1_activities_gears__gear_id__get: {
         parameters: {
             query?: {
-                /** @description Page number */
                 page_number?: number | null;
-                /** @description Records per page */
                 num_records?: number | null;
             };
             header?: never;
@@ -12164,7 +12196,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearActivitiesListResponse"];
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
                 };
             };
             /** @description Validation Error */
@@ -12173,189 +12205,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_gear_activities_number_api_v1_activities_gear__gear_id__number_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_gear_activities_with_pagination_api_v1_activities_gear__gear_id__page_number__page_number__num_records__num_records__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_id: number;
-                page_number: number;
-                num_records: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_contain_name_api_v1_activities_name_contains__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_number_api_v1_activities_number_get: {
+    read_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get: {
         parameters: {
             query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name_search?: string | null;
-                activity_type?: number | null;
+                api_key?: string | null;
             };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_refresh_api_v1_activities_refresh_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-        };
-    };
-    read_activities_types_api_v1_activities_types_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    } | null;
-                };
-            };
-        };
-    };
-    read_activities_followed_user_activities_number_api_v1_activities_user__user_id__followed_number_get: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
-                user_id: number;
+                job_id: string;
             };
             cookie?: never;
         };
@@ -12367,7 +12238,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": number;
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -12376,61 +12247,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_followed_user_activities_pagination_api_v1_activities_user__user_id__followed_page_number__page_number__num_records__num_records__get: {
+    refresh_activities_api_v1_activities_refresh_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                user_id: number;
-                page_number: number;
-                num_records: number;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_user_activities_pagination_api_v1_activities_user__user_id__page_number__page_number__num_records__num_records__get: {
+    read_activity_summary_api_v1_activities_summaries_get: {
         parameters: {
             query?: {
-                type?: number | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name_search?: string | null;
-                sort_by?: string | null;
-                sort_order?: string | null;
-                activity_type?: number | null;
+                period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
+                date?: string | null;
+                /** @description Target year for the yearly summary. Defaults to the anchor date's year. */
+                year?: number | null;
+                /** @description Filter the summary by activity type name. */
+                type?: string | null;
             };
             header?: never;
-            path: {
-                user_id: number;
-                page_number: number;
-                num_records: number;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -12441,7 +12313,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
+                    "application/json": components["schemas"]["WeeklySummaryRead"] | components["schemas"]["MonthlySummaryRead"] | components["schemas"]["YearlySummaryRead"] | components["schemas"]["LifetimeSummaryRead"];
                 };
             };
             /** @description Validation Error */
@@ -12450,207 +12322,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_user_activities_this_month_number_api_v1_activities_user__user_id__thismonth_number_get: {
+    list_activity_types_api_v1_activities_types_get: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_this_month_stats_api_v1_activities_user__user_id__thismonth_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStats"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_this_week_stats_api_v1_activities_user__user_id__thisweek_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStats"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_user_activities_week_api_v1_activities_user__user_id__week__week_number__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                week_number: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    edit_activity_visibility_api_v1_activities_visibility__visibility__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                visibility: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string | number;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_activities_activity_from_id_api_v1_activities__activity_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Activity"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_activity_api_v1_activities__activity_id__delete_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -12666,24 +12356,82 @@ export interface operations {
                     };
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_exercise_titles_all_api_v1_activities_exercise_titles_all_get: {
+    create_activity_with_uploaded_file_api_v1_activities_upload_post: {
         parameters: {
-            query?: never;
-            header?: never;
+            query?: {
+                api_key?: string | null;
+            };
+            header?: {
+                /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_activity_with_uploaded_file_api_v1_activities_upload_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_activities_api_v1_activities_users__user_id__get: {
+        parameters: {
+            query?: {
+                type?: number | null;
+                start_date?: string | null;
+                end_date?: string | null;
+                name?: string | null;
+                sort_by?: components["schemas"]["ActivitySortField"] | null;
+                sort_order?: components["schemas"]["ActivitySortOrder"] | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
         requestBody?: never;
         responses: {
             /** @description Successful Response */
@@ -12692,12 +12440,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
+                    "application/json": components["schemas"]["Page_ActivityRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_laps_for_activity_all_api_v1_activities_laps_activity_id__activity_id__all_get: {
+    read_user_activity_stats_api_v1_activities_users__user_id__stats_get: {
+        parameters: {
+            query?: {
+                period?: string;
+                /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityStatsRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_activity_api_v1_activities__activity_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -12714,7 +12524,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][] | null;
+                    "application/json": components["schemas"]["ActivityRead"];
                 };
             };
             /** @description Validation Error */
@@ -12723,14 +12533,110 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_media_user_api_v1_activities_media_activity_id__activity_id__get: {
+    delete_activity_api_v1_activities__activity_id__delete: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_activity_api_v1_activities__activity_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_activity_laps_api_v1_activities__activity_id__laps_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -12745,7 +12651,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityMedia"][] | null;
+                    "application/json": components["schemas"]["Page_ActivityLapsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -12754,12 +12660,64 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    upload_media_api_v1_activities_media_upload_activity_id__activity_id__post: {
+    list_activity_media_api_v1_activities__activity_id__media_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityMediaRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    create_activity_media_api_v1_activities__activity_id__media_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -12770,7 +12728,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_media_api_v1_activities_media_upload_activity_id__activity_id__post"];
+                "multipart/form-data": components["schemas"]["Body_create_activity_media_api_v1_activities__activity_id__media_post"];
             };
         };
         responses: {
@@ -12780,7 +12738,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityMedia"];
+                    "application/json": components["schemas"]["ActivityMediaRead"];
                 };
             };
             /** @description Validation Error */
@@ -12789,16 +12747,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    delete_activity_media_api_v1_activities_media__media_id__delete: {
+    delete_activity_media_api_v1_activities__activity_id__media__media_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                activity_id: number;
                 media_id: number;
             };
             cookie?: never;
@@ -12818,14 +12786,71 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_sets_for_activity_all_api_v1_activities_sets_activity_id__activity_id__all_get: {
+    read_activity_media_file_api_v1_activities__activity_id__media__media_id__file_get: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Signed media access token */
+                t: string;
+            };
+            header?: never;
+            path: {
+                activity_id: number;
+                media_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/*": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_activity_sets_api_v1_activities__activity_id__sets_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -12840,7 +12865,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][] | null;
+                    "application/json": components["schemas"]["Page_ActivitySetsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -12849,14 +12874,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_streams_for_activity_all_api_v1_activities_streams_activity_id__activity_id__all_get: {
+    list_activity_streams_api_v1_activities__activity_id__streams_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -12871,7 +12908,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"][];
+                    "application/json": components["schemas"]["Page_ActivityStreamsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -12880,12 +12917,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activities_streams_for_activity_stream_type_api_v1_activities_streams_activity_id__activity_id__stream_type__stream_type__get: {
+    read_activity_stream_api_v1_activities__activity_id__streams__stream_type__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -12903,7 +12949,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"] | null;
+                    "application/json": components["schemas"]["ActivityStreamsRead"];
                 };
             };
             /** @description Validation Error */
@@ -12912,52 +12958,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-        };
-    };
-    read_activity_summary_api_v1_activities_summaries__view_type__get: {
-        parameters: {
-            query?: {
-                /** @description Target date (YYYY-MM-DD) for week/month view. Defaults to today. */
-                date?: string | null;
-                /** @description Target year for year view. Defaults to current year. */
-                year?: number | null;
-                /** @description Filter summary by activity type name. */
-                type?: string | null;
-            };
-            header?: never;
-            path: {
-                view_type: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WeeklySummaryResponse"] | components["schemas"]["MonthlySummaryResponse"] | components["schemas"]["YearlySummaryResponse"] | components["schemas"]["LifetimeSummaryResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_activity_workout_steps_all_api_v1_activities_workout_steps_activity_id__activity_id__all_get: {
+    read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Signed thumbnail access token */
+                t: string;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -12972,7 +12992,8 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
+                    "application/json": unknown;
+                    "image/webp": unknown;
                 };
             };
             /** @description Validation Error */
@@ -12981,7 +13002,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_activity_workout_steps_api_v1_activities__activity_id__workout_steps_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityWorkoutStepsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13017,7 +13090,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13038,6 +13120,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogoutResponse"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13073,7 +13164,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13096,14 +13196,150 @@ export interface operations {
                     "application/json": components["schemas"]["TokenResponseWeb"] | components["schemas"]["TokenResponseMobile"];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
-    accept_follow_api_v1_followers_accept_targetUser__target_user_id__put: {
+    list_follow_requests_api_v1_followers_follow_requests_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    reject_follow_request_api_v1_followers_follow_requests__follower_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                target_user_id: number;
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    accept_follow_request_api_v1_followers_follow_requests__follower_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FollowRequestAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_followers_api_v1_followers_users__user_id__followers_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
             };
             cookie?: never;
         };
@@ -13115,7 +13351,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13124,17 +13360,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    create_follow_api_v1_followers_create_targetUser__target_user_id__post: {
+    follow_user_api_v1_followers_users__user_id__followers_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                target_user_id: number;
+                user_id: number;
             };
             cookie?: never;
         };
@@ -13146,7 +13391,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Follower"];
+                    "application/json": components["schemas"]["FollowRelationshipRead"];
                 };
             };
             /** @description Validation Error */
@@ -13155,17 +13400,69 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    delete_follower_api_v1_followers_delete_follower_targetUser__target_user_id__delete: {
+    delete_follow_relationship_api_v1_followers_users__user_id__followers__follower_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                target_user_id: number;
+                user_id: number;
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_following_api_v1_followers_users__user_id__following_get: {
+        parameters: {
+            query?: {
+                accepted_only?: boolean;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
             };
             cookie?: never;
         };
@@ -13177,7 +13474,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["Page_FollowRelationshipRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13186,43 +13483,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-        };
-    };
-    delete_following_api_v1_followers_delete_following_targetUser__target_user_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                target_user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    get_user_follower_all_api_v1_followers_user__user_id__followers_all_get: {
+    read_user_relationship_api_v1_followers_users__user_id__relationship_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -13239,7 +13514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Follower"][];
+                    "application/json": components["schemas"]["RelationshipRead"];
                 };
             };
             /** @description Validation Error */
@@ -13248,194 +13523,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-        };
-    };
-    get_user_follower_count_api_v1_followers_user__user_id__followers_count_accepted_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_follower_count_all_api_v1_followers_user__user_id__followers_count_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_following_all_api_v1_followers_user__user_id__following_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Follower"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_following_count_api_v1_followers_user__user_id__following_count_accepted_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_following_count_all_api_v1_followers_user__user_id__following_count_all_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": number;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    read_followers_user_specific_user_api_v1_followers_user__user_id__targetUser__target_user_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-                target_user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Follower"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13458,7 +13555,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -13467,7 +13564,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13488,6 +13594,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13519,7 +13634,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13552,7 +13676,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13566,7 +13699,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["garmin__schema__MFARequest"];
+                "application/json": components["schemas"]["modules__garmin__schema__MFARequest"];
             };
         };
         responses: {
@@ -13585,7 +13718,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13608,6 +13750,15 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     read_gear_components_api_v1_gear_components_get: {
@@ -13626,6 +13777,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GearComponentRead"][] | null;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13658,7 +13818,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13691,7 +13860,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13724,7 +13902,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13745,6 +13932,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GearComponentTypesRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13773,7 +13969,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13809,7 +14014,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13842,7 +14056,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13875,7 +14098,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13906,7 +14138,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13937,7 +14178,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13968,7 +14218,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13999,7 +14258,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14028,7 +14296,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14041,7 +14318,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14064,7 +14341,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14097,7 +14383,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14130,7 +14425,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14153,6 +14457,15 @@ export interface operations {
                     "application/json": components["schemas"]["HealthFastingRead"] | null;
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     read_fasting_stats_api_v1_health_fasting_stats_get: {
@@ -14171,6 +14484,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthFastingStatsResponse"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14201,7 +14523,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14230,7 +14561,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14265,7 +14605,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14278,7 +14627,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14301,7 +14650,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14334,7 +14692,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14367,7 +14734,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14398,7 +14774,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14427,7 +14812,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14440,7 +14834,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14463,7 +14857,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14496,7 +14899,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14529,7 +14941,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14558,7 +14979,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14581,6 +15011,15 @@ export interface operations {
                     "application/json": components["schemas"]["HealthDashboardResponse"];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     read_health_steps_all_pagination_api_v1_health_steps_get: {
@@ -14591,7 +15030,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14614,7 +15053,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14647,7 +15095,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14680,7 +15137,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14709,7 +15175,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14730,6 +15205,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthTargetsRead"] | null;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14762,7 +15246,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14775,7 +15268,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14798,7 +15291,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14831,7 +15333,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14864,7 +15375,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14893,7 +15413,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14906,7 +15435,7 @@ export interface operations {
                 /** @description Number of records per page */
                 num_records?: number | null;
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["health__constants__Interval"] | null;
+                interval?: components["schemas"]["modules__health__constants__Interval"] | null;
             };
             header?: never;
             path?: never;
@@ -14929,7 +15458,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14962,7 +15500,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14995,7 +15542,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15024,7 +15580,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15045,6 +15610,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IdentityProvider"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15077,7 +15651,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15098,6 +15681,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IdentityProviderTemplate"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15132,7 +15724,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15161,7 +15762,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15182,6 +15792,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     read_notifications_number_api_v1_notifications_number_get: {
@@ -15200,6 +15819,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": number;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15231,7 +15859,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15262,7 +15899,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15291,7 +15937,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15324,7 +15979,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15357,7 +16021,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15378,6 +16051,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersMe"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15412,7 +16094,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15433,6 +16124,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersApiKeyRead"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15465,7 +16165,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15494,7 +16203,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15523,7 +16241,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15544,6 +16271,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersDefaultGearRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15576,7 +16312,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15597,13 +16342,22 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     get_user_goals_api_v1_profile_goals_get: {
         parameters: {
             query?: {
                 /** @description Filter by goal interval */
-                interval?: components["schemas"]["users__users_goals__schema__Interval"] | null;
+                interval?: components["schemas"]["modules__users__users_goals__schema__Interval"] | null;
                 /** @description Filter by activity type */
                 activity_type?: components["schemas"]["ActivityType"] | null;
                 /** @description Filter by goal type */
@@ -15630,7 +16384,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15663,7 +16426,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15696,7 +16468,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15717,6 +16498,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersGoalProgress"][] | null;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15745,7 +16535,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15766,6 +16565,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsersIdentityProviderResponse"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15798,7 +16606,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15833,7 +16650,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15866,7 +16692,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15899,7 +16734,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15934,7 +16778,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15967,7 +16820,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15988,6 +16850,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MFABackupCodeStatus"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16022,7 +16893,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16057,7 +16937,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16080,6 +16969,15 @@ export interface operations {
                     "application/json": components["schemas"]["MFASetupResponse"];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     get_mfa_status_api_v1_profile_mfa_status_get: {
@@ -16100,6 +16998,15 @@ export interface operations {
                     "application/json": components["schemas"]["MFAStatusResponse"];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     verify_mfa_api_v1_profile_mfa_verify_post: {
@@ -16111,7 +17018,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["auth__mfa__schema__MFARequest"];
+                "application/json": components["schemas"]["modules__auth__mfa__schema__MFARequest"];
             };
         };
         responses: {
@@ -16132,7 +17039,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16167,7 +17083,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16187,6 +17112,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -16220,7 +17154,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16243,6 +17186,15 @@ export interface operations {
                     "application/json": components["schemas"]["UsersSessionsRead"][];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     delete_profile_other_sessions_api_v1_profile_sessions_delete: {
@@ -16260,6 +17212,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -16287,43 +17248,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-        };
-    };
-    read_public_activities_activity_from_id_api_v1_public_activities__activity_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Activity"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_public_activities_exercise_titles_all_api_v1_public_activities_exercise_titles_all_get: {
+    list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_all_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16338,12 +17277,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityExerciseTitles"][] | null;
+                    "application/json": components["schemas"]["ActivityExerciseTitlesRead"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_public_activities_laps_for_activity_all_api_v1_public_activities_laps_activity_id__activity_id__all_get: {
+    read_public_activity_api_v1_public_activities__activity_id__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16360,7 +17308,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityLapsRead"][] | null;
+                    "application/json": components["schemas"]["ActivityRead"];
                 };
             };
             /** @description Validation Error */
@@ -16369,14 +17317,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_public_activities_sets_for_activity_all_api_v1_public_activities_sets_activity_id__activity_id__all_get: {
+    list_public_activity_laps_api_v1_public_activities__activity_id__laps_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -16391,7 +17351,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitySetsRead"][] | null;
+                    "application/json": components["schemas"]["Page_ActivityLapsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -16400,14 +17360,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_public_activities_streams_for_activity_all_api_v1_public_activities_streams_activity_id__activity_id__all_get: {
+    list_public_activity_sets_api_v1_public_activities__activity_id__sets_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -16422,7 +17394,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"][];
+                    "application/json": components["schemas"]["Page_ActivitySetsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -16431,12 +17403,64 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_public_activities_streams_for_activity_stream_type_api_v1_public_activities_streams_activity_id__activity_id__stream_type__stream_type__get: {
+    list_public_activity_streams_api_v1_public_activities__activity_id__streams_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivityStreamsRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_public_activity_stream_api_v1_public_activities__activity_id__streams__stream_type__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -16454,7 +17478,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"] | null;
+                    "application/json": components["schemas"]["ActivityStreamsRead"];
                 };
             };
             /** @description Validation Error */
@@ -16463,14 +17487,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
     };
-    read_public_activity_workout_steps_all_api_v1_public_activities_workout_steps_activity_id__activity_id__all_get: {
+    list_public_activity_workout_steps_api_v1_public_activities__activity_id__workout_steps_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 activity_id: number;
@@ -16485,7 +17521,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityWorkoutSteps"][] | null;
+                    "application/json": components["schemas"]["Page_ActivityWorkoutStepsRead_"];
                 };
             };
             /** @description Validation Error */
@@ -16494,7 +17530,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16515,6 +17560,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IdentityProviderPublic"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16550,7 +17604,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16588,7 +17651,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16623,7 +17695,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16646,6 +17727,15 @@ export interface operations {
                     "application/json": components["schemas"]["ServerSettingsReadPublic"];
                 };
             };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
         };
     };
     list_tile_maps_templates_api_v1_public_server_settings_tile_maps_templates_get: {
@@ -16664,6 +17754,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TileMapsTemplate"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16694,7 +17793,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16715,6 +17823,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServerSettingsRead"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16747,7 +17864,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16768,6 +17894,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TileMapsTemplate"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16802,7 +17937,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16822,6 +17966,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
             };
         };
     };
@@ -16851,7 +18004,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16883,7 +18045,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16913,7 +18084,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16946,7 +18126,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -16979,7 +18168,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17002,7 +18200,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -17011,7 +18209,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17044,7 +18251,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17067,24 +18283,13 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-        };
-    };
-    import_activities_and_media_from_strava_export_api_v1_strava_import_activities_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17096,7 +18301,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_bikes_from_strava_export_api_v1_strava_import_bikes_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {
@@ -17105,6 +18314,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17116,7 +18343,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_shoes_from_strava_export_api_v1_strava_import_shoes_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             201: {
@@ -17125,6 +18356,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17156,7 +18405,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17187,7 +18445,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17208,6 +18475,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17251,7 +18527,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17284,7 +18569,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17315,7 +18609,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17346,7 +18649,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17377,7 +18689,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17408,7 +18729,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17443,7 +18773,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17472,7 +18811,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17505,7 +18853,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17536,7 +18893,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17566,7 +18932,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17601,7 +18976,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17638,7 +19022,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_photo_api_v1_users__user_id__photo_get: {
+        parameters: {
+            query: {
+                /** @description Signed photo access token */
+                t: string;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "image/*": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17667,7 +19104,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17690,6 +19136,15 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -17718,36 +19173,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-        };
-    };
-    user_img_return_user_images__user_img__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_img: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
+            /** @description Unexpected error */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };

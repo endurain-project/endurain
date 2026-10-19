@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Trainingssets en -stappen verbergen",
     "hideGear": "Uitrusting verbergen",
     "success": "Activiteit bijgewerkt",
-    "error": "Activiteit kon niet worden bijgewerkt"
+    "error": "Activiteit kon niet worden bijgewerkt",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Deze activiteit is verborgen. Alleen jij kunt hem zien.",

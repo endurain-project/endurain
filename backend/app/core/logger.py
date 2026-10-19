@@ -1,22 +1,51 @@
-"""Core logging setup for the application.
+"""Structured application logging for the Endurain backend.
+
+Standard usage — one module-level logger, driven with the stdlib ``logging`` API::
+
+    import core.logger as core_logger
+
+    logger = core_logger.get_logger(__name__)
+
+    logger.debug("Parsed activity", extra=core_logger.context(activity_id=42))
+    logger.error("Import failed", exc_info=err)
+
+:func:`get_logger` returns a **child of the single configured ``main_logger``**, so
+every module gets its own dotted logger name (emitted as the ``logger`` field)
+while sharing one handler / formatter / level pipeline. Nothing has to be
+configured at the call site, and no module needs to know how logging is wired.
+
+Structured fields travel through the stdlib ``extra=`` keyword and are rendered as
+a ``context`` object in JSON (or ``key=value`` pairs in the development format).
+:func:`context` builds that mapping: it drops unset (``None``) values so optional
+identifiers can be passed unconditionally, and namespaces any key that would
+collide with a stdlib ``LogRecord`` attribute (which the stdlib would reject).
+
+Operator-facing lifecycle messages can be mirrored to the console with
+``extra=core_logger.context(console=True)``. In deployed environments every record
+already goes to stdout, so the flag is a no-op there; in development it is what
+puts the message on the terminal *in addition to* the log file. This replaces the
+old approach of adding and removing a handler around each call, which mutated
+shared logger state from request threads and event-bus consumer threads.
 
 Provides:
+  - get_logger / context: the public logging surface used by application code.
   - JsonFormatter: structured JSON output for production.
   - _DevFormatter: human-readable text for development.
   - RequestIdFilter: injects the current request ID into
     every log record so all logs from a single request
     can be correlated.
-  - _build_handler: environment-aware handler factory
+  - ConsoleMirrorFilter: passes only records explicitly flagged for the console.
+  - _build_handlers: environment-aware handler factory
     (stdout JSON always in production/demo; file when
-    LOGS_DIR is set; file-only in development).
+    LOGS_DIR is set; file plus console mirror in development).
   - setup_main_logger: configures the main, Alembic, and
     APScheduler loggers.
-  - Utility helpers for application-level log routing.
 """
 
 import json
 import logging
 import sys
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -31,6 +60,33 @@ from typing import Any
 # import time. The two functions below that genuinely need ``settings``
 # import it locally, after both modules have finished initializing.
 import core.middleware_request_id as core_middleware_request_id
+
+# The single configured application logger. Every logger handed out by
+# :func:`get_logger` is a child of it, so they inherit its level and handlers.
+ROOT_LOGGER_NAME = "main_logger"
+
+# Extra field flagging a record for console mirroring (see module docstring).
+CONSOLE_FIELD = "console"
+
+# Prefix applied to a caller-supplied field whose name would collide with a
+# stdlib LogRecord attribute. Renaming keeps the value instead of dropping it,
+# and avoids the "Attempt to overwrite %r in LogRecord" the stdlib would raise.
+_RESERVED_FIELD_PREFIX = "ctx_"
+
+# String log levels accepted by config and by the legacy helpers. ``trace`` maps
+# to DEBUG because Python has no TRACE level.
+_LEVELS: dict[str, int] = {
+    "critical": logging.CRITICAL,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+    "trace": logging.DEBUG,
+}
+
+# Format used by the development console mirror — matches uvicorn's own output
+# so operator-facing lifecycle lines blend into the server log.
+_CONSOLE_FORMAT = "%(levelname)s:     %(message)s"
 
 
 class RequestIdFilter(logging.Filter):
@@ -57,6 +113,30 @@ class RequestIdFilter(logging.Filter):
             core_middleware_request_id.get_request_id()
         )
         return True
+
+
+class ConsoleMirrorFilter(logging.Filter):
+    """
+    Pass only records explicitly flagged for console mirroring.
+
+    Attached to the development console handler so a record reaches the terminal
+    exactly when the caller opted in with ``extra=context(console=True)``.
+    Everything else goes to the log file only. This preserves the previous
+    behaviour of ``print_to_log_and_console`` without mutating shared handler
+    state on every call, which was unsafe across request and consumer threads.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Report whether the record opted into console output.
+
+        Args:
+            record: The log record to test.
+
+        Returns:
+            True when the record carries a truthy ``console`` field.
+        """
+        return bool(getattr(record, CONSOLE_FIELD, False))
 
 
 # Attributes always present on a LogRecord — excluded from the extra
@@ -89,6 +169,99 @@ _STDLIB_RECORD_ATTRS: frozenset[str] = frozenset(
         "asctime",
     )
 )
+
+# Record attributes that are never rendered as structured context: the stdlib
+# ones above plus our own routing flag, which is plumbing rather than data.
+_NON_CONTEXT_ATTRS: frozenset[str] = _STDLIB_RECORD_ATTRS | {CONSOLE_FIELD}
+
+
+def _record_context(record: logging.LogRecord) -> dict[str, Any]:
+    """
+    Extract the caller-supplied structured fields from a record.
+
+    Args:
+        record: The log record to inspect.
+
+    Returns:
+        The fields passed via ``extra=``, without stdlib attributes or the
+        console-routing flag.
+    """
+    return {k: v for k, v in record.__dict__.items() if k not in _NON_CONTEXT_ATTRS}
+
+
+def get_logger(name: str | None = None) -> logging.Logger:
+    """
+    Return the module logger to use for application logging.
+
+    The returned logger is a child of the single configured ``main_logger``, so
+    it inherits that logger's level and handlers while keeping its own name.
+    Call it once per module with ``__name__``::
+
+        logger = core_logger.get_logger(__name__)
+
+    Args:
+        name: Dotted module name, normally ``__name__``. When omitted (or when
+            it is already the root name) the root application logger is
+            returned.
+
+    Returns:
+        The configured :class:`logging.Logger` for that name.
+    """
+    if not name or name == ROOT_LOGGER_NAME:
+        return logging.getLogger(ROOT_LOGGER_NAME)
+    if name.startswith(f"{ROOT_LOGGER_NAME}."):
+        return logging.getLogger(name)
+    return logging.getLogger(f"{ROOT_LOGGER_NAME}.{name}")
+
+
+def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Build a safe ``extra`` mapping from caller-supplied fields.
+
+    Drops ``None`` values so optional identifiers can be passed unconditionally,
+    and prefixes any key that collides with a stdlib ``LogRecord`` attribute
+    (which the stdlib would otherwise reject outright). The console-routing flag
+    is passed through untouched — it is ours, not the stdlib's.
+
+    Args:
+        fields: The caller's structured fields.
+
+    Returns:
+        A mapping safe to pass as ``extra=``.
+    """
+    normalized: dict[str, Any] = {}
+    for key, value in fields.items():
+        if value is None:
+            continue
+        safe_key = f"{_RESERVED_FIELD_PREFIX}{key}" if key in _STDLIB_RECORD_ATTRS else key
+        normalized[safe_key] = value
+    return normalized
+
+
+def context(*, console: bool = False, **fields: Any) -> dict[str, Any]:
+    """
+    Build the ``extra`` mapping for a structured log record.
+
+    Usage::
+
+        logger.info(
+            "Stored activity",
+            extra=core_logger.context(activity_id=activity.id, user_id=user_id),
+        )
+
+    Args:
+        console: Mirror this record to the console as well as the log file.
+            No-op in deployed environments, where every record already reaches
+            stdout.
+        **fields: Structured fields to attach. ``None`` values are dropped.
+
+    Returns:
+        A mapping to pass as the ``extra=`` argument of a logging call.
+    """
+    extra = _normalize_fields(fields)
+    if console:
+        extra[CONSOLE_FIELD] = True
+    return extra
 
 
 class JsonFormatter(logging.Formatter):
@@ -123,9 +296,9 @@ class JsonFormatter(logging.Formatter):
             entry["request_id"] = rid
         if record.exc_info:
             entry["exception"] = self.formatException(record.exc_info)
-        context = {k: v for k, v in record.__dict__.items() if k not in _STDLIB_RECORD_ATTRS}
-        if context:
-            entry["context"] = context
+        record_context = _record_context(record)
+        if record_context:
+            entry["context"] = record_context
         return json.dumps(entry, default=str)
 
 
@@ -154,14 +327,14 @@ class _DevFormatter(logging.Formatter):
             Formatted string with optional context suffix.
         """
         base = super().format(record)
-        context = {k: v for k, v in record.__dict__.items() if k not in _STDLIB_RECORD_ATTRS}
-        if not context:
+        record_context = _record_context(record)
+        if not record_context:
             return base
-        ctx_str = " ".join(f"{k}={v!r}" for k, v in context.items())
+        ctx_str = " ".join(f"{k}={v!r}" for k, v in record_context.items())
         return f"{base} | {ctx_str}"
 
 
-def _build_handler(log_level: int) -> list[logging.Handler]:
+def _build_handlers(log_level: int) -> list[logging.Handler]:
     """
     Build the appropriate log handlers for the environment.
 
@@ -171,7 +344,8 @@ def _build_handler(log_level: int) -> list[logging.Handler]:
     writing JSON to ``{LOGS_DIR}/app.log`` is also added so
     Docker volume mounts continue to receive log output.
     Development writes human-readable text to
-    ``{LOGS_DIR}/app.log`` only.
+    ``{LOGS_DIR}/app.log`` plus a console mirror that only
+    emits records flagged with ``context(console=True)``.
 
     Args:
         log_level: Python logging level constant.
@@ -180,7 +354,7 @@ def _build_handler(log_level: int) -> list[logging.Handler]:
         List of configured :class:`logging.Handler` instances.
     """
     # Local import: see top-of-module note. ``setup_main_logger`` /
-    # ``_build_handler`` run at app startup, never at import time, so by the
+    # ``_build_handlers`` run at app startup, never at import time, so by the
     # time we get here ``core.config`` is fully initialized.
     import core.config as core_config
 
@@ -201,11 +375,17 @@ def _build_handler(log_level: int) -> list[logging.Handler]:
         if core_config.settings.LOGS_DIR:
             log_path = f"{core_config.settings.LOGS_DIR}/app.log"
             handlers.append(_configure(logging.FileHandler(log_path), JsonFormatter()))
-    else:
-        log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-        handlers = [_configure(logging.FileHandler(log_path), _DevFormatter())]
+        # No console mirror here: stdout already carries every record, so adding
+        # one would duplicate every operator-facing line.
+        return handlers
 
-    return handlers
+    log_path = f"{core_config.settings.LOGS_DIR}/app.log"
+    console_mirror = _configure(logging.StreamHandler(sys.stdout), logging.Formatter(_CONSOLE_FORMAT))
+    console_mirror.addFilter(ConsoleMirrorFilter())
+    return [
+        _configure(logging.FileHandler(log_path), _DevFormatter()),
+        console_mirror,
+    ]
 
 
 def _replace_handlers(
@@ -242,11 +422,11 @@ def setup_main_logger():
     """
     Set up the main application logger.
 
-    Selects a handler appropriate for the current
+    Selects handlers appropriate for the current
     environment (JSON stdout in production, plain-text
-    file in development). Attaches the same handler to
-    the Alembic and APScheduler loggers so their output
-    is captured consistently.
+    file plus console mirror in development). Attaches the
+    same handlers to the Alembic and APScheduler loggers so
+    their output is captured consistently.
 
     Returns:
         logging.Logger: The configured main logger instance.
@@ -255,23 +435,13 @@ def setup_main_logger():
     # ``core.logger`` free of any import-time dependency on ``core.config``.
     import core.config as core_config
 
-    # Map string log levels to Python logging constants
-    log_level_map = {
-        "critical": logging.CRITICAL,
-        "error": logging.ERROR,
-        "warning": logging.WARNING,
-        "info": logging.INFO,
-        "debug": logging.DEBUG,
-        "trace": logging.DEBUG,  # Trace to debug (Python doesn't have trace)
-    }
-
     # Get log level from config, default to WARNING if invalid
-    log_level = log_level_map.get(
+    log_level = _LEVELS.get(
         core_config.settings.LOG_LEVEL.lower(),
         logging.WARNING,
     )
 
-    main_logger = logging.getLogger("main_logger")
+    main_logger = logging.getLogger(ROOT_LOGGER_NAME)
     alembic_logger = logging.getLogger("alembic")
     scheduler_logger = logging.getLogger("apscheduler")
     # Structured upload-audit events emitted by safeuploads.
@@ -288,7 +458,7 @@ def setup_main_logger():
     ):
         logger.setLevel(log_level)
 
-    handlers = _build_handler(log_level)
+    handlers = _build_handlers(log_level)
     _replace_handlers(
         (
             main_logger,
@@ -301,83 +471,3 @@ def setup_main_logger():
     safeuploads_audit_logger.propagate = True
 
     return main_logger
-
-
-def get_main_logger():
-    """
-    Returns the main logger instance for the application.
-
-    This function retrieves a logger named "main_logger" using Python's
-    standard logging module.
-    It can be used throughout the application to log messages under a
-    consistent logger name.
-
-    Returns:
-        logging.Logger: The logger instance named "main_logger".
-    """
-    return logging.getLogger("main_logger")
-
-
-def print_to_log(
-    message: str,
-    log_level: str = "info",
-    exc: Exception | None = None,
-    context: dict[str, Any] | None = None,
-) -> None:
-    """
-    Logs a message at the specified log level using the main logger.
-
-    Args:
-        message (str): The message to log.
-        log_level (str, optional): The log level to use ('info', 'error',
-            'warning', 'debug'). Defaults to "info".
-        exc (Exception, optional): An exception instance to include in the log
-            if log_level is "error". Defaults to None.
-
-    Notes:
-        - If log_level is "error" and exc is provided, exception information
-            will be included in the log.
-    """
-    main_logger = get_main_logger()
-    if log_level == "info":
-        main_logger.info(message)
-    elif log_level == "error":
-        main_logger.error(message, exc_info=exc is not None)
-    elif log_level == "warning":
-        main_logger.warning(message)
-    elif log_level == "debug":
-        main_logger.debug(message)
-    elif log_level == "critical":
-        main_logger.critical(message)
-
-
-def print_to_log_and_console(message: str, log_level: str = "info", exc: Exception | None = None):
-    """
-    Logs a message to both the main logger and the console.
-
-    This function temporarily adds a console handler to the main logger, logs
-    the provided message at the specified log level (optionally including
-    exception information), and then removes the console handler to ensure
-    subsequent logs are not printed to the console.
-
-    Args:
-        message (str): The message to log.
-        log_level (str, optional): The logging level to use (e.g., "info",
-            "warning", "error"). Defaults to "info".
-        exc (Exception, optional): An exception to include in the log entry.
-            Defaults to None.
-    """
-    main_logger = get_main_logger()
-
-    # Create a temporary console handler
-    console_handler = logging.StreamHandler()
-    console_formatter = logging.Formatter("%(levelname)s:     %(message)s")
-    console_handler.setFormatter(console_formatter)
-
-    # Add console handler temporarily
-    main_logger.addHandler(console_handler)
-
-    print_to_log(message, log_level, exc)
-
-    # Remove console handler so future logs only go to file
-    main_logger.removeHandler(console_handler)

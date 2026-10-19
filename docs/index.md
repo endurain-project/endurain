@@ -22,7 +22,7 @@
       Endurain
   </h2>
   <p>
-    A self-hosted fitness tracking service - <a href="https://fosstodon.org/@endurain">Mastodon profile</a> - <a href="https://discord.gg/6VUjUq2uZR">Discord server</a> - <a href="#newsletter">Newsletter</a>
+    A self-hosted fitness tracking service - <a href="https://fosstodon.org/@endurain">Mastodon profile</a> - <a href="https://bsky.app/profile/endurain.bsky.social">Bluesky profile</a> - <a href="https://discord.gg/6VUjUq2uZR">Discord server</a> - <a href="https://www.linkedin.com/company/endurain">LinkedIn page</a> - <a href="#newsletter">Newsletter</a>
   </p>
 </div>
 
@@ -46,7 +46,6 @@ Endurain is a self-hosted fitness tracking service designed to give users full c
 - **Frontend:** Vue.js 3 with TypeScript, Tailwind CSS and shadcn-vue components, with Pinia and TanStack Query for state management
 - **Backend:** Python FastAPI, Alembic, SQLAlchemy, Apprise, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy, tcxreader and fitdecode for .gpx, .tcx and .fit file import respectively 
 - **Database:** PostgreSQL for efficient data management
-- **Observability:** Jaeger for basic tracing and monitoring
 
 To deploy Endurain, a Docker image is available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided in the project repository. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
@@ -80,7 +79,7 @@ Endurain currently supports:
 - Define and track goals
 - MFA TOTP support
 - Password reset through email link. Uses Apprise for email notifications
-- Sign-up with configurable email verification and admin approva
+- Sign-up with configurable email verification and admin approval
 - SSO support (OIDC/SAML)
 
 ## Planned features

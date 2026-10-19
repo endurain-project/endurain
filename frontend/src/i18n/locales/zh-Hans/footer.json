@@ -2,7 +2,9 @@
   "repository": "代码仓库",
   "documentation": "文档",
   "mastodon": "Endurain 的 Mastodon 账号",
+  "bluesky": "Endurain 的 Bluesky 主页",
   "discord": "Endurain 的 Discord 服务器",
+  "linkedin": "Endurain 的 LinkedIn 主页",
   "compatibleStrava": "兼容 Strava",
   "worksGarmin": "支持 Garmin Connect"
 }

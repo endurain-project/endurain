@@ -9,9 +9,10 @@ import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
-import auth.api_keys.crud as auth_api_keys_crud
-import auth.api_keys.models as api_keys_models
-import auth.api_keys.schema as api_keys_schema
+import core.exceptions as core_exceptions
+import modules.auth.api_keys.crud as auth_api_keys_crud
+import modules.auth.api_keys.models as api_keys_models
+import modules.auth.api_keys.schema as api_keys_schema
 
 
 class TestGetApiKeysByUserId:
@@ -45,7 +46,7 @@ class TestGetApiKeysByUserId:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.get_api_keys_by_user_id(1, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -89,7 +90,7 @@ class TestGetApiKeyById:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.get_api_key_by_id("some-uuid", 1, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -123,7 +124,7 @@ class TestGetApiKeyByHash:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.get_api_key_by_hash("c" * 64, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -141,7 +142,7 @@ class TestCreateApiKey:
         mock_orm_key = MagicMock(spec=api_keys_models.UsersApiKeys)
 
         with patch(
-            "auth.api_keys.crud.api_keys_models.UsersApiKeys",
+            "modules.auth.api_keys.crud.api_keys_models.UsersApiKeys",
             return_value=mock_orm_key,
         ):
             result = auth_api_keys_crud.create_api_key(1, data, mock_db)
@@ -150,7 +151,7 @@ class TestCreateApiKey:
         assert len(result) == 2
 
     @patch(
-        "auth.api_keys.crud.api_keys_models.UsersApiKeys",
+        "modules.auth.api_keys.crud.api_keys_models.UsersApiKeys",
         return_value=MagicMock(spec=api_keys_models.UsersApiKeys),
     )
     def test_calls_db_add_commit_refresh(self, _mock_model, mock_db):
@@ -167,7 +168,7 @@ class TestCreateApiKey:
         mock_db.refresh.assert_called_once()
 
     @patch(
-        "auth.api_keys.crud.api_keys_models.UsersApiKeys",
+        "modules.auth.api_keys.crud.api_keys_models.UsersApiKeys",
         return_value=MagicMock(spec=api_keys_models.UsersApiKeys),
     )
     def test_raw_key_starts_with_endurain_prefix(self, _mock_model, mock_db):
@@ -195,7 +196,7 @@ class TestCreateApiKey:
             return mock_orm_obj
 
         with patch(
-            "auth.api_keys.crud.api_keys_models.UsersApiKeys",
+            "modules.auth.api_keys.crud.api_keys_models.UsersApiKeys",
             side_effect=fake_constructor,
         ):
             _, raw_key = auth_api_keys_crud.create_api_key(1, data, mock_db)
@@ -216,7 +217,7 @@ class TestCreateApiKey:
             return mock_orm_obj
 
         with patch(
-            "auth.api_keys.crud.api_keys_models.UsersApiKeys",
+            "modules.auth.api_keys.crud.api_keys_models.UsersApiKeys",
             side_effect=fake_constructor,
         ):
             auth_api_keys_crud.create_api_key(1, data, mock_db)
@@ -239,7 +240,7 @@ class TestCreateApiKey:
             return mock_orm_obj
 
         with patch(
-            "auth.api_keys.crud.api_keys_models.UsersApiKeys",
+            "modules.auth.api_keys.crud.api_keys_models.UsersApiKeys",
             side_effect=fake_constructor,
         ):
             _, raw_key = auth_api_keys_crud.create_api_key(1, data, mock_db)
@@ -255,7 +256,7 @@ class TestCreateApiKey:
         )
         mock_db.add.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.create_api_key(1, data, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -291,7 +292,7 @@ class TestUpdateLastUsed:
         """SQLAlchemy error raises HTTP 500."""
         mock_db.execute.side_effect = SQLAlchemyError("DB error")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_api_keys_crud.update_last_used("some-uuid", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -300,7 +301,7 @@ class TestUpdateLastUsed:
 class TestRevokeApiKey:
     """Test suite for revoke_api_key."""
 
-    @patch("auth.api_keys.crud.get_api_key_by_id")
+    @patch("modules.auth.api_keys.crud.get_api_key_by_id")
     def test_success_sets_is_active_false(self, mock_get_by_id, mock_db):
         """is_active is set to False and commit is called."""
         mock_key = MagicMock(spec=api_keys_models.UsersApiKeys)
@@ -312,7 +313,7 @@ class TestRevokeApiKey:
         assert mock_key.is_active is False
         mock_db.commit.assert_called_once()
 
-    @patch("auth.api_keys.crud.get_api_key_by_id")
+    @patch("modules.auth.api_keys.crud.get_api_key_by_id")
     def test_not_found_raises_404(self, mock_get_by_id, mock_db):
         """Raises 404 when the key is not found for the user."""
         mock_get_by_id.return_value = None
@@ -326,7 +327,7 @@ class TestRevokeApiKey:
 class TestDeleteApiKey:
     """Test suite for delete_api_key."""
 
-    @patch("auth.api_keys.crud.get_api_key_by_id")
+    @patch("modules.auth.api_keys.crud.get_api_key_by_id")
     def test_success_deletes_and_commits(self, mock_get_by_id, mock_db):
         """db.delete and db.commit are called for a found key."""
         mock_key = MagicMock(spec=api_keys_models.UsersApiKeys)
@@ -337,7 +338,7 @@ class TestDeleteApiKey:
         mock_db.delete.assert_called_once_with(mock_key)
         mock_db.commit.assert_called_once()
 
-    @patch("auth.api_keys.crud.get_api_key_by_id")
+    @patch("modules.auth.api_keys.crud.get_api_key_by_id")
     def test_not_found_raises_404(self, mock_get_by_id, mock_db):
         """Raises 404 when the key is not found for the user."""
         mock_get_by_id.return_value = None

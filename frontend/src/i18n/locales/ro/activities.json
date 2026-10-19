@@ -204,7 +204,8 @@
     "hideWorkoutSetsSteps": "Ascunde seturile și pașii antrenamentului",
     "hideGear": "Ascunde echipamentul",
     "success": "Activitate actualizată",
-    "error": "Nu am putut actualiza activitatea"
+    "error": "Nu am putut actualiza activitatea",
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
   },
   "alerts": {
     "hidden": "Această activitate este ascunsă. Doar tu o poți vedea.",

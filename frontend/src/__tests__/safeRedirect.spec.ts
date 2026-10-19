@@ -15,6 +15,41 @@ describe('getSafeRedirect', () => {
     expect(getSafeRedirect('//evil.example')).toBe('/')
   })
 
+  it.each([
+    ['backslash', '/\\evil.example'],
+    ['backslash after a slash', '/\\/evil.example'],
+    ['tab', '/\t/evil.example'],
+    ['line feed', '/\n/evil.example'],
+    ['carriage return', '/\r/evil.example'],
+  ])('blocks a %s that the browser parses into a protocol-relative URL', (_name, candidate) => {
+    // `new URL(candidate, base)` is what assigning to window.location.href does:
+    // each of these leaves the origin although none starts with `//`.
+    expect(new URL(candidate, 'https://app.example').origin).not.toBe('https://app.example')
+    expect(getSafeRedirect(candidate)).toBe('/')
+  })
+
+  it.each([
+    ['NUL', '/\u0000/x'],
+    ['DEL', '/\u007f/x'],
+  ])(
+    'rejects a %s control character even though the browser keeps it on-origin',
+    (_name, candidate) => {
+      expect(getSafeRedirect(candidate)).toBe('/')
+    },
+  )
+
+  it('keeps paths that merely contain odd but harmless characters', () => {
+    expect(getSafeRedirect('/activities?type=run&page=2#top')).toBe(
+      '/activities?type=run&page=2#top',
+    )
+    expect(getSafeRedirect('/a%5Cb')).toBe('/a%5Cb')
+    expect(getSafeRedirect('/a b')).toBe('/a b')
+  })
+
+  it('blocks a control character inside a custom-scheme deep link', () => {
+    expect(getSafeRedirect('endurain://call\nback')).toBe('/')
+  })
+
   it('blocks absolute http(s) URLs', () => {
     expect(getSafeRedirect('https://evil.example/phish')).toBe('/')
   })

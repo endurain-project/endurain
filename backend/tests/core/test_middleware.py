@@ -478,7 +478,7 @@ class TestSecurityHeadersMiddleware:
         from fastapi.responses import HTMLResponse
         from fastapi.testclient import TestClient
 
-        import server_settings.schema as server_settings_schema
+        import modules.server_settings.schema as server_settings_schema
         from core.middleware import SecurityHeadersMiddleware
 
         app = FastAPI()
@@ -494,6 +494,46 @@ class TestSecurityHeadersMiddleware:
         csp = response.headers["Content-Security-Policy"]
         for domain in server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS:
             assert domain in csp
+
+    def test_csp_allows_the_object_storage_origin_for_blobs(self):
+        from fastapi import FastAPI
+        from fastapi.responses import HTMLResponse
+        from fastapi.testclient import TestClient
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+        app.state.storage_origin = "https://bucket.s3.amazonaws.com"
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html><body>Hello</body></html>")
+
+        csp = TestClient(app).get("/html").headers["Content-Security-Policy"]
+
+        directives = {d.split()[0]: d for d in csp.split("; ")}
+        assert "https://bucket.s3.amazonaws.com" in directives["img-src"]
+        assert "https://bucket.s3.amazonaws.com" in directives["media-src"]
+
+    def test_csp_has_no_storage_origin_for_local_storage(self):
+        from fastapi import FastAPI
+        from fastapi.responses import HTMLResponse
+        from fastapi.testclient import TestClient
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html><body>Hello</body></html>")
+
+        csp = TestClient(app).get("/html").headers["Content-Security-Policy"]
+
+        assert "media-src 'self' data:" in csp
+        assert "amazonaws" not in csp
 
     def test_allowed_tile_domains_uses_custom_when_set(self):
         from fastapi import FastAPI

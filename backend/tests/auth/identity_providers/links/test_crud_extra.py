@@ -4,11 +4,11 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
-from auth.identity_providers.links import crud as auth_identity_links_crud
-from auth.identity_providers.links.models import IdentityLink
+import core.exceptions as core_exceptions
+from modules.auth.identity_providers.links import crud as auth_identity_links_crud
+from modules.auth.identity_providers.links.models import IdentityLink
 
 
 class TestCheckUserIdentityProvidersByIdpId:
@@ -64,7 +64,7 @@ class TestCheckUserIdentityProvidersByIdpId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_identity_links_crud.check_user_identity_providers_by_idp_id(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -139,7 +139,7 @@ class TestGetUserIdentityProvidersByUserId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_identity_links_crud.get_user_identity_providers_by_user_id(1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -203,7 +203,7 @@ class TestGetUserIdentityProviderByUserIdAndIdpId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(1, 1, mock_db)
 
         assert exc_info.value.status_code == 500
@@ -273,7 +273,7 @@ class TestGetUserIdentityProviderBySubjectAndIdpId:
         mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_identity_links_crud.get_user_identity_provider_by_subject_and_idp_id(1, "user@provider.com", mock_db)
 
         assert exc_info.value.status_code == 500
@@ -308,7 +308,9 @@ class TestCreateUserIdentityProvider:
         mock_db.refresh = MagicMock()
 
         # Patch the IdentityLink constructor
-        with patch("auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink") as mock_constructor:
+        with patch(
+            "modules.auth.identity_providers.links.crud.auth_identity_links_models.IdentityLink"
+        ) as mock_constructor:
             mock_constructor.return_value = mock_link
 
             # Act
@@ -335,7 +337,7 @@ class TestCreateUserIdentityProvider:
         mock_db.rollback = MagicMock()
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             auth_identity_links_crud.create_user_identity_provider(1, 1, "user123", mock_db)
 
         assert exc_info.value.status_code == 500
@@ -361,7 +363,9 @@ class TestUpdateUserIdentityProviderLastLogin:
         mock_link.user_id = 1
         mock_link.idp_id = 1
 
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
             mock_db.refresh = MagicMock()
@@ -386,7 +390,9 @@ class TestUpdateUserIdentityProviderLastLogin:
             - No database operations performed
         """
         # Arrange
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = None
 
             # Act
@@ -420,7 +426,9 @@ class TestStoreUserIdentityProviderTokens:
         expires_at = datetime.now(UTC)
         encrypted_token = "encrypted_refresh_token_xyz"
 
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
             mock_db.refresh = MagicMock()
@@ -450,7 +458,9 @@ class TestStoreUserIdentityProviderTokens:
         # Arrange
         expires_at = datetime.now(UTC)
 
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = None
 
             # Act
@@ -482,7 +492,9 @@ class TestClearUserIdentityProviderRefreshToken:
         mock_link.idp_access_token_expires_at = datetime.now(UTC)
         mock_link.idp_refresh_token_updated_at = datetime.now(UTC)
 
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
 
@@ -509,7 +521,9 @@ class TestClearUserIdentityProviderRefreshToken:
             - No database operations performed
         """
         # Arrange
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = None
 
             # Act
@@ -542,7 +556,9 @@ class TestDeleteUserIdentityProvider:
         mock_link.id = 1
         mock_link.idp_refresh_token = "token"
 
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit = MagicMock()
             mock_db.delete = MagicMock()
@@ -567,7 +583,9 @@ class TestDeleteUserIdentityProvider:
             - No database operations performed
         """
         # Arrange
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = None
 
             # Act
@@ -591,13 +609,15 @@ class TestDeleteUserIdentityProvider:
         mock_link = MagicMock(spec=IdentityLink)
         mock_link.id = 1
 
-        with patch("auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id") as mock_get:
+        with patch(
+            "modules.auth.identity_providers.links.crud.get_user_identity_provider_by_user_id_and_idp_id"
+        ) as mock_get:
             mock_get.return_value = mock_link
             mock_db.commit.side_effect = SQLAlchemyError("Database error")
             mock_db.rollback = MagicMock()
 
             # Act & Assert
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.ProcessingError) as exc_info:
                 auth_identity_links_crud.delete_user_identity_provider(1, 1, mock_db)
 
             assert exc_info.value.status_code == 500

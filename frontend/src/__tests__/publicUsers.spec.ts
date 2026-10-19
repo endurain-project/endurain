@@ -14,7 +14,7 @@ const userDto = {
   name: 'Jane Runner',
   username: 'jane',
   city: 'Lisbon',
-  photo_path: '/app/backend/data/user_images/7.jpg',
+  photo_path: '/api/v1/users/7/photo?t=sig',
 } as UserDto
 
 beforeEach(() => {
@@ -26,7 +26,7 @@ describe('mapPublicUser', () => {
     const user = mapPublicUser(userDto)
 
     expect(user).toMatchObject({ id: 7, name: 'Jane Runner', username: 'jane', city: 'Lisbon' })
-    expect(user.avatarUrl).toContain('user_images/7.jpg')
+    expect(user.avatarUrl).toContain('/users/7/photo?t=sig')
   })
 
   it('keeps a null city as null', () => {

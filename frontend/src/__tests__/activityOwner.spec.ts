@@ -9,7 +9,7 @@ const ownerDto = {
   id: 7,
   name: 'Jane Runner',
   username: 'jane',
-  photo_path: '/app/backend/data/user_images/7.jpg',
+  photo_path: '/api/v1/users/7/photo?t=sig',
 }
 
 beforeEach(() => {
@@ -24,7 +24,7 @@ describe('fetchActivityOwner', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/users/id/7', { auth: true, signal: undefined })
     expect(owner).toMatchObject({ name: 'Jane Runner', username: 'jane' })
-    expect(owner?.avatarUrl).toContain('user_images/7.jpg')
+    expect(owner?.avatarUrl).toContain('/users/7/photo?t=sig')
   })
 
   it('uses the public user endpoint when the viewer is anonymous', async () => {

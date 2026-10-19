@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Spremite svoje sigurnosne kodove",
       "description": "Upotrijebite sigurnosni kod za prijavu ako izgubite pristup svojoj aplikaciji za autentifikaciju.",
-      "warning": "Ovi se kodovi prikazuju samo jednom. Pohranite ih na sigurno mjesto — svaki kod radi samo jednom.",
+      "warning": "Ovi se kodovi prikazuju samo jednom. Pohranite ih na sigurno mjesto, svaki kod radi samo jednom.",
       "copy": "Kopiraj",
       "copied": "Sigurnosni kodovi su kopirani",
       "copyError": "Nije moguće kopirati kodove.",
@@ -898,7 +898,7 @@
       "export": "Izvezi podatke",
       "import": "Uvezi podatke",
       "invalidType": "Odaberite .zip arhivu.",
-      "exportSuccess": "Izvoz je spreman — vaše bi preuzimanje uskoro trebalo započeti",
+      "exportSuccess": "Izvoz je spreman, vaše bi preuzimanje uskoro trebalo započeti",
       "exportError": "Nije moguće izvesti vaše podatke. Pokušajte ponovno.",
       "importSuccess": "Podaci su uvezeni",
       "importError": "Nije moguće uvesti arhivu. Provjerite datoteku i pokušajte ponovno."

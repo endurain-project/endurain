@@ -30,9 +30,15 @@ theme:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.snippets:
       base_path: ["docs"]
+hooks:
+  - mkdocs_hooks/auth_docs.py
 extra_css:
   - stylesheets/extra.css
 extra_javascript:
@@ -40,6 +46,38 @@ extra_javascript:
 plugins:
   - blog
   - search
+  - swagger-ui-tag:
+      supportedSubmitMethods: []
+  - redirects:
+      redirect_maps:
+        getting-started/getting-started.md: getting-started/quick-start.md
+        getting-started/advanced-started.md: getting-started/advanced-setup.md
+        integrations/3rd-party-apps.md: features/integrations.md
+        integrations/3rd-party-services.md: features/integrations.md
+        developer-guide/authentication.md: integrate/authentication.md
+        developer-guide/supported-types.md: integrate/supported-types.md
+        developer-guide/import-dev-notes.md: features/importing.md
+        reference/server_settings.md: reference/server-settings.md
+        reference/activities/activity_streams.md: reference/activities.md
+        reference/activities/activity_summary.md: reference/activities.md
+        reference/activities/activity_workout_steps.md: reference/activities.md
+        reference/activities/activity_file_import.md: reference/activities.md
+        reference/authentication/password_reset_tokens.md: reference/authentication.md
+        reference/authentication/sign_up_tokens.md: reference/authentication.md
+        reference/gears/gears.md: reference/gears.md
+        reference/gears/gear_components.md: reference/gears.md
+        reference/health/health_sleep.md: reference/health.md
+        reference/health/health_steps.md: reference/health.md
+        reference/health/health_targets.md: reference/health.md
+        reference/health/health_water.md: reference/health.md
+        reference/health/health_weight.md: reference/health.md
+        reference/health/health_poop.md: reference/health.md
+        reference/users/users.md: reference/users.md
+        reference/users/users_profile.md: reference/users.md
+        reference/users/users_goals.md: reference/users.md
+        reference/users/users_default_gear.md: reference/users.md
+        reference/users/users_integrations.md: reference/users.md
+        reference/users/users_privacy_settings.md: reference/users.md
   - mkdocstrings:
       handlers:
         python:
@@ -49,59 +87,53 @@ plugins:
             separate_signature: true
 nav:
   - Home: index.md
-  - Blog:
-    - blog/index.md
-  - Hosting Guide:
-    - Getting started easy: getting-started/getting-started.md
-    - Getting started advanced: getting-started/advanced-started.md
-    - Bare-Metal installation guide: getting-started/bare-metal.md
+  - Getting started:
+    - Quick start: getting-started/quick-start.md
+    - Reverse proxy: getting-started/reverse-proxy.md
+    - Updates and backups: getting-started/operations.md
+    - Troubleshooting: getting-started/troubleshooting.md
+    - Advanced setup: getting-started/advanced-setup.md
+    - Scaling and background jobs: getting-started/scaling-and-background-jobs.md
+    - Bare-metal installation: getting-started/bare-metal.md
     - Proxmox community script: https://community-scripts.github.io/ProxmoxVE/scripts?id=endurain&category=Gaming+%26+Leisure
-    - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
-  - Features:
+  - User guide:
     - Importing data: features/importing.md
+    - Sharing, privacy and followers: features/sharing-and-privacy.md
+    - Exporting and importing your data: features/export-import.md
     - Single Sign-On (SSO): features/single-sign-on.md
-    - Sleep Scoring: features/sleep-scoring.md
-  - Integrations:
-    - 3rd party apps: integrations/3rd-party-apps.md
-    - 3rd party services: integrations/3rd-party-services.md
-  - Developer guide: 
+    - Sleep scoring: features/sleep-scoring.md
+    - Integrations: features/integrations.md
+    - Gallery: gallery.md
+    - Tools: tools.md
+  - Integrate:
+    - Authentication: integrate/authentication.md
+    - Account security: integrate/account-security.md
+    - API keys: integrate/api-keys.md
+    - OAuth/SSO and PKCE: integrate/oauth-sso-pkce.md
+    - Configuration, scopes and best practices: integrate/auth-reference.md
+    - Errors, concurrency and rate limits: integrate/errors-and-limits.md
+    - Supported types: integrate/supported-types.md
+    - API reference (OpenAPI): integrate/api-reference.md
+  - Contributing:
     - Setup a development environment: developer-guide/setup-dev-env.md
-    - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
-    - Authentication: developer-guide/authentication.md
+    - Module structure: developer-guide/module-structure.md
+    - Activity ingestion: developer-guide/activity-ingestion.md
+    - Events and subscribers: developer-guide/events-and-subscribers.md
     - Auth boundary: developer-guide/auth-boundary.md
-    - Supported types: developer-guide/supported-types.md
-    - Import development notes: developer-guide/import-dev-notes.md
-  - Gallery: gallery.md
-  - Tools: tools.md
-  - Privacy:
-    - Mobile app privacy policy: privacy/mobile-app-privacy-policy.md
+    - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
+    - Writing the documentation: developer-guide/writing-docs.md
   - Backend reference:
-    - Activities:
-      - Activity streams: reference/activities/activity_streams.md
-      - Activity summaries: reference/activities/activity_summaries.md
-      - Activity workout steps: reference/activities/activity_workout_steps.md
-      - Activity file import: reference/activities/activity_file_import.md
-    - Authentication:
-      - Password reset tokens: reference/authentication/password_reset_tokens.md
-      - Sign up tokens: reference/authentication/sign_up_tokens.md
-    - Gears:
-      - Gears: reference/gears/gears.md
-      - Gear components: reference/gears/gear_components.md
-    - Health:
-      - Health poop: reference/health/health_poop.md
-      - Health sleep: reference/health/health_sleep.md
-      - Health steps: reference/health/health_steps.md
-      - Health targets: reference/health/health_targets.md
-      - Health water: reference/health/health_water.md
-      - Health weight: reference/health/health_weight.md
+    - Activities: reference/activities.md
+    - Authentication: reference/authentication.md
+    - Followers: reference/followers.md
+    - Garmin Connect: reference/garmin.md
+    - Gears: reference/gears.md
+    - Health: reference/health.md
+    - Users: reference/users.md
     - Migrations: reference/migrations.md
     - Notifications: reference/notifications.md
-    - Server settings: reference/server_settings.md
-    - Users:
-      - Users: reference/users/users.md
-      - Users default gear: reference/users/users_default_gear.md
-      - Users goals: reference/users/users_goals.md
-      - Users integrations: reference/users/users_integrations.md
-      - Users privacy settings: reference/users/users_privacy_settings.md
-      - Users profile: reference/users/users_profile.md
+    - Server settings: reference/server-settings.md
+    - Strava: reference/strava.md
     - WebSocket: reference/websocket.md
+  - Blog: blog/index.md
+  - Privacy policy: privacy/mobile-app-privacy-policy.md

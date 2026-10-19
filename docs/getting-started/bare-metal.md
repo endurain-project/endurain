@@ -17,8 +17,8 @@ apt install -y \
 Install the required tools from their official sources:
 
 - uv (Python) → https://docs.astral.sh/uv/
-- Node.js 22 → https://nodejs.org/en/download
-- PostgreSQL 17 → https://www.postgresql.org/download/
+- Node.js 24 → https://nodejs.org/en/download
+- PostgreSQL 18 → https://www.postgresql.org/download/
 
 ## 3. Download Endurain Release
 
@@ -66,7 +66,7 @@ nano /path/to/endurain/.env
 ```
 
 Adjust the environment variables and set keys. You definitely have to adjust `FRONTEND_DIR`, `BACKEND_DIR` and `DB_HOST`.  
-Environment variables are explained in the [Environment Variables Guide](advanced-started.md).
+Environment variables are explained in the [Environment Variables Guide](advanced-setup.md).
 
 ```env
 DB_HOST=localhost

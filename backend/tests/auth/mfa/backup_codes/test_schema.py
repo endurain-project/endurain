@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-import auth.mfa.backup_codes.schema as mfa_schema
+import modules.auth.mfa.backup_codes.schema as mfa_schema
 
 
 class TestMFABackupCodesResponse:

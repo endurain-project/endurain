@@ -57,6 +57,16 @@ const yearRange = computed(() => {
         <span aria-hidden="true">•</span>
         <a
           class="inline-flex items-center hover:text-foreground"
+          href="https://bsky.app/profile/endurain.bsky.social"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="t('footer.bluesky')"
+        >
+          Bluesky
+        </a>
+        <span aria-hidden="true">•</span>
+        <a
+          class="inline-flex items-center hover:text-foreground"
           href="https://discord.gg/6VUjUq2uZR"
           target="_blank"
           rel="noopener noreferrer"
@@ -65,7 +75,17 @@ const yearRange = computed(() => {
           Discord
         </a>
         <span aria-hidden="true">•</span>
-        <span>v0.19.4</span>
+        <a
+          class="inline-flex items-center hover:text-foreground"
+          href="https://www.linkedin.com/company/endurain"
+          target="_blank"
+          rel="noopener noreferrer"
+          :aria-label="t('footer.linkedin')"
+        >
+          LinkedIn
+        </a>
+        <span aria-hidden="true">•</span>
+        <span>v0.20.0-beta1</span>
       </p>
 
       <p

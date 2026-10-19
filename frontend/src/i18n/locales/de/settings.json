@@ -589,7 +589,7 @@
     "backupCodes": {
       "title": "Deine Backup-Codes speichern",
       "description": "Verwende einen Backup-Code zum Anmelden, wenn du keinen Zugang zu deiner Authentifizierungs-App hast.",
-      "warning": "Diese Codes werden nur einmal angezeigt. Bewahre sie sicher auf — jeder Code funktioniert nur einmal.",
+      "warning": "Diese Codes werden nur einmal angezeigt. Bewahre sie sicher auf, jeder Code funktioniert nur einmal.",
       "copy": "Kopieren",
       "copied": "Backup-Codes kopiert",
       "copyError": "Die Codes konnten nicht kopiert werden.",
@@ -898,7 +898,7 @@
       "export": "Daten exportieren",
       "import": "Daten importieren",
       "invalidType": "Bitte wähle ein .zip-Archiv.",
-      "exportSuccess": "Export bereit — dein Download sollte in Kürze beginnen",
+      "exportSuccess": "Export bereit, dein Download sollte in Kürze beginnen",
       "exportError": "Deine Daten konnten nicht exportiert werden. Bitte versuche es erneut.",
       "importSuccess": "Daten importiert",
       "importError": "Das Archiv konnte nicht importiert werden. Bitte überprüfe die Datei und versuche es erneut."

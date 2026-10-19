@@ -5,13 +5,14 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import operators
 
-import auth.password_reset_tokens.crud as password_reset_tokens_crud
-import auth.password_reset_tokens.models as password_reset_tokens_models
-import auth.password_reset_tokens.schema as password_reset_tokens_schema
+import core.exceptions as core_exceptions
+import modules.auth.password_reset_tokens.crud as password_reset_tokens_crud
+import modules.auth.password_reset_tokens.models as password_reset_tokens_models
+import modules.auth.password_reset_tokens.schema as password_reset_tokens_schema
 
 
 class TestClaimPasswordResetToken:
@@ -73,7 +74,7 @@ class TestMarkUserPasswordResetTokensUsed:
 class TestCreatePasswordResetToken:
     """Test suite for create_password_reset_token function."""
 
-    @patch("auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
+    @patch("modules.auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
     def test_create_token_persists_and_returns_instance(self, mock_model_cls, mock_db):
         """
         Adds the token to the database, commits, refreshes, and
@@ -100,7 +101,7 @@ class TestCreatePasswordResetToken:
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once_with(mock_instance)
 
-    @patch("auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
+    @patch("modules.auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
     def test_create_token_adds_correct_model_instance(self, mock_model_cls, mock_db):
         """
         Verifies the ORM constructor is called with the correct
@@ -133,7 +134,7 @@ class TestCreatePasswordResetToken:
             used=False,
         )
 
-    @patch("auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
+    @patch("modules.auth.password_reset_tokens.crud.password_reset_tokens_models.PasswordResetToken")
     def test_create_token_db_error_raises_500(self, mock_model_cls, mock_db):
         """
         Raises HTTP 500 when a database error occurs.
@@ -152,7 +153,7 @@ class TestCreatePasswordResetToken:
         mock_db.commit.side_effect = SQLAlchemyError("db error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             password_reset_tokens_crud.create_password_reset_token(token_schema, mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -216,7 +217,7 @@ class TestGetPasswordResetTokenByHash:
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             password_reset_tokens_crud.get_password_reset_token_by_hash("hash", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -266,7 +267,7 @@ class TestMarkPasswordResetTokenUsed:
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             password_reset_tokens_crud.mark_password_reset_token_used("token-id", mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -333,7 +334,7 @@ class TestDeleteExpiredPasswordResetTokens:
         mock_db.execute.side_effect = SQLAlchemyError("db error")
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
             password_reset_tokens_crud.delete_expired_password_reset_tokens(mock_db)
 
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
