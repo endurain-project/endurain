@@ -74,6 +74,7 @@ export interface AppConfig {
  * @property num_records_per_page - Page size the server enforces for paginated lists.
  * @property tileserver_url - URL template used by frontend maps to request tiles.
  * @property tileserver_attribution - Attribution shown on frontend maps.
+ * @property allowed_redirect_schemes - Custom URI schemes SSO redirects may target.
  */
 export type PublicServerSettings = Pick<
   Schemas['ServerSettingsReadPublic'],
@@ -90,4 +91,5 @@ export type PublicServerSettings = Pick<
   | 'num_records_per_page'
   | 'tileserver_url'
   | 'tileserver_attribution'
+  | 'allowed_redirect_schemes'
 >
