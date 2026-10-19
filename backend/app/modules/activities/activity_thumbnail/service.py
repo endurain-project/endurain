@@ -10,8 +10,9 @@ Sessions are opened by the entry point (``integration_service``) and passed down
 """
 
 import functools
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import Protocol
 
 import jasil.jobs as platform_jobs
 import jasil.providers as platform_providers
@@ -43,7 +44,13 @@ THUMBNAIL_RETRY_DELAY = timedelta(hours=6)
 #: touches the thumbnails at a time across replicas.
 _BACKFILL_LOCK_NAME = "thumbnail_backfill"
 
-type _ActivityPageFetcher = Callable[..., list[activity_contracts.ActivityThumbnailRef]]
+
+class _ActivityPageFetcher(Protocol):
+    """Activity scan that returns one keyset-paginated page of thumbnail references."""
+
+    def __call__(self, db: Session, *, after_id: int, limit: int) -> list[activity_contracts.ActivityThumbnailRef]:
+        """Return the page of references following ``after_id``."""
+        ...
 
 
 def _iter_activity_pages(
