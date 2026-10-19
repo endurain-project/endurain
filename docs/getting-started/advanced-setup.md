@@ -229,3 +229,23 @@ It is possible (v0.10.0 or higher) to personalize the login image in the login p
  - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px
 
+
+## Map tile server
+
+Administrators choose the map tiles in the server settings page, under the maps section: a preset, or a custom tile URL with its attribution. A custom URL must use `https://` (`http://` is accepted only for `localhost`) and contain the `{z}`, `{x}` and `{y}` placeholders.
+
+Two parts of Endurain request tiles, and they treat the URL and the API key differently:
+
+- **Maps in the browser** use the tile URL as it is saved. The URL is part of the public server settings, which can be read without signing in, and the browser sends it to the tile provider. Anything written in the URL, including a key, is therefore visible to anyone who can reach the server.
+- **Map thumbnails** are rendered by the backend. It uses the tile URL and, if set, the **Tile server API key** field. The key is stored encrypted and is never sent to the browser.
+
+How the backend sends the key for thumbnails:
+
+| Tile URL | Key sent as |
+| --- | --- |
+| `stadiamaps.com` | `Authorization: Stadia-Auth <key>` header. Without a key, thumbnails are skipped. |
+| Any other host | `api_key=<key>` query parameter, added to the tile URL. Thumbnails are skipped if the URL is not `https://`. |
+
+Only Stadia Maps is sent the key in a header. For any other provider the parameter name is always `api_key`. Many providers document a different name for their key, for example `key`, `apikey`, `apiKey`, `access_token` or `access-token`, so a key entered in the field may not be accepted. For those providers, leave the **Tile server API key** field empty and write the key into the tile URL with the parameter name the provider documents, for example `https://tiles.example.com/{z}/{x}/{y}.png?key=YOUR_KEY`. Check your provider's documentation for the exact name.
+
+Putting a key in the URL has a cost: the key is stored unencrypted in the server settings and is exposed as described above. Keys in a URL query string can also appear in the provider's access logs and in the logs of proxies between Endurain and the provider. Use a key that can only read tiles, if your provider offers one. Endurain does not write the tile URL to its own log when a thumbnail fails, only the error type.
