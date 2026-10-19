@@ -206,6 +206,12 @@ def fetch_and_process_sleep_by_dates(
 
         sleep_dto = garmin_sleep["dailySleepDTO"]
 
+        # For a date without sleep Garmin still returns a DTO whose fields are all null
+        if not sleep_dto.get("id") or not sleep_dto.get("sleepTimeSeconds"):
+            logger.info(f"User {user_id}: No Garmin Connect sleep data found for {date_string}")
+            current_date += timedelta(days=1)
+            continue
+
         # Convert timestamps from milliseconds to datetime
         sleep_start_gmt = (
             datetime.fromtimestamp(
@@ -414,6 +420,15 @@ def fetch_and_process_sleep_by_dates(
         health_sleep_db = health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, str(health_sleep.date), db)
 
         if health_sleep_db:
+            # Never overwrite a row written by another source; rows created before
+            # ``source`` was stored are recognised by their Garmin sleep id
+            if (
+                health_sleep_db.source != health_sleep_schema.Source.GARMIN
+                and not health_sleep_db.garminconnect_sleep_id
+            ):
+                logger.info(f"User {user_id}: Keeping existing non-Garmin sleep data for date {health_sleep.date}")
+                current_date += timedelta(days=1)
+                continue
             # Convert to update schema with the existing ID
             health_sleep_update = health_sleep_schema.HealthSleepUpdate(
                 id=health_sleep_db.id, user_id=user_id, **health_sleep.model_dump()
