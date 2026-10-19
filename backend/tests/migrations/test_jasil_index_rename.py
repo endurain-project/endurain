@@ -4,22 +4,11 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
+import jasil.orm as jasil_orm
+
 _MIGRATION_PATH = (
     Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_20_0/18_rename_jasil_event_metadata_index.py"
 )
-
-_CANONICAL_COMMENTS = {
-    ("event_log", "event_type"): "Domain-event channel, e.g. order.created",
-    ("event_log", "event_source"): "Where the event originated, e.g. api:create_order",
-    ("event_log", "event_metadata"): "Correlation context (request_id, plus any host-defined keys)",
-    ("event_outbox", "event_type"): "Domain-event channel, e.g. order.created",
-    ("event_outbox", "source"): "Where the event originated, e.g. api:create_order",
-    ("event_outbox", "event_metadata"): "Correlation context (request_id, plus any host-defined keys)",
-    ("processing_jobs", "event_type"): "Domain-event channel, e.g. order.created",
-    ("processing_jobs", "subscriber_id"): "Durable subscriber this job runs, e.g. invoice.render",
-    ("processing_jobs", "source"): "Where the originating event came from, e.g. api:create_order",
-    ("processing_jobs", "job_metadata"): "Correlation context (request_id, plus any host-defined keys)",
-}
 
 _LEGACY_COMMENTS = {
     ("event_log", "event_type"): "Domain-event channel, e.g. activity.created",
@@ -33,6 +22,14 @@ _LEGACY_COMMENTS = {
     ("processing_jobs", "source"): "Where the originating event came from, e.g. api:store_activity",
     ("processing_jobs", "job_metadata"): "Correlation context (request_id, user_id, activity_id)",
 }
+
+
+def _canonical_comments() -> dict[tuple[str, str], str]:
+    """Return the comments JASIL's own models define for the columns the migration realigns."""
+    if not jasil_orm.is_models_mapped():
+        jasil_orm.map_models()
+    tables = jasil_orm.get_active_base().metadata.tables
+    return {(table, column): tables[table].columns[column].comment for table, column in _LEGACY_COMMENTS}
 
 
 def _migration_module():
@@ -59,7 +56,7 @@ def test_upgrade_renames_the_legacy_index_to_the_jasil_name() -> None:
         migration.upgrade()
 
     execute.assert_called_once_with("ALTER INDEX idx_event_log_metadata RENAME TO idx_event_log_metadata_gin")
-    assert _comments_from(alter_column) == _CANONICAL_COMMENTS
+    assert _comments_from(alter_column) == _canonical_comments()
 
 
 def test_downgrade_restores_the_legacy_index_name() -> None:
