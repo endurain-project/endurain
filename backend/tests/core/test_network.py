@@ -295,6 +295,46 @@ class TestGetIpAddress:
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
 
+    def test_trusted_proxy_ignores_forged_prepended_hop(self):
+        request = MagicMock(spec=Request)
+        request.client.host = "10.0.0.1"
+        request.headers = {"X-Forwarded-For": "198.51.100.1, 203.0.113.9"}
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            result = core_network.get_ip_address(request)
+            assert result == "203.0.113.9"
+
+    def test_trusted_proxy_chain_skips_trusted_hops(self):
+        request = MagicMock(spec=Request)
+        request.client.host = "10.0.0.2"
+        request.headers = {"X-Forwarded-For": "198.51.100.1, 203.0.113.9, 10.0.0.1"}
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            result = core_network.get_ip_address(request)
+            assert result == "203.0.113.9"
+
+    def test_trusted_proxy_all_hops_trusted_returns_leftmost(self):
+        request = MagicMock(spec=Request)
+        request.client.host = "10.0.0.2"
+        request.headers = {"X-Forwarded-For": "10.0.0.3, 10.0.0.1"}
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            result = core_network.get_ip_address(request)
+            assert result == "10.0.0.3"
+
+    def test_wildcard_trusts_every_hop_and_returns_leftmost(self):
+        request = MagicMock(spec=Request)
+        request.client.host = "10.0.0.1"
+        request.headers = {"X-Forwarded-For": "1.2.3.4, 5.6.7.8"}
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["*"]):
+            result = core_network.get_ip_address(request)
+            assert result == "1.2.3.4"
+
+    def test_empty_x_forwarded_for_falls_back_to_x_real_ip(self):
+        request = MagicMock(spec=Request)
+        request.client.host = "10.0.0.1"
+        request.headers = {"X-Forwarded-For": " , ", "X-Real-IP": "5.6.7.8"}
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            result = core_network.get_ip_address(request)
+            assert result == "5.6.7.8"
+
     def test_trusted_proxy_x_real_ip(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"
