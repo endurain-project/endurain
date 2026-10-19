@@ -57,7 +57,7 @@ class TestServerSettingsModel:
         assert server_settings_models.ServerSettings.sso_auto_redirect.default.arg is False
         assert (
             server_settings_models.ServerSettings.tileserver_url.default.arg
-            == "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         )
         assert server_settings_models.ServerSettings.map_background_color.default.arg == "#dddddd"
         assert server_settings_models.ServerSettings.password_type.default.arg == "strict"

@@ -108,7 +108,7 @@ class ServerSettings(Base):
         comment="Auto-redirect to SSO if only one IdP (true - yes, false - no)",
     )
     tileserver_url: Mapped[str] = mapped_column(
-        default=("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"),
+        default=("https://tile.openstreetmap.org/{z}/{x}/{y}.png"),
         nullable=False,
         comment="URL template for the map tileserver",
     )

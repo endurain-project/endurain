@@ -14,7 +14,7 @@ logger = core_logger.get_logger(__name__)
 TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
     "openstreetmap": {
         "name": "OpenStreetMap",
-        "url_template": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "url_template": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         "attribution": '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         "map_background_color": "#e8e8e8",
         "requires_api_key_frontend": False,
@@ -152,12 +152,13 @@ def extract_domain_from_tile_url(url: str) -> str | None:
         Domain with protocol and wildcard (e.g., https://*.example.com) or None if invalid.
 
     Examples:
+        - https://tile.openstreetmap.org/{z}/{x}/{y}.png -> https://*.openstreetmap.org
         - https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png -> https://*.openstreetmap.org
         - https://tiles.stadiamaps.com/tiles/{z}/{x}/{y}.png -> https://*.stadiamaps.com
     """
     try:
         # Replace common tile URL placeholders before parsing
-        # {s} is used for subdomains (a, b, c for load balancing)
+        # {s} is Leaflet's subdomain placeholder (a, b, c), still used by some custom providers
         clean_url = url.replace("{s}", "a").replace("{S}", "a")
 
         parsed = urlparse(clean_url)

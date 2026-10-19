@@ -5,6 +5,8 @@ Endurain lets you upload single files from the web interface. To import many fil
 - *Generic bulk import* - activity files such as .fit, .tcx, .gpx and .gz.
 - *Importing from a Strava bulk export* - activities, activity metadata (name, description, gear) and photos from a Strava export, plus bikes and shoes.
 
+Nike Run Club data can be imported with the generic bulk import after converting it, see [Importing data from a Nike Run Club export](#importing-data-from-a-nike-run-club-export).
+
 Each can be started two ways:
 
 - **Upload a ZIP.** Works everywhere, including a hosted instance where you have no access to the server. The archive is limited to the upload size the server allows (500 MiB) and 20,000 files.
@@ -83,6 +85,18 @@ Large exports take a while: each file is parsed, enriched and stored, and the im
 Comments on media are not imported (Endurain does not have comments on media).
 
 If you had unnamed shoes in Strava, the gear import renames them, so activities that refer to them by their Strava name are not linked. Edit `activities.csv` to use the new name before importing, using the format Strava writes: `{brand} {model} {name}`.
+
+## Importing data from a Nike Run Club export
+
+Nike Run Club has no export button in the app, but Nike sends your data on request: sign in at <https://www.nike.com/member/settings/privacy> and click "Request Data" under "Download Your Data". The export is a ZIP with one .tcx file per run. These files can't be imported directly: the values are wrapped in whitespace, heart rate is stored in trackpoints without GPS, and pauses and run names are lost.
+
+Convert them to .fit first with the third-party tool [nrc2fit](https://github.com/ycanerol/nrc2fit):
+
+```sh
+uvx --from git+https://github.com/ycanerol/nrc2fit nrc2fit nikeuserdata.zip nrc-fit/
+```
+
+Then import the .fit files with the generic bulk import: zip the `nrc-fit` folder and upload it from the "Import" page, or copy its files into your folder, `data/activity_files/bulk_import/<your user id>/`. Run names, moving time, heart rate, cadence, treadmill runs, and NRC's mood and perceived effort are carried over.
 
 ## Developer notes
 
