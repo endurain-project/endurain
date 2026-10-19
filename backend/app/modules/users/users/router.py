@@ -381,7 +381,7 @@ async def approve_user(
     await run_in_threadpool(users_crud.approve_user, user_id, db)
 
     # Send approval email
-    sign_up_tokens_utils.request_sign_up_approved_email(user_id, db)
+    await run_in_threadpool(sign_up_tokens_utils.request_sign_up_approved_email, user_id, db)
 
     # Return success message
     return {"message": f"User ID {user_id} approved successfully."}

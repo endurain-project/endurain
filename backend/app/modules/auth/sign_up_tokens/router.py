@@ -9,6 +9,7 @@ from fastapi import (
     Request,
     status,
 )
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -84,7 +85,7 @@ async def signup(
 
     if server_settings.signup_require_email_verification:
         # Send the sign-up email
-        sign_up_tokens_utils.request_sign_up_verification_email(created_user.id, db)
+        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_verification_email, created_user.id, db)
         message += " Email sent with verification instructions."
         email_verification_required = True
     if server_settings.signup_require_admin_approval:
@@ -150,7 +151,7 @@ async def verify_email(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
-        sign_up_tokens_utils.request_sign_up_admin_approval_emails(user.id, db)
+        await run_in_threadpool(sign_up_tokens_utils.request_sign_up_admin_approval_emails, user.id, db)
         notif_coro = notifications_utils.create_admin_new_sign_up_approval_request_notification(
             user, websocket_manager, db
         )

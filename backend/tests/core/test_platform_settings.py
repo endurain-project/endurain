@@ -422,3 +422,18 @@ class TestMailSettings:
         assert all(
             "super-secret-value" not in problem and "bad address" not in problem for problem in settings.mail_problems
         )
+
+    @pytest.mark.parametrize(
+        "host", ["mail.example.com/path", "mail example.com", "mail.example.com:25", "a@b.com", "-bad.example.com"]
+    )
+    def test_invalid_host_disables_mail(self, monkeypatch, host):
+        settings = self._settings(monkeypatch, SMTP_HOST=host, SMTP_FROM="a@example.com")
+
+        assert settings.mail_configured is False
+        assert any("SMTP_HOST" in problem for problem in settings.mail_problems)
+        assert settings.smtp_uri is None
+
+    def test_ipv6_literal_is_bracketed_in_uri(self, monkeypatch):
+        settings = self._settings(monkeypatch, SMTP_HOST="::1", SMTP_FROM="a@example.com", SMTP_SECURE=False)
+
+        assert settings.smtp_uri == "smtp://[::1]:587"

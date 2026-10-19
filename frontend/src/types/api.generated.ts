@@ -2717,14 +2717,12 @@ export interface paths {
          *     Args:
          *         request: The HTTP request object.
          *         request_data: Pydantic model with the email address.
-         *         email_service: Dependency-injected email service.
          *         db: Dependency-injected database session.
          *
          *     Returns:
          *         Generic success message to avoid user enumeration.
          *
          *     Raises:
-         *         HTTPException: 500 if sending the reset email fails.
          *         HTTPException: 503 if email service is not configured.
          */
         post: operations["request_password_reset_api_v1_password_reset_request_post"];
@@ -4361,7 +4359,6 @@ export interface paths {
          *     Args:
          *         request: Incoming HTTP request.
          *         confirm_data: Token confirmation payload.
-         *         email_service: Injected email service.
          *         websocket_manager: WebSocket notification manager.
          *         db: Database session.
          *
@@ -4394,7 +4391,6 @@ export interface paths {
          *     Args:
          *         request: Incoming HTTP request.
          *         user: Sign-up payload with user info.
-         *         email_service: Injected email service.
          *         identity_service: Injected identity service.
          *         db: Database session.
          *
@@ -4780,7 +4776,6 @@ export interface paths {
          *         user_id: ID of user to approve.
          *         _validate_id: User ID validation dependency.
          *         _check_scopes: Authorization check.
-         *         email_service: Email service dependency.
          *         db: Database session dependency.
          *
          *     Returns:

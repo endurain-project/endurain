@@ -17,6 +17,7 @@ working unchanged.
 import functools
 import ipaddress
 import os
+import re
 import socket
 import stat
 from email.utils import parseaddr
@@ -56,10 +57,25 @@ SUPPORTED_FILE_FORMATS = [
 
 
 # Settings — every value driven by an environment variable.
+# RFC 1123 hostname: dot-separated labels of letters, digits and inner hyphens.
+_HOSTNAME_PATTERN = re.compile(
+    r"(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*"
+)
+
+
 def _is_plain_address(value: str) -> bool:
     """Whether ``value`` is a single ``addr`` or ``Name <addr>`` email address."""
     _, address = parseaddr(value)
     return bool(address) and "@" in address and not any(c in value for c in "\r\n,;")
+
+
+def _is_valid_smtp_host(host: str) -> bool:
+    """Whether ``host`` is a hostname or an IP literal safe to place in a ``scheme://host:port`` URI."""
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return bool(_HOSTNAME_PATTERN.fullmatch(host))
+    return True
 
 
 @functools.cache
@@ -625,6 +641,8 @@ class Settings(BaseSettings):
         if not self.SMTP_HOST:
             return []
         problems: list[str] = []
+        if not _is_valid_smtp_host(self.SMTP_HOST):
+            problems.append("SMTP_HOST is not a valid hostname or IP address")
         sender = self.smtp_sender
         if not sender:
             problems.append("neither SMTP_FROM nor SMTP_USERNAME is set, so there is no sender address")
@@ -642,7 +660,7 @@ class Settings(BaseSettings):
                 problems.append(
                     "SMTP_SECURE=false cannot be used with SMTP_USERNAME/SMTP_PASSWORD (credentials are never sent without TLS)"
                 )
-            elif not _is_private_host(self.SMTP_HOST):
+            elif _is_valid_smtp_host(self.SMTP_HOST) and not _is_private_host(self.SMTP_HOST):
                 problems.append("SMTP_SECURE=false is only allowed for a private or loopback SMTP_HOST")
         return problems
 
@@ -661,7 +679,9 @@ class Settings(BaseSettings):
         if not self.mail_configured:
             return None
         scheme = "smtps" if self.SMTP_SECURE and self.SMTP_SECURE_TYPE == "ssl" else "smtp"
-        return f"{scheme}://{self.SMTP_HOST}:{self.SMTP_PORT}"
+        # An IPv6 literal needs brackets inside a URI authority.
+        host = f"[{self.SMTP_HOST}]" if ":" in self.SMTP_HOST else self.SMTP_HOST
+        return f"{scheme}://{host}:{self.SMTP_PORT}"
 
     @property
     def job_worker_mode(self) -> platform_profile.JobWorkerMode:
