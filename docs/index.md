@@ -44,7 +44,7 @@ Experience Endurain without installation:
 Endurain is a self-hosted fitness tracking service designed to give users full control over their data and hosting environment. Built with:
 
 - **Frontend:** Vue.js 3 with TypeScript, Tailwind CSS and shadcn-vue components, with Pinia and TanStack Query for state management
-- **Backend:** Python FastAPI, Alembic, SQLAlchemy, Apprise, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy, tcxreader and fitdecode for .gpx, .tcx and .fit file import respectively 
+- **Backend:** Python FastAPI, Alembic, SQLAlchemy, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy, tcxreader and fitdecode for .gpx, .tcx and .fit file import respectively 
 - **Database:** PostgreSQL for efficient data management
 
 To deploy Endurain, a Docker image is available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided in the project repository. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
@@ -78,7 +78,7 @@ Endurain currently supports:
 - Notification system
 - Define and track goals
 - MFA TOTP support
-- Password reset through email link. Uses Apprise for email notifications
+- Password reset through email link. Sends emails through the configured SMTP server
 - Sign-up with configurable email verification and admin approval
 - SSO support (OIDC/SAML)
 

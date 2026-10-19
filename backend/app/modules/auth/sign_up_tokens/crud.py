@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import CursorResult, select
 from sqlalchemy import delete as sa_delete
+from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
@@ -64,6 +65,32 @@ def create_sign_up_token(
     db.commit()
     db.refresh(db_token)
     return db_token
+
+
+@core_decorators.handle_db_errors
+def mark_user_sign_up_tokens_used(user_id: int, db: Session) -> int:
+    """Mark all unused sign-up tokens for a user as used, without committing.
+
+    Args:
+        user_id: User ID whose sign-up tokens should be invalidated.
+        db: SQLAlchemy database session.
+
+    Returns:
+        Number of rows marked as used.
+
+    Raises:
+        HTTPException: 500 error if database operation fails.
+    """
+    stmt = (
+        sa_update(sign_up_tokens_models.SignUpToken)
+        .where(
+            sign_up_tokens_models.SignUpToken.user_id == user_id,
+            sign_up_tokens_models.SignUpToken.used.is_(False),
+        )
+        .values(used=True)
+    )
+    result: CursorResult[Any] = db.execute(stmt)
+    return result.rowcount or 0
 
 
 @core_decorators.handle_db_errors

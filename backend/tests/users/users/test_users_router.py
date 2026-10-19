@@ -6,7 +6,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import core.apprise as core_apprise
 import core.database as core_database
 import core.dependencies as core_dependencies
 import modules.auth.dependencies as auth_dependencies
@@ -355,10 +354,9 @@ class TestEditUser:
 
 class TestApproveUser:
     @patch("modules.users.users.router.users_crud.approve_user")
-    @patch("modules.users.users.router.sign_up_tokens_utils.send_sign_up_approval_email", new_callable=AsyncMock)
+    @patch("modules.users.users.router.sign_up_tokens_utils.request_sign_up_approved_email")
     def test_success(self, mock_send_email, mock_approve, mock_db, auth_app):
         auth_app.dependency_overrides[users_dependencies.validate_user_id] = lambda: None
-        auth_app.dependency_overrides[core_apprise.get_email_service] = lambda: MagicMock()
         client = TestClient(auth_app)
 
         response = client.put("/users/1/approve")
@@ -366,7 +364,7 @@ class TestApproveUser:
         assert response.status_code == 200
         assert response.json() == {"message": "User ID 1 approved successfully."}
         mock_approve.assert_called_once_with(1, mock_db)
-        mock_send_email.assert_awaited_once()
+        mock_send_email.assert_called_once_with(1, mock_db)
 
 
 class TestEditUserPassword:

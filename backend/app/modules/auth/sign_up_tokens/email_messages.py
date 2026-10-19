@@ -3,7 +3,6 @@
 import html
 from urllib.parse import quote as url_quote
 
-import core.apprise as core_apprise
 import core.email_templates as core_email_templates
 import core.i18n as core_i18n
 
@@ -11,7 +10,7 @@ import core.i18n as core_i18n
 def get_signup_confirmation_email(
     user_name: str,
     signup_link: str,
-    email_service: core_apprise.AppriseService,
+    frontend_host: str,
     locale: str | None = None,
 ) -> tuple[str, str, str]:
     """Build a localized sign-up confirmation email.
@@ -19,7 +18,7 @@ def get_signup_confirmation_email(
     Args:
         user_name: The recipient's display name.
         signup_link: The URL to confirm the account.
-        email_service: AppriseService for footer metadata.
+        frontend_host: Base URL of the frontend, used in links and the footer.
         locale: Preferred locale code for the recipient.
 
     Returns:
@@ -73,7 +72,7 @@ def get_signup_confirmation_email(
         subject=subject,
         heading=heading,
         body_inner=body_inner,
-        frontend_host=email_service.frontend_host,
+        frontend_host=frontend_host,
         link_color=color,
     )
 
@@ -95,7 +94,7 @@ def get_admin_signup_notification_email(
     user_name: str,
     sign_up_user_name: str,
     sign_up_user_username: str,
-    email_service: core_apprise.AppriseService,
+    frontend_host: str,
     locale: str | None = None,
 ) -> tuple[str, str, str]:
     """Build a localized admin notification email.
@@ -104,7 +103,7 @@ def get_admin_signup_notification_email(
         user_name: Display name of the admin recipient.
         sign_up_user_name: Display name of the signed-up user.
         sign_up_user_username: Username of the signed-up user.
-        email_service: AppriseService for footer metadata.
+        frontend_host: Base URL of the frontend, used in links and the footer.
         locale: Preferred locale code for the admin recipient.
 
     Returns:
@@ -129,7 +128,7 @@ def get_admin_signup_notification_email(
     # URL-encode username for query-string safety, then HTML-escape
     # the assembled URL before placing it into href and text contexts.
     encoded_username = url_quote(sign_up_user_username, safe="")
-    admin_link = f"{email_service.frontend_host}/settings?tab=users&username={encoded_username}"
+    admin_link = f"{frontend_host}/settings?tab=users&username={encoded_username}"
     safe_admin_link = html.escape(admin_link, quote=True)
 
     body_inner = f"""
@@ -161,7 +160,7 @@ def get_admin_signup_notification_email(
         subject=subject,
         heading=heading,
         body_inner=body_inner,
-        frontend_host=email_service.frontend_host,
+        frontend_host=frontend_host,
         link_color=color,
         sign_off_key="system",
     )
@@ -183,7 +182,7 @@ def get_admin_signup_notification_email(
 def get_user_signup_approved_email(
     sign_up_user_name: str,
     sign_up_user_username: str,
-    email_service: core_apprise.AppriseService,
+    frontend_host: str,
     locale: str | None = None,
 ) -> tuple[str, str, str]:
     """Build a localized account-approved notification email.
@@ -191,7 +190,7 @@ def get_user_signup_approved_email(
     Args:
         sign_up_user_name: Display name of the approved user.
         sign_up_user_username: Username of the approved user.
-        email_service: AppriseService for footer metadata.
+        frontend_host: Base URL of the frontend, used in links and the footer.
         locale: Preferred locale code for the approved user.
 
     Returns:
@@ -212,7 +211,7 @@ def get_user_signup_approved_email(
     copy_link = tr("common.copy_link")
 
     color = core_email_templates.LINK_COLOR_SUCCESS
-    login_link = f"{email_service.frontend_host}/login"
+    login_link = f"{frontend_host}/login"
     # Defense in depth: HTML-escape before insertion into HTML contexts.
     safe_login_link = html.escape(login_link, quote=True)
 
@@ -245,7 +244,7 @@ def get_user_signup_approved_email(
         subject=subject,
         heading=heading,
         body_inner=body_inner,
-        frontend_host=email_service.frontend_host,
+        frontend_host=frontend_host,
         link_color=color,
     )
 

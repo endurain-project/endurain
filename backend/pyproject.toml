@@ -29,7 +29,6 @@ dependencies = [
     "psycopg[binary,pool]>=3.3.4",
     "user-agents>=2.2.0",
     "pydantic[email]>=2.13.4",
-    "apprise>=1.9.9",
     "pyotp>=2.9.0",
     "qrcode[pil]>=8.2",
     "psutil>=7.2.2",
