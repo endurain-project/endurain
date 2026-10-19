@@ -8,9 +8,11 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    computed_field,
     field_validator,
 )
 
+import core.config as core_config
 import core.sanitization as core_sanitization
 
 # Default allowed tile domains for map tiles
@@ -289,7 +291,18 @@ class ServerSettingsReadPublic(ServerSettingsBase):
 
     Inherits all safe fields from ServerSettingsBase but explicitly
     excludes admin-level configuration fields.
+
+    Attributes:
+        allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
+            SSO redirects may target, so the frontend validates the same allow-list
+            as the backend.
     """
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def allowed_redirect_schemes(self) -> list[str]:
+        """Return the configured custom redirect schemes, sorted."""
+        return sorted(core_config.settings.ALLOWED_REDIRECT_SCHEMES)
 
 
 class TileMapsTemplate(BaseModel):

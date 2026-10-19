@@ -9669,8 +9669,18 @@ export interface components {
          *
          *     Inherits all safe fields from ServerSettingsBase but explicitly
          *     excludes admin-level configuration fields.
+         *
+         *     Attributes:
+         *         allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
+         *             SSO redirects may target, so the frontend validates the same allow-list
+         *             as the backend.
          */
         ServerSettingsReadPublic: {
+            /**
+             * Allowed Redirect Schemes
+             * @description Return the configured custom redirect schemes, sorted.
+             */
+            readonly allowed_redirect_schemes: string[];
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**
