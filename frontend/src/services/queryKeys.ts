@@ -398,6 +398,8 @@ export const queryKeys = {
     detail: () => ['server-settings', 'detail'] as const,
     /** The static catalogue of selectable tile-server presets. */
     tileTemplates: () => ['server-settings', 'tile-templates'] as const,
+    /** Whether outgoing email is usable (SMTP settings valid). */
+    email: () => ['server-settings', 'email'] as const,
   },
 
   /**

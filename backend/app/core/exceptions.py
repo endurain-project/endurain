@@ -164,6 +164,24 @@ class PayloadTooLargeError(DomainError):
     default_detail = "Content Too Large"
 
 
+class ServiceUnavailableError(DomainError):
+    """A capability the request depends on is not configured or not reachable."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "service-unavailable"
+    title = "Service Unavailable"
+    default_detail = "Service Unavailable"
+
+
+class UpstreamError(DomainError):
+    """An external system the server called (mail relay, provider) failed."""
+
+    status_code = status.HTTP_502_BAD_GATEWAY
+    code = "upstream-error"
+    title = "Bad Gateway"
+    default_detail = "Bad Gateway"
+
+
 class ProcessingError(DomainError):
     """An internal step failed; the caller can do nothing about it.
 

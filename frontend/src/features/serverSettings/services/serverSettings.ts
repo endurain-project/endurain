@@ -1,4 +1,5 @@
 import type {
+  EmailStatusDto,
   ServerSettings,
   ServerSettingsDto,
   ServerSettingsEditDto,
@@ -172,4 +173,32 @@ export async function deleteLoginPhoto(): Promise<void> {
     method: 'DELETE',
     responseType: 'void',
   })
+}
+
+/**
+ * Fetches whether outgoing email is usable (admin scope `server_settings:read`).
+ * When it is not, `problems` lists the invalid settings by name (never by value).
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The email status.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchEmailStatus(signal?: AbortSignal): Promise<EmailStatusDto> {
+  return apiFetch<EmailStatusDto>('/server_settings/email', { signal })
+}
+
+/**
+ * Sends a test email to the calling admin's own address (admin scope
+ * `server_settings:write`). The send is synchronous, so a failure surfaces the
+ * mail server's failure category and SMTP status code in the error detail.
+ *
+ * @returns The confirmation message naming the recipient.
+ * @throws {HttpError} `503` when email is not configured, `502` when the mail
+ *   server did not accept the message.
+ */
+export async function sendTestEmail(): Promise<string> {
+  const result = await apiFetch<{ message: string }>('/server_settings/email/test', {
+    method: 'POST',
+  })
+  return result.message
 }

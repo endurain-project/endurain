@@ -1,14 +1,16 @@
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { ServerSettings } from '@/features/serverSettings/types'
+import type { EmailStatusDto, ServerSettings } from '@/features/serverSettings/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   deleteLoginPhoto,
+  fetchEmailStatus,
   fetchServerSettings,
   fetchTileMapsTemplates,
+  sendTestEmail,
   updateServerSettings,
   uploadLoginPhoto,
 } from '@/features/serverSettings/services/serverSettings'
@@ -105,5 +107,34 @@ export function useDeleteLoginPhotoMutation() {
     mutationKey: queryKeys.serverSettings.all(),
     mutationFn: () => deleteLoginPhoto(),
     onSettled: () => invalidateServerSettings(client),
+  })
+}
+
+/**
+ * Whether outgoing email is usable. Always refetched on mount so the admin sees
+ * the current state after fixing their SMTP environment and restarting.
+ *
+ * @returns The TanStack Query result for the email status.
+ */
+export function useEmailStatusQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery<EmailStatusDto>({
+    queryKey: queryKeys.serverSettings.email(),
+    queryFn: ({ signal }) => fetchEmailStatus(signal),
+    enabled: isAuthenticated,
+    staleTime: 0,
+  })
+}
+
+/**
+ * Sends a test email to the calling admin. Resolves with the confirmation
+ * message; rejects with an `HttpError` whose detail carries the failure.
+ *
+ * @returns The TanStack Query mutation for the test email.
+ */
+export function useSendTestEmailMutation() {
+  return useMutation<string, Error, void>({
+    mutationFn: () => sendTestEmail(),
   })
 }
