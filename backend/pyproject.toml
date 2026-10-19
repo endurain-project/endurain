@@ -91,6 +91,7 @@ docs = [
     "mkdocs-material>=9.6.0",
     "mkdocstrings[python]>=0.29.0",
     "mkdocs-redirects>=1.2.1",
+    "mkdocs-swagger-ui-tag>=0.7.2",
 ]
 
 [tool.uv]

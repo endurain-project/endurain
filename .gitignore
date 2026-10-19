@@ -69,3 +69,5 @@ endurain_data/
 *.fit
 *.tcx
 *.gz
+# generated at docs build time
+docs/integrate/openapi.json

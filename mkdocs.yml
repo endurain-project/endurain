@@ -46,6 +46,8 @@ extra_javascript:
 plugins:
   - blog
   - search
+  - swagger-ui-tag:
+      supportedSubmitMethods: []
   - redirects:
       redirect_maps:
         getting-started/getting-started.md: getting-started/quick-start.md
@@ -111,6 +113,7 @@ nav:
     - Configuration, scopes and best practices: integrate/auth-reference.md
     - Errors, concurrency and rate limits: integrate/errors-and-limits.md
     - Supported types: integrate/supported-types.md
+    - API reference (OpenAPI): integrate/api-reference.md
   - Contributing:
     - Setup a development environment: developer-guide/setup-dev-env.md
     - Module structure: developer-guide/module-structure.md

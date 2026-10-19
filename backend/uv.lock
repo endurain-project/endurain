@@ -362,6 +362,19 @@ wheels = [
 ]
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "soupsieve" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/65/318323f98dbee45d42dff61d8f047181bc6f2268a9068cfad035a46be5af/beautifulsoup4-4.15.0.tar.gz", hash = "sha256:288e3ca7d54b06f2ac191970bc275c1939cb46d450b255bf6718b04aa37ab4f7", size = 632571, upload-time = "2026-06-07T16:44:20.453Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/c6/92fcd42f1ba33e1184263f25bfabf3d27c383410470f169e4b8163bf9c17/beautifulsoup4-4.15.0-py3-none-any.whl", hash = "sha256:d6f88de62e1d4e38ecb1077eb9724cd0eff29d2a08ca16a401e9b9e93f117cf9", size = 109924, upload-time = "2026-06-07T16:44:21.566Z" },
+]
+
+[[package]]
 name = "boto3"
 version = "1.43.97"
 source = { registry = "https://pypi.org/simple" }
@@ -907,6 +920,7 @@ dev = [
 docs = [
     { name = "mkdocs-material" },
     { name = "mkdocs-redirects" },
+    { name = "mkdocs-swagger-ui-tag" },
     { name = "mkdocstrings", extra = ["python"] },
 ]
 lint = [
@@ -1001,6 +1015,7 @@ dev = [
 docs = [
     { name = "mkdocs-material", specifier = ">=9.6.0" },
     { name = "mkdocs-redirects", specifier = ">=1.2.1" },
+    { name = "mkdocs-swagger-ui-tag", specifier = ">=0.7.2" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.29.0" },
 ]
 lint = [{ name = "ruff", specifier = ">=0.15.12" }]
@@ -1936,6 +1951,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/73/25/49725f78ca5d3026b09973f7a2b3a8b179cc2e8c15e43d5a13bc79f6b274/mkdocs_redirects-1.2.3.tar.gz", hash = "sha256:5e980330999299729a2d6a125347d1af78023d68a23681a4de3053ce7dfe2e51", size = 7712, upload-time = "2026-03-28T13:57:41.766Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c6/90/871b1cddc01d2ba1637b858eeeabc2e3013dc8df591306b5567b98ef0870/mkdocs_redirects-1.2.3-py3-none-any.whl", hash = "sha256:ec7312fff462d03ec16395d0c001006a418f8d0c21cdf2b47ff11cf839dc3ce0", size = 6245, upload-time = "2026-03-28T13:57:40.466Z" },
+]
+
+[[package]]
+name = "mkdocs-swagger-ui-tag"
+version = "0.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e8/ba/c660d28947d1b57a980f7dd5156fb994134c20146a7948c1adb796a80d7f/mkdocs_swagger_ui_tag-0.8.1.tar.gz", hash = "sha256:15f199ca7734c50c088c53bfe9ec806768ad97816badb3a4e72af4e9434252db", size = 1285972, upload-time = "2026-07-10T09:26:21.634Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/28/28/4709ae7156a1326a9530d8a51632a3369d42392588929969b1d0aa221ff5/mkdocs_swagger_ui_tag-0.8.1-py3-none-any.whl", hash = "sha256:f5d6d0558ed6cfafce54a9f0d874d9e24be0a9b02b2429553afefced61c9e55f", size = 1300296, upload-time = "2026-07-10T09:26:19.494Z" },
 ]
 
 [[package]]
@@ -2878,6 +2905,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "soupsieve"
+version = "2.9.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/99/a6ca3beb3ccacb41fb3321d8a60e5566f9e6467601ef8eba6a17e1b89778/soupsieve-2.9.2.tar.gz", hash = "sha256:4a55d8cf158a9c2e587fa4922f1bbb91d68ac829e2d6f25403a85747c71daf74", size = 122445, upload-time = "2026-08-07T00:57:24.801Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/dc/ad025c1ee131eba60c69f4dd5779b18fcf1e6b21a343e2162a84d5d133c7/soupsieve-2.9.2-py3-none-any.whl", hash = "sha256:8089a26fd974ca7a1f30276d3d8492ab266ab15af581642dfe8aa162e0c1c823", size = 37370, upload-time = "2026-08-07T00:57:23.524Z" },
 ]
 
 [[package]]
