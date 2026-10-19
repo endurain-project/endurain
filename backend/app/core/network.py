@@ -241,6 +241,12 @@ def get_ip_address(request: Request) -> str:
     This prevents attackers from spoofing their IP by injecting those
     headers on direct connections.
 
+    ``X-Forwarded-For`` is read right to left and the first hop that is not
+    itself a trusted proxy is the client. Proxies append to the header, so
+    entries a client prepends are ignored. If every hop is trusted (always the
+    case for ``TRUSTED_PROXIES=["*"]``) the leftmost entry is used, which a
+    client can forge.
+
     When ``TRUSTED_PROXIES`` is ``["*"]`` (the default) all peers are
     trusted.
 
@@ -255,9 +261,13 @@ def get_ip_address(request: Request) -> str:
     if peer_ip and _is_trusted_peer(peer_ip):
         # Peer is a trusted proxy — honour the forwarded headers
         forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            # Take the leftmost IP: the original client
-            return forwarded_for.split(",")[0].strip()
+        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()] if forwarded_for else []
+        if hops:
+            for hop in reversed(hops):
+                if not _is_trusted_peer(hop):
+                    return hop
+            # Every hop is a trusted proxy, so the original client was one too
+            return hops[0]
 
         real_ip = request.headers.get("X-Real-IP")
         if real_ip:
