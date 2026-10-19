@@ -69,7 +69,7 @@ const createdAtLabel = computed(() => {
   const date = new Date(props.gear.createdAt)
   return Number.isNaN(date.getTime())
     ? null
-    : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(date)
+    : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeZone: 'UTC' }).format(date)
 })
 </script>
 

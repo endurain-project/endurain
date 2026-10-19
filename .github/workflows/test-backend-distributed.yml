@@ -1,0 +1,111 @@
+name: Test Backend (distributed)
+
+# Runs the tests marked ``distributed``: real API and worker processes against
+# PostgreSQL, Redis and an S3-compatible store. Two of them wait out a real job
+# lease, so each test group runs as its own job, in parallel, with services of its
+# own: the run takes as long as the slowest test rather than the sum.
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - backend/**
+      - .github/workflows/test-backend-distributed.yml
+  pull_request:
+    branches:
+      - master
+    paths:
+      - backend/**
+      - .github/workflows/test-backend-distributed.yml
+  schedule:
+    # Also catches a service image or dependency that changed underneath us.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  test-distributed:
+    name: Backend (distributed, ${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # One group failing says nothing about the others.
+      fail-fast: false
+      matrix:
+        include:
+          - name: uploads
+            tests: tests/distributed/test_uploads_across_processes.py
+          - name: worker crash
+            tests: tests/distributed/test_worker_recovery.py::test_a_job_whose_worker_is_killed_is_finished_by_another_worker
+          - name: lease heartbeat
+            tests: tests/distributed/test_worker_recovery.py::test_a_handler_that_outlives_its_lease_is_not_taken_over
+    # Disposable infrastructure shared by every process the tests start. The
+    # tests create and drop a database of their own, flush this Redis database
+    # and empty the bucket.
+    services:
+      postgres:
+        image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        env:
+          POSTGRES_USER: endurain
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: endurain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U endurain -d endurain_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7@sha256:4fa24486b8bcca8eec45ee0eb166edc674795e53a2b53d1a9ef263eecebaac85
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      s3:
+        image: adobe/s3mock@sha256:ab01a6946750f451ca215a47e91030695b260e4003b8a5a6201d25029b8fca92
+        ports:
+          - 9090:9090
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          working-directory: backend
+
+      - name: Sync dependencies
+        working-directory: backend
+        run: uv sync --frozen --no-dev --group test --extra distributed --no-install-project
+
+      - name: Wait for the S3 mock
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --output /dev/null http://localhost:9090/; then exit 0; fi
+            sleep 2
+          done
+          echo "S3 mock did not become ready" >&2
+          exit 1
+
+      - name: Run distributed tests
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://endurain:test@localhost:5432/endurain_test
+          TEST_REDIS_URL: redis://localhost:6379/0
+          TEST_S3_ENDPOINT_URL: http://localhost:9090
+        # The coverage gate belongs to the main job; these tests only run the app in child processes.
+        run: uv run --no-sync pytest -m distributed --no-cov ${{ matrix.tests }}

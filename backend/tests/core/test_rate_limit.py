@@ -31,10 +31,35 @@ class TestGetRateLimitKey:
         request = MagicMock()
         request.headers = {"authorization": "Bearer my-secret-token-12345"}
 
-        result = _get_rate_limit_key(request)
+        with patch("core.rate_limit._has_valid_signature", return_value=True):
+            result = _get_rate_limit_key(request)
 
         assert result.startswith("user:")
         assert len(result) == 16 + 5  # "user:" + 16 hex chars
+
+    def test_unverified_bearer_token_returns_ip(self):
+        from core.rate_limit import _get_rate_limit_key
+
+        request = MagicMock()
+        request.headers = {"authorization": "Bearer random-garbage"}
+
+        with patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.3"):
+            result = _get_rate_limit_key(request)
+
+        assert result == "10.0.0.3"
+
+    def test_signed_token_is_accepted_and_tampered_rejected(self):
+        from joserfc import jwt
+        from joserfc.jwk import OctKey
+
+        import core.rate_limit as rl
+
+        key = OctKey.import_key("k" * 32)
+        token = jwt.encode({"alg": "HS256"}, {"sub": "1"}, key)
+        with patch("core.rate_limit._jwt_verification_key", return_value=key):
+            assert rl._has_valid_signature(token)
+            assert not rl._has_valid_signature(token[:-2] + "xx")
+            assert not rl._has_valid_signature("not-a-jwt")
 
     def test_no_auth_header_returns_ip(self):
         from core.rate_limit import _get_rate_limit_key
@@ -77,7 +102,7 @@ class TestRateLimitExceededHandler:
 
         exc = MagicMock()
 
-        with patch("core.rate_limit.core_logger.print_to_log"):
+        with patch("core.rate_limit.logger"):
             response = rate_limit_exceeded_handler(request, exc)
 
         assert isinstance(response, JSONResponse)
@@ -97,12 +122,12 @@ class TestRateLimitExceededHandler:
 
         with (
             patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.1"),
-            patch("core.rate_limit.core_logger.print_to_log") as mock_log,
+            patch("core.rate_limit.logger") as mock_log,
         ):
             rate_limit_exceeded_handler(request, exc)
 
-        mock_log.assert_called_once()
-        call_args = mock_log.call_args[0]
+        assert len(mock_log.method_calls) == 1
+        call_args = mock_log.warning.call_args[0]
         assert "Rate limit exceeded" in call_args[0]
         assert "10.0.0.1" in call_args[0]
 
@@ -118,7 +143,7 @@ class TestRateLimitExceededHandler:
 
         exc = MagicMock()
 
-        with patch("core.rate_limit.core_logger.print_to_log"):
+        with patch("core.rate_limit.logger"):
             response = rate_limit_exceeded_handler(request, exc)
 
         assert response.status_code == 429

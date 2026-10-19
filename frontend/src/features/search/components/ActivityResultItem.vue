@@ -7,6 +7,7 @@ import type { Activity } from '@/features/activities/types'
 
 import { ActivityTypeBadge } from '@/components/ui/activity-type-badge'
 import { presentActivityType } from '@/features/activities/utils/activityType'
+import { formatZonedDateTime } from '@/utils/datetime'
 
 /**
  * One activity row in the search results: type icon, name, start date, and a
@@ -19,16 +20,12 @@ const { t, locale } = useI18n()
 const presentation = computed(() => presentActivityType(props.activity.activityType))
 
 /** The localized start date, or `null` when the activity has no/invalid time. */
-const dateLabel = computed(() => {
-  if (!props.activity.startTime) {
-    return null
-  }
-  const date = new Date(props.activity.startTime)
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-  return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(date)
-})
+const dateLabel = computed(
+  () =>
+    formatZonedDateTime(props.activity.startTime, props.activity.timezone, locale.value, {
+      dateStyle: 'medium',
+    }) || null,
+)
 </script>
 
 <template>

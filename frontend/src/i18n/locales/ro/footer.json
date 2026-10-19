@@ -2,7 +2,9 @@
   "repository": "Depozit",
   "documentation": "Documentație",
   "mastodon": "Contul Mastodon Endurain",
+  "bluesky": "Profilul Bluesky Endurain",
   "discord": "Serverul Discord Endurain",
+  "linkedin": "Pagina LinkedIn Endurain",
   "compatibleStrava": "Compatibil cu Strava",
   "worksGarmin": "Funcționează cu Garmin Connect"
 }

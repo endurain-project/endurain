@@ -6,7 +6,7 @@ from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 
-from auth.password_hasher import PasswordHasher, PasswordPolicyError
+from modules.auth._internal.password_hasher import PasswordHasher, PasswordPolicyError
 
 
 class TestPasswordHasherSecurity:

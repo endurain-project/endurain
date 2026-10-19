@@ -16,10 +16,10 @@ function toBoolean(value: number | boolean | null | undefined): boolean {
 /**
  * Resolves the backend `photo_path` into a servable avatar URL.
  *
- * The backend stores an absolute filesystem path (e.g.
- * `/app/backend/data/user_images/1.jpg`), but the image is served from the
- * `/user_images/<file>` route. Strip everything before the served segment so
- * the URL resolves instead of 404-ing.
+ * The backend returns a ready-to-use URL: a same-origin signed path
+ * (`/api/v1/users/7/photo?t=…`) for local storage, or an absolute presigned URL
+ * for object storage. `getBackendAssetUrl` handles both, so the client no longer
+ * reverses a filesystem path.
  *
  * @param photoPath - Raw `photo_path` from the backend, or null/undefined.
  * @returns Absolute avatar URL, or `null` when no photo is set.
@@ -28,12 +28,9 @@ export function resolveAvatarUrl(photoPath: string | null | undefined): string |
   if (!photoPath) {
     return null
   }
-  const marker = 'user_images/'
-  const index = photoPath.lastIndexOf(marker)
-  const assetPath = index >= 0 ? photoPath.slice(index) : photoPath
-  const url = getBackendAssetUrl(assetPath)
-  // Bust the browser cache after a photo change: the served path is stable, so
-  // a new upload would otherwise keep showing the cached image.
+  const url = getBackendAssetUrl(photoPath)
+  // Bust the browser cache after a photo change: the signed URL is stable, so a
+  // new upload would otherwise keep showing the cached image.
   const token = getAvatarCacheToken()
   return token ? `${url}${url.includes('?') ? '&' : '?'}v=${token}` : url
 }

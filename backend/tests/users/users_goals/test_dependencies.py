@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException, status
 
-import users.users_goals.dependencies as user_goals_dependencies
+import modules.users.users_goals.dependencies as user_goals_dependencies
 
 
 class TestValidateGoalId:
@@ -13,7 +13,7 @@ class TestValidateGoalId:
     Test suite for validate_goal_id function.
     """
 
-    @patch("users.users_goals.dependencies.core_dependencies.validate_id")
+    @patch("modules.users.users_goals.dependencies.core_dependencies.validate_id")
     def test_validate_goal_id_valid(self, mock_validate_id):
         """Test validation passes for valid goal ID."""
         # Arrange
@@ -25,9 +25,15 @@ class TestValidateGoalId:
 
         # Assert
         assert result is None
-        mock_validate_id.assert_called_once_with(identifier=goal_id, min_value=1, message="Invalid goal ID")
+        mock_validate_id.assert_called_once_with(identifier=goal_id, min_value=0, message="Invalid goal ID")
 
-    @patch("users.users_goals.dependencies.core_dependencies.validate_id")
+    def test_validate_goal_id_accepts_first_goal_unmocked(self):
+        """The smallest real id, 1, passes while 0 is still rejected."""
+        assert user_goals_dependencies.validate_goal_id(1) is None
+        with pytest.raises(HTTPException):
+            user_goals_dependencies.validate_goal_id(0)
+
+    @patch("modules.users.users_goals.dependencies.core_dependencies.validate_id")
     def test_validate_goal_id_zero(self, mock_validate_id):
         """Test validation fails for zero goal ID."""
         # Arrange
@@ -44,7 +50,7 @@ class TestValidateGoalId:
         assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         assert exc_info.value.detail == "Invalid goal ID"
 
-    @patch("users.users_goals.dependencies.core_dependencies.validate_id")
+    @patch("modules.users.users_goals.dependencies.core_dependencies.validate_id")
     def test_validate_goal_id_negative(self, mock_validate_id):
         """Test validation fails for negative goal ID."""
         # Arrange

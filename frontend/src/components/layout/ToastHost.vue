@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { X } from '@lucide/vue'
 
 import { useToasts } from '@/composables/useToasts'
-import { severityClasses } from '@/lib/severity'
+import { severityToastClasses } from '@/lib/severity'
 
 defineProps<{
   /** Offset toasts below the app navbar (set when the chrome/navbar is shown). */
@@ -30,8 +30,8 @@ const { toasts, dismiss } = useToasts()
     <div
       v-for="toast in toasts"
       :key="toast.id"
-      class="pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-input border px-3 py-2 text-meta shadow-sm"
-      :class="severityClasses[toast.kind]"
+      class="pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-input border px-3 py-2 text-meta shadow-lg"
+      :class="severityToastClasses[toast.kind]"
       role="status"
       aria-live="polite"
     >

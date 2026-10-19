@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy.orm import Session
 
-import health.health_weight.schema as health_weight_schema
-import health.health_weight.utils as health_weight_utils
+import modules.health.health_weight.schema as health_weight_schema
+import modules.health.health_weight.utils as health_weight_utils
 
 
 class TestCalculateBMI:
@@ -12,7 +12,7 @@ class TestCalculateBMI:
     Test suite for calculate_bmi function.
     """
 
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_success(self, mock_get_user):
         """
         Test successful BMI calculation.
@@ -36,7 +36,7 @@ class TestCalculateBMI:
         assert abs(result.bmi - expected_bmi) < 0.01
         mock_get_user.assert_called_once_with(user_id, mock_db)
 
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_user_not_found(self, mock_get_user):
         """
         Test BMI calculation when user not found.
@@ -54,7 +54,7 @@ class TestCalculateBMI:
         # Assert
         assert result.bmi is None
 
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_no_height(self, mock_get_user):
         """
         Test BMI calculation when user has no height.
@@ -75,7 +75,7 @@ class TestCalculateBMI:
         # Assert
         assert result.bmi is None
 
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_no_weight(self, mock_get_user):
         """
         Test BMI calculation when health weight has no weight.
@@ -96,7 +96,7 @@ class TestCalculateBMI:
         # Assert
         assert result.bmi is None
 
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_various_heights_and_weights(self, mock_get_user):
         """
         Test BMI calculation with various heights and weights.
@@ -136,8 +136,8 @@ class TestCalculateBMIAllUserEntries:
     Test suite for calculate_bmi_all_user_entries function.
     """
 
-    @patch("health.health_weight.utils.health_weight_crud.recalculate_bmi_for_user")
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.health_weight_crud.recalculate_bmi_for_user")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_delegates_with_user_height(self, mock_get_user, mock_recalculate):
         """
         Test that recalculation delegates using the user's height.
@@ -156,8 +156,8 @@ class TestCalculateBMIAllUserEntries:
         mock_get_user.assert_called_once_with(user_id, mock_db)
         mock_recalculate.assert_called_once_with(user_id, 175.0, mock_db)
 
-    @patch("health.health_weight.utils.health_weight_crud.recalculate_bmi_for_user")
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.health_weight_crud.recalculate_bmi_for_user")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_delegates_with_none_height_when_user_has_no_height(self, mock_get_user, mock_recalculate):
         """
         Test delegation passes None height when the user has no height.
@@ -175,8 +175,8 @@ class TestCalculateBMIAllUserEntries:
         # Assert
         mock_recalculate.assert_called_once_with(user_id, None, mock_db)
 
-    @patch("health.health_weight.utils.health_weight_crud.recalculate_bmi_for_user")
-    @patch("health.health_weight.utils.users_crud.get_user_by_id")
+    @patch("modules.health.health_weight.utils.health_weight_crud.recalculate_bmi_for_user")
+    @patch("modules.health.health_weight.utils.users_crud.get_user_by_id")
     def test_delegates_with_none_height_when_user_missing(self, mock_get_user, mock_recalculate):
         """
         Test delegation passes None height when the user is not found.

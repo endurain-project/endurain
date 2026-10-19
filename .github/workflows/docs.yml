@@ -41,6 +41,14 @@ jobs:
         with:
           working-directory: backend
 
+      - name: Sync backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Export OpenAPI schema
+        working-directory: backend
+        run: uv run --no-sync python scripts/export_openapi.py ../docs/integrate/openapi.json
+
       - name: Sync documentation dependencies
         working-directory: backend
         run: uv sync --frozen --only-group docs

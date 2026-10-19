@@ -2,7 +2,9 @@
   "repository": "Depo",
   "documentation": "Belgeler",
   "mastodon": "Endurain'in Mastodon hesabı",
+  "bluesky": "Endurain'in Bluesky profili",
   "discord": "Endurain'in Discord sunucusu",
+  "linkedin": "Endurain'in LinkedIn sayfası",
   "compatibleStrava": "Strava ile uyumlu",
   "worksGarmin": "Garmin Connect ile çalışır"
 }

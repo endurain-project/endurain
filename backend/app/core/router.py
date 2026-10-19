@@ -68,33 +68,6 @@ async def about() -> AboutResponse:
     )
 
 
-@router.get("/user_images/{user_img}", response_class=FileResponse)
-def user_img_return(
-    user_img: str,
-) -> FileResponse:
-    """
-    Retrieves the file path for a user's image.
-
-    Args:
-        user_img (str): The filename or identifier of the user's image.
-
-    Returns:
-        str: The file path to the user's image.
-
-    Raises:
-        HTTPException: If the image path cannot be found.
-    """
-    path = core_utils.return_user_img_path(user_img)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User image not found",
-        )
-
-    return path
-
-
 @router.get("/server_images/{server_img}", response_class=FileResponse)
 def server_img_return(
     server_img: str,
@@ -122,58 +95,12 @@ def server_img_return(
     return path
 
 
-@router.get("/activity_media/{media}", response_class=FileResponse)
-def activity_media_return(
-    media: str,
-) -> FileResponse:
-    """
-    Retrieves the server path for a given activity media file.
-
-    Args:
-        media (str): The name or identifier of the activity media file.
-
-    Returns:
-        str: The server path to the activity media file.
-
-    Raises:
-        HTTPException: If the media file is not found.
-    """
-    path = core_utils.return_activity_media_path(media)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity media not found",
-        )
-
-    return path
-
-
-@router.get("/activity_thumbnails/{thumbnail}", response_class=FileResponse)
-def activity_thumbnail_return(
-    thumbnail: str,
-) -> FileResponse:
-    """
-    Retrieves the server path for a given activity thumbnail.
-
-    Args:
-        thumbnail (str): The name or identifier of the activity thumbnail.
-
-    Returns:
-        str: The server path to the activity thumbnail.
-
-    Raises:
-        HTTPException: If the thumbnail is not found.
-    """
-    path = core_utils.return_activity_thumbnail_path(thumbnail)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Activity thumbnail not found",
-        )
-
-    return path
+# NOTE: there is deliberately no ``/user_images/{user_img}``,
+# ``/activity_media/{media}`` or ``/activity_thumbnails/{thumbnail}`` route here.
+# All three serve private user data and are reachable only through their
+# token-gated routes. A filename-addressed route beside them is a full bypass of
+# that gate, which is what these used to be — and for user photos, stored as
+# ``{user_id}.{ext}``, it enumerated the entire user base.
 
 
 @router.get(

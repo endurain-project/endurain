@@ -17,6 +17,7 @@ import type {
   MapTrack,
 } from '@/composables/useMapProvider'
 
+import { DEFAULT_MAP_CONFIG } from '@/features/config/defaults'
 import { themeColor } from '@/lib/themeColor'
 
 /** A latitude/longitude pair in Leaflet's expected `[lat, lng]` order. */
@@ -24,7 +25,7 @@ export type LatLngTuple = [number, number]
 
 /** Tile-server configuration for the Leaflet provider. */
 export interface LeafletMapProviderConfig {
-  /** Tile URL template with `{z}`, `{x}`, `{y}`; Leaflet's `{s}` subdomain placeholder also works for custom providers. */
+  /** Tile URL template (supports Leaflet's `{s}`, `{z}`, `{x}`, `{y}`). */
   tileUrl?: string
   /** Attribution HTML shown in the map corner. */
   attribution?: string
@@ -34,10 +35,6 @@ export interface LeafletMapProviderConfig {
   trackColor?: string
 }
 
-/** OpenStreetMap defaults, matching the backend's self-hosted server settings. */
-const DEFAULT_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-const DEFAULT_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 const DEFAULT_MAX_ZOOM = 19
 /** Brand teal track colour, from the `--color-brand` design token. */
 const DEFAULT_TRACK_COLOR = themeColor('--color-brand')
@@ -117,8 +114,8 @@ function emphasisMarker(point: GeoPoint, color: string): Layer {
  * @returns A {@link MapProvider} ready to register via `setMapProvider`.
  */
 export function createLeafletMapProvider(config: LeafletMapProviderConfig = {}): MapProvider {
-  const tileUrl = config.tileUrl ?? DEFAULT_TILE_URL
-  const attribution = config.attribution ?? DEFAULT_ATTRIBUTION
+  const tileUrl = config.tileUrl ?? DEFAULT_MAP_CONFIG.tileUrl
+  const attribution = config.attribution ?? DEFAULT_MAP_CONFIG.attribution
   const maxZoom = config.maxZoom ?? DEFAULT_MAX_ZOOM
   const trackColor = config.trackColor ?? DEFAULT_TRACK_COLOR
 

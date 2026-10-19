@@ -4,6 +4,7 @@ import os
 from collections.abc import Generator
 from datetime import datetime
 
+import jasil.orm as jasil_orm
 from sqlalchemy import DateTime, create_engine, func
 from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import (
@@ -59,7 +60,8 @@ if _db_sslmode:
 # per worker. With --workers=N the total is 60*N, which
 # must stay below PostgreSQL max_connections (default 100).
 # For >1 worker, lower these values or front the database
-# with PgBouncer.
+# with PgBouncer in session pooling mode: the postgres-advisory:// lock
+# is a session-level advisory lock and breaks under transaction pooling.
 engine = create_engine(
     db_url,
     pool_size=20,
@@ -77,6 +79,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create a base class for declarative models
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
+
+
+# JASIL's companion tables (event_log, event_outbox, processing_jobs) are mapped
+# into this registry so one metadata object and one migration run cover the whole
+# schema. Both calls must precede any import of a JASIL model module.
+jasil_orm.map_models(Base)
+jasil_orm.configure_sessionmaker(SessionLocal)
 
 
 class TimestampMixin:

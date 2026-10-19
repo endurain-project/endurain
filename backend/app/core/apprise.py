@@ -16,6 +16,8 @@ import apprise
 import core.config as core_config
 import core.logger as core_logger
 
+logger = core_logger.get_logger(__name__)
+
 # Apprise-specific exceptions we treat as "send failed"
 # rather than "programming error". Anything outside this
 # set should propagate so it surfaces in tests/logs as a
@@ -40,9 +42,9 @@ class AppriseService:
         intended way to reload configuration.
         """
         s = core_config.settings
-        self.smtp_host: str = s.SMTP_HOST
+        self.smtp_host: str | None = s.SMTP_HOST
         self.smtp_port: int = s.SMTP_PORT
-        self.smtp_username: str = s.SMTP_USERNAME
+        self.smtp_username: str | None = s.SMTP_USERNAME
         # Optional explicit "From" address. When unset,
         # Apprise auto-detects it from the URL. Needed for
         # providers like Brevo that validate the sender
@@ -85,7 +87,8 @@ class AppriseService:
         if self.smtp_username and self.smtp_password:
             params.append(("user", self.smtp_username))
             params.append(("pass", self.smtp_password))
-        params.append(("smtp", self.smtp_host))
+        if self.smtp_host:
+            params.append(("smtp", self.smtp_host))
         params.append(("port", str(self.smtp_port)))
         params.append(("name", "Endurain"))
         # Set the "From" address so providers that validate
@@ -123,21 +126,15 @@ class AppriseService:
             True on successful delivery, False otherwise.
         """
         if not to_emails:
-            core_logger.print_to_log(
-                "send_email called with no recipients",
-                "warning",
-            )
+            logger.warning("send_email called with no recipients")
             return False
         if not self.is_smtp_configured():
-            core_logger.print_to_log("send_email skipped: SMTP not configured", "warning")
+            logger.warning("send_email skipped: SMTP not configured")
             return False
 
         content = html_content if html_content else text_content
         if not content:
-            core_logger.print_to_log(
-                "send_email called with neither html_content nor text_content",
-                "warning",
-            )
+            logger.warning("send_email called with neither html_content nor text_content")
             return False
         body_format = "html" if html_content else "text"
 
@@ -159,17 +156,13 @@ class AppriseService:
             # contain the recipient or partial credentials
             # in its message on some libc/transport
             # combinations.
-            core_logger.print_to_log(
-                f"send_email transport failure for subject '{subject}': {type(err).__name__}",
-                "error",
-                exc=err,
-            )
+            logger.error(f"send_email transport failure for subject '{subject}': {type(err).__name__}", exc_info=err)
             return False
 
         if success:
-            core_logger.print_to_log(f"Email sent: {subject} (recipients={len(to_emails)})", "info")
+            logger.info(f"Email sent: {subject} (recipients={len(to_emails)})")
         else:
-            core_logger.print_to_log_and_console(f"Email send returned failure: {subject}", "warning")
+            logger.warning(f"Email send returned failure: {subject}", extra=core_logger.context(console=True))
         return bool(success)
 
     # Configuration introspection

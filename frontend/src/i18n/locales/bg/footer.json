@@ -2,7 +2,9 @@
   "repository": "Хранилище",
   "documentation": "Документация",
   "mastodon": "Mastodon акаунт на Endurain",
+  "bluesky": "Bluesky профил на Endurain",
   "discord": "Discord сървър на Endurain",
+  "linkedin": "LinkedIn страница на Endurain",
   "compatibleStrava": "Съвместимо със Strava",
   "worksGarmin": "Работи с Garmin Connect"
 }

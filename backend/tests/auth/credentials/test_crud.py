@@ -1,9 +1,9 @@
-"""Tests for ``auth.credentials.crud``."""
+"""Tests for ``modules.auth.credentials.crud``."""
 
 from unittest.mock import MagicMock, patch
 
-import auth.credentials.crud as auth_credentials_crud
-import auth.credentials.models as auth_credentials_models
+import modules.auth.credentials.crud as auth_credentials_crud
+import modules.auth.credentials.models as auth_credentials_models
 
 
 class TestGetCredential:
@@ -37,9 +37,9 @@ class TestUpsertPasswordHash:
         fake_row = MagicMock(spec=auth_credentials_models.LocalCredential)
 
         with (
-            patch("auth.credentials.crud.select", return_value=MagicMock()),
+            patch("modules.auth.credentials.crud.select", return_value=MagicMock()),
             patch(
-                "auth.credentials.crud.auth_credentials_models.LocalCredential",
+                "modules.auth.credentials.crud.auth_credentials_models.LocalCredential",
                 return_value=fake_row,
             ) as ctor,
         ):

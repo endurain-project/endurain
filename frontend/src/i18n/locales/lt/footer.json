@@ -2,7 +2,9 @@
   "repository": "Saugykla",
   "documentation": "Dokumentacija",
   "mastodon": "Endurain Mastodon paskyra",
+  "bluesky": "Endurain Bluesky profilis",
   "discord": "Endurain Discord serveris",
+  "linkedin": "Endurain LinkedIn puslapis",
   "compatibleStrava": "Suderinama su Strava",
   "worksGarmin": "Veikia su Garmin Connect"
 }

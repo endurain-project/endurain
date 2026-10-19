@@ -115,7 +115,8 @@ export function useSsoLogin() {
   const route = useRoute()
   const router = useRouter()
   const auth = useAuthStore()
-  const { getSafeRedirect, getSsoRedirect, navigateAfterLogin } = useSafeRedirect()
+  const { getSafeRedirect, getSsoRedirect, isCustomSchemeRedirect, navigateAfterLogin } =
+    useSafeRedirect()
 
   /**
    * Starts an SSO login using the backend PKCE endpoints. On success the
@@ -164,8 +165,11 @@ export function useSsoLogin() {
         throw new Error('Invalid session ID')
       }
 
-      if (route.query.external_redirect === 'true') {
-        const redirect = getSafeRedirect(route.query.redirect)
+      // The flag comes from the URL, so it alone grants nothing: only the app's own
+      // deep-link scheme may be navigated to with the session ID. Anything else
+      // takes the normal token exchange below, which needs the stored PKCE verifier.
+      const redirect = getSafeRedirect(route.query.redirect)
+      if (route.query.external_redirect === 'true' && isCustomSchemeRedirect(redirect)) {
         const separator = redirect.includes('?') ? '&' : '?'
         window.location.href = `${redirect}${separator}session_id=${encodeURIComponent(sessionId)}`
         // Custom schemes don't actually navigate the tab away, so this document

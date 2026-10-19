@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-import auth.mfa.schema as mfa_schema
 import core.config as core_config
-import users.users_profile.exceptions as profile_exceptions
+import modules.auth.mfa.schema as mfa_schema
+import modules.users.users_profile.exceptions as profile_exceptions
 
 PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
 
@@ -33,6 +33,7 @@ def _make_user_mock() -> MagicMock:
     user.max_heart_rate = None
     user.first_day_of_week = "monday"
     user.currency = "euro"
+    user.timezone = None
     user.access_type = "regular"
     user.photo_path = None
     user.active = True
@@ -122,9 +123,9 @@ def _make_idp_mock(idp_id: int = 1) -> MagicMock:
 class TestReadUsersMe:
     """Tests for GET /profile — read_users_me."""
 
-    @patch("users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
+    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_success(
         self,
         mock_get_user,
@@ -150,9 +151,9 @@ class TestReadUsersMe:
         assert data["has_local_password"] is True
         assert data["mfa_enabled"] is True
 
-    @patch("users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
+    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_user_not_found(
         self,
         mock_get_user,
@@ -168,9 +169,9 @@ class TestReadUsersMe:
         assert response.status_code == 404
         assert response.json()["detail"] == "User not found"
 
-    @patch("users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
+    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_integrations_not_found(
         self,
         mock_get_user,
@@ -187,9 +188,9 @@ class TestReadUsersMe:
         assert response.status_code == 404
         assert response.json()["detail"] == "Could not validate credentials (user integrations not found)"
 
-    @patch("users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
+    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_privacy_not_found(
         self,
         mock_get_user,
@@ -342,7 +343,7 @@ class TestGenerateLinkToken:
 class TestUploadProfileImage:
     """Tests for POST /profile/image — upload_profile_image."""
 
-    @patch("users.users_profile.router.users_utils.save_user_image_file", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.users_utils.save_user_image_file", new_callable=AsyncMock)
     def test_success(self, mock_save, profile_client):
         """Happy path: upload profile image."""
         mock_save.return_value = "photo.jpg"
@@ -364,7 +365,7 @@ class TestUploadProfileImage:
 class TestEditUser:
     """Tests for PUT /profile — edit_user."""
 
-    @patch("users.users_profile.router.users_crud.edit_profile_user", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.users_crud.edit_profile_user", new_callable=AsyncMock)
     def test_success(self, mock_edit, profile_client):
         """Happy path: update profile."""
         response = profile_client.put(
@@ -384,7 +385,7 @@ class TestEditUser:
 class TestEditProfilePrivacySettings:
     """Tests for PUT /profile/privacy — edit_profile_privacy_settings."""
 
-    @patch("users.users_profile.router.users_privacy_settings_crud.edit_user_privacy_settings")
+    @patch("modules.users.users_profile.router.users_privacy_settings_crud.edit_user_privacy_settings")
     def test_success(self, mock_edit, profile_client):
         """Happy path: update privacy settings."""
         response = profile_client.put(
@@ -454,7 +455,7 @@ class TestEditProfilePassword:
 class TestDeleteProfilePhoto:
     """Tests for PUT /profile/photo — delete_profile_photo."""
 
-    @patch("users.users_profile.router.users_crud.update_user_photo", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.users_crud.update_user_photo", new_callable=AsyncMock)
     def test_success(self, mock_update, profile_client):
         """Happy path: delete profile photo."""
         mock_update.return_value = None
@@ -503,9 +504,9 @@ class TestDeleteProfileOtherSessions:
 class TestExportProfileData:
     """Tests for GET /profile/export — export_profile_data."""
 
-    @patch("users.users_profile.router.profile_export_service.ExportService")
-    @patch("users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
+    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_success(
         self,
         mock_get_user,
@@ -524,9 +525,9 @@ class TestExportProfileData:
         assert response.status_code == 200
         assert response.content == b"zip-data"
 
-    @patch("users.users_profile.router.profile_export_service.ExportService")
-    @patch("users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
+    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_user_not_found(
         self,
         mock_get_user,
@@ -542,9 +543,9 @@ class TestExportProfileData:
         assert response.status_code == 404
         assert response.json()["detail"] == "User not found"
 
-    @patch("users.users_profile.router.profile_export_service.ExportService")
-    @patch("users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
+    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_sensitive_fields_stripped(
         self,
         mock_get_user,
@@ -584,9 +585,9 @@ class TestExportProfileData:
             (profile_exceptions.ExportTimeoutError, 408),
         ],
     )
-    @patch("users.users_profile.router.profile_export_service.ExportService")
-    @patch("users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
+    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_export_exceptions(
         self,
         mock_get_user,
@@ -606,9 +607,9 @@ class TestExportProfileData:
 
         assert response.status_code == expected_status
 
-    @patch("users.users_profile.router.profile_export_service.ExportService")
-    @patch("users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
+    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
+    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
     def test_unexpected_exception(
         self,
         mock_get_user,
@@ -636,8 +637,8 @@ class TestExportProfileData:
 class TestImportProfileData:
     """Tests for POST /profile/import — import_profile_data."""
 
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_success(
         self,
         mock_validate,
@@ -673,8 +674,8 @@ class TestImportProfileData:
             (profile_exceptions.SchemaValidationError("test"), 400),
         ],
     )
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_import_validation_exceptions(
         self,
         mock_validate,
@@ -703,8 +704,8 @@ class TestImportProfileData:
             (profile_exceptions.DiskSpaceError("test"), 507),
         ],
     )
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_import_operation_exceptions(
         self,
         mock_validate,
@@ -725,8 +726,8 @@ class TestImportProfileData:
 
         assert response.status_code == expected_status
 
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_value_error(
         self,
         mock_validate,
@@ -752,8 +753,8 @@ class TestImportProfileData:
             (MemoryError("test"), 500),
         ],
     )
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_memory_errors(
         self,
         mock_validate,
@@ -784,8 +785,8 @@ class TestImportProfileData:
             (profile_exceptions.ExportTimeoutError("test"), 408),
         ],
     )
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_import_system_errors(
         self,
         mock_validate,
@@ -806,8 +807,8 @@ class TestImportProfileData:
 
         assert response.status_code == expected_status
 
-    @patch("users.users_profile.router.profile_import_service.ImportService")
-    @patch("users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
+    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
     def test_unexpected_exception(
         self,
         mock_validate,
@@ -925,7 +926,7 @@ class TestSetupMFA:
 
     def test_store_unavailable(self, profile_client, fake_mfa_secret_store, mock_identity_service):
         """MFA secret store unavailable → 503."""
-        from auth.mfa.setup_store import MFASecretStoreUnavailableError
+        from modules.auth.mfa.setup_store import MFASecretStoreUnavailableError
 
         mock_identity_service.setup_mfa.side_effect = MFASecretStoreUnavailableError("store down")
 
@@ -988,7 +989,7 @@ class TestEnableMFA:
 
     def test_get_secret_store_unavailable(self, profile_client, mock_identity_service):
         """get_secret raises MFASecretStoreUnavailableError → 503."""
-        from auth.mfa.setup_store import MFASecretStoreUnavailableError
+        from modules.auth.mfa.setup_store import MFASecretStoreUnavailableError
 
         mock_identity_service.enable_mfa.side_effect = MFASecretStoreUnavailableError("store down")
 

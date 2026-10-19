@@ -27,7 +27,7 @@ from collections.abc import Iterable
 # Allowed types. This whitelist is a *project policy* layered on top of the
 # Conventional Commits 1.0.0 spec (the spec recommends but does not mandate a
 # fixed set of types). Keep this list in sync with the project's commit
-# conventions documented in ``.github/copilot-instructions.md``.
+# conventions documented in ``.agents/skills/conventional-commits/SKILL.md``.
 #
 # Per the spec, types are matched case-insensitively.
 ALLOWED_TYPES: tuple[str, ...] = (

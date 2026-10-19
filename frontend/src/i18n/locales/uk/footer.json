@@ -2,7 +2,9 @@
   "repository": "Репозиторій",
   "documentation": "Документація",
   "mastodon": "Акаунт Endurain у Mastodon",
+  "bluesky": "Профіль Endurain у Bluesky",
   "discord": "Сервер Endurain у Discord",
+  "linkedin": "Сторінка Endurain у LinkedIn",
   "compatibleStrava": "Сумісно зі Strava",
   "worksGarmin": "Працює з Garmin Connect"
 }

@@ -6,14 +6,14 @@ import type { Schemas } from '@/types'
  * silent runtime mismatch; the mappers in `services/activities.ts` translate
  * them into the camelCase domain models below.
  */
-export type ActivityDto = Schemas['Activity']
+export type ActivityDto = Schemas['ActivityRead']
 export type ActivityStreamDto = Schemas['ActivityStreamsRead']
 export type ActivityLapDto = Schemas['ActivityLapsRead']
 export type ActivityEditDto = Schemas['ActivityEdit']
-export type ActivityMediaDto = Schemas['ActivityMedia']
-export type ActivityWorkoutStepDto = Schemas['ActivityWorkoutSteps']
+export type ActivityMediaDto = Schemas['ActivityMediaRead']
+export type ActivityWorkoutStepDto = Schemas['ActivityWorkoutStepsRead']
 export type ActivitySetDto = Schemas['ActivitySetsRead']
-export type ActivityExerciseTitleDto = Schemas['ActivityExerciseTitles']
+export type ActivityExerciseTitleDto = Schemas['ActivityExerciseTitlesRead']
 
 /**
  * Per-sport aggregated stats for a timeframe (this week / this month). Keys are
@@ -21,7 +21,7 @@ export type ActivityExerciseTitleDto = Schemas['ActivityExerciseTitles']
  * Used by the home dashboard's distance/time/calories summary. The wire shape is
  * already clean (sport-keyed, numeric defaults), so the domain model reuses it.
  */
-export type ActivityStats = Schemas['ActivityStats']
+export type ActivityStats = Schemas['ActivityStatsRead']
 
 /** Aggregated distance (m), time (s), and calories (kcal) for one sport. */
 export type ActivitySportStats = Schemas['ActivitySportStats']
@@ -212,8 +212,25 @@ export interface Activity {
   isHidden: boolean
   gearId: number | null
 
-  /** Start time with the activity's timezone already applied (ISO string). */
+  /**
+   * Row version behind the `ETag`. Sent back as `If-Match` on save so an edit
+   * built from a stale copy is refused instead of overwriting whoever saved in
+   * between. `null` when the activity came from a response that omits it.
+   */
+  version: number | null
+
+  /**
+   * Activity start as a UTC instant (ISO 8601 with offset), or `null` when the
+   * owner hid it. Always render it through `formatZonedDateTime` with
+   * {@link Activity.timezone} — never with the viewer's local zone — so the
+   * activity reads in the timezone it was recorded in.
+   */
   startTime: string | null
+  /**
+   * IANA timezone the activity was recorded in, resolved from its GPS track at
+   * import time (or the server default for GPS-less indoor activities).
+   */
+  timezone: string | null
   city: string | null
   town: string | null
   country: string | null
@@ -249,10 +266,11 @@ export interface Activity {
   garminActivityId: number | null
 
   /**
-   * Path to the pre-rendered static map thumbnail, when one exists. The home
+   * Servable URL of the pre-rendered static map thumbnail, when one exists and
+   * the viewer may see the map. The home
    * feed renders this lightweight image instead of mounting a live map per card.
    */
-  mapThumbnailPath: string | null
+  mapThumbnailUrl: string | null
 
   privacy: ActivityPrivacy
 }
@@ -266,13 +284,12 @@ export interface ActivitiesPage {
 }
 
 /**
- * A photo attached to an activity. `url` is the resolved, servable image URL;
- * the backend stores an absolute filesystem path in `mediaPath`.
+ * A photo attached to an activity. `url` is the servable image URL the backend
+ * resolved from its storage key; the key itself is not addressable.
  */
 export interface ActivityMedia {
   id: number
   activityId: number
-  mediaPath: string
   url: string
 }
 
@@ -304,4 +321,15 @@ export interface ActivityEditInput {
   hideLaps: boolean
   hideWorkoutSetsSteps: boolean
   hideGear: boolean
+}
+
+/**
+ * One keyset slice of the following feed.
+ *
+ * @property items - The slice's activities, newest first.
+ * @property nextCursor - Cursor for the next slice, or `null` at the end.
+ */
+export interface ActivityFeedSlice {
+  items: Activity[]
+  nextCursor: string | null
 }

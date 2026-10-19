@@ -44,7 +44,7 @@ function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
     birthdate: '1990-01-01',
     height: 170,
     max_heart_rate: 190,
-    photo_path: '/app/backend/data/user_images/5.png',
+    photo_path: '/api/v1/users/5/photo?t=sig',
     default_activity_visibility: 'followers',
     hide_activity_start_time: true,
     hide_activity_location: false,
@@ -80,12 +80,22 @@ describe('mapProfileDetails', () => {
       preferredLanguage: 'en',
       firstDayOfWeek: 'monday',
       accessType: 'regular',
-      avatarUrl: 'https://cdn.test/user_images/5.png',
+      avatarUrl: 'https://cdn.test/api/v1/users/5/photo?t=sig',
     })
     expect(profile.hasLocalPassword).toBe(true)
     expect(profile.privacy.defaultActivityVisibility).toBe('followers')
     expect(profile.privacy.hideStartTime).toBe(true)
     expect(profile.privacy.hideGear).toBe(true)
+  })
+
+  it('maps the athlete timezone, defaulting to null when unset', () => {
+    expect(mapProfileDetails(makeProfileDto({ timezone: 'America/Los_Angeles' })).timezone).toBe(
+      'America/Los_Angeles',
+    )
+    // Accounts that predate the setting have no value; null means "fall back to
+    // the server timezone" for GPS-less activities.
+    expect(mapProfileDetails(makeProfileDto({ timezone: null })).timezone).toBeNull()
+    expect(mapProfileDetails(makeProfileDto()).timezone).toBeNull()
   })
 })
 
@@ -132,6 +142,7 @@ describe('profile service requests', () => {
       maxHeartRate: 188,
       preferredLanguage: 'pt-PT',
       firstDayOfWeek: 'sunday',
+      timezone: 'America/Los_Angeles',
     }
 
     await updateProfile(input)
@@ -150,6 +161,7 @@ describe('profile service requests', () => {
       max_heart_rate: 188,
       preferred_language: 'pt-PT',
       first_day_of_week: 'sunday',
+      timezone: 'America/Los_Angeles',
     })
   })
 

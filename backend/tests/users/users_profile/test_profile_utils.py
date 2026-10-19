@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import users.users_profile.utils as profile_utils
-from users.users_profile.exceptions import MemoryAllocationError
+import modules.users.users_profile.utils as profile_utils
+from modules.users.users_profile.exceptions import MemoryAllocationError
 
 
 class TestBasePerformanceConfig:
@@ -37,7 +37,7 @@ class TestBasePerformanceConfig:
         with pytest.raises(NotImplementedError):
             profile_utils.BasePerformanceConfig._get_tier_configs()
 
-    @patch("users.users_profile.utils.detect_system_memory_tier")
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
     def test_get_auto_config_calls_get_tier_configs(self, mock_detect):
         mock_detect.return_value = ("high", 4096)
 
@@ -50,7 +50,7 @@ class TestBasePerformanceConfig:
         assert config.batch_size == 5000
         assert config.max_memory_mb == 2048
 
-    @patch("users.users_profile.utils.detect_system_memory_tier")
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
     def test_get_auto_config_unknown_tier_defaults(self, mock_detect):
         mock_detect.return_value = ("unknown", 1024)
 
@@ -62,7 +62,7 @@ class TestBasePerformanceConfig:
         config = TestConfig.get_auto_config()
         assert config.batch_size == 1000
 
-    @patch("users.users_profile.utils.detect_system_memory_tier")
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
     def test_get_auto_config_detect_failure_defaults(self, mock_detect):
         mock_detect.side_effect = Exception("detect failed")
 
@@ -159,13 +159,13 @@ class TestWriteJsonToZip:
 class TestCheckTimeout:
     """Test suite for check_timeout function."""
 
-    @patch("users.users_profile.utils.time.time")
+    @patch("modules.users.users_profile.utils.time.time")
     def test_timeout_not_exceeded(self, mock_time):
         mock_time.return_value = 5.0
 
         profile_utils.check_timeout(10, 0.0, TimeoutError, "test")
 
-    @patch("users.users_profile.utils.time.time")
+    @patch("modules.users.users_profile.utils.time.time")
     def test_timeout_exceeded(self, mock_time):
         mock_time.return_value = 15.0
 
@@ -179,7 +179,7 @@ class TestCheckTimeout:
 class TestGetMemoryUsageMB:
     """Test suite for get_memory_usage_mb function."""
 
-    @patch("users.users_profile.utils.psutil.Process")
+    @patch("modules.users.users_profile.utils.psutil.Process")
     def test_returns_memory_usage(self, mock_process):
         mock_proc = MagicMock()
         mock_proc.memory_info.return_value.rss = 104857600
@@ -188,13 +188,13 @@ class TestGetMemoryUsageMB:
         result = profile_utils.get_memory_usage_mb(True)
         assert result == 100.0
 
-    @patch("users.users_profile.utils.psutil.Process")
+    @patch("modules.users.users_profile.utils.psutil.Process")
     def test_monitoring_disabled_returns_zero(self, mock_process):
         result = profile_utils.get_memory_usage_mb(False)
         assert result == 0.0
         mock_process.assert_not_called()
 
-    @patch("users.users_profile.utils.psutil.Process")
+    @patch("modules.users.users_profile.utils.psutil.Process")
     def test_exception_returns_zero(self, mock_process):
         mock_process.side_effect = Exception("process error")
 
@@ -205,45 +205,45 @@ class TestGetMemoryUsageMB:
 class TestCheckMemoryUsage:
     """Test suite for check_memory_usage function."""
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_memory_within_limits(self, mock_get_memory):
         mock_get_memory.return_value = 500.0
 
         profile_utils.check_memory_usage("export", 1024)
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_memory_exceeds_limit(self, mock_get_memory):
         mock_get_memory.return_value = 1100.0
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("export", 1024)
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_monitoring_disabled_skips_check(self, mock_get_memory):
         profile_utils.check_memory_usage("export", 1024, enable_monitoring=False)
         mock_get_memory.assert_not_called()
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_memory_intensive_operation_higher_threshold(self, mock_get_memory):
         mock_get_memory.return_value = 1500.0
 
         profile_utils.check_memory_usage("data collection export", 1024)
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_memory_intensive_operation_still_exceeds(self, mock_get_memory):
         mock_get_memory.return_value = 2000.0
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("data collection export", 1024)
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_custom_memory_intensive_operations_still_exceeds(self, mock_get_memory):
         mock_get_memory.return_value = 2000.0
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("custom operation", 1024, memory_intensive_operations=["custom operation"])
 
-    @patch("users.users_profile.utils.get_memory_usage_mb")
+    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
     def test_custom_ops_not_matched_raises_at_normal_limit(self, mock_get_memory):
         mock_get_memory.return_value = 1100.0
 
@@ -295,7 +295,7 @@ class TestInitializeOperationCounts:
 class TestDetectSystemMemoryTier:
     """Test suite for detect_system_memory_tier function."""
 
-    @patch("users.users_profile.utils.psutil.virtual_memory")
+    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
     def test_high_tier(self, mock_vm):
         mock_mem = MagicMock()
         mock_mem.available = 3000 * 1024 * 1024
@@ -305,7 +305,7 @@ class TestDetectSystemMemoryTier:
         assert tier == "high"
         assert mb == 3000
 
-    @patch("users.users_profile.utils.psutil.virtual_memory")
+    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
     def test_medium_tier(self, mock_vm):
         mock_mem = MagicMock()
         mock_mem.available = 1500 * 1024 * 1024
@@ -315,7 +315,7 @@ class TestDetectSystemMemoryTier:
         assert tier == "medium"
         assert mb == 1500
 
-    @patch("users.users_profile.utils.psutil.virtual_memory")
+    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
     def test_low_tier(self, mock_vm):
         mock_mem = MagicMock()
         mock_mem.available = 500 * 1024 * 1024
@@ -325,7 +325,7 @@ class TestDetectSystemMemoryTier:
         assert tier == "low"
         assert mb == 500
 
-    @patch("users.users_profile.utils.psutil.virtual_memory")
+    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
     def test_exception_defaults_to_medium(self, mock_vm):
         mock_vm.side_effect = Exception("memory detection failed")
 
