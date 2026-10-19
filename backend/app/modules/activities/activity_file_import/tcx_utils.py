@@ -88,14 +88,18 @@ def _parse_laps(
         lap_moving = activity_file_import_parser_utils.compute_moving_time_from_times(
             [tp.time for tp in lap.trackpoints if tp.time is not None]
         )
+        # A lap can carry zero trackpoints (manual or sensor-less TCX); its
+        # positions are unknown then.
+        first_tp = lap.trackpoints[0] if lap.trackpoints else None
+        last_tp = lap.trackpoints[-1] if lap.trackpoints else None
 
         laps.append(
             {
                 "start_time": core_timezone.to_utc_aware(lap.start_time),
-                "start_position_lat": (lap.trackpoints[0].latitude),
-                "start_position_long": (lap.trackpoints[0].longitude),
-                "end_position_lat": (lap.trackpoints[-1].latitude),
-                "end_position_long": (lap.trackpoints[-1].longitude),
+                "start_position_lat": (first_tp.latitude if first_tp else None),
+                "start_position_long": (first_tp.longitude if first_tp else None),
+                "end_position_lat": (last_tp.latitude if last_tp else None),
+                "end_position_long": (last_tp.longitude if last_tp else None),
                 "total_elapsed_time": lap_elapsed,
                 "total_timer_time": lap_moving if lap_moving > 0 else lap_elapsed,
                 "total_distance": (round(lap.distance) if lap.distance else None),
@@ -225,22 +229,29 @@ def _extract_waypoints(
 
         timestamp = core_timezone.format_utc(time_val)
 
-        lat_lon_waypoints.append(
-            {
-                "time": timestamp,
-                "lat": lat,
-                "lon": lon,
-            }
-        )
-
-        instant_speed = activities_computation.calculate_instant_speed(
-            last_time,
-            time_val,
-            lat,
-            lon,
-            prev_lat,
-            prev_lon,
-        )
+        # tcxreader emits latitude/longitude keys set to None for trackpoints
+        # without a <Position> (indoor/treadmill activities). Skipping them keeps
+        # a GPS-less file on the non-GPS path.
+        if lat is not None and lon is not None:
+            lat_lon_waypoints.append(
+                {
+                    "time": timestamp,
+                    "lat": lat,
+                    "lon": lon,
+                }
+            )
+            instant_speed = activities_computation.calculate_instant_speed(
+                last_time,
+                time_val,
+                lat,
+                lon,
+                prev_lat,
+                prev_lon,
+            )
+        else:
+            # calculate_instant_speed guards a missing previous position but
+            # not a missing current one.
+            instant_speed = 0
 
         instant_pace = 1 / instant_speed if instant_speed > 0 else 0
 
@@ -452,8 +463,8 @@ def parse_tcx_file(
             )
 
             timezone = activity_file_import_parser_utils.resolve_timezone_from_lat_lon(
-                trackpoints[0]["latitude"],
-                trackpoints[0]["longitude"],
+                lat_lon_wp[0]["lat"],
+                lat_lon_wp[0]["lon"],
                 timezone,
             )
 
