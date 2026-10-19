@@ -33,7 +33,7 @@ const failureDetail = computed<string | null>(() => {
 /** Sends the test email to the admin's own address and reports the outcome. */
 function sendTest(): void {
   testMutation.mutate(undefined, {
-    onSuccess: (message) => toasts.success(message),
+    onSuccess: () => toasts.success(t('settings.server.email.sent')),
   })
 }
 </script>
