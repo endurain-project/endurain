@@ -1,12 +1,11 @@
 """CRUD operations for gear components."""
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
-import modules.gears.contracts as gears_contracts
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.gears.gear_components.serializers as gear_components_serializers
@@ -59,8 +58,24 @@ def get_gear_component_user_by_id(
     return gear_components_serializers.to_read_schema(row) if row is not None else None
 
 
+def get_gear_components_number(user_id: int, db: Session) -> int:
+    """Count a user's gear components.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        Number of components the user has.
+    """
+    stmt = select(func.count(gear_components_models.GearComponents.id)).where(
+        gear_components_models.GearComponents.user_id == user_id
+    )
+    return db.execute(stmt).scalar_one()
+
+
 def get_gear_components_user(
-    user_id: int, db: Session, *, limit: int | None = None
+    user_id: int, db: Session, *, limit: int | None = None, offset: int = 0
 ) -> list[gear_components_schema.GearComponentRead]:
     """Retrieve a user's gear components, ordered by ID.
 
@@ -68,6 +83,7 @@ def get_gear_components_user(
         user_id: Owner user ID.
         db: Database session.
         limit: Maximum number of components to return; all of them when omitted.
+        offset: Number of components to skip.
 
     Returns:
         The user's components (empty list if none).
@@ -76,19 +92,37 @@ def get_gear_components_user(
         select(gear_components_models.GearComponents)
         .where(gear_components_models.GearComponents.user_id == user_id)
         .order_by(gear_components_models.GearComponents.id)
+        .offset(offset)
         .limit(limit)
     )
     return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
 
-def get_gear_components_user_by_gear_id(
-    user_id: int,
-    gear_id: int,
-    db: Session,
-    *,
-    active: bool | None = None,
-) -> list[gear_components_schema.GearComponentRead]:
-    """Retrieve a user's components for one gear.
+def _filter_gear_components(stmt: Select, user_id: int, gear_id: int, *, active: bool | None) -> Select:
+    """Scope a component statement to one of a user's gears and the active filter.
+
+    Args:
+        stmt: The statement to filter.
+        user_id: Owner user ID.
+        gear_id: Gear ID to filter by.
+        active: Optional active-status filter.
+
+    Returns:
+        The filtered statement.
+    """
+    stmt = stmt.where(
+        gear_components_models.GearComponents.user_id == user_id,
+        gear_components_models.GearComponents.gear_id == gear_id,
+    )
+    if active is not None:
+        stmt = stmt.where(gear_components_models.GearComponents.active == active)
+    return stmt
+
+
+def get_gear_components_number_by_gear_id(
+    user_id: int, gear_id: int, db: Session, *, active: bool | None = None
+) -> int:
+    """Count a user's components for one gear.
 
     Args:
         user_id: Owner user ID.
@@ -97,42 +131,40 @@ def get_gear_components_user_by_gear_id(
         active: Optional active-status filter.
 
     Returns:
-        Up to ``MAX_NUM_RECORDS`` matching components ordered by ID (empty list if none).
+        Number of matching components.
     """
-    stmt = select(gear_components_models.GearComponents).where(
-        gear_components_models.GearComponents.user_id == user_id,
-        gear_components_models.GearComponents.gear_id == gear_id,
+    stmt = _filter_gear_components(
+        select(func.count(gear_components_models.GearComponents.id)), user_id, gear_id, active=active
     )
-    if active is not None:
-        stmt = stmt.where(gear_components_models.GearComponents.active == active)
-    stmt = stmt.order_by(gear_components_models.GearComponents.id).limit(core_pagination.MAX_NUM_RECORDS)
-    return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
+    return db.execute(stmt).scalar_one()
 
 
-def list_usage_windows(gear_id: int, user_id: int, db: Session) -> list[gears_contracts.UsageWindow]:
-    """Return the date window each of a user's components on a gear was fitted for.
+def get_gear_components_user_by_gear_id(
+    user_id: int,
+    gear_id: int,
+    db: Session,
+    *,
+    active: bool | None = None,
+    page_number: int = 1,
+    num_records: int = core_pagination.MAX_NUM_RECORDS,
+) -> list[gear_components_schema.GearComponentRead]:
+    """Retrieve one page of a user's components for one gear, ordered by ID.
 
     Args:
-        gear_id: Gear ID to list windows for.
         user_id: Owner user ID.
+        gear_id: Gear ID to filter by.
         db: Database session.
+        active: Optional active-status filter.
+        page_number: Page number (1-indexed).
+        num_records: Records per page.
 
     Returns:
-        One window per component, keyed by component ID, for at most ``MAX_NUM_RECORDS`` components.
+        The matching components on the page (empty list if none).
     """
-    stmt = select(
-        gear_components_models.GearComponents.id,
-        gear_components_models.GearComponents.purchase_date,
-        gear_components_models.GearComponents.retired_date,
-    ).where(
-        gear_components_models.GearComponents.gear_id == gear_id,
-        gear_components_models.GearComponents.user_id == user_id,
-    )
-    stmt = stmt.order_by(gear_components_models.GearComponents.id).limit(core_pagination.MAX_NUM_RECORDS)
-    return [
-        gears_contracts.UsageWindow(key=row.id, start_date=row.purchase_date, end_date=row.retired_date)
-        for row in db.execute(stmt).all()
-    ]
+    stmt = _filter_gear_components(select(gear_components_models.GearComponents), user_id, gear_id, active=active)
+    stmt = stmt.order_by(gear_components_models.GearComponents.id)
+    stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
+    return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
 
 def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> float:

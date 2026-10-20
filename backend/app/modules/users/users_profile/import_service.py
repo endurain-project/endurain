@@ -432,8 +432,8 @@ class ImportService:
         """Import one gear, tolerating what the user already has.
 
         A gear whose nickname the user already has maps onto that gear. A provider gear
-        ID that is already taken is dropped, so the archive cannot make the import fail
-        by naming an ID another account holds.
+        ID the user already holds on another gear is dropped, so the archive cannot make
+        the import fail.
 
         Args:
             gear: The gear from the archive.

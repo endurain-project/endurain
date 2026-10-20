@@ -3,7 +3,6 @@ from datetime import date
 import pytest
 
 import core.exceptions as core_exceptions
-import core.pagination as core_pagination
 import modules.gears.gear_components.crud as crud
 from tests._helpers.gears import component_create, component_update
 
@@ -31,21 +30,22 @@ class TestReads:
         assert len(crud.get_gear_components_user_by_gear_id(1, 1, db, active=True)) == 1
         assert [c.id for c in crud.get_gear_components_user_by_gear_id(1, 1, db, active=False)] == [retired.id]
 
-    def test_a_gears_component_list_and_windows_are_bounded(self, db, monkeypatch):
-        for _ in range(3):
-            crud.create_gear_component(component_create(), 1, db)
-        monkeypatch.setattr(core_pagination, "MAX_NUM_RECORDS", 2)
-
-        assert len(crud.get_gear_components_user_by_gear_id(1, 1, db)) == 2
-        assert len(crud.list_usage_windows(1, 1, db)) == 2
-
-    def test_usage_windows_carry_the_fitting_dates_of_the_owners_components(self, db):
-        created = crud.create_gear_component(component_create(purchase_date=date(2024, 3, 1)), 1, db)
+    def test_a_gears_components_are_paged_and_counted(self, db):
+        created = [crud.create_gear_component(component_create(), 1, db) for _ in range(3)]
         crud.create_gear_component(component_create(), 2, db)
 
-        windows = crud.list_usage_windows(1, 1, db)
+        page = crud.get_gear_components_user_by_gear_id(1, 1, db, page_number=2, num_records=2)
 
-        assert [(w.key, w.start_date, w.end_date) for w in windows] == [(created.id, date(2024, 3, 1), None)]
+        assert [c.id for c in page] == [created[2].id]
+        assert crud.get_gear_components_number_by_gear_id(1, 1, db) == 3
+        assert crud.get_gear_components_number_by_gear_id(1, 1, db, active=False) == 0
+
+    def test_a_users_components_are_offset_and_counted(self, db):
+        created = [crud.create_gear_component(component_create(), 1, db) for _ in range(3)]
+        crud.create_gear_component(component_create(), 2, db)
+
+        assert [c.id for c in crud.get_gear_components_user(1, db, limit=2, offset=1)] == [created[1].id, created[2].id]
+        assert crud.get_gear_components_number(1, db) == 3
 
     def test_total_cost_sums_the_gears_components_for_its_owner(self, db):
         crud.create_gear_component(component_create(purchase_value=10.5), 1, db)

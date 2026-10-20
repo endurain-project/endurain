@@ -1069,7 +1069,7 @@ export interface paths {
         };
         /**
          * Read Gear Components
-         * @description Retrieve up to 200 of the authenticated user's gear components.
+         * @description Retrieve one page of the authenticated user's gear components, with the total.
          */
         get: operations["read_gear_components_api_v1_gear_components_get"];
         put?: never;
@@ -1093,7 +1093,7 @@ export interface paths {
         };
         /**
          * Read Gear Components Gear Id
-         * @description Retrieve up to 200 of a gear's components with the distance and time each has accumulated.
+         * @description Retrieve one page of a gear's components with the distance and time each has accumulated.
          */
         get: operations["read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get"];
         put?: never;
@@ -5973,8 +5973,7 @@ export interface components {
          * @description Request body for creating a gear.
          *
          *     Provider gear IDs are not accepted: only the Strava and Garmin Connect syncs and
-         *     the profile import set them, so a client cannot claim an ID another user's sync
-         *     needs.
+         *     the profile import set them, so a client cannot forge a provider link.
          */
         GearCreateRequest: {
             /**
@@ -9017,6 +9016,19 @@ export interface components {
         Page_FollowRelationshipRead_: {
             /** Items */
             items: components["schemas"]["FollowRelationshipRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[GearComponentRead] */
+        Page_GearComponentRead_: {
+            /** Items */
+            items: components["schemas"]["GearComponentRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -13570,7 +13582,10 @@ export interface operations {
     };
     read_gear_components_api_v1_gear_components_get: {
         parameters: {
-            query?: never;
+            query?: {
+                num_records?: number | null;
+                page_number?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13583,7 +13598,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearComponentRead"][] | null;
+                    "application/json": components["schemas"]["Page_GearComponentRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -13643,6 +13667,8 @@ export interface operations {
         parameters: {
             query?: {
                 active?: boolean | null;
+                num_records?: number | null;
+                page_number?: number | null;
             };
             header?: never;
             path: {
@@ -13658,7 +13684,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearComponentRead"][] | null;
+                    "application/json": components["schemas"]["Page_GearComponentRead_"];
                 };
             };
             /** @description Validation Error */

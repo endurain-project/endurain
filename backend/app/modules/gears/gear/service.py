@@ -97,8 +97,7 @@ def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session)
     Raises:
         ConflictError: If the user already has a gear with that nickname.
     """
-    created = gears_crud.create_gear(gear, user_id, db)
-    gears_event_publishers.publish_gear_created(created.id, user_id, db)
+    created = stage_gear(gear, user_id, db)
     db.commit()
     logger.info("Created a gear", extra=core_logger.context(user_id=user_id, gear_id=created.id))
     return created
@@ -140,7 +139,27 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
 
     new_gears = [gear for nickname, gear in candidates.items() if nickname not in existing]
     if new_gears:
-        gears_crud.create_gears(new_gears, user_id, db)
+        created_ids = gears_crud.create_gears(new_gears, user_id, db)
+        gears_event_publishers.publish_gears_created(created_ids, user_id, db, source="provider:sync_gears")
+
+
+def stage_gear(gear: gears_schema.GearBase, user_id: int, db: Session) -> gears_schema.GearRead:
+    """Stage one new gear for a user and its ``gear.created`` event; the caller commits.
+
+    Args:
+        gear: Gear payload to create.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The staged gear with its generated ID.
+
+    Raises:
+        ConflictError: If the nickname or a provider gear ID is already taken.
+    """
+    created = gears_crud.create_gear(gear, user_id, db)
+    gears_event_publishers.publish_gear_created(created.id, user_id, db)
+    return created
 
 
 def edit_gear(

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear_components.schema as gear_components_schema
@@ -30,30 +31,36 @@ def read_gear_component_types(
 
 @router.get(
     "",
-    response_model=list[gear_components_schema.GearComponentRead] | None,
+    response_model=core_pagination.Page[gear_components_schema.GearComponentRead],
 )
 def read_gear_components(
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> list[gear_components_schema.GearComponentRead] | None:
-    """Retrieve up to 200 of the authenticated user's gear components."""
-    return gear_components_service.list_gear_components(token_user_id, db)
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
+    """Retrieve one page of the authenticated user's gear components, with the total."""
+    return gear_components_service.list_gear_components(
+        token_user_id, db, page_number=page.page_number, num_records=page.num_records
+    )
 
 
 @router.get(
     "/gear_id/{gear_id}",
-    response_model=list[gear_components_schema.GearComponentRead] | None,
+    response_model=core_pagination.Page[gear_components_schema.GearComponentRead],
 )
 def read_gear_components_gear_id(
     gear_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
     active: bool | None = None,
-) -> list[gear_components_schema.GearComponentRead] | None:
-    """Retrieve up to 200 of a gear's components with the distance and time each has accumulated."""
-    return gear_components_service.list_components_for_gear(gear_id, token_user_id, db, active=active)
+) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
+    """Retrieve one page of a gear's components with the distance and time each has accumulated."""
+    return gear_components_service.list_components_for_gear(
+        gear_id, token_user_id, db, active=active, page_number=page.page_number, num_records=page.num_records
+    )
 
 
 @router.post(

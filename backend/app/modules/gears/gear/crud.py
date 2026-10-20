@@ -13,7 +13,7 @@ import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.serializers as gears_serializers
 
-_DUPLICATE_EXTERNAL_ID = "Duplicate entry error. Check if strava_gear_id or garminconnect_gear_id are unique"
+_DUPLICATE_EXTERNAL_ID = "A gear with this Strava or Garmin Connect ID already exists"
 
 #: The unique index on ``(user_id, lower(nickname))``.
 _UNIQUE_NICKNAME_INDEX = "uq_gear_user_nickname"
@@ -281,7 +281,7 @@ def get_gear_by_garminconnect_id_from_user_id(
     return gears_serializers.to_read_schema(db_gear) if db_gear else None
 
 
-def create_gears(gears: list[gears_schema.GearCreate], user_id: int, db: Session) -> None:
+def create_gears(gears: list[gears_schema.GearCreate], user_id: int, db: Session) -> list[int]:
     """Stage new gears for a user.
 
     Args:
@@ -289,26 +289,35 @@ def create_gears(gears: list[gears_schema.GearCreate], user_id: int, db: Session
         user_id: Owner user ID.
         db: Database session.
 
+    Returns:
+        The IDs of the gears that were staged, in order; a gear dropped for its nickname is absent.
+
     Raises:
         ConflictError: If a Strava or Garmin Connect gear ID is already taken.
     """
     try:
         with db.begin_nested():
-            db.add_all([gears_serializers.to_orm(gear, user_id) for gear in gears])
+            rows = [gears_serializers.to_orm(gear, user_id) for gear in gears]
+            db.add_all(rows)
             db.flush()
+        return [row.id for row in rows]
     except IntegrityError as err:
         if not _is_nickname_violation(err):
             raise _conflict(err) from err
         # A concurrent write took one of the nicknames after the caller's check: add the
         # rest one by one and leave that gear out, as the check would have.
+        created_ids: list[int] = []
         for gear in gears:
             try:
                 with db.begin_nested():
-                    db.add(gears_serializers.to_orm(gear, user_id))
+                    row = gears_serializers.to_orm(gear, user_id)
+                    db.add(row)
                     db.flush()
+                created_ids.append(row.id)
             except IntegrityError as row_err:
                 if not _is_nickname_violation(row_err):
                     raise _conflict(row_err) from row_err
+        return created_ids
 
 
 def create_gear(gear: gears_schema.GearBase, user_id: int, db: Session) -> gears_schema.GearRead:

@@ -94,8 +94,13 @@ class TestWrites:
     def test_a_taken_provider_id_is_a_conflict(self, db):
         crud.create_gear(gear_create("One", strava_gear_id="b1"), 1, db)
 
-        with pytest.raises(core_exceptions.ConflictError, match="strava_gear_id"):
+        with pytest.raises(core_exceptions.ConflictError, match="Strava or Garmin Connect ID"):
             crud.create_gear(gear_create("Two", strava_gear_id="b1"), 1, db)
+
+    def test_the_same_provider_id_is_allowed_for_another_user(self, db):
+        crud.create_gear(gear_create("One", strava_gear_id="b1"), 1, db)
+
+        assert crud.create_gear(gear_create("One", strava_gear_id="b1"), 2, db).strava_gear_id == "b1"
 
     def test_create_gears_stages_every_gear(self, db):
         crud.create_gears([gear_create("A"), gear_create("B")], 1, db)

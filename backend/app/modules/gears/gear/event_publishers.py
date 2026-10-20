@@ -5,7 +5,7 @@ assembly and delivery to :mod:`jasil.publisher`. They only stage: the caller com
 and the event follows that commit, so a rolled-back write publishes nothing.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
@@ -30,6 +30,25 @@ def publish_gear_created(gear_id: int, user_id: int, db: Session) -> None:
         metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
+    )
+
+
+def publish_gears_created(gear_ids: Sequence[int], user_id: int, db: Session, *, source: str) -> None:
+    """Publish one ``gear.created`` per gear staged by a provider sync or an import.
+
+    Args:
+        gear_ids: The created gears' IDs. May be empty, in which case nothing is published.
+        user_id: The owning user's ID.
+        db: The producer's DB session, used for durable outbox delivery.
+        source: Origin label identifying the bulk operation.
+    """
+    platform_publisher.publish_many_on_commit(
+        gear_events.GEAR_CREATED,
+        [gear_events.GearCreatedPayload(gear_id=gear_id, user_id=user_id).model_dump() for gear_id in gear_ids],
+        source=source,
+        metadata_for=lambda _payload: {core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=gear_events.GearCreatedPayload.SCHEMA_VERSION,
     )
 
 

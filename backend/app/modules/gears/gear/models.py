@@ -3,7 +3,7 @@
 from datetime import datetime as datetime_type
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -88,13 +88,11 @@ class Gear(Base):
     )
     strava_gear_id: Mapped[str | None] = mapped_column(
         String(45),
-        unique=True,
         nullable=True,
         comment="Strava gear ID",
     )
     garminconnect_gear_id: Mapped[str | None] = mapped_column(
         String(45),
-        unique=True,
         nullable=True,
         comment="Garmin Connect gear ID",
     )
@@ -108,6 +106,12 @@ class Gear(Base):
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
     # WHERE clause, raising StaleDataError when the row moved underneath.
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
+    # A provider gear ID is unique per user, never across users.
+    __table_args__ = (
+        UniqueConstraint("user_id", "strava_gear_id", name="uq_gear_user_strava_gear_id"),
+        UniqueConstraint("user_id", "garminconnect_gear_id", name="uq_gear_user_garminconnect_gear_id"),
+    )
 
 
 #: One nickname per user, compared case-insensitively like the nickname lookup.

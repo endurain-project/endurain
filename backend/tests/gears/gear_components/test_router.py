@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 import core.database as core_db
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.dependencies as auth_deps
 import modules.gears.gear_components.router as router
 import modules.gears.gear_components.schema as schema
@@ -38,19 +39,19 @@ def test_types_lists_every_gear_type(client):
 
 @patch("modules.gears.gear_components.service.list_gear_components")
 def test_list(mock_list, client):
-    mock_list.return_value = [_read()]
+    mock_list.return_value = core_pagination.Page.build([_read()], 1, 1, 200)
 
-    assert client.get("/gear_components", headers=_HEADERS).json()[0]["id"] == 1
+    assert client.get("/gear_components", headers=_HEADERS).json()["items"][0]["id"] == 1
 
 
 @patch("modules.gears.gear_components.service.list_components_for_gear")
 def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
-    mock_list.return_value = [_read(current_distance=3.0)]
+    mock_list.return_value = core_pagination.Page.build([_read(current_distance=3.0)], 1, 1, 200)
 
     response = client.get("/gear_components/gear_id/1?active=true", headers=_HEADERS)
 
-    assert response.json()[0]["current_distance"] == 3.0
-    mock_list.assert_called_once_with(1, 1, mock_db, active=True)
+    assert response.json()["items"][0]["current_distance"] == 3.0
+    mock_list.assert_called_once_with(1, 1, mock_db, active=True, page_number=1, num_records=200)
 
 
 def test_a_non_positive_gear_id_is_rejected(client):

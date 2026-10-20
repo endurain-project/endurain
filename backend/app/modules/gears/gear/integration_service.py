@@ -97,7 +97,7 @@ def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gea
     Raises:
         ConflictError: If the nickname or a provider gear ID is already taken.
     """
-    return gears_crud.create_gear(gear, user_id, db)
+    return gears_service.stage_gear(gear, user_id, db)
 
 
 def create_multiple_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, db: Session) -> None:

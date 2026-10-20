@@ -130,8 +130,7 @@ class GearCreateRequest(GearBase):
     """Request body for creating a gear.
 
     Provider gear IDs are not accepted: only the Strava and Garmin Connect syncs and
-    the profile import set them, so a client cannot claim an ID another user's sync
-    needs.
+    the profile import set them, so a client cannot forge a provider link.
     """
 
     nickname: RequiredNickname = Field(

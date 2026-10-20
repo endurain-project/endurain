@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import core.exceptions as core_exceptions
-import core.pagination as core_pagination
 import modules.gears.contracts as gears_contracts
 import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.schema as gear_schema
@@ -118,7 +117,7 @@ class TestListForGear:
 
         result = service.list_components_for_gear(1, 1, db)
 
-        assert {c.id: (c.current_distance, c.current_time) for c in result} == {
+        assert {c.id: (c.current_distance, c.current_time) for c in result.items} == {
             first.id: (100.0, 10.0),
             second.id: (5.0, 1.0),
         }
@@ -128,34 +127,37 @@ class TestListForGear:
         crud.create_gear_component(component_create(), 1, db)
         install_readers()
 
-        assert service.list_components_for_gear(1, 1, db)[0].current_distance == 0
+        assert service.list_components_for_gear(1, 1, db).items[0].current_distance == 0
 
     def test_no_components_means_no_usage_query(self, db):
         reader = MagicMock()
         install_readers(usage_by_window=reader)
 
-        assert service.list_components_for_gear(1, 1, db) == []
+        result = service.list_components_for_gear(1, 1, db)
+
+        assert (result.items, result.total) == ([], 0)
         reader.assert_not_called()
 
-    def test_the_active_filter_does_not_narrow_the_windows(self, db):
+    def test_the_windows_cover_only_the_page(self, db):
         crud.create_gear_component(component_create(), 1, db)
-        inactive = crud.create_gear_component(component_create(), 1, db)
-        crud.edit_gear_component(inactive.id, component_update(active=False), 1, db)
+        second = crud.create_gear_component(component_create(), 1, db)
         reader = MagicMock(return_value={})
         install_readers(usage_by_window=reader)
 
-        result = service.list_components_for_gear(1, 1, db, active=True)
+        result = service.list_components_for_gear(1, 1, db, page_number=2, num_records=1)
 
-        assert len(result) == 1
-        assert len(reader.call_args.args[2]) == 2
+        assert [c.id for c in result.items] == [second.id]
+        assert result.total == 2
+        assert [w.key for w in reader.call_args.args[2]] == [second.id]
 
 
-def test_the_user_list_is_bounded(db, monkeypatch):
+def test_the_user_list_is_paged_with_the_total(db):
     for _ in range(3):
         crud.create_gear_component(component_create(), 1, db)
-    monkeypatch.setattr(core_pagination, "MAX_NUM_RECORDS", 2)
 
-    assert len(service.list_gear_components(1, db)) == 2
+    page = service.list_gear_components(1, db, page_number=1, num_records=2)
+
+    assert (len(page.items), page.total, page.next) == (2, 3, 2)
 
 
 def test_component_types_are_grouped_by_gear_type():
@@ -163,3 +165,17 @@ def test_component_types_are_grouped_by_gear_type():
 
     assert "chain" in types.bike
     assert "cleats" in types.shoes
+
+
+def test_create_edit_and_delete_publish_their_events(db):
+    from unittest.mock import patch
+
+    gear_id = _gear(db)
+    with patch("modules.gears.gear_components.service.gear_components_event_publishers") as publishers:
+        created = service.create_gear_component(component_create(gear_id), 1, db)
+        service.edit_gear_component(created.id, component_update(brand="SRAM"), 1, db)
+        service.delete_gear_component(1, created.id, db)
+
+    publishers.publish_gear_component_created.assert_called_once_with(created.id, gear_id, 1, db)
+    assert publishers.publish_gear_component_updated.call_args.kwargs["changed_fields"] == {"brand": "SRAM"}
+    publishers.publish_gear_component_deleted.assert_called_once_with(created.id, gear_id, 1, db)

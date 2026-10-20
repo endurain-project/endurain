@@ -130,7 +130,13 @@ describe('gear-component service requests', () => {
   })
 
   it('requests the components-by-gear path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([componentDto])
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [componentDto],
+      total: 1,
+      page: 1,
+      num_records: 200,
+      next: null,
+    })
 
     const result = await fetchGearComponents(5)
 
@@ -141,8 +147,8 @@ describe('gear-component service requests', () => {
     expect(result).toEqual([mappedComponent])
   })
 
-  it('treats a null components body as an empty list', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
+  it('returns an empty list for an empty page', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], total: 0, page: 1, num_records: 200 })
     await expect(fetchGearComponents(5)).resolves.toEqual([])
   })
 

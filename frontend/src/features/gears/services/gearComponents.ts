@@ -58,7 +58,8 @@ function toComponentWireFields(input: GearComponentInput) {
 
 /**
  * Fetches the components attached to a gear, each enriched with accumulated
- * distance/time by the backend.
+ * distance/time by the backend. The backend serves up to 200 per page, which one
+ * gear's components never reach.
  *
  * @param gearId - The parent gear id.
  * @param signal - Optional abort signal for cancellation.
@@ -69,10 +70,11 @@ export async function fetchGearComponents(
   gearId: number,
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
-  const dtos = await apiFetch<GearComponentDto[] | null>(`/gear_components/gear_id/${gearId}`, {
-    signal,
-  })
-  return (dtos ?? []).map(mapGearComponent)
+  const response = await apiFetch<Schemas['Page_GearComponentRead_']>(
+    `/gear_components/gear_id/${gearId}`,
+    { signal },
+  )
+  return (response.items ?? []).map(mapGearComponent)
 }
 
 /**

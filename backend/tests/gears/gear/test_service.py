@@ -177,3 +177,18 @@ class TestEvents:
             service.create_gear(gear_create("taken"), 1, db)
 
         publishers.publish_gear_created.assert_not_called()
+
+    def test_staged_provider_gears_publish_one_event_each(self, db):
+        with patch("modules.gears.gear.service.gears_event_publishers") as publishers:
+            service.stage_gears([gear_create("A"), gear_create("B")], 1, db)
+
+        (ids, user_id, _db), _ = publishers.publish_gears_created.call_args
+        assert len(ids) == 2
+        assert user_id == 1
+
+    def test_a_nickname_taken_between_check_and_insert_is_left_out(self, db):
+        crud.create_gear(gear_create("Taken"), 1, db)
+        with patch("modules.gears.gear.crud.get_existing_nicknames", return_value=set()):
+            service.stage_gears([gear_create("taken"), gear_create("Fresh")], 1, db)
+
+        assert sorted(g.nickname for g in crud.get_gear_user(1, db)) == ["Fresh", "Taken"]

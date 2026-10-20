@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
+import modules.gears.gear_components.service as gear_components_service
 
 
 def get_gear_components_user(user_id: int, db: Session) -> list[gear_components_schema.GearComponentRead]:
@@ -40,7 +41,7 @@ def create_gear_component(
     Returns:
         The staged component with its generated ID.
     """
-    return gear_components_crud.create_gear_component(gear_component, user_id, db)
+    return gear_components_service.stage_gear_component(gear_component, user_id, db)
 
 
 def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> float:
