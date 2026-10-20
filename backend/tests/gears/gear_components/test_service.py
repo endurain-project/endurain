@@ -165,17 +165,3 @@ def test_component_types_are_grouped_by_gear_type():
 
     assert "chain" in types.bike
     assert "cleats" in types.shoes
-
-
-def test_create_edit_and_delete_publish_their_events(db):
-    from unittest.mock import patch
-
-    gear_id = _gear(db)
-    with patch("modules.gears.gear_components.service.gear_components_event_publishers") as publishers:
-        created = service.create_gear_component(component_create(gear_id), 1, db)
-        service.edit_gear_component(created.id, component_update(brand="SRAM"), 1, db)
-        service.delete_gear_component(1, created.id, db)
-
-    publishers.publish_gear_component_created.assert_called_once_with(created.id, gear_id, 1, db)
-    assert publishers.publish_gear_component_updated.call_args.kwargs["changed_fields"] == {"brand": "SRAM"}
-    publishers.publish_gear_component_deleted.assert_called_once_with(created.id, gear_id, 1, db)

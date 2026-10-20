@@ -16,7 +16,6 @@ import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.crud as gears_crud
-import modules.gears.gear.event_publishers as gears_event_publishers
 import modules.gears.gear.schema as gears_schema
 
 logger = core_logger.get_logger(__name__)
@@ -97,7 +96,7 @@ def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session)
     Raises:
         ConflictError: If the user already has a gear with that nickname.
     """
-    created = stage_gear(gear, user_id, db)
+    created = gears_crud.create_gear(gear, user_id, db)
     db.commit()
     logger.info("Created a gear", extra=core_logger.context(user_id=user_id, gear_id=created.id))
     return created
@@ -139,27 +138,7 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
 
     new_gears = [gear for nickname, gear in candidates.items() if nickname not in existing]
     if new_gears:
-        created_ids = gears_crud.create_gears(new_gears, user_id, db)
-        gears_event_publishers.publish_gears_created(created_ids, user_id, db, source="provider:sync_gears")
-
-
-def stage_gear(gear: gears_schema.GearBase, user_id: int, db: Session) -> gears_schema.GearRead:
-    """Stage one new gear for a user and its ``gear.created`` event; the caller commits.
-
-    Args:
-        gear: Gear payload to create.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        The staged gear with its generated ID.
-
-    Raises:
-        ConflictError: If the nickname or a provider gear ID is already taken.
-    """
-    created = gears_crud.create_gear(gear, user_id, db)
-    gears_event_publishers.publish_gear_created(created.id, user_id, db)
-    return created
+        gears_crud.create_gears(new_gears, user_id, db)
 
 
 def edit_gear(
@@ -189,9 +168,6 @@ def edit_gear(
     """
     try:
         updated = gears_crud.edit_gear(gear_id, gear, user_id, db, if_match=if_match)
-        gears_event_publishers.publish_gear_updated(
-            gear_id, user_id, db, changed_fields=gear.model_dump(exclude_unset=True)
-        )
         db.commit()
     except StaleDataError as err:
         db.rollback()
@@ -217,7 +193,6 @@ def delete_gear(gear_id: int, user_id: int, db: Session) -> None:
         raise core_exceptions.NotFoundError("Gear not found")
     gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
     gears_crud.delete_gear(gear_id, user_id, db)
-    gears_event_publishers.publish_gear_deleted(gear_id, user_id, db)
     db.commit()
     logger.info("Deleted a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
 

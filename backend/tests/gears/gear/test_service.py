@@ -155,37 +155,7 @@ class TestRequireOwnedGears:
         db.execute.assert_not_called()
 
 
-class TestEvents:
-    def test_create_edit_and_delete_publish_their_events(self, db):
-        install_readers()
-        with patch("modules.gears.gear.service.gears_event_publishers") as publishers:
-            created = service.create_gear(gear_create(), 1, db)
-            service.edit_gear(created.id, schema.GearUpdate(brand="Trek"), 1, db)
-            service.delete_gear(created.id, 1, db)
-
-        publishers.publish_gear_created.assert_called_once_with(created.id, 1, db)
-        publishers.publish_gear_updated.assert_called_once()
-        assert sorted(publishers.publish_gear_updated.call_args.kwargs["changed_fields"]) == ["brand"]
-        publishers.publish_gear_deleted.assert_called_once_with(created.id, 1, db)
-
-    def test_a_failed_write_publishes_nothing(self, db):
-        crud.create_gear(gear_create("Taken"), 1, db)
-        with (
-            patch("modules.gears.gear.service.gears_event_publishers") as publishers,
-            pytest.raises(core_exceptions.ConflictError),
-        ):
-            service.create_gear(gear_create("taken"), 1, db)
-
-        publishers.publish_gear_created.assert_not_called()
-
-    def test_staged_provider_gears_publish_one_event_each(self, db):
-        with patch("modules.gears.gear.service.gears_event_publishers") as publishers:
-            service.stage_gears([gear_create("A"), gear_create("B")], 1, db)
-
-        (ids, user_id, _db), _ = publishers.publish_gears_created.call_args
-        assert len(ids) == 2
-        assert user_id == 1
-
+class TestConcurrentStaging:
     def test_a_nickname_taken_between_check_and_insert_is_left_out(self, db):
         crud.create_gear(gear_create("Taken"), 1, db)
         with patch("modules.gears.gear.crud.get_existing_nicknames", return_value=set()):

@@ -19,7 +19,6 @@ import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.crud as gear_components_crud
-import modules.gears.gear_components.event_publishers as gear_components_event_publishers
 import modules.gears.gear_components.schema as gear_components_schema
 
 logger = core_logger.get_logger(__name__)
@@ -144,26 +143,6 @@ def list_components_for_gear(
     return core_pagination.Page.build(items, total, page_number, num_records)
 
 
-def stage_gear_component(
-    gear_component: gear_components_schema.GearComponentCreate,
-    user_id: int,
-    db: Session,
-) -> gear_components_schema.GearComponentRead:
-    """Stage a new component and its ``gear_component.created`` event; the caller commits.
-
-    Args:
-        gear_component: Component payload to create.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        The staged component with its generated ID.
-    """
-    created = gear_components_crud.create_gear_component(gear_component, user_id, db)
-    gear_components_event_publishers.publish_gear_component_created(created.id, created.gear_id, user_id, db)
-    return created
-
-
 def create_gear_component(
     gear_component: gear_components_schema.GearComponentCreate,
     user_id: int,
@@ -191,7 +170,7 @@ def create_gear_component(
 
     _require_type_for_gear(gear, gear_component.type)
 
-    created = stage_gear_component(gear_component, user_id, db)
+    created = gear_components_crud.create_gear_component(gear_component, user_id, db)
     db.commit()
     logger.info("Created a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=created.id))
     return created
@@ -242,13 +221,6 @@ def edit_gear_component(
         updated = gear_components_crud.edit_gear_component(
             gear_component_id, gear_component, user_id, db, if_match=if_match
         )
-        gear_components_event_publishers.publish_gear_component_updated(
-            gear_component_id,
-            updated.gear_id,
-            user_id,
-            db,
-            changed_fields=gear_component.model_dump(exclude_unset=True),
-        )
         db.commit()
     except StaleDataError as err:
         db.rollback()
@@ -272,11 +244,7 @@ def delete_gear_component(user_id: int, gear_component_id: int, db: Session) -> 
     Raises:
         NotFoundError: If the user has no such component.
     """
-    current = gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db)
-    if current is None:
-        raise core_exceptions.NotFoundError("Gear component not found")
     gear_components_crud.delete_gear_component(user_id, gear_component_id, db)
-    gear_components_event_publishers.publish_gear_component_deleted(gear_component_id, current.gear_id, user_id, db)
     db.commit()
     logger.info(
         "Deleted a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=gear_component_id)
