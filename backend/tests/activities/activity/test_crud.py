@@ -1534,9 +1534,9 @@ class TestSumGearUsageByWindow:
         assert "activities.user_id = 1" in sql
 
     def _window(self, **overrides):
-        import modules.activities.activity.contracts as contracts
+        import modules.gears.contracts as gears_contracts
 
-        return contracts.GearUsageWindow(**{"key": 1, "start_date": date(2024, 5, 1), **overrides})
+        return gears_contracts.UsageWindow(**{"key": 1, "start_date": date(2024, 5, 1), **overrides})
 
     def test_window_compares_the_activitys_local_date(self):
         sql = self._emitted_sql([self._window(end_date=date(2024, 6, 1))])

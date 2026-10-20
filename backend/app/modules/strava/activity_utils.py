@@ -14,7 +14,7 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.computation as activities_computation
-import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.integration_service as gears_integration
 import modules.strava.utils as strava_utils
 import modules.users.users.crud as users_crud
 import modules.users.users_default_gear.utils as user_default_gear_utils
@@ -279,7 +279,7 @@ def parse_activity(
     if user_integrations.strava_sync_gear:
         # set the gear id for the activity
         with SessionLocal() as db:
-            gear = gears_crud.get_gear_by_strava_id_from_user_id(detailed_activity.gear_id, user_id, db)
+            gear = gears_integration.get_gear_by_strava_id(detailed_activity.gear_id, user_id, db)
 
         # set the gear id for the activity
         if gear is not None:

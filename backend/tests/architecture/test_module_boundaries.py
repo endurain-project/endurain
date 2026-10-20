@@ -285,6 +285,7 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {}
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.
 _MUST_NOT_IMPORT: dict[str, tuple[str, ...]] = {
     "followers": ("modules.activities",),
+    "gears": ("modules.activities",),
 }
 
 
@@ -928,7 +929,7 @@ class TestLayerRules:
         )
 
     def test_lower_modules_do_not_import_the_modules_above_them(self):
-        """Followers sits below activities, which consumes it, never the reverse."""
+        """Followers and gears sit below activities, which consumes them, never the reverse."""
         offenders = sorted(
             f"{importer} -> {imported}"
             for _path, importer, imported, _role_ in _layer_imports()

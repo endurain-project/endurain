@@ -255,7 +255,7 @@ class TestEditPublishesUpdated:
         mock_crud.edit_activity.assert_called_once_with(1, 5, ANY, db, if_match=None)
         mock_publishers.publish_activity_updated.assert_called_once_with(5, 1, db, changed_fields=["name"])
 
-    @patch("modules.activities.activity.service.gears_dependencies")
+    @patch("modules.activities.activity.service.gears_integration")
     @patch("modules.activities.activity.service.activity_event_publishers")
     @patch("modules.activities.activity.service.activity_crud")
     def test_a_gear_the_caller_does_not_own_is_refused_before_anything_is_written(

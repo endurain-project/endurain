@@ -31,7 +31,7 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.stats as activity_stats
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.followers.integration_service as followers_integration
-import modules.gears.gear.dependencies as gears_dependencies
+import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 
@@ -655,7 +655,7 @@ def edit_activity(
         "Editing an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
     )
-    gears_dependencies.require_owned_gears(user_id, [activity_attributes.gear_id], db)
+    gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
     # Only the fields the client actually sent; the CRUD applies the same set.
     changed_fields = [field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id"]
     try:

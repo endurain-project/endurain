@@ -5,7 +5,7 @@ import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.garmin.utils as garmin_utils
-import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
 import modules.users.users_integrations.crud as user_integrations_crud
 from core.database import SessionLocal
@@ -34,7 +34,8 @@ def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: 
         return 0
 
     # Save the gear to the database
-    gears_crud.create_multiple_gears(processed_gears, user_id, db)
+    gears_integration.create_multiple_gears(processed_gears, user_id, db)
+    db.commit()
 
     # Return the number of activities processed
     return len(processed_gears)
@@ -42,7 +43,7 @@ def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: 
 
 def process_gear(gear, user_id: int, db: Session) -> gears_schema.GearCreate | None:
     # Get the gear by garminconnect uuid from user id
-    gear_db = gears_crud.get_gear_by_garminconnect_id_from_user_id(gear["uuid"], user_id, db)
+    gear_db = gears_integration.get_gear_by_garminconnect_id(gear["uuid"], user_id, db)
 
     # Skip existing gear
     if gear_db:
@@ -98,7 +99,7 @@ def resolve_synced_gear_id(user_id: int, garminconnect_gear: list | None, db: Se
     user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(user_id, db)
     if user_integrations is None or not user_integrations.garminconnect_sync_gear:
         return None
-    gear = gears_crud.get_gear_by_garminconnect_id_from_user_id(garminconnect_gear[0]["uuid"], user_id, db)
+    gear = gears_integration.get_gear_by_garminconnect_id(garminconnect_gear[0]["uuid"], user_id, db)
     return gear.id if gear is not None else None
 
 
@@ -114,7 +115,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
     logger.info(f"User {user_id}: {len(activities)} activities found")
 
     # Get user gears
-    gears = gears_crud.get_gear_user(user_id, db)
+    gears = gears_integration.get_gear_user(user_id, db)
 
     # Skip if no gears
     if gears is None:

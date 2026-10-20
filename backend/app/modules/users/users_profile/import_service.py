@@ -31,9 +31,9 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.contributor_registry as activities_contributor_registry
-import modules.gears.gear.crud as gear_crud
+import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.schema as gear_schema
-import modules.gears.gear_components.crud as gear_components_crud
+import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.schema as health_targets_schema
@@ -414,10 +414,12 @@ class ImportService:
             gear_data.pop("id", None)
 
             gear = gear_schema.GearCreate(**gear_data)
-            new_gear = gear_crud.create_gear(gear, self.user_id, self.db)
+            new_gear = gear_integration.create_gear(gear, self.user_id, self.db)
             gears_id_mapping[original_id] = new_gear.id
             self.counts["gears"] += 1
 
+        # The gear surface stages; the importer owns the commit.
+        self.db.commit()
         logger.info(f"Imported {self.counts['gears']} gears")
         return gears_id_mapping
 
@@ -445,9 +447,11 @@ class ImportService:
             gear_component_data.pop("id", None)
 
             gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
-            gear_components_crud.create_gear_component(gear_component, self.user_id, self.db)
+            gear_components_integration.create_gear_component(gear_component, self.user_id, self.db)
             self.counts["gear_components"] += 1
 
+        # The gear component surface stages; the importer owns the commit.
+        self.db.commit()
         logger.info(f"Imported {self.counts['gear_components']} gear components")
 
     async def collect_and_import_user_data(

@@ -15,8 +15,7 @@ from pydantic import (
 
 
 class GearType(IntEnum):
-    """
-    Supported gear type codes.
+    """Supported gear type codes.
 
     Attributes:
         BIKE: Bicycle (1).
@@ -40,8 +39,7 @@ class GearType(IntEnum):
 
 
 class GearBase(BaseModel):
-    """
-    Base model for gear data.
+    """Base model for gear data.
 
     Attributes:
         brand: Gear brand name.
@@ -112,8 +110,7 @@ class GearBase(BaseModel):
 
 
 class GearCreate(GearBase):
-    """
-    Schema for creating a gear record.
+    """Schema for creating a gear record.
 
     Attributes:
         user_id: Foreign key to user.
@@ -126,8 +123,7 @@ class GearCreate(GearBase):
 
 
 class GearRead(GearBase):
-    """
-    Schema for reading a gear record.
+    """Schema for reading a gear record.
 
     Attributes:
         id: Unique identifier.
@@ -145,8 +141,7 @@ class GearRead(GearBase):
 
 
 class GearDetailRead(GearRead):
-    """
-    Extended gear with computed stats.
+    """Extended gear with computed stats.
 
     Attributes:
         total_distance: Total distance (m).
@@ -172,8 +167,7 @@ class GearDetailRead(GearRead):
 
 
 class GearUpdate(GearBase):
-    """
-    Schema for updating a gear record.
+    """Schema for updating a gear record.
 
     Attributes:
         id: Unique identifier.
@@ -186,8 +180,7 @@ class GearUpdate(GearBase):
 
 
 class GearsListResponse(BaseModel):
-    """
-    Response model for paginated gear listing.
+    """Response model for paginated gear listing.
 
     Attributes:
         total: Total number of gear records.

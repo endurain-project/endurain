@@ -44,8 +44,10 @@ class TestRunWorkerProcess:
         # makes, so the two entrypoints cannot drift.
         module_registry.configure_activity_contributors.assert_called_once_with()
         module_registry.register_durable_handlers.assert_called_once_with(jobs_registry.registry)
-        assert module_registry.method_calls[:2] == [
+        module_registry.configure_gear_contributors.assert_called_once_with()
+        assert module_registry.method_calls[:3] == [
             call.configure_activity_contributors(),
+            call.configure_gear_contributors(),
             call.register_durable_handlers(jobs_registry.registry),
         ]
         install_signals.assert_called_once_with(stop)

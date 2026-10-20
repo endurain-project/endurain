@@ -16,7 +16,7 @@ import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_media.integration_service as activity_media_integration
-import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.integration_service as gears_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -95,7 +95,7 @@ def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[st
         when the user has no gear, which only means no activity is linked to one.
     """
     gear_by_name: dict[str, list[int]] = {}
-    for item in gears_crud.get_gear_user(user_id, db) or []:
+    for item in gears_integration.get_gear_user(user_id, db) or []:
         gear_by_name[item.nickname] = [item.id]
         # Strava apparently exports shoe names as a smoosh of "{brand} {model} {name}", so adding that as a second key for each gear item
         strava_name_smoosh = " ".join(

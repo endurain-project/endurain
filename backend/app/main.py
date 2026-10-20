@@ -202,6 +202,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # writes durable derived state declares a reconciliation net (scheduled backfill)
     # in that module.
     runtime_module_registry.configure_activity_contributors()
+    runtime_module_registry.configure_gear_contributors()
     runtime_module_registry.register_bus_subscribers(platform.events)
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
     # Providers register themselves with ingestion; ingestion imports none of

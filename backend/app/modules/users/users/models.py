@@ -9,8 +9,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.database import Base
 
 if TYPE_CHECKING:
-    from modules.gears.gear.models import Gear
-    from modules.gears.gear_components.models import GearComponents
     from modules.health.health_fasting.models import HealthFasting
     from modules.health.health_poop.models import HealthPoop
     from modules.health.health_sleep.models import HealthSleep
@@ -54,8 +52,6 @@ class Users(Base):
         users_integrations: List of integrations.
         users_default_gear: List of default gear.
         users_privacy_settings: List of privacy settings.
-        gear: List of gear owned by the user.
-        gear_components: List of gear components.
         health_sleep: List of health sleep records.
         health_weight: List of health weight records.
         health_steps: List of health steps records.
@@ -179,14 +175,6 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     users_privacy_settings: Mapped[list["UsersPrivacySettings"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    gear: Mapped[list["Gear"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    gear_components: Mapped[list["GearComponents"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
     )

@@ -277,9 +277,9 @@ class TestExportServiceCollectGearData:
             service.performance_config.enable_memory_monitoring = False
 
             with (
-                patch("modules.users.users_profile.export_service.gear_crud.get_gear_user", return_value=[]),
+                patch("modules.users.users_profile.export_service.gear_integration.get_gear_user", return_value=[]),
                 patch(
-                    "modules.users.users_profile.export_service.gear_components_crud.get_gear_components_user",
+                    "modules.users.users_profile.export_service.gear_components_integration.get_gear_components_user",
                     return_value=[],
                 ),
             ):
@@ -295,7 +295,7 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
                     return_value=mock_gears,
                 ),
                 patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
@@ -312,7 +312,7 @@ class TestExportServiceCollectGearData:
             service.performance_config.enable_memory_monitoring = False
 
             with patch(
-                "modules.users.users_profile.export_service.gear_crud.get_gear_user",
+                "modules.users.users_profile.export_service.gear_integration.get_gear_user",
                 return_value=[],
             ):
                 service.collect_gear_data(z)
@@ -329,7 +329,7 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
                     side_effect=Exception("unexpected"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -345,11 +345,11 @@ class TestExportServiceCollectGearData:
 
             with (
                 patch(
-                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
                     return_value=[],
                 ),
                 patch(
-                    "modules.users.users_profile.export_service.gear_components_crud.get_gear_components_user",
+                    "modules.users.users_profile.export_service.gear_components_integration.get_gear_components_user",
                     side_effect=Exception("components fail"),
                 ),
                 pytest.raises(DataCollectionError),
@@ -1143,7 +1143,7 @@ class TestExportServiceDbErrorWrapsDataCollectionError:
             service.performance_config.enable_memory_monitoring = False
             with (
                 patch(
-                    "modules.users.users_profile.export_service.gear_crud.get_gear_user",
+                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
                     side_effect=SQLAlchemyError("db down"),
                 ),
                 pytest.raises(DataCollectionError),

@@ -12,93 +12,9 @@ from pydantic import (
     StrictStr,
 )
 
-BIKE_COMPONENT_TYPES: list[str] = [
-    "back_break_oil",
-    "back_break_pads",
-    "back_break_rotor",
-    "back_tire",
-    "back_tube",
-    "back_tubeless_sealant",
-    "back_tubeless_rim_tape",
-    "back_wheel",
-    "back_wheel_valve",
-    "bottom_bracket",
-    "bottle_cage",
-    "cassette",
-    "chain",
-    "computer_mount",
-    "crank_left_power_meter",
-    "crank_right_power_meter",
-    "crankset",
-    "crankset_power_meter",
-    "fork",
-    "frame",
-    "front_break_oil",
-    "front_break_pads",
-    "front_break_rotor",
-    "front_derailleur",
-    "front_shifter",
-    "front_tire",
-    "front_tube",
-    "front_tubeless_sealant",
-    "front_tubeless_rim_tape",
-    "front_wheel",
-    "front_wheel_valve",
-    "grips",
-    "handlebar",
-    "handlebar_tape",
-    "headset",
-    "pedals",
-    "pedals_left_power_meter",
-    "pedals_power_meter",
-    "pedals_right_power_meter",
-    "rear_derailleur",
-    "rear_shifter",
-    "saddle",
-    "seatpost",
-    "stem",
-]
-
-SHOES_COMPONENT_TYPES: list[str] = [
-    "cleats",
-    "insoles",
-    "laces",
-]
-
-RACQUET_COMPONENT_TYPES: list[str] = [
-    "basegrip",
-    "bumpers",
-    "grommets",
-    "overgrip",
-    "strings",
-]
-
-WINDSURF_COMPONENT_TYPES: list[str] = [
-    "sail",
-    "board",
-    "mast",
-    "boom",
-    "mast_extension",
-    "mast_base",
-    "mast_universal_joint",
-    "fin",
-    "footstraps",
-    "harness_lines",
-    "rigging_lines",
-    "footpad",
-    "impact_vest",
-    "lifeguard_vest",
-    "helmet",
-    "wing",
-    "front_foil",
-    "stabilizer",
-    "fuselage",
-]
-
 
 class GearComponentBase(BaseModel):
-    """
-    Base model for gear component data.
+    """Base model for gear component data.
 
     Attributes:
         gear_id: Foreign key to gear table.
@@ -166,8 +82,7 @@ class GearComponentCreate(GearComponentBase):
 
 
 class GearComponentRead(GearComponentBase):
-    """
-    Schema for reading a gear component.
+    """Schema for reading a gear component.
 
     Attributes:
         id: Unique identifier.
@@ -197,8 +112,7 @@ class GearComponentRead(GearComponentBase):
 
 
 class GearComponentUpdate(GearComponentBase):
-    """
-    Schema for updating a gear component.
+    """Schema for updating a gear component.
 
     Attributes:
         id: Unique identifier.
@@ -211,8 +125,7 @@ class GearComponentUpdate(GearComponentBase):
 
 
 class GearComponentTypesRead(BaseModel):
-    """
-    Schema for reading component type lists.
+    """Schema for reading component type lists.
 
     Attributes:
         bike: Valid bike component types.

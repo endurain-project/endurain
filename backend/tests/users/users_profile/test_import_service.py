@@ -247,7 +247,7 @@ class TestImportServiceGears:
         mock_new_gear.id = 10
 
         with patch(
-            "modules.users.users_profile.import_service.gear_crud.create_gear",
+            "modules.users.users_profile.import_service.gear_integration.create_gear",
             return_value=mock_new_gear,
         ):
             mapping = await service.collect_and_import_gears_data([{"id": 5, "nickname": "Garmin", "gear_type": 1}])
@@ -275,7 +275,7 @@ class TestImportServiceGears:
             websocket_manager=mock_ws,
         )
 
-        with patch("modules.users.users_profile.import_service.gear_components_crud.create_gear_component"):
+        with patch("modules.users.users_profile.import_service.gear_components_integration.create_gear_component"):
             await service.collect_and_import_gear_components_data(
                 [{"gear_id": 5, "type": "chain", "brand": "Shimano", "model": "Ultegra"}],
                 {5: 10},

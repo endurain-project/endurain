@@ -440,6 +440,7 @@ it rather than the platform importing it. Three worked examples live in the tree
 | Bulk import needed Strava-export semantics | `BulkImportFormat` is a registered layout (which members are activity files, the drop folder, how to build the source); `modules.strava.bulk_import_source` registers one and `StravaBulkImportSource` subclasses `BulkImportSource`. |
 | Activity ingestion/profile restore needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
 | Returning an activity needed its thumbnail's URL | `activity.service` asks `contributor_registry.resolve_thumbnail_url` for each activity it hands a client; `activity_thumbnail` registers the resolver at composition time. The stored key never leaves the server. |
+| Gear totals needed the distance and time activities recorded, and activities needs gear ownership checks | `gears` sits below activities. It states the questions in `gears/contributors.py` and keeps the answers in `gears/contributor_registry.py`; `module_registry.configure_gear_contributors` installs the activities readers in both entrypoints. |
 
 The shape is always the same: the lower layer owns the *seam* (a registry, a base
 class, a protocol), the higher layer owns the *implementation*, and a composition
@@ -737,22 +738,22 @@ the conformance test's allowlist.
 
 ### Pilot status and what the next conversion owns
 
-`activities` and `followers` are the only modules converted so far. The
+`activities`, `followers` and `gears` are the only modules converted so far. The
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need
 changes outside the two converted modules, so they are recorded here as accepted
 limitations rather than half-done:
 
-- **Top-level cycles.** `users` ⇄ `activities` (profile export/import consumes
-  activities; activities consumes `users.integration_service`) and, by the
-  contracts' own description, `gears` ⇄ `activities`. The planned fix is the
+- **Top-level cycles.** `users` ⇄ `activities`: profile export/import consumes
+  activities, and activities consumes `users.integration_service`. The planned fix is the
   contributor pattern the activity children already use: `users_profile`
   export/import asks each module for its section instead of importing them.
-  A `layers` contract (core, identity, followers/gears/health, activities,
-  providers) then states the module-level direction once. Every edge that closes
-  a cycle lives in `users` or `gears`; the activities side already publishes the
-  contributor surface, so the cycles stay until those modules are changed.
+  `gears` no longer closes a cycle: it sits below activities (`_MUST_NOT_IMPORT`), states the
+  usage questions it needs answered in `gears/contributors.py`, and `module_registry.configure_gear_contributors`
+  installs the activities answers. A `layers` contract (core, identity, followers/gears/health,
+  activities, providers) can then state the module-level direction once. The remaining edge that
+  closes a cycle lives in `users`.
 - **Layer rules for unconverted modules.** `TestLayerRules` covers converted
   modules only. An unconverted module is outside it until converted, and the
   `auth-boundary` contract is the one generic rule over every module:
@@ -777,7 +778,7 @@ limitations rather than half-done:
   `notifications.utils` reaching `users` and `websocket`.
 - **Persistence ending transactions.** Converted modules stage with `flush()` and
   let `service` (or the job, importer or `migration_service` that owns the unit of
-  work) commit. Unconverted modules (`auth`, `users`, `gears`, …) are outside
+  work) commit. Unconverted modules (`auth`, `users`, …) are outside
   `test_crud_does_not_end_transactions`; `_CRUD_TRANSACTION_DEBT` is empty and is
   where a module being converted lists its files.
 - **Subscribers reaching past a surface.** Followers holds no subscribers; its

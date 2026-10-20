@@ -40,6 +40,8 @@ import modules.auth.router as auth_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
+import modules.gears.gear.router as gear_router
+import modules.gears.gear_components.router as gear_components_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users_profile.router as users_profile_router
@@ -142,6 +144,12 @@ _TIERED_ENDPOINTS = [
     pytest.param(followers_router.accept_follow_request, core_rate_limit.WRITE, id="accept-follow-request"),
     pytest.param(followers_router.reject_follow_request, core_rate_limit.WRITE, id="reject-follow-request"),
     pytest.param(followers_router.delete_follow_relationship, core_rate_limit.WRITE, id="unfollow"),
+    pytest.param(gear_router.create_gear, core_rate_limit.WRITE, id="gear-create"),
+    pytest.param(gear_router.edit_gear, core_rate_limit.WRITE, id="gear-edit"),
+    pytest.param(gear_router.delete_gear, core_rate_limit.WRITE, id="gear-delete"),
+    pytest.param(gear_components_router.create_gear_component, core_rate_limit.WRITE, id="gear-component-create"),
+    pytest.param(gear_components_router.edit_gear_component, core_rate_limit.WRITE, id="gear-component-edit"),
+    pytest.param(gear_components_router.delete_component_gear, core_rate_limit.WRITE, id="gear-component-delete"),
 ]
 
 

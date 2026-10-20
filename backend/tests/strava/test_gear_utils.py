@@ -114,7 +114,7 @@ def test_shoe_transform_none_brand_model():
 def test_shoe_transform_trailing_plus_encoded(monkeypatch):
     """Shoe name trailing whitespace is stripped."""
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
-    monkeypatch.setattr(gear_utils.gears_crud, "get_gear_user_by_nickname", lambda uid, name, db: None)
+    monkeypatch.setattr(gear_utils.gears_integration, "get_gear_user_by_nickname", lambda uid, name, db: None)
     monkeypatch.setattr(gear_utils, "logger", Mock())
 
     shoes_list = [
@@ -128,7 +128,7 @@ def test_shoe_transform_trailing_plus_encoded(monkeypatch):
 def test_shoe_transform_blank_name(monkeypatch):
     """Blank shoe name gets renamed to default name."""
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
-    monkeypatch.setattr(gear_utils.gears_crud, "get_gear_user_by_nickname", lambda uid, name, db: None)
+    monkeypatch.setattr(gear_utils.gears_integration, "get_gear_user_by_nickname", lambda uid, name, db: None)
     logger = Mock()
     monkeypatch.setattr(gear_utils, "logger", logger)
 
@@ -160,7 +160,7 @@ def test_shoe_transform_multiple_shoes():
 def test_shoe_transform_empty_string_name(monkeypatch):
     """Empty string shoe name gets renamed."""
     monkeypatch.setattr(gear_utils.core_config, "STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE", "Unnamed Shoe ")
-    monkeypatch.setattr(gear_utils.gears_crud, "get_gear_user_by_nickname", lambda uid, name, db: None)
+    monkeypatch.setattr(gear_utils.gears_integration, "get_gear_user_by_nickname", lambda uid, name, db: None)
     monkeypatch.setattr(gear_utils, "logger", Mock())
 
     shoes_list = [

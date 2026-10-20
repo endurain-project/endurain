@@ -19,7 +19,7 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
-import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.integration_service as gears_integration
 import modules.strava.gear_utils as strava_gear_utils
 import modules.strava.provider_registry as strava_provider_registry
 import modules.strava.schema as strava_schema
@@ -222,7 +222,8 @@ def import_bikes_from_strava_export(
             strava_gear_utils.transform_csv_bike_gear_to_schema_gear(bikes_dict, token_user_id) if bikes_dict else []
         )
         if bikes:
-            gears_crud.create_multiple_gears(bikes, token_user_id, db)
+            gears_integration.create_multiple_gears(bikes, token_user_id, db)
+            db.commit()
         logger.info("Bike import complete.", extra=core_logger.context(console=True))
     finally:
         work_dir.cleanup()
@@ -252,7 +253,8 @@ def import_shoes_from_strava_export(
             else []
         )
         if shoes:
-            gears_crud.create_multiple_gears(shoes, token_user_id, db)
+            gears_integration.create_multiple_gears(shoes, token_user_id, db)
+            db.commit()
         logger.info("Shoe import complete.", extra=core_logger.context(console=True))
     finally:
         work_dir.cleanup()
@@ -343,7 +345,8 @@ async def strava_unlink(
             )
 
     # delete all strava gear for user
-    gears_crud.delete_all_strava_gear_for_user(token_user_id, db)
+    gears_integration.delete_all_strava_gear_for_user(token_user_id, db)
+    db.commit()
 
     # delete all strava activities for user
     activity_integration.delete_all_strava_activities(token_user_id, db)
