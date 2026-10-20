@@ -282,7 +282,7 @@ def create_gears(gears: list[gears_schema.GearCreate], user_id: int, db: Session
         raise _conflict(err) from err
 
 
-def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gears_schema.GearRead:
+def create_gear(gear: gears_schema.GearBase, user_id: int, db: Session) -> gears_schema.GearRead:
     """Stage a new gear for a user.
 
     Args:

@@ -246,13 +246,62 @@ class TestImportServiceGears:
         mock_new_gear = MagicMock()
         mock_new_gear.id = 10
 
-        with patch(
-            "modules.users.users_profile.import_service.gear_integration.create_gear",
-            return_value=mock_new_gear,
+        with (
+            patch(
+                "modules.users.users_profile.import_service.gear_integration.get_gear_user_by_nickname",
+                return_value=None,
+            ),
+            patch(
+                "modules.users.users_profile.import_service.gear_integration.create_gear",
+                return_value=mock_new_gear,
+            ),
         ):
             mapping = await service.collect_and_import_gears_data([{"id": 5, "nickname": "Garmin", "gear_type": 1}])
 
         assert mapping == {5: 10}
+
+    async def test_import_maps_onto_a_gear_with_the_same_nickname(self) -> None:
+        service = profile_import_service.ImportService(
+            user_id=1, db=MagicMock(spec=Session), websocket_manager=MagicMock()
+        )
+        existing = MagicMock()
+        existing.id = 77
+
+        with (
+            patch(
+                "modules.users.users_profile.import_service.gear_integration.get_gear_user_by_nickname",
+                return_value=existing,
+            ),
+            patch("modules.users.users_profile.import_service.gear_integration.create_gear") as mock_create,
+        ):
+            mapping = await service.collect_and_import_gears_data([{"id": 5, "nickname": "Garmin", "gear_type": 1}])
+
+        assert mapping == {5: 77}
+        mock_create.assert_not_called()
+
+    async def test_import_drops_provider_ids_that_are_taken(self) -> None:
+        service = profile_import_service.ImportService(
+            user_id=1, db=MagicMock(spec=Session), websocket_manager=MagicMock()
+        )
+        created = MagicMock()
+        created.id = 10
+
+        with (
+            patch(
+                "modules.users.users_profile.import_service.gear_integration.get_gear_user_by_nickname",
+                return_value=None,
+            ),
+            patch(
+                "modules.users.users_profile.import_service.gear_integration.create_gear",
+                side_effect=[core_exceptions.ConflictError("taken"), created],
+            ) as mock_create,
+        ):
+            mapping = await service.collect_and_import_gears_data(
+                [{"id": 5, "nickname": "Garmin", "gear_type": 1, "strava_gear_id": "b1"}]
+            )
+
+        assert mapping == {5: 10}
+        assert mock_create.call_args.args[0].strava_gear_id is None
 
     async def test_collect_and_import_gears_empty(self) -> None:
         mock_db = MagicMock(spec=Session)

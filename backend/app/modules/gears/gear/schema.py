@@ -2,8 +2,10 @@
 
 from datetime import datetime as datetime_type
 from enum import IntEnum
+from typing import Annotated
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -38,8 +40,30 @@ class GearType(IntEnum):
     WATER_SPORTS_BOARD = 8
 
 
+def _require_nickname(value: str) -> str:
+    """Trim a nickname and reject one that is blank.
+
+    Args:
+        value: The submitted nickname.
+
+    Returns:
+        The trimmed nickname.
+
+    Raises:
+        ValueError: If nothing is left after trimming.
+    """
+    value = value.strip()
+    if not value:
+        raise ValueError("nickname cannot be blank")
+    return value
+
+
+#: A nickname trimmed on input; blank is rejected.
+RequiredNickname = Annotated[StrictStr, AfterValidator(_require_nickname)]
+
+
 class GearBase(BaseModel):
-    """Base model for gear data.
+    """Fields a client may set on a gear.
 
     Attributes:
         brand: Gear brand name.
@@ -50,8 +74,6 @@ class GearBase(BaseModel):
         active: Whether the gear is active.
         initial_kms: Initial kilometers.
         purchase_value: Purchase value.
-        strava_gear_id: Strava gear ID.
-        garminconnect_gear_id: Garmin gear ID.
     """
 
     brand: StrictStr | None = Field(
@@ -91,6 +113,42 @@ class GearBase(BaseModel):
         ge=0,
         description="Purchase value",
     )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+
+class GearCreateRequest(GearBase):
+    """Request body for creating a gear.
+
+    Provider gear IDs are not accepted: only the Strava and Garmin Connect syncs and
+    the profile import set them, so a client cannot claim an ID another user's sync
+    needs.
+    """
+
+    nickname: RequiredNickname = Field(
+        ...,
+        max_length=250,
+        description="Gear display nickname",
+    )
+
+
+class GearCreate(GearBase):
+    """A gear to create, as built by the provider syncs and the profile import.
+
+    Attributes:
+        user_id: Foreign key to user; ignored on write, the owner is passed explicitly.
+        strava_gear_id: Strava gear ID.
+        garminconnect_gear_id: Garmin Connect gear ID.
+    """
+
+    user_id: StrictInt | None = Field(
+        default=None,
+        description="Foreign key to user",
+    )
     strava_gear_id: StrictStr | None = Field(
         default=None,
         max_length=45,
@@ -102,27 +160,8 @@ class GearBase(BaseModel):
         description="Garmin Connect gear ID",
     )
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
-    )
 
-
-class GearCreate(GearBase):
-    """Schema for creating a gear record.
-
-    Attributes:
-        user_id: Foreign key to user.
-    """
-
-    user_id: StrictInt | None = Field(
-        default=None,
-        description="Foreign key to user",
-    )
-
-
-class GearRead(GearBase):
+class GearRead(GearCreate):
     """Schema for reading a gear record.
 
     Attributes:
@@ -167,11 +206,17 @@ class GearDetailRead(GearRead):
 
 
 class GearUpdate(GearBase):
-    """Schema for updating a gear record.
+    """Request body for updating a gear; provider gear IDs cannot be changed.
 
     Attributes:
         id: Unique identifier.
     """
+
+    nickname: RequiredNickname = Field(
+        ...,
+        max_length=250,
+        description="Gear display nickname",
+    )
 
     id: StrictInt = Field(
         ...,

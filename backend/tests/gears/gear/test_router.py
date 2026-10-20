@@ -58,13 +58,10 @@ class TestList:
 
 class TestReadById:
     @patch("modules.gears.gear.service.read_gear_detail")
-    def test_unknown_gear_reads_as_null(self, mock_detail, client):
-        mock_detail.return_value = None
+    def test_unknown_gear_is_not_found(self, mock_detail, client):
+        mock_detail.side_effect = core_exceptions.NotFoundError("Gear not found")
 
-        response = client.get("/gears/id/999", headers=_HEADERS)
-
-        assert response.status_code == 200
-        assert response.json() is None
+        assert client.get("/gears/id/999", headers=_HEADERS).status_code == 404
 
     def test_a_non_positive_id_is_rejected(self, client):
         assert client.get("/gears/id/0", headers=_HEADERS).status_code == 422
@@ -80,10 +77,10 @@ class TestNicknameAndType:
         assert [g["nickname"] for g in response.json()] == ["Mountain Bike"]
 
     @patch("modules.gears.gear.service.read_gear_by_nickname")
-    def test_exact_miss_reads_as_null(self, mock_read, client):
-        mock_read.return_value = None
+    def test_exact_miss_is_not_found(self, mock_read, client):
+        mock_read.side_effect = core_exceptions.NotFoundError("Gear not found")
 
-        assert client.get("/gears/nickname/Unknown", headers=_HEADERS).json() is None
+        assert client.get("/gears/nickname/Unknown", headers=_HEADERS).status_code == 404
 
     @patch("modules.gears.gear.service.list_gears_by_type")
     def test_type(self, mock_list, client, mock_db):

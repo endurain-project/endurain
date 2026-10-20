@@ -33,8 +33,9 @@ class TestReadGearDetail:
 
         assert (detail.total_distance, detail.total_time, detail.total_components_cost) == (10_500.0, 60.0, 99.5)
 
-    def test_an_unknown_gear_reads_as_none_without_asking_for_usage(self, db):
-        assert service.read_gear_detail(1, 1, db) is None
+    def test_an_unknown_gear_is_not_found_without_asking_for_usage(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.read_gear_detail(1, 1, db)
 
     def test_missing_readers_fail_loudly_rather_than_report_zero(self, db):
         created = crud.create_gear(gear_create(), 1, db)

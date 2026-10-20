@@ -414,14 +414,38 @@ class ImportService:
             gear_data.pop("id", None)
 
             gear = gear_schema.GearCreate(**gear_data)
-            new_gear = gear_integration.create_gear(gear, self.user_id, self.db)
-            gears_id_mapping[original_id] = new_gear.id
+            gears_id_mapping[original_id] = self._import_gear(gear)
             self.counts["gears"] += 1
 
         # The gear surface stages; the importer owns the commit.
         self.db.commit()
         logger.info(f"Imported {self.counts['gears']} gears")
         return gears_id_mapping
+
+    def _import_gear(self, gear: gear_schema.GearCreate) -> int:
+        """Import one gear, tolerating what the user already has.
+
+        A gear whose nickname the user already has maps onto that gear. A provider gear
+        ID that is already taken is dropped, so the archive cannot make the import fail
+        by naming an ID another account holds.
+
+        Args:
+            gear: The gear from the archive.
+
+        Returns:
+            The ID of the gear the archived one maps to.
+        """
+        existing = gear_integration.get_gear_user_by_nickname(self.user_id, gear.nickname, self.db)
+        if existing is not None:
+            return existing.id
+        try:
+            with self.db.begin_nested():
+                return gear_integration.create_gear(gear, self.user_id, self.db).id
+        except core_exceptions.ConflictError:
+            logger.warning("Dropped the provider gear IDs of an imported gear that are already taken")
+        without_ids = gear.model_copy(update={"strava_gear_id": None, "garminconnect_gear_id": None})
+        with self.db.begin_nested():
+            return gear_integration.create_gear(without_ids, self.user_id, self.db).id
 
     async def collect_and_import_gear_components_data(
         self, gear_components_data: list[Any], gears_id_mapping: dict[int, int]

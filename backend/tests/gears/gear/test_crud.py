@@ -115,16 +115,20 @@ class TestWrites:
 
         assert (updated.nickname, updated.brand, updated.user_id) == ("Gravel", "Trek", 1)
 
-    @pytest.mark.parametrize(
-        ("change", "cause"),
-        [({"nickname": "taken"}, "nickname"), ({"nickname": "Mine", "strava_gear_id": "b1"}, "strava_gear_id")],
-    )
-    def test_edit_onto_a_taken_nickname_or_provider_id_is_a_conflict(self, change, cause, db):
-        crud.create_gear(gear_create("Taken", strava_gear_id="b1"), 1, db)
+    def test_edit_onto_a_taken_nickname_is_a_conflict(self, db):
+        crud.create_gear(gear_create("Taken"), 1, db)
         mine = crud.create_gear(gear_create("Mine"), 1, db)
 
-        with pytest.raises(core_exceptions.ConflictError, match=cause):
-            crud.edit_gear(schema.GearUpdate(id=mine.id, gear_type=1, **change), 1, db)
+        with pytest.raises(core_exceptions.ConflictError, match="nickname"):
+            crud.edit_gear(schema.GearUpdate(id=mine.id, gear_type=1, nickname="taken"), 1, db)
+
+    def test_update_and_create_requests_reject_provider_ids_and_blank_nicknames(self):
+        with pytest.raises(ValueError):
+            schema.GearUpdate(id=1, gear_type=1, nickname="x", strava_gear_id="b1")
+        with pytest.raises(ValueError):
+            schema.GearCreateRequest(gear_type=1, nickname="x", garminconnect_gear_id="g1")
+        with pytest.raises(ValueError):
+            schema.GearCreateRequest(gear_type=1, nickname="   ")
 
     def test_edit_of_a_foreign_gear_is_not_found(self, db):
         created = crud.create_gear(gear_create(), 1, db)

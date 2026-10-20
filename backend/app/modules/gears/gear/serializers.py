@@ -46,7 +46,7 @@ def _normalize_payload(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-def to_orm(gear: gears_schema.GearCreate, user_id: int) -> gears_models.Gear:
+def to_orm(gear: gears_schema.GearBase, user_id: int) -> gears_models.Gear:
     """Build an unsaved ORM row from a create payload.
 
     Args:

@@ -311,7 +311,7 @@ async def strava_set_user_unique_state(
 
 
 @router.delete("/unlink")
-async def strava_unlink(
+def strava_unlink(
     _validate_access_token: Annotated[
         Callable,
         Depends(auth_dependencies.validate_access_token),
@@ -346,7 +346,6 @@ async def strava_unlink(
 
     # delete all strava gear for user
     gears_integration.delete_all_strava_gear_for_user(token_user_id, db)
-    db.commit()
 
     # delete all strava activities for user
     activity_integration.delete_all_strava_activities(token_user_id, db)

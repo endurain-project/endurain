@@ -41,14 +41,14 @@ def read_gears_user_all_pagination(
 
 @router.get(
     "/id/{gear_id}",
-    response_model=gears_schema.GearDetailRead | None,
+    response_model=gears_schema.GearDetailRead,
 )
 def read_gear_id(
     gear_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> gears_schema.GearDetailRead | None:
+) -> gears_schema.GearDetailRead:
     """Retrieve a gear by ID with its total distance, time and components cost."""
     return gears_service.read_gear_detail(gear_id, token_user_id, db)
 
@@ -69,14 +69,14 @@ def read_gear_user_contains_nickname(
 
 @router.get(
     "/nickname/{nickname}",
-    response_model=gears_schema.GearRead | None,
+    response_model=gears_schema.GearRead,
 )
 def read_gear_user_by_nickname(
     nickname: gears_dependencies.GearNickname,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-) -> gears_schema.GearRead | None:
+) -> gears_schema.GearRead:
     """Retrieve the authenticated user's gear by exact nickname."""
     return gears_service.read_gear_by_nickname(token_user_id, nickname, db)
 
@@ -103,7 +103,7 @@ def read_gear_user_by_type(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_gear(
     request: Request,
-    gear: gears_schema.GearCreate,
+    gear: gears_schema.GearCreateRequest,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],

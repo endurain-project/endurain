@@ -55,7 +55,7 @@ def list_gears(
     )
 
 
-def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.GearDetailRead | None:
+def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.GearDetailRead:
     """Return a user's gear with its recorded usage and component cost.
 
     Args:
@@ -64,11 +64,14 @@ def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.Ge
         db: Database session.
 
     Returns:
-        The gear with totals, or None if the user has no such gear.
+        The gear with totals.
+
+    Raises:
+        NotFoundError: If the user has no such gear.
     """
     gear = gears_crud.get_gear_user_by_id(user_id, gear_id, db)
     if gear is None:
-        return None
+        raise core_exceptions.NotFoundError("Gear not found")
     readers = gears_contributor_registry.readers()
     usage = readers.usage(gear_id, user_id, db)
     components_cost = readers.components_cost(gear_id, user_id, db)
@@ -95,7 +98,7 @@ def list_gears_containing_nickname(user_id: int, nickname: str, db: Session) -> 
     return gears_crud.get_gear_user_contains_nickname(user_id, nickname, db)
 
 
-def read_gear_by_nickname(user_id: int, nickname: str, db: Session) -> gears_schema.GearRead | None:
+def read_gear_by_nickname(user_id: int, nickname: str, db: Session) -> gears_schema.GearRead:
     """Return a user's gear by exact nickname.
 
     Args:
@@ -104,9 +107,15 @@ def read_gear_by_nickname(user_id: int, nickname: str, db: Session) -> gears_sch
         db: Database session.
 
     Returns:
-        The gear, or None if there is no match.
+        The gear.
+
+    Raises:
+        NotFoundError: If the user has no gear with that nickname.
     """
-    return gears_crud.get_gear_user_by_nickname(user_id, nickname, db)
+    gear = gears_crud.get_gear_user_by_nickname(user_id, nickname, db)
+    if gear is None:
+        raise core_exceptions.NotFoundError("Gear not found")
+    return gear
 
 
 def list_gears_by_type(user_id: int, gear_type: gears_schema.GearType, db: Session) -> list[gears_schema.GearRead]:
@@ -123,7 +132,7 @@ def list_gears_by_type(user_id: int, gear_type: gears_schema.GearType, db: Sessi
     return gears_crud.get_gear_by_type_and_user(gear_type, user_id, db)
 
 
-def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gears_schema.GearRead:
+def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session) -> gears_schema.GearRead:
     """Create a gear for a user.
 
     Args:
@@ -135,8 +144,7 @@ def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gea
         The created gear.
 
     Raises:
-        ConflictError: If the user already has a gear with that nickname, or a Strava or
-            Garmin Connect gear ID is already taken.
+        ConflictError: If the user already has a gear with that nickname.
     """
     created = gears_crud.create_gear(gear, user_id, db)
     db.commit()

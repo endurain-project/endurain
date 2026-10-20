@@ -4,6 +4,8 @@ Owns the transaction for every write the router makes. What other modules may co
 lives in :mod:`modules.gears.gear_components.integration_service`.
 """
 
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -17,6 +19,20 @@ import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
 
 logger = core_logger.get_logger(__name__)
+
+
+def _require_retired_after_purchase(purchase_date: date | None, retired_date: date | None) -> None:
+    """Reject a retired date that is not after the purchase date.
+
+    Args:
+        purchase_date: The purchase date, if given.
+        retired_date: The retired date, if given.
+
+    Raises:
+        InvalidInputError: If both are given and the retired date is not later.
+    """
+    if retired_date is not None and purchase_date is not None and retired_date <= purchase_date:
+        raise core_exceptions.InvalidInputError("Retired date must be after purchase date")
 
 
 def read_component_types() -> gear_components_schema.GearComponentTypesRead:
@@ -102,8 +118,10 @@ def create_gear_component(
 
     Raises:
         NotFoundError: If the user has no such gear.
-        InvalidInputError: If the component type does not fit the gear type.
+        InvalidInputError: If the component type does not fit the gear type, or the retired
+            date is not after the purchase date.
     """
+    _require_retired_after_purchase(gear_component.purchase_date, gear_component.retired_date)
     gear = gears_integration.get_gear_user_by_id(user_id, gear_component.gear_id, db)
     if gear is None:
         raise core_exceptions.NotFoundError("Gear not found")
@@ -139,12 +157,7 @@ def edit_gear_component(
         InvalidInputError: If the retired date is not after the purchase date.
         NotFoundError: If the user has no such component.
     """
-    if (
-        gear_component.retired_date is not None
-        and gear_component.purchase_date is not None
-        and gear_component.retired_date <= gear_component.purchase_date
-    ):
-        raise core_exceptions.InvalidInputError("Retired date must be after purchase date")
+    _require_retired_after_purchase(gear_component.purchase_date, gear_component.retired_date)
 
     updated = gear_components_crud.edit_gear_component(gear_component, user_id, db)
     db.commit()

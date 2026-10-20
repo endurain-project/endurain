@@ -8,7 +8,7 @@ import type {
 } from '@/features/gears/types'
 import type { Schemas } from '@/types'
 
-import { apiFetch } from '@/services/http'
+import { apiFetch, HttpError } from '@/services/http'
 
 /** Pagination + filter input for a gears list request. */
 export interface GearsListParams {
@@ -136,8 +136,13 @@ export async function searchGearsByNickname(
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGearById(id: number, signal?: AbortSignal): Promise<GearDetail | null> {
-  const dto = await apiFetch<GearDetailDto | null>(`/gears/id/${id}`, { signal })
-  return dto ? mapGearDetail(dto) : null
+  try {
+    const dto = await apiFetch<GearDetailDto | null>(`/gears/id/${id}`, { signal })
+    return dto ? mapGearDetail(dto) : null
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) return null
+    throw error
+  }
 }
 
 /**

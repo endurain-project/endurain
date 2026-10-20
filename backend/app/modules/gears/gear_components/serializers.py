@@ -26,7 +26,7 @@ def to_orm(
 ) -> gear_components_models.GearComponents:
     """Build an unsaved ORM row from a create payload.
 
-    New components start active.
+    A component starts active unless it is created already retired.
 
     Args:
         gear_component: The component to create.
@@ -42,7 +42,8 @@ def to_orm(
         brand=gear_component.brand,
         model=gear_component.model,
         purchase_date=gear_component.purchase_date,
-        active=True,
+        retired_date=gear_component.retired_date,
+        active=gear_component.retired_date is None and gear_component.active is not False,
         expected_kms=gear_component.expected_kms,
         purchase_value=gear_component.purchase_value,
     )
