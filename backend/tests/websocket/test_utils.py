@@ -15,7 +15,7 @@ class TestNotifyFrontend:
     def mock_websocket_manager(self):
         """Create a mock WebSocketManager."""
         manager = MagicMock()
-        manager.get_connection = MagicMock()
+        manager.get_connections = MagicMock()
         return manager
 
     @pytest.fixture
@@ -30,12 +30,12 @@ class TestNotifyFrontend:
         user_id = 1
         json_data = {"type": "notification", "message": "Test notification"}
 
-        mock_websocket_manager.get_connection.return_value = mock_websocket
+        mock_websocket_manager.get_connections.return_value = [mock_websocket]
 
         result = await websocket_utils.notify_frontend(user_id, mock_websocket_manager, json_data)
 
         # Verify connection was retrieved
-        mock_websocket_manager.get_connection.assert_called_once_with(user_id)
+        mock_websocket_manager.get_connections.assert_called_once_with(user_id)
 
         # Verify message was sent
         mock_websocket.send_json.assert_awaited_once_with(json_data)
@@ -48,12 +48,12 @@ class TestNotifyFrontend:
         user_id = 1
         json_data = {"type": "notification", "message": "Test notification"}
 
-        mock_websocket_manager.get_connection.return_value = None
+        mock_websocket_manager.get_connections.return_value = []
 
         result = await websocket_utils.notify_frontend(user_id, mock_websocket_manager, json_data)
 
         # Verify connection was attempted
-        mock_websocket_manager.get_connection.assert_called_once_with(user_id)
+        mock_websocket_manager.get_connections.assert_called_once_with(user_id)
 
         # Should return False when no connection
         assert result is False
@@ -63,7 +63,7 @@ class TestNotifyFrontend:
         user_id = 1
         json_data = {"message": "MFA_REQUIRED", "type": "mfa"}
 
-        mock_websocket_manager.get_connection.return_value = None
+        mock_websocket_manager.get_connections.return_value = []
 
         # Should raise HTTPException for MFA_REQUIRED
         with pytest.raises(HTTPException) as exc_info:
@@ -86,7 +86,7 @@ class TestNotifyFrontend:
             "timestamp": "2026-01-07T10:00:00Z",
         }
 
-        mock_websocket_manager.get_connection.return_value = mock_websocket
+        mock_websocket_manager.get_connections.return_value = [mock_websocket]
 
         result = await websocket_utils.notify_frontend(user_id, mock_websocket_manager, json_data)
 
@@ -98,7 +98,7 @@ class TestNotifyFrontend:
         """Test notifying multiple users sequentially."""
         json_data = {"type": "announcement", "message": "System update"}
 
-        mock_websocket_manager.get_connection.return_value = mock_websocket
+        mock_websocket_manager.get_connections.return_value = [mock_websocket]
 
         # Notify multiple users
         result1 = await websocket_utils.notify_frontend(1, mock_websocket_manager, json_data)
@@ -111,7 +111,7 @@ class TestNotifyFrontend:
         assert result3 is True
 
         # Verify all users were checked and notified
-        assert mock_websocket_manager.get_connection.call_count == 3
+        assert mock_websocket_manager.get_connections.call_count == 3
         assert mock_websocket.send_json.await_count == 3
 
     async def test_notify_frontend_empty_json_data(self, mock_websocket_manager, mock_websocket):
@@ -119,7 +119,7 @@ class TestNotifyFrontend:
         user_id = 1
         json_data = {}
 
-        mock_websocket_manager.get_connection.return_value = mock_websocket
+        mock_websocket_manager.get_connections.return_value = [mock_websocket]
 
         result = await websocket_utils.notify_frontend(user_id, mock_websocket_manager, json_data)
 
@@ -133,7 +133,7 @@ class TestNotifyFrontend:
 
         # Different case - should not raise exception
         json_data1 = {"message": "mfa_required"}
-        mock_websocket_manager.get_connection.return_value = None
+        mock_websocket_manager.get_connections.return_value = []
 
         result = await websocket_utils.notify_frontend(user_id, mock_websocket_manager, json_data1)
 

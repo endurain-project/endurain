@@ -91,7 +91,7 @@ class TestWebSocketEndpoint:
         assert mock_websocket.receive_json.await_count == 3
 
         # Verify disconnect was called
-        mock_manager.disconnect.assert_called_once_with(user_id)
+        mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
 
         # No error logs for valid JSON
         mock_log.assert_not_called()
@@ -114,7 +114,7 @@ class TestWebSocketEndpoint:
 
         mock_manager.connect.assert_awaited_once_with(user_id, mock_websocket)
         mock_log.warning.assert_called_once_with(f"Received malformed JSON from user {user_id}")
-        mock_manager.disconnect.assert_called_once_with(user_id)
+        mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
 
     @patch("modules.websocket.router.logger")
     async def test_websocket_endpoint_multiple_malformed_json(self, mock_log, mock_websocket, mock_manager):
@@ -148,7 +148,7 @@ class TestWebSocketEndpoint:
         await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
 
         mock_manager.connect.assert_awaited_once_with(user_id, mock_websocket)
-        mock_manager.disconnect.assert_called_once_with(user_id)
+        mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
         mock_log.assert_not_called()
 
     async def test_websocket_endpoint_different_users(self, mock_manager):
@@ -170,5 +170,5 @@ class TestWebSocketEndpoint:
         mock_manager.connect.assert_any_await(1, ws1)
         mock_manager.connect.assert_any_await(2, ws2)
         assert mock_manager.disconnect.call_count == 2
-        mock_manager.disconnect.assert_any_call(1)
-        mock_manager.disconnect.assert_any_call(2)
+        mock_manager.disconnect.assert_any_call(1, ws1)
+        mock_manager.disconnect.assert_any_call(2, ws2)

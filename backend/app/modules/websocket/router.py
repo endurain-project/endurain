@@ -85,4 +85,6 @@ async def websocket_endpoint(
                 # Log malformed JSON, keep connection alive
                 logger.warning(f"Received malformed JSON from user {user_id}")
     except WebSocketDisconnect:
-        manager.disconnect(user_id)
+        pass
+    finally:
+        manager.disconnect(user_id, websocket)

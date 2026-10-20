@@ -9,7 +9,7 @@ async def notify_frontend(
     json_data: dict,
 ) -> bool:
     """
-    Send a JSON message to a user's WebSocket connection.
+    Send a JSON message to all of a user's WebSocket connections.
 
     Attempts to send data to the user's WebSocket. For MFA
     verification, raises an exception if no connection exists.
@@ -25,9 +25,10 @@ async def notify_frontend(
     Raises:
         HTTPException: If MFA_REQUIRED but no connection exists.
     """
-    websocket = websocket_manager.get_connection(user_id)
-    if websocket:
-        await websocket.send_json(json_data)
+    connections = websocket_manager.get_connections(user_id)
+    if connections:
+        for websocket in connections:
+            await websocket.send_json(json_data)
         return True
 
     if json_data.get("message") == "MFA_REQUIRED":

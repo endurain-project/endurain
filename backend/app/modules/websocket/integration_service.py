@@ -32,34 +32,36 @@ _PUSH_TIMEOUT_SECONDS = 5.0
 
 async def push_to_user(user_id: int, message: dict) -> bool:
     """
-    Send a JSON message to a user's open websocket, if they have one.
+    Send a JSON message to each of a user's open websockets, if they have any.
 
     Args:
         user_id: The target user.
         message: JSON-serializable payload.
 
     Returns:
-        True when the message was handed to an open connection, False when the
-        user has none in this process or the send failed.
+        True when the message was handed to at least one open connection, False when
+        the user has none in this process or every send failed.
 
     Raises:
         None.
     """
-    websocket = websocket_manager.get_websocket_manager().get_connection(user_id)
-    if websocket is None:
+    connections = websocket_manager.get_websocket_manager().get_connections(user_id)
+    if not connections:
         # TODO(websocket rework): when the user's socket is held by another API replica, or the
         # caller is a dedicated worker, publish the push on the event bus so the process that owns
         # the connection delivers it. Until then the live push is dropped here (the notification
         # row is unaffected).
         logger.debug("No websocket connection for the user in this process", extra=core_logger.context(user_id=user_id))
         return False
-    try:
-        await asyncio.wait_for(websocket.send_json(message), timeout=_PUSH_TIMEOUT_SECONDS)
-    except Exception as err:
+    results = await asyncio.gather(
+        *(asyncio.wait_for(websocket.send_json(message), timeout=_PUSH_TIMEOUT_SECONDS) for websocket in connections),
+        return_exceptions=True,
+    )
+    failures = [result for result in results if isinstance(result, BaseException)]
+    for err in failures:
         logger.debug(
             "Websocket push failed; the durable record is unaffected",
             exc_info=err,
             extra=core_logger.context(user_id=user_id),
         )
-        return False
-    return True
+    return len(failures) < len(results)

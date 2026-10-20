@@ -13,15 +13,17 @@ class WebSocketManager:
 
     Maintains a registry of authenticated WebSocket connections
     indexed by user ID, enabling message broadcasting and
-    targeted notifications.
+    targeted notifications. A user can hold several connections
+    at once (one per open tab or device), so a connection is
+    removed by identity, never by user ID alone.
 
     Attributes:
-        active_connections: Maps user IDs to their WebSocket.
+        active_connections: Maps user IDs to their WebSockets, oldest first.
     """
 
     def __init__(self) -> None:
         """Initialize the WebSocket manager with empty connections."""
-        self.active_connections: dict[int, WebSocket] = {}
+        self.active_connections: dict[int, list[WebSocket]] = {}
 
     async def connect(self, user_id: int, websocket: WebSocket) -> None:
         """
@@ -32,29 +34,34 @@ class WebSocketManager:
             websocket: The WebSocket connection to register.
         """
         await websocket.accept()
-        self.active_connections[user_id] = websocket
+        self.active_connections.setdefault(user_id, []).append(websocket)
         logger.debug(f"WebSocket connected for user {user_id}")
 
-    def disconnect(self, user_id: int) -> None:
+    def disconnect(self, user_id: int, websocket: WebSocket) -> None:
         """
-        Remove a user's WebSocket connection.
+        Remove one WebSocket connection of a user, leaving the others registered.
 
         Args:
             user_id: The user's unique identifier.
+            websocket: The connection to remove.
         """
-        if self.active_connections.pop(user_id, None):
-            logger.debug(f"WebSocket disconnected for user {user_id}")
+        connections = self.active_connections.get(user_id)
+        if connections is None or websocket not in connections:
+            return
+        connections.remove(websocket)
+        if not connections:
+            del self.active_connections[user_id]
+        logger.debug(f"WebSocket disconnected for user {user_id}")
 
     async def send_message(self, user_id: int, message: dict) -> None:
         """
-        Send a JSON message to a specific user.
+        Send a JSON message to every connection of a specific user.
 
         Args:
             user_id: The user's unique identifier.
             message: JSON-serializable data to send.
         """
-        websocket = self.active_connections.get(user_id)
-        if websocket:
+        for websocket in self.get_connections(user_id):
             await websocket.send_json(message)
 
     async def broadcast(self, message: dict) -> None:
@@ -64,20 +71,21 @@ class WebSocketManager:
         Args:
             message: JSON-serializable data to broadcast.
         """
-        for websocket in self.active_connections.values():
-            await websocket.send_json(message)
+        for connections in list(self.active_connections.values()):
+            for websocket in list(connections):
+                await websocket.send_json(message)
 
-    def get_connection(self, user_id: int) -> WebSocket | None:
+    def get_connections(self, user_id: int) -> list[WebSocket]:
         """
-        Retrieve a user's WebSocket connection.
+        Retrieve a user's WebSocket connections.
 
         Args:
             user_id: The user's unique identifier.
 
         Returns:
-            The WebSocket connection or None if not found.
+            A snapshot of the user's connections, empty if there are none.
         """
-        return self.active_connections.get(user_id)
+        return list(self.active_connections.get(user_id, ()))
 
 
 @lru_cache(maxsize=1)
