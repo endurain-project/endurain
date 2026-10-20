@@ -448,6 +448,9 @@ class ImportService:
             with self.db.begin_nested():
                 return gear_integration.create_gear(gear, self.user_id, self.db).id
         except core_exceptions.ConflictError:
+            existing = gear_integration.get_gear_user_by_nickname(self.user_id, gear.nickname, self.db)
+            if existing is not None:
+                return existing.id
             logger.warning("Dropped the provider gear IDs of an imported gear that are already taken")
         without_ids = gear.model_copy(update={"strava_gear_id": None, "garminconnect_gear_id": None})
         with self.db.begin_nested():

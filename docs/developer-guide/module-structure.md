@@ -742,7 +742,7 @@ the conformance test's allowlist.
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need
-changes outside the two converted modules, so they are recorded here as accepted
+changes outside the converted modules, so they are recorded here as accepted
 limitations rather than half-done:
 
 - **Top-level cycles.** `users` ⇄ `activities`: profile export/import consumes
