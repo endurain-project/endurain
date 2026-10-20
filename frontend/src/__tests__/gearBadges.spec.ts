@@ -21,6 +21,7 @@ function makeGear(overrides: Partial<Gear> = {}): Gear {
     purchaseValue: null,
     stravaGearId: null,
     garminConnectGearId: null,
+    version: 1,
     ...overrides,
   }
 }

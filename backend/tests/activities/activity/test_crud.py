@@ -1580,3 +1580,26 @@ class TestSumGearUsageByWindow:
         assert result[1].time == 60.0
         # A window that matched nothing still reports zeroes rather than going missing.
         assert result[2].distance == 0.0
+
+
+class TestClearGearFromActivities:
+    def test_nothing_is_updated_when_no_activity_carries_the_gear(self):
+        import modules.activities.activity.crud as crud
+
+        db = MagicMock()
+        db.execute.return_value.scalars.return_value.all.return_value = []
+
+        assert crud.clear_gear_from_activities(5, 1, db) == []
+        assert db.execute.call_count == 1
+
+    def test_the_update_is_row_locked_and_bumps_the_version(self):
+        import modules.activities.activity.crud as crud
+
+        db = MagicMock()
+        db.execute.return_value.scalars.return_value.all.return_value = [3, 4]
+        db.execute.return_value.all.return_value = [(3,), (4,)]
+
+        assert crud.clear_gear_from_activities(5, 1, db) == [3, 4]
+        lock, update = (call.args[0] for call in db.execute.call_args_list)
+        assert "FOR UPDATE" in str(lock.compile(dialect=postgresql.dialect()))
+        assert "version" in str(update.compile(dialect=postgresql.dialect()))

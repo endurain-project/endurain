@@ -99,11 +99,14 @@ describe('default gear service requests', () => {
   })
 
   it('fetchGearsByType reads the gear-type endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([
-      { id: 10, user_id: 5, gear_type: 2, nickname: 'Trail shoes' },
-    ])
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [{ id: 10, user_id: 5, gear_type: 2, nickname: 'Trail shoes', version: 1 }],
+      total: 1,
+    })
     const gears = await fetchGearsByType(2)
-    expect(apiFetch).toHaveBeenCalledWith('/gears/type/2', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/gears?num_records=200&gear_type=2', {
+      signal: undefined,
+    })
     expect(gears).toHaveLength(1)
     expect(gears[0]?.nickname).toBe('Trail shoes')
   })

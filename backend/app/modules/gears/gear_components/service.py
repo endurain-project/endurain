@@ -7,6 +7,7 @@ lives in :mod:`modules.gears.gear_components.integration_service`.
 from datetime import date
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -14,6 +15,7 @@ import core.pagination as core_pagination
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.integration_service as gears_integration
+import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
@@ -33,6 +35,21 @@ def _require_retired_after_purchase(purchase_date: date | None, retired_date: da
     """
     if retired_date is not None and purchase_date is not None and retired_date <= purchase_date:
         raise core_exceptions.InvalidInputError("Retired date must be after purchase date")
+
+
+def _require_type_for_gear(gear: gears_schema.GearRead, component_type: str) -> None:
+    """Reject a component type that does not fit the gear's type.
+
+    Args:
+        gear: The gear the component belongs to.
+        component_type: The component type to check.
+
+    Raises:
+        InvalidInputError: If the type is not valid for the gear type.
+    """
+    valid_types = gear_components_constants.COMPONENT_TYPES_BY_GEAR_TYPE.get(gear.gear_type)
+    if valid_types is not None and component_type not in valid_types:
+        raise core_exceptions.InvalidInputError(f"Invalid gear component type for {gear.gear_type.name.lower()}")
 
 
 def read_component_types() -> gear_components_schema.GearComponentTypesRead:
@@ -126,11 +143,7 @@ def create_gear_component(
     if gear is None:
         raise core_exceptions.NotFoundError("Gear not found")
 
-    valid_types = gear_components_constants.COMPONENT_TYPES_BY_GEAR_TYPE.get(gear.gear_type)
-    if valid_types is not None and gear_component.type not in valid_types:
-        raise core_exceptions.InvalidInputError(
-            f"Invalid gear component type for {gear.gear_type.name.lower()}",
-        )
+    _require_type_for_gear(gear, gear_component.type)
 
     created = gear_components_crud.create_gear_component(gear_component, user_id, db)
     db.commit()
@@ -139,28 +152,58 @@ def create_gear_component(
 
 
 def edit_gear_component(
+    gear_component_id: int,
     gear_component: gear_components_schema.GearComponentUpdate,
     user_id: int,
     db: Session,
+    *,
+    if_match: str | None = None,
 ) -> gear_components_schema.GearComponentRead:
     """Update one of the user's components.
 
     Args:
+        gear_component_id: Component ID to update.
         gear_component: Component payload with the fields to change.
         user_id: Owner user ID.
         db: Database session.
+        if_match: The ``If-Match`` precondition, or None.
 
     Returns:
         The updated component.
 
     Raises:
-        InvalidInputError: If the retired date is not after the purchase date.
+        InvalidInputError: If the type does not fit the gear type, or the resulting retired
+            date is not after the resulting purchase date.
         NotFoundError: If the user has no such component.
+        PreconditionFailedError: If the component changed since the client read it.
     """
-    _require_retired_after_purchase(gear_component.purchase_date, gear_component.retired_date)
+    current = gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db)
+    if current is None:
+        raise core_exceptions.NotFoundError("Gear component not found")
 
-    updated = gear_components_crud.edit_gear_component(gear_component, user_id, db)
-    db.commit()
+    changed = gear_component.model_fields_set
+    _require_retired_after_purchase(
+        gear_component.purchase_date if "purchase_date" in changed else current.purchase_date,
+        gear_component.retired_date if "retired_date" in changed else current.retired_date,
+    )
+    if "type" in changed and gear_component.type != current.type:
+        gear = gears_integration.get_gear_user_by_id(user_id, current.gear_id, db)
+        if gear is None:
+            raise core_exceptions.NotFoundError("Gear not found")
+        _require_type_for_gear(gear, gear_component.type)
+
+    try:
+        updated = gear_components_crud.edit_gear_component(
+            gear_component_id, gear_component, user_id, db, if_match=if_match
+        )
+        db.commit()
+    except StaleDataError as err:
+        db.rollback()
+        if gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db) is None:
+            raise core_exceptions.NotFoundError("Gear component not found") from err
+        raise core_exceptions.PreconditionFailedError(
+            "The gear component was modified by someone else; re-read it and retry"
+        ) from err
     logger.info("Edited a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=updated.id))
     return updated
 

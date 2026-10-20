@@ -1072,21 +1072,7 @@ export interface paths {
          * @description Retrieve up to 200 of the authenticated user's gear components.
          */
         get: operations["read_gear_components_api_v1_gear_components_get"];
-        /**
-         * Edit Gear Component
-         * @description Update one of the authenticated user's gear components.
-         *
-         *     Applies a partial update: only fields present in the request body are
-         *     changed, so omit a field to leave it untouched and send an explicit
-         *     null to clear a nullable field (e.g. `retired_date`).
-         *
-         *     The retired/active invariant is enforced server-side: while
-         *     `retired_date` is set the component is always inactive (`active` is
-         *     forced to false); while it is null the submitted `active` value is
-         *     honoured. Reactivating a retired component therefore requires clearing
-         *     `retired_date` and setting `active` to true in the same request.
-         */
-        put: operations["edit_gear_component_api_v1_gear_components_put"];
+        put?: never;
         /**
          * Create Gear Component
          * @description Create a component on one of the authenticated user's gears.
@@ -1155,7 +1141,24 @@ export interface paths {
         delete: operations["delete_component_gear_api_v1_gear_components__gear_component_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Gear Component
+         * @description Update one of the authenticated user's gear components.
+         *
+         *     Applies a partial update: only fields present in the request body are
+         *     changed, so omit a field to leave it untouched and send an explicit
+         *     null to clear a nullable field (e.g. `retired_date`).
+         *
+         *     The retired/active invariant is enforced server-side: while
+         *     `retired_date` is set the component is always inactive (`active` is
+         *     forced to false); while it is null the submitted `active` value is
+         *     honoured. Reactivating a retired component therefore requires clearing
+         *     `retired_date` and setting `active` to true in the same request.
+         *
+         *     Send ``If-Match`` with the component's ``version`` as an ETag to make the write
+         *     conditional; a stale tag is refused with 412.
+         */
+        patch: operations["edit_gear_component_api_v1_gear_components__gear_component_id__patch"];
         trace?: never;
     };
     "/api/v1/gears": {
@@ -1166,15 +1169,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Gears User All Pagination
+         * List Gears
          * @description Retrieve one page of the authenticated user's gears, with the matching total.
          */
-        get: operations["read_gears_user_all_pagination_api_v1_gears_get"];
-        /**
-         * Edit Gear
-         * @description Update one of the authenticated user's gears.
-         */
-        put: operations["edit_gear_api_v1_gears_put"];
+        get: operations["list_gears_api_v1_gears_get"];
+        put?: never;
         /**
          * Create Gear
          * @description Create a gear for the authenticated user.
@@ -1206,66 +1205,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/gears/nickname/contains/{nickname}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear User Contains Nickname
-         * @description Retrieve up to 200 of the authenticated user's gears whose nickname contains the text.
-         */
-        get: operations["read_gear_user_contains_nickname_api_v1_gears_nickname_contains__nickname__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/nickname/{nickname}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear User By Nickname
-         * @description Retrieve the authenticated user's gear by exact nickname.
-         */
-        get: operations["read_gear_user_by_nickname_api_v1_gears_nickname__nickname__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/gears/type/{gear_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Gear User By Type
-         * @description Retrieve up to 200 of the authenticated user's gears of one type.
-         */
-        get: operations["read_gear_user_by_type_api_v1_gears_type__gear_type__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/gears/{gear_id}": {
         parameters: {
             query?: never;
@@ -1283,7 +1222,17 @@ export interface paths {
         delete: operations["delete_gear_api_v1_gears__gear_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit Gear
+         * @description Update one of the authenticated user's gears.
+         *
+         *     Applies a partial update: omit a field to leave it untouched and send an explicit
+         *     null to clear a nullable one (`brand`, `model`, `purchase_value`).
+         *
+         *     Send ``If-Match`` with the gear's ``version`` as an ETag to make the write
+         *     conditional; a stale tag is refused with 412.
+         */
+        patch: operations["edit_gear_api_v1_gears__gear_id__patch"];
         trace?: never;
     };
     "/api/v1/health/fasting": {
@@ -5802,6 +5751,9 @@ export interface components {
         /**
          * GearComponentCreate
          * @description Schema for creating a gear component.
+         *
+         *     Attributes:
+         *         gear_id: Foreign key to gear table.
          */
         GearComponentCreate: {
             /**
@@ -5857,6 +5809,7 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          *         current_distance: Accumulated distance.
          *         current_time: Accumulated time.
          */
@@ -5928,6 +5881,12 @@ export interface components {
              * @description Foreign key to user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            version: number;
         };
         /**
          * GearComponentTypesRead
@@ -5963,10 +5922,9 @@ export interface components {
         };
         /**
          * GearComponentUpdate
-         * @description Schema for updating a gear component.
+         * @description Partial update of a gear component: omit a field to keep it, send null to clear a nullable one.
          *
-         *     Attributes:
-         *         id: Unique identifier.
+         *     The component and its gear come from the path and cannot be changed.
          */
         GearComponentUpdate: {
             /**
@@ -5978,27 +5936,17 @@ export interface components {
              * Brand
              * @description Gear component brand
              */
-            brand: string;
+            brand?: string | null;
             /**
              * Expected Kms
              * @description Expected kilometers
              */
             expected_kms?: number | null;
             /**
-             * Gear Id
-             * @description Foreign key to gear
-             */
-            gear_id: number;
-            /**
-             * Id
-             * @description Unique identifier
-             */
-            id: number;
-            /**
              * Model
              * @description Gear component model
              */
-            model: string;
+            model?: string | null;
             /**
              * Purchase Date
              * @description Purchase date
@@ -6018,16 +5966,17 @@ export interface components {
              * Type
              * @description Type of gear component
              */
-            type: string;
+            type?: string | null;
         };
         /**
-         * GearCreate
-         * @description Schema for creating a gear record.
+         * GearCreateRequest
+         * @description Request body for creating a gear.
          *
-         *     Attributes:
-         *         user_id: Foreign key to user.
+         *     Provider gear IDs are not accepted: only the Strava and Garmin Connect syncs and
+         *     the profile import set them, so a client cannot claim an ID another user's sync
+         *     needs.
          */
-        GearCreate: {
+        GearCreateRequest: {
             /**
              * Active
              * @description Whether the gear is active
@@ -6043,11 +5992,6 @@ export interface components {
              * @description Gear creation timestamp
              */
             created_at?: string | null;
-            /**
-             * Garminconnect Gear Id
-             * @description Garmin Connect gear ID
-             */
-            garminconnect_gear_id?: string | null;
             /** @description Gear type identifier */
             gear_type: components["schemas"]["GearType"];
             /**
@@ -6070,16 +6014,6 @@ export interface components {
              * @description Purchase value
              */
             purchase_value?: number | null;
-            /**
-             * Strava Gear Id
-             * @description Strava gear ID
-             */
-            strava_gear_id?: string | null;
-            /**
-             * User Id
-             * @description Foreign key to user
-             */
-            user_id?: number | null;
         };
         /**
          * GearDetailRead
@@ -6166,6 +6100,12 @@ export interface components {
              * @description Foreign key to user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            version: number;
         };
         /**
          * GearRead
@@ -6174,6 +6114,7 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
+         *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          */
         GearRead: {
             /**
@@ -6233,6 +6174,12 @@ export interface components {
              * @description Foreign key to user
              */
             user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            version: number;
         };
         /**
          * GearType
@@ -6252,10 +6199,9 @@ export interface components {
         GearType: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
         /**
          * GearUpdate
-         * @description Schema for updating a gear record.
+         * @description Partial update of a gear: omit a field to keep it, send null to clear a nullable one.
          *
-         *     Attributes:
-         *         id: Unique identifier.
+         *     The gear comes from the path; provider gear IDs cannot be changed.
          */
         GearUpdate: {
             /**
@@ -6273,18 +6219,8 @@ export interface components {
              * @description Gear creation timestamp
              */
             created_at?: string | null;
-            /**
-             * Garminconnect Gear Id
-             * @description Garmin Connect gear ID
-             */
-            garminconnect_gear_id?: string | null;
             /** @description Gear type identifier */
-            gear_type: components["schemas"]["GearType"];
-            /**
-             * Id
-             * @description Unique identifier
-             */
-            id: number;
+            gear_type?: components["schemas"]["GearType"] | null;
             /**
              * Initial Kms
              * @description Initial kilometers
@@ -6299,49 +6235,12 @@ export interface components {
              * Nickname
              * @description Gear display nickname
              */
-            nickname: string;
+            nickname?: string | null;
             /**
              * Purchase Value
              * @description Purchase value
              */
             purchase_value?: number | null;
-            /**
-             * Strava Gear Id
-             * @description Strava gear ID
-             */
-            strava_gear_id?: string | null;
-        };
-        /**
-         * GearsListResponse
-         * @description Response model for paginated gear listing.
-         *
-         *     Attributes:
-         *         total: Total number of gear records.
-         *         num_records: Number of records returned.
-         *         page_number: Current page number.
-         *         records: List of gear records.
-         */
-        GearsListResponse: {
-            /**
-             * Num Records
-             * @description Number of records returned
-             */
-            num_records?: number | null;
-            /**
-             * Page Number
-             * @description Current page number
-             */
-            page_number?: number | null;
-            /**
-             * Records
-             * @description List of gear records
-             */
-            records: components["schemas"]["GearRead"][];
-            /**
-             * Total
-             * @description Total number of gear records
-             */
-            total: number;
         };
         /**
          * Gender
@@ -9118,6 +9017,19 @@ export interface components {
         Page_FollowRelationshipRead_: {
             /** Items */
             items: components["schemas"]["FollowRelationshipRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[GearRead] */
+        Page_GearRead_: {
+            /** Items */
+            items: components["schemas"]["GearRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -13685,48 +13597,6 @@ export interface operations {
             };
         };
     };
-    edit_gear_component_api_v1_gear_components_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GearComponentUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearComponentRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     create_gear_component_api_v1_gear_components_post: {
         parameters: {
             query?: never;
@@ -13878,19 +13748,22 @@ export interface operations {
             };
         };
     };
-    read_gears_user_all_pagination_api_v1_gears_get: {
+    edit_gear_component_api_v1_gear_components__gear_component_id__patch: {
         parameters: {
-            query?: {
-                /** @description Filter by inactive status */
-                show_inactive?: boolean | null;
-                page_number?: number | null;
-                num_records?: number | null;
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
             };
-            header?: never;
-            path?: never;
+            path: {
+                gear_component_id: number;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GearComponentUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -13898,7 +13771,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearsListResponse"];
+                    "application/json": components["schemas"]["GearComponentRead"];
                 };
             };
             /** @description Validation Error */
@@ -13921,18 +13794,23 @@ export interface operations {
             };
         };
     };
-    edit_gear_api_v1_gears_put: {
+    list_gears_api_v1_gears_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Filter by inactive status */
+                show_inactive?: boolean | null;
+                /** @description Keep only gears of this type */
+                gear_type?: components["schemas"]["GearType"] | null;
+                /** @description Keep only gears whose nickname contains this text */
+                nickname_contains?: string | null;
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GearUpdate"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -13940,7 +13818,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearRead"];
+                    "application/json": components["schemas"]["Page_GearRead_"];
                 };
             };
             /** @description Validation Error */
@@ -13972,7 +13850,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GearCreate"];
+                "application/json": components["schemas"]["GearCreateRequest"];
             };
         };
         responses: {
@@ -14022,127 +13900,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GearDetailRead"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_gear_user_contains_nickname_api_v1_gears_nickname_contains__nickname__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                nickname: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_gear_user_by_nickname_api_v1_gears_nickname__nickname__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                nickname: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_gear_user_by_type_api_v1_gears_type__gear_type__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                gear_type: components["schemas"]["GearType"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GearRead"][];
+                    "application/json": components["schemas"]["GearDetailRead"];
                 };
             };
             /** @description Validation Error */
@@ -14182,6 +13940,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    edit_gear_api_v1_gears__gear_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                gear_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GearUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GearRead"];
+                };
             };
             /** @description Validation Error */
             422: {

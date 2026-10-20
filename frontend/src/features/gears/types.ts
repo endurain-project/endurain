@@ -30,6 +30,8 @@ export type GearType = Schemas['GearType']
  * @property purchaseValue - Purchase price in the user's currency, or `null`.
  * @property stravaGearId - Linked Strava gear id, or `null`.
  * @property garminConnectGearId - Linked Garmin Connect gear id, or `null`.
+ * @property version - Row version behind the `ETag`, echoed as `If-Match` on save so an
+ *   edit built from a stale copy is refused instead of overwriting a newer one.
  */
 export interface Gear {
   id: number
@@ -44,6 +46,7 @@ export interface Gear {
   purchaseValue: number | null
   stravaGearId: string | null
   garminConnectGearId: string | null
+  version: number
 }
 
 /**
@@ -107,6 +110,7 @@ export type GearComponentTypeLists = Schemas['GearComponentTypesRead']
  * @property purchaseValue - Purchase price in the user's currency, or `null`.
  * @property currentDistance - Accumulated activity distance in metres.
  * @property currentTime - Accumulated activity time in seconds.
+ * @property version - Row version behind the `ETag`, echoed as `If-Match` on save.
  */
 export interface GearComponent {
   id: number
@@ -122,6 +126,7 @@ export interface GearComponent {
   purchaseValue: number | null
   currentDistance: number
   currentTime: number
+  version: number
 }
 
 /**

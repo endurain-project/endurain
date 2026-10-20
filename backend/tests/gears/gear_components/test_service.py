@@ -51,16 +51,46 @@ class TestCreate:
 
 class TestEditAndDelete:
     def test_retiring_before_purchase_is_refused(self, db):
+        gear_id = _gear(db)
+        created = crud.create_gear_component(component_create(gear_id, purchase_date=date(2024, 5, 1)), 1, db)
+
         with pytest.raises(core_exceptions.InvalidInputError):
-            service.edit_gear_component(
-                component_update(1, purchase_date=date(2024, 5, 1), retired_date=date(2024, 5, 1)), 1, db
-            )
+            service.edit_gear_component(created.id, component_update(retired_date=date(2024, 5, 1)), 1, db)
+
+    def test_moving_the_purchase_past_the_stored_retired_date_is_refused(self, db):
+        gear_id = _gear(db)
+        created = crud.create_gear_component(
+            component_create(gear_id, purchase_date=date(2024, 1, 1), retired_date=date(2024, 6, 1)), 1, db
+        )
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            service.edit_gear_component(created.id, component_update(purchase_date=date(2024, 7, 1)), 1, db)
+
+    def test_a_type_that_does_not_fit_the_gear_is_refused(self, db):
+        gear_id = _gear(db)
+        created = crud.create_gear_component(component_create(gear_id), 1, db)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            service.edit_gear_component(created.id, component_update(type="not-a-bike-part"), 1, db)
+
+    def test_editing_a_missing_component_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.edit_gear_component(1, component_update(brand="x"), 1, db)
+
+    def test_a_stale_edit_is_a_precondition_failure(self, db, commit_spy):
+        gear_id = _gear(db)
+        created = crud.create_gear_component(component_create(gear_id), 1, db)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.edit_gear_component(created.id, component_update(brand="x"), 1, db, if_match='"99"')
+
+        commit_spy.assert_not_called()
 
     def test_edit_commits(self, db, commit_spy):
         gear_id = _gear(db)
         created = crud.create_gear_component(component_create(gear_id), 1, db)
 
-        updated = service.edit_gear_component(component_update(created.id, gear_id, brand="SRAM"), 1, db)
+        updated = service.edit_gear_component(created.id, component_update(brand="SRAM"), 1, db)
 
         commit_spy.assert_called_once_with()
         assert updated.brand == "SRAM"
@@ -110,7 +140,7 @@ class TestListForGear:
     def test_the_active_filter_does_not_narrow_the_windows(self, db):
         crud.create_gear_component(component_create(), 1, db)
         inactive = crud.create_gear_component(component_create(), 1, db)
-        crud.edit_gear_component(component_update(inactive.id, active=False), 1, db)
+        crud.edit_gear_component(inactive.id, component_update(active=False), 1, db)
         reader = MagicMock(return_value={})
         install_readers(usage_by_window=reader)
 

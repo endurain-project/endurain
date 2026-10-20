@@ -43,6 +43,7 @@ const componentDto: GearComponentDto = {
   purchase_value: 45,
   current_distance: 1_200_000,
   current_time: 360_000,
+  version: 2,
 }
 
 const mappedComponent: GearComponent = {
@@ -59,6 +60,7 @@ const mappedComponent: GearComponent = {
   purchaseValue: 45,
   currentDistance: 1_200_000,
   currentTime: 360_000,
+  version: 2,
 }
 
 const componentInput: GearComponentInput = {
@@ -101,6 +103,7 @@ describe('mapGearComponent', () => {
         model: 'Keo',
         current_distance: 0,
         current_time: 0,
+        version: 1,
       }),
     ).toEqual({
       id: 9,
@@ -116,6 +119,7 @@ describe('mapGearComponent', () => {
       purchaseValue: null,
       currentDistance: 0,
       currentTime: 0,
+      version: 1,
     })
   })
 })
@@ -171,15 +175,16 @@ describe('gear-component service requests', () => {
     })
   })
 
-  it('updates a component via a PUT that includes the id', async () => {
+  it('updates a component via a PATCH guarded by If-Match, without the gear id', async () => {
     vi.mocked(apiFetch).mockResolvedValue(componentDto)
 
-    await updateGearComponent(7, componentInput)
+    await updateGearComponent(7, componentInput, 2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
-      method: 'PUT',
-      body: JSON.stringify({ ...expectedComponentWire, id: 7 }),
-    })
+    const [path, init] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(path).toBe('/gear_components/7')
+    expect(init).toMatchObject({ method: 'PATCH', headers: { 'If-Match': '"2"' } })
+    const { gear_id: _gearId, ...expected } = expectedComponentWire
+    expect(JSON.parse(init!.body as string)).toEqual(expected)
   })
 
   it('deletes a component via a void DELETE', async () => {

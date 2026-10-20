@@ -3,19 +3,13 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.gears.contracts as gears_contracts
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.gears.gear_components.serializers as gear_components_serializers
-
-# Fields that must never be overwritten via user-supplied data during updates.
-_IMMUTABLE_FIELDS: set[str] = {
-    "id",
-    "user_id",
-    "gear_id",
-}
 
 
 def _get_gear_component_model_or_404(
@@ -42,6 +36,27 @@ def _get_gear_component_model_or_404(
     if db_gear_component is None:
         raise core_exceptions.NotFoundError("Gear component not found")
     return db_gear_component
+
+
+def get_gear_component_user_by_id(
+    user_id: int, gear_component_id: int, db: Session
+) -> gear_components_schema.GearComponentRead | None:
+    """Retrieve a user's component by ID.
+
+    Args:
+        user_id: Owner user ID.
+        gear_component_id: Component ID to fetch.
+        db: Database session.
+
+    Returns:
+        The component, or None if the user has no such component.
+    """
+    stmt = select(gear_components_models.GearComponents).where(
+        gear_components_models.GearComponents.id == gear_component_id,
+        gear_components_models.GearComponents.user_id == user_id,
+    )
+    row = db.execute(stmt).scalar_one_or_none()
+    return gear_components_serializers.to_read_schema(row) if row is not None else None
 
 
 def get_gear_components_user(
@@ -161,9 +176,12 @@ def create_gear_component(
 
 
 def edit_gear_component(
+    gear_component_id: int,
     gear_component: gear_components_schema.GearComponentUpdate,
     user_id: int,
     db: Session,
+    *,
+    if_match: str | None = None,
 ) -> gear_components_schema.GearComponentRead:
     """Stage a partial update to a user's component.
 
@@ -175,20 +193,25 @@ def edit_gear_component(
     ``active`` to True in the same request).
 
     Args:
+        gear_component_id: Component ID to update.
         gear_component: Component payload with the fields to change.
         user_id: Owner user ID.
         db: Database session.
+        if_match: The ``If-Match`` precondition, or None. Checked against the row this
+            function edits, so the flush's ``version_id_col`` guard holds the write to
+            the same version.
 
     Returns:
         The updated component.
 
     Raises:
         NotFoundError: If the user has no such component.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
-    db_gear_component = _get_gear_component_model_or_404(gear_component.id, user_id, db)
+    db_gear_component = _get_gear_component_model_or_404(gear_component_id, user_id, db)
+    core_etag.require_if_match(if_match, db_gear_component.version, "gear component")
     for key, value in gear_component.model_dump(exclude_unset=True).items():
-        if key not in _IMMUTABLE_FIELDS:
-            setattr(db_gear_component, key, value)
+        setattr(db_gear_component, key, value)
     if db_gear_component.retired_date is not None:
         db_gear_component.active = False
     db.flush()

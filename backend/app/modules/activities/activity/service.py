@@ -790,6 +790,29 @@ def bulk_set_activities_gear(
     return len(updated_ids)
 
 
+def clear_activities_gear(gear_id: int, user_id: int, db: Session, *, source: str) -> int:
+    """Unassign a gear from every activity of a user that carries it.
+
+    Used when the gear is deleted: the foreign key would null the column silently, so
+    this does it explicitly and publishes one ``activity.updated`` per row, staged with
+    the update. The caller commits.
+
+    Args:
+        gear_id: The gear being removed.
+        user_id: The owning user id.
+        db: Database session.
+        source: The caller recorded on the published events.
+
+    Returns:
+        The number of activities updated.
+    """
+    updated_ids = activity_crud.clear_gear_from_activities(gear_id, user_id, db)
+    activity_event_publishers.publish_activities_updated(
+        updated_ids, user_id, db, changed_fields=["gear_id"], source=source
+    )
+    return len(updated_ids)
+
+
 def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> int:
     """Delete all of a user's Strava-sourced activities.
 

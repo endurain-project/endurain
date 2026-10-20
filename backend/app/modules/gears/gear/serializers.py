@@ -8,9 +8,6 @@ from typing import Any
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 
-# Fields that must never be reassigned through an update payload
-_IMMUTABLE_FIELDS: frozenset[str] = frozenset({"id", "user_id"})
-
 # Gear text fields trimmed of surrounding whitespace on write
 _TEXT_FIELDS: tuple[str, ...] = ("brand", "model", "nickname")
 
@@ -61,13 +58,12 @@ def to_orm(gear: gears_schema.GearBase, user_id: int) -> gears_models.Gear:
 
 
 def to_update_values(gear: gears_schema.GearUpdate) -> dict[str, Any]:
-    """Return the columns an update payload may change.
+    """Return the columns an update payload changes.
 
     Args:
         gear: The update payload.
 
     Returns:
-        The normalized, non-null fields that are not immutable.
+        The normalized fields the client sent; a nullable one sent as null clears it.
     """
-    data = _normalize_payload(gear.model_dump(exclude_unset=True))
-    return {key: value for key, value in data.items() if key not in _IMMUTABLE_FIELDS and value is not None}
+    return _normalize_payload(gear.model_dump(exclude_unset=True))

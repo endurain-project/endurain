@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -17,8 +17,8 @@ class TestListGears:
 
         result = service.list_gears(1, db, page_number=1, num_records=2)
 
-        assert (result.total, result.num_records, result.page_number) == (3, 2, 1)
-        assert [g.nickname for g in result.records] == ["A", "B"]
+        assert (result.total, result.num_records, result.page, result.next) == (3, 2, 1, 2)
+        assert [g.nickname for g in result.items] == ["A", "B"]
 
 
 class TestReadGearDetail:
@@ -92,21 +92,41 @@ class TestEditAndDelete:
     def test_edit_commits_the_change(self, db, commit_spy):
         created = crud.create_gear(gear_create(), 1, db)
 
-        updated = service.edit_gear(schema.GearUpdate(id=created.id, nickname="Gravel", gear_type=1), 1, db)
+        updated = service.edit_gear(created.id, schema.GearUpdate(nickname="Gravel"), 1, db)
 
         commit_spy.assert_called_once_with()
         assert updated.nickname == "Gravel"
 
+    def test_a_stale_edit_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
+        created = crud.create_gear(gear_create(), 1, db)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.edit_gear(created.id, schema.GearUpdate(brand="x"), 1, db, if_match='"99"')
+
+        commit_spy.assert_not_called()
+
     def test_delete_commits_after_staging(self, db, commit_spy):
         created = crud.create_gear(gear_create(), 1, db)
+
+        install_readers()
 
         service.delete_gear(created.id, 1, db)
 
         commit_spy.assert_called_once_with()
         assert crud.get_gear_user_by_id(1, created.id, db) is None
 
+    def test_delete_unassigns_the_activities_before_removing_the_gear(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+        clear = MagicMock(return_value=2)
+        install_readers(clear_activities_gear=clear)
+
+        service.delete_gear(created.id, 1, db)
+
+        clear.assert_called_once_with(created.id, 1, db)
+
     def test_delete_of_a_foreign_gear_is_not_found_and_not_committed(self, db, commit_spy):
         created = crud.create_gear(gear_create(), 8, db)
+        install_readers()
 
         with pytest.raises(core_exceptions.NotFoundError):
             service.delete_gear(created.id, 2, db)
@@ -133,3 +153,27 @@ class TestRequireOwnedGears:
         service.require_owned_gears(7, [None], db)
 
         db.execute.assert_not_called()
+
+
+class TestEvents:
+    def test_create_edit_and_delete_publish_their_events(self, db):
+        install_readers()
+        with patch("modules.gears.gear.service.gears_event_publishers") as publishers:
+            created = service.create_gear(gear_create(), 1, db)
+            service.edit_gear(created.id, schema.GearUpdate(brand="Trek"), 1, db)
+            service.delete_gear(created.id, 1, db)
+
+        publishers.publish_gear_created.assert_called_once_with(created.id, 1, db)
+        publishers.publish_gear_updated.assert_called_once()
+        assert sorted(publishers.publish_gear_updated.call_args.kwargs["changed_fields"]) == ["brand"]
+        publishers.publish_gear_deleted.assert_called_once_with(created.id, 1, db)
+
+    def test_a_failed_write_publishes_nothing(self, db):
+        crud.create_gear(gear_create("Taken"), 1, db)
+        with (
+            patch("modules.gears.gear.service.gears_event_publishers") as publishers,
+            pytest.raises(core_exceptions.ConflictError),
+        ):
+            service.create_gear(gear_create("taken"), 1, db)
+
+        publishers.publish_gear_created.assert_not_called()

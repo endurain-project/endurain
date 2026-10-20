@@ -114,6 +114,20 @@ def bulk_set_activities_gear(
     )
 
 
+def clear_activities_gear(gear_id: int, user_id: int, db: Session) -> int:
+    """Unassign a gear from every activity of a user that carries it; the caller commits.
+
+    Args:
+        gear_id: The gear being removed.
+        user_id: The owning user id.
+        db: Database session.
+
+    Returns:
+        The number of activities updated.
+    """
+    return activity_service.clear_activities_gear(gear_id, user_id, db, source="api:delete_gear")
+
+
 def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> gears_contracts.UsageTotals:
     """Return the total distance and moving time a user recorded against a gear.
 

@@ -117,7 +117,7 @@ async function submitForm(values: GearFormValues): Promise<void> {
   const input = buildInput(values)
   try {
     if (props.gear) {
-      await updateMutation.mutateAsync({ id: props.gear.id, input })
+      await updateMutation.mutateAsync({ id: props.gear.id, input, version: props.gear.version })
       emit('success', t('gears.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)

@@ -143,7 +143,11 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
   }
   try {
     if (props.component) {
-      await updateMutation.mutateAsync({ id: props.component.id, input })
+      await updateMutation.mutateAsync({
+        id: props.component.id,
+        input,
+        version: props.component.version,
+      })
       emit('success', t('gears.components.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)

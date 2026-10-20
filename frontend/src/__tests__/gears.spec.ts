@@ -3,12 +3,13 @@ import { Bike, Dumbbell, Footprints, Sailboat } from '@lucide/vue'
 
 import type { GearDetailDto, GearDto, GearInput } from '@/features/gears/types'
 
-import { apiFetch } from '@/services/http'
+import { apiFetch, HttpError } from '@/services/http'
 import {
   createGear,
   deleteGear,
   fetchGearById,
   fetchGears,
+  fetchGearsByType,
   mapGear,
   mapGearDetail,
   searchGearsByNickname,
@@ -22,7 +23,8 @@ import {
 } from '@/features/gears/utils/format'
 import { GEAR_TYPE, presentGearType } from '@/features/gears/utils/gearType'
 
-vi.mock('@/services/http', () => ({
+vi.mock('@/services/http', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/http')>()),
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
@@ -39,6 +41,7 @@ const gearDto: GearDto = {
   purchase_value: 2500,
   strava_gear_id: 'b123',
   garminconnect_gear_id: 'g456',
+  version: 3,
 }
 
 const mappedGear = {
@@ -54,6 +57,7 @@ const mappedGear = {
   purchaseValue: 2500,
   stravaGearId: 'b123',
   garminConnectGearId: 'g456',
+  version: 3,
 }
 
 const gearInput: GearInput = {
@@ -84,7 +88,7 @@ describe('mapGear', () => {
   })
 
   it('defaults active to true and absent optionals to null', () => {
-    expect(mapGear({ id: 9, user_id: 2, gear_type: 2, nickname: 'Shoes' })).toEqual({
+    expect(mapGear({ id: 9, user_id: 2, gear_type: 2, nickname: 'Shoes', version: 1 })).toEqual({
       id: 9,
       userId: 2,
       gearType: 2,
@@ -97,6 +101,7 @@ describe('mapGear', () => {
       purchaseValue: null,
       stravaGearId: null,
       garminConnectGearId: null,
+      version: 1,
     })
   })
 })
@@ -125,7 +130,7 @@ describe('gear service requests', () => {
   })
 
   it('requests the paginated list path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ records: [gearDto], total: 1 })
+    vi.mocked(apiFetch).mockResolvedValue({ items: [gearDto], total: 1 })
 
     const result = await fetchGears({ page: 1, numRecords: 25, showInactive: false })
 
@@ -136,7 +141,7 @@ describe('gear service requests', () => {
     expect(result).toEqual({ records: [mappedGear], total: 1 })
   })
 
-  it('treats an absent records array as an empty page', async () => {
+  it('treats an absent items array as an empty page', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ total: 0 })
     await expect(fetchGears({ page: 1, numRecords: 25, showInactive: true })).resolves.toEqual({
       records: [],
@@ -145,20 +150,36 @@ describe('gear service requests', () => {
   })
 
   it('encodes the nickname search term and maps the results', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([gearDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [gearDto], total: 1 })
 
     const result = await searchGearsByNickname('road bike')
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears/nickname/contains/road%20bike',
+      '/gears?num_records=200&nickname_contains=road+bike',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedGear])
   })
 
-  it('treats a null search body as no matches', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
+  it('treats a search page without items as no matches', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ total: 0 })
     await expect(searchGearsByNickname('x')).resolves.toEqual([])
+  })
+
+  it('filters the list by gear type', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [gearDto], total: 1 })
+
+    await expect(fetchGearsByType(2)).resolves.toEqual([mappedGear])
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/gears?num_records=200&gear_type=2',
+      expect.objectContaining({ signal: undefined }),
+    )
+  })
+
+  it('returns null when the gear does not exist', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
+    await expect(fetchGearById(5)).resolves.toBeNull()
   })
 
   it('maps a single gear detail and returns null when absent', async () => {
@@ -178,15 +199,25 @@ describe('gear service requests', () => {
     })
   })
 
-  it('updates a gear via a PUT that includes the id', async () => {
+  it('updates a gear via a PATCH guarded by If-Match', async () => {
     vi.mocked(apiFetch).mockResolvedValue(gearDto)
 
-    await updateGear(5, gearInput)
+    await updateGear(5, gearInput, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gears', {
-      method: 'PUT',
-      body: JSON.stringify({ ...expectedWirePayload, id: 5 }),
-    })
+    const [path, init] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(path).toBe('/gears/5')
+    expect(init).toMatchObject({ method: 'PATCH', headers: { 'If-Match': '"3"' } })
+    expect(JSON.parse(init!.body as string)).toEqual(expectedWirePayload)
+  })
+
+  it('leaves the fields the backend cannot clear out of a partial update', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(gearDto)
+
+    await updateGear(5, { ...gearInput, createdAt: null, initialKms: null })
+
+    const body = JSON.parse(vi.mocked(apiFetch).mock.calls[0]![1]!.body as string)
+    expect(body).not.toHaveProperty('created_at')
+    expect(body).not.toHaveProperty('initial_kms')
   })
 
   it('deletes a gear via a void DELETE', async () => {

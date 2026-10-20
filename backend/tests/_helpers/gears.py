@@ -21,9 +21,9 @@ def component_create(gear_id: int = 1, **overrides) -> gear_components_schema.Ge
     return gear_components_schema.GearComponentCreate(**_component_fields(gear_id, overrides))
 
 
-def component_update(component_id: int, gear_id: int = 1, **overrides) -> gear_components_schema.GearComponentUpdate:
-    """Return a chain update payload for a component with the given overrides."""
-    return gear_components_schema.GearComponentUpdate(id=component_id, **_component_fields(gear_id, overrides))
+def component_update(**fields) -> gear_components_schema.GearComponentUpdate:
+    """Return a partial component update carrying only the given fields."""
+    return gear_components_schema.GearComponentUpdate(**fields)
 
 
 def install_readers(
@@ -31,8 +31,14 @@ def install_readers(
     usage: gears_contributors.GearUsageReader = lambda gear_id, user_id, db: gears_contracts.UsageTotals(),
     usage_by_window: gears_contributors.GearUsageByWindowReader = lambda gear_id, user_id, windows, db: {},
     components_cost: gears_contributors.ComponentsCostReader = lambda gear_id, user_id, db: 0.0,
+    clear_activities_gear: gears_contributors.ActivitiesGearClearer = lambda gear_id, user_id, db: 0,
 ) -> None:
     """Install gears readers, zero-valued unless overridden."""
     gears_contributor_registry.register(
-        gears_contributors.GearReaders(usage=usage, usage_by_window=usage_by_window, components_cost=components_cost)
+        gears_contributors.GearReaders(
+            usage=usage,
+            usage_by_window=usage_by_window,
+            components_cost=components_cost,
+            clear_activities_gear=clear_activities_gear,
+        )
     )

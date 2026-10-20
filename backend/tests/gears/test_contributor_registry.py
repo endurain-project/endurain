@@ -34,3 +34,4 @@ def test_composition_installs_the_activities_and_component_readers():
     assert readers.usage is activity_integration.get_gear_usage_totals
     assert readers.usage_by_window is activity_integration.get_gear_usage_totals_by_window
     assert readers.components_cost is gear_components_integration.get_gear_components_total_cost
+    assert readers.clear_activities_gear is activity_integration.clear_activities_gear

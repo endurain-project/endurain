@@ -3,11 +3,12 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Security, status
+from fastapi import APIRouter, Depends, Header, Request, Response, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.etag as core_etag
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear_components.schema as gear_components_schema
@@ -72,17 +73,20 @@ def create_gear_component(
     return gear_components_service.create_gear_component(gear_component, token_user_id, db)
 
 
-@router.put(
-    "",
+@router.patch(
+    "/{gear_component_id}",
     response_model=gear_components_schema.GearComponentRead,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_gear_component(
     request: Request,
+    gear_component_id: core_dependencies.PositiveId,
     gear_component: gear_components_schema.GearComponentUpdate,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
+    response: Response,
+    if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
 ) -> gear_components_schema.GearComponentRead:
     """Update one of the authenticated user's gear components.
 
@@ -95,8 +99,15 @@ def edit_gear_component(
     forced to false); while it is null the submitted `active` value is
     honoured. Reactivating a retired component therefore requires clearing
     `retired_date` and setting `active` to true in the same request.
+
+    Send ``If-Match`` with the component's ``version`` as an ETag to make the write
+    conditional; a stale tag is refused with 412.
     """
-    return gear_components_service.edit_gear_component(gear_component, token_user_id, db)
+    updated = gear_components_service.edit_gear_component(
+        gear_component_id, gear_component, token_user_id, db, if_match=if_match
+    )
+    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    return updated
 
 
 @router.delete(

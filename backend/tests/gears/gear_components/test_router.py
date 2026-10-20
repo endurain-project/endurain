@@ -76,17 +76,19 @@ def test_create_maps_domain_errors(mock_create, error, status_code, client):
 
 
 @patch("modules.gears.gear_components.service.edit_gear_component")
-def test_edit(mock_edit, client):
-    mock_edit.return_value = _read(brand="SRAM")
+def test_edit_is_partial_and_returns_the_etag(mock_edit, client, mock_db):
+    mock_edit.return_value = _read(brand="SRAM", version=3)
 
-    response = client.put("/gear_components", json={"id": 1, **_BODY, "brand": "SRAM"}, headers=_HEADERS)
+    response = client.patch("/gear_components/1", json={"brand": "SRAM"}, headers={**_HEADERS, "If-Match": '"2"'})
 
     assert response.json()["brand"] == "SRAM"
+    assert response.headers["ETag"] == '"3"'
+    assert mock_edit.call_args.kwargs == {"if_match": '"2"'}
 
 
 @patch("modules.gears.gear_components.service.edit_gear_component")
 def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
-    response = client.put("/gear_components", json={"id": 1, **_BODY, "purchase_date": None}, headers=_HEADERS)
+    response = client.patch("/gear_components/1", json={"purchase_date": None}, headers=_HEADERS)
 
     assert response.status_code == 422
     mock_edit.assert_not_called()

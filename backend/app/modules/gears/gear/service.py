@@ -8,12 +8,14 @@ lives in :mod:`modules.gears.gear.integration_service`.
 from collections.abc import Iterable
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.event_publishers as gears_event_publishers
 import modules.gears.gear.schema as gears_schema
 
 logger = core_logger.get_logger(__name__)
@@ -26,7 +28,9 @@ def list_gears(
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     show_inactive: bool | None = None,
-) -> gears_schema.GearsListResponse:
+    gear_type: gears_schema.GearType | None = None,
+    nickname_contains: str | None = None,
+) -> core_pagination.Page[gears_schema.GearRead]:
     """Return one page of a user's gears with the matching total.
 
     Args:
@@ -35,24 +39,18 @@ def list_gears(
         page_number: Page number (1-indexed).
         num_records: Records per page.
         show_inactive: Include inactive gears; ``None`` keeps the default of including them.
+        gear_type: Keep only gears of this type.
+        nickname_contains: Keep only gears whose nickname contains this text.
 
     Returns:
-        The gears on the page. ``total`` counts every gear matching the filter.
+        The gears on the page. ``total`` counts every gear matching the filters.
     """
-    total = gears_crud.get_gears_number(user_id, db, show_inactive=show_inactive)
+    filters = {"show_inactive": show_inactive, "gear_type": gear_type, "nickname_contains": nickname_contains}
+    total = gears_crud.get_gears_number(user_id, db, **filters)
     records = gears_crud.get_gear_users_with_pagination(
-        user_id,
-        db,
-        page_number=page_number,
-        num_records=num_records,
-        show_inactive=show_inactive,
+        user_id, db, page_number=page_number, num_records=num_records, **filters
     )
-    return gears_schema.GearsListResponse(
-        total=total,
-        num_records=num_records,
-        page_number=page_number,
-        records=records,
-    )
+    return core_pagination.Page.build(records, total, page_number, num_records)
 
 
 def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.GearDetailRead:
@@ -84,54 +82,6 @@ def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.Ge
     )
 
 
-def list_gears_containing_nickname(user_id: int, nickname: str, db: Session) -> list[gears_schema.GearRead]:
-    """Return a user's gears whose nickname contains the text.
-
-    Args:
-        user_id: Owner user ID.
-        nickname: Substring to search for.
-        db: Database session.
-
-    Returns:
-        The matching gears (empty list if none).
-    """
-    return gears_crud.get_gear_user_contains_nickname(user_id, nickname, db)
-
-
-def read_gear_by_nickname(user_id: int, nickname: str, db: Session) -> gears_schema.GearRead:
-    """Return a user's gear by exact nickname.
-
-    Args:
-        user_id: Owner user ID.
-        nickname: Gear nickname to match.
-        db: Database session.
-
-    Returns:
-        The gear.
-
-    Raises:
-        NotFoundError: If the user has no gear with that nickname.
-    """
-    gear = gears_crud.get_gear_user_by_nickname(user_id, nickname, db)
-    if gear is None:
-        raise core_exceptions.NotFoundError("Gear not found")
-    return gear
-
-
-def list_gears_by_type(user_id: int, gear_type: gears_schema.GearType, db: Session) -> list[gears_schema.GearRead]:
-    """Return a user's gears of one type.
-
-    Args:
-        user_id: Owner user ID.
-        gear_type: Gear type to filter by.
-        db: Database session.
-
-    Returns:
-        The matching gears (empty list if none).
-    """
-    return gears_crud.get_gear_by_type_and_user(gear_type, user_id, db)
-
-
 def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session) -> gears_schema.GearRead:
     """Create a gear for a user.
 
@@ -147,6 +97,7 @@ def create_gear(gear: gears_schema.GearCreateRequest, user_id: int, db: Session)
         ConflictError: If the user already has a gear with that nickname.
     """
     created = gears_crud.create_gear(gear, user_id, db)
+    gears_event_publishers.publish_gear_created(created.id, user_id, db)
     db.commit()
     logger.info("Created a gear", extra=core_logger.context(user_id=user_id, gear_id=created.id))
     return created
@@ -191,28 +142,50 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
         gears_crud.create_gears(new_gears, user_id, db)
 
 
-def edit_gear(gear: gears_schema.GearUpdate, user_id: int, db: Session) -> gears_schema.GearRead:
+def edit_gear(
+    gear_id: int,
+    gear: gears_schema.GearUpdate,
+    user_id: int,
+    db: Session,
+    *,
+    if_match: str | None = None,
+) -> gears_schema.GearRead:
     """Update a user's gear.
 
     Args:
+        gear_id: Gear ID to update.
         gear: Gear payload with the fields to change.
         user_id: Owner user ID.
         db: Database session.
+        if_match: The ``If-Match`` precondition, or None.
 
     Returns:
         The updated gear.
 
     Raises:
         NotFoundError: If the user has no such gear.
+        ConflictError: If the new nickname is already taken.
+        PreconditionFailedError: If the gear changed since the client read it.
     """
-    updated = gears_crud.edit_gear(gear, user_id, db)
-    db.commit()
-    logger.info("Edited a gear", extra=core_logger.context(user_id=user_id, gear_id=gear.id))
+    try:
+        updated = gears_crud.edit_gear(gear_id, gear, user_id, db, if_match=if_match)
+        gears_event_publishers.publish_gear_updated(
+            gear_id, user_id, db, changed_fields=gear.model_dump(exclude_unset=True)
+        )
+        db.commit()
+    except StaleDataError as err:
+        db.rollback()
+        if gears_crud.get_gear_user_by_id(user_id, gear_id, db) is None:
+            raise core_exceptions.NotFoundError("Gear not found") from err
+        raise core_exceptions.PreconditionFailedError(
+            "The gear was modified by someone else; re-read it and retry"
+        ) from err
+    logger.info("Edited a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
     return updated
 
 
 def delete_gear(gear_id: int, user_id: int, db: Session) -> None:
-    """Delete a user's gear.
+    """Delete a user's gear, unassigning it from their activities first.
 
     Args:
         gear_id: Gear ID to delete.
@@ -222,7 +195,11 @@ def delete_gear(gear_id: int, user_id: int, db: Session) -> None:
     Raises:
         NotFoundError: If the user has no such gear.
     """
+    if gears_crud.get_gear_user_by_id(user_id, gear_id, db) is None:
+        raise core_exceptions.NotFoundError("Gear not found")
+    gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
     gears_crud.delete_gear(gear_id, user_id, db)
+    gears_event_publishers.publish_gear_deleted(gear_id, user_id, db)
     db.commit()
     logger.info("Deleted a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
 

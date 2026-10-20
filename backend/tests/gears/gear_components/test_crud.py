@@ -26,7 +26,7 @@ class TestReads:
     def test_the_active_filter_applies(self, db):
         crud.create_gear_component(component_create(), 1, db)
         retired = crud.create_gear_component(component_create(), 1, db)
-        crud.edit_gear_component(component_update(retired.id, retired_date=date(2025, 1, 1)), 1, db)
+        crud.edit_gear_component(retired.id, component_update(retired_date=date(2025, 1, 1)), 1, db)
 
         assert len(crud.get_gear_components_user_by_gear_id(1, 1, db, active=True)) == 1
         assert [c.id for c in crud.get_gear_components_user_by_gear_id(1, 1, db, active=False)] == [retired.id]
@@ -69,7 +69,7 @@ class TestWrites:
         created = crud.create_gear_component(component_create(), 1, db)
 
         updated = crud.edit_gear_component(
-            component_update(created.id, retired_date=date(2025, 1, 1), active=True), 1, db
+            created.id, component_update(retired_date=date(2025, 1, 1), active=True), 1, db
         )
 
         assert updated.active is False
@@ -77,22 +77,30 @@ class TestWrites:
     def test_an_unretired_component_keeps_the_submitted_active_flag(self, db):
         created = crud.create_gear_component(component_create(), 1, db)
 
-        updated = crud.edit_gear_component(component_update(created.id, active=False), 1, db)
+        updated = crud.edit_gear_component(created.id, component_update(active=False), 1, db)
 
         assert updated.active is False
 
-    def test_edit_never_moves_a_component_to_another_gear(self, db):
-        created = crud.create_gear_component(component_create(1), 1, db)
+    def test_an_update_cannot_move_a_component_to_another_gear(self):
+        with pytest.raises(ValueError):
+            component_update(gear_id=2)
 
-        updated = crud.edit_gear_component(component_update(created.id, 2), 1, db)
+    def test_edit_honours_if_match_and_bumps_the_version(self, db):
+        created = crud.create_gear_component(component_create(), 1, db)
 
-        assert updated.gear_id == 1
+        updated = crud.edit_gear_component(
+            created.id, component_update(brand="SRAM"), 1, db, if_match=f'"{created.version}"'
+        )
+
+        assert updated.version == created.version + 1
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.edit_gear_component(created.id, component_update(brand="X"), 1, db, if_match=f'"{created.version}"')
 
     def test_edit_and_delete_of_a_foreign_component_are_not_found(self, db):
         created = crud.create_gear_component(component_create(), 1, db)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            crud.edit_gear_component(component_update(created.id), 2, db)
+            crud.edit_gear_component(created.id, component_update(brand="x"), 2, db)
         with pytest.raises(core_exceptions.NotFoundError):
             crud.delete_gear_component(2, created.id, db)
 

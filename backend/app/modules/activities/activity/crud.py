@@ -1585,6 +1585,37 @@ def bulk_set_activities_gear_id(
     return updated_ids
 
 
+def clear_gear_from_activities(gear_id: int, user_id: int, db: Session) -> list[int]:
+    """Stage unassigning a gear from every activity of a user that carries it.
+
+    Args:
+        gear_id: Gear ID to unassign.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The IDs of the updated activities, so the caller can publish one event per row.
+    """
+    ids = (
+        select(activity_models.Activity.id)
+        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.gear_id == gear_id)
+        .order_by(activity_models.Activity.id)
+        .with_for_update()
+    )
+    activity_ids = list(db.execute(ids).scalars().all())
+    if not activity_ids:
+        return []
+    stmt = (
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.id.in_(activity_ids))
+        # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
+        # change it should have invalidated.
+        .values(gear_id=None, version=activity_models.Activity.version + 1)
+        .returning(activity_models.Activity.id)
+    )
+    return [row_id for (row_id,) in db.execute(stmt).all()]
+
+
 def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
     """Stage the deletion of an activity owned by ``user_id``.
 

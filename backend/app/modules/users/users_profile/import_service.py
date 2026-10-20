@@ -412,6 +412,7 @@ class ImportService:
             gear_data["user_id"] = self.user_id
             original_id = gear_data.get("id")
             gear_data.pop("id", None)
+            gear_data.pop("version", None)
 
             gear = gear_schema.GearCreate(**gear_data)
             gears_id_mapping[original_id] = self._import_gear(gear)
@@ -469,6 +470,7 @@ class ImportService:
             )
 
             gear_component_data.pop("id", None)
+            gear_component_data.pop("version", None)
 
             gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
             gear_components_integration.create_gear_component(gear_component, self.user_id, self.db)

@@ -114,9 +114,9 @@ export function useCreateGearMutation() {
  * @returns The TanStack Query mutation for updating a gear.
  */
 export function useUpdateGearMutation() {
-  return useInvalidatingMutation<Gear, { id: number; input: GearInput }>({
+  return useInvalidatingMutation<Gear, { id: number; input: GearInput; version?: number }>({
     mutationKey: queryKeys.gears.all(),
-    mutationFn: ({ id, input }) => updateGear(id, input),
+    mutationFn: ({ id, input, version }) => updateGear(id, input, version),
   })
 }
 

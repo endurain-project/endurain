@@ -15,14 +15,13 @@ from pydantic import (
 )
 
 #: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
-_NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("purchase_date", "active")
+_NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("type", "brand", "model", "purchase_date", "active")
 
 
 class GearComponentBase(BaseModel):
-    """Base model for gear component data.
+    """Base model for the gear component fields a client may set.
 
     Attributes:
-        gear_id: Foreign key to gear table.
         type: Type of gear component.
         brand: Gear component brand.
         model: Gear component model name.
@@ -33,10 +32,6 @@ class GearComponentBase(BaseModel):
         purchase_value: Purchase value.
     """
 
-    gear_id: StrictInt = Field(
-        ...,
-        description="Foreign key to gear",
-    )
     type: StrictStr = Field(
         ...,
         max_length=250,
@@ -83,19 +78,34 @@ class GearComponentBase(BaseModel):
 
 
 class GearComponentCreate(GearComponentBase):
-    """Schema for creating a gear component."""
+    """Schema for creating a gear component.
+
+    Attributes:
+        gear_id: Foreign key to gear table.
+    """
+
+    gear_id: StrictInt = Field(
+        ...,
+        description="Foreign key to gear",
+    )
 
 
-class GearComponentRead(GearComponentBase):
+class GearComponentRead(GearComponentCreate):
     """Schema for reading a gear component.
 
     Attributes:
         id: Unique identifier.
         user_id: Foreign key to user.
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
         current_distance: Accumulated distance.
         current_time: Accumulated time.
     """
 
+    version: StrictInt = Field(
+        default=1,
+        ge=1,
+        description="Optimistic-concurrency counter",
+    )
     id: StrictInt = Field(
         ...,
         description="Unique identifier",
@@ -117,15 +127,25 @@ class GearComponentRead(GearComponentBase):
 
 
 class GearComponentUpdate(GearComponentBase):
-    """Schema for updating a gear component.
+    """Partial update of a gear component: omit a field to keep it, send null to clear a nullable one.
 
-    Attributes:
-        id: Unique identifier.
+    The component and its gear come from the path and cannot be changed.
     """
 
-    id: StrictInt = Field(
-        ...,
-        description="Unique identifier",
+    type: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Type of gear component",
+    )
+    brand: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear component brand",
+    )
+    model: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear component model",
     )
 
     @model_validator(mode="after")
@@ -136,7 +156,7 @@ class GearComponentUpdate(GearComponentBase):
             The validated update.
 
         Raises:
-            ValueError: If ``purchase_date`` or ``active`` is sent as null.
+            ValueError: If a required field is sent as null.
         """
         cleared = [
             name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
