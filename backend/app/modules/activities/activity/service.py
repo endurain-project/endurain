@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.calendar as core_calendar
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -664,15 +665,13 @@ def edit_activity(
         # The row changed between the crud's load (where the precondition was
         # checked) and the flush.
         db.rollback()
-        if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
-            raise core_exceptions.NotFoundError(f"Activity {activity_id} not found") from err
-        logger.warning(
-            "Rejected a stale activity edit",
-            extra=core_logger.context(activity_id=activity_id, user_id=user_id),
-        )
-        raise core_exceptions.PreconditionFailedError(
-            "The activity was modified by someone else; re-read it and retry"
-        ) from err
+        exists = activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None
+        if exists:
+            logger.warning(
+                "Rejected a stale activity edit",
+                extra=core_logger.context(activity_id=activity_id, user_id=user_id),
+            )
+        raise core_etag.stale_write_error("activity", exists, f"Activity {activity_id} not found") from err
     activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
     db.commit()
     logger.info(

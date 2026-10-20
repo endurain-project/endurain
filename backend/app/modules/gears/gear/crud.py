@@ -19,6 +19,19 @@ _DUPLICATE_EXTERNAL_ID = "Duplicate entry error. Check if strava_gear_id or garm
 _UNIQUE_NICKNAME_INDEX = "uq_gear_user_nickname"
 
 
+def _is_nickname_violation(err: IntegrityError) -> bool:
+    """Whether an integrity error is the per-user nickname unique index.
+
+    Args:
+        err: The integrity error raised by the flush.
+
+    Returns:
+        True for the nickname index; False for a provider gear ID or anything else.
+    """
+    constraint = core_database.violated_constraint(err)
+    return constraint == _UNIQUE_NICKNAME_INDEX or (constraint is None and "nickname" in str(err.orig).lower())
+
+
 def _conflict(err: IntegrityError) -> core_exceptions.ConflictError:
     """Translate a unique-key violation on the gear table into a conflict.
 
@@ -28,8 +41,7 @@ def _conflict(err: IntegrityError) -> core_exceptions.ConflictError:
     Returns:
         The conflict to raise, naming the nickname or the provider gear ID as the cause.
     """
-    constraint = core_database.violated_constraint(err)
-    if constraint == _UNIQUE_NICKNAME_INDEX or (constraint is None and "nickname" in str(err.orig).lower()):
+    if _is_nickname_violation(err):
         return core_exceptions.ConflictError("A gear with this nickname already exists")
     return core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID)
 
@@ -278,14 +290,25 @@ def create_gears(gears: list[gears_schema.GearCreate], user_id: int, db: Session
         db: Database session.
 
     Raises:
-        ConflictError: If the user already has one of the nicknames, or a Strava or Garmin
-            Connect gear ID is already taken.
+        ConflictError: If a Strava or Garmin Connect gear ID is already taken.
     """
     try:
-        db.add_all([gears_serializers.to_orm(gear, user_id) for gear in gears])
-        db.flush()
+        with db.begin_nested():
+            db.add_all([gears_serializers.to_orm(gear, user_id) for gear in gears])
+            db.flush()
     except IntegrityError as err:
-        raise _conflict(err) from err
+        if not _is_nickname_violation(err):
+            raise _conflict(err) from err
+        # A concurrent write took one of the nicknames after the caller's check: add the
+        # rest one by one and leave that gear out, as the check would have.
+        for gear in gears:
+            try:
+                with db.begin_nested():
+                    db.add(gears_serializers.to_orm(gear, user_id))
+                    db.flush()
+            except IntegrityError as row_err:
+                if not _is_nickname_violation(row_err):
+                    raise _conflict(row_err) from row_err
 
 
 def create_gear(gear: gears_schema.GearBase, user_id: int, db: Session) -> gears_schema.GearRead:

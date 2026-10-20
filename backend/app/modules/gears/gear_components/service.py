@@ -9,6 +9,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -199,10 +200,10 @@ def edit_gear_component(
         db.commit()
     except StaleDataError as err:
         db.rollback()
-        if gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db) is None:
-            raise core_exceptions.NotFoundError("Gear component not found") from err
-        raise core_exceptions.PreconditionFailedError(
-            "The gear component was modified by someone else; re-read it and retry"
+        raise core_etag.stale_write_error(
+            "gear component",
+            gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db) is not None,
+            "Gear component not found",
         ) from err
     logger.info("Edited a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=updated.id))
     return updated

@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -175,10 +176,8 @@ def edit_gear(
         db.commit()
     except StaleDataError as err:
         db.rollback()
-        if gears_crud.get_gear_user_by_id(user_id, gear_id, db) is None:
-            raise core_exceptions.NotFoundError("Gear not found") from err
-        raise core_exceptions.PreconditionFailedError(
-            "The gear was modified by someone else; re-read it and retry"
+        raise core_etag.stale_write_error(
+            "gear", gears_crud.get_gear_user_by_id(user_id, gear_id, db) is not None, "Gear not found"
         ) from err
     logger.info("Edited a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
     return updated

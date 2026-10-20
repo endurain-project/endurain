@@ -80,3 +80,19 @@ def require_if_match(header: str | None, current_version: int | None, resource: 
         raise core_exceptions.PreconditionFailedError(
             f"The {resource} was modified by someone else; re-read it and retry"
         )
+
+
+def stale_write_error(resource: str, still_exists: bool, not_found_message: str) -> Exception:
+    """Pick the refusal for a write that lost the version race at flush time.
+
+    Args:
+        resource: What the row is, named in the refusal message.
+        still_exists: Whether the row can still be read after the rollback.
+        not_found_message: The message when the row was deleted meanwhile.
+
+    Returns:
+        A ``NotFoundError`` when the row is gone, else a ``PreconditionFailedError``.
+    """
+    if not still_exists:
+        return core_exceptions.NotFoundError(not_found_message)
+    return core_exceptions.PreconditionFailedError(f"The {resource} was modified by someone else; re-read it and retry")

@@ -20,6 +20,7 @@ from io import BytesIO
 from typing import Any
 
 import jasil.runtime as platform_runtime
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -414,7 +415,11 @@ class ImportService:
             gear_data.pop("id", None)
             gear_data.pop("version", None)
 
-            gear = gear_schema.GearCreate(**gear_data)
+            try:
+                gear = gear_schema.GearCreate(**gear_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid gear")
+                continue
             gears_id_mapping[original_id] = self._import_gear(gear)
             self.counts["gears"] += 1
 
@@ -463,16 +468,24 @@ class ImportService:
             return
 
         for gear_component_data in gear_components_data:
-            gear_component_data["gear_id"] = (
-                gears_id_mapping.get(gear_component_data["gear_id"])
-                if gear_component_data.get("gear_id") in gears_id_mapping
-                else None
-            )
+            new_gear_id = gears_id_mapping.get(gear_component_data.get("gear_id"))
+            if new_gear_id is None:
+                logger.warning("Skipped a gear component whose gear is not in the archive")
+                continue
+            gear_component_data["gear_id"] = new_gear_id
 
             gear_component_data.pop("id", None)
             gear_component_data.pop("version", None)
 
-            gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
+            try:
+                gear_component = gear_components_schema.GearComponentCreate(**gear_component_data)
+            except ValidationError:
+                logger.warning("Skipped an invalid gear component")
+                continue
+            retired, purchased = gear_component.retired_date, gear_component.purchase_date
+            if retired is not None and purchased is not None and retired <= purchased:
+                logger.warning("Skipped a gear component retired on or before its purchase date")
+                continue
             gear_components_integration.create_gear_component(gear_component, self.user_id, self.db)
             self.counts["gear_components"] += 1
 
