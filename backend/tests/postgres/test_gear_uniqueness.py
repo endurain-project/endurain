@@ -75,7 +75,10 @@ def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
         spec = importlib.util.spec_from_file_location("gear_nickname_unique", _MIGRATION_PATH)
         migration = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(migration)
-        with patch.object(migration.op, "execute", side_effect=lambda sql: db.execute(text(sql))):
+        with (
+            patch.object(migration.op, "execute", side_effect=lambda sql: db.execute(text(sql))),
+            patch.object(migration.op, "get_bind", return_value=db.connection()),
+        ):
             migration.upgrade()
         db.commit()
 
