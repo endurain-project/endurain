@@ -121,6 +121,7 @@ nav:
     - Events and subscribers: developer-guide/events-and-subscribers.md
     - Auth boundary: developer-guide/auth-boundary.md
     - Brand & UX guidelines: developer-guide/brand-and-ux-guidelines.md
+    - Suggesting a login photo: developer-guide/login-photos.md
     - Writing the documentation: developer-guide/writing-docs.md
   - Backend reference:
     - Activities: reference/activities.md
