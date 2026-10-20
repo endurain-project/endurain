@@ -95,7 +95,13 @@ def build_summary(
     # web client always sends its own local date (the request carries no
     # timezone, so the server cannot derive it); when it does not, the caller's
     # configured timezone is the same frame of reference it would have sent.
-    today = anchor or users_integration.local_today(user_id, db)
+    # One user read serves both the fallback anchor and the week/month first day.
+    user = None
+    if anchor is None or period in ("week", "month"):
+        user = users_integration.get_user(user_id, db)
+        if user is None:
+            raise core_exceptions.NotFoundError("User not found")
+    today = anchor or core_timezone.today_in(users_integration.timezone_or_default(user.timezone))
 
     # Which day the server thinks "today" is drives every bucket boundary, so log
     # it alongside what the caller asked for — off-by-one summary reports are
@@ -113,9 +119,6 @@ def build_summary(
     )
 
     if period == "week":
-        user = users_integration.get_user(user_id, db)
-        if user is None:
-            raise core_exceptions.NotFoundError("User not found")
         return activity_summary_crud.get_weekly_summary(
             db=db,
             user_id=user_id,
@@ -125,9 +128,6 @@ def build_summary(
         )
 
     if period == "month":
-        user = users_integration.get_user(user_id, db)
-        if user is None:
-            raise core_exceptions.NotFoundError("User not found")
         return activity_summary_crud.get_monthly_summary(
             db=db,
             user_id=user_id,

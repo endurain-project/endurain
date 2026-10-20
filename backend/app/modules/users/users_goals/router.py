@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.timezone as core_timezone
 import modules.auth.dependencies as auth_dependencies
 import modules.users.users.utils as users_utils
 import modules.users.users_goals.crud as user_goals_crud
@@ -80,7 +81,8 @@ async def get_user_goals_results(
         List of goal progress objects, or None if no goals.
     """
     user = users_utils.get_user_by_id_or_404(token_user_id, db)
-    return user_goals_utils.calculate_user_goals(token_user_id, None, db, user.first_day_of_week)
+    today = core_timezone.today_in(users_utils.timezone_or_default(user.timezone))
+    return user_goals_utils.calculate_user_goals(token_user_id, today.strftime("%Y-%m-%d"), db, user.first_day_of_week)
 
 
 @router.post(

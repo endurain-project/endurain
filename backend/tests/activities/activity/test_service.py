@@ -20,10 +20,10 @@ def stub_user_local_today():
     The service resolves the anchor in the *requester's* timezone, which is a DB
     read; without this the bounds tests would also drift with the wall clock.
     """
-    with patch(
-        "modules.activities.activity.service.users_integration.local_today",
-        return_value=_TODAY,
-    ) as mock:
+    with (
+        patch("modules.activities.activity.service.users_integration.local_today", return_value=_TODAY),
+        patch("modules.activities.activity.service.core_timezone.today_in", return_value=_TODAY) as mock,
+    ):
         yield mock
 
 
@@ -32,7 +32,7 @@ def stub_requester_user():
     """Default period tests to a Monday-start requester."""
     with patch(
         "modules.activities.activity.service.users_integration.get_user",
-        return_value=SimpleNamespace(first_day_of_week="monday"),
+        return_value=SimpleNamespace(first_day_of_week="monday", timezone="UTC"),
     ) as mock:
         yield mock
 
@@ -216,7 +216,7 @@ class TestAnchoredPeriodBounds:
         db = MagicMock()
         start, end = service._week_bounds(7, db)
 
-        stub_user_local_today.assert_called_once_with(7, db)
+        stub_user_local_today.assert_called_once_with("UTC")
         # _TODAY is Thu 2026-03-12 -> Mon 2026-03-09 .. Sun 2026-03-15.
         assert start.date() == date(2026, 3, 9)
         assert end.date() == date(2026, 3, 15)

@@ -93,6 +93,7 @@ class TestGetUserGoalsResults:
         # Act
         with patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user:
             mock_get_user.return_value.first_day_of_week = "sunday"
+            mock_get_user.return_value.timezone = "UTC"
             response = fast_api_client.get(
                 "/user_goals/results",
                 headers={"Authorization": "Bearer mock_token"},
@@ -104,7 +105,8 @@ class TestGetUserGoalsResults:
         assert isinstance(data, list)
         assert len(data) == 1
         mock_calculate.assert_called_once()
-        assert mock_calculate.call_args.args[0:2] == (1, None)
+        assert mock_calculate.call_args.args[0] == 1
+        assert mock_calculate.call_args.args[1]
         assert mock_calculate.call_args.args[3] == "sunday"
 
     @patch("modules.users.users_goals.router.user_goals_utils.calculate_user_goals")
@@ -116,6 +118,7 @@ class TestGetUserGoalsResults:
         # Act
         with patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user:
             mock_get_user.return_value.first_day_of_week = "sunday"
+            mock_get_user.return_value.timezone = "UTC"
             response = fast_api_client.get(
                 "/user_goals/results",
                 headers={"Authorization": "Bearer mock_token"},

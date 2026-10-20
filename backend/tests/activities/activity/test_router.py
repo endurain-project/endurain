@@ -250,8 +250,12 @@ class TestUserStats:
                 return_value=date(2026, 3, 12),
             ),
             patch(
+                "modules.activities.activity.service.core_timezone.today_in",
+                return_value=date(2026, 3, 12),
+            ),
+            patch(
                 "modules.activities.activity.service.users_integration.get_user",
-                return_value=SimpleNamespace(first_day_of_week="monday"),
+                return_value=SimpleNamespace(first_day_of_week="monday", timezone="UTC"),
             ),
         ):
             yield

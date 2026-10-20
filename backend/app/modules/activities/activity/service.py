@@ -24,6 +24,7 @@ import core.calendar as core_calendar
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.timezone as core_timezone
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
@@ -148,10 +149,12 @@ def _week_bounds(
     Returns:
         The start and end of the week.
     """
-    today = _anchor_date(anchor, requester_user_id, db)
     requester = users_integration.get_user(requester_user_id, db)
     if requester is None:
         raise core_exceptions.NotFoundError("User not found")
+    if anchor is None:
+        anchor = core_timezone.today_in(users_integration.timezone_or_default(requester.timezone))
+    today = datetime.combine(anchor, time.min, tzinfo=UTC)
     start_of_week = core_calendar.get_week_start(today, requester.first_day_of_week) - timedelta(weeks=week_number)
     return start_of_week, start_of_week + timedelta(days=6)
 
