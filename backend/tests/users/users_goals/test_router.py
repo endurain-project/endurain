@@ -1,5 +1,6 @@
 """Tests for user goals API endpoints."""
 
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from fastapi import HTTPException, status
@@ -91,7 +92,10 @@ class TestGetUserGoalsResults:
         mock_calculate.return_value = [mock_progress]
 
         # Act
-        with patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user:
+        with (
+            patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user,
+            patch("modules.users.users_goals.router.core_timezone.today_in", return_value=date(2026, 3, 12)),
+        ):
             mock_get_user.return_value.first_day_of_week = "sunday"
             mock_get_user.return_value.timezone = "UTC"
             response = fast_api_client.get(
@@ -106,7 +110,7 @@ class TestGetUserGoalsResults:
         assert len(data) == 1
         mock_calculate.assert_called_once()
         assert mock_calculate.call_args.args[0] == 1
-        assert mock_calculate.call_args.args[1]
+        assert mock_calculate.call_args.args[1] == "2026-03-12"
         assert mock_calculate.call_args.args[3] == "sunday"
 
     @patch("modules.users.users_goals.router.user_goals_utils.calculate_user_goals")
@@ -116,7 +120,10 @@ class TestGetUserGoalsResults:
         mock_calculate.return_value = None
 
         # Act
-        with patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user:
+        with (
+            patch("modules.users.users_goals.router.users_utils.get_user_by_id_or_404") as mock_get_user,
+            patch("modules.users.users_goals.router.core_timezone.today_in", return_value=date(2026, 3, 12)),
+        ):
             mock_get_user.return_value.first_day_of_week = "sunday"
             mock_get_user.return_value.timezone = "UTC"
             response = fast_api_client.get(
