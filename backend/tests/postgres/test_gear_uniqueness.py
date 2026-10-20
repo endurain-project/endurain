@@ -22,7 +22,7 @@ from tests._helpers.gears import gear_create
 _THREADS = 6
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_20_0/28_gear_nickname_unique_per_user.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/1_gear_nickname_unique_per_user.py"
 )
 
 

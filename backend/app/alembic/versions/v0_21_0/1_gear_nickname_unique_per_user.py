@@ -1,4 +1,4 @@
-"""28: enforce gear nickname uniqueness per user
+"""1: enforce gear nickname uniqueness per user
 
 Revision ID: 9a4e6c2d1f73
 Revises: d54bdd779392

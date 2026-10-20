@@ -829,7 +829,7 @@ wheels = [
 
 [[package]]
 name = "endurain"
-version = "0.20.0b2"
+version = "0.21.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
