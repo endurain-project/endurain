@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { BookOpen, GitBranch } from '@lucide/vue'
 
 import { useAppConfig, useFeatureFlags } from '@/features/config/composables/useAppConfig'
+import { APP_VERSION } from '@/constants/appVersion'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { SOCIAL_LINKS } from '@/constants/socialLinks'
 
 const { t } = useI18n()
 const { config } = useAppConfig()
@@ -44,48 +46,22 @@ const yearRange = computed(() => {
         >
           <BookOpen class="size-4" />
         </a>
+        <template v-for="link in SOCIAL_LINKS" :key="link.key">
+          <span aria-hidden="true">•</span>
+          <a
+            class="inline-flex items-center hover:text-foreground"
+            :href="link.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="t(`footer.${link.key}`)"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" class="size-4" aria-hidden="true">
+              <path :d="link.path" />
+            </svg>
+          </a>
+        </template>
         <span aria-hidden="true">•</span>
-        <a
-          class="inline-flex items-center hover:text-foreground"
-          href="https://fosstodon.org/@endurain"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="t('footer.mastodon')"
-        >
-          Mastodon
-        </a>
-        <span aria-hidden="true">•</span>
-        <a
-          class="inline-flex items-center hover:text-foreground"
-          href="https://bsky.app/profile/endurain.bsky.social"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="t('footer.bluesky')"
-        >
-          Bluesky
-        </a>
-        <span aria-hidden="true">•</span>
-        <a
-          class="inline-flex items-center hover:text-foreground"
-          href="https://discord.gg/6VUjUq2uZR"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="t('footer.discord')"
-        >
-          Discord
-        </a>
-        <span aria-hidden="true">•</span>
-        <a
-          class="inline-flex items-center hover:text-foreground"
-          href="https://www.linkedin.com/company/endurain"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="t('footer.linkedin')"
-        >
-          LinkedIn
-        </a>
-        <span aria-hidden="true">•</span>
-        <span>v0.21.0-beta1</span>
+        <span>{{ APP_VERSION }}</span>
       </p>
 
       <p
