@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 
 import modules.websocket.manager as websocket_manager
+import modules.websocket.manager as websocket_manager_module
 
 
 async def notify_frontend(
@@ -20,15 +21,17 @@ async def notify_frontend(
         json_data: JSON-serializable data to send.
 
     Returns:
-        True if message was sent, False if no connection.
+        True if the message reached at least one connection, False if there is none.
 
     Raises:
         HTTPException: If MFA_REQUIRED but no connection exists.
+        Exception: The first send failure, when every connection of the user failed.
     """
     connections = websocket_manager.get_connections(user_id)
     if connections:
-        for websocket in connections:
-            await websocket.send_json(json_data)
+        failures = await websocket_manager_module.send_json_to_all(connections, json_data)
+        if len(failures) == len(connections):
+            raise failures[0]
         return True
 
     if json_data.get("message") == "MFA_REQUIRED":

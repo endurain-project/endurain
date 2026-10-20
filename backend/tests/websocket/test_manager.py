@@ -1,5 +1,6 @@
 """Tests for websocket.manager module."""
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -219,3 +220,46 @@ class TestGetWebSocketManager:
 
         # New instance created after cache clear
         assert manager1 is not manager2
+
+
+class TestSendIsolation:
+    """A failing connection must not stop the others from receiving."""
+
+    @pytest.fixture
+    def manager(self):
+        return websocket_manager.WebSocketManager()
+
+    async def test_send_message_skips_a_broken_connection(self, manager):
+        broken, healthy = AsyncMock(), AsyncMock()
+        broken.send_json.side_effect = RuntimeError("closed")
+        await manager.connect(1, broken)
+        await manager.connect(1, healthy)
+
+        await manager.send_message(1, {"k": "v"})
+
+        healthy.send_json.assert_awaited_once_with({"k": "v"})
+
+    async def test_broadcast_skips_a_broken_connection(self, manager):
+        broken, healthy = AsyncMock(), AsyncMock()
+        broken.send_json.side_effect = RuntimeError("closed")
+        await manager.connect(1, broken)
+        await manager.connect(2, healthy)
+
+        await manager.broadcast({"k": "v"})
+
+        healthy.send_json.assert_awaited_once_with({"k": "v"})
+
+    async def test_a_stalled_connection_is_given_up_on(self, manager):
+        async def never(_message):
+            await asyncio.sleep(3600)
+
+        stalled, healthy = AsyncMock(), AsyncMock()
+        stalled.send_json.side_effect = never
+        await manager.connect(1, stalled)
+        await manager.connect(1, healthy)
+
+        with patch.object(websocket_manager, "SEND_TIMEOUT_SECONDS", 0.01):
+            failures = await websocket_manager.send_json_to_all(manager.get_connections(1), {"k": "v"})
+
+        assert len(failures) == 1
+        healthy.send_json.assert_awaited_once_with({"k": "v"})

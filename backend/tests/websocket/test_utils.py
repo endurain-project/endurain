@@ -146,3 +146,25 @@ class TestNotifyFrontend:
             await websocket_utils.notify_frontend(user_id, mock_websocket_manager, json_data2)
 
         assert exc_info.value.status_code == 400
+
+
+class TestNotifyFrontendIsolation:
+    """One broken connection must not hide the healthy ones."""
+
+    async def test_a_healthy_connection_still_gets_the_message(self):
+        manager = MagicMock()
+        broken, healthy = AsyncMock(), AsyncMock()
+        broken.send_json.side_effect = RuntimeError("closed")
+        manager.get_connections.return_value = [broken, healthy]
+
+        assert await websocket_utils.notify_frontend(1, manager, {"message": "MFA_REQUIRED"}) is True
+        healthy.send_json.assert_awaited_once_with({"message": "MFA_REQUIRED"})
+
+    async def test_the_failure_is_raised_when_every_connection_failed(self):
+        manager = MagicMock()
+        broken = AsyncMock()
+        broken.send_json.side_effect = RuntimeError("closed")
+        manager.get_connections.return_value = [broken]
+
+        with pytest.raises(RuntimeError, match="closed"):
+            await websocket_utils.notify_frontend(1, manager, {"message": "x"})

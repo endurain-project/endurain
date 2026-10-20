@@ -1,3 +1,5 @@
+import asyncio
+from collections.abc import Sequence
 from functools import lru_cache
 
 from fastapi import WebSocket
@@ -5,6 +7,31 @@ from fastapi import WebSocket
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
+
+# A client that stopped reading fills its socket buffer and ``send_json`` then
+# waits forever; a send is a convenience, so give up rather than park the task.
+SEND_TIMEOUT_SECONDS = 5.0
+
+
+async def send_json_to_all(websockets: Sequence[WebSocket], message: dict) -> list[BaseException]:
+    """
+    Send a JSON message to several connections, isolating each one's failure.
+
+    The sends run concurrently and each is bounded by ``SEND_TIMEOUT_SECONDS``, so a
+    closed or stalled connection neither blocks nor hides the healthy ones.
+
+    Args:
+        websockets: The connections to send to.
+        message: JSON-serializable data to send.
+
+    Returns:
+        The failure of each connection that did not take the message (empty when all did).
+    """
+    results = await asyncio.gather(
+        *(asyncio.wait_for(websocket.send_json(message), timeout=SEND_TIMEOUT_SECONDS) for websocket in websockets),
+        return_exceptions=True,
+    )
+    return [result for result in results if isinstance(result, BaseException)]
 
 
 class WebSocketManager:
@@ -57,23 +84,26 @@ class WebSocketManager:
         """
         Send a JSON message to every connection of a specific user.
 
+        A connection that fails is logged and skipped; the others still receive it.
+
         Args:
             user_id: The user's unique identifier.
             message: JSON-serializable data to send.
         """
-        for websocket in self.get_connections(user_id):
-            await websocket.send_json(message)
+        failures = await send_json_to_all(self.get_connections(user_id), message)
+        for failure in failures:
+            logger.debug(f"WebSocket send failed for user {user_id}", exc_info=failure)
 
     async def broadcast(self, message: dict) -> None:
         """
-        Send a JSON message to all connected users.
+        Send a JSON message to all connected users, skipping connections that fail.
 
         Args:
             message: JSON-serializable data to broadcast.
         """
-        for connections in list(self.active_connections.values()):
-            for websocket in list(connections):
-                await websocket.send_json(message)
+        websockets = [websocket for connections in self.active_connections.values() for websocket in connections]
+        for failure in await send_json_to_all(websockets, message):
+            logger.debug("WebSocket broadcast send failed", exc_info=failure)
 
     def get_connections(self, user_id: int) -> list[WebSocket]:
         """
