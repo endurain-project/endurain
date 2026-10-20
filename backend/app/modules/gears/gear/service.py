@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.crud as gears_crud
 import modules.gears.gear.schema as gears_schema
@@ -22,16 +23,16 @@ def list_gears(
     user_id: int,
     db: Session,
     *,
-    page_number: int | None = None,
-    num_records: int | None = None,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     show_inactive: bool | None = None,
 ) -> gears_schema.GearsListResponse:
-    """Return a user's gears with the matching total.
+    """Return one page of a user's gears with the matching total.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
-        page_number: Page number (1-indexed); unpaginated when omitted.
+        page_number: Page number (1-indexed).
         num_records: Records per page.
         show_inactive: Include inactive gears; ``None`` keeps the default of including them.
 
@@ -68,8 +69,9 @@ def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.Ge
     gear = gears_crud.get_gear_user_by_id(user_id, gear_id, db)
     if gear is None:
         return None
-    usage = gears_contributor_registry.gear_usage(gear_id, user_id, db)
-    components_cost = gears_contributor_registry.components_total_cost(gear_id, user_id, db)
+    readers = gears_contributor_registry.readers()
+    usage = readers.usage(gear_id, user_id, db)
+    components_cost = readers.components_cost(gear_id, user_id, db)
     initial_kms_m = float(gear.initial_kms or 0) * 1000
     return gears_schema.GearDetailRead(
         **gear.model_dump(),
@@ -121,26 +123,6 @@ def list_gears_by_type(user_id: int, gear_type: gears_schema.GearType, db: Sessi
     return gears_crud.get_gear_by_type_and_user(gear_type, user_id, db)
 
 
-def stage_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gears_schema.GearRead:
-    """Stage a new gear for a user; the caller commits.
-
-    Args:
-        gear: Gear payload to create.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        The staged gear with its generated ID.
-
-    Raises:
-        ConflictError: If the user already has a gear with that nickname, or a Strava or
-            Garmin Connect gear ID is already taken.
-    """
-    if gears_crud.get_gear_user_by_nickname(user_id, gear.nickname, db) is not None:
-        raise core_exceptions.ConflictError(f"Gear with nickname {gear.nickname} already exists for user {user_id}")
-    return gears_crud.create_gear(gear, user_id, db)
-
-
 def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gears_schema.GearRead:
     """Create a gear for a user.
 
@@ -156,7 +138,7 @@ def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gea
         ConflictError: If the user already has a gear with that nickname, or a Strava or
             Garmin Connect gear ID is already taken.
     """
-    created = stage_gear(gear, user_id, db)
+    created = gears_crud.create_gear(gear, user_id, db)
     db.commit()
     logger.info("Created a gear", extra=core_logger.context(user_id=user_id, gear_id=created.id))
     return created

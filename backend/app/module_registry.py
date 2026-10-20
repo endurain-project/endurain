@@ -34,6 +34,7 @@ import modules.activities.contributor_registry as activities_contributor_registr
 import modules.auth.password_reset_tokens.subscriber_registry as password_reset_tokens_subscriber_registry
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
 import modules.gears.contributor_registry as gears_contributor_registry
+import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
 
@@ -244,13 +245,12 @@ def configure_activity_contributors() -> None:
 
 def configure_gear_contributors() -> None:
     """Install the readers the gears namespace asks the activities and component packages to answer."""
-    gears_contributor_registry.clear()
-    gears_contributor_registry.register_gear_usage_reader(activity_integration.get_gear_usage_totals)
-    gears_contributor_registry.register_gear_usage_by_window_reader(
-        activity_integration.get_gear_usage_totals_by_window
-    )
-    gears_contributor_registry.register_components_cost_reader(
-        gear_components_integration.get_gear_components_total_cost
+    gears_contributor_registry.register(
+        gears_contributors.GearReaders(
+            usage=activity_integration.get_gear_usage_totals,
+            usage_by_window=activity_integration.get_gear_usage_totals_by_window,
+            components_cost=gear_components_integration.get_gear_components_total_cost,
+        )
     )
 
 

@@ -3,7 +3,7 @@
 from datetime import datetime as datetime_type
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -99,3 +99,7 @@ class Gear(Base):
         nullable=True,
         comment="Garmin Connect gear ID",
     )
+
+
+#: One nickname per user, compared case-insensitively like the nickname lookup.
+Index("uq_gear_user_nickname", Gear.user_id, func.lower(Gear.nickname), unique=True)

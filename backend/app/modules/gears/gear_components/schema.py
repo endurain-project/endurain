@@ -1,6 +1,7 @@
 """Gear components schema definitions."""
 
 from datetime import date
+from typing import Self
 
 from pydantic import (
     BaseModel,
@@ -10,7 +11,11 @@ from pydantic import (
     StrictFloat,
     StrictInt,
     StrictStr,
+    model_validator,
 )
+
+#: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
+_NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("purchase_date", "active")
 
 
 class GearComponentBase(BaseModel):
@@ -122,6 +127,23 @@ class GearComponentUpdate(GearComponentBase):
         ...,
         description="Unique identifier",
     )
+
+    @model_validator(mode="after")
+    def _reject_clearing_required_fields(self) -> Self:
+        """Reject an explicit null for a field the component must always have.
+
+        Returns:
+            The validated update.
+
+        Raises:
+            ValueError: If ``purchase_date`` or ``active`` is sent as null.
+        """
+        cleared = [
+            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
+        ]
+        if cleared:
+            raise ValueError(f"{', '.join(cleared)} cannot be null")
+        return self
 
 
 class GearComponentTypesRead(BaseModel):

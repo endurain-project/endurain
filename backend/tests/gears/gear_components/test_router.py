@@ -84,6 +84,14 @@ def test_edit(mock_edit, client):
     assert response.json()["brand"] == "SRAM"
 
 
+@patch("modules.gears.gear_components.service.edit_gear_component")
+def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
+    response = client.put("/gear_components", json={"id": 1, **_BODY, "purchase_date": None}, headers=_HEADERS)
+
+    assert response.status_code == 422
+    mock_edit.assert_not_called()
+
+
 @patch("modules.gears.gear_components.service.delete_gear_component")
 def test_delete(mock_delete, client, mock_db):
     response = client.delete("/gear_components/4", headers=_HEADERS)

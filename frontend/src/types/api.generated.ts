@@ -1069,7 +1069,7 @@ export interface paths {
         };
         /**
          * Read Gear Components
-         * @description Retrieve all of the authenticated user's gear components.
+         * @description Retrieve up to 200 of the authenticated user's gear components.
          */
         get: operations["read_gear_components_api_v1_gear_components_get"];
         /**
@@ -1107,7 +1107,7 @@ export interface paths {
         };
         /**
          * Read Gear Components Gear Id
-         * @description Retrieve a gear's components with the distance and time each has accumulated.
+         * @description Retrieve up to 200 of a gear's components with the distance and time each has accumulated.
          */
         get: operations["read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get"];
         put?: never;
@@ -1167,7 +1167,7 @@ export interface paths {
         };
         /**
          * Read Gears User All Pagination
-         * @description Retrieve the authenticated user's gears, with the matching total.
+         * @description Retrieve one page of the authenticated user's gears, with the matching total.
          */
         get: operations["read_gears_user_all_pagination_api_v1_gears_get"];
         /**
@@ -1215,7 +1215,7 @@ export interface paths {
         };
         /**
          * Read Gear User Contains Nickname
-         * @description Retrieve the authenticated user's gears whose nickname contains the text.
+         * @description Retrieve up to 200 of the authenticated user's gears whose nickname contains the text.
          */
         get: operations["read_gear_user_contains_nickname_api_v1_gears_nickname_contains__nickname__get"];
         put?: never;
@@ -1255,7 +1255,7 @@ export interface paths {
         };
         /**
          * Read Gear User By Type
-         * @description Retrieve the authenticated user's gears of one type.
+         * @description Retrieve up to 200 of the authenticated user's gears of one type.
          */
         get: operations["read_gear_user_by_type_api_v1_gears_type__gear_type__get"];
         put?: never;
@@ -13881,12 +13881,10 @@ export interface operations {
     read_gears_user_all_pagination_api_v1_gears_get: {
         parameters: {
             query?: {
-                /** @description Pagination page number */
-                page_number?: number | null;
-                /** @description Number of records per page */
-                num_records?: number | null;
                 /** @description Filter by inactive status */
                 show_inactive?: boolean | null;
+                page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;

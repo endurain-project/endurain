@@ -36,7 +36,7 @@ def read_gear_components(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[gear_components_schema.GearComponentRead] | None:
-    """Retrieve all of the authenticated user's gear components."""
+    """Retrieve up to 200 of the authenticated user's gear components."""
     return gear_components_service.list_gear_components(token_user_id, db)
 
 
@@ -51,7 +51,7 @@ def read_gear_components_gear_id(
     db: Annotated[Session, Depends(core_database.get_db)],
     active: bool | None = None,
 ) -> list[gear_components_schema.GearComponentRead] | None:
-    """Retrieve a gear's components with the distance and time each has accumulated."""
+    """Retrieve up to 200 of a gear's components with the distance and time each has accumulated."""
     return gear_components_service.list_components_for_gear(gear_id, token_user_id, db, active=active)
 
 

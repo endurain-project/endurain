@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,14 @@ def db():
     session: Session = create_sqlite_session()
     yield session
     session.close()
+
+
+@pytest.fixture
+def commit_spy(db) -> MagicMock:
+    """Wrap the session's ``commit`` so a test can assert who ended the transaction."""
+    spy = MagicMock(wraps=db.commit)
+    db.commit = spy
+    return spy
 
 
 @pytest.fixture(autouse=True)

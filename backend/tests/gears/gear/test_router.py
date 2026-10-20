@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import core.database as core_db
-import core.dependencies as core_deps
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.dependencies as auth_deps
 import modules.gears.gear.router as router
 import modules.gears.gear.schema as schema
@@ -21,7 +21,6 @@ def client(mock_db):
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
     app.dependency_overrides[auth_deps.get_sub_from_access_token] = lambda: 1
-    app.dependency_overrides[core_deps.validate_pagination_values_on_query] = lambda: None
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return TestClient(app)
 
@@ -40,6 +39,21 @@ class TestList:
         assert response.status_code == 200
         assert response.json()["total"] == 1
         mock_list.assert_called_once_with(1, mock_db, page_number=2, num_records=5, show_inactive=False)
+
+    @patch("modules.gears.gear.service.list_gears")
+    def test_an_unpaged_request_gets_the_default_page(self, mock_list, client, mock_db):
+        mock_list.return_value = schema.GearsListResponse(total=0, records=[])
+
+        client.get("/gears", headers=_HEADERS)
+
+        mock_list.assert_called_once_with(
+            1, mock_db, page_number=1, num_records=core_pagination.DEFAULT_NUM_RECORDS, show_inactive=None
+        )
+
+    def test_an_oversized_page_is_rejected(self, client):
+        response = client.get(f"/gears?num_records={core_pagination.MAX_NUM_RECORDS + 1}", headers=_HEADERS)
+
+        assert response.status_code == 422
 
 
 class TestReadById:

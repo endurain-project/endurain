@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.integration_service as gears_integration
@@ -33,7 +34,7 @@ def read_component_types() -> gear_components_schema.GearComponentTypesRead:
 
 
 def list_gear_components(user_id: int, db: Session) -> list[gear_components_schema.GearComponentRead]:
-    """Return all of a user's gear components.
+    """Return up to ``MAX_NUM_RECORDS`` of a user's gear components.
 
     Args:
         user_id: Owner user ID.
@@ -42,7 +43,7 @@ def list_gear_components(user_id: int, db: Session) -> list[gear_components_sche
     Returns:
         The user's components (empty list if none).
     """
-    return gear_components_crud.get_gear_components_user(user_id, db)
+    return gear_components_crud.get_gear_components_user(user_id, db, limit=core_pagination.MAX_NUM_RECORDS)
 
 
 def list_components_for_gear(
@@ -70,8 +71,8 @@ def list_components_for_gear(
     if not components:
         return components
 
-    windows = gear_components_crud.list_usage_windows(gear_id, db)
-    totals = gears_contributor_registry.gear_usage_by_window(gear_id, user_id, windows, db)
+    windows = gear_components_crud.list_usage_windows(gear_id, user_id, db)
+    totals = gears_contributor_registry.readers().usage_by_window(gear_id, user_id, windows, db)
     no_usage = gears_contracts.UsageTotals()
     return [
         component.model_copy(

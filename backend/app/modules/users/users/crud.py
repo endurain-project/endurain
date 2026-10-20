@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 import core.decorators as core_decorators
 import core.logger as core_logger
+import core.sanitization as core_sanitization
 import modules.activities.activity.integration_service as activity_integration
 import modules.auth.password_policy as auth_password_policy
 import modules.health.health_weight.utils as health_weight_utils
@@ -375,8 +376,7 @@ def get_user_by_username(
     normalized_username = unquote(username).replace("+", " ").lower()
 
     if contains:
-        # Escape LIKE special characters to prevent SQL injection
-        escaped_username = normalized_username.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+        escaped_username = core_sanitization.escape_like(normalized_username)
 
         # Query users with username containing the search term
         stmt = select(users_models.Users).where(

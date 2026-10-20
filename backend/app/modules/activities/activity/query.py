@@ -16,27 +16,12 @@ from urllib.parse import unquote
 
 from sqlalchemy import func, or_
 
+import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.models as activity_models
 
 #: Re-exported for the callers that reason about the widened pre-filter below.
 MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
-
-
-def escape_like(term: str) -> str:
-    r"""Escape SQL LIKE wildcards in a user-provided term.
-
-    Escapes ``\``, ``%`` and ``_`` so they are matched literally. Use together
-    with ``.like(..., escape="\\")`` to keep user input from injecting LIKE
-    wildcards into search filters.
-
-    Args:
-        term: Raw search term.
-
-    Returns:
-        Escaped search term safe for use inside a ``LIKE`` pattern.
-    """
-    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def name_search_condition(name_search: str):
@@ -50,7 +35,7 @@ def name_search_condition(name_search: str):
         country, with ``%``/``_`` escaped so user input cannot inject wildcards.
     """
     raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{escape_like(raw)}%"
+    pattern = f"%{core_sanitization.escape_like(raw)}%"
     return or_(
         func.lower(activity_models.Activity.name).like(pattern, escape="\\"),
         func.lower(activity_models.Activity.town).like(pattern, escape="\\"),

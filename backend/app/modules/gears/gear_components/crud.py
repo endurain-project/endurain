@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.gears.contracts as gears_contracts
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
@@ -43,18 +44,24 @@ def _get_gear_component_model_or_404(
     return db_gear_component
 
 
-def get_gear_components_user(user_id: int, db: Session) -> list[gear_components_schema.GearComponentRead]:
-    """Retrieve all gear components for a user.
+def get_gear_components_user(
+    user_id: int, db: Session, *, limit: int | None = None
+) -> list[gear_components_schema.GearComponentRead]:
+    """Retrieve a user's gear components, ordered by ID.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
+        limit: Maximum number of components to return; all of them when omitted.
 
     Returns:
         The user's components (empty list if none).
     """
-    stmt = select(gear_components_models.GearComponents).where(
-        gear_components_models.GearComponents.user_id == user_id,
+    stmt = (
+        select(gear_components_models.GearComponents)
+        .where(gear_components_models.GearComponents.user_id == user_id)
+        .order_by(gear_components_models.GearComponents.id)
+        .limit(limit)
     )
     return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
@@ -75,7 +82,7 @@ def get_gear_components_user_by_gear_id(
         active: Optional active-status filter.
 
     Returns:
-        The matching components (empty list if none).
+        Up to ``MAX_NUM_RECORDS`` matching components ordered by ID (empty list if none).
     """
     stmt = select(gear_components_models.GearComponents).where(
         gear_components_models.GearComponents.user_id == user_id,
@@ -83,24 +90,30 @@ def get_gear_components_user_by_gear_id(
     )
     if active is not None:
         stmt = stmt.where(gear_components_models.GearComponents.active == active)
+    stmt = stmt.order_by(gear_components_models.GearComponents.id).limit(core_pagination.MAX_NUM_RECORDS)
     return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
 
-def list_usage_windows(gear_id: int, db: Session) -> list[gears_contracts.UsageWindow]:
-    """Return the date window each component of a gear was fitted for.
+def list_usage_windows(gear_id: int, user_id: int, db: Session) -> list[gears_contracts.UsageWindow]:
+    """Return the date window each of a user's components on a gear was fitted for.
 
     Args:
         gear_id: Gear ID to list windows for.
+        user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        One window per component, keyed by component ID.
+        One window per component, keyed by component ID, for at most ``MAX_NUM_RECORDS`` components.
     """
     stmt = select(
         gear_components_models.GearComponents.id,
         gear_components_models.GearComponents.purchase_date,
         gear_components_models.GearComponents.retired_date,
-    ).where(gear_components_models.GearComponents.gear_id == gear_id)
+    ).where(
+        gear_components_models.GearComponents.gear_id == gear_id,
+        gear_components_models.GearComponents.user_id == user_id,
+    )
+    stmt = stmt.order_by(gear_components_models.GearComponents.id).limit(core_pagination.MAX_NUM_RECORDS)
     return [
         gears_contracts.UsageWindow(key=row.id, start_date=row.purchase_date, end_date=row.retired_date)
         for row in db.execute(stmt).all()

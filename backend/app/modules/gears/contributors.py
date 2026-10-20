@@ -5,6 +5,7 @@ and ``app/module_registry.py`` installs the answers.
 """
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
@@ -20,3 +21,18 @@ GearUsageByWindowReader = Callable[
 
 #: ``(gear_id, user_id, db)`` -> the summed purchase value of a gear's components.
 ComponentsCostReader = Callable[[int, int, Session], float]
+
+
+@dataclass(frozen=True, kw_only=True)
+class GearReaders:
+    """The answers composition installs for the gears namespace.
+
+    Attributes:
+        usage: Totals the usage a user recorded against a gear.
+        usage_by_window: Totals a gear's usage per date window.
+        components_cost: Sums the purchase value of a gear's components.
+    """
+
+    usage: GearUsageReader
+    usage_by_window: GearUsageByWindowReader
+    components_cost: ComponentsCostReader

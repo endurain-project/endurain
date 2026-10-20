@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.dependencies as gears_dependencies
@@ -22,22 +23,18 @@ router = APIRouter()
     response_model=gears_schema.GearsListResponse,
 )
 def read_gears_user_all_pagination(
-    _validate_pagination_values_on_query: Annotated[
-        Callable, Depends(core_dependencies.validate_pagination_values_on_query)
-    ],
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
-    page_number: Annotated[int | None, Query(description="Pagination page number")] = None,
-    num_records: Annotated[int | None, Query(description="Records per page")] = None,
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
     show_inactive: Annotated[bool | None, Query(description="Filter by inactive status")] = None,
 ) -> gears_schema.GearsListResponse:
-    """Retrieve the authenticated user's gears, with the matching total."""
+    """Retrieve one page of the authenticated user's gears, with the matching total."""
     return gears_service.list_gears(
         token_user_id,
         db,
-        page_number=page_number,
-        num_records=num_records,
+        page_number=page.page_number,
+        num_records=page.num_records,
         show_inactive=show_inactive,
     )
 
@@ -66,7 +63,7 @@ def read_gear_user_contains_nickname(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[gears_schema.GearRead]:
-    """Retrieve the authenticated user's gears whose nickname contains the text."""
+    """Retrieve up to 200 of the authenticated user's gears whose nickname contains the text."""
     return gears_service.list_gears_containing_nickname(token_user_id, nickname, db)
 
 
@@ -94,7 +91,7 @@ def read_gear_user_by_type(
     token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ) -> list[gears_schema.GearRead]:
-    """Retrieve the authenticated user's gears of one type."""
+    """Retrieve up to 200 of the authenticated user's gears of one type."""
     return gears_service.list_gears_by_type(token_user_id, gear_type, db)
 
 

@@ -5,11 +5,31 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
+import core.sanitization as core_sanitization
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.serializers as gears_serializers
 
 _DUPLICATE_EXTERNAL_ID = "Duplicate entry error. Check if strava_gear_id or garminconnect_gear_id are unique"
+
+#: The unique index on ``(user_id, lower(nickname))``.
+_UNIQUE_NICKNAME_INDEX = "uq_gear_user_nickname"
+
+
+def _conflict(err: IntegrityError) -> core_exceptions.ConflictError:
+    """Translate a unique-key violation on the gear table into a conflict.
+
+    Args:
+        err: The integrity error raised by the flush.
+
+    Returns:
+        The conflict to raise, naming the nickname or the provider gear ID as the cause.
+    """
+    constraint = getattr(getattr(err.orig, "diag", None), "constraint_name", None)
+    if constraint == _UNIQUE_NICKNAME_INDEX or (constraint is None and "nickname" in str(err.orig).lower()):
+        return core_exceptions.ConflictError("A gear with this nickname already exists")
+    return core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID)
 
 
 def _get_gear_model_or_404(gear_id: int, user_id: int, db: Session) -> gears_models.Gear:
@@ -76,11 +96,11 @@ def get_gear_users_with_pagination(
     user_id: int,
     db: Session,
     *,
-    page_number: int | None = None,
-    num_records: int | None = None,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     show_inactive: bool | None = True,
 ) -> list[gears_schema.GearRead]:
-    """Retrieve a user's gears ordered by nickname, one page when both page arguments are given.
+    """Retrieve one page of a user's gears, ordered by nickname.
 
     Args:
         user_id: Owner user ID.
@@ -90,14 +110,13 @@ def get_gear_users_with_pagination(
         show_inactive: Include inactive gears.
 
     Returns:
-        The gears on the page, or all of them when unpaginated.
+        The gears on the page.
     """
     stmt = select(gears_models.Gear).where(gears_models.Gear.user_id == user_id)
     if show_inactive is False:
         stmt = stmt.where(gears_models.Gear.active.is_(True))
-    stmt = stmt.order_by(gears_models.Gear.nickname)
-    if page_number is not None and num_records is not None:
-        stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
+    stmt = stmt.order_by(gears_models.Gear.nickname, gears_models.Gear.id)
+    stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)
     return [gears_serializers.to_read_schema(gear) for gear in db.execute(stmt).scalars().all()]
 
 
@@ -118,18 +137,25 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.GearRead]:
 def get_gear_user_contains_nickname(user_id: int, nickname: str, db: Session) -> list[gears_schema.GearRead]:
     """Retrieve gears matching a nickname substring, case-insensitively.
 
+    ``%`` and ``_`` in the search text match literally.
+
     Args:
         user_id: Owner user ID.
         nickname: Substring to search for.
         db: Database session.
 
     Returns:
-        The matching gears (empty list if none).
+        Up to ``MAX_NUM_RECORDS`` matching gears ordered by nickname (empty list if none).
     """
-    parsed_nickname = nickname.lower().strip()
-    stmt = select(gears_models.Gear).where(
-        func.lower(gears_models.Gear.nickname).like(f"%{parsed_nickname}%"),
-        gears_models.Gear.user_id == user_id,
+    pattern = f"%{core_sanitization.escape_like(nickname.lower().strip())}%"
+    stmt = (
+        select(gears_models.Gear)
+        .where(
+            func.lower(gears_models.Gear.nickname).like(pattern, escape="\\"),
+            gears_models.Gear.user_id == user_id,
+        )
+        .order_by(gears_models.Gear.nickname)
+        .limit(core_pagination.MAX_NUM_RECORDS)
     )
     return [gears_serializers.to_read_schema(gear) for gear in db.execute(stmt).scalars().all()]
 
@@ -183,7 +209,7 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session) -> list
         db: Database session.
 
     Returns:
-        The matching gears (empty list if none).
+        Up to ``MAX_NUM_RECORDS`` matching gears (empty list if none).
     """
     stmt = (
         select(gears_models.Gear)
@@ -192,6 +218,7 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session) -> list
             gears_models.Gear.user_id == user_id,
         )
         .order_by(gears_models.Gear.nickname)
+        .limit(core_pagination.MAX_NUM_RECORDS)
     )
     return [gears_serializers.to_read_schema(gear) for gear in db.execute(stmt).scalars().all()]
 
@@ -245,13 +272,14 @@ def create_gears(gears: list[gears_schema.GearCreate], user_id: int, db: Session
         db: Database session.
 
     Raises:
-        ConflictError: If a Strava or Garmin Connect gear ID is already taken.
+        ConflictError: If the user already has one of the nicknames, or a Strava or Garmin
+            Connect gear ID is already taken.
     """
     try:
         db.add_all([gears_serializers.to_orm(gear, user_id) for gear in gears])
         db.flush()
     except IntegrityError as err:
-        raise core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID) from err
+        raise _conflict(err) from err
 
 
 def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gears_schema.GearRead:
@@ -266,14 +294,15 @@ def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gea
         The staged gear with its generated ID.
 
     Raises:
-        ConflictError: If a Strava or Garmin Connect gear ID is already taken.
+        ConflictError: If the user already has the nickname, or a Strava or Garmin Connect
+            gear ID is already taken.
     """
     new_gear = gears_serializers.to_orm(gear, user_id)
     try:
         db.add(new_gear)
         db.flush()
     except IntegrityError as err:
-        raise core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID) from err
+        raise _conflict(err) from err
     db.refresh(new_gear)
     return gears_serializers.to_read_schema(new_gear)
 
@@ -291,11 +320,15 @@ def edit_gear(gear: gears_schema.GearUpdate, user_id: int, db: Session) -> gears
 
     Raises:
         NotFoundError: If the user has no such gear.
+        ConflictError: If the new nickname or provider gear ID is already taken.
     """
     db_gear = _get_gear_model_or_404(gear.id, user_id, db)
     for key, value in gears_serializers.to_update_values(gear).items():
         setattr(db_gear, key, value)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as err:
+        raise _conflict(err) from err
     db.refresh(db_gear)
     return gears_serializers.to_read_schema(db_gear)
 
