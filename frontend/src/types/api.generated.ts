@@ -13583,8 +13583,8 @@ export interface operations {
     read_gear_components_api_v1_gear_components_get: {
         parameters: {
             query?: {
-                num_records?: number | null;
                 page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path?: never;
@@ -13667,8 +13667,8 @@ export interface operations {
         parameters: {
             query?: {
                 active?: boolean | null;
-                num_records?: number | null;
                 page_number?: number | null;
+                num_records?: number | null;
             };
             header?: never;
             path: {
