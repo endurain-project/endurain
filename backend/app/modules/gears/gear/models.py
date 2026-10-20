@@ -46,7 +46,6 @@ class Gear(Base):
     )
     nickname: Mapped[str] = mapped_column(
         String(250),
-        index=True,
         nullable=False,
         comment=("Gear nickname (May include spaces)"),
     )

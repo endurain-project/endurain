@@ -4,6 +4,7 @@ from sqlalchemy import Select, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
@@ -27,7 +28,7 @@ def _conflict(err: IntegrityError) -> core_exceptions.ConflictError:
     Returns:
         The conflict to raise, naming the nickname or the provider gear ID as the cause.
     """
-    constraint = getattr(getattr(err.orig, "diag", None), "constraint_name", None)
+    constraint = core_database.violated_constraint(err)
     if constraint == _UNIQUE_NICKNAME_INDEX or (constraint is None and "nickname" in str(err.orig).lower()):
         return core_exceptions.ConflictError("A gear with this nickname already exists")
     return core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID)

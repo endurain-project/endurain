@@ -7,6 +7,7 @@ from datetime import datetime
 import jasil.orm as jasil_orm
 from sqlalchemy import DateTime, create_engine, func
 from sqlalchemy.engine.url import URL
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -116,6 +117,19 @@ class TimestampMixin:
         onupdate=func.now(),
         nullable=False,
     )
+
+
+def violated_constraint(err: IntegrityError) -> str | None:
+    """Name the constraint an integrity error violated.
+
+    Args:
+        err: The integrity error raised by a flush.
+
+    Returns:
+        The constraint name the driver reports, or None when it reports none (as SQLite does),
+        in which case a caller has only the error text to go on.
+    """
+    return getattr(getattr(err.orig, "diag", None), "constraint_name", None)
 
 
 def get_db() -> Generator[Session]:

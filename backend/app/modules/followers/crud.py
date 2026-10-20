@@ -6,6 +6,7 @@ from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.followers.constants as followers_constants
@@ -41,7 +42,7 @@ def _is_duplicate_pair(err: IntegrityError) -> bool:
         True for the unique-pair violation; False for anything else, which for
         this insert is the foreign key to ``users``.
     """
-    constraint = getattr(getattr(err.orig, "diag", None), "constraint_name", None)
+    constraint = core_database.violated_constraint(err)
     if constraint is not None:
         return constraint == _UNIQUE_PAIR_CONSTRAINT
     return "unique" in str(err.orig).lower()
