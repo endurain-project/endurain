@@ -611,6 +611,31 @@ class TestRejectPrivateUrlAsync:
 
         assert exc_info.value.status_code == 503
         assert exc_info.value.detail == "Hostname resolution is busy"
+        assert exc_info.value.headers == {"Retry-After": "1"}
+        assert calls == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("url", "detail"),
+        [
+            ("ftp://idp.example.com", "URL scheme is not permitted"),
+            ("https://", "URL has no hostname"),
+            ("http://[::1", "Malformed URL"),
+        ],
+    )
+    async def test_url_refused_without_dns_gets_its_400_even_when_the_pool_is_full(self, url, detail):
+        calls: list[str] = []
+        assert core_network._ssrf_dns_slots.acquire(blocking=False)
+        assert core_network._ssrf_dns_slots.acquire(blocking=False)
+
+        with (
+            patch.object(core_network, "reject_private_url", self._blocking_guard(threading.Event(), calls)),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await core_network.reject_private_url_async(url)
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == detail
         assert calls == []
 
     @pytest.mark.asyncio
@@ -651,11 +676,32 @@ class TestRejectPrivateUrlAsync:
                     await core_network.reject_private_url_async(url)
                 assert exc_info.value.status_code == 504
 
+            # The single worker takes work in order, so once this later lookup has
+            # run, anything queued before it has either run or been cancelled.
             release.set()
-            assert self._wait_for_free_slot()
-            await asyncio.sleep(0.1)
+            with patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 5.0):
+                await core_network.reject_private_url_async("https://sentinel.example.com")
 
-        assert calls == ["https://stuck.example.com"]
+        assert calls == ["https://stuck.example.com", "https://sentinel.example.com"]
+
+    @pytest.mark.asyncio
+    async def test_burst_of_fast_lookups_is_absorbed_with_the_default_sizes(self):
+        def fast_guard(url, *, purpose=None):
+            time.sleep(0.005)
+
+        with (
+            patch.object(core_network, "reject_private_url", fast_guard),
+            patch.object(
+                core_network, "_ssrf_dns_slots", threading.BoundedSemaphore(core_network._SSRF_DNS_MAX_PENDING)
+            ),
+            patch.object(core_network, "_SSRF_DNS_MAX_WORKERS", 4),
+        ):
+            results = await asyncio.gather(
+                *(core_network.reject_private_url_async(f"https://h{i}.example.com") for i in range(30)),
+                return_exceptions=True,
+            )
+
+        assert results == [None] * 30
 
     @pytest.mark.asyncio
     async def test_shutdown_stops_the_pool_and_the_next_lookup_starts_a_new_one(self):

@@ -35,8 +35,10 @@ _SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS = 5.0
 _SSRF_DNS_MAX_WORKERS = 4
 # Lookups running or queued. A lookup holds its slot until it really finishes, so
 # a caller that gave up on a stuck getaddrinfo still counts against the bound and
-# later callers are refused instead of queueing behind it.
-_SSRF_DNS_MAX_PENDING = 8
+# later callers are refused instead of queueing behind it. Large enough that a
+# burst of ordinary, fast lookups is absorbed by the queue and only a stalled
+# resolver reaches the bound.
+_SSRF_DNS_MAX_PENDING = 32
 _ssrf_dns_slots = threading.BoundedSemaphore(_SSRF_DNS_MAX_PENDING)
 _ssrf_dns_executor: ThreadPoolExecutor | None = None
 
@@ -459,6 +461,29 @@ def host_rejection_reason(host: str | None, *, purpose: str | None = None) -> st
     return _address_rejection_reason(hostname, purpose=purpose)
 
 
+def _outbound_url_hostname(url: str) -> tuple[str | None, str | None]:
+    """Check the parts of an outbound URL that need no DNS lookup.
+
+    Args:
+        url: Fully-qualified outbound URL.
+
+    Returns:
+        The hostname and ``None``, or ``None`` and a safe reason the URL is refused.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None, "Malformed URL"
+
+    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
+        return None, "URL scheme is not permitted"
+
+    if not parsed.hostname:
+        return None, "URL has no hostname"
+
+    return parsed.hostname, None
+
+
 def resolve_url_addresses(
     url: str,
     *,
@@ -473,17 +498,9 @@ def resolve_url_addresses(
     Returns:
         Validated addresses and ``None``, or no addresses and a safe reason.
     """
-    try:
-        parsed = urlparse(url)
-    except ValueError:
-        return (), "Malformed URL"
-
-    if parsed.scheme.lower() not in _ALLOWED_OUTBOUND_SCHEMES:
-        return (), "URL scheme is not permitted"
-
-    hostname = parsed.hostname
-    if not hostname:
-        return (), "URL has no hostname"
+    hostname, reason = _outbound_url_hostname(url)
+    if hostname is None:
+        return (), reason
 
     addresses, reason = _resolve_checked_addresses(hostname, purpose=purpose)
     return addresses, f"URL {reason}" if reason is not None else None
@@ -565,8 +582,9 @@ def _get_ssrf_dns_executor() -> ThreadPoolExecutor:
 def shutdown_ssrf_dns_executor() -> None:
     """Shut the SSRF DNS executor down, if it was ever started.
 
-    Called from the API lifespan. Queued lookups are cancelled and the call does
-    not wait for a running ``getaddrinfo``, which cannot be interrupted.
+    Called from the API lifespan. Queued lookups are cancelled, so a caller still
+    waiting on one is cancelled with it, and the call does not wait for a running
+    ``getaddrinfo``, which cannot be interrupted.
     """
     global _ssrf_dns_executor
     if _ssrf_dns_executor is None:
@@ -595,9 +613,16 @@ async def reject_private_url_async(url: str, *, purpose: str | None = None) -> N
 
     Raises:
         HTTPException: 400, for the reasons listed on :func:`reject_private_url`.
-        HTTPException: 503 when too many lookups are already running or queued.
+        HTTPException: 503, with ``Retry-After``, when too many lookups are
+            already running or queued.
         HTTPException: 504 when hostname resolution exceeds the allowed time.
     """
+    # A URL that can be refused without DNS never needs a slot, so it gets its 400
+    # even while the pool is full.
+    hostname, reason = _outbound_url_hostname(url)
+    if hostname is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=reason)
+
     if not _ssrf_dns_slots.acquire(blocking=False):
         logger.warning(
             "SSRF hostname resolution is saturated",
@@ -606,6 +631,7 @@ async def reject_private_url_async(url: str, *, purpose: str | None = None) -> N
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Hostname resolution is busy",
+            headers={"Retry-After": "1"},
         )
     try:
         future = _get_ssrf_dns_executor().submit(partial(reject_private_url, url, purpose=purpose))

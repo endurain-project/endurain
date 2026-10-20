@@ -402,6 +402,49 @@ class TestFetchJwks:
         mock_client.assert_not_called()
 
 
+class TestGetOidcConfigurationGuardFailures:
+    """Discovery logs why the SSRF guard did not clear the issuer URL."""
+
+    @staticmethod
+    async def _discover_with_guard_failure(service, status_code: int, detail: str):
+        idp = MagicMock(issuer_url="https://idp.example.com", id=1)
+        idp.name = "Test IdP"
+        with (
+            patch(
+                "modules.auth.identity_providers.service.core_network.reject_private_url_async",
+                new_callable=AsyncMock,
+                side_effect=HTTPException(status_code=status_code, detail=detail),
+            ),
+            patch("modules.auth.identity_providers.service.logger") as mock_logger,
+        ):
+            result = await service.get_oidc_configuration(idp)
+        return result, mock_logger.warning.call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_blocked_url_points_the_operator_at_ssrf_allowed_hosts(self, service):
+        result, message = await self._discover_with_guard_failure(
+            service, status.HTTP_400_BAD_REQUEST, "URL resolves to a non-public address"
+        )
+        assert result is None
+        assert "was rejected" in message
+        assert "SSRF_ALLOWED_HOSTS" in message
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status_code", "detail"),
+        [
+            (status.HTTP_503_SERVICE_UNAVAILABLE, "Hostname resolution is busy"),
+            (status.HTTP_504_GATEWAY_TIMEOUT, "Hostname resolution timed out"),
+        ],
+    )
+    async def test_unchecked_url_is_not_blamed_on_the_allowlist(self, service, status_code, detail):
+        result, message = await self._discover_with_guard_failure(service, status_code, detail)
+        assert result is None
+        assert "could not be checked" in message
+        assert detail in message
+        assert "SSRF_ALLOWED_HOSTS" not in message
+
+
 # ---------------------------------------------------------------------------
 # _get_userinfo
 # ---------------------------------------------------------------------------

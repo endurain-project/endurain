@@ -527,16 +527,22 @@ class IdentityProviderService:
             logger.warning(f"Request error fetching OIDC discovery for {idp.name}. URL: {discovery_url}. Error: {err}")
             return None
         except HTTPException as err:
-            # SSRF guard or other 4xx from reject_private_url.
-            # Log with an actionable hint for the operator
-            # so they know about the SSRF_ALLOWED_HOSTS
-            # escape hatch for self-hosted IdPs.
-            logger.warning(
-                f"OIDC discovery for {idp.name} was rejected: "
-                f"{err.detail}. URL: {discovery_url}. If this is a "
-                f"self-hosted IdP on a private network, add its host "
-                f"or CIDR to SSRF_ALLOWED_HOSTS."
-            )
+            if err.status_code == status.HTTP_400_BAD_REQUEST:
+                # The SSRF guard refused the URL. Log with an actionable
+                # hint for the operator so they know about the
+                # SSRF_ALLOWED_HOSTS escape hatch for self-hosted IdPs.
+                logger.warning(
+                    f"OIDC discovery for {idp.name} was rejected: "
+                    f"{err.detail}. URL: {discovery_url}. If this is a "
+                    f"self-hosted IdP on a private network, add its host "
+                    f"or CIDR to SSRF_ALLOWED_HOSTS."
+                )
+            else:
+                # The hostname could not be checked (resolution timed out or the
+                # lookup pool is busy). The URL was not judged, so no hint.
+                logger.warning(
+                    f"OIDC discovery for {idp.name} could not be checked: {err.detail}. URL: {discovery_url}."
+                )
             return None
         except Exception as err:
             logger.warning(f"Failed to fetch OIDC discovery for {idp.name}: {err}")
