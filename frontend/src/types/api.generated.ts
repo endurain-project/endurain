@@ -1069,23 +1069,12 @@ export interface paths {
         };
         /**
          * Read Gear Components
-         * @description Retrieve all gear components for a user.
-         *
-         *     Args:
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of gear component records or None.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve all of the authenticated user's gear components.
          */
         get: operations["read_gear_components_api_v1_gear_components_get"];
         /**
          * Edit Gear Component
-         * @description Update an existing gear component.
+         * @description Update one of the authenticated user's gear components.
          *
          *     Applies a partial update: only fields present in the request body are
          *     changed, so omit a field to leave it untouched and send an explicit
@@ -1096,38 +1085,11 @@ export interface paths {
          *     forced to false); while it is null the submitted `active` value is
          *     honoured. Reactivating a retired component therefore requires clearing
          *     `retired_date` and setting `active` to true in the same request.
-         *
-         *     Args:
-         *         gear_component: Updated component data.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Updated gear component record.
-         *
-         *     Raises:
-         *         HTTPException: If not found, forbidden,
-         *             or invalid dates.
          */
         put: operations["edit_gear_component_api_v1_gear_components_put"];
         /**
          * Create Gear Component
-         * @description Create a new gear component.
-         *
-         *     Args:
-         *         gear_component: Gear component data.
-         *         _check_scopes: Validates gears:write scope.
-         *         verify_gear_type: Validates component type.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Created gear component record.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or invalid
-         *             component type.
+         * @description Create a component on one of the authenticated user's gears.
          */
         post: operations["create_gear_component_api_v1_gear_components_post"];
         delete?: never;
@@ -1145,21 +1107,7 @@ export interface paths {
         };
         /**
          * Read Gear Components Gear Id
-         * @description Retrieve gear components by gear ID.
-         *
-         *     Args:
-         *         gear_id: Gear ID to filter by.
-         *         validate_gear_id: Validates gear ID.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         active: Optional active-status filter.
-         *
-         *     Returns:
-         *         List of gear component records or None.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve a gear's components with the distance and time each has accumulated.
          */
         get: operations["read_gear_components_gear_id_api_v1_gear_components_gear_id__gear_id__get"];
         put?: never;
@@ -1179,16 +1127,7 @@ export interface paths {
         };
         /**
          * Read Gear Component Types
-         * @description Retrieve valid component type lists.
-         *
-         *     Args:
-         *         _check_scopes: Validates gears:read scope.
-         *
-         *     Returns:
-         *         Component types grouped by gear type.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve the valid component types, grouped by gear type.
          */
         get: operations["read_gear_component_types_api_v1_gear_components_types_get"];
         put?: never;
@@ -1211,21 +1150,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Component Gear
-         * @description Delete a gear component by ID.
-         *
-         *     Args:
-         *         gear_component_id: Component ID to delete.
-         *         validate_id: Validates component ID.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: If not found, forbidden,
-         *             or unauthorized.
+         * @description Delete one of the authenticated user's gear components.
          */
         delete: operations["delete_component_gear_api_v1_gear_components__gear_component_id__delete"];
         options?: never;
@@ -1242,60 +1167,17 @@ export interface paths {
         };
         /**
          * Read Gears User All Pagination
-         * @description Retrieve paginated gear records for a user.
-         *
-         *     Args:
-         *         _validate_pagination_values_on_query:
-         *             Validates pagination query params.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *         page_number: Optional page number.
-         *         num_records: Optional records per page.
-         *         show_inactive: Optional inactive filter.
-         *
-         *     Returns:
-         *         GearsListResponse with paginated records.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or invalid
-         *             parameters.
+         * @description Retrieve the authenticated user's gears, with the matching total.
          */
         get: operations["read_gears_user_all_pagination_api_v1_gears_get"];
         /**
          * Edit Gear
-         * @description Update an existing gear by ID.
-         *
-         *     Args:
-         *         gear: Updated gear data.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Updated GearRead record.
-         *
-         *     Raises:
-         *         HTTPException: If gear not found, forbidden,
-         *             or unauthorized.
+         * @description Update one of the authenticated user's gears.
          */
         put: operations["edit_gear_api_v1_gears_put"];
         /**
          * Create Gear
-         * @description Create a new gear for the authenticated user.
-         *
-         *     Args:
-         *         gear: Gear data to create.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Created GearRead record.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or gear
-         *             already exists.
+         * @description Create a gear for the authenticated user.
          */
         post: operations["create_gear_api_v1_gears_post"];
         delete?: never;
@@ -1313,20 +1195,7 @@ export interface paths {
         };
         /**
          * Read Gear Id
-         * @description Retrieve a gear by ID with computed stats.
-         *
-         *     Args:
-         *         gear_id: Gear ID to retrieve.
-         *         validate_id: Validates gear ID exists.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         GearDetailRead with stats, or None.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve a gear by ID with its total distance, time and components cost.
          */
         get: operations["read_gear_id_api_v1_gears_id__gear_id__get"];
         put?: never;
@@ -1346,19 +1215,7 @@ export interface paths {
         };
         /**
          * Read Gear User Contains Nickname
-         * @description Retrieve gears matching a nickname substring.
-         *
-         *     Args:
-         *         nickname: Substring to search for.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of GearRead matching the nickname.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve the authenticated user's gears whose nickname contains the text.
          */
         get: operations["read_gear_user_contains_nickname_api_v1_gears_nickname_contains__nickname__get"];
         put?: never;
@@ -1378,19 +1235,7 @@ export interface paths {
         };
         /**
          * Read Gear User By Nickname
-         * @description Retrieve a gear by exact nickname for a user.
-         *
-         *     Args:
-         *         nickname: Gear nickname to match.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         GearRead if found, None otherwise.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized.
+         * @description Retrieve the authenticated user's gear by exact nickname.
          */
         get: operations["read_gear_user_by_nickname_api_v1_gears_nickname__nickname__get"];
         put?: never;
@@ -1410,21 +1255,7 @@ export interface paths {
         };
         /**
          * Read Gear User By Type
-         * @description Retrieve gears by type for a user.
-         *
-         *     Args:
-         *         gear_type: Gear type identifier.
-         *         validate_type: Validates gear type value.
-         *         _check_scopes: Validates gears:read scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         List of GearRead matching the type.
-         *
-         *     Raises:
-         *         HTTPException: If unauthorized or invalid
-         *             type.
+         * @description Retrieve the authenticated user's gears of one type.
          */
         get: operations["read_gear_user_by_type_api_v1_gears_type__gear_type__get"];
         put?: never;
@@ -1447,21 +1278,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Gear
-         * @description Delete a gear by ID.
-         *
-         *     Args:
-         *         gear_id: Gear ID to delete.
-         *         validate_id: Validates gear ID exists.
-         *         _check_scopes: Validates gears:write scope.
-         *         token_user_id: Authenticated user ID.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: If gear not found, forbidden,
-         *             or unauthorized.
+         * @description Delete one of the authenticated user's gears.
          */
         delete: operations["delete_gear_api_v1_gears__gear_id__delete"];
         options?: never;
@@ -14315,7 +14132,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                gear_type: number;
+                gear_type: components["schemas"]["GearType"];
             };
             cookie?: never;
         };
