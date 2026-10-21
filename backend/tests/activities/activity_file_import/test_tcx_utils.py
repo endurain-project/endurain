@@ -883,6 +883,21 @@ class TestParseTcxFileElevation:
         assert result["activity"].elevation_gain is not None
 
 
+def _write_tcx(tmp_path, trackpoints: str) -> str:
+    """Write a single-lap running TCX with the given <Trackpoint> elements and return its path."""
+    path = tmp_path / "activity.tcx"
+    path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">'
+        '<Activities><Activity Sport="Running"><Id>2026-06-20T08:00:00Z</Id>'
+        '<Lap StartTime="2026-06-20T08:00:00Z"><TotalTimeSeconds>180</TotalTimeSeconds>'
+        f"<DistanceMeters>500</DistanceMeters><Track>{trackpoints}</Track></Lap>"
+        "</Activity></Activities></TrainingCenterDatabase>",
+        encoding="utf-8",
+    )
+    return str(path)
+
+
 def _gps_less_tcx(trackpoints: list[dict]) -> SimpleNamespace:
     """Build a tcxreader-like TCX whose trackpoints carry no <Position>."""
     tcx = SimpleNamespace(
@@ -982,6 +997,45 @@ class TestTcxWithoutGps:
 
         mock_resolve_timezone.assert_called_once_with(40.0, -3.0, _SERVER_TZ)
         assert result["activity"].timezone == "Europe/Madrid"
+
+    def test_parse_tcx_file_reads_real_gps_less_file(self, tmp_path):
+        trackpoints = "".join(
+            f"<Trackpoint><Time>2026-06-20T08:0{minute}:00Z</Time>"
+            f"<HeartRateBpm><Value>{120 + minute}</Value></HeartRateBpm></Trackpoint>"
+            for minute in range(3)
+        )
+        file = _write_tcx(tmp_path, trackpoints)
+
+        result = tcx_utils.parse_tcx_file(file=file, user_id=1, default_timezone="Europe/Lisbon")
+
+        activity = result["activity"]
+        assert activity.start_time == datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+        assert activity.end_time == datetime(2026, 6, 20, 8, 2, 0, tzinfo=UTC)
+        assert activity.timezone == "Europe/Lisbon"
+        assert result["is_lat_lon_set"] is False
+        assert result["is_heart_rate_set"] is True
+        assert [wp["hr"] for wp in result["hr_waypoints"]] == [120, 121, 122]
+        assert result["is_elevation_set"] is False
+        assert all(wp["ele"] is not None for wp in result["ele_waypoints"])
+
+    def test_parse_tcx_file_starts_gps_file_at_first_positioned_point(self, tmp_path):
+        trackpoints = "<Trackpoint><Time>2026-06-20T08:00:00Z</Time></Trackpoint>" + "".join(
+            f"<Trackpoint><Time>2026-06-20T08:0{minute}:00Z</Time>"
+            f"<Position><LatitudeDegrees>40.0{minute}</LatitudeDegrees>"
+            "<LongitudeDegrees>-3.0</LongitudeDegrees></Position></Trackpoint>"
+            for minute in range(1, 4)
+        )
+        file = _write_tcx(tmp_path, trackpoints)
+
+        with patch(
+            "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+            return_value="Europe/Madrid",
+        ):
+            result = tcx_utils.parse_tcx_file(file=file, user_id=1, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].start_time == datetime(2026, 6, 20, 8, 1, 0, tzinfo=UTC)
+        assert result["is_lat_lon_set"] is True
+        assert len(result["lat_lon_waypoints"]) == 3
 
     def test_parse_laps_handles_lap_without_trackpoints(self):
         dt = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)

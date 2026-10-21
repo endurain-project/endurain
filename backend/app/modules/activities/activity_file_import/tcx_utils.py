@@ -145,7 +145,7 @@ def _extract_waypoints(
             "hr": tp["hr_value"],
         }
         for tp in trackpoints
-        if "hr_value" in tp and tp.get("time") is not None
+        if tp.get("hr_value") is not None and tp.get("time") is not None
     ]
 
     cad_waypoints = [
@@ -375,6 +375,27 @@ def _build_activity(
     )
 
 
+def _read_tcx(file: str) -> Any:
+    """Read a TCX file, falling back to keeping position-less trackpoints.
+
+    tcxreader's default ``only_gps=True`` drops every trackpoint without a
+    longitude. GPS files keep that default so their start time (part of the
+    dedup key) and stats stay as tcxreader computes them; a file left with no
+    trackpoints (indoor/treadmill) is re-read with ``only_gps=False``.
+
+    Args:
+        file: Path to the TCX file.
+
+    Returns:
+        Parsed TCX exercise object.
+    """
+    reader = tcxreader.TCXReader()
+    tcx_file = reader.read(file)
+    if not tcx_file.trackpoints:
+        tcx_file = reader.read(file, only_gps=False)
+    return tcx_file
+
+
 def parse_tcx_file(
     file: str,
     user_id: int,
@@ -402,7 +423,7 @@ def parse_tcx_file(
     """
     try:
         logger.debug("TCX parse start", extra=core_logger.context(file=Path(file).name, user_id=user_id))
-        tcx_file = tcxreader.TCXReader().read(file)
+        tcx_file = _read_tcx(file)
         trackpoints = tcx_file.trackpoints_to_dict()
 
         # Only used when the file carries no GPS track to resolve a zone from.
