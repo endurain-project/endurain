@@ -6,6 +6,7 @@ from sqlalchemy import delete, desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.notifications.models as notifications_models
@@ -13,6 +14,9 @@ import modules.notifications.schema as notifications_schema
 import modules.notifications.serializers as notifications_serializers
 
 logger = core_logger.get_logger(__name__)
+
+#: The unique constraint on ``(source_event_id, user_id, type)``.
+_UNIQUE_EVENT_CONSTRAINT = "uq_notifications_source_event_user_type"
 
 
 def get_user_notification_by_id(
@@ -158,6 +162,7 @@ def create_notification_once(
         The notification and whether this call created it.
 
     Raises:
+        NotFoundError: If the owning user no longer exists.
         ConflictError: If an unrelated database constraint fails.
     """
     if notification.source_event_id is None:
@@ -176,6 +181,9 @@ def create_notification_once(
         with db.begin_nested():
             return create_notification(notification, db), True
     except IntegrityError as err:
+        constraint = core_database.violated_constraint(err)
+        if constraint is not None and constraint != _UNIQUE_EVENT_CONSTRAINT:
+            raise core_exceptions.NotFoundError("User not found") from err
         existing = get_notification_by_source_event(
             notification.source_event_id,
             notification.user_id,

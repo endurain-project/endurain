@@ -1,6 +1,5 @@
 """Sign-up tokens router for user registration."""
 
-import asyncio
 from typing import Annotated
 
 from fastapi import (
@@ -13,6 +12,7 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
+import core.async_bridge as core_async_bridge
 import core.database as core_database
 import core.mail as core_mail
 import core.rate_limit as core_rate_limit
@@ -152,14 +152,12 @@ async def verify_email(
             notifications_integration.create_admin_sign_up_approval_notifications, user, db
         )
         await run_in_threadpool(db.commit)
-        await asyncio.gather(
-            *(
+        for notification, ws_message in notifications:
+            core_async_bridge.dispatch(
                 websocket_integration.push_to_user(
                     notification.user_id, {"message": ws_message, "notification_id": notification.id}
                 )
-                for notification, ws_message in notifications
             )
-        )
 
     # Return appropriate response based on server configuration
     message = "Email verified successfully."
