@@ -1,5 +1,6 @@
-import asyncio
 import json
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import garminconnect
 import requests
@@ -10,126 +11,154 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
+import core.database as core_database
 import core.logger as core_logger
+import modules.garmin.link_state_store as garmin_link_state_store
 import modules.garmin.mfa_code_store as garmin_mfa_code_store
 import modules.users.users_integrations.crud as user_integrations_crud
 import modules.users.users_integrations.schema as user_integrations_schema
-import modules.websocket.manager as websocket_manager
-import modules.websocket.utils as websocket_utils
 
 logger = core_logger.get_logger(__name__)
 
 
-async def get_mfa(
+# Logins run here, not on the request threadpool: one waits up to MFA_WAIT_SECONDS for the
+# user's code, and a few users linking at once must not leave the API without worker threads.
+_LINK_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="garmin-link")
+
+MFA_WAIT_SECONDS = 60
+
+
+def wait_for_mfa_code(
     user_id: int,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
-    websocket_manager: websocket_manager.WebSocketManager,
-) -> str:
-    # Notify frontend that MFA is required
-    await notify_frontend_mfa_required(user_id, websocket_manager)
+    link_states: garmin_link_state_store.GarminLinkStateStore,
+) -> str | None:
+    """
+    Ask for an MFA code through the shared link state and wait for the user to submit it.
 
-    # Wait for the MFA code
-    for _ in range(60):  # Timeout after 60 seconds
-        if mfa_codes.has_code(user_id):
-            return mfa_codes.get_code(user_id)
-        await asyncio.sleep(1)
+    The prompt is the ``mfa_required`` state the browser polls, so it reaches the user on
+    whichever replica answers the poll. The code arrives through the shared code store the
+    same way.
 
+    Args:
+        user_id: The user linking Garmin Connect.
+        mfa_codes: Shared store the submitted code lands in.
+        link_states: Shared store of the link attempt's state.
+
+    Returns:
+        The code, or None when none arrived within ``MFA_WAIT_SECONDS``.
+    """
+    link_states.set_status(user_id, garmin_link_state_store.LinkStatus.MFA_REQUIRED)
+    for _ in range(MFA_WAIT_SECONDS):
+        code = mfa_codes.get_code(user_id)
+        if code is not None:
+            link_states.set_status(user_id, garmin_link_state_store.LinkStatus.PENDING)
+            return code
+        time.sleep(1)
     return None
 
 
-async def notify_frontend_mfa_required(user_id: int, websocket_manager: websocket_manager.WebSocketManager):
-    try:
-        json_data = {"message": "MFA_REQUIRED", "user_id": user_id}
-        await websocket_utils.notify_frontend(user_id, websocket_manager, json_data)
-    except HTTPException as http_err:
-        raise http_err
-
-
-async def link_garminconnect(
+def start_garminconnect_link(
     user_id: int,
     email: str,
     password: str,
-    db: Session,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
-    websocket_manager: websocket_manager.WebSocketManager,
+    link_states: garmin_link_state_store.GarminLinkStateStore,
     is_cn: bool = False,
-):
-    # Capture the running event loop so the thread can schedule async work on it
-    loop = asyncio.get_running_loop()
+) -> None:
+    """
+    Run a Garmin Connect link on a dedicated worker thread and return at once.
 
-    def blocking_login():
-        # Bridge sync→async: schedule the async MFA prompt on the event loop
-        # and block the thread until the user submits the code (timeout 65 s)
-        def sync_mfa_callback():
-            future = asyncio.run_coroutine_threadsafe(get_mfa(user_id, mfa_codes, websocket_manager), loop)
-            return future.result(timeout=65)
+    The outcome is recorded in the shared link state. The credentials stay in this
+    process's memory and are never stored, which is why this is not a durable job.
 
-        # Create a new Garmin object
+    Args:
+        user_id: The user linking Garmin Connect.
+        email: Garmin Connect username.
+        password: Garmin Connect password.
+        mfa_codes: Shared store the submitted MFA code lands in.
+        link_states: Shared store of the link attempt's state.
+        is_cn: Whether to authenticate against Garmin's China region.
+    """
+    _LINK_EXECUTOR.submit(link_garminconnect, user_id, email, password, mfa_codes, link_states, is_cn)
+
+
+def link_garminconnect(
+    user_id: int,
+    email: str,
+    password: str,
+    mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
+    link_states: garmin_link_state_store.GarminLinkStateStore,
+    is_cn: bool = False,
+) -> None:
+    """
+    Log in to Garmin Connect, store the token and record the outcome in the link state.
+
+    Blocking; call it through :func:`start_garminconnect_link`. It never raises: every
+    outcome, including a failure, ends as the recorded state.
+
+    Args:
+        user_id: The user linking Garmin Connect.
+        email: Garmin Connect username.
+        password: Garmin Connect password.
+        mfa_codes: Shared store the submitted MFA code lands in.
+        link_states: Shared store of the link attempt's state.
+        is_cn: Whether to authenticate against Garmin's China region.
+    """
+    # A code left by an earlier attempt must not answer this one's prompt.
+    mfa_codes.delete_code(user_id)
+    try:
         garmin = garminconnect.Garmin(
             email=email,
             password=password,
             is_cn=is_cn,
-            prompt_mfa=sync_mfa_callback,
+            prompt_mfa=lambda: wait_for_mfa_code(user_id, mfa_codes, link_states),
         )
         garmin.login()
 
-        return garmin
-
-    try:
-        # Run the blocking `login()` call in a thread
-        garmin = await asyncio.to_thread(blocking_login)
-
         if not garmin.client.di_token:
-            raise HTTPException(
-                status_code=status.HTTP_424_FAILED_DEPENDENCY,
-                detail="Incorrect Garmin Connect credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise garminconnect.GarminConnectAuthenticationError("Garmin Connect returned no token")
 
-        user_integrations_crud.link_garminconnect_account(
-            user_id,
-            serialize_garmin_token(garmin.client, is_cn),
-            db,
-        )
-    except HTTPException as http_err:
-        raise http_err
+        with core_database.SessionLocal() as db:
+            user_integrations_crud.link_garminconnect_account(
+                user_id,
+                serialize_garmin_token(garmin.client, is_cn),
+                db,
+            )
     except (
         garminconnect.GarminConnectAuthenticationError,
         requests.exceptions.HTTPError,
     ) as err:
-        # Print error info to check dedicated log in main log
         logger.error(
-            "There was an authentication error using Garmin Connect. Check credentials: {err}",
+            "There was an authentication error using Garmin Connect. Check credentials",
             exc_info=err,
             extra=core_logger.context(console=True),
         )
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="There was an authentication error using Garmin Connect. Check credentials.",
-        ) from err
-    except garminconnect.GarminConnectTooManyRequestsError as err:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many requests to Garmin Connect",
-        ) from err
-    except TypeError as err:
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Incorrect MFA code",
-        ) from err
+        link_states.set_status(
+            user_id, garmin_link_state_store.LinkStatus.FAILED, garmin_link_state_store.LinkFailure.INVALID_CREDENTIALS
+        )
+    except garminconnect.GarminConnectTooManyRequestsError:
+        link_states.set_status(
+            user_id, garmin_link_state_store.LinkStatus.FAILED, garmin_link_state_store.LinkFailure.TOO_MANY_REQUESTS
+        )
+    except TypeError:
+        # The library fails this way when the MFA prompt returns no code or a wrong one.
+        link_states.set_status(
+            user_id, garmin_link_state_store.LinkStatus.FAILED, garmin_link_state_store.LinkFailure.INCORRECT_MFA
+        )
     except Exception as err:
         logger.error(
-            f"Internal server error while linking Garmin Connect: {err}",
+            "Internal error while linking Garmin Connect",
             exc_info=err,
             extra=core_logger.context(console=True),
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error while linking Garmin Connect",
-        ) from err
+        link_states.set_status(
+            user_id, garmin_link_state_store.LinkStatus.FAILED, garmin_link_state_store.LinkFailure.INTERNAL
+        )
+    else:
+        link_states.set_status(user_id, garmin_link_state_store.LinkStatus.COMPLETED)
     finally:
-        if mfa_codes.has_code(user_id):
-            mfa_codes.delete_code(user_id)
+        mfa_codes.delete_code(user_id)
 
 
 def login_garminconnect_using_tokens(token):

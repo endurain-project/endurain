@@ -407,6 +407,10 @@ export const queryKeys = {
    * terminal; it creates activities rather than caching any, so it has no
    * invalidation role of its own.
    */
+  integrations: {
+    /** @returns A query key for the Garmin Connect link attempt's progress. */
+    garminLinkStatus: () => ['integrations', 'garmin-link-status'] as const,
+  },
   bulkImport: {
     /**
      * @param jobId - The ingestion job returned when the import was accepted.

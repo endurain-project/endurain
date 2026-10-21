@@ -1018,8 +1018,35 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Garminconnect Link */
+        /**
+         * Garminconnect Link
+         * @description Start linking a Garmin Connect account and return at once.
+         *
+         *     The login runs in the background. Poll ``GET /garminconnect/link/status``: when it reports
+         *     ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
+         *     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
+         */
         post: operations["garminconnect_link_api_v1_garminconnect_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/garminconnect/link/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Garminconnect Link Status
+         * @description Report where the authenticated user's Garmin Connect link attempt is.
+         */
+        get: operations["garminconnect_link_status_api_v1_garminconnect_link_status_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5733,6 +5760,19 @@ export interface components {
          * @enum {string}
          */
         FollowStatus: "pending" | "accepted";
+        /**
+         * GarminLinkStatus
+         * @description Where a Garmin Connect link attempt is.
+         *
+         *     Attributes:
+         *         status: ``pending`` while logging in, ``mfa_required`` when the user must submit a code
+         *             through ``POST /garminconnect/mfa``, then ``completed`` or ``failed``.
+         *         reason: Why the attempt failed; set only when ``status`` is ``failed``.
+         */
+        GarminLinkStatus: {
+            reason?: components["schemas"]["LinkFailure"] | null;
+            status: components["schemas"]["LinkStatus"];
+        };
         /** GarminLogin */
         GarminLogin: {
             /**
@@ -8563,6 +8603,18 @@ export interface components {
              */
             type_breakdown?: components["schemas"]["TypeBreakdownItem"][] | null;
         };
+        /**
+         * LinkFailure
+         * @description Why a Garmin Connect link attempt failed, for the client to word.
+         * @enum {string}
+         */
+        LinkFailure: "invalid_credentials" | "incorrect_mfa" | "too_many_requests" | "internal";
+        /**
+         * LinkStatus
+         * @description Where a Garmin Connect link attempt is.
+         * @enum {string}
+         */
+        LinkStatus: "pending" | "mfa_required" | "completed" | "failed";
         /**
          * LogoutResponse
          * @description Response payload returned by the logout endpoint.
@@ -13492,12 +13544,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GarminLinkStatus"];
                 };
             };
             /** @description Validation Error */
@@ -13507,6 +13559,35 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    garminconnect_link_status_api_v1_garminconnect_link_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GarminLinkStatus"];
                 };
             };
             /** @description Unexpected error */

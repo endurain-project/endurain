@@ -1,5 +1,6 @@
 import type {
   DateRange,
+  GarminLinkStatus,
   GarminLoginDto,
   GarminLoginInput,
   GarminMfaDto,
@@ -8,14 +9,15 @@ import type {
 import { apiFetch } from '@/services/http'
 
 /**
- * Begins linking a Garmin Connect account. When the account has MFA enabled the
- * backend signals `MFA_REQUIRED` over the realtime channel and this request
- * stays pending until the code is supplied via {@link submitGarminMfa}.
+ * Starts linking a Garmin Connect account. The login runs in the background, so this
+ * returns at once; follow it with {@link fetchGarminLinkStatus}. When the account has MFA
+ * the status turns `mfa_required` and the code goes through {@link submitGarminMfa}.
  *
  * @param input - The Garmin Connect username and password.
- * @throws {HttpError} When authentication fails.
+ * @returns The attempt's initial status (`pending`).
+ * @throws {HttpError} When the request fails, including 409 while another link is running.
  */
-export async function linkGarmin(input: GarminLoginInput): Promise<void> {
+export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkStatus> {
   const payload: GarminLoginDto = {
     username: input.username,
     password: input.password,
@@ -23,15 +25,26 @@ export async function linkGarmin(input: GarminLoginInput): Promise<void> {
     // region; the dialog's toggle drives this flag.
     is_cn: input.isCn,
   }
-  await apiFetch('/garminconnect/link', {
+  return apiFetch<GarminLinkStatus>('/garminconnect/link', {
     method: 'POST',
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
 }
 
 /**
- * Submits the Garmin Connect MFA code, unblocking a pending {@link linkGarmin}.
+ * Reads where the Garmin Connect link attempt is. The state lives on the server, so any
+ * backend replica answers it and nothing depends on a realtime push arriving.
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The attempt's status, with the failure reason once it has failed.
+ * @throws {HttpError} When the request fails, including 404 once no attempt is recorded.
+ */
+export async function fetchGarminLinkStatus(signal?: AbortSignal): Promise<GarminLinkStatus> {
+  return apiFetch<GarminLinkStatus>('/garminconnect/link/status', { signal })
+}
+
+/**
+ * Submits the Garmin Connect MFA code the link attempt asked for.
  *
  * @param code - The MFA code from the user's authenticator/SMS.
  * @throws {HttpError} When the request fails.

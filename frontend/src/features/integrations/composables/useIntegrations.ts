@@ -1,9 +1,11 @@
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import type { Ref } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { DateRange, GarminLoginInput } from '@/features/integrations/types'
+import type { DateRange, GarminLinkStatus, GarminLoginInput } from '@/features/integrations/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import {
+  fetchGarminLinkStatus,
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -49,16 +51,47 @@ export function useUnlinkStravaMutation() {
   })
 }
 
+/** How often the Garmin Connect link status is read while the attempt is running. */
+const GARMIN_LINK_POLL_MS = 1_500
+
 /**
- * Links a Garmin Connect account. The request may stay pending until an MFA
- * code is supplied (see {@link useSubmitGarminMfaMutation}); on success it
- * refreshes the profile link status.
+ * Starts linking a Garmin Connect account. It resolves as soon as the background login is
+ * accepted; {@link useGarminLinkStatusQuery} then follows it to its outcome.
  */
 export function useLinkGarminMutation() {
-  const invalidateProfile = useProfileInvalidation()
-  return useMutation<void, Error, GarminLoginInput>({
+  return useMutation<GarminLinkStatus, Error, GarminLoginInput>({
     mutationFn: (input) => linkGarmin(input),
-    onSuccess: invalidateProfile,
+  })
+}
+
+/**
+ * Follows a Garmin Connect link attempt by polling its status until it completes or fails.
+ * It keeps polling in a background tab, because the user may be reading an MFA code in
+ * another app. A completed link refreshes the profile's link status.
+ *
+ * @param enabled - Whether an attempt is being followed.
+ * @returns The TanStack Query result for the attempt's status.
+ */
+export function useGarminLinkStatusQuery(enabled: Ref<boolean>) {
+  const invalidateProfile = useProfileInvalidation()
+  return useQuery<GarminLinkStatus, Error>({
+    queryKey: queryKeys.integrations.garminLinkStatus(),
+    queryFn: async ({ signal }) => {
+      const status = await fetchGarminLinkStatus(signal)
+      if (status.status === 'completed') {
+        invalidateProfile()
+      }
+      return status
+    },
+    enabled,
+    retry: false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'completed' || status === 'failed' ? false : GARMIN_LINK_POLL_MS
+    },
+    refetchIntervalInBackground: true,
+    // A fresh attempt must not start from the previous attempt's outcome.
+    gcTime: 0,
   })
 }
 

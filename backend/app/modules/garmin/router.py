@@ -15,12 +15,12 @@ import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
 import modules.garmin.gear_utils as garmin_gear_utils
 import modules.garmin.health_utils as garmin_health_utils
+import modules.garmin.link_state_store as garmin_link_state_store
 import modules.garmin.mfa_code_store as garmin_mfa_code_store
 import modules.garmin.provider_registry as garmin_provider_registry
 import modules.garmin.schema as garmin_schema
 import modules.garmin.utils as garmin_utils
 import modules.users.users_integrations.crud as user_integrations_crud
-import modules.websocket.manager as websocket_manager
 
 logger = core_logger.get_logger(__name__)
 
@@ -30,36 +30,63 @@ router = APIRouter()
 
 @router.post(
     "/link",
+    status_code=202,
+    response_model=garmin_schema.GarminLinkStatus,
 )
-async def garminconnect_link(
+def garminconnect_link(
     garmin_user: garmin_schema.GarminLogin,
     token_user_id: Annotated[
         int,
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
-    db: Annotated[Session, Depends(core_database.get_db)],
     mfa_codes: Annotated[
         garmin_mfa_code_store.GarminMFACodeStore,
         Depends(garmin_mfa_code_store.get_garmin_mfa_code_store),
     ],
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
+    link_states: Annotated[
+        garmin_link_state_store.GarminLinkStateStore,
+        Depends(garmin_link_state_store.get_garmin_link_state_store),
     ],
-):
-    # Link Garmin Connect account
-    await garmin_utils.link_garminconnect(
+) -> garmin_schema.GarminLinkStatus:
+    """Start linking a Garmin Connect account and return at once.
+
+    The login runs in the background. Poll ``GET /garminconnect/link/status``: when it reports
+    ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
+    reports ``completed`` or ``failed``. A second request while one is running is answered 409.
+    """
+    if not link_states.begin(token_user_id):
+        raise core_exceptions.ConflictError("A Garmin Connect link is already in progress")
+
+    garmin_utils.start_garminconnect_link(
         token_user_id,
         garmin_user.username,
         garmin_user.password,
-        db,
         mfa_codes,
-        websocket_manager,
+        link_states,
         garmin_user.is_cn,
     )
+    return garmin_schema.GarminLinkStatus(status=garmin_link_state_store.LinkStatus.PENDING)
 
-    # Return success message
-    return {f"Garmin Connect linked for user {token_user_id} successfully"}
+
+@router.get(
+    "/link/status",
+    response_model=garmin_schema.GarminLinkStatus,
+)
+def garminconnect_link_status(
+    token_user_id: Annotated[
+        int,
+        Depends(auth_dependencies.get_sub_from_access_token),
+    ],
+    link_states: Annotated[
+        garmin_link_state_store.GarminLinkStateStore,
+        Depends(garmin_link_state_store.get_garmin_link_state_store),
+    ],
+) -> garmin_schema.GarminLinkStatus:
+    """Report where the authenticated user's Garmin Connect link attempt is."""
+    state = link_states.get(token_user_id)
+    if state is None:
+        raise core_exceptions.NotFoundError("No Garmin Connect link in progress")
+    return garmin_schema.GarminLinkStatus(status=state.status, reason=state.reason)
 
 
 @router.post("/mfa")
