@@ -39,7 +39,7 @@ Files with the extensions .fit, .tcx, .gpx and .gz are imported; other files are
 
 A file that could not be imported does not stop the others: it is counted as failed, and its bytes are kept in the `bulk_import_errors` storage area under `<user id>/<import id>/<file name>`. A finished import with failed files still shows as completed, with the failure count.
 
-Elevation is smoothed on import (a median filter of 9 samples followed by a 21-sample moving average, over the whole activity) for .fit, .gpx and .tcx files and for Strava sync. The elevation graph and the elevation gain/loss use the same smoothed series. Activities imported before this change keep their raw elevation until they are imported again.
+Elevation is smoothed on import (a median filter of 9 samples followed by a 21-sample moving average, over the whole activity) for .fit, .gpx and .tcx files and for Strava sync. The elevation graph uses the smoothed series, and elevation gain/loss that Endurain derives from the elevation data uses the same series. Gain/loss totals recorded by the device in a .fit file are kept as they are and can differ from the graph. Activities that already exist keep their raw elevation: importing them again is skipped as a duplicate and does not replace them.
 
 Reverse geocoding services may rate limit large imports; locations that could not be resolved are filled in by a scheduled job later.
 
