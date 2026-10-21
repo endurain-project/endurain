@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 from jasil.events import new_event
 
+import core.exceptions as core_exceptions
+
 
 def _event(event_type, payload):
     return new_event(event_type, payload, source="test")
@@ -47,6 +49,16 @@ class TestOnFollowerRequestedNotify:
             "NEW_FOLLOWER_REQUEST_NOTIFICATION",
             False,
         )
+        notify_follower_requested_for_event(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
+        mock_bridge.dispatch.assert_not_called()
+
+    @patch("modules.notifications.subscribers.core_async_bridge")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_service")
+    def test_drops_event_for_a_deleted_user_without_raising(self, mock_notif, mock_db, mock_bridge):
+        from modules.notifications.subscribers import notify_follower_requested_for_event
+
+        mock_notif.create_follow_request_notification.side_effect = core_exceptions.NotFoundError("User not found")
         notify_follower_requested_for_event(_event("follower.requested", {"requester_user_id": 1, "target_user_id": 2}))
         mock_bridge.dispatch.assert_not_called()
 

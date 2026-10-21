@@ -11,6 +11,7 @@ class NotificationType(IntEnum):
         DUPLICATE_ACTIVITY: Duplicate activity notification.
         NEW_FOLLOWER_REQUEST: New follower request notification.
         NEW_FOLLOWER_REQUEST_ACCEPTED: Follower request accepted notification.
+        GARMIN_TOKEN_EXPIRED: Garmin Connect account unlinked after its token expired.
         ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: Admin sign-up approval request
             notification.
     """

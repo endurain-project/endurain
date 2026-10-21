@@ -12,12 +12,26 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
 import modules.notifications.schema as notifications_schema
 import modules.users.users.integration_service as users_integration
+import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
+
+
+def user_reference_options(user: users_schema.UsersRead) -> dict[str, object]:
+    """Build the notification options that name another user.
+
+    Args:
+        user: The user the notification refers to.
+
+    Returns:
+        The options carrying the user's ID, name and username.
+    """
+    return {"user_id": user.id, "user_name": user.name, "user_username": user.username}
 
 
 def count_notifications(user_id: int, db: Session) -> int:
@@ -33,7 +47,7 @@ def count_notifications(user_id: int, db: Session) -> int:
     return notifications_crud.get_user_notifications_count(user_id, db)
 
 
-def get_notification(notification_id: int, user_id: int, db: Session) -> notifications_schema.NotificationRead | None:
+def get_notification(notification_id: int, user_id: int, db: Session) -> notifications_schema.NotificationRead:
     """Return one of the user's notifications.
 
     Args:
@@ -42,9 +56,15 @@ def get_notification(notification_id: int, user_id: int, db: Session) -> notific
         db: Database session.
 
     Returns:
-        The notification, or None when the user has no such notification.
+        The notification.
+
+    Raises:
+        NotFoundError: When the user has no such notification.
     """
-    return notifications_crud.get_user_notification_by_id(notification_id, user_id, db)
+    notification = notifications_crud.get_user_notification_by_id(notification_id, user_id, db)
+    if notification is None:
+        raise core_exceptions.NotFoundError("Notification not found")
+    return notification
 
 
 def list_notifications(
@@ -53,7 +73,7 @@ def list_notifications(
     *,
     page_number: int,
     num_records: int,
-) -> list[notifications_schema.NotificationRead]:
+) -> core_pagination.Page[notifications_schema.NotificationRead]:
     """Return one page of the user's notifications, newest first.
 
     Args:
@@ -63,22 +83,26 @@ def list_notifications(
         num_records: Page size.
 
     Returns:
-        The notifications for the page.
+        The page envelope with the user's total.
     """
-    return notifications_crud.get_user_notifications_with_pagination(user_id, db, page_number, num_records)
+    items = notifications_crud.get_user_notifications_with_pagination(user_id, db, page_number, num_records)
+    total = notifications_crud.get_user_notifications_count(user_id, db)
+    return core_pagination.Page.build(items, total, page_number, num_records)
 
 
 def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -> None:
     """Mark one of the user's notifications as read.
 
-    A notification the user does not own is left alone and not reported.
-
     Args:
         notification_id: The notification to mark.
         user_id: The owning user.
         db: Database session.
+
+    Raises:
+        NotFoundError: When the user has no such notification.
     """
-    notifications_crud.mark_notification_as_read(notification_id, user_id, db)
+    if notifications_crud.mark_notification_as_read(notification_id, user_id, db) is None:
+        raise core_exceptions.NotFoundError("Notification not found")
     db.commit()
     logger.debug(
         "Marked notification as read",
@@ -177,11 +201,7 @@ def create_follow_request_notification(
             user_id=target_user_id,
             type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST,
             source_event_id=source_event_id,
-            options={
-                "user_id": requester_user_id,
-                "user_name": user.name,
-                "user_username": user.username,
-            },
+            options=user_reference_options(user),
         ),
         db,
     )
@@ -227,11 +247,7 @@ def create_follow_accepted_notification(
             user_id=requester_user_id,
             type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED,
             source_event_id=source_event_id,
-            options={
-                "user_id": accepter_user_id,
-                "user_name": user.name,
-                "user_username": user.username,
-            },
+            options=user_reference_options(user),
         ),
         db,
     )

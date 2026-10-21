@@ -14,18 +14,39 @@ class TestReadsAndMarks:
         with patch("modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=3):
             assert notifications_service.count_notifications(1, mock_db) == 3
 
-    def test_list_passes_the_window(self, mock_db):
-        with patch(
-            "modules.notifications.service.notifications_crud.get_user_notifications_with_pagination", return_value=[]
-        ) as crud_list:
-            notifications_service.list_notifications(1, mock_db, page_number=2, num_records=5)
+    def test_list_returns_the_page_with_the_total(self, mock_db):
+        with (
+            patch(
+                "modules.notifications.service.notifications_crud.get_user_notifications_with_pagination",
+                return_value=[],
+            ) as crud_list,
+            patch("modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=7),
+        ):
+            page = notifications_service.list_notifications(1, mock_db, page_number=2, num_records=5)
         crud_list.assert_called_once_with(1, mock_db, 2, 5)
+        assert page.total == 7
+        assert page.next is None
+
+    def test_get_missing_notification_raises(self, mock_db):
+        with (
+            patch("modules.notifications.service.notifications_crud.get_user_notification_by_id", return_value=None),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            notifications_service.get_notification(4, 1, mock_db)
 
     def test_mark_read_commits(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_notification_as_read") as mark:
             notifications_service.mark_notification_as_read(4, 1, mock_db)
         mark.assert_called_once_with(4, 1, mock_db)
         mock_db.commit.assert_called_once()
+
+    def test_mark_read_missing_raises_without_commit(self, mock_db):
+        with (
+            patch("modules.notifications.service.notifications_crud.mark_notification_as_read", return_value=None),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            notifications_service.mark_notification_as_read(4, 1, mock_db)
+        mock_db.commit.assert_not_called()
 
     def test_mark_all_read_commits(self, mock_db):
         with patch("modules.notifications.service.notifications_crud.mark_all_notifications_as_read") as mark:
@@ -74,7 +95,7 @@ class TestCreateActivityCreatedNotification:
 
 class TestCreateFollowNotifications:
     def test_follow_request_names_the_requester(self, mock_db):
-        requester = MagicMock()
+        requester = MagicMock(id=1)
         requester.name = "Ann"
         requester.username = "ann"
         with (
@@ -103,7 +124,7 @@ class TestCreateFollowNotifications:
         mock_db.commit.assert_not_called()
 
     def test_follow_accepted_notifies_the_requester(self, mock_db):
-        accepter = MagicMock()
+        accepter = MagicMock(id=2)
         accepter.name = "Bob"
         accepter.username = "bob"
         with (

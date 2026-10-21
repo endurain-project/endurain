@@ -4,6 +4,7 @@ from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.notifications.models as notifications_models
 import modules.notifications.schema as notifications_schema
@@ -130,8 +131,6 @@ def create_notification(
         type=notification.type,
         source_event_id=notification.source_event_id,
         options=notification.options,
-        read=False,
-        created_at=func.now(),
     )
     db.add(new_notification)
     db.flush()
@@ -157,7 +156,7 @@ def create_notification_once(
         The notification and whether this call created it.
 
     Raises:
-        IntegrityError: If an unrelated database constraint fails.
+        ConflictError: If an unrelated database constraint fails.
     """
     if notification.source_event_id is None:
         return create_notification(notification, db), True
@@ -174,7 +173,7 @@ def create_notification_once(
     try:
         with db.begin_nested():
             return create_notification(notification, db), True
-    except IntegrityError:
+    except IntegrityError as err:
         existing = get_notification_by_source_event(
             notification.source_event_id,
             notification.user_id,
@@ -182,7 +181,7 @@ def create_notification_once(
             db,
         )
         if existing is None:
-            raise
+            raise core_exceptions.ConflictError("Notification conflicts with an existing record") from err
         logger.warning(
             "Recovered concurrent duplicate notification delivery",
             extra=core_logger.context(

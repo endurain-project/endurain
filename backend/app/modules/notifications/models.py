@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -24,6 +24,7 @@ class Notification(Base):
 
     __tablename__ = "notifications"
     __table_args__ = (
+        Index("ix_notifications_user_id_created_at", "user_id", "created_at"),
         UniqueConstraint(
             "source_event_id",
             "user_id",
@@ -39,7 +40,6 @@ class Notification(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
         comment="User ID that the notification belongs to",
     )
     type: Mapped[int] = mapped_column(

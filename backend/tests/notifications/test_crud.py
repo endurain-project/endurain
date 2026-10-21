@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+import core.exceptions as core_exceptions
+
 
 class TestGetUserNotificationById:
     def test_success(self, mock_db):
@@ -147,7 +149,7 @@ class TestCreateNotificationOnce:
         assert notification is existing
         assert created is False
 
-    def test_unrelated_integrity_error_propagates(self, mock_db):
+    def test_unrelated_integrity_error_becomes_conflict(self, mock_db):
         import modules.notifications.crud as crud
         import modules.notifications.schema as schema
 
@@ -169,7 +171,7 @@ class TestCreateNotificationOnce:
                 "modules.notifications.crud.create_notification",
                 side_effect=integrity_error,
             ),
-            pytest.raises(IntegrityError),
+            pytest.raises(core_exceptions.ConflictError),
         ):
             crud.create_notification_once(notification_data, mock_db)
 

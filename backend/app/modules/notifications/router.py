@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.notifications.schema as notifications_schema
@@ -31,7 +32,7 @@ def read_notifications_number(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> int:
     """Retrieve notification count for the user.
 
     Args:
@@ -48,7 +49,7 @@ def read_notifications_number(
 
 @router.get(
     "/{notification_id}",
-    response_model=(notifications_schema.NotificationRead | None),
+    response_model=notifications_schema.NotificationRead,
     status_code=status.HTTP_200_OK,
 )
 def read_notifications_by_id(
@@ -62,7 +63,7 @@ def read_notifications_by_id(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> notifications_schema.NotificationRead:
     """Retrieve a notification by ID for the user.
 
     Args:
@@ -73,19 +74,17 @@ def read_notifications_by_id(
         db: Database session dependency.
 
     Returns:
-        Notification object or None if not found.
+        The notification.
     """
     return notifications_service.get_notification(notification_id, token_user_id, db)
 
 
 @router.get(
-    "/page_number/{page_number}/num_records/{num_records}",
-    response_model=(list[notifications_schema.NotificationRead] | None),
+    "",
+    response_model=core_pagination.Page[notifications_schema.NotificationRead],
     status_code=status.HTTP_200_OK,
 )
 def read_notifications_user_pagination(
-    page_number: core_dependencies.PositiveId,
-    num_records: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
     token_user_id: Annotated[
         int,
@@ -95,25 +94,25 @@ def read_notifications_user_pagination(
         Session,
         Depends(core_database.get_db),
     ],
-):
+    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+) -> core_pagination.Page[notifications_schema.NotificationRead]:
     """Retrieve paginated notifications for the user.
 
     Args:
-        page_number: Page number to retrieve.
-        num_records: Number of records per page.
         _check_scopes: Dependency that checks if the user has the required
             scopes.
         token_user_id: ID of the user from the access token.
         db: Database session dependency.
+        page: Resolved page number and size.
 
     Returns:
-        List of notification objects for the page.
+        The page of notifications with the user's total.
     """
     return notifications_service.list_notifications(
         token_user_id,
         db,
-        page_number=page_number,
-        num_records=num_records,
+        page_number=page.page_number,
+        num_records=page.num_records,
     )
 
 
@@ -135,7 +134,7 @@ def mark_notification_as_read(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> None:
     """Mark a specific notification as read.
 
     Args:
@@ -169,7 +168,7 @@ def mark_all_notifications_as_read(
         Session,
         Depends(core_database.get_db),
     ],
-):
+) -> None:
     """Mark all of the user's notifications as read.
 
     Args:

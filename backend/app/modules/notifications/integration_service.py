@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
 import modules.notifications.schema as notifications_schema
+import modules.notifications.service as notifications_service
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
@@ -63,11 +64,7 @@ def create_admin_sign_up_approval_notifications(
                 notifications_schema.NotificationCreate(
                     user_id=admin.id,
                     type=notifications_constants.NotificationType.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST,
-                    options={
-                        "user_id": user.id,
-                        "user_name": user.name,
-                        "user_username": user.username,
-                    },
+                    options=notifications_service.user_reference_options(user),
                 ),
                 db,
             ),

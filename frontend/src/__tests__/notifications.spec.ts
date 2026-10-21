@@ -48,9 +48,9 @@ describe('mapNotification', () => {
   })
 
   it('coerces absent optional fields to null', () => {
-    expect(mapNotification({ id: 1, read: true, user_id: 9 })).toEqual({
+    expect(mapNotification({ id: 1, type: 1, read: true, user_id: 9 })).toEqual({
       id: 1,
-      type: null,
+      type: 1,
       read: true,
       options: null,
       createdAt: null,
@@ -65,19 +65,31 @@ describe('notification service requests', () => {
   })
 
   it('requests the paginated notifications path and maps the result', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([dto])
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [dto],
+      total: 1,
+      page: 2,
+      num_records: 10,
+      next: null,
+    })
 
     const result = await fetchNotifications({ page: 2, numRecords: 10 })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/notifications/page_number/2/num_records/10',
+      '/notifications?page_number=2&num_records=10',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([notification()])
   })
 
-  it('treats a null list body as no notifications', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
+  it('maps an empty page to no notifications', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     await expect(fetchNotifications({ page: 1, numRecords: 25 })).resolves.toEqual([])
   })
 

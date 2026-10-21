@@ -2281,6 +2281,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Notifications User Pagination
+         * @description Retrieve paginated notifications for the user.
+         *
+         *     Args:
+         *         _check_scopes: Dependency that checks if the user has the required
+         *             scopes.
+         *         token_user_id: ID of the user from the access token.
+         *         db: Database session dependency.
+         *         page: Resolved page number and size.
+         *
+         *     Returns:
+         *         The page of notifications with the user's total.
+         */
+        get: operations["read_notifications_user_pagination_api_v1_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/mark_all_as_read": {
         parameters: {
             query?: never;
@@ -2294,6 +2324,7 @@ export interface paths {
          * @description Mark all of the user's notifications as read.
          *
          *     Args:
+         *         request: The incoming request, used by the rate limiter.
          *         _check_scopes: Dependency that checks if the user has the required
          *             scopes.
          *         token_user_id: ID of the user from the access token.
@@ -2339,38 +2370,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/page_number/{page_number}/num_records/{num_records}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Notifications User Pagination
-         * @description Retrieve paginated notifications for the user.
-         *
-         *     Args:
-         *         page_number: Page number to retrieve.
-         *         num_records: Number of records per page.
-         *         validate_pagination_values: Dependency that validates pagination values.
-         *         _check_scopes: Dependency that checks if the user has the required
-         *             scopes.
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         List of notification objects for the page.
-         */
-        get: operations["read_notifications_user_pagination_api_v1_notifications_page_number__page_number__num_records__num_records__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/notifications/{notification_id}": {
         parameters: {
             query?: never;
@@ -2384,14 +2383,13 @@ export interface paths {
          *
          *     Args:
          *         notification_id: Unique ID of the notification.
-         *         validate_notification_id: Dependency that validates the notification ID.
          *         _check_scopes: Dependency that checks if the user has the required
          *             scopes.
          *         token_user_id: ID of the user from the access token.
          *         db: Database session dependency.
          *
          *     Returns:
-         *         Notification object or None if not found.
+         *         The notification.
          */
         get: operations["read_notifications_by_id_api_v1_notifications__notification_id__get"];
         put?: never;
@@ -2415,8 +2413,8 @@ export interface paths {
          * @description Mark a specific notification as read.
          *
          *     Args:
+         *         request: The incoming request, used by the rate limiter.
          *         notification_id: ID of the notification to mark as read.
-         *         validate_notification_id: Dependency that validates the notification ID.
          *         _check_scopes: Dependency that checks if the user has the required
          *             scopes.
          *         token_user_id: ID of the user from the access token.
@@ -4184,7 +4182,6 @@ export interface paths {
          *     Args:
          *         request: Incoming HTTP request.
          *         confirm_data: Token confirmation payload.
-         *         websocket_manager: WebSocket notification manager.
          *         db: Database session.
          *
          *     Returns:
@@ -8895,6 +8892,7 @@ export interface components {
          *
          *     Attributes:
          *         id: Unique notification identifier.
+         *         type: Type of the notification.
          *         user_id: FK to user.
          *         read: Whether the notification has been read.
          *         created_at: Timestamp of creation.
@@ -8927,7 +8925,7 @@ export interface components {
              * Type
              * @description Type of the notification
              */
-            type?: number | null;
+            type: number;
             /**
              * User Id
              * @description FK to user
@@ -9042,6 +9040,19 @@ export interface components {
         Page_GearRead_: {
             /** Items */
             items: components["schemas"]["GearRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[NotificationRead] */
+        Page_NotificationRead_: {
+            /** Items */
+            items: components["schemas"]["NotificationRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -15499,6 +15510,47 @@ export interface operations {
             };
         };
     };
+    read_notifications_user_pagination_api_v1_notifications_get: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_NotificationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     mark_all_notifications_as_read_api_v1_notifications_mark_all_as_read_put: {
         parameters: {
             query?: never;
@@ -15555,47 +15607,6 @@ export interface operations {
             };
         };
     };
-    read_notifications_user_pagination_api_v1_notifications_page_number__page_number__num_records__num_records__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                page_number: number;
-                num_records: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationRead"][] | null;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     read_notifications_by_id_api_v1_notifications__notification_id__get: {
         parameters: {
             query?: never;
@@ -15613,7 +15624,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationRead"] | null;
+                    "application/json": components["schemas"]["NotificationRead"];
                 };
             };
             /** @description Validation Error */
