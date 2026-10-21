@@ -45,8 +45,10 @@ class ActivityIngestionJob(Base):
         kind: ``upload``, ``refresh`` or ``bulk_import``.
         idempotency_key: Client-supplied ``Idempotency-Key`` for an upload, unique
             per user and kind. A replayed request returns the original job
-            instead of starting a second import, until every activity the job
-            created has been deleted, which releases the key.
+            instead of starting a second import. The key is released only when
+            the job is ``completed``, recorded activity IDs and every one of
+            those activities has been deleted; failed, unfinished and
+            no-activity jobs keep it.
         request_fingerprint: SHA-256 of the bytes the key was first used with,
             so reusing a key for different content is rejected rather than
             silently answering with the wrong job.

@@ -106,12 +106,14 @@ def accept_upload(
     client retrying on a flaky connection does not pay for a second 200 MiB
     storage write and a second parse.
 
-    A key is released once every activity its job created has been deleted, so
-    the same file can be uploaded again under it instead of replaying a success
-    that left nothing behind.
+    A key is released only when its job completed, recorded the activities it
+    created and every one of them has been deleted, so the same file can be
+    uploaded again under it instead of replaying a success that left nothing
+    behind. A job that failed, is still running or recorded no activities keeps
+    its key.
 
-    Reusing a key for *different* content is rejected rather than answered with
-    the first job: silently returning it would tell the client the second file
+    Reusing a key for *different* content is rejected, before any release, rather
+    than answered with the first job: silently returning it would tell the client the second file
     imported when it never will.
 
     Args:
@@ -141,24 +143,25 @@ def accept_upload(
             prior = activity_ingestion_crud.get_job_for_idempotency(
                 idempotency_key, token_user_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, db
             )
-            if prior is not None and _created_activities_are_gone(prior[0], db):
-                # Staged here and committed with the new job below, so the key
-                # is never left free without a job holding it.
-                activity_ingestion_crud.release_idempotency_key(prior[0].id, db)
-                logger.info(
-                    "Released the idempotency key of an upload whose activities were deleted",
-                    extra=core_logger.context(user_id=token_user_id, job_id=prior[0].id),
-                )
-                prior = None
+            if prior is not None:
+                if prior[1] != received.fingerprint:
+                    raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file")
+                if _created_activities_are_gone(prior[0], db):
+                    # Staged here and committed with the new job below, so the key
+                    # is never left free without a job holding it.
+                    activity_ingestion_crud.release_idempotency_key(prior[0].id, db)
+                    logger.info(
+                        "Released the idempotency key of an upload whose activities were deleted",
+                        extra=core_logger.context(user_id=token_user_id, job_id=prior[0].id),
+                    )
+                    prior = None
         except Exception:
             # The upload is on local disk and nothing else will remove it.
             activity_ingestion_upload_entry_service.discard_received_upload(received)
             raise
         if prior is not None:
-            replayed, fingerprint = prior
+            replayed = prior[0]
             activity_ingestion_upload_entry_service.discard_received_upload(received)
-            if fingerprint != received.fingerprint:
-                raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file")
             logger.info(
                 "Replayed activity upload returned the original job",
                 extra=core_logger.context(user_id=token_user_id, job_id=replayed.id),

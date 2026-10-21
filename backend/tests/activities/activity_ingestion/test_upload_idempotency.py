@@ -126,8 +126,9 @@ class TestKeyReuseWithDifferentContent:
 
 
 class TestDeletedActivities:
-    def _accept(self, original, existing_ids):
+    def _accept(self, original, existing_ids, fingerprint="hash-of-this-file", release=None):
         db = MagicMock()
+        release = release or MagicMock()
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
             patch.object(
@@ -136,12 +137,12 @@ class TestDeletedActivities:
             patch.object(
                 ingestion_jobs.activity_ingestion_crud,
                 "get_job_for_idempotency",
-                return_value=(original, "hash-of-this-file"),
+                return_value=(original, fingerprint),
             ),
             patch.object(
                 ingestion_jobs.activity_integration, "filter_existing_activity_ids", return_value=existing_ids
             ) as existing,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "release_idempotency_key") as release,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "release_idempotency_key", release),
             patch.object(
                 ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
             ),
@@ -171,6 +172,14 @@ class TestDeletedActivities:
 
         release.assert_not_called()
         create.assert_not_called()
+
+    def test_different_content_conflicts_instead_of_releasing_the_key(self):
+        original = self._job(activity_ingestion_constants.IngestionJobStatus.COMPLETED, [1, 2])
+        release = MagicMock()
+        with pytest.raises(core_exceptions.ConflictError):
+            self._accept(original, set(), fingerprint="hash-of-another-file", release=release)
+
+        release.assert_not_called()
 
     @pytest.mark.parametrize(
         ("status", "activity_ids"),
