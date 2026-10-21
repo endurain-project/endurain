@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from modules.health.health_targets.models import HealthTargets
     from modules.health.health_water.models import HealthWater
     from modules.health.health_weight.models import HealthWeight
-    from modules.notifications.models import Notification
     from modules.users.users_default_gear.models import UsersDefaultGear
     from modules.users.users_goals.models import UsersGoal
     from modules.users.users_integrations.models import UsersIntegrations
@@ -59,7 +58,6 @@ class Users(Base):
         health_fasting: List of health fasting records.
         health_water: List of health water intake records.
         health_poop: List of health poop records.
-        notifications: List of notifications.
         goals: List of user goals.
     """
 
@@ -203,10 +201,6 @@ class Users(Base):
         cascade="all, delete-orphan",
     )
     health_poop: Mapped[list["HealthPoop"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    notifications: Mapped[list["Notification"]] = relationship(
         back_populates="users",
         cascade="all, delete-orphan",
     )

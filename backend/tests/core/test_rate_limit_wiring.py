@@ -42,6 +42,7 @@ import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gear_router
 import modules.gears.gear_components.router as gear_components_router
+import modules.notifications.router as notifications_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users_profile.router as users_profile_router
@@ -150,6 +151,10 @@ _TIERED_ENDPOINTS = [
     pytest.param(gear_components_router.create_gear_component, core_rate_limit.WRITE, id="gear-component-create"),
     pytest.param(gear_components_router.edit_gear_component, core_rate_limit.WRITE, id="gear-component-edit"),
     pytest.param(gear_components_router.delete_component_gear, core_rate_limit.WRITE, id="gear-component-delete"),
+    pytest.param(notifications_router.mark_notification_as_read, core_rate_limit.WRITE, id="notification-mark-read"),
+    pytest.param(
+        notifications_router.mark_all_notifications_as_read, core_rate_limit.WRITE, id="notification-mark-all-read"
+    ),
 ]
 
 

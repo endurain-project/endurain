@@ -1,6 +1,6 @@
 """Integration tests for sign_up_tokens router endpoints."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, HTTPException, status
@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import modules.auth._internal.password_hasher as auth_password_hasher
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
-import modules.websocket.manager as websocket_manager
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -41,21 +40,9 @@ def mock_email_service():
 
 
 @pytest.fixture
-def mock_ws_manager() -> MagicMock:
-    """
-    Return a mock WebSocketManager.
-
-    Returns:
-        MagicMock: Mock WebSocket manager.
-    """
-    return MagicMock(spec=websocket_manager.WebSocketManager)
-
-
-@pytest.fixture
 def signup_app(
     mock_db,
     mock_email_service,
-    mock_ws_manager,
     password_hasher,
 ) -> FastAPI:
     """
@@ -64,7 +51,6 @@ def signup_app(
     Args:
         mock_db: Mock database session.
         mock_email_service: Patched mail-configured check.
-        mock_ws_manager: Mock WebSocket manager.
         password_hasher: Real PasswordHasher instance.
 
     Returns:
@@ -77,7 +63,6 @@ def signup_app(
     )
 
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
-    app.dependency_overrides[websocket_manager.get_websocket_manager] = lambda: mock_ws_manager
     app.dependency_overrides[auth_password_hasher.get_password_hasher] = lambda: password_hasher
 
     return app
@@ -357,10 +342,7 @@ class TestSignupEndpoint:
 class TestVerifyEmailEndpoint:
     """Tests for POST /sign-up/sign-up/confirm."""
 
-    @patch(
-        "modules.auth.sign_up_tokens.router.notifications_utils.create_admin_new_sign_up_approval_request_notification",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.sign_up_tokens.router.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.router.sign_up_tokens_utils.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.router.users_crud.get_user_by_id")
     @patch("modules.auth.sign_up_tokens.router.users_crud.verify_user_email")
@@ -389,7 +371,7 @@ class TestVerifyEmailEndpoint:
         mock_verify_email.return_value = None
         mock_get_user.return_value = MagicMock(id=10)
         mock_send_admin_email.return_value = None
-        mock_notify.return_value = None
+        mock_notify.return_value = []
         mock_email_service.return_value = True
 
         response = signup_client.post(
@@ -470,10 +452,7 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    @patch(
-        "modules.auth.sign_up_tokens.router.notifications_utils.create_admin_new_sign_up_approval_request_notification",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.sign_up_tokens.router.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.router.sign_up_tokens_utils.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.router.users_crud.get_user_by_id")
     @patch("modules.auth.sign_up_tokens.router.users_crud.verify_user_email")
@@ -502,7 +481,7 @@ class TestVerifyEmailEndpoint:
         mock_verify_email.return_value = None
         mock_get_user.return_value = MagicMock(id=11)
         mock_send_admin_email.return_value = None
-        mock_notify.return_value = None
+        mock_notify.return_value = []
         mock_email_service.return_value = True
 
         response = signup_client.post(
@@ -524,7 +503,6 @@ class TestVerifyEmailEndpoint:
         mock_verify_email,
         signup_client,
         mock_email_service,
-        mock_ws_manager,
     ) -> None:
         """
         Returns 200 and skips admin email and websocket notification
@@ -589,10 +567,7 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    @patch(
-        "modules.auth.sign_up_tokens.router.notifications_utils.create_admin_new_sign_up_approval_request_notification",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.sign_up_tokens.router.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.router.sign_up_tokens_utils.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.router.users_crud.get_user_by_id")
     @patch("modules.auth.sign_up_tokens.router.users_crud.verify_user_email")
@@ -610,8 +585,7 @@ class TestVerifyEmailEndpoint:
         mock_email_service,
     ) -> None:
         """
-        Returns 500 when create_admin_new_sign_up_approval_request_
-        notification raises HTTPException 500.
+        Returns 500 when create_admin_sign_up_approval_notifications raises HTTPException 500.
         """
         mock_settings.return_value = MagicMock(
             signup_require_email_verification=True,
@@ -634,10 +608,7 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    @patch(
-        "modules.auth.sign_up_tokens.router.notifications_utils.create_admin_new_sign_up_approval_request_notification",
-        new_callable=AsyncMock,
-    )
+    @patch("modules.auth.sign_up_tokens.router.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.router.sign_up_tokens_utils.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.router.users_crud.get_user_by_id")
     @patch("modules.auth.sign_up_tokens.router.users_crud.verify_user_email")
@@ -655,8 +626,7 @@ class TestVerifyEmailEndpoint:
         mock_email_service,
     ) -> None:
         """
-        Returns 500 when create_admin_new_sign_up_approval_request_
-        notification raises RuntimeError (e.g. websocket failure).
+        Returns 500 when create_admin_sign_up_approval_notifications raises RuntimeError (e.g. websocket failure).
 
         FastAPI converts unhandled RuntimeError to a 500 response;
         raise_server_exceptions=False allows asserting the status.

@@ -738,7 +738,7 @@ the conformance test's allowlist.
 
 ### Pilot status and what the next conversion owns
 
-`activities`, `followers` and `gears` are the only modules converted so far. The
+`activities`, `followers`, `gears` and `notifications` are the only modules converted so far. The
 remaining modules are listed in `UNCONVERTED_MODULES` so that
 `TestModuleInventory` keeps them visible rather than silently exempt, and are
 converted one at a time with the `convert-module` skill. The items below need
@@ -774,8 +774,7 @@ limitations rather than half-done:
 
 - **Persistence layers calling other modules.** Converted modules ask nothing of
   another bounded context below `service` (`TestLayerRules`). The unconverted ones still do,
-  for example `health.*.crud` reaching `users.users.utils` and
-  `notifications.utils` reaching `users` and `websocket`.
+  for example `health.*.crud` reaching `users.users.utils`.
 - **Persistence ending transactions.** Converted modules stage with `flush()` and
   let `service` (or the job, importer or `migration_service` that owns the unit of
   work) commit. Unconverted modules (`auth`, `users`, …) are outside
@@ -783,9 +782,8 @@ limitations rather than half-done:
   where a module being converted lists its files.
 - **Subscribers reaching past a surface.** Followers holds no subscribers; its
   notification handlers live in `modules/notifications` and subscribe to
-  `followers.events` (`TestLayerRules`). `garmin`, `strava`,
-  `auth.sign_up_tokens` and `users.users_profile` still import another module's
-  `utils`/`manager` directly.
+  `followers.events` (`TestLayerRules`). `garmin`, `strava` and
+  `users.users_profile` still import another module's `utils`/`manager` directly.
 - **Legacy model scan.** Converted modules declare their ORM module in
   `model_registry.py` and use scalar foreign keys with database `ON DELETE`
   behaviour. `app/model_registry.py` keeps a filesystem scan only for modules not

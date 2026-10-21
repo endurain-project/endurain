@@ -17,6 +17,7 @@ import modules.activities.contributor_registry as activities_contributor_registr
 import modules.activities.model_registry as activities_model_registry
 import modules.followers.model_registry as followers_model_registry
 import modules.gears.model_registry as gears_model_registry
+import modules.notifications.model_registry as notifications_model_registry
 
 _MODULES_DIR = Path(__file__).resolve().parents[2] / "app" / "modules"
 _APP_DIR = _MODULES_DIR.parent
@@ -120,8 +121,12 @@ def test_model_registries_collect_every_converted_model() -> None:
         if package.parent.name == "gears" and (package / "models.py").is_file()
     }
     assert set(gears_model_registry.MODEL_MODULES) == expected_gears
+    assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
     assert (
-        expected_activities | set(followers_model_registry.MODEL_MODULES) | expected_gears
+        expected_activities
+        | set(followers_model_registry.MODEL_MODULES)
+        | expected_gears
+        | set(notifications_model_registry.MODEL_MODULES)
         == app_model_registry._CONVERTED_MODEL_MODULES
     )
 

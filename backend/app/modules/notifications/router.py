@@ -3,15 +3,15 @@
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Security, status
+from fastapi import APIRouter, Depends, Request, Security, status
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
-import modules.notifications.crud as notifications_crud
-import modules.notifications.dependencies as notifications_dependencies
 import modules.notifications.schema as notifications_schema
+import modules.notifications.service as notifications_service
 
 router = APIRouter()
 
@@ -32,8 +32,7 @@ def read_notifications_number(
         Depends(core_database.get_db),
     ],
 ):
-    """
-    Retrieve notification count for the user.
+    """Retrieve notification count for the user.
 
     Args:
         _check_scopes: Dependency that checks if the user has the required
@@ -44,7 +43,7 @@ def read_notifications_number(
     Returns:
         Number of notifications for the user.
     """
-    return notifications_crud.get_user_notifications_count(token_user_id, db)
+    return notifications_service.count_notifications(token_user_id, db)
 
 
 @router.get(
@@ -53,11 +52,7 @@ def read_notifications_number(
     status_code=status.HTTP_200_OK,
 )
 def read_notifications_by_id(
-    notification_id: int,
-    validate_notification_id: Annotated[
-        Callable,
-        Depends(notifications_dependencies.validate_notification_id),
-    ],
+    notification_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
     token_user_id: Annotated[
         int,
@@ -68,12 +63,10 @@ def read_notifications_by_id(
         Depends(core_database.get_db),
     ],
 ):
-    """
-    Retrieve a notification by ID for the user.
+    """Retrieve a notification by ID for the user.
 
     Args:
         notification_id: Unique ID of the notification.
-        validate_notification_id: Dependency that validates the notification ID.
         _check_scopes: Dependency that checks if the user has the required
             scopes.
         token_user_id: ID of the user from the access token.
@@ -82,7 +75,7 @@ def read_notifications_by_id(
     Returns:
         Notification object or None if not found.
     """
-    return notifications_crud.get_user_notification_by_id(notification_id, token_user_id, db)
+    return notifications_service.get_notification(notification_id, token_user_id, db)
 
 
 @router.get(
@@ -91,12 +84,8 @@ def read_notifications_by_id(
     status_code=status.HTTP_200_OK,
 )
 def read_notifications_user_pagination(
-    page_number: int,
-    num_records: int,
-    validate_pagination_values: Annotated[
-        Callable,
-        Depends(core_dependencies.validate_pagination_values),
-    ],
+    page_number: core_dependencies.PositiveId,
+    num_records: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
     token_user_id: Annotated[
         int,
@@ -107,13 +96,11 @@ def read_notifications_user_pagination(
         Depends(core_database.get_db),
     ],
 ):
-    """
-    Retrieve paginated notifications for the user.
+    """Retrieve paginated notifications for the user.
 
     Args:
         page_number: Page number to retrieve.
         num_records: Number of records per page.
-        validate_pagination_values: Dependency that validates pagination values.
         _check_scopes: Dependency that checks if the user has the required
             scopes.
         token_user_id: ID of the user from the access token.
@@ -122,11 +109,11 @@ def read_notifications_user_pagination(
     Returns:
         List of notification objects for the page.
     """
-    return notifications_crud.get_user_notifications_with_pagination(
+    return notifications_service.list_notifications(
         token_user_id,
         db,
-        page_number,
-        num_records,
+        page_number=page_number,
+        num_records=num_records,
     )
 
 
@@ -135,12 +122,10 @@ def read_notifications_user_pagination(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def mark_notification_as_read(
-    notification_id: int,
-    validate_notification_id: Annotated[
-        Callable,
-        Depends(notifications_dependencies.validate_notification_id),
-    ],
+    request: Request,
+    notification_id: core_dependencies.PositiveId,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["notifications:write"])],
     token_user_id: Annotated[
         int,
@@ -151,12 +136,11 @@ def mark_notification_as_read(
         Depends(core_database.get_db),
     ],
 ):
-    """
-    Mark a specific notification as read.
+    """Mark a specific notification as read.
 
     Args:
+        request: The incoming request, used by the rate limiter.
         notification_id: ID of the notification to mark as read.
-        validate_notification_id: Dependency that validates the notification ID.
         _check_scopes: Dependency that checks if the user has the required
             scopes.
         token_user_id: ID of the user from the access token.
@@ -165,7 +149,7 @@ def mark_notification_as_read(
     Returns:
         None.
     """
-    notifications_crud.mark_notification_as_read(notification_id, token_user_id, db)
+    notifications_service.mark_notification_as_read(notification_id, token_user_id, db)
 
 
 @router.put(
@@ -173,7 +157,9 @@ def mark_notification_as_read(
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def mark_all_notifications_as_read(
+    request: Request,
     _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["notifications:write"])],
     token_user_id: Annotated[
         int,
@@ -184,10 +170,10 @@ def mark_all_notifications_as_read(
         Depends(core_database.get_db),
     ],
 ):
-    """
-    Mark all of the user's notifications as read.
+    """Mark all of the user's notifications as read.
 
     Args:
+        request: The incoming request, used by the rate limiter.
         _check_scopes: Dependency that checks if the user has the required
             scopes.
         token_user_id: ID of the user from the access token.
@@ -196,4 +182,4 @@ def mark_all_notifications_as_read(
     Returns:
         None.
     """
-    notifications_crud.mark_all_notifications_as_read(token_user_id, db)
+    notifications_service.mark_all_notifications_as_read(token_user_id, db)

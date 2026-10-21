@@ -13,8 +13,7 @@ from pydantic import (
 
 
 class NotificationBase(BaseModel):
-    """
-    Base schema for notification data.
+    """Base schema for notification data.
 
     Attributes:
         type: Type of the notification.
@@ -38,8 +37,7 @@ class NotificationBase(BaseModel):
 
 
 class NotificationCreate(NotificationBase):
-    """
-    Schema for creating a notification record.
+    """Schema for creating a notification record.
 
     Attributes:
         user_id: FK to user.
@@ -58,8 +56,7 @@ class NotificationCreate(NotificationBase):
 
 
 class NotificationRead(NotificationBase):
-    """
-    Schema for reading a notification record.
+    """Schema for reading a notification record.
 
     Attributes:
         id: Unique notification identifier.
@@ -85,8 +82,7 @@ class NotificationRead(NotificationBase):
 
     @field_serializer("created_at")
     def serialize_created_at(self, value: datetime | None) -> str | None:
-        """
-        Serialize created_at as date string.
+        """Serialize created_at as date string.
 
         Args:
             value: The datetime value to serialize.

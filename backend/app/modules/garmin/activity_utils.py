@@ -33,6 +33,7 @@ def _unlink_expired_account(user_id: int) -> None:
     with SessionLocal() as db:
         user_integrations_crud.unlink_garminconnect_account(user_id, db)
         notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
+        db.commit()
     core_async_bridge.dispatch(
         websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
     )

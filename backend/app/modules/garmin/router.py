@@ -152,10 +152,6 @@ async def garminconnect_retrieve_health_days(
     ],
     # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
-    ws_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
 ):
     start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=UTC)
     end_datetime = datetime.combine(end_date, datetime.max.time(), tzinfo=UTC)
@@ -166,7 +162,6 @@ async def garminconnect_retrieve_health_days(
         start_datetime,
         end_datetime,
         token_user_id,
-        ws_manager,
     )
 
     # Return success message and status code 202

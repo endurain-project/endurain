@@ -43,6 +43,18 @@ def get_user(user_id: int, db: Session) -> users_schema.UsersRead | None:
     return users_crud.get_user_by_id(user_id, db)
 
 
+def list_admin_users(db: Session) -> list[users_schema.UsersRead]:
+    """Return every admin user.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The admin users, empty when there are none.
+    """
+    return users_crud.get_users_admin(db)
+
+
 def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead | None:
     """Return a user's privacy settings, or ``None`` when they have none.
 

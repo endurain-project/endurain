@@ -12,14 +12,14 @@ def _event(payload):
 
 
 class TestOnActivityCreatedNotify:
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_noop_for_non_int_activity_id(self, mock_notif):
         from modules.notifications.subscribers import on_activity_created_notify
 
         on_activity_created_notify(_event({"activity_id": "x", "user_id": 2}))
         mock_notif.create_activity_created_notification.assert_not_called()
 
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_noop_when_user_id_missing(self, mock_notif):
         from modules.notifications.subscribers import on_activity_created_notify
 
@@ -29,7 +29,7 @@ class TestOnActivityCreatedNotify:
     @patch("modules.notifications.subscribers.websocket_integration")
     @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_creates_notification_and_dispatches(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.notifications.subscribers import on_activity_created_notify
 
@@ -46,7 +46,7 @@ class TestOnActivityCreatedNotify:
     @patch("modules.notifications.subscribers.websocket_integration")
     @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_a_redelivered_event_does_not_push_again(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.notifications.subscribers import on_activity_created_notify
 
@@ -64,7 +64,7 @@ class TestOnActivityCreatedNotify:
     @patch("modules.notifications.subscribers.websocket_integration")
     @patch("modules.notifications.subscribers.core_async_bridge")
     @patch("modules.notifications.subscribers.core_database")
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_passes_duplicate_flag(self, mock_notif, mock_db, mock_bridge, mock_ws):
         from modules.notifications.subscribers import on_activity_created_notify
 
@@ -78,7 +78,7 @@ class TestOnActivityCreatedNotify:
 
     @patch("jasil.subscribers.logger")
     @patch("modules.notifications.subscribers.core_database")
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_swallows_errors(self, mock_notif, mock_db, mock_logger):
         from modules.notifications.subscribers import on_activity_created_notify
 
@@ -88,7 +88,7 @@ class TestOnActivityCreatedNotify:
 
 
 class TestNotifyActivityCreatedForEvent:
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_raises_on_missing_ids(self, mock_notif):
         from modules.notifications.subscribers import notify_activity_created_for_event
 
@@ -97,7 +97,7 @@ class TestNotifyActivityCreatedForEvent:
         mock_notif.create_activity_created_notification.assert_not_called()
 
     @patch("modules.notifications.subscribers.core_database")
-    @patch("modules.notifications.subscribers.notifications_integration")
+    @patch("modules.notifications.subscribers.notifications_service")
     def test_raises_on_error(self, mock_notif, mock_db):
         from modules.notifications.subscribers import notify_activity_created_for_event
 

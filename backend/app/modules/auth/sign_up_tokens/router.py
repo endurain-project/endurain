@@ -18,12 +18,12 @@ import core.rate_limit as core_rate_limit
 import modules.auth.identity_service as auth_identity_service
 import modules.auth.sign_up_tokens.schema as sign_up_tokens_schema
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
-import modules.notifications.utils as notifications_utils
+import modules.notifications.integration_service as notifications_integration
 import modules.server_settings.utils as server_settings_utils
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
-import modules.websocket.manager as websocket_manager
+import modules.websocket.integration_service as websocket_integration
 
 # Define the API router
 router = APIRouter()
@@ -108,10 +108,6 @@ async def signup(
 async def verify_email(
     request: Request,
     confirm_data: sign_up_tokens_schema.SignUpConfirm,
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -123,7 +119,6 @@ async def verify_email(
     Args:
         request: Incoming HTTP request.
         confirm_data: Token confirmation payload.
-        websocket_manager: WebSocket notification manager.
         db: Database session.
 
     Returns:
@@ -152,10 +147,14 @@ async def verify_email(
                 detail="User not found",
             )
         await run_in_threadpool(sign_up_tokens_utils.request_sign_up_admin_approval_emails, user.id, db)
-        notif_coro = notifications_utils.create_admin_new_sign_up_approval_request_notification(
-            user, websocket_manager, db
+        notifications = await run_in_threadpool(
+            notifications_integration.create_admin_sign_up_approval_notifications, user, db
         )
-        await notif_coro
+        await run_in_threadpool(db.commit)
+        for notification, ws_message in notifications:
+            await websocket_integration.push_to_user(
+                notification.user_id, {"message": ws_message, "notification_id": notification.id}
+            )
 
     # Return appropriate response based on server configuration
     message = "Email verified successfully."

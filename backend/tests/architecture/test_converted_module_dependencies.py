@@ -27,6 +27,7 @@ _IMPORTLINTER = pathlib.Path(".importlinter")
 #: application-wide state or wiring and are the ones to shrink, or to move into
 #: ``jasil`` when they are generic enough to be shared by other products.
 _ALLOWED_CORE: dict[str, str] = {
+    "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
     "core.calendar": "Period boundaries for activity summaries.",
     "core.etag": "Conditional-response helpers for activity routes.",
     "core.event_metadata": "Event envelope metadata shared by every publisher.",
