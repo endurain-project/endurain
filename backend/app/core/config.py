@@ -259,6 +259,12 @@ class Settings(BaseSettings):
     # for operator review). Set to 0 (or negative) to disable pruning.
     JOBS_RETENTION_DAYS: int = 90
 
+    # --- Notifications ---
+    # Age in days after which read notifications are purged by a scheduled
+    # cleanup (daily). Unread notifications are never purged. Set to 0 (or
+    # negative) to disable pruning and keep them forever.
+    READ_NOTIFICATION_RETENTION_DAYS: int = 90
+
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
     # Disabled by default because query-string credentials appear in

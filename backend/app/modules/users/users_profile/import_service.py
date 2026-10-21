@@ -485,8 +485,9 @@ class ImportService:
             except ValidationError:
                 logger.warning("Skipped an invalid gear component")
                 continue
-            retired, purchased = gear_component.retired_date, gear_component.purchase_date
-            if retired is not None and purchased is not None and retired <= purchased:
+            if not gear_components_schema.is_retired_after_purchase(
+                gear_component.purchase_date, gear_component.retired_date
+            ):
                 logger.warning("Skipped a gear component retired on or before its purchase date")
                 continue
             gear_components_integration.create_gear_component(gear_component, self.user_id, self.db)

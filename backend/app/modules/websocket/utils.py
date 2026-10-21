@@ -1,12 +1,11 @@
 from fastapi import HTTPException, status
 
-import modules.websocket.manager as websocket_manager
 import modules.websocket.manager as websocket_manager_module
 
 
 async def notify_frontend(
     user_id: int,
-    websocket_manager: websocket_manager.WebSocketManager,
+    websocket_manager: websocket_manager_module.WebSocketManager,
     json_data: dict,
 ) -> bool:
     """

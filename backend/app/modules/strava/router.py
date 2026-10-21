@@ -350,7 +350,7 @@ def strava_unlink(
     # delete all strava activities for user
     activity_integration.delete_all_strava_activities(token_user_id, db)
 
-    # unlink strava account
+    # unlink strava account; this commits the staged gear and activity deletions with it
     user_integrations_crud.unlink_strava_account(token_user_id, db)
 
     # Return success message

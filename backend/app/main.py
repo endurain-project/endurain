@@ -1,3 +1,4 @@
+import asyncio
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -24,10 +25,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
 import core.async_bridge as core_async_bridge
 import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
@@ -97,6 +100,10 @@ async def _safe_run_async[T, **P](
         return None
 
 
+# Arbitrary constant identifying the migration lock among the database's advisory locks.
+_MIGRATION_LOCK_KEY = 7_203_419_001
+
+
 def _run_alembic_migrations() -> None:
     """Run Alembic upgrade to head.
 
@@ -107,12 +114,19 @@ def _run_alembic_migrations() -> None:
     # Disable Alembic's own logger configuration to
     # avoid conflicts with FastAPI / our main logger.
     alembic_cfg.attributes["configure_logger"] = False
-    command.upgrade(alembic_cfg, "head")
+    # Replicas start together; the session-level advisory lock makes one migrate while
+    # the others wait, then find the schema already at head.
+    with core_database.engine.connect() as lock_connection:
+        lock_connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY})
+        try:
+            command.upgrade(alembic_cfg, "head")
+        finally:
+            lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
 
 
 async def _retrieve_recent_garmin_health() -> None:
     """Backfill the last day of Garmin Connect health stats."""
-    await garmin_health_utils.retrieve_garminconnect_users_health_for_days(1)
+    await asyncio.to_thread(garmin_health_utils.retrieve_garminconnect_users_health_for_days, 1)
 
 
 def _purge_expired_tokens() -> None:

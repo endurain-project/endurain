@@ -8,8 +8,11 @@ are safe to run on a durable-job worker thread where there is no event loop.
 What other modules may consume lives in :mod:`modules.notifications.integration_service`.
 """
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy.orm import Session
 
+import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -122,6 +125,75 @@ def mark_all_notifications_as_read(user_id: int, db: Session) -> None:
     logger.debug("Marked all notifications as read", extra=core_logger.context(user_id=user_id))
 
 
+def purge_read_notifications(db: Session) -> int:
+    """Delete read notifications past the retention period, one batch per commit.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        Number of notifications deleted; zero when ``READ_NOTIFICATION_RETENTION_DAYS`` disables pruning.
+    """
+    retention_days = core_config.settings.READ_NOTIFICATION_RETENTION_DAYS
+    if retention_days <= 0:
+        return 0
+    cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+    total = 0
+    while True:
+        deleted = notifications_crud.delete_read_notifications_before(
+            cutoff, notifications_constants.PURGE_BATCH_SIZE, db
+        )
+        db.commit()
+        total += deleted
+        if deleted < notifications_constants.PURGE_BATCH_SIZE:
+            logger.info("Purged read notifications", extra=core_logger.context(deleted=total))
+            return total
+
+
+def _record_event_notification(
+    user_id: int,
+    notification_type: notifications_constants.NotificationType,
+    ws_message: str,
+    options: dict[str, object],
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record an event-driven notification once and commit it.
+
+    Delivery is at-least-once, so the row is keyed by the source event: a
+    redelivered event finds its notification instead of creating a second one.
+
+    Args:
+        user_id: The user who owns the notification.
+        notification_type: The notification type to record.
+        ws_message: The websocket message type the caller should push.
+        options: The notification options.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type the caller should push, and
+        whether this call created it (False for a redelivered event).
+    """
+    notification, created = notifications_crud.create_notification_once(
+        notifications_schema.NotificationCreate(
+            user_id=user_id,
+            type=notification_type,
+            source_event_id=source_event_id,
+            options=options,
+        ),
+        db,
+    )
+    db.commit()
+    logger.debug(
+        "Recorded notification",
+        extra=core_logger.context(
+            user_id=user_id, notification_id=notification.id, notification_type=notification_type, created=created
+        ),
+    )
+    return notification, ws_message, created
+
+
 def create_activity_created_notification(
     user_id: int,
     activity_id: int,
@@ -130,9 +202,6 @@ def create_activity_created_notification(
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
     """Record the notification for a newly stored activity.
-
-    Delivery is at-least-once, so the row is keyed by the source event: a
-    redelivered event finds its notification instead of creating a second one.
 
     Args:
         user_id: The owner to notify.
@@ -152,24 +221,41 @@ def create_activity_created_notification(
     else:
         notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
         ws_message = notifications_constants.NEW_ACTIVITY_WS_MESSAGE
+    return _record_event_notification(
+        user_id, notification_type, ws_message, {"activity_id": activity_id}, source_event_id, db
+    )
 
-    notification, created = notifications_crud.create_notification_once(
-        notifications_schema.NotificationCreate(
-            user_id=user_id,
-            type=notification_type,
-            source_event_id=source_event_id,
-            options={"activity_id": activity_id},
-        ),
-        db,
+
+def _create_user_reference_notification(
+    named_user_id: int,
+    owner_user_id: int,
+    notification_type: notifications_constants.NotificationType,
+    ws_message: str,
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record a notification that names another user.
+
+    Args:
+        named_user_id: The user the notification refers to.
+        owner_user_id: The user who owns the notification row.
+        notification_type: The notification type to record.
+        ws_message: The websocket message type the caller should push.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type to push, and whether this call created it.
+
+    Raises:
+        NotFoundError: When the named user no longer exists.
+    """
+    user = users_integration.get_user(named_user_id, db)
+    if user is None:
+        raise core_exceptions.NotFoundError("User not found")
+    return _record_event_notification(
+        owner_user_id, notification_type, ws_message, user_reference_options(user), source_event_id, db
     )
-    db.commit()
-    logger.debug(
-        "Recorded activity notification",
-        extra=core_logger.context(
-            activity_id=activity_id, user_id=user_id, notification_id=notification.id, created=created
-        ),
-    )
-    return notification, ws_message, created
 
 
 def create_follow_request_notification(
@@ -193,29 +279,14 @@ def create_follow_request_notification(
     Raises:
         NotFoundError: When the requesting user no longer exists.
     """
-    user = users_integration.get_user(requester_user_id, db)
-    if user is None:
-        raise core_exceptions.NotFoundError("User not found")
-    notification, created = notifications_crud.create_notification_once(
-        notifications_schema.NotificationCreate(
-            user_id=target_user_id,
-            type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST,
-            source_event_id=source_event_id,
-            options=user_reference_options(user),
-        ),
+    return _create_user_reference_notification(
+        requester_user_id,
+        target_user_id,
+        notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST,
+        notifications_constants.NEW_FOLLOWER_REQUEST_WS_MESSAGE,
+        source_event_id,
         db,
     )
-    db.commit()
-    logger.debug(
-        "Recorded follow-request notification",
-        extra=core_logger.context(
-            requester_user_id=requester_user_id,
-            target_user_id=target_user_id,
-            notification_id=notification.id,
-            created=created,
-        ),
-    )
-    return notification, notifications_constants.NEW_FOLLOWER_REQUEST_WS_MESSAGE, created
 
 
 def create_follow_accepted_notification(
@@ -239,26 +310,11 @@ def create_follow_accepted_notification(
     Raises:
         NotFoundError: When the accepting user no longer exists.
     """
-    user = users_integration.get_user(accepter_user_id, db)
-    if user is None:
-        raise core_exceptions.NotFoundError("User not found")
-    notification, created = notifications_crud.create_notification_once(
-        notifications_schema.NotificationCreate(
-            user_id=requester_user_id,
-            type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED,
-            source_event_id=source_event_id,
-            options=user_reference_options(user),
-        ),
+    return _create_user_reference_notification(
+        accepter_user_id,
+        requester_user_id,
+        notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST_ACCEPTED,
+        notifications_constants.NEW_FOLLOWER_REQUEST_ACCEPTED_WS_MESSAGE,
+        source_event_id,
         db,
     )
-    db.commit()
-    logger.debug(
-        "Recorded follow-accepted notification",
-        extra=core_logger.context(
-            accepter_user_id=accepter_user_id,
-            requester_user_id=requester_user_id,
-            notification_id=notification.id,
-            created=created,
-        ),
-    )
-    return notification, notifications_constants.NEW_FOLLOWER_REQUEST_ACCEPTED_WS_MESSAGE, created

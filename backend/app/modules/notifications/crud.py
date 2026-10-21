@@ -1,6 +1,8 @@
 """CRUD operations for notifications."""
 
-from sqlalchemy import desc, func, select, update
+from datetime import datetime
+
+from sqlalchemy import delete, desc, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -77,7 +79,7 @@ def get_user_notifications_with_pagination(
     stmt = (
         select(notifications_models.Notification)
         .where(notifications_models.Notification.user_id == user_id)
-        .order_by(desc(notifications_models.Notification.created_at))
+        .order_by(desc(notifications_models.Notification.created_at), desc(notifications_models.Notification.id))
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )
@@ -241,3 +243,29 @@ def mark_all_notifications_as_read(
     )
     db.execute(stmt)
     db.flush()
+
+
+def delete_read_notifications_before(cutoff: datetime, limit: int, db: Session) -> int:
+    """Stage deleting up to ``limit`` read notifications created before ``cutoff``.
+
+    Args:
+        cutoff: Read notifications created before this moment are deleted.
+        limit: Most rows to delete in this call.
+        db: Database session.
+
+    Returns:
+        Number of notifications staged for deletion.
+    """
+    stale_ids = (
+        select(notifications_models.Notification.id)
+        .where(
+            notifications_models.Notification.read.is_(True),
+            notifications_models.Notification.created_at < cutoff,
+        )
+        .limit(limit)
+    )
+    result = db.execute(
+        delete(notifications_models.Notification).where(notifications_models.Notification.id.in_(stale_ids))
+    )
+    db.flush()
+    return result.rowcount

@@ -18,6 +18,19 @@ from pydantic import (
 _NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("type", "brand", "model", "purchase_date", "active")
 
 
+def is_retired_after_purchase(purchase_date: date | None, retired_date: date | None) -> bool:
+    """Whether a retired date is acceptable next to a purchase date.
+
+    Args:
+        purchase_date: The purchase date, if given.
+        retired_date: The retired date, if given.
+
+    Returns:
+        False only when both are given and the retired date is not later.
+    """
+    return retired_date is None or purchase_date is None or retired_date > purchase_date
+
+
 class GearComponentBase(BaseModel):
     """Base model for the gear component fields a client may set.
 

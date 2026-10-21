@@ -1485,7 +1485,7 @@ def edit_activity(
     db_activity = db.execute(stmt).scalar_one_or_none()
     if db_activity is None:
         raise core_exceptions.NotFoundError("Activity not found")
-    core_etag.require_if_match(if_match, db_activity.version)
+    core_etag.require_if_match(if_match, db_activity.version, "activity")
 
     for key, value in activity_serializers.to_update_values(activity_attributes).items():
         setattr(db_activity, key, value)

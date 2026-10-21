@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import garminconnect
 from sqlalchemy.orm import Session
 
+import core.async_bridge as core_async_bridge
 import core.logger as core_logger
 import modules.garmin.utils as garmin_utils
 import modules.health.health_sleep.crud as health_sleep_crud
@@ -449,7 +450,7 @@ def fetch_and_process_sleep_by_dates(
     return count_processed
 
 
-async def retrieve_garminconnect_users_health_for_days(days: int):
+def retrieve_garminconnect_users_health_for_days(days: int):
     # Create a new database session using context manager
     with SessionLocal() as db:
         try:
@@ -463,7 +464,7 @@ async def retrieve_garminconnect_users_health_for_days(days: int):
             for user in users:
                 try:
                     # Get the user's Garmin Connect body composition data
-                    await get_user_garminconnect_health_by_dates(
+                    get_user_garminconnect_health_by_dates(
                         calculated_start_date,
                         calculated_end_date,
                         user.id,
@@ -477,7 +478,7 @@ async def retrieve_garminconnect_users_health_for_days(days: int):
             logger.error(f"Error getting users in retrieve_garminconnect_users_health_for_days: {err}", exc_info=err)
 
 
-async def get_user_garminconnect_health_by_dates(
+def get_user_garminconnect_health_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
@@ -527,8 +528,8 @@ async def get_user_garminconnect_health_by_dates(
             user_integrations_crud.unlink_garminconnect_account(user_id, db)
             notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user_id, db)
             db.commit()
-            await websocket_integration.push_to_user(
-                user_id, {"message": ws_message, "notification_id": notification.id}
+            core_async_bridge.dispatch(
+                websocket_integration.push_to_user(user_id, {"message": ws_message, "notification_id": notification.id})
             )
         except Exception as err:
             logger.error(f"Error in get_user_garminconnect_health_by_dates: {err}", exc_info=err)

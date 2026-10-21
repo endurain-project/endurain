@@ -40,4 +40,10 @@ def upgrade() -> None:
 def downgrade() -> None:
     for column, name in _COLUMNS.items():
         op.drop_constraint(name, "gear", type_="unique")
+        # Two users may now hold the same provider ID; the table-wide constraint allows one
+        # owner, so every later holder loses the link rather than blocking the downgrade.
+        op.execute(
+            f"UPDATE gear SET {column} = NULL WHERE {column} IS NOT NULL AND id NOT IN "  # noqa: S608 - column is from _COLUMNS
+            f"(SELECT min(id) FROM gear WHERE {column} IS NOT NULL GROUP BY {column})"
+        )
         op.create_unique_constraint(None, "gear", [column])

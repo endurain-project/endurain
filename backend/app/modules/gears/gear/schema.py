@@ -63,6 +63,18 @@ def _require_nickname(value: str) -> str:
     return value
 
 
+def normalize_nickname(nickname: str) -> str:
+    """Normalize a nickname for case-insensitive comparison.
+
+    Args:
+        nickname: The nickname to compare.
+
+    Returns:
+        The nickname trimmed and lower-cased, as the unique index compares it.
+    """
+    return str(nickname).lower().strip()
+
+
 #: A nickname trimmed on input; blank is rejected.
 RequiredNickname = Annotated[StrictStr, AfterValidator(_require_nickname)]
 

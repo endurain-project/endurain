@@ -8,7 +8,6 @@ lives in :mod:`modules.gears.gear.integration_service`.
 from collections.abc import Iterable
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
@@ -120,7 +119,7 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
     for gear in gears:
         if gear is None or not str(gear.nickname).strip():
             continue
-        nickname = str(gear.nickname).lower().strip()
+        nickname = gears_schema.normalize_nickname(gear.nickname)
         if nickname in candidates:
             logger.warning(
                 "Skipped a gear whose nickname repeats in the request",
@@ -166,14 +165,14 @@ def edit_gear(
         ConflictError: If the new nickname is already taken.
         PreconditionFailedError: If the gear changed since the client read it.
     """
-    try:
+    with core_etag.refuse_stale_write(
+        db,
+        "gear",
+        lambda: gears_crud.get_gear_user_by_id(user_id, gear_id, db) is not None,
+        "Gear not found",
+    ):
         updated = gears_crud.edit_gear(gear_id, gear, user_id, db, if_match=if_match)
         db.commit()
-    except StaleDataError as err:
-        db.rollback()
-        raise core_etag.stale_write_error(
-            "gear", gears_crud.get_gear_user_by_id(user_id, gear_id, db) is not None, "Gear not found"
-        ) from err
     logger.info("Edited a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
     return updated
 

@@ -1,5 +1,6 @@
 """Sign-up tokens router for user registration."""
 
+import asyncio
 from typing import Annotated
 
 from fastapi import (
@@ -151,10 +152,14 @@ async def verify_email(
             notifications_integration.create_admin_sign_up_approval_notifications, user, db
         )
         await run_in_threadpool(db.commit)
-        for notification, ws_message in notifications:
-            await websocket_integration.push_to_user(
-                notification.user_id, {"message": ws_message, "notification_id": notification.id}
+        await asyncio.gather(
+            *(
+                websocket_integration.push_to_user(
+                    notification.user_id, {"message": ws_message, "notification_id": notification.id}
+                )
+                for notification, ws_message in notifications
             )
+        )
 
     # Return appropriate response based on server configuration
     message = "Email verified successfully."

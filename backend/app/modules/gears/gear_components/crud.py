@@ -1,6 +1,7 @@
 """CRUD operations for gear components."""
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -9,6 +10,26 @@ import core.pagination as core_pagination
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.gears.gear_components.serializers as gear_components_serializers
+
+
+def _find_gear_component_model(
+    gear_component_id: int, user_id: int, db: Session
+) -> gear_components_models.GearComponents | None:
+    """Load a user's component row.
+
+    Args:
+        gear_component_id: Component ID to fetch.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The mapped GearComponents ORM instance, or None if the user has no such component.
+    """
+    stmt = select(gear_components_models.GearComponents).where(
+        gear_components_models.GearComponents.id == gear_component_id,
+        gear_components_models.GearComponents.user_id == user_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def _get_gear_component_model_or_404(
@@ -27,11 +48,7 @@ def _get_gear_component_model_or_404(
     Raises:
         NotFoundError: If the user has no such component.
     """
-    stmt = select(gear_components_models.GearComponents).where(
-        gear_components_models.GearComponents.id == gear_component_id,
-        gear_components_models.GearComponents.user_id == user_id,
-    )
-    db_gear_component = db.execute(stmt).scalar_one_or_none()
+    db_gear_component = _find_gear_component_model(gear_component_id, user_id, db)
     if db_gear_component is None:
         raise core_exceptions.NotFoundError("Gear component not found")
     return db_gear_component
@@ -50,11 +67,7 @@ def get_gear_component_user_by_id(
     Returns:
         The component, or None if the user has no such component.
     """
-    stmt = select(gear_components_models.GearComponents).where(
-        gear_components_models.GearComponents.id == gear_component_id,
-        gear_components_models.GearComponents.user_id == user_id,
-    )
-    row = db.execute(stmt).scalar_one_or_none()
+    row = _find_gear_component_model(gear_component_id, user_id, db)
     return gear_components_serializers.to_read_schema(row) if row is not None else None
 
 
@@ -199,10 +212,17 @@ def create_gear_component(
 
     Returns:
         The staged component with its generated ID.
+
+    Raises:
+        NotFoundError: If the gear was deleted before the component could be stored.
     """
     new_gear_component = gear_components_serializers.to_orm(gear_component, user_id)
-    db.add(new_gear_component)
-    db.flush()
+    try:
+        db.add(new_gear_component)
+        db.flush()
+    except IntegrityError as err:
+        # The only constraint a payload can break is the gear it names, deleted since the caller checked.
+        raise core_exceptions.NotFoundError("Gear not found") from err
     db.refresh(new_gear_component)
     return gear_components_serializers.to_read_schema(new_gear_component)
 

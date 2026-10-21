@@ -18,7 +18,6 @@ import calendar
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.calendar as core_calendar
 import core.etag as core_etag
@@ -659,19 +658,13 @@ def edit_activity(
     gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
     # Only the fields the client actually sent; the CRUD applies the same set.
     changed_fields = [field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id"]
-    try:
+    with core_etag.refuse_stale_write(
+        db,
+        "activity",
+        lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
+        f"Activity {activity_id} not found",
+    ):
         updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
-    except StaleDataError as err:
-        # The row changed between the crud's load (where the precondition was
-        # checked) and the flush.
-        db.rollback()
-        exists = activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None
-        if exists:
-            logger.warning(
-                "Rejected a stale activity edit",
-                extra=core_logger.context(activity_id=activity_id, user_id=user_id),
-            )
-        raise core_etag.stale_write_error("activity", exists, f"Activity {activity_id} not found") from err
     activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
     db.commit()
     logger.info(

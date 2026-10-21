@@ -12,6 +12,10 @@ logger = core_logger.get_logger(__name__)
 # waits forever; a send is a convenience, so give up rather than park the task.
 SEND_TIMEOUT_SECONDS = 5.0
 
+# One user cannot hold more sockets than a few tabs and devices need; past this the
+# oldest is closed, so a script cannot grow the registry or a push's fan-out.
+MAX_CONNECTIONS_PER_USER = 5
+
 
 async def send_json_to_all(websockets: Sequence[WebSocket], message: dict) -> list[BaseException]:
     """
@@ -61,7 +65,15 @@ class WebSocketManager:
             websocket: The WebSocket connection to register.
         """
         await websocket.accept()
-        self.active_connections.setdefault(user_id, []).append(websocket)
+        connections = self.active_connections.setdefault(user_id, [])
+        connections.append(websocket)
+        evicted = connections[:-MAX_CONNECTIONS_PER_USER]
+        del connections[:-MAX_CONNECTIONS_PER_USER]
+        for stale in evicted:
+            try:
+                await asyncio.wait_for(stale.close(code=1008), timeout=SEND_TIMEOUT_SECONDS)
+            except Exception:
+                logger.debug(f"WebSocket eviction close failed for user {user_id}", exc_info=True)
         logger.debug(f"WebSocket connected for user {user_id}")
 
     def disconnect(self, user_id: int, websocket: WebSocket) -> None:

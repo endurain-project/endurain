@@ -36,6 +36,7 @@ import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscri
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
 
 logger = core_logger.get_logger(__name__)
@@ -212,6 +213,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_bus=notifications_subscriber_registry.register_all_notification_bus_subscribers,
         register_durable=notifications_subscriber_registry.register_all_notification_durable_handlers,
         nets=notifications_subscriber_registry.NOTIFICATION_DURABLE_SUBSCRIBER_NETS,
+        recurring_jobs=notifications_scheduled_jobs.recurring_jobs,
     ),
 )
 

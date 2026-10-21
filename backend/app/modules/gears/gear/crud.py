@@ -46,6 +46,24 @@ def _conflict(err: IntegrityError) -> core_exceptions.ConflictError:
     return core_exceptions.ConflictError(_DUPLICATE_EXTERNAL_ID)
 
 
+def _find_gear_model(gear_id: int, user_id: int, db: Session) -> gears_models.Gear | None:
+    """Load a user's gear row.
+
+    Args:
+        gear_id: Gear ID to fetch.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The mapped Gear ORM instance, or None if the user has no such gear.
+    """
+    stmt = select(gears_models.Gear).where(
+        gears_models.Gear.id == gear_id,
+        gears_models.Gear.user_id == user_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
 def _get_gear_model_or_404(gear_id: int, user_id: int, db: Session) -> gears_models.Gear:
     """Load a user's gear row for a write.
 
@@ -60,11 +78,7 @@ def _get_gear_model_or_404(gear_id: int, user_id: int, db: Session) -> gears_mod
     Raises:
         NotFoundError: If the user has no such gear.
     """
-    stmt = select(gears_models.Gear).where(
-        gears_models.Gear.id == gear_id,
-        gears_models.Gear.user_id == user_id,
-    )
-    db_gear = db.execute(stmt).scalar_one_or_none()
+    db_gear = _find_gear_model(gear_id, user_id, db)
     if db_gear is None:
         raise core_exceptions.NotFoundError("Gear not found")
     return db_gear
@@ -81,11 +95,7 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema
     Returns:
         The gear, or None if the user has no such gear.
     """
-    stmt = select(gears_models.Gear).where(
-        gears_models.Gear.user_id == user_id,
-        gears_models.Gear.id == gear_id,
-    )
-    db_gear = db.execute(stmt).scalar_one_or_none()
+    db_gear = _find_gear_model(gear_id, user_id, db)
     return gears_serializers.to_read_schema(db_gear) if db_gear is not None else None
 
 
@@ -116,7 +126,7 @@ def _filter_gears(
     if gear_type is not None:
         stmt = stmt.where(gears_models.Gear.gear_type == gear_type)
     if nickname_contains:
-        pattern = f"%{core_sanitization.escape_like(nickname_contains.lower().strip())}%"
+        pattern = f"%{core_sanitization.escape_like(gears_schema.normalize_nickname(nickname_contains))}%"
         stmt = stmt.where(func.lower(gears_models.Gear.nickname).like(pattern, escape="\\"))
     return stmt
 
@@ -212,9 +222,8 @@ def get_gear_user_by_nickname(user_id: int, nickname: str, db: Session) -> gears
     Returns:
         The gear, or None if there is no match.
     """
-    parsed_nickname = nickname.lower().strip()
     stmt = select(gears_models.Gear).where(
-        func.lower(gears_models.Gear.nickname) == parsed_nickname,
+        func.lower(gears_models.Gear.nickname) == gears_schema.normalize_nickname(nickname),
         gears_models.Gear.user_id == user_id,
     )
     db_gear = db.execute(stmt).scalar_one_or_none()
@@ -238,7 +247,7 @@ def get_existing_nicknames(user_id: int, nicknames: set[str], db: Session) -> se
         gears_models.Gear.user_id == user_id,
         func.lower(gears_models.Gear.nickname).in_(nicknames),
     )
-    return {row[0].lower().strip() for row in db.execute(stmt).all()}
+    return {gears_schema.normalize_nickname(row[0]) for row in db.execute(stmt).all()}
 
 
 def get_gear_by_strava_id_from_user_id(gear_strava_id: str, user_id: int, db: Session) -> gears_schema.GearRead | None:

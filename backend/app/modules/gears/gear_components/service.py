@@ -7,7 +7,6 @@ lives in :mod:`modules.gears.gear_components.integration_service`.
 from datetime import date
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
@@ -34,7 +33,7 @@ def _require_retired_after_purchase(purchase_date: date | None, retired_date: da
     Raises:
         InvalidInputError: If both are given and the retired date is not later.
     """
-    if retired_date is not None and purchase_date is not None and retired_date <= purchase_date:
+    if not gear_components_schema.is_retired_after_purchase(purchase_date, retired_date):
         raise core_exceptions.InvalidInputError("Retired date must be after purchase date")
 
 
@@ -217,18 +216,16 @@ def edit_gear_component(
             raise core_exceptions.NotFoundError("Gear not found")
         _require_type_for_gear(gear, gear_component.type)
 
-    try:
+    with core_etag.refuse_stale_write(
+        db,
+        "gear component",
+        lambda: gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db) is not None,
+        "Gear component not found",
+    ):
         updated = gear_components_crud.edit_gear_component(
             gear_component_id, gear_component, user_id, db, if_match=if_match
         )
         db.commit()
-    except StaleDataError as err:
-        db.rollback()
-        raise core_etag.stale_write_error(
-            "gear component",
-            gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db) is not None,
-            "Gear component not found",
-        ) from err
     logger.info("Edited a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=updated.id))
     return updated
 
