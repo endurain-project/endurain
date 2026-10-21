@@ -257,6 +257,9 @@ def _compute_lap_metrics(
             lap_vel,
             "vel",
         )
+        max_speed = activities_computation.calculate_robust_max(
+            [waypoint["vel"] for waypoint in lap_vel],
+        )
 
     avg_power, max_power, norm_power = None, None, None
     if lap_power:

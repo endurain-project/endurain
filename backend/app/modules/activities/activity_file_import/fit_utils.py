@@ -151,6 +151,9 @@ def create_activity_objects(
                     session_record["vel_waypoints"],
                     "vel",
                 )
+                vel_max = activities_computation.calculate_robust_max(
+                    [waypoint["vel"] for waypoint in session_record["vel_waypoints"]],
+                )
                 if avg_speed is None and vel_avg:
                     avg_speed = vel_avg
                 if max_speed is None and vel_max:

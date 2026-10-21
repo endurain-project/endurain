@@ -5,9 +5,10 @@ package once the Strava adapter needed it too — it is a module-level surface n
 """
 
 import itertools
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
+from geopy.distance import geodesic
 
 from modules.activities.computation import (
     append_if_not_none,
@@ -15,6 +16,7 @@ from modules.activities.computation import (
     calculate_instant_speed,
     calculate_np,
     calculate_pace,
+    calculate_robust_max,
     compute_elevation_gain_and_loss,
     smooth_elevation_stream,
 )
@@ -67,6 +69,40 @@ class TestCalculateInstantSpeed:
             prev_longitude=-9.0,
         )
         assert result > 0
+
+    def test_subsecond_delta_counts_as_one_second(self):
+        start = datetime(2024, 1, 15, 8, 0, 0)
+        distance = geodesic((0.0, 0.0), (0.0, 0.000135)).meters  # ~15 m
+        result = calculate_instant_speed(
+            prev_time=start,
+            waypoint_time=start + timedelta(milliseconds=300),
+            latitude=0.0,
+            longitude=0.000135,
+            prev_latitude=0.0,
+            prev_longitude=0.0,
+        )
+        assert result == pytest.approx(distance)
+        assert 14 < result < 16
+
+
+class TestCalculateRobustMax:
+    def test_empty_returns_zero(self):
+        assert calculate_robust_max([]) == 0
+
+    def test_fewer_than_window_returns_plain_max(self):
+        assert calculate_robust_max([1.0, 9.0, 2.0, 3.0]) == 9.0
+
+    def test_single_spike_is_ignored(self):
+        assert calculate_robust_max([3.0] * 10 + [50.0] + [3.0] * 10) == 3.0
+
+    def test_two_consecutive_spikes_are_ignored(self):
+        assert calculate_robust_max([3.0] * 10 + [50.0, 48.0] + [3.0] * 10) == 3.0
+
+    def test_sustained_fast_stretch_is_reported(self):
+        assert calculate_robust_max([3.0] * 10 + [8.0, 8.0, 8.0] + [3.0] * 10) == 8.0
+
+    def test_trailing_edge_is_not_clamped(self):
+        assert calculate_robust_max([3.0] * 10 + [50.0]) == 3.0
 
 
 class TestComputeElevationGainAndLoss:

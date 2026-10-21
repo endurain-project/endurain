@@ -432,6 +432,9 @@ def _compute_derived_metrics(
             state.vel_waypoints,
             "vel",
         )
+        state.max_speed = activities_computation.calculate_robust_max(
+            [waypoint["vel"] for waypoint in state.vel_waypoints],
+        )
 
     if state.power_waypoints:
         (

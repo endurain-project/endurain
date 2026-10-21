@@ -474,6 +474,75 @@ class TestParseGpxFile:
         assert result["activity"].max_hr is None
 
 
+def _steady_run_gpx(n_points: int, spike_indexes: dict[int, float]) -> str:
+    """Build a ~3 m/s eastbound GPX run with 1 s spacing.
+
+    Args:
+        n_points: Number of trackpoints.
+        spike_indexes: Map of point index to extra longitude offset in degrees.
+
+    Returns:
+        GPX XML text.
+    """
+    step = 0.0000269  # ~3 m at the equator
+    points = []
+    for i in range(n_points):
+        lon = i * step + spike_indexes.get(i, 0.0)
+        points.append(f'<trkpt lat="0.0" lon="{lon:.7f}"><time>2025-01-01T00:00:{i:02d}Z</time></trkpt>')
+    return f'<gpx version="1.1" creator="pytest"><trk><type>Run</type><trkseg>{"".join(points)}</trkseg></trk></gpx>'
+
+
+class TestParseGpxMaxSpeed:
+    """Test suite for max speed robustness against GPS glitches."""
+
+    def test_single_gps_spike_does_not_set_max_speed(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        path = _write_gpx(tmp_path, _steady_run_gpx(30, {15: 0.00045}))  # one fix ~50 m ahead
+
+        result = gpx_utils.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+
+        assert max(w["vel"] for w in result["vel_waypoints"]) > 40
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+
+    def test_two_adjacent_spiked_fixes_are_ignored(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        path = _write_gpx(tmp_path, _steady_run_gpx(30, {15: 0.00045, 16: 0.00045}))
+
+        result = gpx_utils.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+
+    def test_sustained_fast_stretch_is_reported(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        step = 0.0000269
+        lons = [i * step for i in range(15)]
+        for _ in range(4):  # 4 samples at ~9 m/s
+            lons.append(lons[-1] + step * 3)
+        for _ in range(15):
+            lons.append(lons[-1] + step)
+        points = "".join(
+            f'<trkpt lat="0.0" lon="{lon:.7f}"><time>2025-01-01T00:00:{i:02d}Z</time></trkpt>'
+            for i, lon in enumerate(lons)
+        )
+        path = _write_gpx(
+            tmp_path,
+            f'<gpx version="1.1" creator="pytest"><trk><type>Run</type><trkseg>{points}</trkseg></trk></gpx>',
+        )
+
+        result = gpx_utils.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].max_speed == pytest.approx(9, abs=1)
+
+    def test_fewer_than_window_samples_use_plain_max(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        path = _write_gpx(tmp_path, _steady_run_gpx(4, {2: 0.00045}))
+
+        result = gpx_utils.parse_gpx_file(path, user_id=1, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].max_speed == max(w["vel"] for w in result["vel_waypoints"])
+        assert result["activity"].max_speed > 40
+
+
 class TestExtractExtensionData:
     """Test suite for GPX trackpoint extension extraction."""
 
@@ -576,9 +645,9 @@ class TestExtractExtensionData:
 
     """Test suite for instant speed calculations."""
 
-    def test_calculate_instant_speed_preserves_subsecond_precision(self):
+    def test_calculate_instant_speed_treats_subsecond_delta_as_one_second(self):
         """
-        Test speed calculation does not truncate fractional seconds.
+        Test speed calculation divides by at least one second.
         """
         start = datetime(2025, 1, 1, 0, 0, 0)
         end = start + timedelta(milliseconds=500)
@@ -596,4 +665,4 @@ class TestExtractExtensionData:
             0.0,
         )
 
-        assert speed == pytest.approx(expected_distance / 0.5)
+        assert speed == pytest.approx(expected_distance)

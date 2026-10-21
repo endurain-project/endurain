@@ -81,7 +81,9 @@ def calculate_instant_speed(
 
     Returns:
         Instantaneous speed in m/s, or 0 when the time delta is
-        non-positive or ``prev_time`` is missing.
+        non-positive or ``prev_time`` is missing. Deltas shorter than one
+        second count as one second so near-simultaneous fixes cannot inflate
+        the speed.
     """
     if prev_time is None or prev_latitude is None or prev_longitude is None:
         return 0
@@ -95,7 +97,7 @@ def calculate_instant_speed(
         (prev_latitude, prev_longitude),
         (latitude, longitude),
     ).meters
-    return distance / time_difference
+    return distance / max(time_difference, 1)
 
 
 ELEVATION_MEDIAN_WINDOW = 9
@@ -283,6 +285,28 @@ def calculate_avg_and_max(data: list[dict], stream_type: str, exclude_zeros: boo
     max_value = max(values)
 
     return avg_value, max_value
+
+
+def calculate_robust_max(values: list[float], window: int = 5) -> float:
+    """Return the maximum of the sliding-window medians of ``values``.
+
+    A single GPS glitch never becomes the maximum because every candidate is the
+    median of ``window`` consecutive samples. Only full windows are considered;
+    the algorithm mirrors the mobile app so both report the same value.
+
+    Args:
+        values: Samples in chronological order.
+        window: Number of consecutive samples per median.
+
+    Returns:
+        The robust maximum, the plain maximum when fewer than ``window``
+        samples exist, or 0 when ``values`` is empty.
+    """
+    if not values:
+        return 0
+    if len(values) < window:
+        return max(values)
+    return max(statistics.median(values[i : i + window]) for i in range(len(values) - window + 1))
 
 
 def calculate_np(data: list[dict]) -> float:
