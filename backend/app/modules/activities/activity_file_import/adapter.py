@@ -24,6 +24,7 @@ import core.logger as core_logger
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
+import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 
@@ -40,6 +41,21 @@ _STREAM_MAPPING: dict[int, tuple[str, str]] = {
     activity_streams_constants.STREAM_TYPE_MAP: ("is_lat_lon_set", "lat_lon_waypoints"),
     activity_streams_constants.STREAM_TYPE_TEMPERATURE: ("is_temperature_set", "temp_waypoints"),
 }
+
+
+def _stream_waypoints(stream_type: int, waypoints: list) -> list:
+    """Return the waypoints to store, smoothing the elevation stream.
+
+    Args:
+        stream_type: Stream type of the waypoints.
+        waypoints: Raw parsed waypoints.
+
+    Returns:
+        Smoothed waypoints for the elevation stream, unchanged otherwise.
+    """
+    if stream_type == activity_streams_constants.STREAM_TYPE_ELEVATION:
+        return activities_computation.smooth_elevation_stream(waypoints)
+    return waypoints
 
 
 def parsed_info_to_parsed_activity(
@@ -65,7 +81,7 @@ def parsed_info_to_parsed_activity(
     streams = [
         activity_streams_contracts.ParsedStream(
             stream_type=stream_type,
-            stream_waypoints=parsed_info.get(waypoints_key, []),
+            stream_waypoints=_stream_waypoints(stream_type, parsed_info.get(waypoints_key, [])),
         )
         for stream_type, (is_set_key, waypoints_key) in _STREAM_MAPPING.items()
         if parsed_info.get(is_set_key, False)

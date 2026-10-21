@@ -12,6 +12,7 @@ import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.computation as activities_computation
 import modules.gears.gear.crud as gears_crud
@@ -388,7 +389,14 @@ def save_activity_streams_laps(
         The created activity schema.
     """
     parsed_streams = [
-        activity_streams_contracts.ParsedStream(stream_type=stream_type, stream_waypoints=waypoints)
+        activity_streams_contracts.ParsedStream(
+            stream_type=stream_type,
+            stream_waypoints=(
+                activities_computation.smooth_elevation_stream(waypoints)
+                if stream_type == activity_streams_constants.STREAM_TYPE_ELEVATION
+                else waypoints
+            ),
+        )
         for is_set, stream_type, waypoints in (stream_data or [])
         if is_set
     ]

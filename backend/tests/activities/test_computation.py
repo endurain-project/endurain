@@ -4,7 +4,10 @@ The stream maths moved out of the activities core, then out of the parser
 package once the Strava adapter needed it too — it is a module-level surface now.
 """
 
+import itertools
 from datetime import datetime
+
+import pytest
 
 from modules.activities.computation import (
     append_if_not_none,
@@ -13,6 +16,7 @@ from modules.activities.computation import (
     calculate_np,
     calculate_pace,
     compute_elevation_gain_and_loss,
+    smooth_elevation_stream,
 )
 
 
@@ -273,3 +277,26 @@ class TestCalculatePaceAcrossDstAndOffsets:
 
         now = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
         assert computation.calculate_pace(0, now, now) == 0
+
+
+class TestElevationSmoothing:
+    def test_parity_with_mobile_app(self):
+        elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
+        gain, loss = compute_elevation_gain_and_loss([{"ele": e} for e in elevations])
+        assert gain == pytest.approx(22.3956043956, abs=1e-6)
+        assert loss == 0
+
+    def test_stream_smoothing_keeps_time_and_matches_gain(self):
+        elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
+        stream = [{"time": f"t{i}", "ele": e} for i, e in enumerate(elevations)]
+        smoothed = smooth_elevation_stream(stream)
+        assert [w["time"] for w in smoothed] == [w["time"] for w in stream]
+        assert max(abs(b["ele"] - a["ele"]) for a, b in itertools.pairwise(smoothed)) < 1.3
+        gain, _ = compute_elevation_gain_and_loss(stream, median_window=1, avg_window=1)
+        assert gain > 100
+        smoothed_gain, _ = compute_elevation_gain_and_loss(smoothed, median_window=1, avg_window=1)
+        assert smoothed_gain == pytest.approx(22.3956043956, abs=1e-6)
+
+    def test_stream_smoothing_returns_input_on_invalid_data(self):
+        stream = [{"time": "t", "ele": None}]
+        assert smooth_elevation_stream(stream) == stream

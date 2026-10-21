@@ -217,18 +217,11 @@ class TestUtilsFit:
         record = _session_record(None)
         record["session"]["ele_gain"] = None
         record["session"]["ele_loss"] = None
-        # Rise 100 -> 130, then descend to 110 (net +30 gain / +20 loss),
-        # with enough points for the smoothing filters to retain the trend.
+        # Climb 100 -> 200, then descend to 100, long enough for the wider
+        # smoothing windows to retain the trend.
+        eles = list(range(100, 200, 2)) + list(range(200, 100, -2))
         record["ele_waypoints"] = [
-            {"time": "2026-06-20T08:20:00", "ele": 100},
-            {"time": "2026-06-20T08:20:10", "ele": 100},
-            {"time": "2026-06-20T08:20:20", "ele": 110},
-            {"time": "2026-06-20T08:20:30", "ele": 120},
-            {"time": "2026-06-20T08:20:40", "ele": 130},
-            {"time": "2026-06-20T08:20:50", "ele": 130},
-            {"time": "2026-06-20T08:21:00", "ele": 120},
-            {"time": "2026-06-20T08:21:10", "ele": 110},
-            {"time": "2026-06-20T08:21:20", "ele": 110},
+            {"time": f"2026-06-20T08:{i // 6:02d}:{(i % 6) * 10:02d}", "ele": ele} for i, ele in enumerate(eles)
         ]
 
         activities_list = fit_utils.create_activity_objects([record], user_id=1, default_timezone=_SERVER_TZ)
