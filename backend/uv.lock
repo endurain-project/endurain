@@ -829,7 +829,7 @@ wheels = [
 
 [[package]]
 name = "endurain"
-version = "0.20.0b2"
+version = "0.20.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -1338,7 +1338,7 @@ wheels = [
 
 [[package]]
 name = "hatchling"
-version = "1.32.3"
+version = "1.32.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
@@ -1347,9 +1347,9 @@ dependencies = [
     { name = "tomlkit" },
     { name = "trove-classifiers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/62/7f/b20bd29978bec1f2ddd3bbc1cdc5829bb2dd5c1476facd8a84bfe9934c5e/hatchling-1.32.3.tar.gz", hash = "sha256:acdd4436d84d829c6e7ae6df723241d8f0bca9c5bad5a6148bd41f2ea6b8a792", size = 58154, upload-time = "2026-09-17T20:05:11.675Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/97/b5312f01a8c6daf729a9d272dd442e0c546dbcc630495788786c4b567ed0/hatchling-1.32.4.tar.gz", hash = "sha256:c4468f73144c054d2aab4ef0f0378c43b9878bf07f8ffd6b79690e970d375f07", size = 58065, upload-time = "2026-09-20T22:48:45.398Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/89/268c7e4b2bcf2071047366c4c3b4b0e89f640e13ea7bfdaf1df6c40e5140/hatchling-1.32.3-py3-none-any.whl", hash = "sha256:d05b350af5d9aa5bf7b34b434a45a742b99e67d0b48ea67d240cfeab98e13945", size = 78895, upload-time = "2026-09-17T20:05:10.38Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/80/91f51f439c05d4ec4623c22928ce16a938d6d793bf709477830823497859/hatchling-1.32.4-py3-none-any.whl", hash = "sha256:08ecf7548fb48205e7f213d70c71e67b8271b7242093dc3f1da578b42c734a2c", size = 78748, upload-time = "2026-09-20T22:48:44.19Z" },
 ]
 
 [[package]]
@@ -3128,11 +3128,11 @@ wheels = [
 
 [[package]]
 name = "ua-generator"
-version = "2.1.5"
+version = "2.1.6"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b1/f9/82e8fa5c8ba85682cdc88330b48b025dc8b5d7ed736eee98846fc7a6dff9/ua_generator-2.1.5.tar.gz", hash = "sha256:d2c7005e9972a51ad373350542d67a205b749b9f58beee6835f0b63fbe15bba3", size = 29812, upload-time = "2026-09-13T13:38:03.358Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/dc/48/ce6900f0e88e2158d137272820e47cf312fc691a9c26c9b447d79c3b31d3/ua_generator-2.1.6.tar.gz", hash = "sha256:532b8769f3dbb914b5ace2846a47cdfa2b3a2d17a9c82cfef53d19280045b18e", size = 29805, upload-time = "2026-09-20T14:40:42.639Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/fe/10d7cd9ac7ab27900b0f667f8635d0f1f365bd31f0843b9c2f6cff88c0ea/ua_generator-2.1.5-py3-none-any.whl", hash = "sha256:2bb932bf1df8d806f33a65d87c5974e75e69106f147399aa4b17b1b11235009e", size = 32869, upload-time = "2026-09-13T13:38:02.288Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/03/d6ac97d7010451c43679c3efc46ff6b9e149cb3293ff93cf65f30fa58a54/ua_generator-2.1.6-py3-none-any.whl", hash = "sha256:877285e6adab3d6b0f9b295d954d121fc21a0305be8526038218e8f08be76df6", size = 32891, upload-time = "2026-09-20T14:40:41.391Z" },
 ]
 
 [[package]]
@@ -3229,7 +3229,7 @@ wheels = [
 
 [[package]]
 name = "virtualenv"
-version = "21.7.16"
+version = "21.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
@@ -3237,9 +3237,9 @@ dependencies = [
     { name = "platformdirs" },
     { name = "python-discovery" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/45/2b/f7ec483cb56fc84cab8676971b171156111cd125d069ca02fdaf0239f3e5/virtualenv-21.7.16.tar.gz", hash = "sha256:d3fcf6954a07121c2b61efcb96419e2f40b3718d558998f13a7314e32cc42723", size = 5363081, upload-time = "2026-09-19T06:59:08.339Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/5d/42254e91a9203a13d95ab4f5211f4cdda52b82fc3546340f7fb33a642173/virtualenv-21.9.0.tar.gz", hash = "sha256:fa0f2a26fcb6f32b376fc8b2c705b6057366763d5b9e5242d1ab10ecc3279fd3", size = 5372770, upload-time = "2026-09-20T00:29:19.843Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c7/46/a02c0bb29e6102616aa91d68a5e3f055393d92353d94b52ad6c51d540c20/virtualenv-21.7.16-py3-none-any.whl", hash = "sha256:752fd5d5352502fbd794422983eed65a249fc6f4685c5e2122fd6052e6477a11", size = 5330278, upload-time = "2026-09-19T06:59:06.096Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/e5/9446b7a2a3d73de5f9fcf8f825efe78b071b111729e89f4ac07649b9448b/virtualenv-21.9.0-py3-none-any.whl", hash = "sha256:8c7cde05f630fbedf61758258014a92e6d6d5b4b9c6e6be7279d233f89e09aac", size = 5477625, upload-time = "2026-09-20T00:29:18.065Z" },
 ]
 
 [[package]]
