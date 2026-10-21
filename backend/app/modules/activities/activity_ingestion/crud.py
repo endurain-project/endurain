@@ -190,6 +190,21 @@ def get_job_for_idempotency(
     return (activity_ingestion_serializers.to_read_schema(orm_job), orm_job.request_fingerprint) if orm_job else None
 
 
+def release_idempotency_key(job_id: str, db: Session) -> None:
+    """Stage freeing a job's idempotency key so a new request can use it (not committed).
+
+    The job row stays, so its history is intact; only the key (and the fingerprint
+    that guarded it) is dropped.
+
+    Args:
+        job_id: The job identifier.
+        db: Database session.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    db.execute(update(model).where(model.id == job_id).values(idempotency_key=None, request_fingerprint=None))
+    db.flush()
+
+
 def get_job_owner(job_id: str, db: Session) -> int | None:
     """Read the owner of a job, for the background executor.
 

@@ -29,6 +29,7 @@ import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.crud as activity_ingestion_crud
 import modules.activities.activity_ingestion.dispatch_service as activity_ingestion_dispatch_service
@@ -64,6 +65,25 @@ def error_code_for(error: Exception) -> activity_ingestion_constants.IngestionJo
     return activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED
 
 
+def _created_activities_are_gone(job: activity_ingestion_schema.ActivityIngestionJobRead, db: Session) -> bool:
+    """Whether a finished import's result no longer exists.
+
+    A key stands for "this upload was done". Once every activity the import
+    created has been deleted, that is no longer true, and replaying the job would
+    report a success that left nothing behind.
+
+    Args:
+        job: The job the key was accepted with.
+        db: Database session.
+
+    Returns:
+        True when the job completed having created activities and none remain.
+    """
+    if job.status != activity_ingestion_constants.IngestionJobStatus.COMPLETED or not job.activity_ids:
+        return False
+    return not activity_integration.filter_existing_activity_ids(job.activity_ids, db)
+
+
 def accept_upload(
     token_user_id: int,
     filename: str | None,
@@ -85,6 +105,10 @@ def accept_upload(
     file has been stored and parsed — the key short-circuits before either, so a
     client retrying on a flaky connection does not pay for a second 200 MiB
     storage write and a second parse.
+
+    A key is released once every activity its job created has been deleted, so
+    the same file can be uploaded again under it instead of replaying a success
+    that left nothing behind.
 
     Reusing a key for *different* content is rejected rather than answered with
     the first job: silently returning it would tell the client the second file
@@ -117,6 +141,15 @@ def accept_upload(
             prior = activity_ingestion_crud.get_job_for_idempotency(
                 idempotency_key, token_user_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, db
             )
+            if prior is not None and _created_activities_are_gone(prior[0], db):
+                # Staged here and committed with the new job below, so the key
+                # is never left free without a job holding it.
+                activity_ingestion_crud.release_idempotency_key(prior[0].id, db)
+                logger.info(
+                    "Released the idempotency key of an upload whose activities were deleted",
+                    extra=core_logger.context(user_id=token_user_id, job_id=prior[0].id),
+                )
+                prior = None
         except Exception:
             # The upload is on local disk and nothing else will remove it.
             activity_ingestion_upload_entry_service.discard_received_upload(received)

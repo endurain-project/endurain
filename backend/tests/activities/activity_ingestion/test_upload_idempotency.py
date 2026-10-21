@@ -125,6 +125,69 @@ class TestKeyReuseWithDifferentContent:
         assert core_exceptions.ConflictError.status_code == 409
 
 
+class TestDeletedActivities:
+    def _accept(self, original, existing_ids):
+        db = MagicMock()
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(
+                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received()
+            ),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud,
+                "get_job_for_idempotency",
+                return_value=(original, "hash-of-this-file"),
+            ),
+            patch.object(
+                ingestion_jobs.activity_integration, "filter_existing_activity_ids", return_value=existing_ids
+            ) as existing,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "release_idempotency_key") as release,
+            patch.object(
+                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job"),
+            patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "commit_or_publish"),
+            patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "run_in_background"),
+        ):
+            ingestion_jobs.accept_upload(7, *_upload(), "storage", db, idempotency_key="key-1")
+        return existing, release, create
+
+    @staticmethod
+    def _job(status, activity_ids):
+        return MagicMock(id="job-1", status=status, activity_ids=activity_ids)
+
+    def test_the_key_is_released_and_the_file_imported_again(self):
+        original = self._job(activity_ingestion_constants.IngestionJobStatus.COMPLETED, [1, 2])
+        _, release, create = self._accept(original, set())
+
+        release.assert_called_once_with("job-1", ANY)
+        create.assert_called_once()
+
+    def test_a_surviving_activity_keeps_the_replay(self):
+        original = self._job(activity_ingestion_constants.IngestionJobStatus.COMPLETED, [1, 2])
+        _, release, create = self._accept(original, {2})
+
+        release.assert_not_called()
+        create.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("status", "activity_ids"),
+        [
+            (activity_ingestion_constants.IngestionJobStatus.PENDING, None),
+            (activity_ingestion_constants.IngestionJobStatus.FAILED, None),
+            (activity_ingestion_constants.IngestionJobStatus.COMPLETED, []),
+        ],
+    )
+    def test_a_job_that_created_nothing_is_not_checked(self, status, activity_ids):
+        existing, release, create = self._accept(self._job(status, activity_ids), set())
+
+        existing.assert_not_called()
+        release.assert_not_called()
+        create.assert_not_called()
+
+
 class TestConcurrentSameKey:
     def test_the_loser_reports_the_winners_job(self):
         """The constraint decides, not the read-then-write check above it."""
