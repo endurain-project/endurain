@@ -14,7 +14,6 @@ import modules.auth.identity_service as auth_identity_service
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.router as profile_router
-import modules.websocket.manager as websocket_manager
 
 
 class FakeMFASecretStore:
@@ -49,11 +48,6 @@ def mock_identity_service() -> MagicMock:
 
 
 @pytest.fixture
-def mock_ws_manager() -> MagicMock:
-    return MagicMock()
-
-
-@pytest.fixture
 def redirect_app(local_mock_db) -> FastAPI:
     app = FastAPI()
 
@@ -77,7 +71,6 @@ def profile_app(
     local_mock_db,
     fake_mfa_secret_store,
     mock_identity_service,
-    mock_ws_manager,
 ) -> FastAPI:
     app = FastAPI()
 
@@ -91,7 +84,6 @@ def profile_app(
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "session-1"
     app.dependency_overrides[auth_identity_service.get_identity_service] = lambda: mock_identity_service
     app.dependency_overrides[auth_mfa_setup_store.get_mfa_secret_store] = lambda: fake_mfa_secret_store
-    app.dependency_overrides[websocket_manager.get_websocket_manager] = lambda: mock_ws_manager
 
     return app
 

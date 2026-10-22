@@ -46,7 +46,6 @@ import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.export_service as profile_export_service
 import modules.users.users_profile.import_service as profile_import_service
 import modules.users.users_profile.utils as profile_utils
-import modules.websocket.manager as websocket_manager
 
 logger = core_logger.get_logger(__name__)
 
@@ -613,10 +612,6 @@ async def import_profile_data(
         Depends(auth_dependencies.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
-    websocket_manager: Annotated[
-        websocket_manager.WebSocketManager,
-        Depends(websocket_manager.get_websocket_manager),
-    ],
 ) -> dict:
     """
     Import profile data from ZIP with security validation.
@@ -625,7 +620,6 @@ async def import_profile_data(
         file: ZIP file containing profile data.
         token_user_id: User ID from access token.
         db: Database session.
-        websocket_manager: WebSocket manager for updates.
 
     Returns:
         Import results with counts of imported items.
@@ -641,7 +635,7 @@ async def import_profile_data(
         zip_data = await file.read()
 
         # Create import service and process the data
-        import_service = profile_import_service.ImportService(token_user_id, db, websocket_manager)
+        import_service = profile_import_service.ImportService(token_user_id, db)
         result = await import_service.import_from_zip_data(zip_data)
 
         logger.info(f"Successfully imported profile data for user {token_user_id}: {result['imported']}")

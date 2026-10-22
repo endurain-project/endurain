@@ -33,6 +33,17 @@ class TestDeploymentShape:
         assert result.events_uri is None
         assert result.lock_uri is None
 
+    def test_the_realtime_channel_is_endurain_s_own(self):
+        # Pub/Sub channels are server-wide: jasil's shared default would cross hints with
+        # any other jasil application on the same Redis server.
+        assert build_jasil_settings(core_config.Settings(_env_file=None)).realtime_channel == "endurain:realtime"
+
+    def test_realtime_follows_the_events_uri(self):
+        result = build_jasil_settings(_distributed())
+
+        assert result.realtime_uri is None
+        assert result.resolved_realtime_uri == result.resolved_events_uri == "redis://shared:6379/0"
+
     def test_profile_and_worker_count_carried_over(self):
         result = build_jasil_settings(_distributed(WEB_WORKERS=4))
 

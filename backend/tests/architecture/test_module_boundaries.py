@@ -94,14 +94,7 @@ _INTRA_MODULE_SEAMS: dict[tuple[str, str], str] = {}
 
 #: Reaches past a module's surface from outside it, as
 #: ``(importer module path, imported glob): reason``.
-_INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {
-    ("modules.users.users_profile.import_service", "manager"): (
-        "ImportService still takes a websocket manager it no longer uses; removed with the users conversion."
-    ),
-    ("modules.users.users_profile.router", "manager"): (
-        "Passes that unused manager to ImportService; removed with the users conversion."
-    ),
-}
+_INBOUND_EXCEPTIONS: dict[tuple[str, str], str] = {}
 
 #: The callables that build a ``ProfileActivityContributor``: the dataclass itself,
 #: and the shared factory the plain child collections go through. Both take the

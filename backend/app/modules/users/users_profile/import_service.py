@@ -52,7 +52,6 @@ import modules.users.users_integrations.schema as users_integrations_schema
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_profile.utils as profile_utils
-import modules.websocket.manager as websocket_manager
 from modules.users.users_profile.exceptions import (
     ActivityLimitError,
     FileFormatError,
@@ -149,7 +148,6 @@ class ImportService:
     Attributes:
         user_id: ID of user to import data for.
         db: Database session.
-        websocket_manager: WebSocket manager for updates.
         counts: Dictionary tracking imported item counts.
         performance_config: Performance configuration.
     """
@@ -158,12 +156,10 @@ class ImportService:
         self,
         user_id: int,
         db: Session,
-        websocket_manager: websocket_manager.WebSocketManager,
         performance_config: ImportPerformanceConfig | None = None,
     ):
         self.user_id = user_id
         self.db = db
-        self.websocket_manager = websocket_manager
         self.counts = profile_utils.initialize_operation_counts(include_user_count=False)
         self.performance_config: ImportPerformanceConfig = (
             performance_config or ImportPerformanceConfig.get_auto_config()

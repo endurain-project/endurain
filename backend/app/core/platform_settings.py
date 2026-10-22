@@ -20,6 +20,9 @@ import jasil.settings as jasil_settings
 
 import core.config as core_config
 
+#: The Redis Pub/Sub channel carrying realtime hints, namespaced to Endurain.
+REALTIME_CHANNEL = "endurain:realtime"
+
 
 def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.JasilSettings:
     """Build the substrate configuration from the application settings.
@@ -39,6 +42,8 @@ def build_jasil_settings(settings: core_config.Settings) -> jasil_settings.Jasil
         storage_uri=settings.substrate_storage_uri,
         events_uri=settings.substrate_events_uri,
         lock_uri=settings.substrate_lock_uri,
+        # Redis Pub/Sub channels are server-wide, so a deployment names its own.
+        realtime_channel=REALTIME_CHANNEL,
         jobs=_build_job_settings(settings),
         job_worker_mode=settings.job_worker_mode,
         event_log=jasil_settings.EventLogSettings(
