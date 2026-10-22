@@ -7,6 +7,7 @@ import {
   activityTypeIsJumpRope,
   activityTypeIsRunning,
   activityTypeIsSailing,
+  activityTypeIsSwimming,
   activityTypeIsWindsurf,
   activityTypeUsesPace,
 } from './activityType'
@@ -50,15 +51,16 @@ function has(value: number | null | undefined): value is number {
 }
 
 /**
- * Builds the curated summary metric tiles for an activity, mirroring v1: at most
- * six type-specific stats for distance-based activities, and just calories/time/
- * avg-HR for non-distance sessions (gym/strength/racquet). Privacy-hidden stats
- * are omitted for the current viewer.
+ * Builds the summary metric tiles for an activity. Distance sports keep their
+ * pace or speed, and also show heart rate and elevation when those aggregates
+ * are already stored. Swimming does not get an elevation tile. Non-distance
+ * sessions (gym/strength/racquet) stay calories, time, and average heart rate.
+ * Privacy-hidden stats and missing aggregates are omitted.
  *
  * @param activity - The activity domain model.
  * @param units - The user's unit system.
  * @param visibility - Which privacy-gated metrics the viewer may see.
- * @returns The ordered tiles to render (≤ 6 for distance activities, 3 otherwise).
+ * @returns The ordered tiles to render.
  */
 export function buildActivityMetrics(
   activity: Activity,
@@ -185,7 +187,8 @@ export function buildActivityMetrics(
     return tiles
   }
 
-  // Distance-based: up to six type-curated stats, starting with distance + time.
+  // Distance-based, starting with distance and time. Heart rate and elevation
+  // follow when the activity stored them, including on a walk or hike.
   const distance = formatDistance(activity.distance, type, units)
   tiles.push({
     key: 'distance',
@@ -197,28 +200,36 @@ export function buildActivityMetrics(
   pushTime()
 
   if (activityTypeIsCycling(type)) {
-    // distance, time, elevation gain, avg power, avg speed, calories
+    // distance, time, elevation, power, speed, heart rate, calories
     pushElevationGain()
     pushAvgPower()
     pushAvgSpeed()
+    pushAvgHr()
+    pushMaxHr()
     pushCalories()
   } else if (activityTypeIsRunning(type)) {
-    // distance, time, pace, avg power, elevation gain, calories
+    // distance, time, pace, power, elevation, heart rate, calories
     pushPace()
     pushAvgPower()
     pushElevationGain()
+    pushAvgHr()
+    pushMaxHr()
     pushCalories()
   } else if (activityTypeIsWindsurf(type) || activityTypeIsSailing(type)) {
-    // distance, time, avg speed, avg HR, max HR, calories
+    // distance, time, speed, heart rate, elevation, calories
     pushAvgSpeed()
     pushAvgHr()
     pushMaxHr()
+    pushElevationGain()
     pushCalories()
   } else {
-    // swimming/walking/hiking/rowing/…: distance, time, pace, avg HR, max HR, calories
+    // swimming/walking/hiking/rowing/…: distance, time, pace, heart rate, elevation, calories
     pushPace()
     pushAvgHr()
     pushMaxHr()
+    if (!activityTypeIsSwimming(type)) {
+      pushElevationGain()
+    }
     pushCalories()
   }
 
