@@ -1239,7 +1239,13 @@ def update_activity_location(
                 activity_models.Activity.city.is_(None),
                 activity_models.Activity.town.is_(None),
             )
-            .values(city=city, town=town, country=country)
+            .values(
+                city=city,
+                town=town,
+                # A later lookup that names a city but no country must not wipe
+                # the country already stored on the row.
+                country=country if country is not None else activity_models.Activity.country,
+            )
         ),
     )
     db.flush()

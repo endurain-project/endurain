@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
+# Matches activities.tracker_manufacturer and activities.tracker_model.
+_MAX_NAME_LENGTH = 250
+
 # Exporters, not the wearable that recorded the activity.
 _IGNORED_NAMES = frozenset(
     {
@@ -41,8 +44,8 @@ def split_device_name(raw: str | None) -> tuple[str | None, str | None]:
         return None, None
     manufacturer, _, model = name.partition(" ")
     if not model:
-        return None, manufacturer
-    return manufacturer, model
+        return None, manufacturer[:_MAX_NAME_LENGTH]
+    return manufacturer[:_MAX_NAME_LENGTH], model[:_MAX_NAME_LENGTH]
 
 
 def tcx_creator_name(path: str) -> str | None:
@@ -61,7 +64,17 @@ def tcx_creator_name(path: str) -> str | None:
     for element in root.iter():
         if element.tag.rsplit("}", 1)[-1] != "Creator":
             continue
+        if _creator_type(element) == "application_t":
+            continue
         for child in list(element):
             if child.tag.rsplit("}", 1)[-1] == "Name" and child.text and child.text.strip():
                 return child.text.strip()
     return None
+
+
+def _creator_type(element: ET.Element) -> str:
+    """The TCX creator ``xsi:type``, such as ``Device_t`` or ``Application_t``."""
+    for key, value in element.attrib.items():
+        if key.rsplit("}", 1)[-1] == "type" and value and value.strip():
+            return value.strip().casefold()
+    return ""

@@ -162,9 +162,18 @@ def backfill_missing_activity_locations(
             if location is None or not (location.city or location.town or location.country):
                 unresolved.append(ref.id)
                 continue
-            # Country alone is not a settlement. Defer so a village that Nominatim
-            # did not name is not looked up on every pass.
+            # Country alone is not a settlement. Store it, then defer, so the
+            # header can show the country and a later lookup can still add a city.
             if not (location.city or location.town):
+                if location.country and activity_integration.set_activity_location(
+                    ref.id,
+                    None,
+                    None,
+                    location.country,
+                    db,
+                ):
+                    db.commit()
+                    stored += 1
                 unresolved.append(ref.id)
                 continue
             if activity_integration.set_activity_location(

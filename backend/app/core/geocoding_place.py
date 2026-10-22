@@ -10,7 +10,8 @@ from __future__ import annotations
 from jasil.providers import GeocodedPlace
 
 # First inhabited place Nominatim (and the geocode.maps.co copy of it) may use.
-_SETTLEMENT_KEYS = ("city", "town", "village", "municipality", "hamlet", "locality", "suburb")
+# A suburb is a district, not a settlement, so it is not promoted to a city.
+_SETTLEMENT_KEYS = ("city", "town", "village", "municipality", "hamlet", "locality")
 
 
 def _address(service: str, payload: dict) -> dict:
